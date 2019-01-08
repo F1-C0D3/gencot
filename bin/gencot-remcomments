@@ -1,0 +1,8 @@
+#! /bin/csh -f
+
+# Remove comments from a C source, retaining all preprocessor directives.
+# This is a filter from stdin to stdout.
+
+sed -e 's/^\([[:blank:]]*\)#define/\1_#define/; s/^\([[:blank:]]*\)#undef/_\1#undef/' \
+| cpp -fpreprocessed \
+| sed -e 's/^\([[:blank:]]*\)_#define/\1#define/; s/^\([[:blank:]]*\)_#undef/\1#undef/'

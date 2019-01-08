@@ -1,0 +1,49 @@
+#! /bin/csh -f
+
+# Select preprocessor directives from a C source, retaining their line positions.
+# Line directives are expanded.
+# This is a filter from stdin to stdout.
+
+awk \
+'BEGIN { \
+   lnr = 0 \
+   cont = 0 \
+ } \
+ { lnr++ \
+   if ($0 ~ /[[:blank:]]*#/) { \
+     if ($0 ~ /^[[:blank:]]*#[[:blank:]]*[[:digit:]]+/) { \
+       gsub(/^[[:blank:]]*#[[:blank:]]*/, "# ") \
+       $0 = $0 \
+       for (i=lnr; i < $2; i++) printf("\n") \
+       lnr = $2 - 1 \
+     } \
+     else { \
+       print \
+       if ($0 ~ /\\$/) cont = 1 \
+       else cont = 0 \
+     } \
+   } \
+   else if (cont) { \
+     print \
+     if ($0 ~ /\\$/) cont = 1 \
+     else cont = 0 \
+   } \
+   else printf("\n") \
+ }'
+
+# documentation:
+# 
+# Implementation in awk:
+# - Lines are counted in lnr, its value is the number of the current line in the line rule.
+# - An include directive may be written with or without whitespace before and after the include keyword and at
+#   the beginning of the line. Thus the regular expressions 
+#     /^[[:blank:]]*#/
+#     /^[[:blank:]]*#[[:blank:]]*[[:digit:]]+/
+#   match all directives or all line directives, respectively.
+# - A matched line directive is normalized by creating the form where there is only one space after #.
+#   The statement $0 = $0 is used to reprocess the input line so that the line number is in field $2.
+#   Then it is expanded by emitting empty lines instead of the line directive.
+# - cont is a boolean variable which tells whether the next line is a continuation line for the
+#   same directive. It is set according to whether there is a backslash at the end of the previous line.
+#   This is detected by matching the line with the regular expression /\\$/.
+# - we assume that line directives are never continued in successive lines.

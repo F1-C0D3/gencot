@@ -1,0 +1,81 @@
+#! /bin/csh -f
+
+# Select comments from a C source, retaining their line positions.
+# In a line, comments surrounded by other code are removed.
+# All other code in a line is then replaced by the separator sequence |*/_*/
+# This is a filter from stdin to stdout.
+
+awk \
+'BEGIN { separator = "\n*/_"; state = 1 } \
+ { before = "" \
+   rest = $0 \
+   while (1) { \
+     switch (state) { \
+     case 1: pos = match(rest, /[^[:blank:]]/) \
+       if (pos == 0) { print(before); state = 1; next } \
+       else { code = substr(rest,pos) \
+         if (code ~ /^\/\*/) { before = before substr(rest,1,pos+1); rest = substr(rest,pos+2); state = 2 } \
+         else if (code ~ /^\/\//) { print(before rest); state = 1; next } \
+         else { before = before separator; after = ""; rest = substr(rest,pos+1); state = 3 } \
+       } \
+       break \
+     case 2: pos = index(rest,"*/") \
+       if (pos == 0) { print(before rest); state = 2; next } \
+       else { before = before substr(rest,1,pos+1); rest = substr(rest,pos+2); state = 1 } \
+       break \
+     case 3: pos = match(rest, /\/\*|\/\//) \
+       if (pos == 0) { print(before separator); state = 1; next } \
+       else { code = substr(rest,pos) \
+         if (code ~ /^\/\*/) { after = after "/*"; rest = substr(code,3); state = 4 } \
+         else { print(before code separator); state = 1; next } \
+       } \
+       break \
+     case 4: pos = index(rest,"*/") \
+       if (pos == 0) { print(before after rest); state = 6; next } \
+       else { after = after substr(rest,1,pos+1); rest = substr(rest,pos+2); state = 5 } \
+       break \
+     case 5: pos = match(rest, /[^[:blank:]]/) \
+       if (pos == 0) { print(before after separator); state = 1; next } \
+       else { code = substr(rest,pos) \
+         if (code ~ /^\/\*/) { after = after substr(rest,1,pos+1); rest = substr(rest,pos+2); state = 4 } \
+         else if (code ~ /^\/\//) { print(before after rest separator); state = 1; next } \
+         else { after = ""; rest = substr(rest,pos+1); state = 3 } \
+       } \
+       break \
+     case 6: pos = index(rest,"*/") \
+       if (pos == 0) { print(rest); state = 6; next } \
+       else { before = substr(rest,1,pos+1) separator; rest = substr(rest,pos+2); state = 1 } \
+       break \
+     } \
+   } \
+}'
+
+# documentation:
+# 
+# The implementation is based on the finite state machine described in the Gencot development 
+# report. The states are represented by integer values:
+#   1: nocode
+#   2: nocode-inblock
+#   3: code
+#   4: code-inblock
+#   5: code-afterblock
+#   6: aftercode-inblock
+#
+# Implementation in awk:
+# - The current position in a line is maintained by storing the remaining part in the variable rest.
+# - In states nocode and code-afterblock pos is set to the position of the next non-whitespace character
+#   using match with pattern /[^[:blank:]]/. Then pos == 0 corresponds to end-of-line. Otherwise 
+#   code is set to the part starting at pos. If code matches the pattern /^\/\*/ it starts with "/*",
+#   this corresponds to block-comment-start. If code matches the pattern /^\/\// it starts with "//",
+#   this corresponds to line-coment-start. Otherwise, it starts with code which is not part of a comment.
+# - In states nocode-inblock, code-inblock and aftercode-inblock pos is set to the position of the next "*/" using index.
+#   If pos == 0 this corresponds to end-of-line. Otherwise it corresponds to block-comment-end.
+# - In state code pos is set to the next match of either "/*" or "//" using match with pattern /\/\*|\/\//.
+#   If pos == 0 this corresponds to end-of-line. Otherwise code is set to the part starting at pos.
+#   If code starts with "/*" this corresponds to block-comment-start, otherwise it corresponds to
+#   line-comment-start.
+# - Every case of input in a state either outputs the processed line and switches to the next line,
+#   or it advances the current position in the line by setting variable rest to the rest of the line
+#   to be processed.
+# - To switch to the next line the awk statement next is used. Otherwise a common statement break
+#   ends the current case and starts the next iteration for processing the rest of the line.

@@ -1,0 +1,70 @@
+#! /bin/csh -f
+
+# Merge selected comments into a marked Cogent source.
+# This is a filter from stdin to stdout with an additional filename argument.
+# The argument file must contain output of gencot-selcomments.
+
+if ( $#argv != 1) then
+  echo "Error: Single file name expected as argument."
+  exit 0
+endif
+
+awk \
+'BEGIN { \
+   cfile = ARGV[1]; delete ARGV[1] \
+   bef = 1; lnr = 0; unit = ""; ustart = 1 \
+   while ((getline cline < cfile) > 0) { \
+     if (cline ~ /^\*\/_/) { \
+       if (bef) before[alnr = lnr] = unit \
+       else after[alnr] = unit \
+       unit = substr(cline,4) \
+       if (unit == "") ustart = 1 \
+       bef = 1 - bef \
+     } \
+     else { lnr++ \
+       if (ustart) { unit = cline; ustart = 0 } \
+       else { unit = unit "\n" cline } \
+     } \
+   } \
+   close(cfile) \
+ } \
+ { \
+   if ($1 == "#ORIGIN") { \
+     getline hline \
+     if (NF == 2) { print before[$2] hline } \
+     else { print before[$2] hline after[$3] } \
+   } \
+   else if ($1 == "#ENDORIG") { \
+     getline hline \
+     print hline after[$2] \
+   } \
+   else { print $0 } \
+ }' $1
+
+# documentation:
+#
+# In the BEGIN rule we read the comment units into the arrays before and after. The first unit is
+# stored in before, then we switch whenever we find the separator */_ at the beginning of a line.
+# The current array to be used is specified by the boolean variable bef.
+# 
+# All units are collected in variable unit until the separator occurs. Before-units are stored
+# in the element indexed by the current line number lnr of the separator. This line number is stored
+# in alnr and used as index for storing the following after-unit.
+#
+# The line number lnr is only counted for lines without separator, since the newline immediately before
+# the separator is a part of the separator and must not be counted.
+#
+# Variable ustart is used to avoid inserting a newline at the start of a unit. 
+# 
+# In the line rule we always print a single group consisting of a before-unit, target code, and 
+# after-unit. The print statement appends a newline to the group. Therefore, in the output, a
+# before-unit always starts in a new line, even if in the original source it started in the same
+# line after the previous after-unit.
+#
+# Implementation in awk:
+# - The filename argument for the comment file must be copied and removed from the argument list ARGV
+#   to prevent its processing as normal input to awk. The comment file is explicitly read by getline.
+# - The presence of the separator at the beginning of a line is tested by matching each line with the 
+#   pattern /^\*\/_/. If present it is omitted by using substr(cline,4) which starts after the 
+#   separator.
+# - If a marker has been found the following line is read into variable hline with the awk getline statement.

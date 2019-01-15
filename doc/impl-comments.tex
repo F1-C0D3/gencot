@@ -1,0 +1,203 @@
+
+In a first step all comments are removed from the C source file and are written to a separate file. The remaining 
+C code is processed by Gencot. In a final step the comments are reinserted into the generated code.
+
+Additional steps are used to move comments from declarations to definitions.
+
+\subsection{Filters and Positions}
+
+The filter \code{gencot-selcomments} selects all comments from the input, translates them to Cogent comments and writes 
+them to the output.
+The filter \code{gencot-remcomments} removes all comments from the input and writes the remaining code to the output.
+The filter \code{gencot-mrgcomments <file>} merges the comments in \code{<file>} into the input and writes the
+merged code to the output. <file> must contain the output of \code{gencot-selcomments} applied to a code X, the 
+input must have been generated from the output of \code{gencot-remcomments} applied to the same code X.
+
+To be merged, it must be possible to relate the comments to the generated target code parts. The general approach is
+to insert markers in the input of \code{gencot-mrgcomments}. The markers have one of the following forms, each in 
+a single separate line:
+\begin{verbatim}
+  #ORIGIN <bline>
+  #ORIGIN <bline> <aline>
+  #ENDORIG <aline>
+\end{verbatim}
+where \code{<bline>} and \code{<aline>} are line numbers.
+An \code{\#ORIGIN} marker tells \code{gencot-mrgcomments} to prepend to the following line the before-unit of original 
+source line \code{<bline>}. If \code{<aline>} is present it tells to append to the following line the after-unit of original 
+source line \code{<aline>}. An \code{\#ENDORIG} marker tells \code{gencot-mrgcomments} to append to the \textit{previous}
+line the after-unit of original source line \code{<aline>}. Thus, by surrounding a target code part with an \code{\#ORIGIN} and
+\code{\#ENDORIG} marker the comments are placed as intended.
+
+Several markers affect the same line, if they are placed in lines immediately following each other. All such \code{\#ORIGIN}
+markers affect the next following line without a marker, all such \code{\#ENDORIG} markers affect the previous line without
+a marker. If several \code{\#ORIGIN} markers affect the same line, \code{<aline>} specifications are ignored in all but
+the last marker. An \code{\#ORIGIN} marker line must not be followed immediately by an \code{\#ENDORIG} marker line.
+
+If a line is affected by several markers, the corresponding comment units are concatenated in the order of the markers.
+Before-units are concatenated without any separator. After-units are separated by a newline to end possibly trailing
+line comments.
+
+The filters \code{gencot-selcomments} and \code{gencot-remcomments} never delete lines, hence in their output the original line
+numbers can still be determined.
+
+To distinguish before-units and after-units, \code{gencot-selcomments} inserts a separator between them. The separator
+consists of a newline followed by \code{-\}\_}. It is constructed in a way that it cannot be a part of or overlap with a 
+comment and to be easy to detect when processing the output of \code{gencot-selcomments} line by line. The newline and
+the \code{-\}} would end any comment. The underscore (any other character could have been used instead) distinguishes the
+separator from a normal end-of comment, since \code{gencot-selcomments} never inserts an underscore immediately after a comment. 
+
+The separator is inserted after every unit, even if the unit is empty. The first unit in the output of \code{gencot-selcomments}
+is always a before-unit.
+
+\subsection{Filter \code{gencot-remcomments}}
+
+The filter for removing comments is implemented using the C preprocessor with the option \code{-fpreprocessed}. With this
+option it removes all comments, however, it also processes and removes \code{\#define} directives. To prevent this, a sed
+script is used to insert an underscore \code{\_} before every \code{\#define} directive which is only preceded 
+by whitespace in its line. Then it is not recognized by the preprocessor. Afterwards, a second sed script removes the underscores.
+
+Instead of an underscore an empty block comment could have been used. This would have the advantage that the second sed script
+is not required, since the empty comments are removed by the preprocessor. The disadvantage is that the empty comment
+is replaced by blanks. The resulting indentation does not modify the semantics of the \code{\#define} statenments but it
+looks unusual in the Cogent code.
+
+The preprocessor also removes \code{\#undef} directives, hence they are treated in the same way.
+
+The preprocessor preserves all information about the original source line numbers, to do so it may insert 
+line directives of the form \code{\# <linenumber> <filename>}. They must be processed by all following filters. The Haskell
+C parser \code{language-c} processes these line directives.
+
+\subsection{Filter \code{gencot-selcomments}}
+
+The filter for selecting comments is implemented as an awk script. It scans through the input for the comment start
+sequences \code{/*} and \code{//} to identify comments. It translates C comments to Cogent comments in the output.
+The translation is done here since the filter must identify the start and end sequences of comments, so it can 
+translate them specifically. Start and end sequences which occur as part of comment content are not translated.
+
+To keep it simple, the cases when the comment start sequences can occur in C code parts are ignored. This may lead to
+additional or extended comments, which must be corrected manually. It never leads to omitted comments or missing 
+comment parts. Note that \code{gencot-remcomments} always identifies comments correctly, since there comment detection
+it is implemented by the C preprocessor.
+
+When in an input line code is found outside of comments all this code with all embedded comments is replaced by the
+separator. Only the comments before and after the code are translated to the output, if present.
+Note, that the separator includes a newline, hence every source line with code outside of
+comments produces two output lines. 
+
+An after-unit consists of all comments after code in a line. The last comment is either a line comment or
+it may be a block comment which may include following lines. After this last comment the after-unit ends and
+a separator is inserted.
+
+All whitespace in and between comments and before the first comment in a before-unit is preserved in the output, 
+including empty lines. After a before-unit only empty lines are preserved. Whitespace around code is typically used
+to align code and comments, this must be adapted manually for the generated target code. Whitespace after an after-unit
+is not preserved since the last comment in an after unit in the target code is always followed by a newline.
+
+\subsubsection{State Machine}
+
+The implementation processes the input line by line using a finite state machine. It uses the variables \code{before} and 
+\code{after} to collect block comments at the beginning and end of the current line, initially both are empty. 
+The collect action appends the input from the current position up to and including the next found item in 
+the specified variable. The separate action appends the separator to the specified variable. The output action 
+writes the specified content to the output, replacing C comment start and end sequences by their Cogent counterpart.
+The newline action advances to the beginning of the next line and clears \code{before}.
+
+The state machine has the following states, nocode is the initial state:
+
+\begin{description}
+\item[nocode] If next is
+  \begin{description}
+  \item[end-of-line] output(\code{before}); newline; goto nocode
+  \item[block-comment-start] collect(\code{before}); goto nocode-inblock
+  \item[line-comment-start] collect(\code{before}); output(\code{before} + line-comment); newline; goto nocode
+  \item[other-code] separate(\code{before}); clear(\code{after}); goto code
+  \end{description}
+\item[nocode-inblock] If next is
+  \begin{description}
+  \item[end-of-line] collect(\code{before}); output(\code{before}); newline; goto nocode-inblock
+  \item[block-comment-end] collect(\code{before}); goto nocode
+  \end{description}
+\item[code] If next is
+  \begin{description}
+  \item[end-of-line] output(\code{before} + separator); newline; goto nocode
+  \item[block-comment-start] append comment-start to \code{after}; goto code-inblock
+  \item[line-comment-start] output(\code{before} + line-comment + separator); newline; goto nocode
+  \end{description}
+\item[code-inblock] If next is
+  \begin{description}
+  \item[end-of-line] collect(\code{after}); output(\code{before} + \code{after}); newline; goto aftercode-inblock
+  \item[block-comment-end] collect(\code{after}); goto code-afterblock
+  \end{description}
+\item[code-afterblock] If next is
+  \begin{description}
+  \item[end-of-line] output(\code{before} + \code{after} + separator); newline; goto nocode
+  \item[block-comment-start] collect(\code{after}); goto code-inblock
+  \item[line-comment-start] collect(\code{after}); output(\code{before} + \code{after} + line-comment + separator); newline; goto nocode
+  \item[other-code] clear(\code{after}); goto code
+  \end{description}
+\item[aftercode-inblock] If next is
+  \begin{description}
+  \item[end-of-line] collect(\code{before}); output(\code{before}); newline; goto aftercode-inblock
+  \item[block-comment-end] collect(\code{before}); separate(\code{before}); goto nocode
+  \end{description}
+\end{description}
+
+\subsection{Filter \code{gencot-mrgcomments}}
+
+The filter for merging comments into the target code is implemented as an awk script. It consists of a BEGIN rule, a line rule, and
+an END rule. The BEGIN rule reads the <file> line by line and collects before- and after-units as strings in the arrays \code{before} and \code{after}. The arrays are indexed with the line number of the separator between before- and after-unit.
+
+The line rule uses a buffer for its output. It is used to process all \code{\#ORIGIN} and \code{\#ENDORIG} markers belonging to
+a line and collect the associated comment units and content. The END rule is used to flush the buffer.
+
+\subsection{Declaration Comments}
+
+To safely detect C declarations and C definitions Gencot uses the language-c parser. 
+
+Only comments associated with declarations with external linkage are transferred to their definitions. For declarations
+with internal linkage the approach for transferring the comments does not work, since the declared names need not be
+unique in the <package>.
+
+Processing the decalaration comments is implemented by the following filter steps. 
+
+\subsubsection{Filter \code{gencot-deccomments}}
+
+The filter \code{gencot-deccomments} parses the input. For every declaration it outputs a line
+\begin{verbatim}
+  #DECL <name> <bline> <aline>
+\end{verbatim}
+where \code{<name>} is the name of the declared item, \code{<bline>} is the original source line 
+number where the declaration begins and \code{<aline>} is
+the original source line number where the declaration ends. (In many cases the declaration will be
+a single line and \code{<bline>} and \code{<aline>} will be the same.)
+
+\subsubsection{Filter \code{gencot-movcomments}}
+
+The filter \code{gencot-movcomments <file>} processes the output of \code{gencot-deccomments} as input. For every
+lines as above, it retrieves the before-unit of \code{<bline>} and the after-unit of \code{<aline>} from \code{<file>}
+and stores them in the files \code{before-<name>.comment} and \code{after-<name>.comment} in the
+current directory. The content of \code{<file>} must be the output of \code{gencot-selcomments} applied to the same
+original source from which the input of \code{gencot-deccomments} has been derived.
+
+The filter is implemented as an awk script. It consists of a 
+BEGIN rule reading \code{<file>} in the same way as \code{gencot-mrgcomments}, and a rule for lines starting with 
+\code{\#DECL}. For every such line it writes the associated comment units to the comment files. A comment
+file is even written if the comment unit is empty.
+
+\subsubsection{Filter \code{gencot-defcomments}}
+
+For inserting the comments around the target code parts generated from a definition, Gencot uses the markers
+\begin{verbatim}
+  #DEF before-<name>
+  #DEF after-<name>
+\end{verbatim}
+The markers must be inserted by the filter which generates the definition target code.
+
+The filter \code{gencot-defcomments <dir>} replaces every marker line in its input by the content of the corresponding
+\code{.comment} file in directory \code{<dir>} and writes the result to its output.
+
+It is implemented as an awk script with a single rule for all lines. If the line starts with \code{\#DEF} it is
+replaced by the content of the corresponding file in the output. All other lines are copied to the output without 
+modification.
+
+ 

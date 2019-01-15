@@ -1,10 +1,10 @@
 #! /bin/csh -f
 
-# Transfer function declaration comments to single files.
+# Transfer declaration comments to single files.
 # This is a filter from stdin to stdout with an additional filename argument.
 # The argument file must contain output of gencot-selcomments.
-# The function comment files are written in the current directory.
-# The names of all processed functions are listed in the output.
+# The comment files are written in the current directory.
+# The names of all processed declarations are listed in the output.
 
 if ( $#argv != 1) then
   echo "Error: Single file name expected as argument."
@@ -16,7 +16,7 @@ awk \
    cfile = ARGV[1]; delete ARGV[1] \
    bef = 1; lnr = 0; unit = ""; ustart = 1 \
    while ((getline cline < cfile) > 0) { \
-     if (cline ~ /^\*\/_/) { \
+     if (cline ~ /^-\}_/) { \
        if (bef) before[alnr = lnr] = unit \
        else after[alnr] = unit \
        unit = substr(cline,4) \
@@ -31,7 +31,7 @@ awk \
    close(cfile) \
    ORS = "" \
  } \
- /^#FUNDEC/ { \
+ /^#DECL/ { \
    print before[$3] > ("before-" $2 ".comment") \
    print after[$4] > ("after-" $2 ".comment") \
    print $2 "\n" \
@@ -40,7 +40,7 @@ awk \
 # documentation:
 #
 # In the BEGIN rule we read the comment units into the arrays before and after. The first unit is
-# stored in before, then we switch whenever we find the separator */_ at the beginning of a line.
+# stored in before, then we switch whenever we find the separator -}_ at the beginning of a line.
 # The current array to be used is specified by the boolean variable bef.
 # 
 # All units are collected in variable unit until the separator occurs. Before-units are stored
@@ -51,12 +51,12 @@ awk \
 # the separator is a part of the separator and must not be counted.
 #
 # Variable ustart is used to avoid inserting a newline at the start of a unit. 
-# 
+ 
 # Implementation in awk:
 # - The filename argument for the comment file must be copied and removed from the argument list ARGV
 #   to prevent its processing as normal input to awk. The comment file is explicitly read by getline.
 # - The presence of the separator at the beginning of a line is tested by matching each line with the 
-#   pattern /^\*\/_/. If present it is omitted by using substr(cline,4) which starts after the 
+#   pattern /^-\}_/. If present it is omitted by using substr(cline,4) which starts after the 
 #   separator.
 # - Writing to the comment files is done with a redirected print. Since the content of before and after
 #   already consists of lines with a newline at the end we set ORS (output record separator) to empty

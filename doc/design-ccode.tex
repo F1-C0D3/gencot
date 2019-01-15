@@ -1,0 +1,42 @@
+
+After comments and preprocessor directives have been removed from a C source file, it is parsed and
+the C language constructs are processed to yield Cogent language constructs. 
+
+\subsection{Including Files for C Code Processing}
+
+When Gencot processes the C code in a source file, it may need access to information in files included by
+the source file. An example is a type definition for a type name used in the source file. Hence for
+C code processing Gencot always reads the source file together with all included files. Since in the source
+file all comments and preprocessor directives have been  removed, they must also be removed in the included files
+which belong to the same <package>. Gencot assumes these are the files included by a quoted include directive.
+
+There are two possible approaches how this can be done.
+
+The first approach is to use the C preprocessor which is invoked by language-c before parsing. It processes
+include directives as usual, hence it would be sufficient to leave the include directives in the source code
+when removing the other preprocessor directives. However, this would include the original \code{.h} files and
+\textit{process} all preprocessor directives there, instead of removing them. The directives have to be 
+removed from all included files in <package> in a separate step, then the include directives have to be modified to include
+the results of that step instead of the original files.
+
+The second approach is to process all quoted include directives before the other directives are removed, 
+resulting for every source
+file in a single file containing all included information and all other preprocessor directives. Then the directives
+are removed from this file with the exception of the system include directives. When the result is fed to the 
+language-c parser its preprocessor will expand the system includes as usual, thus providing the complete 
+information needed for processing the C code.
+
+Gencot uses the second approach, since this way it can process every source file independently from previous steps for 
+other source files and it needs no intermediate files which must be added to the include file path of the language-c
+preprocessor.
+
+In the included original files the comments are still present and must be removed as well. This could be done 
+by the language-c preprocessor immediately before parsing. However, it is easier to remove the preprocessor
+directives when the comments are not present anymore. Therefore, Gencot removes the comments immediately after
+processing the quoted include directives.
+
+\subsection{Processing the C Code}
+
+
+
+ 

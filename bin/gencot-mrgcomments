@@ -14,7 +14,7 @@ awk \
    cfile = ARGV[1]; delete ARGV[1] \
    bef = 1; lnr = 0; unit = ""; ustart = 1 \
    while ((getline cline < cfile) > 0) { \
-     if (cline ~ /^\*\/_/) { \
+     if (cline ~ /^-\}_/) { \
        if (bef) before[alnr = lnr] = unit \
        else after[alnr] = unit \
        unit = substr(cline,4) \
@@ -27,24 +27,38 @@ awk \
      } \
    } \
    close(cfile) \
+   pending = 0 \
  } \
  { \
    if ($1 == "#ORIGIN") { \
-     getline hline \
-     if (NF == 2) { print before[$2] hline } \
-     else { print before[$2] hline after[$3] } \
+     if (pending) { \
+       print beforeBuf lineBuf afterBuf \
+       beforeBuf = ""; afterBuf = "" \
+       pending = 0 \
+     } \
+     beforeBuf = beforeBuf before[$2] \
+     if (NF == 3) afterBuf = after[$3] \
    } \
    else if ($1 == "#ENDORIG") { \
-     getline hline \
-     print hline after[$2] \
+     afterBuf = (afterBuf?afterBuf "\n":"") after[$2] \
    } \
-   else { print $0 } \
+   else { \
+     if (pending) { \
+       print beforeBuf lineBuf afterBuf \
+       beforeBuf = ""; afterBuf = "" \
+     } \
+     lineBuf = $0 \
+     pending = 1 \
+  } \
+ } \
+ END { \
+   if (pending) print beforeBuf lineBuf afterBuf \
  }' $1
 
 # documentation:
 #
 # In the BEGIN rule we read the comment units into the arrays before and after. The first unit is
-# stored in before, then we switch whenever we find the separator */_ at the beginning of a line.
+# stored in before, then we switch whenever we find the separator -}_ at the beginning of a line.
 # The current array to be used is specified by the boolean variable bef.
 # 
 # All units are collected in variable unit until the separator occurs. Before-units are stored
@@ -55,16 +69,27 @@ awk \
 # the separator is a part of the separator and must not be counted.
 #
 # Variable ustart is used to avoid inserting a newline at the start of a unit. 
-# 
-# In the line rule we always print a single group consisting of a before-unit, target code, and 
-# after-unit. The print statement appends a newline to the group. Therefore, in the output, a
-# before-unit always starts in a new line, even if in the original source it started in the same
-# line after the previous after-unit.
+ 
+# In the line rule we use three buffers to collect before-units, line content and after-units. The
+# buffers are output as a group whenever a normal line or an #ENDORIG marker is followed by
+# - an #ORIGIN marker
+# - another normal line
+# The variable pending is set when a normal line has been buffered. It is cleared when the buffers 
+# are output.
 #
+# after-units are concatenated with a separating newline to end a trailing line comment. before-units
+# are concatenated immediately, since it either ends with a newline or has no trailing line comment.
+# 
+# The print statement appends a newline to the group. Therefore, in the output, a
+# before-unit always starts in a new line, even if in the original source it started in the same
+# line after the previous after-unit. This is intended, since the units can be reordered in the 
+# target code.
+
+# In the END rule a pending group is output.
+
 # Implementation in awk:
 # - The filename argument for the comment file must be copied and removed from the argument list ARGV
 #   to prevent its processing as normal input to awk. The comment file is explicitly read by getline.
 # - The presence of the separator at the beginning of a line is tested by matching each line with the 
-#   pattern /^\*\/_/. If present it is omitted by using substr(cline,4) which starts after the 
+#   pattern /^-\}_/. If present it is omitted by using substr(cline,4) which starts after the 
 #   separator.
-# - If a marker has been found the following line is read into variable hline with the awk getline statement.

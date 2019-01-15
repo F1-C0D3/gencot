@@ -1,0 +1,69 @@
+Often a C source file contains constant definitions of the form
+\begin{verbatim}
+  #define CONST1 123
+\end{verbatim}
+The C preprocessor substitutes every occurrence of the identifier \code{CONST1} in every C code after the definition 
+by the value 123. This is a special application of the C preprocessor macro feature.
+
+Constant definitions of this form could be used directly in Cogent, since they are also supported by the Cogent preprocessor.
+By transferring the constant definitions to the corresponding file \code{x-types.cogent} the identifiers are available
+in every Cogent file including \code{x-types.cogent}. 
+
+However, for generating proofs it should be better to use Cogent value definitions instead of having unrelated 
+literals spread across the code. The Cogent value definition corresponding to the constant definition above can either 
+be written in the form
+\begin{verbatim}
+  #define CONST1 123
+  const1: U32
+  const1 = CONST1
+\end{verbatim}
+preserving the original constant definition or directly in the shorter form
+\begin{verbatim}
+  const1: U32
+  const1 = 123
+\end{verbatim}
+Since the preprocessor name \code{CONST1} may also be used in \code{\#if} directives, we use the first form. A typical pattern 
+for defining a default value is
+\begin{verbatim}
+  #if !defined(CONST1)
+  #define CONST1 123
+  #endif
+\end{verbatim}
+This will only work if the preprocessor name is retained in the Cogent code.
+
+If different C compilation units use the same preprocessor name for different constants, the generated Cogent value definitions
+will conflict. This will be detected and signaled by the Cogent compiler. Gencot does not apply any renaming to prevent these
+conflicts.
+
+For the Cogent value definition the type must be determined. It may either be the smallest primitive type covering the value 
+or it may always be U32 and, if needed, U64. The former requires to insert upcasts whenever the value is used for a different 
+type. The latter avoids the upcast in most cases, however, if the value should be used for a U8 or U16 that is not possible 
+since there is no downcast in Cogent. Therefore the first approach is used.
+
+Constant definitions are also used to define negative constants sometimes used for error codes. Typically they are used for 
+type \code{int}, for example in function results. Here, the type cannot be determined in the way as for positive values, since the 
+upcast does not preserve negative values. Therefore we always use type U32 for negative values, which corresponds to type 
+\code{int}. This may be wrong, then a better choice must be used manually for the specific case.
+
+Negative values are specified as negative integer literals such as -42. To be used in 
+Cogent as a value of type U32 the literal must be converted to an unsigned literal using 2-complement by: 
+\code{complement(42 - 1)}.
+Since Cogent value definitions are translated to C by substituting the \textit{expression} for every use, it should be as 
+simple as possible, such as \code{complement 41} or even \code{0xFFFFFFD6} which is \code{4294967254} in decimal notation.
+
+By convention, C preprocessor constant definitions use uppercase identifiers. In Cogent the name bound in a value definition
+must start with a lowercase letter, hence a conversion must be applied. Possible conversions are
+\begin{enumerate}
+\item convert all uppercase letters to lowercase
+\item convert only some letters to lowercase at the beginning
+\item replace a prefix, where the replacement starts with a lowercase letter
+\end{enumerate}
+
+Solution 1 ist most readable in Cogent, however it may collide with the lowercase name when that is used for a C variable. 
+Solution 2 reduces the possibility of a collision. Solution 3 is more eneral and corresponds to the way how Gencot renames
+function and type names, therefore it is used. The default is to replace the empty prefix by \code{cogent\_}, as for
+function names.
+
+For comment processing, every preprocessor constant definition is treated as an unstructured source code part.
+
+ 

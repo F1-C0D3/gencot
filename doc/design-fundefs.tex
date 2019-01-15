@@ -1,0 +1,90 @@
+
+A C function definition is translated by Gencot to a Cogent function definition. Old-style C function definitions
+where the parameter types are specified by separate declarations between the parameter list and the function body
+are not supported by Gencot because of the additional complexity of comment association.
+
+The Cogent function name is generated from the C function name as described in Section~\ref{design-names}.
+
+The Cogent function type is generated from the C function result type and from all C parameter types as described
+in Section~\ref{design-types-function}. In a C
+function definition the types for all parameters must be specified in the parameter list, if old-style function
+definitions are ignored.
+
+\subsection{Function Bodies}
+
+In C the function body consists of a compound statement which is specified in imperative programming style. In Cogent
+the function body consists of an expression which is specified in functional programming style with additional 
+considerations which are crucial for proving properties of the Cogent program. Therefore Gencot does not try
+to translate function bodies, this must be done by a human programmer.
+
+It would be possible, however, to translate C declarations embedded in the body. These may be type definitions
+and definitions for local variables. However, there are no good choices for the generated target code. Type
+definitions cannot be local in an expression in Cogent, they must be moved to the toplevel where they may cause
+conflicts. Local variable definitions could be translated to Cogent variable bindings in let-expressions, however,
+C assignments cannot be translated for them. Also, the resulting mixture of C code and Cogent code is expected 
+to be quite confusing to the programmer who has to do the manual translation. Therefore, no declarations in 
+function bodies are processed by Gencot.
+
+The only processing done for function bodies is the substitution of names occurring free in the body. These may
+be names with global scope (for types, functions, tags, global variables, enum constants or preprocessor constants)
+or parameter names. For all names with global scope Gencot has generated a Cogent definition using a mapped name.
+These names are substituted in the C code of the function body by the corresponding mapped names so that the 
+mapping need not be done manually by the programmer.
+
+Additionally, the function parameter names usually occur free in the function body. To make them apparent to
+the programmer, Gencot generates a Cogent pattern for the (single) parameter of the Cogent function which 
+consists of a tuple of variables with the names generated from the C parameter names. As described in 
+Section~\ref{design-names} the C parameter names are only mapped if they are uppercase, otherwise they are
+translated to Cogent unmodified. If they are mapped they are substituted in the body. Since it is very unusual
+to use uppercase parameter names in C, the Cogent function will normally use the original C parameter names.
+
+The generated Cogent function definition has the form
+\begin{verbatim}
+<name> :: (<ptype1>, ..., <ptypen>) -> <restype>
+<name> (<pname1>, ..., <pnamen>) =
+<compound statement>
+\end{verbatim}
+where the \code{<compound statement>} is plain C code with substituted names.
+
+Of course this code cannot be syntax checked by the Cogent compiler. 
+It would be possible to include the C function body in a comment to improve that. However, then
+still a dummy result expression would be needed for the Cogent function to be valid Cogent code.
+It is not trivial to generate that for arbitrary result types, hence Gencot does not try
+to separate the C code from the Cogent code other than putting it in a new line after the 
+Cogent function header.
+
+\subsection{Comments in Function Definitions}
+
+A C function definition which is not old-style syntactically consists of a declaration with a single declarator
+and the compound statement for the body.
+It is treated by Gencot as a structured source code part with the declaration and the body as subparts
+without any main part code. According to the structures of declarations the declaration has the single declarator as subpart
+and optionally a full specifier, if present. The declarator has the parameter declarations as subparts.
+
+The target code part for the declaration and for its single declarator is the header of the Cogent function definition
+(first two lines in the schema in the previous section). The target code part for the full specifiers with tags in
+the declaration (which may be present for the result type and for each parameter) is a sequence of corresponding 
+type definitions, as described for declarations in Section~\ref{design-decls-tags}, which is placed 
+after the Cogent function definition. The target code part for full specifiers without tags is the generated type
+expression embedded in the Cogent type for the corresponding parameter or the result.
+
+All parameter declarations consist of a single declarator and the optional full specifier. The target code part for
+a parameter declaration and its declarator is the corresponding parameter type in the Cogent function type expression.
+Hence, comments associated with parameter declarations in C are moved to the parameter type expression in Cogent.
+
+To preserve comments embedded in the C function body it is also considered as a structured source code part. Its 
+subparts are the declarations (structured as usual) and the statements. A statement is structured if it contains declarations
+or statements, these are its subparts. Since in the target code only identifier are substituted, the target code
+structure is the same as that of the source code. The structure is only used for identifying and re-inserting
+the transferrable comments and preprocessor directives. Note that this works only if the conditional directive 
+structure is compatible with the statement structure, i.e., a group must always contain a sequence of complete
+statements and/or declarations, which is the usual case in C code.
+
+An alternative approach would be to treat all nonempty source code lines as subparts of a function body, resulting
+in a flat structure of single lines. The advantage is that it is always compatible to the conditional directive structure and
+all comment units would be transferred. However, generating the corresponding origin markers in an abstract syntax
+tree is much more complex than generating them for syntactical units for which the origin information is present
+in the syntax tree. Since the Gencot implementation generates the
+target code as an abstract syntax tree, the syntactical statement structure is preferred. 
+
+ 

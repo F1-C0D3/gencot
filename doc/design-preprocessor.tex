@@ -1,0 +1,153 @@
+
+A preprocessor directive always occupies a single logical line, which may consist of several actual lines where 
+intermediate line ends are backslash-escaped. No C code can be in a logical line of a preprocessor directive.
+However, comments may occur before or after the directive in the same logical line. Therefore, every preprocessor 
+directive may have an associated comment before-unit and after-unit, which are transferred as described in 
+Section~\ref{design-comments}. Comments embedded in a preprocessor directive are discarded.
+
+We differentiate the following preprocessor directive units:
+\begin{itemize}
+\item Constant definitions of the form \code{\#define XXX val}, where \code{val} is a C constant or the defined 
+name of a constant,
+\item all other macro definitions and \code{\#undef} directives,
+\item conditional directives (\code{\#if, \#ifdef, \#ifndef, \#else, \#elif, \#endif}),
+\item include directives (quoted or system)
+\item all other directives, like \code{\#error} and \code{\#warning}
+\end{itemize}
+
+To identify constant definitions we assume that the names of constants are exactly the parameterless macro names 
+starting with an uppercase letter. A C constant starts with a digit, a minus sign, or a single quote 
+(string literals syntactically do not belong to the C constants). All constant definitions are processed
+as described in Section~\ref{design-const}.
+
+For comment processing every preprocessor directive is treated as an unstructured source code part.
+
+\subsection{Configurations}
+
+Conditional directives are often used in C code to support different configurations of the code. Every configuration
+is defined by a combination of preprocessor definitions. Using conditional directives in the code, whenever the
+code is processed only the code for one configuration is selected by the preprocessor.
+
+In Gencot the idea is to process all configurations at the same time. This is done by removing the conditional 
+directives from the code, process it, and re-insert the conditional directives into the generated Cogent code.
+
+However, it may be the case that Gencot cannot process two configurations at the same time, because they contain
+conflicting information needed by Gencot. An example would be different definitions for the same type which
+shall be translated from C to a Cogent type by Gencot.
+
+For this reason Gencot supports a list of conditions for which the corresponding conditional directives are not 
+removed and thus only one configuration is processed at the same time. Then Gencot has to be run separately for every
+such configuration and the results must be merged manually.
+
+Conditional directives which are handled this way are still re-inserted in the generated target code. This
+usually results in all branches being empty but the branches which correspond to the processed configuration.
+Thus the branches in the results from separate processing of different configurations can easily be merged manually
+or with the help of tools like diff and patch.
+
+Keeping Conditional directives for certain configurations in the processed code makes only sense if the corresponding
+macro definitions which are tested in the directives are kept as well. Therefore also define directives can be
+kept. The approach in Gencot is to specify a list of regular expressions in the format used by awk. All directives
+which mach one of these regular expressions are kept in the code to be interpreted before processing the code.
+
+\subsection{Conditional Directives}
+
+Conditional directives are used to suppress some source code according to specified conditions. Gencot aims to
+carry over the same suppression to the generated code.
+
+\subsubsection{Associating Conditional Directives to Target Code}
+
+Conditional directives form a hierarchical block structure consisting of ``sections'' and ``groups''. A group
+consists of a conditional directive followed by other code. Depending on the directive there are ``if-groups''
+(directives \code{\#if, \#ifdef, \#ifndef}), ``elif-groups'' (directive \code{\#elif}), and ``else-groups''
+(directive \code{\#else}). A section consists of an if-group, an optional sequence of elif-groups, an optional
+else-group, and an \code{\#endif} directive. A group may contain one or more sections in the code after the
+leading directive.
+
+Basically, Gencot transfers the structure of conditional directives to the target code. Whenever a source code
+part belongs to a group, the generated target code parts are put in the corresponding group. 
+
+This only works if the source code part structure is compatible with the conditional directive structure.
+In C code, theoretically, both structures need not be related. Gencot assumes the following restrictions:
+Every source code part which overlaps with a section is either completely enclosed in a group or
+contains the whole section. It may not span several groups or contain only a part of the section. If a
+source code part is structured, contained sections may only overlap with subparts, not with code belonging
+to the part itself. 
+
+Based on this assumption, Gencot transfers conditional directives as follows. If a section is contained in an 
+unstructured source code part, its directives are discarded. If a section is contained in a structured source
+code part, its directives are transferred to the target code part. Toplevel sections which are not contained in
+a source code part are transferred to toplevel. Generated target code parts are put in the same group which
+contained the corresponding source code part.
+
+It may be the case that for a structured source code part a subpart target must be placed separated from the
+target of the structured part. An example is a struct specifier used in a member declaration. In Cogent, the 
+type definition generated for the struct specifier must be on toplevel and thus separate from the generated member.
+In these cases the condition directive structure must be partly duplicated at the position of the subpart target,
+so that it can be placed in the corresponding group there.
+
+Since the target code is generated without presence of the conditional directives structure, they must be 
+transferred afterwards. This is done using the same markers \code{\#ORIGIN} and \code{\#ENDORIG} as for the
+comments. Since every conditional directive occupies a whole line, the contents of every group consists of
+a sequence of lines not overlapping with other groups on the same level. If every target code part is marked 
+with the begin and end line of the corresponding source code part, the corresponding group can always be
+determined from the markers.
+
+The conditional directives are transferred literally without any changes, except discarding embedded comments. 
+For every directive inserted in the target code origin markers are added, so that its associated comment before-
+and after-unit will be transferred as well, if present.
+
+\subsection{Macro Definitions}
+
+Macro definitions are transferred literally, the intention is that they are used in a similar way in the Cogent code.
+If the definition occurs in a file \code{x.h} it is transferred to file \code{x-types.cogent} to a corresponding position,
+if it occurs in a file \code{x.c} it is transferred to file \code{x-impl.cogent} to a corresponding position.
+
+This implies that the macro definitions are not available in the files \code{x-decls.cogent}, 
+\code{x-globals.cogent} and in the files with
+antiquoted Cogent code. If they are used there (which mainly is the case if they are used in a conditional
+preprocessor directive which is transferred there), a manual solution is required. 
+
+The replacement text for a defined macro usually is C code. Thus the definition can normally not be used directly in
+the Cogent file, it must be adapted manually. 
+
+If different C compilation units use the same name for different macros, conflicts are caused in the integrated Cogent
+source. These conflicts are not detected by the Cogent compiler. A renaming scheme based on the name of the file 
+containing the macro definition would not be safe either, since it breaks situations where a macro is deliberately
+redefined in another file. Therefore, Gencot provides no support for macro name conflicts, they must be detected and
+handled manually.
+
+\subsection{Include Directives}
+
+In C there are two forms of include directives: quoted includes of the form
+\begin{verbatim}
+  #include "x.h"
+\end{verbatim}
+and system includes of the form
+\begin{verbatim}
+  #include <x.h>
+\end{verbatim}
+Files included by system includes are assumed to be not a part of the translated <package>, therefore system
+include directives are discarded.
+
+\subsubsection{Translating Quoted Include Directives}
+
+Quoted include directives are always translated to the corresponding Cogent language include statement
+\begin{verbatim}
+  include "x-types.h"
+\end{verbatim}
+If the original include directive occurs in file \code{y.c} the translated statement is put into the files 
+\code{y-impl.c} and \code{y-decls.c}. In the latter it may be required to make the types for parameters and
+function results available.
+
+If the original include directive occurs in file \code{y.h} the translated statement is put into the file
+\code{y-types.h}. 
+
+It may be the case that a file \code{x.h} included by a quoted include is not a part of the translated <package>. 
+In this case nevertheless the file \code{x-types.cogent} should be created and filled with abstract Cogent type
+definitions for all types used from \code{x.h}. This can be done either manually or using Gencot.
+
+\subsection{Other Directives}
+
+All other preprocessor directives are discarded. Gencot displays a message for every discarded directive.
+
+ 

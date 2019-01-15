@@ -1,8 +1,8 @@
 #! /bin/csh -f
 
-# Merge function declaration comments into a marked Cogent source.
-# This is a filter from stdin to stdout with an additional filename argument.
-# The argument file must contain output of gencot-selcomments.
+# Merge declaration comments into a marked Cogent source.
+# This is a filter from stdin to stdout with an additional directory name argument.
+# The argument directory must contain files created by gencot-movcomments.
 
 if ( $#argv != 1) then
   echo "Error: Single directory name expected as argument."
@@ -14,7 +14,7 @@ awk \
    dir = ARGV[1] "/"; delete ARGV[1] \
  } \
  { \
-   if ($1 ~ /#FUNDEF/) { \
+   if ($1 ~ /#DEF/) { \
      file = (dir $2 ".comment") \
      while ((getline line < file) > 0) \
        print line \
@@ -28,4 +28,4 @@ awk \
 # Implementation in awk:
 # - The filename argument for the comment file directory must be copied and removed from the argument list ARGV
 #   to prevent its processing as normal input to awk. 
-# - For each #FUNDEF marker the comment file is read line by line in the while loop.
+# - For each #DEF marker the comment file is read line by line in the while loop.

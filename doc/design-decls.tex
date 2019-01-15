@@ -1,0 +1,152 @@
+
+A C declaration consists of zero or more declarators, preceded by information applying to all declarators together.
+Gencot translates every declarator to a separate Cogent definition, duplicating the common information as needed.
+The Cogent definitions are generated in the same order as the declarators.
+
+A C declaration may either be a \code{typedef} or an object declaration. A typedef can only occur on toplevel or 
+in function bodies in C.
+For every declarator in a toplevel typedef Gencot generates a Cogent type definition at the corresponding position. Hence
+all these Cogent type definitions are on toplevel, as required in Cogent. Typedefs in function bodies are not
+processed by Gencot, as described in Section~\ref{design-fundefs}.
+
+A C object declaration may occur 
+\begin{itemize}
+\item on toplevel (called an ``external declaration'' in C),
+\item in a struct or union specifier for declaring members,
+\item in a parameter list of a function type for declaring a parameter,
+\item in a compound statement for declaring local variables.
+\end{itemize}
+
+External declarations are simply discarded by Gencot. In Cogent there is no corresponding concept, it is not needed
+since the scope of a toplevel Cogent definition is always the whole program. 
+
+Compound statements in C only occur 
+in the body of a function definition, which is not translated by Gencot 
+(see Section~\ref{design-fundefs}). Thus, declarations embedded in a body are not processed by Gencot.
+
+Union specifiers are always translated to abstract types by Gencot, hence declarations for union members are
+never processed by Gencot.
+
+The remaining cases are struct member declarations and function parameter declarations. 
+For every declarator in an object declaration, Gencot generates a Cogent record field definition, if the C declaration
+declares struct members, or it generates a tuple field definition, if the C declaration declares a function parameter.
+
+\subsection{Target Code for struct/union/enum Specifiers}
+\label{design-decls-tags}
+
+Additionally, whenever a struct-or-union-specifier or enum-specifier occurring in the C declaration has a body and
+a tag, a Cogent type definition is generated for the corresponding type, since it may be referred in C by its tag from
+other places. A C declaration may contain atmost one 
+struct-or-union-specifier or enum-specifier directly. Here we call such a specifier the ``full specifier'' of 
+the declaration, if it has a body. 
+
+Since Cogent type definitions must be on toplevel, Gencot defers it to the next possible toplevel position after the
+target code generated from the context of the struct/union/enum declaration. If the context is a typedef, it is placed
+immediately after the corresponding Cogent type definition. If the typedef contains several full specifiers (which
+may be nested), all corresponding Cogent type definitions are positioned on toplevel in the order of the beginnings
+of the full specifiers in C (which corresponds to a depth-first traversal of all full specifiers).
+
+If the context is a member declaration in a struct-or-union-specifier, the Cogent type definition is placed after that
+generated for its context. 
+
+If the context is a parameter declaration it may either be embedded in a function definition or in a declarator of another
+declaration. Function definitions in C always occur on toplevel, the Cogent type definitions for all struct/union/enum
+declarations in the parameter list are placed after the target code for the function definition (which may be unusual for 
+manually written Cogent code, but it is easier to generate for Gencot). In all other cases the Cogent type definitions
+for struct/union/enum declarations in a parameter list are treated in the same way as if they directly occur in the surrounding
+declaration.
+
+Note, that a struct/union/enum tag declared in a parameter list has only ``prototype scope'' or ``block scope'' which
+ends after the function type or definition. Gencot nevertheless generates a toplevel type definition for it, since the
+tag may be used several times in the parameter list or in the corresponding body of a function definition. Note that 
+this may introduce name conflicts, if the same tag is declared in different parameter lists. Since declaring tags in a 
+parameter list is very unusual in C, Gencot does not try to solve these conflicts, they will be detected by the Cogent
+compiler and must be handled manually.
+
+A full specifier without a tag can only be used at the place where it statically occurs in the C code.
+Gencot does not generate a toplevel type definition for it, it directly embeds the generated type in the target code 
+generated for the specifier context. If the context is a declaration for struct members, the generated type is used
+as the type for the corresponding Cogent record field. If the context is a function parameter declaration, the
+generated type is used as the type for the corresponding Cogent tuple field. Note, that in both cases the tagless
+specifier can have nested full specifiers with tags, which are treated in the normal way.
+
+\subsection{Relating Comments}
+
+A declaration is treated as a structured source code part. The subparts are the full specifier, if present, and all
+declarators. Every declarator includes the terminating comma or semicolon, thus there is no main part code between or after
+the declarators. The specifiers may consist of a single full specifier, then there is no main part code at all.
+
+The target code part generated for a declaration consists of the sequence of target code parts generated for the declarators,
+and of the sequence of target code parts generated for the full specifier, if present. No target code is generated for the 
+main part itself. In both sequences the subparts are 
+positioned consecutively, but the two sequences may be separated by other code, since the second sequence consists of 
+Cogent type definitions which must always be on toplevel. 
+
+According to the rules defined in Sectiom~\ref{design-comments-relate}, the before-unit of the declaration is put before
+the target of the first subpart, which is that for the full specifier, if present, otherwise it is the target for the
+first declarator. In the first case the comments will be moved to the type definition for the full specifier. The rationale
+is that often a comment describing the struct/union/enum declaration is put before the declaration which contains it.
+
+The after-unit of the declaration is always put behind the target of the last declaration.
+
+A declarator may derive a function type specifying a parameter-type-list. If that list is not \code{void}, the 
+declarator is a structured source code part with the parameter-declarations as embedded subparts. Every
+parameter-declaration includes the separating comma after it, if another parameter-declaration follows,
+thus there is no main part code between the parameter-declarations. The parentheses around the parameter-type-list
+belong to the main part, thus a comment is only associated with a parameter if it occurs inside the parentheses.
+
+In all other cases a declarator is an unstructured
+source code part.
+
+\subsection{Typedef Declarations}
+
+For a C typedef declaration Gencot generates a separate toplevel Cogent type definition for every declarator.
+
+For every declarator a C type is determined from the declaration specifiers together with the derivation specified
+in the declarator. As described in Section~\ref{design-types}, either a Cogent type expression is determined from this C type,
+or the Cogent type is decided to be abstract. 
+
+The defined type name is generated from the C type name according to the mapping described in Section~\ref{design-names}.
+Type names used in the C type specification are mapped to Cogent type names in the Cogent type expression in the same way.
+
+\subsection{Object Declarations}
+
+C object declarations are processed if they declare struct members or function parameters.
+
+For such a C object declaration Gencot generates a separate Cogent field 
+definition for every declarator. This is a named record field definition if the declaration is embedded in the
+body of a struct-or-union-specifier, it is an unnamed tuple field definition if the declaration is embedded in the
+parameter-type-list of a function type. In the first case declarators with function type are not allowed, in the
+second case they are adjusted to function pointer type. In both cases the Cogent field type is determined from the 
+declarator's C type as described in Section~\ref{design-types}. 
+
+In the case of a named record field the Cogent
+field name is determined from the name in the C declarator as described in Section~\ref{design-names}. In the 
+case of an unnamed tuple field a name specified in the C parameter declaration is always discarded.
+
+\subsection{Struct or Union Specifiers}
+
+For a full specifier with a tag Gencot generates a Cogent type definition. The name of the defined type is generated
+from the tag as described in Section~\ref{design-names}. For a union specifier the type is abstract, no defining type
+expression is generated. For a struct specifier a (boxed) Cogent record type expression is generated, which has a field
+for every declared struct member which is not a bitfield. Bitfield members are aggregated as described in 
+Section~\ref{design-types-struct}. 
+
+A specifier without a body must always have a tag and is used in C to reference the full specifier with the same tag.
+Gencot translates it to the Cogent type name defined in the type definition for the full specifier.
+
+Note that the Cogent type defined for the full specifier corresponds to the C type of a pointer to the struct or union, 
+whereas the unboxed Cogent type corresponds to the C struct or union itself. This is adapted by Gencot when translating
+the C specifier embedded in a context to the corresponding Cogent type reference.
+
+\subsection{Enum Specifiers}
+
+For a full enum specifier with a tag Gencot generates a Cogent type definition immediately followed by Cogent object
+definitions for all enum constants. The name of the defined type is generated
+from the tag as described in Section~\ref{design-names}. The defining Cogent type is always \code{U32}, as described in
+Section~\ref{design-types-enum}. 
+
+A specifier without a body must always have a tag and is used in C to reference the full specifier with the same tag.
+Gencot translates it to the Cogent type name defined in the type definition for the full specifier.
+
+ 

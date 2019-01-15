@@ -1,0 +1,88 @@
+\subsection{Filters for Processing Steps}
+
+Directive processing is done for the output of \code{gencot-remcomments}. All comments have been removed. 
+However, there may be line directives present. 
+
+The filter \code{gencot-selpp} selects all preprocessor directives and
+copies them to the output without changes. All other lines are replaced by empty lines, so that the original
+line numbers for all directives can still be determined.
+
+The filter \code{gencot-rempp <file>} removes all preprocessor directives from its input, replacing them by empty
+lines. All other lines are copied to the output without modification. If \code{<file>} is specified it must 
+contain a list of regular expressions for directives which shall be retained.
+
+How the directives are processed depends on the kind of directives (see Section~\ref{design-preprocessor}).
+For every kind \code{X} from \code{const}, \code{cond}, \code{macro}, \code{incl}, Gencot provides the processing
+filter \code{gencot-prcX}. Since also the way of merging the results into the Cogent code depends on the
+kind, for each kind Gencot provides the merging filter \code{gencot-mrgX <file>}. It merges the content in \code{<file>} 
+into the input and writes the merged code to the output. \code{<file>} must contain the output of \code{gencot-prcX}
+which originated from the same file as the input.
+
+\subsection{Separating Directives}
+
+Gencot supports to keep some directives in the output of \code{gencot-rempp} to handle cases where
+the C code of different groups in a section causes conflicts. These conditional directives are still selected
+by \code{gencot-selpp} and re-inserted by \code{gencot-mrgcond}. 
+
+\subsubsection{Filter \code{gencot-selpp}}
+
+The filter for selecting preprocessor directives from the input for separate processing and insertion into
+the generated target code is implemented as an awk script.
+
+It detects all kinds of preprocessor directives, which always begin at the beginning of a separate line.
+A directive always ends at the next newline which is not preceded by a backslash \code{\\}. All corresponding
+lines are copied to the output without modifications with the exception of line directives.
+
+Line directives in the input are expanded to the required number of empty lines
+which have the same effect. This is done to simplify reading the input for all \code{gencot-prcX} filters.
+
+Every other input line is replaced by an empty line in the output.
+
+\subsubsection{Filter \code{gencot-rempp}}
+
+The filter for removing preprocessor directives from its input is implemented as an awk script.
+Basically, it replaces lines which are a part of a directive by empty lines. However, there are the following
+exceptions:
+\begin{itemize}
+\item line directives are never removed, they are required to identify the position in the original source
+during code processing.
+\item system include directives are never removed, they are inteded to be interpreted by the language-c
+preprocessor to make the corresponding information available during code processing. Since it is assumed that
+all quoted include directives have already been processed in an initial step, simply all include
+directives are retained.
+\item directives which match a regular expression from a specified list are not removed, they are intended
+to be interpreted by the language-c preprocessor to suppress information which causes conflicts during code
+processing.
+\end{itemize}
+
+For conditional directives always all directives belonging to the same section are treated in the same way.
+To retain them the first directive (\code{\#if}, \code{\#ifdef}, \code{\#ifndef}) must match a regular expression
+in the list. For all other directives of a section (\code{\#else}, \code{\#elif}, \code{\#endif}) the 
+regular expressions are ignored.
+
+The regular expressions are specified in the argument file line by line. An example file content is
+\begin{verbatim}
+  ^[[:blank:]]*#[[:blank:]]*if[[:blank:]]+!?[[:blank:]]*defined\(SUPPORT_X\)
+  ^[[:blank:]]*#[[:blank:]]*define[[:blank:]]+SUPPORT_X
+  ^[[:blank:]]*#[[:blank:]]*undef[[:blank:]]+SUPPORT_X
+\end{verbatim}
+It retains all directives which define the macro \code{SUPPORT\_X} or depend on its definition.
+
+\subsection{Processing Directives}
+
+\subsubsection{Processing Constants Defined as Preprocessor Macros}
+
+We provide the script \code{convert-const.csh} for automating this task. If comments should be also be converted to Cogent 
+the script can be used together with the script \code{convert-comment.csh}.
+
+\subsubsection{Processing Other Preprocessor Directives}
+
+The line numbers for positions count actual lines. Therefore the position of a preprocessor directive is specified by its starting line and its ending line. 
+
+\subsection{Filter \code{gencot-prcconst}}
+
+\subsection{Merging Directive Processing Results}
+
+\subsection{Filter \code{gencot-mrgcond}}
+
+ 

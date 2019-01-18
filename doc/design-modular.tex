@@ -40,6 +40,8 @@ This implies that every exit wrapper
 can be replaced by a Cogent implementation without modifying the invocations in existing Cogent code. Note that for every
 function either the exit wrapper or the Cogent implementation must be present, but not both, since they have the same name.
 
+To use the exit wrapper from Cogent, a corresponding abstract function definition must be present in Cogent.
+
 Note that if the C function has only one parameter, a wrapper is not required. For consistency reasons we generate and use
 the wrappers also for these functions.
 
@@ -77,4 +79,35 @@ Cogent abstract data types).
 Conflicts for names with internal linkage originating in different C compilation units are avoided by Gencot's name mapping scheme
 as described in Section~\ref{design-names}.
 
- 
+\subsubsection{External Name References}
+\label{design-modular-extref}
+
+To successfully compile the Cogent compilation unit all referenced identifiers must be declared in the C code. Those references which are
+used in the generated Cogent code must additionally be defined in Cogent. A non-local reference in a C source file is every
+identifier which is used in the file but not defined or declared in the same file.
+
+In the original C source for every non-local reference there must be a declaration or definition present in one of the included
+files (its ``origin file''). If the origin file of a non-local reference is a file which has already been translated by 
+Gencot, the required information about the identifier is already present in the Cogent compilation unit. If the origin file
+of a non-local reference has not yet been translated, or is not a part of the <package> (which normally is the case for all
+system includes), we call it an ``external reference''. For external references additional information must be created and 
+made available in the Cogent compilation unit.
+
+On the C level the information is provided by simply including the origin files of all external references. On the Cogent
+level the information is provided as follows.
+\begin{itemize}
+\item If the external reference is a type name or a struct/union/enum tag, a Cogent type definition is generated for the mapped name.
+The defined Cogent type is determined
+from the C type referenced by the type name as described in Section~\ref{design-types}. The only difference is that all C type
+names used directly or indirectly by the C type are resolved, if they are not already external references. This is done to avoid 
+introducing type names which are never referenced from any other place in the generated Cogent program. 
+\item If the external reference is a function name, an exit wrapper and the corresponding Cogent abstract function 
+definition is generated.
+\item If the external reference is the name of a global variable, no information is generated for Cogent, since Gencot does not
+support accessing global C variables from Cogent.
+\item If the external reference is the name of an enum constant or a preprocessor defined constant, a Cogent constant definition 
+is generated.
+\item An external reference may be the name of a member in a struct or union. In this case also the struct or union tag must
+be externally referenced and the corresponding Cogent type definition is generated, as described above. Note that for a union
+member this will always be an abstract type which does not provide access to the member in Cogent.
+\end{itemize}

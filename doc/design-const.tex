@@ -5,6 +5,11 @@ Often a C source file contains constant definitions of the form
 The C preprocessor substitutes every occurrence of the identifier \code{CONST1} in every C code after the definition 
 by the value 123. This is a special application of the C preprocessor macro feature.
 
+Constant names defined in this way may have arbitrary C constants as their value. Gencot only handles integer and
+character constants, floating constant are not supported since they are not supported by Cogent.
+
+\subsection{Processing Direct Constant Definitions}
+
 Constant definitions of this form could be used directly in Cogent, since they are also supported by the Cogent preprocessor.
 By transferring the constant definitions to the corresponding file \code{x-types.cogent} the identifiers are available
 in every Cogent file including \code{x-types.cogent}. 
@@ -14,12 +19,12 @@ literals spread across the code. The Cogent value definition corresponding to th
 be written in the form
 \begin{verbatim}
   #define CONST1 123
-  const1: U32
+  const1: U8
   const1 = CONST1
 \end{verbatim}
 preserving the original constant definition or directly in the shorter form
 \begin{verbatim}
-  const1: U32
+  const1: U8
   const1 = 123
 \end{verbatim}
 Since the preprocessor name \code{CONST1} may also be used in \code{\#if} directives, we use the first form. A typical pattern 
@@ -29,7 +34,7 @@ for defining a default value is
   #define CONST1 123
   #endif
 \end{verbatim}
-This will only work if the preprocessor name is retained in the Cogent code.
+This will only work if the preprocessor name is retained in the Cogent preprocessor code.
 
 If different C compilation units use the same preprocessor name for different constants, the generated Cogent value definitions
 will conflict. This will be detected and signaled by the Cogent compiler. Gencot does not apply any renaming to prevent these
@@ -51,19 +56,42 @@ Cogent as a value of type U32 the literal must be converted to an unsigned liter
 Since Cogent value definitions are translated to C by substituting the \textit{expression} for every use, it should be as 
 simple as possible, such as \code{complement 41} or even \code{0xFFFFFFD6} which is \code{4294967254} in decimal notation.
 
-By convention, C preprocessor constant definitions use uppercase identifiers. In Cogent the name bound in a value definition
-must start with a lowercase letter, hence a conversion must be applied. Possible conversions are
-\begin{enumerate}
-\item convert all uppercase letters to lowercase
-\item convert only some letters to lowercase at the beginning
-\item replace a prefix, where the replacement starts with a lowercase letter
-\end{enumerate}
-
-Solution 1 ist most readable in Cogent, however it may collide with the lowercase name when that is used for a C variable. 
-Solution 2 reduces the possibility of a collision. Solution 3 is more eneral and corresponds to the way how Gencot renames
-function and type names, therefore it is used. The default is to replace the empty prefix by \code{cogent\_}, as for
-function names.
+As described in Section~\ref{design-names}, names for preprocessor defined constants are always mapped to a different
+name for the use in Cogent. This is not strictly necessary, if a preprocessor name is lowercase. By convention, C preprocessor 
+constant definitions use uppercase identifiers, thus they normally must be mapped anyways.
 
 For comment processing, every preprocessor constant definition is treated as an unstructured source code part.
 
- 
+\subsection{Processing Indirect Constant Definitions}
+
+A constant definition may also reference a previously defined constant in the form 
+\begin{verbatim}
+  #define CONST2 CONST1
+\end{verbatim}
+
+In this case the Cogent constant definition uses the same type as that for \code{CONST1} and
+also references the defined Cogent constant and has the form
+\begin{verbatim}
+  #define CONST2 CONST1
+  const2: U8
+  const2 = const1
+\end{verbatim}
+
+\subsection{External Constant References}
+
+If the constant \code{CONST1} is an external reference in the sense of Section~\ref{design-modular-extref}, a corresponding
+Cogent constant definition is generated in the file \code{<package>-exttypes.cogent}. It has the same form
+\begin{verbatim}
+  #define CONST1 123
+  const1: U8
+  const1 = CONST1
+\end{verbatim}
+as for a non-external reference. Thus we define the original preprocessor constant name \code{CONST1} here, although
+it is already defined in the external origin file. The reason for this approach is that the define directive here 
+is intended to be processed by the Cogent preprocessor. Therefore we cannot include the origin file to make the name
+available, since that would also include the C code in the origin file.
+
+If the external definition is indirect, the value used in the define directive is always resolved to the final
+literal or to an existing external reference. This is done for determining the Cogent type for the constant 
+and avoids introducing unnecessary intermediate constant names.
+

@@ -7,17 +7,16 @@ Section~\ref{design-comments}. Comments embedded in a preprocessor directive are
 
 We differentiate the following preprocessor directive units:
 \begin{itemize}
-\item Constant definitions of the form \code{\#define XXX val}, where \code{val} is a C constant or the defined 
-name of a constant,
+\item Preprocessor constant definitions
 \item all other macro definitions and \code{\#undef} directives,
 \item conditional directives (\code{\#if, \#ifdef, \#ifndef, \#else, \#elif, \#endif}),
 \item include directives (quoted or system)
 \item all other directives, like \code{\#error} and \code{\#warning}
 \end{itemize}
 
-To identify constant definitions we assume that the names of constants are exactly the parameterless macro names 
-starting with an uppercase letter. A C constant starts with a digit, a minus sign, or a single quote 
-(string literals syntactically do not belong to the C constants). All constant definitions are processed
+To identify constant definitions we resolve all macro definitions as long as they are defined by another single
+macro name. If the result is a C integer constant (possibly negative) or a C character constant the macro is assumed
+to be a constant definition. All constant definitions are processed
 as described in Section~\ref{design-const}.
 
 For comment processing every preprocessor directive is treated as an unstructured source code part.
@@ -48,6 +47,20 @@ Keeping Conditional directives for certain configurations in the processed code 
 macro definitions which are tested in the directives are kept as well. Therefore also define directives can be
 kept. The approach in Gencot is to specify a list of regular expressions in the format used by awk. All directives
 which mach one of these regular expressions are kept in the code to be interpreted before processing the code.
+
+\subsection{External References}
+
+Preprocessor constant names and other macro names can be referenced in normal C code where they are substituted
+by the corresponding definition. Additionally, defined preprocessor names can be referenced in the conditions
+of conditional directives. In both cases the reference may be external in the sense of Section~\ref{design-modular-extref}.
+
+For such external references the definition must be made available in the Cogent compilation unit. Since
+the references shall be processed by the Cogent preprocessor this cannot be done by including the origin
+files using Cogent include statements, since the origin files normally also contain C code. Instead,
+Gencot generates define directives for all such references in the file \code{<package>-exttypes.cogent}.
+
+To avoid introducing additional external references, in the macro substitution text all macro names are resolved to
+existing external reference names or until they are fully resolved.
 
 \subsection{Conditional Directives}
 
@@ -102,7 +115,7 @@ Macro definitions are transferred literally, the intention is that they are used
 If the definition occurs in a file \code{x.h} it is transferred to file \code{x-types.cogent} to a corresponding position,
 if it occurs in a file \code{x.c} it is transferred to file \code{x-impl.cogent} to a corresponding position.
 
-This implies that the macro definitions are not available in the files \code{x-decls.cogent}, 
+This implies that the macro definitions are not available in the file
 \code{x-globals.cogent} and in the files with
 antiquoted Cogent code. If they are used there (which mainly is the case if they are used in a conditional
 preprocessor directive which is transferred there), a manual solution is required. 
@@ -126,25 +139,23 @@ and system includes of the form
 \begin{verbatim}
   #include <x.h>
 \end{verbatim}
-Files included by system includes are assumed to be not a part of the translated <package>, therefore system
-include directives are discarded.
+Files included by system includes are assumed to be always external to the translated <package>, therefore system
+include directives are discarded in the Cogent code. The information required by external references from system 
+includes is always fully contained in the file \code{<package>-exttypes.cogent}.
 
 \subsubsection{Translating Quoted Include Directives}
 
-Quoted include directives are always translated to the corresponding Cogent language include statement
+Quoted include directives for a file \code{x.h} which belongs to the Cogent compilation unit are always translated 
+to the corresponding Cogent language include statement
 \begin{verbatim}
   include "x-types.h"
 \end{verbatim}
-If the original include directive occurs in file \code{y.c} the translated statement is put into the files 
-\code{y-impl.c} and \code{y-decls.c}. In the latter it may be required to make the types for parameters and
-function results available.
-
-If the original include directive occurs in file \code{y.h} the translated statement is put into the file
+If the original include directive occurs in file \code{y.c} the translated statement is put into the file 
+\code{y-impl.cogent}. If the original include directive occurs in file \code{y.h} the translated statement is put into the file
 \code{y-types.h}. 
 
-It may be the case that a file \code{x.h} included by a quoted include is not a part of the translated <package>. 
-In this case nevertheless the file \code{x-types.cogent} should be created and filled with abstract Cogent type
-definitions for all types used from \code{x.h}. This can be done either manually or using Gencot.
+Otherwise the quoted include includes an external file and is discarded in the Cogent source file for the same reason
+why the system includes are discarded.
 
 \subsection{Other Directives}
 

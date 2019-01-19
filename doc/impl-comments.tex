@@ -4,50 +4,12 @@ C code is processed by Gencot. In a final step the comments are reinserted into 
 
 Additional steps are used to move comments from declarations to definitions.
 
-\subsection{Filters and Positions}
-
 The filter \code{gencot-selcomments} selects all comments from the input, translates them to Cogent comments and writes 
 them to the output.
 The filter \code{gencot-remcomments} removes all comments from the input and writes the remaining code to the output.
 The filter \code{gencot-mrgcomments <file>} merges the comments in \code{<file>} into the input and writes the
 merged code to the output. <file> must contain the output of \code{gencot-selcomments} applied to a code X, the 
 input must have been generated from the output of \code{gencot-remcomments} applied to the same code X.
-
-To be merged, it must be possible to relate the comments to the generated target code parts. The general approach is
-to insert markers in the input of \code{gencot-mrgcomments}. The markers have one of the following forms, each in 
-a single separate line:
-\begin{verbatim}
-  #ORIGIN <bline>
-  #ORIGIN <bline> <aline>
-  #ENDORIG <aline>
-\end{verbatim}
-where \code{<bline>} and \code{<aline>} are line numbers.
-An \code{\#ORIGIN} marker tells \code{gencot-mrgcomments} to prepend to the following line the before-unit of original 
-source line \code{<bline>}. If \code{<aline>} is present it tells to append to the following line the after-unit of original 
-source line \code{<aline>}. An \code{\#ENDORIG} marker tells \code{gencot-mrgcomments} to append to the \textit{previous}
-line the after-unit of original source line \code{<aline>}. Thus, by surrounding a target code part with an \code{\#ORIGIN} and
-\code{\#ENDORIG} marker the comments are placed as intended.
-
-Several markers affect the same line, if they are placed in lines immediately following each other. All such \code{\#ORIGIN}
-markers affect the next following line without a marker, all such \code{\#ENDORIG} markers affect the previous line without
-a marker. If several \code{\#ORIGIN} markers affect the same line, \code{<aline>} specifications are ignored in all but
-the last marker. An \code{\#ORIGIN} marker line must not be followed immediately by an \code{\#ENDORIG} marker line.
-
-If a line is affected by several markers, the corresponding comment units are concatenated in the order of the markers.
-Before-units are concatenated without any separator. After-units are separated by a newline to end possibly trailing
-line comments.
-
-The filters \code{gencot-selcomments} and \code{gencot-remcomments} never delete lines, hence in their output the original line
-numbers can still be determined.
-
-To distinguish before-units and after-units, \code{gencot-selcomments} inserts a separator between them. The separator
-consists of a newline followed by \code{-\}\_}. It is constructed in a way that it cannot be a part of or overlap with a 
-comment and to be easy to detect when processing the output of \code{gencot-selcomments} line by line. The newline and
-the \code{-\}} would end any comment. The underscore (any other character could have been used instead) distinguishes the
-separator from a normal end-of comment, since \code{gencot-selcomments} never inserts an underscore immediately after a comment. 
-
-The separator is inserted after every unit, even if the unit is empty. The first unit in the output of \code{gencot-selcomments}
-is always a before-unit.
 
 \subsection{Filter \code{gencot-remcomments}}
 
@@ -79,6 +41,15 @@ additional or extended comments, which must be corrected manually. It never lead
 comment parts. Note that \code{gencot-remcomments} always identifies comments correctly, since there comment detection
 it is implemented by the C preprocessor.
 
+To distinguish before-units and after-units, \code{gencot-selcomments} inserts a separator between them. The separator
+consists of a newline followed by \code{-\}\_}. It is constructed in a way that it cannot be a part of or overlap with a 
+comment and to be easy to detect when processing the output of \code{gencot-selcomments} line by line. The newline and
+the \code{-\}} would end any comment. The underscore (any other character could have been used instead) distinguishes the
+separator from a normal end-of-comment, since \code{gencot-selcomments} never inserts an underscore immediately after a comment. 
+
+The separator is inserted after every unit, even if the unit is empty. The first unit in the output of \code{gencot-selcomments}
+is always a before-unit.
+
 When in an input line code is found outside of comments all this code with all embedded comments is replaced by the
 separator. Only the comments before and after the code are translated to the output, if present.
 Note, that the separator includes a newline, hence every source line with code outside of
@@ -92,6 +63,9 @@ All whitespace in and between comments and before the first comment in a before-
 including empty lines. After a before-unit only empty lines are preserved. Whitespace around code is typically used
 to align code and comments, this must be adapted manually for the generated target code. Whitespace after an after-unit
 is not preserved since the last comment in an after unit in the target code is always followed by a newline.
+
+The filter never deletes lines, hence in its output the original line numbers can still be determined by counting lines, 
+if the newlines belonging to the separators are ignored.
 
 \subsubsection{State Machine}
 
@@ -145,10 +119,23 @@ The state machine has the following states, nocode is the initial state:
 \subsection{Filter \code{gencot-mrgcomments}}
 
 The filter for merging comments into the target code is implemented as an awk script. It consists of a BEGIN rule, a line rule, and
-an END rule. The BEGIN rule reads the <file> line by line and collects before- and after-units as strings in the arrays \code{before} and \code{after}. The arrays are indexed with the line number of the separator between before- and after-unit.
+an END rule. The BEGIN rule reads the <file> line by line and collects before- and after-units as strings in the arrays \code{before} and \code{after}. The arrays are indexed with the (original) line number of the separator between before- and after-unit.
 
 The line rule uses a buffer for its output. It is used to process all \code{\#ORIGIN} and \code{\#ENDORIG} markers belonging to
 a line and collect the associated comment units and content. The END rule is used to flush the buffer.
+
+For every consecutive sequence of \code{\#ORIGIN} markers, the before units associated with the line numbers of all markers with 
+a ``+'' sign are collected in a buffer. Every single code line is put in a second buffer. For every consecutive sequence of
+\code{\#ENDORIG} markers, the after units associated with the line numbers of all markers with 
+a ``+'' sign are collected in a third buffer. Whenever a code line or an \code{\#ENDORIG} marker is followed by a line which 
+is no \code{\#ENDORIG} marker, the content of all three buffers is output and the buffers are reset.
+
+In the buffer, before-units are concatenated without any separator. After-units are separated by a newline to end possibly 
+trailing line comments.
+
+
+
+
 
 \subsection{Declaration Comments}
 

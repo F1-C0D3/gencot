@@ -1,0 +1,43 @@
+
+Since the \code{language-c} parser does not support parsing preprocessor directives and C comment, the general approach
+is to remove both from the source file, process them separately, and re-insert them into the generated files.
+
+For re-inserting it must be possible to relate comments and preprocessor directives to the generated target code parts. As 
+described in Sections~\ref{design-comments} and~\ref{design-preprocessor}, comments and preprocessor directives are associated
+to the C source code via line numbers. Whenever a target code part is generated, it is annotated with the line numbers of its
+corresponding source code part. Based on these line number annotations the comments and preprocessor directives can be
+positioned at the correct places.
+
+The line number annotations are markers of one of the following forms, each in a single separate line:
+\begin{verbatim}
+  #ORIGIN <bline>
+  #ENDORIG <aline>
+\end{verbatim}
+where \code{<bline>} and \code{<aline>} are line numbers.
+
+An \code{\#ORIGIN} marker specifies that the next code line starts a target code part which was generated from a source code
+part starting in line \code{<bline>}. An \code{\#ENDORIG} marker specifies that the previous code line ends a target code part
+which was generated from a source code pat ending in line \code{<aline>}. Thus, by surrounding a target code part with an 
+\code{\#ORIGIN} and \code{\#ENDORIG} marker the position and extension of the corresponding source code part can be derived.
+
+In the case of a structured source code parts the origin marker pairs are nested, if the target code part generated from a subpart 
+is nested in the target code part generated from the main part. If there is no code generated for the main part, the 
+\code{\#ORIGIN} marker for the first subpart immediately follows the \code{\#ORIGIN} marker for the main part and the 
+\code{\#ENDORIG} marker for the last subpart is immediately followed by the \code{\#ENDORIG} marker for the main part.
+
+If no target code is generated from a source code part, the origin markers are not present. This implies, that an 
+\code{\#ORIGIN} marker is never immediately followed by an \code{\#ENDORIG} marker.
+
+It may be the case that several source code parts follow each other on the same line, but the corresponding target code
+parts are positioned on different lines. Or from a single source code part several target code parts on different lines 
+are generated. In both cases there are several origin markers with the same line number. Conditional preprocessor directives
+associated with that line must be duplicated to all these target code parts. For comments, however, duplication is not
+adequate, they should only be associated to one of the target code parts. This is implemented by appending an additional 
+``+'' sign to an origin marker, as in 
+\begin{verbatim}
+  #ORIGIN <bline> +
+  #ENDORIG <aline> +
+\end{verbatim}
+Comments are only associated with markers where the ``+'' sign is present, all other markers are ignored. In this way,
+the target code generation can decide where to associate comments, if a position is not unique.
+

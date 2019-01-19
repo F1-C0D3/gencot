@@ -36,11 +36,10 @@ awk \
        beforeBuf = ""; afterBuf = "" \
        pending = 0 \
      } \
-     beforeBuf = beforeBuf before[$2] \
-     if (NF == 3) afterBuf = after[$3] \
+     if ($3 == "+") beforeBuf = beforeBuf before[$2] \
    } \
    else if ($1 == "#ENDORIG") { \
-     afterBuf = (afterBuf?afterBuf "\n":"") after[$2] \
+     if ($3 == "+") afterBuf = (afterBuf?afterBuf "\n":"") after[$2] \
    } \
    else { \
      if (pending) { \
@@ -78,7 +77,7 @@ awk \
 # are output.
 #
 # after-units are concatenated with a separating newline to end a trailing line comment. before-units
-# are concatenated immediately, since it either ends with a newline or has no trailing line comment.
+# are concatenated immediately, since they either end with a newline or have no trailing line comment.
 # 
 # The print statement appends a newline to the group. Therefore, in the output, a
 # before-unit always starts in a new line, even if in the original source it started in the same

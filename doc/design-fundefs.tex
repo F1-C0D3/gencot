@@ -61,6 +61,8 @@ It is treated by Gencot as a structured source code part with the declaration an
 without any main part code. According to the structures of declarations the declaration has the single declarator as subpart
 and optionally a full specifier, if present. The declarator has the parameter declarations as subparts.
 
+\subsubsection{Function Header}
+
 The target code part for the declaration and for its single declarator is the header of the Cogent function definition
 (first two lines in the schema in the previous section). The target code part for the full specifiers with tags in
 the declaration (which may be present for the result type and for each parameter) is a sequence of corresponding 
@@ -72,19 +74,24 @@ All parameter declarations consist of a single declarator and the optional full 
 a parameter declaration and its declarator is the corresponding parameter type in the Cogent function type expression.
 Hence, comments associated with parameter declarations in C are moved to the parameter type expression in Cogent.
 
+\subsubsection{Function Body}
+
 To preserve comments embedded in the C function body it is also considered as a structured source code part. Its 
-subparts are the declarations (structured as usual) and the statements. A statement is structured if it contains declarations
-or statements, these are its subparts. Since in the target code only identifier are substituted, the target code
+subparts are the declarations and the statements. A statement is structured if it contains declarations
+or statements, these are its subparts. Since in the target code only identifiers are substituted, the target code
 structure is the same as that of the source code. The structure is only used for identifying and re-inserting
 the transferrable comments and preprocessor directives. Note that this works only if the conditional directive 
 structure is compatible with the statement structure, i.e., a group must always contain a sequence of complete
 statements and/or declarations, which is the usual case in C code.
 
+The declarations in the body are always unstructured. The reason is the simpler implementation, the existing language-c 
+output function can be used for the declarations without changes. Since declarations in a function body are typically
+single-line declarations for a local variable, not much structure is lost in this way. 
+
 An alternative approach would be to treat all nonempty source code lines as subparts of a function body, resulting
-in a flat structure of single lines. The advantage is that it is always compatible to the conditional directive structure and
+in a flat sequence structure of single lines. The advantage is that it is always compatible to the conditional 
+directive structure and
 all comment units would be transferred. However, generating the corresponding origin markers in an abstract syntax
 tree is much more complex than generating them for syntactical units for which the origin information is present
 in the syntax tree. Since the Gencot implementation generates the
 target code as an abstract syntax tree, the syntactical statement structure is preferred. 
-
- 

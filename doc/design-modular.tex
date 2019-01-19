@@ -93,7 +93,21 @@ of a non-local reference has not yet been translated, or is not a part of the <p
 system includes), we call it an ``external reference''. For external references additional information must be created and 
 made available in the Cogent compilation unit.
 
-On the C level the information is provided by simply including the origin files of all external references. On the Cogent
+A non-local reference is external relative to a given set of C source files, if its definition does not belong to the content
+of the set. For a name without linkage (mainly type names and struct/union/enum tags) its definition must be present for every
+reference, i.e. contained in the included origin file. Thus a reference to such a name is external, if its origin file does 
+not belong to the set. For a name with linkage (mainly names of functions and variables) it depends on the kind of linkage.
+If it has internal linkage, its definition must also be present for every reference. Then the origin file is that containing the
+(single) definition, not a file containing a declaration. 
+
+If it has external linkage, however, the definition need not be present. In this case the origin file only contains a declaration
+of the name and even needs not be unique. Then it is not possible to decide whether a non-local reference is external by simply 
+looking on the content of all included files. Instead, all the files in the given set must be inspected, whether they contain
+the name's definition. Note that this is only necessary for deciding whether a reference is external. The information necessary
+for processing it is always present as part of the declaration in the included origin file.
+
+On the C level the information for external name references is provided by simply including the origin files of all external 
+references. On the Cogent
 level the information is provided as follows.
 \begin{itemize}
 \item If the external reference is a type name or a struct/union/enum tag, a Cogent type definition is generated for the mapped name.

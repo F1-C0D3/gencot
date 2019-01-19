@@ -52,16 +52,11 @@ must be decided and realized manually. Gencot always generates default Cogent ty
 
 \subsubsection{External Name References}
 
-To detect the external references, Gencot needs the information about all non-local references in every translated source 
-file in the <package>. The non-local references are written to a separate file in a special format. For source file \code{x.c}
-it is written to file \code{x.c.refs}, for source file \code{x.h} it is written to file \code{x.h.refs}. 
-
-After processing all source file to be part of the Cogent compilation unit, Gencot processes all corresponding \code{.refs}
-files to detect the external references (where the origin file is not one of the processed \code{x.h}), and generate
-the required information. All generated type and constant definitions are put in the file \code{<package>-exttypes.cogent}.
+For external name references Gencot generates the information required for Cogent. 
+All generated type and constant definitions are put in the file \code{<package>-exttypes.cogent}.
 
 Additionally, for all origin files used by at least one external reference, an include directive is put in the file
-\code{<package>-extincludes.c}.
+\code{<package>-extincludes.c}, to make the information available on the C level.
 
 \subsubsection{Wrapper Definition Files}
 
@@ -142,7 +137,7 @@ by another solution.
 
 All Cogent value definitions for global variables in \code{x.c} are put in the file \code{x-globals.cogent}. Since it
 is only intended as an information for the Cogent programmer it is \textit{not} included automatically by any generated
-Cogent source file.
+Cogent source file. For external references to global variables no information is generated.
 
 \subsubsection{Abstract Data Types}
 
@@ -182,8 +177,6 @@ Summarizing, Gencot uses the following kinds of Cogent source files for existing
 \item[\code{x-abstypes.h}] C definitions for abstract Cogent types defined in \code{x-types.cogent} used to reference existing C types.
 \item[\code{x-abstypes.c}] C definitions for abstract Cogent types defined in \code{x-impl.cogent} used to reference existing C types.
 \item[\code{x-globals.c}] Content of \code{x.c} with all function definitions removed.
-\item[\code{x.h.refs}] List of all non-local references used in \code{x.h}.
-\item[\code{x.c.refs}] List of all non-local references used in \code{x.c}.
 \end{description}
 
 For the Cogent compilation unit the following common files are used:

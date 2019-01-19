@@ -1,0 +1,13 @@
+
+
+
+The intended use of filter \code{gencot-remcomments} is for removing all comments from input to the language-c parser.
+This input always consists of the actual source code file and the content of all included files. The simplest approach
+would be to use the language-c preprocessor for it, immediately before parsing. 
+
+However, it is easier for the filter \code{gencot-rempp} to remove the preprocessor directives when the comments are 
+not present anymore. Therefore, Gencot applies the filter \code{gencot-remcomments} in a separate step before applying
+\code{gencot-rempp}, immediately after processing the quoted include directives by \code{gencot-include}.
+ 
+The filters \code{gencot-selcomments} and \code{gencot-selpp} for selecting comments and preprocessor directives, however, are
+still applied to the single original source files, since they do not require additional information from the included files.

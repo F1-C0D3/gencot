@@ -7,15 +7,6 @@ content of the included file. Line directives are inserted at the begin and end 
 for all code in the output the original source file name and line number can be determined. The \code{<dirlist>}
 specifies the directories to search for included files.
 
-\subsubsection{Execution Related to Other Filters}
-
-The include processing must be applied as the first step on the original C source files when doing C code processing.
-Only then the following steps are applied to all code which is finally fed to the language-c parser. The
-include filter step is followed by application of \code{gencot-remcomments}, then \code{gencot-rempp}.
-
-The filters for selecting comments and preprocessor directives, however, are still applied to the single
-original source files, since they do not require additional information from the included files.
-
 \subsubsection{Filter \code{gencot-include}}
 
 The filter for expanding the include directives is implemented as an awk script, heavily inspired by the ``igawk''
@@ -32,7 +23,9 @@ Since the input of \code{gencot-include} is read from standard input it is not a
 if files are included from the same directory, that directory must also be specified explicitly in an argument directory
 list.
 
-In the output line directives are generated as follows.
+\subsubsection{Generating Line Directives}
+
+Line directives are inserted into the output as follows.
 
 If the first line of the input is a line directive, it is copied to the output. Otherwise 
 the line directive
@@ -53,7 +46,16 @@ the directive is replaced in the output by the lines
   # NNN+1 "fff" 2
 \end{verbatim}
 
-The C preprocessor does not prevent a file from being included multipple times. Usually, C include files use
+The \code{\"dir/\"} prefix in the line directives for included files is determined as follows. 
+If the included file has been found in the 
+directory of its includer, the directory pathname is constructed from \code{\"fff\"} by taking the pathname 
+up to and including the last ``/'' (if present, otherwise the prefix is empty).
+If the included file has been found in a directory from the argument directory list
+the directory pathname is used as specified in the list.
+
+\subsubsection{Multiple Includes}
+
+The C preprocessor does not prevent a file from being included multiple times. Usually, C include files use
 an ifdef directive around all content to prevent multiple includes. The \code{gencot-include} filter does
 not interprete ifdef directives, instead, it simply prevents multiple includes for all files independent 
 from their contents, only based on their full file pathnames. To mimic the behavior of cpp, if a file is 
@@ -63,20 +65,13 @@ not include due to repeated include, the corresponding line directives are never
   # NNN+1 "fff" 2
 \end{verbatim}
 
-The \code{\"dir/\"} prefix in the line directives for included files is determined as follows. 
-If the included file has been found in the 
-directory of its includer, the directory pathname is constructed from \code{\"fff\"} by taking the pathname 
-up to and including the last ``/'' (if present, otherwise the prefix is empty).
-If the included file has been found in a directory from the argument directory list
-the directory pathname is used as specified in the list.
-
 \subsection{Preprocessing}
 
 The language-c parser supports an integrated invocation of an external preprocessor, the default is to use
 the gcc preprocessor. However, the integrated invocation always reads the C code from a file (and checks
 its file name extension) and not from standard input.
 
-To implement C code processing as a filter, Gencot does not use the integrated preprocessor integration,
+To implement C code processing as a filter, Gencot does not use the integrated preprocessor,
 it invokes the preprocessor as an additional separate step. For consistency reasons it is wrapped in
 the minimal filter script \code{gencot-cpp}. 
 

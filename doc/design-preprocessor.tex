@@ -28,7 +28,12 @@ is defined by a combination of preprocessor definitions. Using conditional direc
 code is processed only the code for one configuration is selected by the preprocessor.
 
 In Gencot the idea is to process all configurations at the same time. This is done by removing the conditional 
-directives from the code, process it, and re-insert the conditional directives into the generated Cogent code.
+directives from the code, process the code, and re-insert the conditional directives into the generated Cogent code.
+
+Only directives which belong to the <package> are handled this way, i.e., only directives which occur in source
+files belonging to the <package>. For directives in other included files, in particular in the system include files,
+this would not be adequate. First, normally there is no generated target code where they could be re-inserted.
+Second, configurations normally do not apply to the system include files.
 
 However, it may be the case that Gencot cannot process two configurations at the same time, because they contain
 conflicting information needed by Gencot. An example would be different definitions for the same type which

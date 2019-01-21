@@ -1,3 +1,4 @@
+{-# LANGUAGE PackageImports #-}
 module Main where
 import System.IO (hPutStrLn, stderr)
 import Data.ByteString (getContents)
@@ -5,7 +6,7 @@ import Data.Map (toList)
 import Data.List (sortBy)
 --import Text.PrettyPrint.HughesPJ
 
-import Language.C hiding (pretty,Pretty) -- (parseC,initPos,fileOfNode,pretty,Pretty,posOf,Pos, Position,posRow)
+import "language-c" Language.C hiding (pretty,Pretty) -- (parseC,initPos,fileOfNode,pretty,Pretty,posOf,Pos, Position,posRow)
 import Language.C.Analysis
 
 import Cogent.Surface

@@ -1,4 +1,43 @@
- 
+
+Parsing and processing C code in Gencot is always implemented in Haskell, to be able to use an existing
+C parser. There are at least two choices for a C parser in Haskell:
+\begin{itemize}
+\item the package ``language-c'' by Benedikt Huber and others,
+\item the package ``language-c-quote'' by **** Mainland.
+\end{itemize}
+
+The Cogent compiler uses the package language-c-quote for outputting the generated C code and for parsing the antiquoted
+C source files. The reason is its support for quasiquotation (embedding C code in Haskell code) and antiquotation
+(embedding Haskell code in the embedded C code). The antiquotation support is used for parsing the antiquoted C sources.
+
+Gencot performs three tasks related to C code:
+\begin{itemize}
+\item read the original C code to be translated,
+\item generate antiquoted C code for the function wrapper implementations,
+\item output normal C code for the C function bodies as placeholder in the generated Cogent function definitions.
+\end{itemize}
+
+The first task is supported by both packages: a C parser reads the source text and creates an internal abstract syntax tree (AST).
+Every package uses its own data structures for representing the AST. However, the language-c package provides an additional
+``analysis'' module which processes the rather complicated syntax of C declarations and returns a ``symbol map'' mapping
+every globally declared identifier to its declaration or definition. Since Gencot generates a single Cogent definition for
+every single globally declared identifier, this is the ideal starting point for Gencot. For this reason Gencot uses
+the language-c parser for the first task.
+
+The second task is only supported by the package language-c-quote, therefore it is used by Gencot. 
+
+The third task is supported by both packages, since both have a prettyprint function for outputting their AST. Since the 
+function bodies have been read from the input and are output with only minor modifications, it is easiest to use
+the language-c prettyprinter, since language-c has been used for parsing and the body is already represented by its 
+AST data structures. For this reason Gencot uses language-c for the third task.
+
+Note that in both packages the main module is named \code{Language.C}. If both packages are exposed to the ghc Haskell
+compiler, a package-qualified import must be used in the Haskell program, which must be enabled by a language pragma:
+\begin{verbatim}
+  {-# LANGUAGE PackageImports #-}
+  ...
+  import "language-c" Language.C
+\end{verbatim}
 
 \subsection{Including Files}
 
@@ -83,10 +122,11 @@ The preprocessor step only has the following purpose:
 All other preprocessing has already been done by previous steps.
 
 \subsection{Reading the Input}
+\label{impl-ccode-read}
 
 \subsubsection{Parsing}
 
-To apply the parser to the standard input we invoke it using function \code{parseC}. It needs an \code{InputStream}
+To apply the language-c parser to the standard input we invoke it using function \code{parseC}. It needs an \code{InputStream}
 and an initial \code{Position} as arguments. 
 
 The language-c parser defines \code{InputStream} to be the standard type \code{Data.ByteString}. To get the 
@@ -105,21 +145,21 @@ the parsed C code.
 Both \code{parseC} and \code{initPos} are exported by module \code{Language.C}. The function \code{ByteString.getContents}
 is exported by the module \code{Data.Bytestring}. Hence to use the parser we need the following imports:
 \begin{verbatim}
-import Data.ByteString (getContents)
-import Language.C (parseC,initPos)
+  import Data.ByteString (getContents)
+  import "language-c" Language.C (parseC,initPos)
 \end{verbatim}
 
-Then the abstract syntax tree can be bound to variable \code{ast} with
+Then the abstract syntax tree can be bound to variable \code{ast} using
 \begin{verbatim}
-do
-  input_stream <- Data.ByteString.getContents
-  ast <- either (error . show) return $ parseC input_stream (initPos "<stdin>")
+  do
+    input_stream <- Data.ByteString.getContents
+    ast <- either (error . show) return $ parseC input_stream (initPos "<stdin>")
 \end{verbatim}
 
 \subsubsection{Analysis}
 
-The language-c parser supports an additional ``analysis'' module for further processing the abstract syntax tree.
-Although it is not complete and only processes toplevel declarations (including typedefs), and object definitions, it is very
+Although it is not complete and only processes toplevel declarations (including typedefs), and object definitions, the
+language-c analysis module is very
 useful for implementing Gencot translation. Function definition bodies are not covered by analysis, but they are
 not covered by Gencot either.
 
@@ -137,7 +177,7 @@ toplevel. Therefore, Gencot uses the map resulting from the analysis step as sta
 
 To use the analysis module, the following import is needed:
 \begin{verbatim}
-import Language.C.Analysis
+  import Language.C.Analysis
 \end{verbatim}
 
 Then, if the abstract syntax tree has been bound to variable \code{ast}, it can be analysed by
@@ -146,14 +186,352 @@ Then, if the abstract syntax tree has been bound to variable \code{ast}, it can 
 \end{verbatim}
 which binds the resulting map to variable \code{globals}. \code{runTrav\_}
 returns a result of type \code{Either [CError] (GlobalDecls, [CError])}, where \code{GlobalDecls}
-is the semantics map. The error list in the first alternative contains fatal errors which made the analysis fail. 
+is the type of the semantics map. The error list in the first alternative contains fatal errors which made the analysis fail. 
 The error list in the second alternative contains warnings about semantic inconsistencies, such as unknown identifiers,
 which are returned together with the map. 
 
 \subsubsection{Source Code Origin}
 
+The language-c parser adds information about the source code origin to the AST. For every syntactic construct represented
+in the AST it includes the start origin of the first input token and the start origin and length of the last input token.
+The start origin of a token is represented by the type \code{Position} and includes the original source file name and 
+line number, affected by line directives if present in the input. It also includes the absolute character offset in the 
+input stream. The latter can be used to determine the ordering of constructs which have been placed in the same line.
+The type \code{Position} is declared as instance of class \code{ORD} by comparing the character offset, hence it can 
+easily be used for comparing and sorting.
+
+The origin information about the first and last token is contained in the type \code{NodeInfo}. All types for representing
+a syntactic construct in the AST are parameterized with a type parameter. In the actual AST types this parameter is always 
+substituted by the type \code{NodeInfo}. 
+
+The analysis module carries the origin information over to its results, by including a \code{NodeInfo} in most of its
+result structures. This information can be used to
+\begin{itemize}
+\item determine the origin file for a declared identifier,
+\item filter declarations according to the source file containing them,
+\item sort declarations according to the position of their first token in the source.
+\end{itemize}
+
+\subsubsection{Preparing for Processing}
+
+The main task for Gencot is to translate all declarations or definitions which are contained in a single source file, where
+nested declarations are translated to a sequence of toplevel Cogent definitions. This is achieved by parsing and analysing
+the content of the file and all included files, filter the resulting set of declarations according to the source file name
+\code{<stdin>} (which removes all non-local references), and sorting them in a list. Translating every list entry to Cogent
+yields the resulting Cogent definitions in the correct ordering.
+
+The language-c analysis module provides a filtering function for its resulting map of type \code{GlobalDecls}. If the map has 
+been bound to the variable \code{globals}, as described above, it can be filtered to the content of \code{<stdin>} by
+the following function
+\begin{verbatim}
+  filterGlobals :: GlobalDecls -> GlobalDecls
+  filterGlobals gmap = 
+    filterGlobalDecls (maybe False ((==) "<stdin>") . fileOfNode) gmap
+\end{verbatim}
+
+The type \code{GlobalDecls} consists of three separate maps, one for tag definitions, one for type definitions,
+and one for all other declarations and definitions. Every map uses its own type for its range values, however, 
+there is the wrapper type \code{DeclEvent} which has a variant for each of them. The filter predicate used by 
+\code{filterGlobalDecls} is defined for values of that type. Every map range value, and hence every \code{DeclEvent}
+value contains the identifier which is mapped to it, hence the full information required for translating the definitions 
+is contained in the range values. 
+
+The map for tag definitions also contains entries for tagless struct/union/enums, they are referenced by a 
+``unique name'' associated by language-c. Gencot does not generate Cogent type definitions for them, 
+the corresponding Cogent types are directly embedded in their context. The map is filtered to entries with
+a tag and the keys are replaced by the tag identifiers by the function
+\begin{verbatim}
+  prepTags :: GlobalDecls -> Map Ident TagDef
+  prepTags gmap = 
+    mapKeys (\(NamedRef i)-> i) 
+    $ filterWithKey (\k _ -> not $ isAnonymousRef k) $ gTags gmap
+\end{verbatim}
+where \code{mapKeys}, \code{filterWithKey} are functions from module \code{Data.Map}.
+
+Gencot wraps every range value as a \code{DeclEvent}, and puts them in a common list for all three maps. This
+is done by the function
+
+\begin{verbatim}
+  listGlobals :: GlobalDecls -> [DeclEvent]
+  listGlobals gmap = 
+    concat $ map elems $ wraps <*> [gmap]
+    where wraps = [(fmap DeclEvent) . gObjs, 
+                   (fmap TagEvent) . prepTags, 
+                   (fmap TypeDefEvent) . gTypeDefs]
+\end{verbatim}
+which internally first applies \code{prepTags} to the tags map.
+
+Finally, the declarations in the list are sorted according to the offset position of their first tokens, using the
+compare function
+\begin{verbatim}
+  compEvent :: DeclEvent -> DeclEvent -> Ordering
+  compEvent ci1 ci2 = compare (posOf ci1) (posOf ci2)
+\end{verbatim}
+
+Together, the list for processing the code is prepared from map \code{globals} by
+\begin{verbatim}
+  sortBy compEvent $ listGlobals $ filterGlobals globals
+\end{verbatim}
+
 \subsection{Generating Cogent Code}
+
+When Gencot generates its Cogent target code it uses the data structures defined by the Cogent compiler for representing
+its AST after parsing Cogent code. The motivation to do so is twofold. First, the AST omits details such as using code layout
+and parentheses for correct code structure and the Cogent compiler provides a prettyprint function for its AST which cares
+about these details. Hence, it is much easier to generate the AST and use the prettyprinter for output, instead of generating
+the final Cogent program text. Second, by using the Cogent AST the generated Cogent code is guaranteed to be syntactically correct and
+current for the Cogent language version of the used compiler version. Whenever the Cogent language syntax is changed
+in a newer version, this will be detected when Gencot is linked to the newer compiler version.
 
 \subsubsection{Cogent Surface Syntax Tree}
 
+The data structures for the Cogent surface syntax AST are defined in the module Cogent.Surface. It defines parameterized types
+for the Cogent syntax constructs, where the type parameters determine the types of the sub-structures. Hence the AST types
+can easily be extended by wrapping the existing types in own extensions which are also used as actual type parameters.
+
+Cogent itself defines two such wrapper type families: The basic unextended types \code{RawXXX} and the types \code{LocXXX}
+where every construct is extended by a representation of its source location. 
+
+All parameterized types for syntax constructs are defined as instances of \code{Traversable} for every type parameter.
+All these types and the \code{RawXXX} and \code{LocXXX} types are defined as instances of class \code{Pretty} from
+module \code{Text.PrettyPrint.ANSI.Leijen}. This prettyprinter functionality is used by the Cogent compiler for outputting
+the parsed Cogent source code after some processing steps, if requested by the user.
+
+As source location representation in the \code{LocXXX} types Cogent uses the type \code{SourcePos} from Module 
+\code{Text.Parsec.Pos} in package \code{parsec}.
+It contains a file name and a row and column number. This information is ignored by the prettyprinter.
+
 \subsubsection{Extending the Cogent Surface Syntax}
+
+Gencot needs to extend the Cogent surface syntax for its generated code in two ways:
+\begin{itemize}
+\item origin markers must be supported, as described in Section~\ref{impl-origin},
+\item C function bodies must be supported in Cogent function definitions, as described in Section~\ref{design-fundefs-body}.
+\end{itemize}
+
+The origin markers are used to optionally surround the generated target code parts, which may be arbitrary syntactic constructs
+or groups of them. Hence it would be necessary to massively extend the Cogent surface syntax, if they are added as explicit 
+syntactic constructs. Instead, Gencot optionally adds the information about the range of source lines to the syntactic
+constructs in the AST and generates the actual origin markers when the AST is output. 
+
+Although the \code{LocXXX} types already support a source position in every syntactic construct, it cannot be used by Gencot,
+since it represents only a single position instead of a line range. Gencot uses the \code{NodeInfo} values, since they represent
+a line range and they are already present in the C source code AST, as described in Section~\ref{impl-ccode-read}. Hence, they
+can simply be transferred from the source code part to the corresponding target code part. For the case that there is no
+source code part in the input file (such as for code generated for external name references), the \code{NodeInfo} is optional.
+
+Additional Information must be added to represent the marker extensions for placing the comments (the trailing ``+'' signs).
+Gencot always moves before- and after-units to the same target code part, hence a single boolean value is sufficient.
+Together, Gencot defines the type \code{Origin} for this information:
+\begin{verbatim}
+  data Origin = Origin (Maybe NodeInfo) Bool
+\end{verbatim}
+
+Cogent function definitions are represented by the \code{FunDef} alternative of the type for toplevel syntactic constructs:
+
+\begin{verbatim}
+  data TopLevel t p e = 
+    ... | FunDef VarName (Polytype t) [Alt p e] | ...
+\end{verbatim}
+The type parameter \code{e} for representing syntactic expressions is only used in this alternative and in the alternative
+for constant definitions. Cogent constant definitions are generated by Gencot only from C enum constants (preprocessor
+constants are processed by \code{gencot-prcconst} which is not implemented in Haskell). The defined value for a C enum
+constant is represented in the C AST by the type for expressions. Together, instead of Cogent expressions, Gencot always
+uses either a C expression or a C function body (which syntactically is a statement) in the Cogent AST. 
+
+To modify the Cogent syntax in this way, Gencot defines an own expression type with two alternatives for a C expression 
+and a C statement:
+\begin{verbatim}
+  data GenExpr = ConstExpr Expr
+               | FunBody Stmt
+\end{verbatim}
+where \code{Expr} and \code{Stmt} are the types for C expressions and statements as defined by the language-c analysis
+module. Note that no \code{Origin} components are added, since the types \code{Expr} and \code{Stmt} already contain
+\code{NodeInfo} components and in both cases only a single target code part is generated so that it is always the
+target for comments.
+
+For the type parameters \code{t} and \code{p} for representing types and patterns, respectively, the normal types for 
+the Cogent constructs are used, since Gencot generates both in Cogent syntax. The pattern generated for a function
+definition is always a tuple pattern, which is irrefutable. Gencot never generates other patterns, hence the AST
+type for irrefutable patterns is sufficient.
+
+Together, Gencot uses the following types to represent its extended Cogent surface AST:
+\begin{verbatim}
+  data GenToplv =
+    GenToplv Origin (Toplevel GenType GenIrrefPatn GenExpr)
+  data GenIrrefPatn = 
+    GenIrrefPatn Origin (IrrefutablePattern VarName GenIrrefPatn)
+  data GenType = 
+    GenType Origin (Type GenExpr GenType)
+\end{verbatim}
+where \code{Toplevel}, \code{IrrefutablePattern}, and \code{Type} are the parameterized types for the syntactic 
+constructs defined by \code{Cogent.Surface}. The first parameter of \code{Type} for expressions is only used for
+Cogent array types, which are currently not generated by Gencot.
+
+\subsubsection{Origin Marker Output}
+
+For outputting the Cogent AST the prettyprint functionality must be extended to also support generating origin markers.
+
+Since the \code{Cogent.Surface} types \code{Toplevel}, \code{IrrefutablePattern}, and \code{Type} are defined to be
+instances of class \code{Pretty} if the same holds for their type arguments, it is sufficient to define such instances
+for the types \code{GenToplv}, \code{GenIrrefPatn}, \code{GenType}, and \code{GenExpr}.
+
+The class \code{Pretty} used by the Cogent prettyprinter defines the methods
+\begin{verbatim}
+  pretty :: a -> Doc
+  prettyList :: [a] -> Doc
+\end{verbatim}
+but the method \code{prettyList} is not used by Cogent. Hence, only the method \code{pretty} needs to be defined
+for instances. The type \code{Doc} is that from module \code{Text.PrettyPrint.ANSI.Leijen}.
+
+The basic approach is to wrap every syntactic construct in a pair of \code{\#ORIGIN} and \code{\#ENDORIG} markers
+according to the origin information for the construct in the extended AST. This is done by an instance definition
+\begin{verbatim}
+  instance Pretty GenToplv where
+    pretty (GenToplv org t) = addOrig org $ pretty t
+\end{verbatim}
+for \code{GenToplv} and analogous for the other types. The function \code{addOrig} has the type
+\begin{verbatim}
+  addOrig :: Origin -> Doc -> Doc
+\end{verbatim}
+and wraps its second argument in the origin markers according to the first argument. If the \code{Origin} value
+contains no \code{NodeInfo} the second argument is returned unchanged.
+
+The origin markers must be positoned in a separate line, hence \code{addOrig} outputs a newline before and after
+each marker. To avoid unnecessary newlines, \code{addOrig} tests whether the current position before a marker 
+is already at the beginning of a line, then the leading newline is omitted. The test is performed using the
+function \code{column} from module \code{Text.PrettyPrint.ANSI.Leijen} which provides access to the current column 
+position.
+
+There are two issues with this approach: nesting and repeated origins.
+
+The Cogent prettyprinter uses nesting for subexpressions. Nesting is implemented by the \code{Doc} type, it maintains a
+current nesting level and inserts that amount of spaces whenever a new line starts. Hence, if a syntactic construct
+is nested the nesting also applies to the origin markers, whereas the markers are always expected at the beginning of
+a line. This can be dealt with using negative nesting for the markers.
+
+Since a nesting change only becomes effective after the next newline, the negative nesting must be set before the 
+leading newline for a marker is output. This implies that the leading newline can only be omitted if the current
+nesting level is 0. This leads to additional newlines, in particular between consecutive origin markers. However,
+this situation cannot be safely detected, since Cogent may change the nesting of the next line after \code{addOrig}
+has output a marker (typically after an \code{\#ENDORIG} marker). The newline at the end of the previous marker 
+still inserts spaces according to the old nesting level, which determines the current position at the begin of
+the following marker. This is not related to the new nesting level, hence to unnest the following marker an additional
+newline is required.
+
+Gencot solves this by an additional postprocessing step which removes blank lines after \code{\#ENDORIG} markers.
+
+Repeated origins occur, when two target code parts are generated from two source code parts which follow each
+other in the same source line or if a subpart of a structured source code part begins or ends in the same line as its
+main part. In these cases the origin markers are irrelevant, since there are no comments or directives which
+must be associated with them. However, if they are present, the origin markers introduce additional unwanted line breaks.
+
+If an \code{\#ENDORIG} marker follows an \code{\#ORIGIN} marker with the same line number this means that the source code
+part occupies only one single line (or a part of it), this is relevant. In all other cases, if an origin marker follows 
+another with the same line number, at least one of them is irrelevant and should not be present in the target code.
+
+The following rules are used. In a sequence of \code{\#ORIGIN} markers with the same line number, all but the first one
+are irrelevant. In a sequence of \code{\#ENDORIG} markers with the same line number, all but the last one
+are irrelevant. If an \code{\#ORIGIN} marker follows an \code{\#ENDORIG} marker with the same line number, both are
+irrelevant.
+
+There are several possible approaches for omitting irrelevant origin markers.
+
+The first approach is to never generate corresponding \code{Origin} values in the Cogent AST. This implies that the
+\code{DeclEvent}s cannot be processed independent from each other, the sequence must be traversed using a state, such
+as a monad. language-c provides a monad for traversing all \code{DeclEvent}s during analysis, this could be used for
+removing the \code{NodeInfo}s already in the result of the semantic C analysis. 
+Alternatively, an own monadic traversal can be implemented for processing all relevant \code{DeclEvents} after the
+analysis and use the state information to omit inserting irrelevant origin information into the Cogent AST.
+
+The second approach is to generate all \code{Origin} values in the Cogent AST, output the corresponding origin
+markers and remove irrelevant origin markers in a separate postprocessing step.
+
+***---> Which one?
+
+\subsubsection{Expression Output}
+
+For outputting the Cogent AST the prettyprint functionality must be extended to 
+output C function bodies and the C expressions used for constant definitions.
+
+\subsection{Filters for C Code Processing}
+
+All filters which parse and process C code are implemented in Haskell and read the
+C code as described in Section~\ref{impl-ccode-read}.
+
+The following filters always process the content of a single C source file and produce the content for a single 
+target file.
+\begin{description}
+\item[\code{gencot-translate}] translates a single file \code{x.c} or \code{x.h} to the Cogent code to be put in file
+\code{x-impl.cogent} or \code{x-types.cogent}. It processes typedefs, struct/union/enum definitions, and function
+definitions. 
+\item[\code{gencot-globals}] translates a single file \code{x.c} to the Cogent code to be put in file \code{x-globals.cogent}.
+It processes all global variable definitions.
+\item[\code{gencot-entries}] translates a single file \code{x.c} to the antiquoted C entry wrappers to be put in
+file \code{x-entry.ac}. It processes all function definitions with external linkage.
+\item[\code{gencot-abstypes}] translates a single file \code{x.c} or \code{x.h} to the C typedefs to be put in
+file \code{x-abstypes.c} or \code{x-abstypes.h}. It processes typedefs and struct/union/enum definitions.
+\item[\code{gencot-remfundef}] processes a single file \code{x.c} by removing all function definitions. The output
+is intended to be put in file \code{x-globals.c}
+\end{description}
+
+There are other target files which are generated for the whole package. The filters for generating these target files 
+must always determine and process the external name references in a set of
+C source files. This set is the subset of C sources in the <package> which is translated to Cogent and together yields
+the Cogent compilation unit. There are different possible approaches how to read and process this set of source files.
+
+The first approach is to use a single file which includes all files in the set. This file is processed as usual by
+\code{gencot-include}, \code{gencot-remcomments}, and \code{gencot-rempp} which yields the union of all definitions
+and declarations in all files in the set as input to the language-c parser. However, this input may contain conflicting
+definitions. For an identifier with internal linkage different definitions may be present in different source files.
+Also for identifiers with no linkage different definitions may be present, if, e.g., different \code{.c} files define
+a type with the same name. The language-c parser ignores duplicate definitions for identifiers with internal linkage,
+however, it treats duplicate definitions for identifiers without linkage as a fatal error. Hence Gencot does not use
+this approach.
+
+The second approach ist to process every file in the set separately and merge the generated target code. However, for
+identifiers with external linkage (function definitions) the external references cannot be determined from the content
+of a single file. A non-local reference is only external if it is not defined in any of the files in the set. It would
+be possible to determine these external references in a separate processing step and using the result as additional input
+for the main processing step. Since this means to additionally implement reading and writing a list of external references,
+Gencot does not use this approach.
+
+The third approach is to parse and analyse the content of every file separately, then merge the resulting semantic maps
+discarding any duplicate definitions. This approach assumes that the external name references, which are relevant for
+processing, are uniquely defined in all source files. If this is not the case, because conflicting definitions are used
+inside the <package>, which are external to the processed file subset, this must be handled manually. Note that the
+external references must be determined before the maps are merged, since they may occur in conflicting definitions
+which are discarded during the merge. This approach is used by Gencot.
+
+Due to the approach used, the Gencot ``filters'' for generating the files common to the Cogent compilation unit are
+actually no filters, they take a list of file names as arguments and are called ``processors'' in the following.
+Like all other input to the language-c parser their
+content must have been processed by \code{gencot-include}, \code{gencot-remcomments}, and \code{gencot-rempp}.
+
+Usually it is sufficient to specify only \code{.c} files in the set, since the information about all referenced 
+identifiers must be provided in included \code{.h} files. However, for determining which references are external, the
+\code{.h} files are needed as well, to distinguish between definitions provided by them and definitions provided
+by other \code{.h} files not belonging to the set. The \code{.h} files need not be parsed, since their content is
+already parsed together with the content of the \code{.c} files, only their names must be known. Hence the Gencot
+processors distinguish the argument file names according to their file name extension: if the extension is 
+\code{.gencot} a preprocessed \code{.c} file is expected to be parsed and processed, if the extension is \code{.h}
+an original include file is expected and only its name is used for determining external name references.
+
+Gencot uses the following processors of this kind:
+\begin{description}
+\item[\code{gencot-exttypes}] generates the content to be put in the file \code{<package>-exttypes.cogent}. It 
+processes externally referenced typedefs, tag definitions and enum constant definitions.
+\item[\code{gencot-absext}] generates the content to be put in the file \code{<package>-exttypes.c}. It 
+processes externally referenced typedefs, tag definitions and enum constant definitions.
+\item[\code{gencot-exit}] generates the exit wrappers to be put in the file \code{<package>-exit.ac}. It processes
+the declarations of externally referenced functions.
+\item[\code{gencot-exitabs}] generates the abstract function definitions to be put in the file 
+\code{<package>-exit.cogent}. It processes the declarations of externally referenced functions.
+\item[\code{gencot-extincludes}] generates the list of include directives to be put in the file
+\code{<package>-extincludes.c}. It processes all external name references. 
+\end{description}
+
+Additionally, Gencot uses the following filter for postprocessing generated target code with embedded origin markers:
+\begin{description}
+\item[\code{gencot-postproc}] postprocesses the origin markers generated by the other filters and processors.
+\end{description}

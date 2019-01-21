@@ -1,6 +1,7 @@
+{-# LANGUAGE PackageImports #-}
 import Data.ByteString (getContents)
 
-import Language.C (parseC,initPos)
+import "language-c" Language.C (parseC,initPos)
 
 main :: IO ()
 main = do

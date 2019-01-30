@@ -34,7 +34,8 @@ genSurface = [
   GenToplv myorig $ TypeDec "TB" [] (GenType myorig $ TPut  (Just ["f1","f2"]) (GenType noorig TUnit)),
   GenToplv myorig $ AbsDec "af1" (PT [("t1", K True True False), ("t2", K False False False)] (GenType myorig TUnit)),
   GenToplv myorig $ FunDef "f1" (PT [("t1", K True True False)] (GenType myorig TUnit)) [
-    (Alt (GenIrrefPatn myorig $ PVar "p1") Regular (FunBody $ CCont mynode))
+    (Alt (GenIrrefPatn                   (fmap LCA.TagEvent) . prepTags, 
+ myorig $ PVar "p1") Regular (FunBody $ CCont mynode))
     ],
   GenToplv myorig $ FunDef "f2" (PT [("t1", K True True False)] (GenType myorig TUnit)) [
     (Alt (GenIrrefPatn myorig $ PVar "p1") Regular (FunBody $ CCont mynode)),
@@ -43,7 +44,10 @@ genSurface = [
   GenToplv myorig $ ConstDef "v1" (GenType myorig TUnit) (FunBody $ CCont mynode)
   ]
 
-data Origin = Origin (Maybe LC.NodeInfo) Bool deriving (Eq, Show)
+data Origin = Origin { 
+    sOfOrig :: [(LC.NodeInfo,Bool)], 
+    eOfOrig :: [(LC.NodeInfo,Bool)] } deriving (Eq, Show)
+
 data GenExpr = ConstExpr LC.CExpr
              | FunBody LC.CStat deriving (Show)
 
@@ -85,18 +89,20 @@ lstLine :: LC.NodeInfo -> Int
 lstLine n = LCP.posRow $ fst $ LCN.getLastTokenPos n
 
 addOrig :: Origin -> Doc -> Doc
-addOrig (Origin (Just n) c) doc =
-    column (\c -> (nesting (\i -> if c == 0 then nest (-i) sorig else nest (-i) (hardline <> sorig)))) <> hardline
+addOrig (Origin sn en) doc =
+    (if null sn then empty 
+                else column (\c -> (nesting (\i -> if c == 0 then nest (-i) sorig else nest (-i) (hardline <> sorig)))) <> hardline)
     <> doc <> 
-    column (\c -> (nesting (\i -> if c == 0 then nest (-i) eorig else nest (-i) (hardline <> eorig)))) <> hardline
---    nesting (\i -> nest (-i) (empty <$> sorig)) <$> doc <> nesting (\i -> nest (-i) (empty <$> eorig)) <$> empty
-    where sorig = text "#ORIGIN" <+> (int $ fstLine n) <> cmark
-          eorig = text "#ENDORIG" <+> (int $ lstLine n) <> cmark
-          cmark = text (if c then " +" else "")
-addOrig (Origin Nothing _) doc = doc
+    (if null en then empty 
+                else column (\c -> (nesting (\i -> if c == 0 then nest (-i) eorig else nest (-i) (hardline <> eorig)))) <> hardline)
+    where sorig = text "#ORIGIN"  <+> (int . fstLine . fst . head) sn <> scmark
+          eorig = text "#ENDORIG" <+> (int . lstLine . fst . head) en <> ecmark
+          scmark = text (if snd $ head sn then " +" else "")
+          ecmark = text (if snd $ head en then " +" else "")
+--addOrig (Origin [] _ _ _) doc = doc
 
 mypos1 = LCP.retPos $ LCP.initPos "<stdin>"
 mypos2 = LCP.retPos mypos1
 mynode = LCN.mkNodeInfoPosLen mypos1 (mypos2,0)
-myorig = Origin (Just mynode) True
-noorig = Origin Nothing False
+myorig = Origin [(mynode,True)] [(mynode,True)]
+noorig = Origin [] []

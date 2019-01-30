@@ -60,16 +60,15 @@ A C union type of the form \code{union \{ ... \}} is not binary compatible to an
 The semantic equivalent would be a Cogent variant type. However, the Cogent compiler translates every variant type
 to a \code{struct} with a field for an \code{enum} covering the variants, and one field for every variant. Even if a variant
 is empty (has no additional fields), in the C \code{struct} it is present with type \code{unit\_t} which
-has the size of an \code{int}. Therefore Gencot maps every union type to an abstract Cogent type.
+has the size of an \code{int}. Therefore Gencot maps every union type to an unboxed abstract Cogent type.
 
-Since an abstract Cogent type is always linear, Gencot maps a \code{const} qualified C union type to the corresponding
-readonly type.
+For a \code{const} qualified C union type the fields may not be modified. This is equivalent to the behavior
+of all unboxed values in Cogent, the same mapping is used here.
 
 Together we have the mapping rules:
 \begin{verbatim}
   struct s, const struct s -> unboxed record
-  union s -> abstract type S
-  const union s -> abstract type S!
+  union s, const union s -> unboxed abstract type
 \end{verbatim}
 
 \subsubsection{Pointer Types}
@@ -108,17 +107,15 @@ the Cogent property that a linear value may be made readonly, but not the other 
 
 \subsubsection{Array Types}
 
-The implementation of a C array type \code{t[n]} is equivalent to that of the pointer type \code{t*}. 
-Whereas the type \code{t*} has the meaning of a pointer to a single \code{t} instance, type \code{t[n]}
-has the meaning of a pointer to a consecutive sequence of n \code{t} instances. 
+A C array type \code{t[n]} has the semantics of a consecutive sequence of n instances of type \code{t}. 
 
-Basically, Cogent does not support accessing elements by an index value of an array represented by a pointer. 
+Basically, Cogent does not support accessing elements by an index value in an array. 
 This is an important security feature since the index value is computed at runtime and cannot be statically 
 compared to the array length by the compiler. Therefore, a C array type can only be mapped to an abstract type 
 in Cogent, which prevents accessing its elements in Cogent code. Element access must be implemented externally 
 with the help of abstract functions.
 
-The Cogent standard library contains three abstract data types for arrays (\code{Wordarray, Array, UArray}. 
+The Cogent standard library contains three abstract data types for arrays (\code{Wordarray, Array, UArray}). 
 However, they cannot be used as a binary compatible replacement for C arrays, because they are implemented by 
 pointers to a \code{struct} containing the array length together with the pointer to the array elements. 
 Only if the C array pointer is contained in such a struct, it is possible to use the abstract data types. 
@@ -154,8 +151,8 @@ between the pointer and the pointed value in Cogent code. Since the array cannot
 supports only the functionality of type \code{const t*}. Semantically, in Cogent there should be no difference 
 to the non-linear type T, however, for binary compatibility the difference becomes relevant.
 
-Together we have the following mapping rules for C arrays with element type \code{el}. Here, C type \code{el*} 
-is a pointer type used to access an array.
+Together we have the following possible mapping rules for C arrays with element type \code{el}. Here, 
+C type \code{el*} is a pointer type used to access an array.
 \begin{verbatim}
   char[n], char[], unsigned char[n], unsigned char[], 
      const char[n], const char[],
@@ -169,6 +166,9 @@ is a pointer type used to access an array.
   el[n], el[], el* -> abstract type
   const t* -> T[1], if t contains no pointers
 \end{verbatim}
+
+Since during the design of Gencot it is not clear, whether the Cogent array types are fully supported in
+proofs, Gencot does not use them and maps array types either to type String or to abstract types.
 
 \subsubsection{Enumeration Types}
 \label{design-types-enum}

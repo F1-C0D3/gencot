@@ -33,8 +33,8 @@ awk \
      if ($0 ~ /^[[:blank:]]*#[[:blank:]]*if/) retcond[++condlevel] = retain \
      else if ($0 ~ /^[[:blank:]]*#[[:blank:]]*(else|elif|endif)/ && retcond[condlevel]) { \
        retain = 1 \
-       if ($0 ~ /^[[:blank:]]*#[[:blank:]]*endif/) condlevel-- \
      } \
+     if ($0 ~ /^[[:blank:]]*#[[:blank:]]*endif/) condlevel-- \
      if (retain) print \
      else { \
        printf("\n") \

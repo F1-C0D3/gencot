@@ -63,12 +63,9 @@ this may introduce name conflicts, if the same tag is declared in different para
 parameter list is very unusual in C, Gencot does not try to solve these conflicts, they will be detected by the Cogent
 compiler and must be handled manually.
 
-A full specifier without a tag can only be used at the place where it statically occurs in the C code.
-Gencot does not generate a toplevel type definition for it, it directly embeds the generated type in the target code 
-generated for the specifier context. If the context is a declaration for struct members, the generated type is used
-as the type for the corresponding Cogent record field. If the context is a function parameter declaration, the
-generated type is used as the type for the corresponding Cogent tuple field. Note, that in both cases the tagless
-specifier can have nested full specifiers with tags, which are treated in the normal way.
+A full specifier without a tag can only be used at the place where it statically occurs in the C code, however, it
+may be used in several declarators. Therefore Gencot also generates a toplevel type definition for it, with an 
+introduced type name as described in Section~\ref{design-names}.
 
 \subsection{Relating Comments}
 
@@ -99,6 +96,7 @@ In all other cases a declarator is an unstructured
 source code part.
 
 \subsection{Typedef Declarations}
+\label{design-decls-typedefs}
 
 For a C typedef declaration Gencot generates a separate toplevel Cogent type definition for every declarator.
 

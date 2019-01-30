@@ -1,0 +1,16 @@
+#! /bin/csh -f
+
+# Postprocess Origin markers.
+# An empty line after #ENDORIG is removed.
+# This is a filter from stdin to stdout.
+
+awk \
+'{ if ($1 == "#ENDORIG") { endorig = 1; print } \
+   else if (NF == 0 && endorig) { endorig = 0 } \
+   else { endorig = 0; print } \
+ }'
+
+# documentation:
+# 
+# We use variable endorig to store the state, if there was an #ENDORIG marker in the previous line.
+# We test for an empty line by "NF == 0", i.e., there is no field. This will ignore whitespace in lines.

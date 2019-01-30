@@ -1,0 +1,169 @@
+
+
+{- Dummy type used only for its size -}
+type Union_Cogent_mbedtls_ssl_premaster_secret
+
+
+{-
+ * SSL state machine
+ -}
+type Cogent_mbedtls_ssl_states =
+   U32
+
+cogent_MBEDTLS_SSL_HELLO_REQUEST : U32
+cogent_MBEDTLS_SSL_HELLO_REQUEST = 
+
+cogent_MBEDTLS_SSL_CLIENT_HELLO : U32
+cogent_MBEDTLS_SSL_CLIENT_HELLO = 
+
+
+{-*
+ * \brief          Callback type: send data on the network.
+ *
+ * \note           That callback may be either blocking or non-blocking.
+ *
+ * \param ctx      Context for the send callback (typically a file descriptor)
+ * \param buf      Buffer holding the data to send
+ * \param len      Length of the data to send
+ *
+ * \return         The callback must return the number of bytes sent if any,
+ *                 or a non-zero error code.
+ *                 If performing non-blocking I/O, \c MBEDTLS_ERR_SSL_WANT_WRITE
+ *                 must be returned when the operation would block.
+ *
+ * \note           The callback is allowed to send fewer bytes than requested.
+ *                 It must always return the number of bytes actually sent.
+ -}
+type Cogent_mbedtls_ssl_send_t =
+   (P_Void
+   
+   , 
+   P_U8
+   
+   , 
+   #Cogent_size_t) -> U32
+
+
+{- Defined below -}
+type Cogent_mbedtls_ssl_session =
+   #Struct_Cogent_mbedtls_ssl_session
+
+type Cogent_mbedtls_ssl_context =
+   #Struct_Cogent_mbedtls_ssl_context
+
+type Cogent_mbedtls_ssl_config =
+   #Struct_Cogent_mbedtls_ssl_config
+
+
+{- Defined in ssl_internal.h -}
+type Cogent_mbedtls_ssl_transform =
+   #Struct_Cogent_mbedtls_ssl_transform
+
+type Cogent_mbedtls_ssl_handshake_params =
+   #Struct_Cogent_mbedtls_ssl_handshake_params
+
+type Cogent_mbedtls_ssl_sig_hash_set_t =
+   #Struct_Cogent_mbedtls_ssl_sig_hash_set_t
+
+type Cogent_mbedtls_ssl_key_cert =
+   #Struct_Cogent_mbedtls_ssl_key_cert
+
+type Cogent_mbedtls_ssl_flight_item =
+   #Struct_Cogent_mbedtls_ssl_flight_item
+
+{-*
+ * \brief           Callback type: start external signature operation.
+ -}
+type Cogent_mbedtls_ssl_async_sign_t =
+   (P_Cogent_mbedtls_ssl_context
+   
+   , 
+   P_U8
+   
+   , 
+   #Cogent_size_t) -> U32
+
+
+{-
+ * This structure is used for storing current session data.
+ -}
+type Struct_Cogent_mbedtls_ssl_session =
+   { 
+   ciphersuite : U32, {-!< chosen ciphersuite -}
+   
+   
+   id_len : #Cogent_size_t, {-!< session id length  -}
+   
+   
+   id : #A_U8 }{-!< session identifier -}
+   
+
+
+{-*
+ * SSL/TLS configuration to be shared between mbedtls_ssl_context structures.
+ -}
+type Struct_Cogent_mbedtls_ssl_config =
+   { 
+    {- Group items by size (largest first) to minimize padding overhead -}
+
+    {-
+     * Pointers
+     -}
+
+   ciphersuite_list : #AP_U32, {-!< allowed ciphersuites per version   -}
+   
+   
+
+    {-* Callback for printing debug output                                  -}
+   f_dbg : PF_Void, 
+   
+   
+   p_dbg : P_Void, {-!< context for the debug function     -}
+   
+   
+   f_async_sign_start : P_Cogent_mbedtls_ssl_async_sign_t, {-!< start asynchronous signature operation -}
+   
+   
+   dhm_P : #Cogent_mbedtls_mpi, {-!< prime modulus for DHM              -}
+   
+   
+   alpn_list : PP_U8, {-!< ordered list of protocols          -}
+   
+   
+
+    {-
+     * Flags (bitfields)
+     -}
+
+   fld : (), {-!< 0: client, 1: server               -}
+   
+   
+   fld : () }{-!< MBEDTLS_SSL_VERIFY_XXX             -}
+   
+
+
+
+type Struct_Cogent_mbedtls_ssl_context =
+   { 
+   conf : P_Cogent_mbedtls_ssl_config, {-!< configuration information          -}
+   
+   
+
+    {-
+     * Miscellaneous
+     -}
+   state : U32 }{-!< SSL handshake: current state     -}
+   
+
+
+type Cogent_mbedtls_ssl_cookie_write_t =
+   (P_Void
+   
+   , 
+   PP_U8
+   , P_U8
+   
+   , 
+   P_U8
+   , #Cogent_size_t) -> U32
+

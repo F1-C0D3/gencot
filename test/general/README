@@ -1,0 +1,16 @@
+Tests:
+
+processing test.c (including test.h) or test.h (separately) in src.
+
+gencot-include include < src/test.h > test.hgi
+gencot-remcomments < test.hgi > test.hremc
+gencot-rempp test.hrempp-pat < test.hremc > test.hremp
+gencot-cpp < test.hremp > test.hi++
+gencot-remc++ < test.hi++ > test.hi
+gencot-translate test.h < test.hi > test.ho
+gencot-selcomments < src/test.h > test.hcomm
+gencot-mrgcomments test.hcomm < test.ho > test-types.cogent
+
+oder als Pipe:
+gencot-selcomments < src/test.h > test.hcomm
+gencot-include include < src/test.h | gencot-remcomments | gencot-rempp test.hrempp-pat | gencot-cpp | gencot-remc++ | gencot-translate test.h | gencot-mrgcomments test.hcomm > test-types.cogent

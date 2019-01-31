@@ -1,7 +1,7 @@
 {-# LANGUAGE MultiWayIf #-}
 module Gencot.Cogent.Output where
 
-import Cogent.Surface (TopLevel, IrrefutablePattern, Type(TRecord))
+import Cogent.Surface (TopLevel, IrrefutablePattern, Type(TRecord,TTuple))
 import Cogent.Common.Syntax (VarName)
 import Cogent.Common.Types (Sigil(Unboxed),readonly)
 import Cogent.PrettyPrint
@@ -19,8 +19,8 @@ prettyTopLevels :: [GenToplv] -> Doc
 prettyTopLevels tll = plain $ vsep $ fmap pretty tll
 
 instance Pretty GenType where
-    pretty (GenType org (TRecord ts s)) = 
-        addOrig org $ prettyGenRec ((TRecord ts s) :: (Type GenExpr GenType))
+    pretty (GenType org tr@(TRecord ts s)) = addOrig org $ prettyGenRT tr 
+    pretty (GenType org tt@(TTuple ts)) = addOrig org $ prettyGenRT tt
     pretty (GenType org t) = addOrig org $ pretty t
 
 instance TypeType GenType where
@@ -29,21 +29,23 @@ instance TypeType GenType where
   isFun     (GenType _ t) = isFun     t
   isAtomic  (GenType _ t) = isAtomic  t
 
-prettyGenRec :: (Type GenExpr GenType) -> Doc
-prettyGenRec (TRecord ts s) = 
+prettyGenRT :: (Type GenExpr GenType) -> Doc
+prettyGenRT (TRecord ts s) = 
     (if | s == Unboxed -> (typesymbol "#" <>)
         | readonly s -> (<> typesymbol "!")
         | otherwise -> id) $
         recordGen (map (\(_,(b,_)) -> orgOfT b) ts) (map (\(a,(b,_)) -> (fieldname a <+> symbol ":" <+> pretty (typeOfGT b))) ts)
+prettyGenRT (TTuple ts) = tupledGen (map orgOfT ts) (map (pretty.typeOfGT) ts)
 
 recordGen os = encloseSepGen os (lbrace <> space) (space <> rbrace) (comma <> space)
+tupledGen os = encloseSepGen os (lparen <> space) (space <> rparen) (comma <> space)
 
 encloseSepGen :: [Origin] -> Doc -> Doc -> Doc -> [Doc] -> Doc
 encloseSepGen os left right sep ds
     = case ds of
         []  -> left <> right
         [d] -> left <> addOrig (head os) d <> right
-        _   -> align left <> (cat (zipWith addOrig os (zipWith (<>) ds ((replicate ((length ds) - 1) sep) ++ [right]))))
+        _   -> align left <> (hcat (zipWith addOrig os (zipWith (<>) ds ((replicate ((length ds) - 1) sep) ++ [right]))))
 
 instance Pretty GenIrrefPatn where
     pretty (GenIrrefPatn org t) = addOrig org $ pretty t

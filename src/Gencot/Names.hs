@@ -2,6 +2,7 @@
 module Gencot.Names where
 
 import Data.Char (isUpper)
+import Data.List (isPrefixOf)
 import Data.Map (insert,(!))
 import System.Environment (getArgs)
 import System.FilePath (takeFileName, dropExtension)
@@ -15,8 +16,18 @@ import Cogent.Common.Syntax as CCS
 
 
 mapName :: Bool -> LCI.Ident -> String
-mapName True (LCI.Ident s _ _) = "Cogent_" ++ s
-mapName False (LCI.Ident s _ _) = "cogent_" ++ s
+mapName True (LCI.Ident s _ _) = 
+    if "mbedtls_" `isPrefixOf` s 
+       then "Se" ++ s
+       else if "MBEDTLS_" `isPrefixOf` s
+            then "SE" ++ s
+            else "Cogent_" ++ s
+mapName False (LCI.Ident s _ _) =
+    if "mbedtls_" `isPrefixOf` s 
+       then "se" ++ s
+       else if "MBEDTLS_" `isPrefixOf` s
+            then "sE" ++ s
+            else "cogent_" ++ s
 
 mapNameToUpper = mapName True
 mapNameToLower = mapName False

@@ -7,3 +7,6 @@ Ast: Ast.hs
 Output: Output.hs
 	ghc -package-db $(COGENT_DB) -i$(GENCOT_SRC) --make -O $@.hs
 
+Translate: Translate.hs
+	ghc -package-db $(COGENT_DB) -i$(GENCOT_SRC) --make -O $@.hs
+

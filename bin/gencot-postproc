@@ -1,16 +1,30 @@
 #! /bin/csh -f
 
 # Postprocess Origin markers.
-# An empty line after #ENDORIG is removed.
+# An empty line after #ENDORIG is removed, an empty line before #ORIGIN is removed.
 # This is a filter from stdin to stdout.
 
 awk \
-'{ if ($1 == "#ENDORIG") { endorig = 1; print } \
-   else if (NF == 0 && endorig) { endorig = 0 } \
-   else { endorig = 0; print } \
- }'
+'{ if (notfst) { \
+     if (bufNF == 0 && $1 == "#ORIGIN") { \
+       buf = $0; bufNF = NF; buf1 = $1 \
+     } \
+     else if (NF == 0 && buf1 == "#ENDORIG" && endorig == 0) { \
+       endorig = 1 \
+     } \
+     else { print buf; endorig = 0; buf = $0; bufNF = NF; buf1 = $1 } \
+   } \
+   else { notfst = 1; buf = $0; bufNF = NF; buf1 = $1 } \
+ } \
+ END { print buf }'
 
 # documentation:
 # 
-# We use variable endorig to store the state, if there was an #ENDORIG marker in the previous line.
-# We test for an empty line by "NF == 0", i.e., there is no field. This will ignore whitespace in lines.
+# - We use a one-line buffer buf to be able to process pairs of consequtive lines.
+# - If previous line is empty and current is an #ORIGIN marker we suppress the previous line.
+# - If current line is empty and previous line is an #ENDORIG marker we suppress the current line.
+# - We test for an empty line by "NF == 0", i.e., there is no field. This will ignore whitespace in lines.
+# - We use variable endorig to remember that we already suppressed a line after the #ENDORIG marker in the buffer.
+# - We use variable bufNF to remember the NF of the buffered line and buf1 to remember the $1.
+# - We use the variable notfst to test whether the current line is the first line (and the buffer is empty)
+# - We use the END rule to output the last line.

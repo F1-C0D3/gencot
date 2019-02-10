@@ -1,18 +1,21 @@
 #! /bin/csh -f
 
 # Expand transitively all quoted include directives in the input.
-# This is a filter from stdin to stdout with an additional directory list argument.
+# This is a filter from stdin to stdout with an additional directory list argument and an additional file name argument.
 # The directory list uses ":" as separator and specifies the directories to be searched for included Files.
 # For the current directory "." use the empty string "". Do not append a trailing "/" to directory pathnames.
+# The file name is the full pathname of the processed file to prevent including itself.
 
-if ( $#argv != 1) then
-  echo "Error: Include directory search list expected as argument."
+if ( $#argv != 2) then
+  echo "Error: Include directory search list and own file pathname expected as arguments."
   exit 0
 endif
 
 awk \
 'BEGIN { \
    ndirs = split(ARGV[1], dirs, ":"); delete ARGV[1] \
+   ownname = ARGV[2]; delete ARGV[2] \
+   processed[ownname] = 1 \
    stackptr = 0 \
    input[stackptr] = "/dev/stdin" \
    curdir[stackptr] = "-" \
@@ -69,7 +72,7 @@ awk \
      } \
      close(input[stackptr]) \
    } \
-}' $1
+}' $1 $2
 
 # documentation:
 # 

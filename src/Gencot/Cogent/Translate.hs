@@ -8,13 +8,17 @@ import Language.C.Data.Position as LCP
 import Language.C.Analysis as LCA
 import Language.C.Syntax.AST as LCS
 
+--import "language-c-quote" Language.C.Syntax as LQ
+
 import Cogent.Surface as CS
 import Cogent.Common.Syntax as CCS
 import Cogent.Common.Types as CCT
 
-import Gencot.Origin (Origin,Origin(..),noOrigin,listOrigins,subOrigin,subListOrigins,fstLine,lstLine)
+import Gencot.Origin
 import Gencot.Names (transTagName,transFunName,transToField,mapNameToUpper,mapNameToLower)
 import Gencot.Cogent.Ast
+import Gencot.C.Ast as LQ
+import Gencot.C.Translate (transStat,transExpr)
 
 transGlobals :: LCA.GlobalDecls -> [LCA.DeclEvent] -> [GenToplv]
 transGlobals g gs = zipWith (transGlobal g) gs $ listOrigins gs
@@ -28,16 +32,14 @@ transGlobal g (LCA.TagEvent (LCA.CompDef (LCA.CompType sueref LCA.UnionTag ms _ 
 transGlobal g (LCA.TagEvent (LCA.EnumDef (LCA.EnumType sueref es _ n))) o = 
     GenToplv o (CS.TypeDec (transTagName g (LCA.TyEnum $ LCA.EnumTypeRef sueref n)) [] 
         (GenType noOrigin (CS.TCon "U32" [] markUnbox)))
-transGlobal g (LCA.DeclEvent (LCA.FunctionDef (LCA.FunDef (LCA.VarDecl (LCA.VarName idnam _) _ t) s n))) o = 
+transGlobal g (LCA.DeclEvent (LCA.FunctionDef (LCA.FunDef 
+                (LCA.VarDecl (LCA.VarName idnam _) _ t@(LCA.FunctionType (LCA.FunType _ ps isVar) _)) s n))) o = 
     GenToplv o (CS.FunDef (transFunName g idnam) (CS.PT [] (transType g t n)) 
-        [CS.Alt (transParamNames g ps n) CCS.Regular $ FunBody s])
-    where ps = case t of {
-        (LCA.FunctionType (LCA.FunType _ ps False) _) -> ps;
-        _ -> []
-    }
-transGlobal g (LCA.DeclEvent (LCA.EnumeratorDef (LCA.Enumerator idnam e _ _))) o =
+        [CS.Alt (transParamNames g (if isVar then [] else ps) n) CCS.Regular $ FunBody $ transCStat g s os])
+    where (oi,ops,os) = sub1l1Origins n idnam ps s
+transGlobal g (LCA.DeclEvent (LCA.EnumeratorDef (LCA.Enumerator idnam e _ n))) o =
     GenToplv o (CS.ConstDef (mapNameToLower idnam) 
-        (GenType noOrigin (CS.TCon "U32" [] markUnbox)) (ConstExpr e))
+        (GenType noOrigin (CS.TCon "U32" [] markUnbox)) (ConstExpr $ transCExpr g e noOrigin))
 transGlobal g (LCA.TypeDefEvent (LCA.TypeDef idnam t _ n)) o = 
     GenToplv o (CS.TypeDec (mapNameToUpper idnam) [] $ transType g t n)
 transGlobal _ _ o = GenToplv o (CS.Include "err-unexpected toplevel")
@@ -173,3 +175,16 @@ markUnbox = CCT.Unboxed
 
 errType :: String -> GenType
 errType s = GenType noOrigin $ CS.TCon ("err-" ++ s) [] markUnbox
+
+transCStat :: LCA.GlobalDecls -> LC.CStat -> Origin -> LQ.Stm
+transCStat g s o = transStat o s
+
+transCExpr :: LCA.GlobalDecls -> LC.CExpr -> Origin -> LQ.Exp
+transCExpr g e o = transExpr o e
+{-
+transCStat :: LCA.GlobalDecls -> LC.CStat -> LC.NodeInfo -> OStat
+transCStat g s n = fmap (\n1 -> subOrigin n s) s
+
+transCExpr :: LCA.GlobalDecls -> LC.CExpr -> LC.NodeInfo -> OExpr
+transCExpr g e n = fmap (\n1 -> subOrigin n e) e
+-}

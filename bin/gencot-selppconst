@@ -1,0 +1,56 @@
+#! /bin/csh -f
+
+# Select preprocessor constant definitions from arbitrary preprocessor directives, retaining their line positions.
+# This is a filter from stdin to stdout with an additional filename argument.
+# The argument file must contain a list of preprocessor constant names (one per line).
+
+if ( $#argv != 1) then
+  echo "Error: Single file name expected as argument."
+  exit 0
+endif
+
+awk \
+'BEGIN { \
+   cfile = ARGV[1]; delete ARGV[1] \
+   while ((getline cline < cfile) > 0) { \
+     if (cline ~ /^[A-Za-z_].*/) { \
+       predef[cline] = 1 \
+     } \
+   } \
+   close(cfile) \
+ } \
+{ if ($0 ~ /^[[:blank:]]*#[[:blank:]]*define[[:blank:]]/) { \
+     gsub(/^[[:blank:]]*#[[:blank:]]*/, "#") \
+     $0 = $0 \
+     if (NF == 3 && !($0 ~ /\([A-Za-z_]./) && ! ($0 ~ /\\$/)) { \
+       if (($3 ~ /^[A-Za-z_].*/) && resolve[$3] ) { \
+         subs = resolve[$3] \
+       } \
+       else subs = $3 \
+       if (subs ~ /^[\(]?[-]?[0-9].*[\)]?/) { \
+         print \
+         resolve[$2] = subs \
+       } \
+       else printf "\n" \
+     } \
+     else if (predef[$2]) print \
+     else printf "\n" \
+   } \
+   else printf "\n" \
+ }' $1
+
+# documentation:
+# 
+# A preprocessor constant definition has the form
+#   #define NNN XXX
+# where NNN and XXX do not contain a "(" followed by an identifier (i.e. NNN is a macro without parameters)
+# XXX does not contain any whitespace and there is no "\" at the end of XXX (no continuation lines).
+#
+# Implementation in awk:
+# - An include directive may be written with or without whitespace before and after the include keyword and at
+#   the beginning of the line. Thus the regular expression
+#     /^[[:blank:]]*#[[:blank:]]*define[[:blank:]]/
+#   matches all #define directives.
+# - A matched #define directive is normalized by creating the form where there is no whitespace after #.
+#   The statement $0 = $0 is used to reprocess the input line so that NNN and XXX are fields 2 and 3, respectively.
+#   Then it is tested for being constant definition, otherwise an empty line is emitted.

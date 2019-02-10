@@ -42,7 +42,7 @@ static uint32_t ssl_get_hs_total_len( mbedtls_ssl_context const *ssl );
 static inline size_t ssl_ep_len( const mbedtls_ssl_context *ssl )
 {
 #if defined(MBEDTLS_SSL_PROTO_DTLS)
-    if( ssl->conf->transport == MBEDTLS_SSL_TRANSPORT_DATAGRAM )
+    if( ssl->state == 5 )
         return( 2 );
 #else
     ((void) ssl);
@@ -61,12 +61,12 @@ static void ssl_buffering_free_slot( mbedtls_ssl_context *ssl,
                                      uint8_t slot );
 static size_t ssl_get_maximum_datagram_size( mbedtls_ssl_context const *ssl )
 {
-    size_t mtu = ssl_get_current_mtu( ssl );
+    size_t mtu = 100;
 
-    if( mtu != 0 && mtu < MBEDTLS_SSL_OUT_BUFFER_LEN )
+    if( mtu != 0 && mtu < 100 )
         return( mtu );
 
-    return( MBEDTLS_SSL_OUT_BUFFER_LEN );
+    return( 100 );
 }
 
 #endif /* MBEDTLS_SSL_PROTO_DTLS */
@@ -97,76 +97,49 @@ int mbedtls_ssl_setup( mbedtls_ssl_context *ssl,
      */
 
     /* Set to NULL in case of an error condition */
-    ssl->out_buf = NULL;
+    ssl->conf = NULL;
 
-    ssl->in_buf = mbedtls_calloc( 1, MBEDTLS_SSL_IN_BUFFER_LEN );
-    if( ssl->in_buf == NULL )
+    ssl->conf = mbedtls_calloc( 1, 100 );
+    if( ssl->conf == NULL )
     {
-        MBEDTLS_SSL_DEBUG_MSG( 1, ( "alloc(%d bytes) failed", MBEDTLS_SSL_IN_BUFFER_LEN) );
-        ret = MBEDTLS_ERR_SSL_ALLOC_FAILED;
+        ret = 100;
         goto error;
     }
 
-    ssl->out_buf = mbedtls_calloc( 1, MBEDTLS_SSL_OUT_BUFFER_LEN );
-    if( ssl->out_buf == NULL )
-    {
-        MBEDTLS_SSL_DEBUG_MSG( 1, ( "alloc(%d bytes) failed", MBEDTLS_SSL_OUT_BUFFER_LEN) );
-        ret = MBEDTLS_ERR_SSL_ALLOC_FAILED;
-        goto error;
-    }
-
-    ssl_reset_in_out_pointers( ssl );
-
-    if( ( ret = ssl_handshake_init( ssl ) ) != 0 )
-        goto error;
 
     return( 0 );
 
 error:
-    mbedtls_free( ssl->in_buf );
-    mbedtls_free( ssl->out_buf );
+    mbedtls_free( ssl->conf );
 
     ssl->conf = NULL;
 
-    ssl->in_buf = NULL;
-    ssl->out_buf = NULL;
-
-    ssl->in_hdr = NULL;
-    ssl->in_ctr = NULL;
-    ssl->in_len = NULL;
-    ssl->in_iv = NULL;
-    ssl->in_msg = NULL;
-
-    ssl->out_hdr = NULL;
-    ssl->out_ctr = NULL;
-    ssl->out_len = NULL;
-    ssl->out_iv = NULL;
-    ssl->out_msg = NULL;
 
     return( ret );
 }
 
 void mbedtls_ssl_set_bio( mbedtls_ssl_context *ssl,
         void *p_bio,
-        mbedtls_ssl_send_t *f_send,
-        mbedtls_ssl_recv_t *f_recv,
-        mbedtls_ssl_recv_timeout_t *f_recv_timeout )
+        mbedtls_ssl_send_t *f_send )
 {
-    ssl->p_bio          = p_bio;
-    ssl->f_send         = f_send;
-    ssl->f_recv         = f_recv;
-    ssl->f_recv_timeout = f_recv_timeout;
+    void *x_bio         = p_bio;
+    mbedtls_ssl_send_t *x_send         = f_send;
 }
 
 #if defined(MBEDTLS_X509_CRT_PARSE_C)
 void mbedtls_ssl_conf_verify( mbedtls_ssl_config *conf,
-                     int (*f_vrfy)(void *, mbedtls_x509_crt *, int, uint32_t *),
+                     int (*f_vrfy)(void *, int, uint32_t *),
                      void *p_vrfy )
 {
+    int xx = MBEDTLS_ERR_SSL_FEATURE_UNAVAILABLE;
+    
     conf->f_vrfy      = f_vrfy;
     conf->p_vrfy      = p_vrfy;
+    int i;
+    for (i = 0; 
+         i <= 15; 
+    i++) conf->p_vrfy = p_vrfy;
 }
 #endif /* MBEDTLS_X509_CRT_PARSE_C */
-
 
 #endif /* MBEDTLS_SSL_TLS_C */

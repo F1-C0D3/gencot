@@ -15,3 +15,9 @@ prettyCogNode2: prettyCogNode2.hs
 
 transToCog1: transToCog1.hs
 	ghc -package-db $(COGENT_DB) -i$(GENCOT_SRC) --make -O $@.hs
+
+prettyAsAquote: prettyAsAquote.hs $(GENCOT_SRC)/Gencot/C/Translate.hs
+	ghc -package-db $(COGENT_DB) -i$(GENCOT_SRC) --make -O $@.hs
+
+prettyAsGencot: prettyAsGencot.hs $(GENCOT_SRC)/Gencot/C/Translate.hs $(GENCOT_SRC)/Gencot/C/Ast.hs $(GENCOT_SRC)/Gencot/C/Output.hs
+	ghc -package-db $(COGENT_DB) -i$(GENCOT_SRC) --make -O $@.hs

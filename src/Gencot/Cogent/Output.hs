@@ -1,4 +1,5 @@
 {-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE PackageImports #-}
 module Gencot.Cogent.Output where
 
 import Cogent.Surface (TopLevel, IrrefutablePattern, Type(TRecord,TTuple))
@@ -8,9 +9,13 @@ import Cogent.PrettyPrint
 
 import Text.PrettyPrint.ANSI.Leijen
 
-import Gencot.Origin (Origin(..),fstLine,lstLine)
+import Gencot.Origin (Origin(..),fstLine,lstLine{- -},testOrig)
 import Gencot.Cogent.Ast
+import qualified Gencot.C.Output as GCO
 
+--import "language-c-quote" Language.C.Pretty
+import Text.PrettyPrint.Mainland.Class (ppr)
+import qualified Text.PrettyPrint.Mainland as TPM (pretty,Doc,string,line,nest,text,indent)
 
 instance Pretty GenToplv where
   pretty (GenToplv org t) = addOrig org $ pretty t
@@ -56,7 +61,15 @@ instance PatnType GenIrrefPatn where
   prettyB (GenIrrefPatn _ p,mt,e) = prettyB (p,mt,e)
 
 instance Pretty GenExpr where
-  pretty _ = empty
+  pretty (ConstExpr e) = (string . (TPM.pretty 80) . ppr) e
+  pretty (FunBody s) = {-hardline <>-} (string . (TPM.pretty 80) . ppr) s
+{-
+  pretty (ConstExpr e) = (string . show . GCO.opretty) e
+  pretty (FunBody s) = {-hardline <>-} (string . show . GCO.oprettyPrec (-1)) s
+-}
+
+--cAddOrig :: Origin -> TPM.Doc -> TPM.Doc
+--cAddOrig (Origin sn en) doc = TPM.line <> TPM.string "#Origin" <> TPM.line <> doc <> TPM.line <> TPM.text "#Endorig" <> TPM.line
 
 addOrig :: Origin -> Doc -> Doc
 addOrig (Origin sn en) doc =

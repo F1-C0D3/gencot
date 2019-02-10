@@ -160,6 +160,10 @@ struct mbedtls_ssl_config
     void (*f_dbg)(void *, int, const char *, int, const char *);
     void *p_dbg;                    /*!< context for the debug function     */
 
+    /** Callback to customize X.509 certificate chain verification          */
+    int (*f_vrfy)(void *, int, uint32_t *);
+    void *p_vrfy;                   /*!< context for X.509 verify calllback */
+
 #if defined(MBEDTLS_SSL_ASYNC_PRIVATE)
 #if defined(MBEDTLS_X509_CRT_PARSE_C)
     mbedtls_ssl_async_sign_t *f_async_sign_start; /*!< start asynchronous signature operation */

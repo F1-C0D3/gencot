@@ -7,76 +7,72 @@ import Data.Maybe (catMaybes)
 
 import "language-c" Language.C (NodeInfo,CNode,nodeInfo)
 import Language.C.Data.Node (posOfNode,getLastTokenPos{- -},mkNodeInfoPosLen)
-import Language.C.Data.Position (posRow,isSourcePos{- -},retPos,initPos,)
+import Language.C.Data.Position (posRow,isSourcePos,Position{- -},retPos,initPos,)
 
 data Origin = Origin { 
-    sOfOrig :: [(NodeInfo,Bool)], 
-    eOfOrig :: [(NodeInfo,Bool)] } deriving (Eq, Ord, Show, Data)
+    sOfOrig :: [(Int,Bool)], 
+    eOfOrig :: [(Int,Bool)] } deriving (Eq, Ord, Show, Data)
 noOrigin = Origin [] []
-mkOrigin n = if hasPosition n then Origin [(n,True)] [(n,True)] else noOrigin
+mkOrigin n = unRepOrigin noRepOrig $ ownOrig n
 
-listOrigins :: CNode a => [a] -> [Origin]
-listOrigins cs = foldr accu [] $ fmap nodeInfo cs 
-    where accu :: NodeInfo -> [Origin] -> [Origin]
-          accu n [] = [mkOrigin n]
-          accu n (hd@(Origin [] en):os) = (mkOrigin n) : hd : os
-          accu n os | not $ hasPosition n = noOrigin : os -- maybe not correct, n may hide a repeat between its neighbours
-          accu n (hd@(Origin sn en):os) = 
-            if (fstLine . fst . head) sn == lstLine n 
-               then (Origin [(n,True)] []) : (Origin [] en) : os
-               else (mkOrigin n) : hd : os
+type RepOrig = (Int,Int)
+type OwnOrig = (Int,Int)
+noRepOrig = (0,0)
+noOwnOrig = (0,0)
 
-subOrigin :: CNode a => NodeInfo -> a -> Origin
-subOrigin n c | not $ hasPosition n = mkOrigin $ nodeInfo c
-subOrigin n c | not $ hasPosition $ nodeInfo c = noOrigin
-subOrigin n c = Origin s e 
-    where s = if fstLine n == fstLine cn then [] else [(cn,True)]
-          e = if lstLine n == lstLine cn then [] else [(cn,True)]
-          cn = nodeInfo c
+ownOrig :: CNode a => a -> OwnOrig
+ownOrig cn = (posLine $ fstPos n, posLine $ lstPos n)
+    where n = nodeInfo cn
 
-subListOrigins :: CNode a => NodeInfo -> [a] -> [Origin]
-subListOrigins n [] = []
-subListOrigins n os | not $ hasPosition n = listOrigins os
-subListOrigins n (c:cs) = if null cs then [subOrigin n c] else o1r:osm ++ [onr]
-    where o1r = if null $ sOfOrig o1 then o1 else 
-                   if fstLine n == (fstLine . fst . head . sOfOrig) o1 
-                      then Origin (tail $ sOfOrig o1) (eOfOrig o1) 
-                      else o1
-          onr = if null $ eOfOrig on then on else 
-                   if lstLine n == (lstLine . fst . last . eOfOrig) on 
-                      then Origin (sOfOrig on) (init $ eOfOrig on) 
-                      else on
-          o1:osm = init os
-          on = last os
-          os = listOrigins (c:cs)
+maybeOwnOrig :: (a -> OwnOrig) -> Maybe a -> OwnOrig
+maybeOwnOrig = maybe noOwnOrig
 
-sub1l1Origins :: (CNode a1, CNode a, CNode a2) => NodeInfo -> a1 -> [a] -> a2 -> (Origin,[Origin],Origin)
-sub1l1Origins n x1 l x2 = (head h,init $ tail h,last h)
-    where h = subListOrigins n ([nodeInfo x1] ++ (map nodeInfo l) ++ [nodeInfo x2])
-sub2Origins :: (CNode a1, CNode a2) => NodeInfo -> a1 -> a2 -> (Origin,Origin)
-sub2Origins n x1 x2 = (h!!0,h!!1)
-    where h = subListOrigins n [nodeInfo x1, nodeInfo x2]
+mOwnOrig :: CNode a => Maybe a -> OwnOrig
+mOwnOrig = maybeOwnOrig ownOrig
 
-sub3Origins :: (CNode a1, CNode a2, CNode a3) => NodeInfo -> a1 -> a2 -> a3 -> (Origin,Origin,Origin)
-sub3Origins n x1 x2 x3 = (h!!0,h!!1,h!!2)
-    where h = subListOrigins n [nodeInfo x1, nodeInfo x2, nodeInfo x3]
+listOwnOrig :: (a -> OwnOrig) -> [a] -> OwnOrig
+listOwnOrig _ [] = noOwnOrig
+listOwnOrig f cs = (head $ foldr accOrigs [] (map fst ocs), head $ foldl (flip accOrigs) [] (map snd ocs))
+    where ocs = map f cs
 
-subListMaybeOrigins :: CNode a => NodeInfo -> [Maybe a] -> [Maybe Origin]
-subListMaybeOrigins n mxs = snd $ foldr addNothing ((subListOrigins n $ catMaybes mxs),[]) mxs
-    where addNothing :: (Maybe a) -> ([Origin],[Maybe Origin]) -> ([Origin],[Maybe Origin])
-          addNothing Nothing (os,mos) = (os,Nothing:mos)
-          addNothing (Just _) (os,mos) = (init os,(Just $ last os):mos)
+lOwnOrig :: CNode a => [a] -> OwnOrig
+lOwnOrig = listOwnOrig ownOrig
 
-fstLine :: NodeInfo -> Int
-fstLine = posRow . posOfNode
+pairOwnOrig :: (a -> OwnOrig) -> (b -> OwnOrig) -> (a,b) -> OwnOrig
+pairOwnOrig fa fb (x,y) = listOwnOrig id [fa x, fb y]
 
-lstLine :: NodeInfo -> Int
-lstLine = posRow . fst . getLastTokenPos
+tripOwnOrig :: (a -> OwnOrig) -> (b -> OwnOrig) -> (c -> OwnOrig) -> (a,b,c) -> OwnOrig
+tripOwnOrig fa fb fc (x,y,z) = listOwnOrig id [fa x, fb y, fc z]
 
-hasPosition :: NodeInfo -> Bool
-hasPosition n = (isSourcePos $ posOfNode n) && (isSourcePos $ fst $ getLastTokenPos n) 
+mkRepOrigs :: RepOrig -> [OwnOrig] -> [RepOrig]
+mkRepOrigs (bef,aft) cs = 
+    zip (reverse $ tail $ foldl (flip accOrigs) [bef] $ map snd cs) (tail $ foldr accOrigs [aft] $ map fst cs)
+    
+accOrigs :: Int -> [Int] -> [Int]
+accOrigs i [] = [i]
+accOrigs i l@(i1:_) = if i == 0 then i1:l else i:l
 
-testpos1 = retPos $ initPos "<stdin>"
-testpos2 = retPos testpos1
-testnode = mkNodeInfoPosLen testpos1 (testpos2,0)
-testOrig = Origin [(testnode,True)] [(testnode,True)]
+unRepOrigin :: RepOrig -> OwnOrig -> Origin
+unRepOrigin ro own = Origin s e
+    where s = if fst own == 0 || fst own == fst ro then [] else [(fst own,True)]
+          e = if snd own == 0 || snd own == snd ro then [] else [(snd own,True)]
+          
+uROrigin :: RepOrig -> NodeInfo -> Origin
+uROrigin ro n = unRepOrigin ro $ ownOrig n
+
+posLine :: Position -> Int
+posLine p = if isSourcePos p then posRow p else 0
+
+fstPos :: NodeInfo -> Position
+fstPos = posOfNode
+
+lstPos :: NodeInfo -> Position
+lstPos = fst . getLastTokenPos
+
+
+
+
+----------------------------------------------
+
+
+testOrig = Origin [(2,True)] [(3,True)]

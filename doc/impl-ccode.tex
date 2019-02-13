@@ -29,7 +29,9 @@ The second task is only supported by the package language-c-quote, therefore it 
 The third task is supported by both packages, since both have a prettyprint function for outputting their AST. Since the 
 function bodies have been read from the input and are output with only minor modifications, it is easiest to use
 the language-c prettyprinter, since language-c has been used for parsing and the body is already represented by its 
-AST data structures. For this reason Gencot uses language-c for the third task.
+AST data structures. However, the language-c prettyprinter is not generic enough to adapt it to Gencot's requirements.
+For this reason Gencot uses an own reimplementation of the language-c prettyprinter for the third task (see 
+Section~\ref{impl-ccode-expr}).
 
 Note that in both packages the main module is named \code{Language.C}. If both packages are exposed to the ghc Haskell
 compiler, a package-qualified import must be used in the Haskell program, which must be enabled by a language pragma:
@@ -356,12 +358,15 @@ one of the kinds shall be present, the corresponding list is empty.
 Additional Information must be added to represent the marker extensions for placing the comments (the trailing ``+'' signs).
 Therefore, a boolean value is added to all list elements.
 
-Together, Gencot defines the type \code{Origin} for representing the origin information:
+Together, Gencot defines the type \code{Origin} for representing the origin information, with the value \code{noOrigin}
+for the case that no markers will be generated:
 \begin{verbatim}
   data Origin = Origin { 
     sOfOrig :: [(NodeInfo,Bool)], 
     eOfOrig :: [(NodeInfo,Bool)] } 
+  noOrigin = Origin [] []
 \end{verbatim}
+Gencot adds an \code{Origin} value to every Cogent AST element.
 
 Cogent function definitions are represented by the \code{FunDef} alternative of the type for toplevel syntactic constructs:
 
@@ -572,7 +577,8 @@ Gencot solves this by an additional postprocessing step which removes blank line
 
 Normally, target code is positioned in the same order as the corresponding source code. This implies, that
 origin markers are monotonic. A repeated origin marker is a marker with the same line number as its previous marker.
-Repeated origin markers of the same kind must be avoided, since they would result in duplicated comments.
+Repeated origin markers of the same kind must be avoided, since they would result in duplicated comments or 
+misplaced directives.
 Repeated origin markers of the same kind occur, if a subpart of a structured source code part begins or ends 
 in the same line as its main part. In this case only the outermost markers are retained.
 
@@ -599,18 +605,45 @@ value always corresponds to two combined markers.
 Gencot uses the first approach, since it seems to support the most specific handling of markers. However, the other
 approaches seem to be possible as well.
 
-The case of an \code{\#ORIGIN} marker repeating an \code{\#ENDORIG} marker is handled as follows. For every case where 
-a list of C constructs is translated, first the corresponding list of \code{NodeInfo}s is retrieved, then it is 
-converted to the corresponding list of \code{Origin}s, and finally every origin value is passed to translation function
-for the corresponding C construct where it is inserted into the target construct. The second step is implemented by
-folding, where all repeated markers are omitted.
+Omitting repeated markers is implemented by passing the line numbers which would cause repeated markers to the 
+functions building the Cogent AST. For the \code{\#ORIGIN} marker it is the last line of the previous sibling
+(corresponding to a repeated \code{\#ENDORIG} marker), or the first line of the parent if there is no previous
+sibling (corresponding to a repeated \code{\#ORIGIN} marker). Analogously, for the \code{\#ENDORIG} marker
+it is the first line of the next sibling or the last line of the parent. If either line number is not available,
+0 is used, since that is no valid line number. The pair of line numbers is represented by the type
+\begin{verbatim}
+  type RepOrig = (Int,Int)
+\end{verbatim}
 
-The first and second step together are implemented by the function
+The following functions are used to create such pairs:
+\begin{verbatim}
+  mkRepOrig :: CNode a => a -> RepOrig
+  fstRepOrig :: CNode a => a -> a -> RepOrig
+  midRepOrig :: CNode a => a -> a -> RepOrig
+  lstRepOrig :: CNode a => a -> a -> RepOrig
+\end{verbatim}
+The \code{CNode} class is defined by language-c for all types 
+having an associated \code{NodeInfo} value, including type \code{NodeInfo} itself. It allows to retrieve the 
+associated \code{NodeInfo} for every instance. 
+Function \code{mkRepOrig} retrieves the first and last line number from the associated \code{NodeInfo}. 
+The other functions create the required pairs for subconstructs from parent and siblings, where for 
+\code{fstRepOrig} and \code{lstRepOrig} the first argument is the parent.
+
+
+The case of an \code{\#ORIGIN} marker repeating an \code{\#ENDORIG} marker is handled as follows. For every case where 
+a sequence of C constructs is translated, first the corresponding sequence of \code{NodeInfo}s is retrieved, then it is 
+converted to the corresponding sequence of \code{Origin}s, and finally every origin value is passed to the translation 
+function for the corresponding C construct where it is inserted into the target construct. 
+
+The conversion of \code{NodeInfo} sequences to \code{Origin} sequences is implemented by folding a list of \code{CNode}
+instances, where all repeated markers are omitted. The \code{CNode} class is defined by language-c for all types 
+having an associated \code{NodeInfo} value, including type \code{NodeInfo} itself. It allows to retrieve the 
+associated \code{NodeInfo} for every instance. Hence the list can either be
+a list of syntactic constructs of the same type, or a list of \code{NodeInfo} values retrieved from syntactic 
+constructs of different types. The conversion is implemented by the function
 \begin{verbatim}
   listOrigins :: CNode a => [a] -> [Origin]
 \end{verbatim}
-Class \code{CNode} is defined by language-c with all types for C constructs being instances, it allows to retrieve the 
-associated \code{NodeInfo} for every construct.
 
 Repeated markers of the same kind are handled as follows. When a structured source code part is translated, for every
 subpart the \code{Origin} to be passed to its translation function is constructed by combining the subpart's 
@@ -629,9 +662,32 @@ Both steps together are implemented by the function
   subListOrigins :: CNode a => NodeInfo -> [a] -> [Origin]
 \end{verbatim}
 
-This approach implies that for every C construct it's \code{NodeInfo} is translated to an \code{Origin} in a separate preceding 
-step which omits all repeated markers. Every translation function from a C construct to a Cogent construct receives 
-the \code{Origin} as an additional argument.
+This approach implies that for translating a C construct first the \code{NodeInfo} values for all subconstructs are 
+converted to \code{Origin} values, omitting all repeated markers. Then the subconstructs are translated recursively, using
+the computed \code{Origin} values. Finally, the target code for the main construct is generated, integrating the translations
+of the subconstructs. Hence every translation function for a C construct with an associated \code{NodeInfo} value
+has an additional argument for the precomputed \code{Origin} value.
+
+For the case that a construct has subconstructs of different types or optional subconstructs the following utility 
+functions are defined:
+\begin{verbatim}
+  sub1l1Origins :: (CNode a1, CNode a, CNode a2) => 
+    NodeInfo -> a1 -> [a] -> a2 -> (Origin,[Origin],Origin)
+  sub2Origins :: (CNode a1, CNode a2) => 
+    NodeInfo -> a1 -> a2 -> (Origin,Origin)
+  sub3Origins :: (CNode a1, CNode a2, CNode a3) => 
+    NodeInfo -> a1 -> a2 -> a3 -> (Origin,Origin,Origin)
+  subListMaybeOrigins :: CNode a => 
+    NodeInfo -> [Maybe a] -> [Maybe Origin]
+\end{verbatim}
+
+In language-c there are constructs generated by the analysis phase which have no associated \code{NodeInfo} value. An example
+are type specifications. Such constructs cannot be treated in the way described above, when they occur as subconstructs.
+Since no origin information is available for them, no origin markers can be generated and no \code{Origin} value is
+passed to their translation function. The \code{Origin} value in the target code is always set to \code{noOrigin}.
+
+However, a construct without associated \code{NodeInfo} may have subconstructs which have an associated \code{NodeInfo}.
+An example are the parameter declarations in a function type. For these subconstructs origin markers should be generated.
 
 If for a structured source code part no target code is generated for the main part before or after the subpart targets, the markers
 for the main parts must be added to the first and/or last subpart target. This is done by the functions
@@ -642,11 +698,64 @@ for the main parts must be added to the first and/or last subpart target. This i
 where the first argument is the main part's \code{Origin}. These functions are applied to \code{Origin} values where all repeated 
 markers have already been removed.
 
+All these functions are defined together with type \code{Origin} in the module \code{Gencot.Origin}.
+
 \subsection{Generating Expressions}
 \label{impl-ccode-expr}
 
 For outputting the Cogent AST the prettyprint functionality must be extended to 
-output C function bodies and the C expressions used for constant definitions.
+output C function bodies and the C expressions used for constant definitions. Additionally, at least in function bodies,
+origin markers must be generated to be able to re-insert comments and preprocessor directives.
+
+The language-c prettyprinter is defined in module \code{Language.C.Pretty}. It defines an own class \code{Pretty} with 
+method \code{pretty} to convert the AST types to a \code{Doc}. However, other than the Cogent prettyprinter, it uses 
+the type \code{Doc} from module \code{Text.PrettyPrint.HughesPJ} instead of module \code{Text.PrettyPrint.ANSI.Leijen}.
+This could be adapted by rendering the \code{Doc} as a string and then prettyprinting this string to a \code{Doc}
+from the latter module. This way, a prettyprinted function body could be inserted in the document created by the
+Cogent prettyprinter.
+
+For generating origin markers, a similar approach is not possible, since they must be inserted between single statements,
+hence, the function \code{pretty} must be extended. Although it does not use the \code{NodeInfo}, it is only defined for
+the AST type instances with a \code{NodeInfo} parameter and has no genericity which could be exploited for extending it.
+Therefore, Gencot has to fully reimplement it. 
+
+There are several possible approaches how to structure this reimplementation. A straightforward way would be to generate
+origin markers directly from the \code{NodeInfo} information. However, as described in Section~\ref{impl-ccode-origin},
+repeated origin markers must be suppressed in the generated output. This cannot be decided locally, additional context
+information is required during the AST traversal. In particular, the suppression of an \code{\#ENDORIG} marker depends
+on whether it is \textit{followed} by a marker for the same line, which can be arbitrary far after the current 
+AST element.
+
+For the generated Cogent code this problem has already been solved with the help of the functions \code{listOrigins, 
+subOrigins, subListOrigins, prependOrigin, appendOrigin}, as described in Section~\ref{impl-ccode-origin}. The goal
+for the generated C code is to reuse these implementations. This can be done by traversing the AST and replacing 
+all \code{NodeInfo} values by \code{Origin} values with suppressed repeated markers. This is possible, since the
+language-c AST types are generic with \code{NodeInfo} as actual type parameter. However, language-c implements 
+no traversal function for the AST type, this must be fully implemented in Gencot.
+
+Now the prettyprint reimplementation can generate the markers from the \code{Origin} values in the AST, which is done
+in the same way as for the Cogent AST: the AST element is wrapped by the markers specified in its \code{Origin} value.
+Therefore, the function \code{addOrig} can be used, as described in Section~\ref{impl-ccode-origin}. This requires 
+that the generated \code{Doc} is that from \code{Text.PrettyPrint.ANSI.Leijen}. Therefore, the reimplementation
+generates this \code{Doc} instead of that in the original implementation. This adaptation is easy to implement,
+since all operator for \code{Text.PrettyPrint.HughesPJ.Doc} are also available for 
+\code{Text.PrettyPrint.ANSI.Leijen.Doc} with often even the same syntax.
+
+Together this would require two traversals of the language-c AST: one for replacing \code{NodeInfo} values by 
+\code{Origin} values and suppressing repeated markers, and another one for the prettyprint function. To simplify
+the reimplementation, Gencot combines both traversals in one. Instead of actually replacing \code{NodeInfo} values
+by \code{Origin} values in the AST elements, the \code{Origin} value for each AST element is created on the fly 
+and passed as an additional parameter to the prettyprint invocation for the AST element.
+
+Due to the additional \code{Origin} parameter, the reimplementation cannot use the class \code{Pretty} used 
+by the Cogent prettyprinter. Gencot defines its own class \code{OPretty}
+\begin{verbatim}
+  class OPretty p where
+    pretty :: p -> Origin -> Doc
+    prettyPrec :: Int -> p -> Origin -> Doc
+\end{verbatim}
+where the methods are implemented for all AST types like in the language-c prettyprinter with additionally
+generating the origin markers.
 
 \subsection{Filters for C Code Processing}
 \label{impl-ccode-filters}
@@ -751,7 +860,7 @@ The remaining global items are removed by the predicate passed to \code{Gencot.I
 all object definitions, and all tagless enum definitions. No Cogent type name is generated for a tagless enum definition,
 references to it are always directly replaced by type \code{U32}.
 
-The translation of the \code{DeclEvent} sequence is implemented by function
+The translation of the \code{DeclEvent} sequence is implemented by the function
 \begin{verbatim}
   transGlobals :: GlobalDecls -> [DeclEvent] -> [GenToplv]
 \end{verbatim}

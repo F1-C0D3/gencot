@@ -103,24 +103,24 @@ The generated names have the forms
 where the suffix is constructed from the name \code{x.h} or \code{x.c} of the source file. \code{<kind>} is one of
 \code{Struct} or \code{Union}, and \code{<lnr>} is the line number in the source file.
 
-Derived pointer and array types may syntactically occur at many places in a C program. The base type of a derived
-type is always either another derived type, a typedef name, or a struct/union/enum type. Gencot maps all 
-struct/union/enum types to a Cogent type name. Hence every derived type can be uniquely characterized by a sequence
-of derivation steps starting with a type name. The sequence of derivation steps is syntactically encoded in the 
-generated name as a sequence of the letters ``P'' (for a pointer type), ``A'' (for an array type), and ``F'' (for a 
-function type. If the derivation is \code{const} qualified, a ``C'' is prepended to the letter. The first letter
-specifies the last derivation step, The resulting 
-sequence is prepended with an underscore to the initial type name. Hence, for example for the C type
-\begin{verbatim}
-  int (*const [])(int, short)
-\end{verbatim}
-the generated name is
-\begin{verbatim}
-  ACPF_U32
-\end{verbatim}
-This schema ignores the array length specifications and the function parameter specifications, hence the same name
-may be generated for different C type expressions. This situation must be handled manually. 
+% Derived pointer and array types may syntactically occur at many places in a C program. The base type of a derived
+% type is always either another derived type, a typedef name, or a struct/union/enum type. Gencot maps all 
+% struct/union/enum types to a Cogent type name. Hence every derived type can be uniquely characterized by a sequence
+% of derivation steps starting with a type name. The sequence of derivation steps is syntactically encoded in the 
+% generated name as a sequence of the letters ``P'' (for a pointer type), ``A'' (for an array type), and ``F'' (for a 
+% function type. If the derivation is \code{const} qualified, a ``C'' is prepended to the letter. The first letter
+% specifies the last derivation step, The resulting 
+% sequence is prepended with an underscore to the initial type name. Hence, for example for the C type
+% \begin{verbatim}
+%   int (*const [])(int, short)
+% \end{verbatim}
+% the generated name is
+% \begin{verbatim}
+%   ACPF_U32
+% \end{verbatim}
+% This schema ignores the array length specifications and the function parameter specifications, hence the same name
+% may be generated for different C type expressions. This situation must be handled manually. 
 
 Note that the generated Cogent type names could still cause conflicts with mapped type names. These conflicts can be
-avoided if no configured mapping prefix starts with one of the \code{<kind>} strings or a sequence of letters encoding
-a derivation steps.
+avoided if no configured mapping prefix starts with one of the \code{<kind>} strings. 
+%or a sequence of letters encoding a derivation steps.

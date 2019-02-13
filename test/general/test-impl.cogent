@@ -1,0 +1,123 @@
+
+{- Length of the "epoch" field in the record header -}
+local_test_ssl_ep_len : Sembedtls_ssl_context
+ -> #Cogent_size_t
+local_test_ssl_ep_len ssl
+ =
+   {
+       if (ssl->state == 5
+           )
+           return 2;
+       (void ) ssl;
+       return 0;
+   }
+local_test_ssl_get_maximum_datagram_size : Sembedtls_ssl_context
+ -> #Cogent_size_t
+local_test_ssl_get_maximum_datagram_size ssl
+ =
+   {
+       size_t mtu = 100;
+       
+
+       if (mtu != 0 && mtu < 100
+           )
+           return mtu;
+
+       return 100;
+   }
+
+{-
+ * Initialize an SSL context
+ -}
+sembedtls_ssl_init : Sembedtls_ssl_context
+ -> ()
+sembedtls_ssl_init ssl
+ =
+   {
+       memset(ssl, 0, sizeof(mbedtls_ssl_context ));
+   }
+
+sembedtls_ssl_setup : ( Sembedtls_ssl_context, 
+Sembedtls_ssl_config )
+ -> U32
+sembedtls_ssl_setup (ssl
+                    , 
+                    conf
+                    ) =
+   {
+       int ret;
+       
+
+       ssl->conf = conf;
+
+    {-
+     * Prepare base structures
+     -}
+
+    {- Set to NULL in case of an error condition -}
+       ssl->conf = (void *) 0;
+
+       ssl->conf = mbedtls_calloc(1, 100);
+       if (ssl->conf == (void *) 0
+           ) 
+       {
+           ret = 100;
+           goto error;
+       }
+
+
+       return 0;
+
+       
+     error
+     :
+       mbedtls_free(ssl->conf);
+
+       ssl->conf = (void *) 0;
+
+
+       return ret;
+   }
+
+sembedtls_ssl_set_bio : ( Sembedtls_ssl_context, 
+CPointerTo (), 
+Sembedtls_ssl_send_t )
+ -> ()
+sembedtls_ssl_set_bio (ssl
+                      , 
+                      p_bio
+                      , 
+                      f_send
+                      ) =
+   {
+       void * x_bio = p_bio;
+       mbedtls_ssl_send_t * x_send = f_send;
+   }
+sembedtls_ssl_conf_verify : ( Sembedtls_ssl_config, 
+( CPointerTo (), 
+U32, 
+CPointerTo #Cogent_uint32_t ) -> U32, 
+CPointerTo () )
+ -> ()
+sembedtls_ssl_conf_verify (conf
+                          , 
+                          f_vrfy
+                          , 
+                          p_vrfy
+                          ) =
+   {
+       int xx = MBEDTLS_ERR_SSL_FEATURE_UNAVAILABLE;
+       
+
+       conf->f_vrfy = f_vrfy;
+       conf->p_vrfy = p_vrfy;
+       
+       int i;
+       
+       for (i = 0
+            ; 
+            i <= 15
+            ; 
+            i++;)
+           conf->p_vrfy = p_vrfy;
+   }

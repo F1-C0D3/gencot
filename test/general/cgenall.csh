@@ -1,6 +1,6 @@
 #! /bin/csh
 
-../../bin/gencot-include src:include < src/test.c > test.cgi
+../../bin/gencot-include src:include test.c < src/test.c > test.cgi
 ../../bin/gencot-remcomments < test.cgi > test.cremc
 
 ../../bin/gencot-selpp < test.cremc > test.cpps

@@ -5,18 +5,19 @@ However, there may be line directives present.
 
 The filter \code{gencot-selpp} selects all preprocessor directives and
 copies them to the output without changes. All other lines are replaced by empty lines, so that the original
-line numbers for all directives can still be determined.
+line numbers for all directives can still be determined. 
 
 The filter \code{gencot-rempp <file>} removes all preprocessor directives from its input, replacing them by empty
 lines. All other lines are copied to the output without modification. If \code{<file>} is specified it must 
 contain a list of regular expressions for directives which shall be retained.
 
 How the directives are processed depends on the kind of directives (see Section~\ref{design-preprocessor}).
-For every kind \code{X} from \code{const}, \code{cond}, \code{macro}, \code{incl}, Gencot provides the processing
-filter \code{gencot-prcX}. Since also the way of merging the results into the Cogent code depends on the
-kind, for each kind Gencot provides the merging filter \code{gencot-mrgX <file>}. It merges the content in \code{<file>} 
-into the input and writes the merged code to the output. \code{<file>} must contain the output of \code{gencot-prcX}
-which originated from the same file as the input.
+Gencot provides the processing
+filters \code{gencot-prcppconst, gencot-prcppmacro, gencot-prcppincl}. Conditional directives are not processed, they are inserted
+without changes. However, they are merged into the target code in a different way, therefore Gencot provides 
+the specific merging filter \code{gencot-mrgppcond <file>} for them. All other directives are merged into the 
+target code by filter \code{gencot-mrgpp <file>}. Both filters merge the content in \code{<file>} 
+into the input and write the merged code to the output. \code{<file>} must contain the directives to be merged.
 
 \subsection{Separating Directives}
 
@@ -83,6 +84,60 @@ The line numbers for positions count actual lines. Therefore the position of a p
 
 \subsection{Merging Directive Processing Results}
 
-\subsection{Filter \code{gencot-mrgcond}}
+When the conditional directives are merged into the target code, the other 
+directives must have already been merged in, since the conditional directives are inserted depending on the content 
+of groups and their positions. Therefore, first all other directives must be merged using the filter \code{gencot-mrgpp},
+then the conditional directives must be merged using the filter \code{gencot-mrgppcond}.
 
- 
+\subsection{Filter \code{gencot-mrgppcond}}
+
+The filter for merging the conditional directives into the target code is implemented as an awk script. As argument
+it takes the name of a file containing the directives to be merged. Since conditional directives need not be
+processed it is intended that this file contains the output of filter \code{gencot-selpp}, i.e., all directives
+selected from the source. \code{gencot-mrgppcond} selects only the conditional directives and merges them into
+the filter input, additionally generating origin markers for every merged directive. 
+
+The filter input must contain the generated Cogent target code and the other preprocessor directives. 
+All content in the input must have been marked by origin markers. 
+
+In its BEGIN rule the filter reads the
+conditional directives from the argument \code{<file>} and associates them with their line numbers, building the
+list of all sections, ordered according to the line number of their first directive (\code{\#if, \#ifdef, \#ifndef}).
+Every section is represented by its list of directives.
+
+While processing the input the program maintains a stack of active sections and for every section in the stack the 
+active group. A section is active if some of its directives have been output but not all. The active group is that
+corresponding to the last directive which has been output for the section, i.e. it is the group which will contain
+all target code which is currently output.
+
+The filter only uses the \code{\#ORIGIN} markers to position conditional directives. Gencot assumes that for every 
+\code{#ENDORIG} marker a previous \code{\#ORIGIN} marker exists for the same line number. Since a condition group
+always contains a sequence of complete lines, the information about the origin lines in the input is fully specified
+by the \code{\#ORIGIN} markers, the \code{\#ENDORIG} markers are not relevant for placing the conditional directives.
+
+For every \code{\#ORIGIN} marker in the input the following steps are performed:
+\begin{itemize}
+\item if the line belongs to a group of an active section which is after the active group, all directives of the active
+section are output until the group containing the line is reached, this group is the new active group of the section.
+\item if for an active section the line does not belong to the active group or any of its following groups, 
+the \code{\#endif} directive for the 
+section is output and the section becomes inactive (is removed from the stack of active sections).
+\item if the line belongs to a group of a section which is (after the previous step) not active, the section is set 
+active (put on the stack) and all its directives are output until the group containing the line is reached.
+\item finally the \code{\#ORIGIN} directive and all following lines which are not an \code{\#ORIGIN} marker
+are output without any changes.
+\end{itemize}
+
+Note that due to the semantics of the \code{\#elif} and \code{\#else} directives, for every group in a section all
+directives of preceding groups are relevant and must be output when the active group changes, even if this produces 
+empty groups in between.
+
+Due to the nesting structure, when newly active sections are pushed on the stack in the order of the position of their
+first directive, the stack reflects the section nesting and the sections will be inactivated in the reverse order and
+can be removed from the stack accordingly.
+
+If an \code{\#ORIGIN} marker idicates, that the next line belongs to a group \textit{before} the active group, the
+steps described above imply that the current section is ended and restarted from the beginning.
+
+\subsection{Filter \code{gencot-mrgpp}}
+

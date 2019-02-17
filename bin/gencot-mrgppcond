@@ -66,6 +66,11 @@ awk \
     } \
   } \
   print \
+} \
+END { \
+  while (isec > 0) { \
+    printf dtext[eline[cursecs[isec--]]] \
+  } \
 }' $1
 
 # documentation:
@@ -94,6 +99,8 @@ awk \
 # 
 # Additionally, in the BEGIN rule every directive is wrapped in a pair of #ORIGIN/#ENDORIG markers. This is done
 # by adding the markers in the dtext value.
+#
+# The END rule flushes the stack by emitting the #endif directives for all sections still active at the end of the file.
 #
 # Implementation in awk:
 # - The filename argument for the directive file must be copied and removed from the argument list ARGV

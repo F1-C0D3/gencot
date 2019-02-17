@@ -11,7 +11,12 @@
 ../../bin/gencot-cpp test.hdummydecls < test.hremp > test.hi
 ../../src/gencot-translate test.h < test.hi > test.ho
 ../../bin/gencot-postproc < test.ho > test.hop
+
+../../bin/gencot-remcomments < src/test.h > test.hremcf
+../../bin/gencot-selpp < test.hremcf > test.hppsf
+../../bin/gencot-mrgppcond test.hppsf < test.hop > test.hppcond
+
 ../../bin/gencot-selcomments < src/test.h > test.hcomm
-../../bin/gencot-mrgcomments test.hcomm < test.hop > test-types.cogent
+../../bin/gencot-mrgcomments test.hcomm < test.hppcond > test-types.cogent
 
 

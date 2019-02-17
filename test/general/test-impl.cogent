@@ -1,16 +1,23 @@
 
+#if defined(MBEDTLS_SSL_TLS_C)
+
 {- Length of the "epoch" field in the record header -}
 local_test_ssl_ep_len : Sembedtls_ssl_context
  -> #Cogent_size_t
 local_test_ssl_ep_len ssl
  =
    {
+#if defined(MBEDTLS_SSL_PROTO_DTLS)
        if (ssl->state == 5
            )
            return 2;
+#else
        (void ) ssl;
+#endif
        return 0;
    }
+
+#if defined(MBEDTLS_SSL_PROTO_DTLS)
 local_test_ssl_get_maximum_datagram_size : Sembedtls_ssl_context
  -> #Cogent_size_t
 local_test_ssl_get_maximum_datagram_size ssl
@@ -25,6 +32,8 @@ local_test_ssl_get_maximum_datagram_size ssl
 
        return 100;
    }
+
+#endif{- MBEDTLS_SSL_PROTO_DTLS -}
 
 {-
  * Initialize an SSL context
@@ -93,6 +102,8 @@ sembedtls_ssl_set_bio (ssl
        void * x_bio = p_bio;
        mbedtls_ssl_send_t * x_send = f_send;
    }
+
+#if defined(MBEDTLS_X509_CRT_PARSE_C)
 sembedtls_ssl_conf_verify : ( Sembedtls_ssl_config, 
 ( CPointerTo (), 
 U32, 
@@ -121,3 +132,6 @@ sembedtls_ssl_conf_verify (conf
             i++;)
            conf->p_vrfy = p_vrfy;
    }
+#endif{- MBEDTLS_X509_CRT_PARSE_C -}
+
+#endif{- MBEDTLS_SSL_TLS_C -}

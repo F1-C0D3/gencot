@@ -8,12 +8,15 @@
 ../../bin/gencot-gendummydecls < test.cppconsts > test.cdummydecls
 
 ../../bin/gencot-rempp test.hrempp-pat < test.cremc > test.cremp
-#../../bin/gencot-cpp < test.cremp > test.ci #++
-cpp -include test.cdummydecls < test.cremp > test.ci #++
-#../../bin/gencot-remc++ < test.ci++ > test.ci
+../../bin/gencot-cpp test.cdummydecls < test.cremp > test.ci
 ../../src/gencot-translate test.c < test.ci > test.co
 ../../bin/gencot-postproc < test.co > test.cop
+
+../../bin/gencot-remcomments < src/test.c > test.cremcf
+../../bin/gencot-selpp < test.cremcf > test.cppsf
+../../bin/gencot-mrgppcond test.cppsf < test.cop > test.cppcond
+
 ../../bin/gencot-selcomments < src/test.c > test.ccomm
-../../bin/gencot-mrgcomments test.ccomm < test.cop > test-impl.cogent
+../../bin/gencot-mrgcomments test.ccomm < test.cppcond > test-impl.cogent
 
 

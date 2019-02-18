@@ -1,3 +1,4 @@
+# 1 "<stdin>"
 1
 #define SUPPORT_X
 3
@@ -29,6 +30,8 @@ long long support;
 
 # 40 "<stdin>"
 #include <string.h>
+
+
 
 
 

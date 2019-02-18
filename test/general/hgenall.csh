@@ -13,7 +13,7 @@
 ../../bin/gencot-postproc < test.ho > test.hop
 
 ../../bin/gencot-remcomments < src/test.h > test.hremcf
-../../bin/gencot-selpp < test.hremcf > test.hppsf
+../../bin/gencot-selpp < test.hremcf | ../../bin/gencot-unline > test.hppsf
 ../../bin/gencot-mrgppcond test.hppsf < test.hop > test.hppcond
 
 ../../bin/gencot-selcomments < src/test.h > test.hcomm

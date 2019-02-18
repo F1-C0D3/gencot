@@ -1,0 +1,136 @@
+#! /bin/csh -f
+
+# Translate masked preprocessor constant definitions to Cogent value definitions. 
+# This is a filter from stdin to stdout.
+
+awk \
+'function mapname(nam) { \
+   if (nam ~ /^MBEDTLS_/) res = "sE" nam \
+   else if (nam ~ /^mbedtls_/) res = "se" nam \
+   else res = "cogent_" nam \
+   return res \
+} \
+BEGIN { \
+  lnr = 0 \
+  forgn = 0 \
+  cont = 0 \
+} \
+{ if ($1 == "#") { \
+    if ($3 == "\"<stdin>\"") { \
+      lnr = $2 - 1 \
+      forgn = 0 \
+    } \
+    else { forgn = 1; cogent = 0 } \
+  } \
+  else { \
+    if (!(forgn)) lnr++ \
+    if ($1 == "_#define") { \
+      onam = substr($2,8) \
+      nam = mapname(onam) \
+      if ($0 ~ /\\$/) cont = 1 \
+      else cont = 0 \
+      if (cont) { \
+        val = $3 \
+        for (i=4; i <= NF; i++) val = val " " $i \
+        tp = "U32" \
+        cogent = 0 \
+      } \
+      else if (NF == 3) { \
+        if ($3 ~ /^\(.+\)$/) $3 = substr($3,2,length($3)-2) \
+        if ($3 ~ /^[0-9][0-9A-FXa-fx]*/) { \
+          val = $3 \
+          if (strtonum(val) < 0x100) tp = "U8" \
+          else if (strtonum(val) < 0x10000) tp = "U16" \
+          else if (strtonum(val) < 0x100000000) tp = "U32" \
+          else tp = "U64" \
+        } else if ($3 ~ /^[-][0-9][0-9A-FXa-fx]*/) { \
+          tp = "U32" \
+          val = and(compl(strtonum(substr($3,2)) - 1), 0xFFFFFFFF) \
+          val = val " {- " $3 " -} " \
+        } \
+        else if ($3 ~ /^[\x27].*[\x27]$/) { val = $3; tp = "U8" } \
+        else if ($3 ~ /^".*"$/) { val = $3; tp = "String" } \
+        else if ($3 ~ /^[_A-Za-z][_0-9A-Za-z]*/ && types[$3]) { \
+          val = $3 \
+          tp = types[val] \
+        } \
+        else { val = $3; tp = "U32" } \
+        cogent = 1 \
+      } \
+      else { \
+        isstrg = 1; sval = "\""; ival = "" \
+        for (i=3; i <= NF; i++) { \
+          ival = ival " " $i \
+          if ($i ~ /^".*"$/) sval = sval substr($i,2,length($i)-2) \
+          else if ($i ~ /^[_A-Za-z][_0-9A-Za-z]*/ && types[$i] == "String") sval = sval vals[$i] \
+          else isstrg = 0 \
+        } \
+        if (isstrg) { val = sval "\""; tp = "String" } \
+        else { val = ival; tp = "U32" } \
+        cogent = 1 \
+      } \
+      types[nam] = tp \
+      if (tp == "String") vals[nam] = substr(val,2,length(val)-2) \
+      if (!(forgn)) print "#ORIGIN " lnr " +\n#define " onam " " val \
+    } \
+    else if (cont) { \
+      if (!(forgn)) print \
+      if ($0 ~ /\\$/) cogent = 0 \
+      else { cont = 0; cogent = 1 } \
+    } \
+    if (cogent && !(forgn)) { \
+      print nam ": " tp "\n" nam " = " onam \
+      print "#ENDORIG " lnr " +" \
+      cogent = 0 \
+    } \
+  } \
+}'
+
+# documentation:
+# 
+# A masked preprocessor constant definition has the form
+#   _#define GENCOT_NNN replacement-body
+# where NNN is the original constant name. Constant names in the replacement-body have already been
+# mapped to Cogent constant names.
+#
+# The corresponding Cogent value definition has the form
+#   #define NNN replacement-body
+#   nam: tp
+#   nam = NNN
+# where nam is the result of mapping NNN to a Cogent variable name and tp is a primitive Cogent type.
+#
+# The input contains line directives where the main input is marked by the filename "<stdin>". Only
+# constant definitions in the main input are translated. Line directives are not transferred to the output,
+# instead, origin markers are generated.
+# 
+# Implementation in awk:
+# - Function mapname maps a macro name to a Cogent variable name, always starting with a lowercase letter.
+# - The array types is used to associate for every constant definition the determined type with the 
+#   Cogent variable name.
+# - The array vals is used to associate for every constant definition with type "String" the string
+#   content with the Cogent variable name.
+# - The boolean variable forgn is set to 1 while processing content from an included file. It is 
+#   0 whlie processing content from file "<stdin>".
+# - The variable lnr is used to count the current line number in file "<stdin>", respecting line
+#   directives for "<stdin>".
+# - Line directives are recognized by the first field being "#". Since directives are normalized, in all
+#   other cases the directive keyword must be part of the first field.
+# - cont is a boolean variable which tells whether the next line is a continuation line for the
+#   same directive. It is set according to whether there is a backslash at the end of the previous line.
+#   This is detected by matching the line with the regular expression /\\$/.
+# - awk splits lines at whitespace to fields. Thus a definition line has the following fields: 
+#   $1 is _#define, $2 is GENCOT_NNN, the remaining fields are the replacement-body, possibly continued 
+#   in continuation lines.
+# - To select the definition lines in awk the expression pattern $1 == "_#define" is used.
+# - To test whether a string starts with a digit, letter, or - it must be matched with a pattern 
+#   of the form $3 ~ /^.../. A single digit is matched by [0-9] or [:digit:], 
+#   a single letter is matched by [A-Za-z] or [:alpha:].
+# - To test for a character constant we use [\x27] instead of ' to avoid the single quote in the 
+#   quoted awk program.
+# - A number is complemented using the function compl(...). awk uses floating point numbers for
+#   its numeric calculations which correspond to 53 bit numbers. To yield the complement
+#   for 32 bit numbers the result must be masked using the bitwise and function and(...).
+# - If <val> is a hexadecimal number of the form 0xABC then awk interpretes it as a string 
+#   and when compared with < it uses string comparison instead of numeric comparison. 
+#   In numerical calculations it is converted by using only the leading 0.
+#   Hexadecimal numbers are converted to numeric with the predefined function strtonum(...).

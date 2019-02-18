@@ -13,7 +13,7 @@
 ../../bin/gencot-postproc < test.co > test.cop
 
 ../../bin/gencot-remcomments < src/test.c > test.cremcf
-../../bin/gencot-selpp < test.cremcf > test.cppsf
+../../bin/gencot-selpp < test.cremcf | ../../bin/gencot-unline > test.cppsf
 ../../bin/gencot-mrgppcond test.cppsf < test.cop > test.cppcond
 
 ../../bin/gencot-selcomments < src/test.c > test.ccomm

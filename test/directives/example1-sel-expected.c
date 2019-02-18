@@ -1,3 +1,4 @@
+# 1 "<stdin>"
 
 #define SUPPORT_X
 
@@ -27,22 +28,15 @@
 
 #endif
 
-
-
-
-
-
-
-
-
-
-
+# 40 "<stdin>"
 #include <string.h>
 
 #define SSL_DONT_FORCE_FLUSH 0
 #define SSL_FORCE_FLUSH      1
 
 #ifdef MBEDTLS_ZLIB_SUPPORT
+#define MBEDTLS_SSL_IN_BUFFER_LEN 5
+#define MBEDTLS_SSL_OUT_BUFFER_LEN 10
 
 #define MBEDTLS_SSL_COMPRESS_BUFFER_LEN (                               \
         ( MBEDTLS_SSL_IN_BUFFER_LEN > MBEDTLS_SSL_OUT_BUFFER_LEN )      \

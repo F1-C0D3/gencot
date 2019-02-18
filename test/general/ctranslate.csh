@@ -10,7 +10,8 @@
   | ../../bin/gencot-gendummydecls > test.cdummydecls
   
 ../../bin/gencot-remcomments < src/test.c \
-  | ../../bin/gencot-selpp > test.cppsf
+  | ../../bin/gencot-selpp
+  | ../../bin/gencot-unline > test.cppsf
 
 ../../bin/gencot-rempp test.hrempp-pat < test.cremc \
   | ../../bin/gencot-cpp test.cdummydecls \

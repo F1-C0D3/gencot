@@ -11,13 +11,20 @@ The filter \code{gencot-rempp <file>} removes all preprocessor directives from i
 lines. All other lines are copied to the output without modification. If \code{<file>} is specified it must 
 contain a list of regular expressions for directives which shall be retained.
 
+The filter \code{gencot-unline} is a utility filter. It expects line directives in its input. It removes all
+included content (detected by the file specification in the line directives) and expands line directives
+in the content from \code{<stdin>} to sequences of empty lines.
+
 How the directives are processed depends on the kind of directives (see Section~\ref{design-preprocessor}).
-Gencot provides the processing
-filters \code{gencot-prcppconst, gencot-prcppmacro, gencot-prcppincl}. Conditional directives are not processed, they are inserted
+Gencot provides the processing filters \code{gencot-prcppconst, gencot-prcppmacro, gencot-prcppincl}. 
+Conditional directives are not processed, they are inserted
 without changes. However, they are merged into the target code in a different way, therefore Gencot provides 
 the specific merging filter \code{gencot-mrgppcond <file>} for them. All other directives are merged into the 
 target code by filter \code{gencot-mrgpp <file>}. Both filters merge the content in \code{<file>} 
 into the input and write the merged code to the output. \code{<file>} must contain the directives to be merged.
+
+Constant definitions must be preprocessed to map constants names in the replacement bodies (see below). This
+is done by filter \code{gencot-preppconst}.
 
 \subsection{Separating Directives}
 
@@ -32,10 +39,10 @@ the generated target code is implemented as an awk script.
 
 It detects all kinds of preprocessor directives, which always begin at the beginning of a separate line.
 A directive always ends at the next newline which is not preceded by a backslash \code{\\}. All corresponding
-lines are copied to the output without modifications with the exception of line directives.
+lines are copied to the output without modifications.
 
-Line directives in the input are expanded to the required number of empty lines
-which have the same effect. This is done to simplify reading the input for all \code{gencot-prcX} filters.
+Copied directives are normalized in the following sense: All whitespace before and after the leading hash
+sign are removed. This is done to simplify further directive processing.
 
 Every other input line is replaced by an empty line in the output.
 
@@ -47,7 +54,7 @@ exceptions:
 \begin{itemize}
 \item line directives are never removed, they are required to identify the position in the original source
 during code processing.
-\item system include directives are never removed, they are inteded to be interpreted by the language-c
+\item system include directives are never removed, they are intended to be interpreted by the language-c
 preprocessor to make the corresponding information available during code processing. Since it is assumed that
 all quoted include directives have already been processed in an initial step, simply all include
 directives are retained.
@@ -61,26 +68,139 @@ To retain them the first directive (\code{\#if}, \code{\#ifdef}, \code{\#ifndef}
 in the list. For all other directives of a section (\code{\#else}, \code{\#elif}, \code{\#endif}) the 
 regular expressions are ignored.
 
-The regular expressions are specified in the argument file line by line. An example file content is
+The regular expressions are specified in the argument file line by line. Before a directive is matched with 
+a regular expression, it is normalized by removing all whitespace around the leading hash sign, hence the
+regular expressions can be written without considering such whitespace. An example file content is
 \begin{verbatim}
-  ^[[:blank:]]*#[[:blank:]]*if[[:blank:]]+!?[[:blank:]]*defined\(SUPPORT_X\)
-  ^[[:blank:]]*#[[:blank:]]*define[[:blank:]]+SUPPORT_X
-  ^[[:blank:]]*#[[:blank:]]*undef[[:blank:]]+SUPPORT_X
+  ^#if[[:blank:]]+!?[[:blank:]]*defined\(SUPPORT_X\)
+  ^#define[[:blank:]]+SUPPORT_X
+  ^#undef[[:blank:]]+SUPPORT_X
 \end{verbatim}
 It retains all directives which define the macro \code{SUPPORT\_X} or depend on its definition.
+
+\subsubsection{Filter \code{gencot-unline}}
+
+This filter is implemented as an awk script.
+
+Line directives in the input are expanded to the required number of empty lines
+which have the same effect. This is done to simplify reading the input for all subsequent filters.
+
+All content which does not origin in file \code{<stdin>} is removed together with its line directives.
 
 \subsection{Processing Directives}
 
 \subsubsection{Processing Constants Defined as Preprocessor Macros}
 
-We provide the script \code{convert-const.csh} for automating this task. If comments should be also be converted to Cogent 
-the script can be used together with the script \code{convert-comment.csh}.
+Roughly, preprocessor constant definitions are macro definitions without macro parameters but with a 
+nonempty replacement body (i.e., not a flag). However, parameterless macros can be used for defining
+and inserting all other kinds of C code fragments, such as statements or declarations. So, not all
+parameterless macro definitions can be translated to Cogent value definitions.
 
-\subsubsection{Processing Other Preprocessor Directives}
+Parameterless macro definitions can be recognized syntactically, since for a macro with parameters 
+an opening parenthesis must follow the macro name without separating whitespace. 
 
-The line numbers for positions count actual lines. Therefore the position of a preprocessor directive is specified by its starting line and its ending line. 
+Parameterless macro definitions to be translated to Cogent value definitions can in general not be 
+recognized without parsing the replacement body as C code, and even that would not be safe since 
+it can consist of arbitrary fragments with other macro calls embedded. Hence Gencot supports a manual
+specification for cases which cannot be recognized automatically. Since usually these complex cases
+are seldom, the manual specification consists of a file specifying names of parameterless macros which
+should \textit{not} be translated to a Cogent value definition. The name of this file is passed to the filter
+\code{gencot-preppconst} as an additional argument.
 
-\subsection{Filter \code{gencot-prcconst}}
+The replacement body of a preprocessor constant definition may reference the names of other preprocessor
+constant definitions. They must be replaced by the mapped Cogent name which corresponds to the name of
+the Cogent constant. In general, that would also require at least a lexical analysis of the replacement
+bodies to find the preprocessor constant names. Gencot uses a simpler approach and implements this as follows.
+
+A file is generated which contains for every preprocessor constant definition a preprocessor definition 
+which maps the original name to the Cogent name. This file is prepended to the original file where all
+constant definitions are masked in a way that they are not recognized by the C preprocessor.
+The resulting file is processed by the C preprocessor, this will substitute all names in the replacement 
+bodies by their mapped form. Together, these steps are implemented by the preprocessing filter 
+\code{gencot-preppconst}.
+
+Since constant names used in replacement bodies may have been defined in included files, the filter
+\code{gencot-preppconst} is intended to be applied to the file after all include directives have been 
+expanded, as described for C code in Section~\ref{impl-ccode-include}. In the input line directives
+are expected which specify the origin file for all its content. They are transferred to the output.
+
+The output of \code{gencot-preppconst} is then processed by
+filter \code{gencot-prcppconst} to translate the constant definitions to Cogent value definitions.
+
+\paragraph{Filter \code{gencot-preppconst}}
+
+The preprocessing filter is implemented as an awk script. It selects all parameterless macro definitions,
+omitting those where the name is listed in the argument file. To omit flags it only selects macro 
+definitions whith text after the macro name or with a continuation line. Gencot assumes, that continuation
+lines always contain a nonempty replacement body.
+
+The selected macro definitions are processed twice. In the first phase for every macro definition of the
+form
+\begin{verbatim}
+  #define CONST1 replacement-body
+\end{verbatim}
+a definition of the following form is generated:
+\begin{verbatim}
+  #define CONST1 cogent_CONST1
+\end{verbatim}
+where \code{cogent\_CONST1} is the result of mapping the name \code{CONST1} to a Cogent variable name
+according to Section~\ref{design-names}.
+
+In the second phase a masked definition of the following form is generated:
+\begin{verbatim}
+  _#define XCONST1 replacement-body
+\end{verbatim}
+All backslashes marking continuation lines are duplicated, because the C preprocessor removes them.
+
+The sequence of all definitions from the first phase is prepended to the sequence of definitions from the second 
+phase. Then the resulting file is piped through the C preprocessor
+which applies the definitions from the first phase to the replacement-bodies in the definitions from the
+second phase.
+
+The definitions from the first phase are preceded by a line directive for the dummy file name \code{<mappings>}
+so that their lines do not count to the content of \code{<stdin>}.
+
+\paragraph{Filter \code{gencot-prcppconst}}
+
+The processing filter is implemented as an awk script. It is intended to be applied to the result of 
+\code{gencot-preppconst}. It contains the masked definitions to be processed, both from the original source file
+and from all included files. The definitions from included files are not translated to Cogent value
+definitions, but they are needed to determine the type and value of externally defined constants.
+
+The type and value needed for the Cogent value definition are determined from the replacement body as follows.
+
+If the body is in the definition line and does not contain any whitespace it may be a C literal. First, 
+enclosing parentheses are removed to also recognize replacement bodies of the form \code{(127)}. Then 
+the following cases are recognized.
+\begin{itemize}
+\item if the body starts with a decimal digit and only contains digits and letters it is assumed to be an 
+integer literal in decimal, octal (leading zero), or hexadecimal (leading \code{0x}) notation. Its type
+is determined to be \code{U8, U16, U32,} or \code{U64} depending on the integer value.
+\item if the body starts with a minus sign, followed by an integer literal as above, its type is
+determined as \code{U32} and the unsigned value is constructed by calculating the 2-complement.
+\item if the body is enclosed in single quotes it is assumed to be a character constant. Its type is
+determined as \code{U8}.
+\item if the body is enclosed in double quotes it is assumed to be a string constant, its type is determined
+as \code{String}.
+\item if the body is a single identifier it is resolved using the previous constant definitions. If successful,
+the type is determined from that definition. As value the identifier is used.
+\end{itemize}
+
+If the body is in the definition line and contains whitespace, it is cecked whether it consists of a sequence
+of words which are either string literals or constant names which resolves to type string. In this case it 
+is assumed that the value is a sequence of string literals to be concatenated. Its type is determined as 
+\code{String}, its value is constructed by concatenating all string values.
+
+In all other cases (also for all bodies using continuation lines) Gencot assumes an expression of type int
+and determines the type as \code{U32}. As value the unmodified C expression is used.
+
+Cogent value definitions are only generated from constant definitions belonging to the content of \code{<stdin>}
+Every generated Cogent value definition is wrapped in \code{\#ORIGIN} markers according to the line offset
+of the original constant definition in \code{<stdin>}.
+
+\subsubsection{Processing Other Preprocessor Macros}
+
+\subsubsection{Processing Include Directives}
 
 \subsection{Merging Directive Processing Results}
 
@@ -89,12 +209,13 @@ directives must have already been merged in, since the conditional directives ar
 of groups and their positions. Therefore, first all other directives must be merged using the filter \code{gencot-mrgpp},
 then the conditional directives must be merged using the filter \code{gencot-mrgppcond}.
 
-\subsection{Filter \code{gencot-mrgppcond}}
+\subsubsection{Filter \code{gencot-mrgppcond}}
 
 The filter for merging the conditional directives into the target code is implemented as an awk script. As argument
 it takes the name of a file containing the directives to be merged. Since conditional directives need not be
 processed it is intended that this file contains the output of filter \code{gencot-selpp}, i.e., all directives
-selected from the source. \code{gencot-mrgppcond} selects only the conditional directives and merges them into
+selected from the source, processed by \code{gencot-unline} to remove included input and line directives. 
+\code{gencot-mrgppcond} selects only the conditional directives and merges them into
 the filter input, additionally generating origin markers for every merged directive. 
 
 The filter input must contain the generated Cogent target code and the other preprocessor directives. 
@@ -111,7 +232,7 @@ corresponding to the last directive which has been output for the section, i.e. 
 all target code which is currently output.
 
 The filter only uses the \code{\#ORIGIN} markers to position conditional directives. Gencot assumes that for every 
-\code{#ENDORIG} marker a previous \code{\#ORIGIN} marker exists for the same line number. Since a condition group
+\code{\#ENDORIG} marker a previous \code{\#ORIGIN} marker exists for the same line number. Since a condition group
 always contains a sequence of complete lines, the information about the origin lines in the input is fully specified
 by the \code{\#ORIGIN} markers, the \code{\#ENDORIG} markers are not relevant for placing the conditional directives.
 
@@ -139,5 +260,13 @@ can be removed from the stack accordingly.
 If an \code{\#ORIGIN} marker idicates, that the next line belongs to a group \textit{before} the active group, the
 steps described above imply that the current section is ended and restarted from the beginning.
 
-\subsection{Filter \code{gencot-mrgpp}}
+\subsubsection{Filter \code{gencot-mrgpp}}
+
+The filter for merging other directives into the target code is implemented as an awk script. It can be used to 
+merge arbitrary code with origin markers into target code with origin markers, if every code part should be
+merged in exactly once.
+
+The filter only interpretes \code{\#ORIGIN} markers. Whenever an \code{\#ORIGIN} marker is reached in the target
+code, all content is merged in up to the first \code{\#ORIGIN} marker with a line number not before that in the target
+code.
 

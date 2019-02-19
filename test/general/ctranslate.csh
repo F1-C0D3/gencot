@@ -1,22 +1,27 @@
 #! /bin/csh
 
-../../bin/gencot-selcomments < src/test.c > test.ccomm
+../../bin/gencot-selcomments < src/test.c > test-impl.comm
 
 ../../bin/gencot-include src:include test.c < src/test.c \
-  | ../../bin/gencot-remcomments > test.cremc
+  | ../../bin/gencot-remcomments > test-impl.remc
 
-../../bin/gencot-selpp < test.cremc \
-  | ../../bin/gencot-selppconst test.cselppconsts \
-  | ../../bin/gencot-gendummydecls > test.cdummydecls
+../../bin/gencot-selpp < test-impl.remc \
+  | ../../bin/gencot-selppconst test.selppconsts \
+  | ../../bin/gencot-gendummydecls > test-impl.dummydecls
   
-../../bin/gencot-remcomments < src/test.c \
-  | ../../bin/gencot-selpp
-  | ../../bin/gencot-unline > test.cppsf
+../../bin/gencot-selpp < test-impl.remc \
+  | ../../bin/gencot-preppconst test.omitconst \
+  | ../../bin/gencot-prcppconst > test-impl.prcppconst
 
-../../bin/gencot-rempp test.hrempp-pat < test.cremc \
-  | ../../bin/gencot-cpp test.cdummydecls \
+../../bin/gencot-remcomments < src/test.c \
+  | ../../bin/gencot-selpp \
+  | ../../bin/gencot-unline > test-impl.ppsf
+
+../../bin/gencot-rempp test.rempp-pat < test-impl.remc \
+  | ../../bin/gencot-cpp test-impl.dummydecls \
   | ../../src/gencot-translate test.c \
   | ../../bin/gencot-postproc \
-  | ../../bin/gencot-mrgppcond test.cppsf \
-  | ../../bin/gencot-mrgcomments test.ccomm > test-impl.cogent
+  | ../../bin/gencot-mrgpp test-impl.prcppconst \
+  | ../../bin/gencot-mrgppcond test-impl.ppsf \
+  | ../../bin/gencot-mrgcomments test-impl.comm > test-impl.cogent
 

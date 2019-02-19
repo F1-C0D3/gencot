@@ -1,22 +1,27 @@
 #! /bin/csh
 
-../../bin/gencot-selcomments < src/test.h > test.hcomm
+../../bin/gencot-selcomments < src/test.h > test-types.comm
 
 ../../bin/gencot-include include src/test.h < src/test.h \
-  | ../../bin/gencot-remcomments > test.hremc
+  | ../../bin/gencot-remcomments > test-types.remc
   
-../../bin/gencot-selpp < test.hremc \
-  | ../../bin/gencot-selppconst test.hselppconsts \
-  | ../../bin/gencot-gendummydecls > test.hdummydecls
+../../bin/gencot-selpp < test-types.remc \
+  | ../../bin/gencot-selppconst test.selppconsts \
+  | ../../bin/gencot-gendummydecls > test-types.dummydecls
   
-../../bin/gencot-remcomments < src/test.h \
-  | ../../bin/gencot-selpp
-  | ../../bin/gencot-unline > test.hppsf
+../../bin/gencot-selpp < test-types.remc \
+  | ../../bin/gencot-preppconst test.omitconst \
+  | ../../bin/gencot-prcppconst > test-types.prcppconst
 
-../../bin/gencot-rempp test.hrempp-pat < test.hremc \
-  | ../../bin/gencot-cpp test.hdummydecls \
+../../bin/gencot-remcomments < src/test.h \
+  | ../../bin/gencot-selpp \
+  | ../../bin/gencot-unline > test-types.ppsf
+
+../../bin/gencot-rempp test.rempp-pat < test-types.remc \
+  | ../../bin/gencot-cpp test-types.dummydecls \
   | ../../src/gencot-translate test.h \
   | ../../bin/gencot-postproc \
-  | ../../bin/gencot-mrgppcond test.hppsf \
-  | ../../bin/gencot-mrgcomments test.hcomm > test-types.cogent
+  | ../../bin/gencot-mrgpp test-types.prcppconst \
+  | ../../bin/gencot-mrgppcond test-types.ppsf \
+  | ../../bin/gencot-mrgcomments test-types.comm > test-types.cogent
 

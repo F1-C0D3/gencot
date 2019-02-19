@@ -29,7 +29,7 @@ awk \
    mrg = 1 \
  } \
 { if ($1 == "#ORIGIN") { \
-    while (origin[mrg] && origin[mrg] < $2) print content[mrg++] \
+    while (origin[mrg] && (strtonum(origin[mrg]) < $2)) print content[mrg++] \
   } \
   print \
 } \
@@ -50,3 +50,5 @@ END { \
 # Implementation in awk:
 # - The filename argument for the directive file must be copied and removed from the argument list ARGV
 #   to prevent its processing as normal input to awk. The directive file is explicitly read by getline.
+# - For some reason origin[mrg] < $2 would use string comparison. The predefined function strtonum
+#   forces numerical comparison.

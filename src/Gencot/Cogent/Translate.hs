@@ -134,7 +134,8 @@ transType g (LCA.PtrType t quals _) n | isAggregate $ resolveTypedef t =
 transType g (LCA.PtrType t quals _) n =
     GenType noOrigin $ CS.TCon "CPointerTo" [transType g t n] $ markBox
 transType g (LCA.ArrayType t _ quals _) n =
-    GenType noOrigin $ CS.TCon "CArrayOf" [transType g t n] $ markUnbox
+    GenType noOrigin $ CS.TUnbox $ GenType noOrigin $ CS.TCon "CArrayOf" [transType g t n] $ markBox
+--    GenType noOrigin $ CS.TCon "CArrayOf" [transType g t n] $ markUnbox
 transType _ (LCA.FunctionType (LCA.FunType _ _ True) _) _ = errType "fun-varargs"
 transType _ (LCA.FunctionType (LCA.FunTypeIncomplete _ ) _) _ = errType "fun-incompl"
 transType g (LCA.FunctionType (LCA.FunType rt ps False) _) n =
@@ -174,6 +175,7 @@ resolveTypedef (LCA.TypeDefType (LCA.TypeDefRef _ t _) _ _) = resolveTypedef t
 resolveTypedef t = t
 
 setBoxed (GenType o (CS.TCon nam p _)) = (GenType o (CS.TCon nam p markBox))
+setBoxed (GenType o (CS.TUnbox (GenType _ t))) = (GenType o t)
 {-
 markType :: LCA.Type -> CCT.Sigil CS.RepExpr
 markType (LCA.PtrType t quals _) = markBox

@@ -53,9 +53,9 @@ sembedtls_ssl_init ssl
        memset(ssl, 0, sizeof(mbedtls_ssl_context ));
    }
 
-sembedtls_ssl_setup : ( Sembedtls_ssl_context, 
-Sembedtls_ssl_config )
- -> U32
+sembedtls_ssl_setup : ( Sembedtls_ssl_context
+, Sembedtls_ssl_config
+ ) -> U32
 sembedtls_ssl_setup (ssl
                     , 
                     conf
@@ -95,10 +95,10 @@ sembedtls_ssl_setup (ssl
        return ret;
    }
 
-sembedtls_ssl_set_bio : ( Sembedtls_ssl_context, 
-CPointerTo (), 
-Sembedtls_ssl_send_t )
- -> ()
+sembedtls_ssl_set_bio : ( Sembedtls_ssl_context
+, CPointerTo ()
+, Sembedtls_ssl_send_t
+ ) -> ()
 sembedtls_ssl_set_bio (ssl
                       , 
                       p_bio
@@ -111,12 +111,12 @@ sembedtls_ssl_set_bio (ssl
    }
 
 #if defined(MBEDTLS_X509_CRT_PARSE_C)
-sembedtls_ssl_conf_verify : ( Sembedtls_ssl_config, 
-( CPointerTo (), 
-U32, 
-CPointerTo #Cogent_uint32_t ) -> U32, 
-CPointerTo () )
- -> ()
+sembedtls_ssl_conf_verify : ( Sembedtls_ssl_config
+, ( CPointerTo ()
+, U32
+, CPointerTo #Cogent_uint32_t ) -> U32
+, CPointerTo ()
+ ) -> ()
 sembedtls_ssl_conf_verify (conf
                           , 
                           f_vrfy

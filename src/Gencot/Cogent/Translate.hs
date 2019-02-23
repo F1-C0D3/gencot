@@ -41,7 +41,10 @@ transGlobal g (LCA.DeclEvent (LCA.EnumeratorDef (LCA.Enumerator idnam e _ n))) o
     GenToplv o (CS.ConstDef (mapNameToLower idnam) 
         (GenType noOrigin (CS.TCon "U32" [] markUnbox)) (ConstExpr $ transCExpr g e noOrigin))
 transGlobal g (LCA.TypeDefEvent (LCA.TypeDef idnam t _ n)) o = 
-    GenToplv o (CS.TypeDec (mapNameToUpper idnam) [] $ transType g t n)
+    GenToplv o (CS.TypeDec (mapNameToUpper idnam) [] dt)
+    where dt = if isAggregate $ resolveTypedef t
+                then setBoxed $ transType g t n
+                else transType g t n
 transGlobal _ _ o = GenToplv o (CS.Include "err-unexpected toplevel")
 
 aggBitfields :: [LCA.MemberDecl] -> [LCA.MemberDecl]
@@ -124,20 +127,24 @@ transType g (LCA.DirectType tnam quals _) _ =
           transTNam (LCA.TyEnum (LCA.EnumTypeRef (AnonymousRef _) _)) = "U32"
           transTNam (LCA.TyEnum _) = transTagName g tnam
           transTNam (LCA.TyBuiltin _) = "err-builtin" 
-transType g (LCA.PtrType ct@(LCA.DirectType (LCA.TyComp _) cquals _) quals _) n =
-    setBoxed $ transType g ct n
-transType g (LCA.PtrType at@(LCA.ArrayType t _ aquals _) quals _) n =
-    setBoxed $ transType g at n
+transType g (LCA.PtrType t quals _) n | isFunction $ resolveTypedef t =
+    transType g t n
+transType g (LCA.PtrType t quals _) n | isAggregate $ resolveTypedef t =
+    setBoxed $ transType g t n
 transType g (LCA.PtrType t quals _) n =
-    setBoxed $ prefixType g "P" t n
+    GenType noOrigin $ CS.TCon "CPointerTo" [transType g t n] $ markBox
 transType g (LCA.ArrayType t _ quals _) n =
-    prefixType g "A" t n
+    GenType noOrigin $ CS.TUnbox $ GenType noOrigin $ CS.TCon "CArrayOf" [transType g t n] $ markBox
+--    GenType noOrigin $ CS.TCon "CArrayOf" [transType g t n] $ markUnbox
 transType _ (LCA.FunctionType (LCA.FunType _ _ True) _) _ = errType "fun-varargs"
 transType _ (LCA.FunctionType (LCA.FunTypeIncomplete _ ) _) _ = errType "fun-incompl"
 transType g (LCA.FunctionType (LCA.FunType rt ps False) _) n =
     GenType noOrigin $ CS.TFun (transParamTypes g ps n) (transType g rt n)
 transType g (LCA.TypeDefType (LCA.TypeDefRef idnam t _) quals _) n =
-    GenType noOrigin $ CS.TCon (mapNameToUpper idnam) [] $ markType t
+    GenType noOrigin $ CS.TCon (mapNameToUpper idnam) [] $ 
+        if isFunction $ resolveTypedef t
+           then markBox
+           else markUnbox
 
 transParamTypes :: LCA.GlobalDecls -> [LCA.ParamDecl] -> LC.NodeInfo -> GenType
 transParamTypes _ [] _ = GenType noOrigin CS.TUnit
@@ -147,29 +154,34 @@ transParamTypes g ps n =
 
 transParamType :: LCA.GlobalDecls -> LCA.ParamDecl -> Origin -> GenType
 transParamType g pd o = 
-    GenType o $ typeOfGT $ transType g pt $ LC.nodeInfo pd
+    GenType o $ typeOfGT tpt
     where (LCA.VarDecl _ _ pt) = getVarDecl pd
+          tpt' = transType g pt $ LC.nodeInfo pd
+          tpt = case pt of
+                     (LCA.ArrayType _ _ _ _) -> setBoxed $ tpt'
+                     _ -> tpt'
 
-prefixType :: LCA.GlobalDecls -> String -> LCA.Type -> LC.NodeInfo -> GenType
-prefixType _ pre (LCA.DirectType TyVoid _ _) n =
-    GenType noOrigin $ CS.TCon (pre ++ "_Void") [] markUnbox
-prefixType g pre dt@(LCA.DirectType _ _ _) n = 
-    GenType noOrigin $ CS.TCon (pre ++ "_" ++ btnam) [] markUnbox
-    where (GenType _ (CS.TCon btnam _ _)) = transType g dt n
-prefixType g pre (LCA.PtrType t quals _) n = prefixType g (pre ++ "P") t n
-prefixType g pre (LCA.ArrayType t _ quals _) n = prefixType g (pre ++ "A") t n
-prefixType g pre (LCA.FunctionType (LCA.FunType rt ps False) _) n = prefixType g (pre ++ "F") rt n
-prefixType g pre tt@(LCA.TypeDefType _ _ _) n =
-    GenType noOrigin $ CS.TCon (pre ++ "_" ++ btnam) [] markUnbox
-    where (GenType _ (CS.TCon btnam _ _)) = transType g tt n
+isAggregate :: LCA.Type -> Bool
+isAggregate (LCA.DirectType (LCA.TyComp _) _ _) = True
+isAggregate (LCA.ArrayType _ _ _ _) = True
+isAggregate _ = False
+
+isFunction :: LCA.Type -> Bool
+isFunction (LCA.FunctionType _ _) = True
+isFunction _ = False
+
+resolveTypedef :: LCA.Type -> LCA.Type
+resolveTypedef (LCA.TypeDefType (LCA.TypeDefRef _ t _) _ _) = resolveTypedef t
+resolveTypedef t = t
 
 setBoxed (GenType o (CS.TCon nam p _)) = (GenType o (CS.TCon nam p markBox))
-
+setBoxed (GenType o (CS.TUnbox (GenType _ t))) = (GenType o t)
+{-
 markType :: LCA.Type -> CCT.Sigil CS.RepExpr
 markType (LCA.PtrType t quals _) = markBox
 markType (LCA.TypeDefType (LCA.TypeDefRef _ t _) quals _) = markType t
 markType _ = markUnbox
-
+-}
 markBox = CCT.Boxed False CS.noRepE
 markUnbox = CCT.Unboxed
 

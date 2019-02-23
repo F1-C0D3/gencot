@@ -1,0 +1,54 @@
+#! /bin/csh -f
+
+# Merge code generated from preprocessor directives into the input according to #ORIGIN markers.
+# This is a filter from stdin to stdout with an additional filename argument.
+# The argument file must contain the code to be merged, annotated with #ORIGIN markers.
+
+if ( $#argv != 1) then
+  echo "Error: Single file name expected as argument."
+  exit 0
+endif
+
+awk \
+'BEGIN { \
+   cfile = ARGV[1]; delete ARGV[1] \
+   mrg = 0 \
+   while ((getline cline < cfile) > 0) { \
+     if (cline ~ /#ORIGIN/) { \
+       mrg++ \
+       content[mrg] = cline \
+       rest = substr(cline,9) \
+       len = match(rest, /[[:blank:]]/) \
+       origin[mrg] = substr(rest,1,len) \
+     } \
+     else { \
+       content[mrg] = content[mrg] "\n" cline \
+     } \
+   } \
+   close(cfile) \
+   mrg = 1 \
+ } \
+{ if ($1 == "#ORIGIN") { \
+    while (origin[mrg] && (strtonum(origin[mrg]) < $2)) print content[mrg++] \
+  } \
+  print \
+} \
+END { \
+  while (origin[mrg]) print content[mrg++] \
+}' $1
+
+# documentation:
+# 
+# The BEGIN rule reads the code to be merged in from the argument file,
+# organizing it in chunks consisting of an #ORIGIN marker and all subsequent lines up to but excluding the
+# next #ORIGIN marker. The chunks are stored in array content, indexed by consecutive numbers starting with 1.
+# The chunk start lines according to their #ORIGIN markers are stored in array origin.
+#
+# The line rule tests for an #ORIGIN marker in the input. If found, all chunks with a lower origin line
+# are inserted before it.
+#
+# Implementation in awk:
+# - The filename argument for the directive file must be copied and removed from the argument list ARGV
+#   to prevent its processing as normal input to awk. The directive file is explicitly read by getline.
+# - For some reason origin[mrg] < $2 would use string comparison. The predefined function strtonum
+#   forces numerical comparison.

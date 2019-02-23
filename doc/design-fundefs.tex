@@ -15,7 +15,7 @@ definitions are ignored.
 
 In C the function body consists of a compound statement which is specified in imperative programming style. In Cogent
 the function body consists of an expression which is specified in functional programming style with additional 
-considerations which are crucial for proving properties of the Cogent program. Therefore Gencot does not try
+restrictions which are crucial for proving properties of the Cogent program. Therefore Gencot does not try
 to translate function bodies, this must be done by a human programmer.
 
 It would be possible, however, to translate C declarations embedded in the body. These may be type definitions
@@ -31,6 +31,16 @@ be names with global scope (for types, functions, tags, global variables, enum c
 or parameter names. For all names with global scope Gencot has generated a Cogent definition using a mapped name.
 These names are substituted in the C code of the function body by the corresponding mapped names so that the 
 mapping need not be done manually by the programmer.
+
+This does not include the mapping of derived types. Type derivation in C is done in declarators which refer
+a common type specification in a declaration. In Cogent there is no similar concept, every declarator must be 
+translated to a separate declaration. This is not done due to the reasons described above. As result, a translated
+local declaration may have the form
+\begin{verbatim}
+  Struct_s1 a, *b, c[5];
+\end{verbatim}
+although the Cogent types for \code{a, b, c} would be \code{\#Struct\_s1}, \code{Struct\_s1}, and 
+\code{\#CarrayOf \#Struct\_s1}, respectively. This translation for the derived types must be done manually.
 
 Additionally, the function parameter names usually occur free in the function body. To make them apparent to
 the programmer, Gencot generates a Cogent pattern for the (single) parameter of the Cogent function which 

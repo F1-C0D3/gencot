@@ -50,7 +50,8 @@ encloseSepGen os left right sep ds
     = case ds of
         []  -> left <> right
         [d] -> left <> addOrig (head os) d <> right
-        _   -> align left <> (hcat (zipWith addOrig os (zipWith (<>) ds ((replicate ((length ds) - 1) sep) ++ [right]))))
+        _   -> align left <> (hcat (zipWith addOrig os (zipWith (<>) (empty : repeat sep) ds)) <> right)
+--        _   -> align left <> (hcat (zipWith addOrig os (zipWith (<>) ds ((replicate ((length ds) - 1) sep) ++ [right]))))
 
 instance Pretty GenIrrefPatn where
     pretty (GenIrrefPatn org t) = addOrig org $ pretty t

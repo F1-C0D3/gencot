@@ -1,0 +1,112 @@
+#! /bin/csh -f
+
+# Merge preprocessor conditional directives into the input according to #ORIGIN markers.
+# This is a filter from stdin to stdout with an additional filename argument.
+# The argument file must contain the conditional directives, each in its original line as in the source file.
+
+if ( $#argv != 1) then
+  echo "Error: Single file name expected as argument."
+  exit 0
+endif
+
+awk \
+'BEGIN { \
+   cfile = ARGV[1]; delete ARGV[1] \
+   isec = 0; lnr = 0; secnr = 0 \
+   while ((getline cline < cfile) > 0) { \
+     lnr++ \
+     if (cline ~ /[[:blank:]]*#/) { \
+       if (cline ~ /^[[:blank:]]*#[[:blank:]]*(if|ifdef|ifndef)[[:blank:]]/) { \
+         cursecs[++isec] = lnr; curgrps[isec] = lnr; secs[++secnr] = lnr \
+       } \
+       else if (cline ~ /^[[:blank:]]*#[[:blank:]]*(else|elif)/) { \
+         nextd[curgrps[isec]] = lnr; curgrps[isec] = lnr \
+       } \
+       else if (cline ~ /^[[:blank:]]*#[[:blank:]]*endif/) { \
+         nextd[curgrps[isec]] = lnr; eline[cursecs[isec--]] = lnr \
+       } \
+       dline = lnr; dtext[dline] = cline \
+       while (cline ~ /\\$/) { \
+         getline cline < cfile \
+         lnr++ \
+         dtext[dline] = dtext[dline] "\n" cline \
+       } \
+       dtext[dline] = "#ORIGIN " dline " +\n" dtext[dline] "\n#ENDORIG " lnr " +\n" \
+     } \
+   } \
+   close(cfile) \
+   isec = 0 \
+ } \
+{ if ($1 == "#ORIGIN") { \
+    while (isec > 0 && ($2 > nextd[curgrps[isec]] || $2 < curgrps[isec])) { \
+      e = eline[cursecs[isec]] \
+      if ($2 > e || $2 < curgrps[isec]) { \
+        printf dtext[e] \
+        actsecs[cursecs[isec--]] = 0 \
+      } \
+      else { \
+        n = nextd[curgrps[isec]] \
+        curgrps[isec] = n \
+        printf dtext[n] \
+      } \
+    } \
+    secnr = 0 \
+    while (secs[++secnr]) { \
+      s = secs[secnr] \
+      if (!(actsecs[s]) && $2 > s && $2 < eline[s]) { \
+        cursecs[++isec] = s \
+        actsecs[s] = 1 \
+        printf dtext[s] \
+        while ($2 > nextd[s]) { \
+          s = nextd[s] \
+          printf dtext[s] \
+        } \
+        curgrps[isec] = s \
+      } \
+    } \
+  } \
+  print \
+} \
+END { \
+  while (isec > 0) { \
+    printf dtext[eline[cursecs[isec--]]] \
+  } \
+}' $1
+
+# documentation:
+# 
+# The BEGIN rule reads the conditional directives from the argument file, associating line numbers and
+# organizing them in a sequence of sections. A section is always represented by the line number of its first
+# directive.
+#
+# During reading the directives a stack of sections is used to represent the
+# current nesting of sections. The same stack is used during output. It consists of the arrays cursecs and 
+# curgrps indexed by consecutive integers starting with 1 for the outermost section. Variable isec is the stack 
+# pointer and contains the index of the innermost section. If it is 0 the stack is empty. The value cursecs[i] is
+# the line number representing the section on level i. The value curgrps[i] is the line number of the leading
+# directive of the current group i the section on level i. During output the set of sections currently in the
+# stack is maintained in the boolean array actsects, indexed by the line numbers for representing the sections.
+#
+# The sequence of all sections is represented by the array secs, indexed by consecutive integers starting with 1.
+# The value secs[i] is the line number representing the ith section. The sequence is ordered according to these
+# line numbers.
+#
+# For the sections the following information is stored, each in a (sparse) array indexed by the line number 
+# of the section or directive:
+# - dtext: for every directive the directive text as a string,
+# - eline: for every section the number of the last line (that of the #endif directive),
+# - nextd: for every directive the line number of the next directive in the same group (undefined for #endif directives),
+# 
+# Additionally, in the BEGIN rule every directive is wrapped in a pair of #ORIGIN/#ENDORIG markers. This is done
+# by adding the markers in the dtext value.
+#
+# The END rule flushes the stack by emitting the #endif directives for all sections still active at the end of the file.
+#
+# Implementation in awk:
+# - The filename argument for the directive file must be copied and removed from the argument list ARGV
+#   to prevent its processing as normal input to awk. The directive file is explicitly read by getline.
+# - The outer while loop in the BEGIN rule iterates over the normal lines of the directive file. For every
+#   directive the information is collected in secs, eline, nextd, and dtext and the stack is maintained.
+# - The inner while loop in the BEGIN rule iterates over the continuation lines of the current directive. 
+#   To test whether there is a backslash at the end of a line it is matched with the regular expression /\\$/.
+#   Continuation lines are appended to the dtext value of the current directive.

@@ -20,7 +20,8 @@ awk \
    input[stackptr] = "/dev/stdin" \
    curdir[stackptr] = "-" \
    lnr[stackptr] = 0 \
-   printf("# 1 \"<stdin>\"\n") \
+   curnam = "<stdin>" \
+   print "# 1 \"" curnam "\"" \
    for (; stackptr >= 0; stackptr--) { \
      while ((getline < input[stackptr]) > 0) { \
        lnr[stackptr]++ \
@@ -56,19 +57,21 @@ awk \
            curdir[stackptr] = hdir \
            lnr[stackptr] = 0 \
          } \
-         else printf("# %d \"%s\" 2\n", lnr[stackptr]+1, input[stackptr] == "/dev/stdin"?"<stdin>":input[stackptr]) \
+         else printf("# %d \"%s\" 2\n", lnr[stackptr]+1, input[stackptr] == "/dev/stdin"?curnam:input[stackptr]) \
        } \
        else if ($0 ~ /^[[:blank:]]*#[[:blank:]]*[[:digit:]]+/) { \
          gsub(/^[[:blank:]]*#[[:blank:]]*/, "# ") \
          $0 = $0 \
          lnr[stackptr] = $2 - 1 \
+         if (stackptr == 0) curnam = substr($3,2,length($3)-2) \
+         print \
        } \
        else { \
          print; continue \
        } \
      } \
      if (stackptr > 0) { \
-       printf("# %d \"%s\" 2\n", lnr[stackptr-1]+1, input[stackptr-1] == "/dev/stdin"?"<stdin>":input[stackptr-1]) \
+       printf("# %d \"%s\" 2\n", lnr[stackptr-1]+1, input[stackptr-1] == "/dev/stdin"?curnam:input[stackptr-1]) \
      } \
      close(input[stackptr]) \
    } \
@@ -85,6 +88,8 @@ awk \
 # - curdir: the full directory pathname of the file. Used for searching included files. For level 0 it is "-".
 #   Otherwise it has a trailing "/" or is "" for the current directory of the awk process.
 # - lnr: the current line number in the file. It is the number of the last line read with getline on the level.
+# For level 0 also the current file name is stored in variable curname. This is usually "<stdin>" but can be
+# modified by explicit line directives in the input file, to support "included" information on level 0.
 #
 # Implementation in awk:
 # - The program consists only of a BEGIN rule, it reads all input lines and the lines of all included
@@ -113,9 +118,10 @@ awk \
 #   a repeated include.
 # - Upon first include of a file, a new level is pushed onto the stack. input is the full file pathname fpath, curdir
 #   is derived from fpath, and lnr is set to 0. Upon a repeated include only the final line directive is generated.
-# - If a line directive is found in the input, it is used to update lnr on the current level. The filename is ignored,
-#   since we assume that line directives may only origin from removing comments in the input on level 0 and
-#   never signal switching to another input file.
+# - If a line directive is found in the input on level 0, it is used to update curnam and lnr on the current level.
+#   On all other levels only lnr is updated but the filename is ignored. That implies that in included files line
+#   directives may never signal switching to another input file. In all cases, line directives are copied to the
+#   output without modifications.
 # - After the while loop we generate the final line directive after the included file. Since the stack has not yet
 #   been popped we explicitly address the next lower level by stackptr-1. At the end of the main input file on
 #   level 0 no line directive is generated.

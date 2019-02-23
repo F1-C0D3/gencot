@@ -1,0 +1,35 @@
+Tests:
+
+gencot-rempp < example1.c
+should create the content of example1-rem-expected.c
+
+gencot-rempp retain.regexp < example1.c
+should create the content of example1-retain-expected.c
+
+gencot-selpp < example1.c
+should create the content of example1-sel-expected.c
+
+gencot-preppconst omit.const < example1-sel-expected.c
+should create the content of example1-preconst-expected.c
+
+gencot-prcppconst < example1-preconst-expected.c
+should create the content of example1-const-expected.c
+
+gencot-mrgpp example1-const-expected.c < example1.target
+should create the content of example1-mrgpp-expected.c
+
+
+gencot-rempp cond.rempp-pat < cond.src
+should create the content of cond.rempp
+
+gencot-selpp < cond.src
+should create the content of cond.selpp
+
+gencot-mrgppcond cond.selpp < cond1.target
+should create the content of cond1.mrg
+
+gencot-mrgcomments cond.comments < cond1.target
+should create the content of cond.src
+
+gencot-mrgppcond cond.selpp < cond2.target
+should create the content of cond2.mrg

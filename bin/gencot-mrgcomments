@@ -16,7 +16,7 @@ awk \
    while ((getline cline < cfile) > 0) { \
      if (cline ~ /^-\}_/) { \
        if (bef) before[alnr = lnr] = unit \
-       else after[alnr] = unit \
+       else after[alnr] = (unit?" " unit:"") \
        unit = substr(cline,4) \
        if (unit == "") ustart = 1 \
        bef = 1 - bef \

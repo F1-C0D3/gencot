@@ -5,10 +5,10 @@ Often a C source file contains constant definitions of the form
 The C preprocessor substitutes every occurrence of the identifier \code{CONST1} in every C code after the definition 
 by the value 123. This is a special application of the C preprocessor macro feature.
 
-Constant names defined in this way may have arbitrary C constants as their value. Gencot only handles integer and
-character constants, floating constant are not supported since they are not supported by Cogent.
+Constant names defined in this way may have arbitrary C constants as their value. Gencot only handles integer,
+character, and string constants, floating constant are not supported since they are not supported by Cogent.
 
-\subsection{Processing Direct Constant Definitions}
+\subsection{Processing Direct Integer Constant Definitions}
 
 Constant definitions of this form could be used directly in Cogent, since they are also supported by the Cogent preprocessor.
 By transferring the constant definitions to the corresponding file \code{x-types.cogent} the identifiers are available
@@ -62,6 +62,30 @@ constant definitions use uppercase identifiers, thus they normally must be mappe
 
 For comment processing, every preprocessor constant definition is treated as an unstructured source code part.
 
+\subsection{Processing Direct Character and String Constant Definitions}
+
+A character constant definition has the form
+\begin{verbatim}
+  #define CONST1 'x'
+\end{verbatim}
+It is translated to a Cogent value definition similar as for integer constants. As type always \code{U8}
+is used, the constant is transferred literally.
+
+A string constant definition has the form
+\begin{verbatim}
+  #define CONST1 "abc"
+\end{verbatim}
+It is translated to a Cogent value definition similar as for integer constants. As type always \code{String}
+is used.
+
+In C it is also possible to specify a string constant by a sequence of string literals, which will be concatenated.
+A corresponding string constant definition has the form
+\begin{verbatim}
+  #define CONST1 "abc" "def"
+\end{verbatim}
+Since there is no string concatenation operator in Cogent, the concatenation is performed by Gencot and
+a single string literal is used in the Cogent value definition.
+
 \subsection{Processing Indirect Constant Definitions}
 
 A constant definition may also reference a previously defined constant in the form 
@@ -76,6 +100,20 @@ also references the defined Cogent constant and has the form
   const2: U8
   const2 = const1
 \end{verbatim}
+
+\subsection{Processing Expression Constant Definitions}
+
+A constant definition in C may also specify its value by an expression. In this case the C preprocessor will replace
+the constant upon every occurrence by the expression, every expression according to the C syntax is admissible. 
+
+In this case Gencot also generates a Cogent value definition and transfers the expression. Gencot does not evaluate
+or translate the expression, however, it maps all contained names of other preprocessor defined constants to their
+Cogent form, so that they refer the corresponding Cogent value name. As type for an expression Gencot always assumes
+\code{int}, i.e. \code{U32} in Cogent.
+
+If the expression ist of type \code{int} and only uses operators which also exist in Cogent, positive integer constants 
+and preprocessor defined constant names, the resulting expression will be a valid Cogent expression. In all other cases
+the Cogent compiler will probably detect a syntax error, these cases must be handled manually.
 
 \subsection{External Constant References}
 

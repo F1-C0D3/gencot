@@ -1,0 +1,38 @@
+#! /bin/csh -f
+
+# Expand line directives to sequences of empty lines and remove all included content.
+# This is a filter from stdin to stdout.
+
+awk \
+'BEGIN { \
+   lnr = 0 \
+   forgn = 0 \
+ } \
+ { if ($0 ~ /^[[:blank:]]*#[[:blank:]]*[[:digit:]]+/) { \
+     if ($3 == "\"<stdin>\"") { \
+       for (i=lnr+1; i < $2; i++) printf("\n") \
+       lnr = $2 - 1 \
+       forgn = 0 \
+     } \
+     else forgn = 1 \
+   } \
+   else if (!(forgn)) { \
+     lnr++ \
+     print \
+   } \
+ }'
+
+# documentation:
+# 
+# All content which is marked by line directives to be not from file "<stdin>" is removed.
+# For content from "<stdin>" line directives are removed and expanded to the required number of empty lines.
+#
+# Implementation in awk:
+# - Lines from "<stdin>" are counted in lnr, its value is the number of line already output.
+# - A line directive may be written with arbitrary whitespace before and after the # sign.
+#   Thus the regular expression
+#     /^[[:blank:]]*#[[:blank:]]*[[:digit:]]+/
+#   matches all line directives.
+# - forgn is a boolean variable which tells whether the next line is from an included file, if it is
+#   not a line directive.
+# - we assume that line directives are never continued in successive lines.

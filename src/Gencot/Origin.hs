@@ -9,6 +9,8 @@ import "language-c" Language.C (NodeInfo,CNode,nodeInfo)
 import Language.C.Data.Node (posOfNode,getLastTokenPos{- -},mkNodeInfoPosLen)
 import Language.C.Data.Position (posRow,isSourcePos,Position{- -},retPos,initPos,)
 
+import Language.C.Analysis.TravMonad (Trav, modifyUserState, getUserState)
+
 data Origin = Origin { 
     sOfOrig :: [(Int,Bool)], 
     eOfOrig :: [(Int,Bool)] } deriving (Eq, Ord, Show, Data)
@@ -69,8 +71,27 @@ fstPos = posOfNode
 lstPos :: NodeInfo -> Position
 lstPos = fst . getLastTokenPos
 
+---------------------------------------------
 
+type OTrav = Trav [[RepOrig]]
 
+pushSubRepOrigs :: [OwnOrig] -> OTrav ()
+pushSubRepOrigs os = do
+    ((ro:_):_) <- getUserState
+    modifyUserState (\rostack -> (mkRepOrigs ro os) : rostack)
+
+nextSubRepOrig :: OTrav ()
+nextSubRepOrig = do
+    modifyUserState (\(ros:rostack) -> (tail ros):rostack)
+    
+popSubRepOrigs :: OTrav ()
+popSubRepOrigs = do
+    modifyUserState (\(_:rostack) -> rostack)
+
+getOrigin :: NodeInfo -> OTrav Origin
+getOrigin n = do
+    ((ro:_):_) <- getUserState
+    return $ uROrigin ro n
 
 ----------------------------------------------
 

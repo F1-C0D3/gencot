@@ -42,10 +42,19 @@ transFunDef ro (LC.CFunDef declspecs
     where [rods, ron, rops, ros] = mkRepOrigs ro [lOwnOrig declspecs, ownOrig name, ownOrig fdclr, ownOrig stat]
           GCA.Block bis _ = transStat ros stat
 
-transStat :: RepOrig -> LC.CStat -> GCA.Stm
-transStat ro (LC.CLabel ident stat cattrs n) =
-    GCA.Label (transIdent roi ident) (map transAttr cattrs) (transStat ros stat) $ uROrigin ro n
-    where [roi,roas,ros] = mkRepOrigs ro [ownOrig ident, lOwnOrig cattrs, ownOrig stat]
+transStat :: LC.CStat -> OTrav GCA.Stm
+transStat (LC.CLabel ident stat cattrs n) = do
+    pushSubRepOrigs [ownOrig ident, lOwnOrig cattrs, ownOrig stat]
+    i <- transIdent ident
+    nextSubRepOrig
+    pushSubRepOrigs $ map ownOrig cattrs
+    as <- mapM (\a -> do (transAttr a) nextSubRepOrig) cattrs
+    popSubRepOrigs
+    nextSubRepOrig
+    s <- transStat stat
+    popSubRepOrigs
+    o <- getOrigin n
+    return $ GCA.Label i as s o
 transStat ro (LC.CCase expr stat n) =
     GCA.Case (transExpr roe expr) (transStat ros stat) $ uROrigin ro n
     where [roe,ros] = mkRepOrigs ro [ownOrig expr, ownOrig stat]

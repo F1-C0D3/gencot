@@ -8,7 +8,7 @@ import Data.Char (isAlphaNum,
                   isLower)
 import Data.Maybe (isJust)
 
-import Gencot.Origin (Origin(..),fstLine,lstLine{- -},testOrig)
+import Gencot.Origin (Origin(..))
 import Gencot.C.Ast
 
 import Text.PrettyPrint.Mainland
@@ -16,16 +16,13 @@ import Text.PrettyPrint.Mainland.Class
 
 addOrig :: Origin -> Doc -> Doc
 addOrig (Origin sn en) doc =
-    (if null sn then empty 
-                --else column (\c -> if c == 0 then sorig else (line <> sorig)) <> line)
-                else line <> sorig <> line)
+    mark "#ORIGIN" sn
     <> doc <> 
-    (if null en then empty 
-                else line <> eorig <> line)
-    where sorig = text "#ORIGIN"  <+> (int . fstLine . fst . head) sn <> scmark
-          eorig = text "#ENDORIG" <+> (int . lstLine . fst . head) en <> ecmark
-          scmark = text (if snd $ head sn then " +" else "")
-          ecmark = text (if snd $ head en then " +" else "")
+    mark "#ENDORIG" en
+    where mark marker ons = 
+              if null ons then empty 
+              else (line <> text marker <+> cont ons <> line)
+          cont ons = (int . fst . head) ons <> text (if snd $ head ons then " +" else "")
 
 data Fixity = Fixity Assoc Int
   deriving (Eq, Ord)

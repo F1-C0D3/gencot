@@ -9,7 +9,7 @@ import Cogent.PrettyPrint
 
 import Text.PrettyPrint.ANSI.Leijen
 
-import Gencot.Origin (Origin(..),fstLine,lstLine{- -},testOrig)
+import Gencot.OldOrigin (Origin(..),fstLine,lstLine{- -},testOrig)
 import Gencot.Cogent.Ast
 import qualified Gencot.C.Output as GCO
 

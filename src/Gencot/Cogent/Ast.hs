@@ -8,7 +8,7 @@ import "language-c" Language.C
 import Cogent.Surface as CS (TopLevel, IrrefutablePattern, Type)
 import Cogent.Common.Syntax (VarName)
 
-import Gencot.Origin (Origin)
+import Gencot.OldOrigin (Origin)
 import Gencot.C.Ast as LQ (Exp,Stm)
 
 data GenExpr = ConstExpr LQ.Exp

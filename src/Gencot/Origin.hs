@@ -9,8 +9,6 @@ import "language-c" Language.C (NodeInfo,CNode,nodeInfo)
 import Language.C.Data.Node (posOfNode,getLastTokenPos{- -},mkNodeInfoPosLen)
 import Language.C.Data.Position (posRow,isSourcePos,Position{- -},retPos,initPos,)
 
-import Language.C.Analysis.TravMonad (Trav, modifyUserState, getUserState)
-
 data Origin = Origin { 
     sOfOrig :: [(Int,Bool)], 
     eOfOrig :: [(Int,Bool)] } deriving (Eq, Ord, Show, Data)
@@ -48,7 +46,8 @@ tripOwnOrig fa fb fc (x,y,z) = listOwnOrig id [fa x, fb y, fc z]
 
 mkRepOrigs :: RepOrig -> [OwnOrig] -> [RepOrig]
 mkRepOrigs (bef,aft) cs = 
-    zip (reverse $ tail $ foldl (flip accOrigs) [bef] $ map snd cs) (tail $ foldr accOrigs [aft] $ map fst cs)
+    zip (reverse $ tail $ foldl (flip accOrigs) [bef] $ map snd cs) 
+        (tail $ foldr accOrigs [aft] $ map fst cs)
     
 accOrigs :: Int -> [Int] -> [Int]
 accOrigs i [] = [i]
@@ -70,28 +69,6 @@ fstPos = posOfNode
 
 lstPos :: NodeInfo -> Position
 lstPos = fst . getLastTokenPos
-
----------------------------------------------
-
-type OTrav = Trav [[RepOrig]]
-
-pushSubRepOrigs :: [OwnOrig] -> OTrav ()
-pushSubRepOrigs os = do
-    ((ro:_):_) <- getUserState
-    modifyUserState (\rostack -> (mkRepOrigs ro os) : rostack)
-
-nextSubRepOrig :: OTrav ()
-nextSubRepOrig = do
-    modifyUserState (\(ros:rostack) -> (tail ros):rostack)
-    
-popSubRepOrigs :: OTrav ()
-popSubRepOrigs = do
-    modifyUserState (\(_:rostack) -> rostack)
-
-getOrigin :: NodeInfo -> OTrav Origin
-getOrigin n = do
-    ((ro:_):_) <- getUserState
-    return $ uROrigin ro n
 
 ----------------------------------------------
 

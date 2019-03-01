@@ -15,7 +15,7 @@ import Cogent.Common.Syntax as CCS
 import Cogent.Common.Types as CCT
 
 import Gencot.OldOrigin
-import qualified Gencot.Origin as GO (noOrigin,RepOrig)
+import qualified Gencot.Origin as GO (noOrigin)
 import Gencot.Names (transTagName,transFunName,transToField,mapNameToUpper,mapNameToLower)
 import Gencot.Cogent.Ast
 import Gencot.C.Ast as LQ
@@ -190,10 +190,10 @@ errType :: String -> GenType
 errType s = GenType noOrigin $ CS.TCon ("err-" ++ s) [] markUnbox
 
 transCStat :: LCA.GlobalDecls -> LC.CStat -> Origin -> LQ.Stm
-transCStat g s o = errorOnLeft "Error in transStat: " $ runTrav [[(0,0)]] $ transStat s
+transCStat g s o = errorOnLeft "Error in transStat: " $ runTrav () $ transStat s
 
 transCExpr :: LCA.GlobalDecls -> LC.CExpr -> Origin -> LQ.Exp
-transCExpr g e o = errorOnLeft "Error in transExpr: " $ runTrav [[(0,0)]] $ transExpr e
+transCExpr g e o = errorOnLeft "Error in transExpr: " $ runTrav () $ transExpr e
 
 errorOnLeft :: (Show a) => String -> (Either a (b,c)) -> b
 errorOnLeft msg = either (error . ((msg ++ ": ")++).show) fst

@@ -1,0 +1,104 @@
+#! /bin/csh -f
+
+# Remove repeated Origin markers.
+# This is a filter from stdin to stdout.
+
+awk \
+'function flushmarker() { \
+   print plinebuf "\n" imarkbuf \
+   imarkbuf = "" \
+ } \
+ function remmarker(nr) { \
+   if (nr == 1) { \
+     ind = match(imarkbuf, /#/) \
+     ilinebuf = plinebuf substr(ilinebuf,ind) \
+     imarkbuf = "" \
+   } \
+   else { \
+     ind = match(markbuf, /#/) \
+     linebuf = ilinebuf substr(linebuf,ind) \
+     markbuf = imarkbuf; markline = imarkline \
+     ilinebuf = plinebuf \
+     imarkbuf = "" \
+   } \
+ } \
+ function processmarkers() { \
+   if (imarkline == curline && imarkbuf ~ /#ORIGIN/) remmarker(1) \
+   else { \
+     curline = 0 \
+     if (imarkline != markline) flushmarker() \
+     else if (imarkbuf ~ /#ORIGIN/) { \
+       if (markbuf ~ /#ORIGIN/) remmarker(2) \
+       else flushmarker() \
+     } \
+     else if (markbuf ~ /#ORIGIN/) { \
+       curline = markline \
+       remmarker(1) \
+       remmarker(2) \
+     } \
+     else { \
+       remmarker(1) \
+     } \
+   } \
+ } \
+ BEGIN { \
+   empty = 1 \
+ } \
+ { if ($1 ~ /#(ORIGIN|ENDORIG)/) { \
+     if (markbuf) { \
+       if (imarkbuf) \
+         print "gencot-reporigs: Error in input, two consecutive marker lines!" > "/dev/stderr" \
+       else { \
+         plinebuf = ilinebuf; imarkbuf = markbuf; imarkline = markline \
+       } \
+     } \
+     ilinebuf = linebuf; markbuf = $0; markline = $2; empty = 1 \
+   } \
+   else { \
+     if (empty) { \
+       linebuf = $0; empty = 0 \
+       if (markbuf && imarkbuf) processmarkers() \
+     } \
+     else linebuf = linebuf "\n" $0 \
+   } \
+ } \
+ END { \
+   if (imarkbuf) print plinebuf "\n" imarkbuf \
+   if (markbuf) print ilinebuf "\n" markbuf \
+   if (!(empty)) print linebuf \
+ }'
+
+# documentation:
+# 
+# Two consecutive origin markers with the same line number are treated as follows:
+# - ORIGIN ORIGIN: the second is removed
+# - ENDORIG ENDORIG: the first is removed
+# - ENDORIG ORIGIN: both are removed (and all following ORIGIN markers)
+#
+# The following string buffers are used:
+# - linebuf: last consecutive lines without marker (separated by newlines)
+# - markbuf: last marker line before linenbuf
+# - ilinebuf: intermediate consecutive lines without marker before markbuf (separated by newlines)
+# - imarkbuf: last marker line before ilinebuf
+# - plinebuf: previous consecutive lines without marker before imarkbuf (separated by newlines)
+# The boolean variable empty flags the linebuf to be empty (instead containing a single empty line).
+# ilinebuf is empty whenever markbuf is empty, plinebuf is empty whenever imarkbuf is empty.
+# The variables markline and imarkline are set to the line numbers in markbuf and imarkbuf, resp.
+# The variable curline is the ORIGIN line number after removing a marker pair, until 
+# the next ENDORIG is found, otherwise it is 0.
+#
+# Whenever linebuf contains a single line and both markbufs contain a marker the markers are 
+# processed as described above (implemented by function processmarkers(). 
+# 
+# A marker is removed by removing its indentation in the first
+# line of the linebuf after it and concatenating the linebuf before it with the linebuf after
+# it without a separating newline. This removes the marker and both newlines around it. This
+# is implemented by function remmarker(1) for the first marker (in imarkbuf) and by
+# remmarker(2) for the second marker (in markbuf).
+# 
+# If no marker is removed the plinebuf and the imarkbuf are output (separated by a newline).
+# (implemented by function flushmarker), updating curline.
+# 
+# It is an error if the input contains two markers in consecutive lines. Since a marker is always
+# generated with a newline before and after it, this cannot happen when markers are correctly generated.
+# 

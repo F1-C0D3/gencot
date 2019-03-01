@@ -21,8 +21,34 @@ addOrig (Origin sn en) doc =
     mark "#ENDORIG" en
     where mark marker ons = 
               if null ons then empty 
-              else (line <> text marker <+> cont ons <> line)
+                          else (hardline <> text marker <+> cont ons <> hardline)
           cont ons = (int . fst . head) ons <> text (if snd $ head ons then " +" else "")
+          hardline = nesting (\i -> text ("\n" ++ replicate i ' '))
+
+nst = nest 2
+
+nparens :: Doc -> Doc
+nparens = enclose lparen rparen . nst
+
+nparensIf :: Bool -> Doc -> Doc
+nparensIf True doc  = nparens doc
+nparensIf False doc = doc
+
+nbraces :: Doc -> Doc
+nbraces = enclose lbrace rbrace . nst
+
+nbrackets :: Doc -> Doc
+nbrackets = enclose lbracket rbracket . nst
+
+ncommasep :: [Doc] -> Doc
+ncommasep = nst . sep . punctuate comma
+
+nenclosesep :: Doc -> Doc -> Doc -> [Doc] -> Doc
+nenclosesep left right p ds =
+    case ds of
+      [] ->  left <> right
+      [d] -> left <> d <> right
+      _ ->   left <> nst (sep (punctuate p ds)) <> right
 
 data Fixity = Fixity Assoc Int
   deriving (Eq, Ord)
@@ -65,7 +91,7 @@ prefixop :: (Pretty a, Pretty op, CFixity op)
          -> a   -- ^ argument
          -> Doc
 prefixop prec op arg =
-    parensIf (prec > opPrec) $
+    nparensIf (prec > opPrec) $
     ppr op <> pprPrec rightPrec arg
   where
     rightPrec | opAssoc == LeftAssoc = opPrec + 1
@@ -74,13 +100,13 @@ prefixop prec op arg =
     Fixity opAssoc opPrec = fixity op
 
 parensList :: [Doc] -> Doc
-parensList = enclosesep lparen rparen comma
+parensList = nenclosesep lparen rparen comma
 
 bracesList :: [Doc] -> Doc
-bracesList = enclosesep lbrace rbrace comma
+bracesList = nenclosesep lbrace rbrace comma
 
 bracesSemiList :: [Doc] -> Doc
-bracesSemiList = enclosesep lbrace rbrace semi
+bracesSemiList = nenclosesep lbrace rbrace semi
 
 embrace :: [Doc] -> Doc
 embrace [] = lbrace <+> rbrace
@@ -90,7 +116,7 @@ embrace ds = lbrace <>
 
 pprAnti :: String -> String -> Doc
 pprAnti anti s = char '$' <> text anti <> colon <>
-                 if isIdentifier s then text s else parens (text s)
+                 if isIdentifier s then text s else nparens (text s)
   where
     isIdentifier :: String -> Bool
     isIdentifier []       = False
@@ -106,7 +132,7 @@ class CFixity a where
 
     parensOp :: Int -> a -> Doc -> Doc
     parensOp prec op =
-        parensIf (prec > opPrec)
+        nparensIf (prec > opPrec)
       where
         Fixity _ opPrec = fixity op
 
@@ -161,17 +187,17 @@ instance CFixity BinOp where
         go op
       where
         go :: BinOp -> Doc -> Doc
-        go Add  | isBitwiseOp = parens
-        go Sub  | isBitwiseOp = parens
-        go Land | isOp Lor    = parens
-        go Lor  | isOp Land   = parens
-        go And  | isOp Or     = parens
-                | isOp Xor    = parens
-        go Or   | isOp And    = parens
-                | isOp Xor    = parens
-        go Xor  | isOp And    = parens
-                | isOp Or     = parens
-        go _                  = parensIf (prec > opPrec)
+        go Add  | isBitwiseOp = nparens
+        go Sub  | isBitwiseOp = nparens
+        go Land | isOp Lor    = nparens
+        go Lor  | isOp Land   = nparens
+        go And  | isOp Or     = nparens
+                | isOp Xor    = nparens
+        go Or   | isOp And    = nparens
+                | isOp Xor    = nparens
+        go Xor  | isOp And    = nparens
+                | isOp Or     = nparens
+        go _                  = nparensIf (prec > opPrec)
 
         isBitwiseOp :: Bool
         isBitwiseOp = isOp And || isOp Or || isOp Xor
@@ -219,7 +245,7 @@ instance Pretty TypeQual where
     ppr (Tinline orig)         = addOrig orig $ text "inline"
     ppr (Trestrict orig)       = addOrig orig $ text "restrict"
 
-    ppr (TAttr attr)        = ppr [attr]
+    ppr (TAttr attr orig)      = addOrig orig $ ppr [attr]
     ppr (T__restrict orig)     = addOrig orig $ text "__restrict"
 
 instance Pretty Sign where
@@ -251,7 +277,7 @@ instance Pretty TypeSpec where
 
     ppr (Tnamed ident refs orig) =
         addOrig orig $
-        ppr ident <> if null refs then empty else angles (commasep (map ppr refs))
+        ppr ident <> if null refs then empty else angles (ncommasep (map ppr refs))
 
     ppr (T_Bool orig) =
         addOrig orig $ text "_Bool"
@@ -275,10 +301,10 @@ instance Pretty TypeSpec where
         addOrig orig $ text "long" <+> text "double" <+> text "_Imaginary"
 
     ppr (TtypeofExp e orig) =
-        addOrig orig $ text "__typeof__" <> parens (pprPrec 14 e)
+        addOrig orig $ text "__typeof__" <> nparens (pprPrec 14 e)
 
     ppr (TtypeofType tipe orig) =
-        addOrig orig $ text "__typeof__" <> parens (ppr tipe)
+        addOrig orig $ text "__typeof__" <> nparens (ppr tipe)
 
     ppr (Tva_list orig) =
         addOrig orig $ text "__builtin_va_list"
@@ -336,11 +362,11 @@ pprDeclarator maybe_ident declarator =
       pprDirDecl :: Decl -> Doc -> (Decl, Doc)
       pprDirDecl (Array quals size decl orig) pre =
           pprDirDecl decl $
-          pre <> (addOrig orig $ brackets (align (spread (map ppr quals) <+> ppr size)))
+          pre <> (addOrig orig $ nbrackets (align (spread (map ppr quals) <+> ppr size)))
 
       pprDirDecl (Proto decl args orig) pre =
           pprDirDecl decl $
-          pre <> (addOrig orig $ parens (ppr args))
+          pre <> (addOrig orig $ nparens (ppr args))
 
       pprDirDecl (OldProto decl args orig) pre =
           pprDirDecl decl $
@@ -354,7 +380,7 @@ pprDeclarator maybe_ident declarator =
           case decl' of
             DeclRoot orig       -> addOrig orig $ declDoc
             AntiTypeDecl _ orig -> addOrig orig $ declDoc
-            _                   -> pprDecl decl' (parens declDoc)
+            _                   -> pprDecl decl' (nparens declDoc)
         where
           (decl', declDoc) = uncurry pprPtr (pprDirDecl decl mid)
 
@@ -363,7 +389,7 @@ instance Pretty Type where
     ppr (AntiType v orig)      = addOrig orig $ pprAnti "ty" v
 
 instance Pretty Designator where
-    ppr (IndexDesignator e orig)       = addOrig orig $ brackets $ ppr e
+    ppr (IndexDesignator e orig)       = addOrig orig $ nbrackets $ ppr e
     ppr (MemberDesignator ident orig)  = addOrig orig $ dot <> ppr ident
 
 instance Pretty Designation where
@@ -389,7 +415,7 @@ instance Pretty Init where
         pprDeclarator (Just ident) decl <+/> ppr attrs
         <+> case maybe_asmlabel of
               Nothing -> empty
-              Just l ->  text "asm" <+> parens (ppr l)
+              Just l ->  text "asm" <+> nparens (ppr l)
         <+> case maybe_e of
               Nothing -> empty
               Just e ->  text "=" <+/> ppr e
@@ -402,11 +428,11 @@ instance Pretty Typedef where
 instance Pretty InitGroup where
     ppr (InitGroup spec attrs inits orig) =
         addOrig orig $
-        ppr spec <+/> ppr attrs <+> commasep (map ppr inits) <> semi -- added semi
+        ppr spec <+/> ppr attrs <+> ncommasep (map ppr inits) <> semi -- added semi
 
     ppr (TypedefGroup spec attrs typedefs orig) =
         addOrig orig $
-        text "typedef" <+> ppr spec <+/> ppr attrs <+> commasep (map ppr typedefs)
+        text "typedef" <+> ppr spec <+/> ppr attrs <+> ncommasep (map ppr typedefs)
 
     ppr (AntiDecls v orig)  = addOrig orig $ pprAnti "decls" v
     ppr (AntiDecl v orig)   = addOrig orig $ pprAnti "decl" v
@@ -428,7 +454,7 @@ instance Pretty Field where
 instance Pretty FieldGroup where
     ppr (FieldGroup spec fields orig) =
         addOrig orig $
-        ppr spec <+> commasep (map ppr fields)
+        ppr spec <+> ncommasep (map ppr fields)
 
     ppr (AntiSdecls v orig)  = addOrig orig $ pprAnti "sdecls" v
     ppr (AntiSdecl v orig)   = addOrig orig $ pprAnti "sdecl" v
@@ -453,11 +479,11 @@ instance Pretty Attr where
     ppr (Attr ident [] orig) = addOrig orig $ ppr ident
     ppr (Attr ident args orig) =
         addOrig orig $
-        ppr ident <> parens (commasep (map ppr args))
+        ppr ident <> nparens (ncommasep (map ppr args))
 
     pprList []    = empty
     pprList attrs = text "__attribute__" <>
-                    parens (parens (commasep (map ppr attrs)))
+                    nparens (nparens (ncommasep (map ppr attrs)))
 
 instance Pretty Param where
     ppr (Param maybe_ident spec decl orig) =
@@ -470,11 +496,11 @@ instance Pretty Param where
 instance Pretty Params where
     ppr (Params args True orig) =
         addOrig orig $
-        commasep (map ppr args ++ [text "..."])
+        ncommasep (map ppr args ++ [text "..."])
 
     ppr (Params args False orig) =
         addOrig orig $
-        commasep (map ppr args)
+        ncommasep (map ppr args)
 
 instance Pretty Func where
     ppr (Func spec ident decl args body orig) =
@@ -502,15 +528,15 @@ instance Pretty Definition where
 instance Pretty Stm where
     ppr (Label ident attrs stm orig) =
         addOrig orig $
-        indent (-2) (line <> ppr ident <> colon <+> ppr attrs) </> ppr stm
+        nest (-2) (line <> ppr ident <> colon <+> ppr attrs) </> ppr stm
 
     ppr (Case e stm orig) =
         addOrig orig $
-        indent (-2) (line <> text "case" <+> ppr e <> colon) </> ppr stm
+        nest (-2) (line <> text "case" <+> ppr e <> colon) </> ppr stm
 
     ppr (Default stm orig) =
         addOrig orig $
-        indent (-2) (line <> text "default" <> colon) </> ppr stm
+        nest (-2) (line <> text "default" <> colon) </> ppr stm
 
     ppr (Exp Nothing orig) = 
         addOrig orig $
@@ -518,7 +544,7 @@ instance Pretty Stm where
 
     ppr (Exp (Just e) orig) =
         addOrig orig $
-        hang 4 (ppr e) <> semi
+        nest 4 (ppr e) <> semi
 
     ppr (Block items orig) =
         addOrig orig $
@@ -526,7 +552,7 @@ instance Pretty Stm where
 
     ppr (If test then' maybe_else orig) =
         addOrig orig $
-        text "if" <+> parens (ppr test) <>
+        text "if" <+> nparens (ppr test) <>
         pprThen then' (fmap pprElse maybe_else)
       where
         pprThen :: Stm -> Maybe Doc -> Doc
@@ -546,21 +572,21 @@ instance Pretty Stm where
 
     ppr (Switch e stm orig) =
         addOrig orig $
-        text "switch" <+> parens (ppr e) <> pprBlock stm
+        text "switch" <+> nparens (ppr e) <> pprBlock stm
 
     ppr (While e stm orig) =
         addOrig orig $
-        text "while" <+> parens (ppr e) <> pprBlock stm
+        text "while" <+> nparens (ppr e) <> pprBlock stm
 
     ppr (DoWhile stm e orig) =
         addOrig orig $
-        text "do" <> pprBlock stm <+/> text "while" <> parens (ppr e) <> semi
+        text "do" <> pprBlock stm <+/> text "while" <> nparens (ppr e) <> semi
 
     ppr (For ini test post stm orig) =
         addOrig orig $
         text "for" <+>
-        --(parens . semisep) [either ppr ppr ini, ppr test, ppr post] <>
-        parens (either ppr (\me -> ppr me <> semi) ini <+> ppr test <> semi <+> ppr post <> semi) <>
+        --(nparens . semisep) [either ppr ppr ini, ppr test, ppr post] <>
+        nparens (either ppr (\me -> ppr me <> semi) ini <+> ppr test <> semi <+> ppr post) <>
         pprBlock stm
 
     ppr (Goto ident orig) =
@@ -607,7 +633,7 @@ instance Pretty Stm where
         <> case isVolatile of
              True ->  space <> text "__volatile__"
              False -> empty
-        <> parens (ppr template
+        <> nparens (ppr template
                    <> case outs of
                         [] -> space <> colon
                         _ ->  colon <+/> ppr outs
@@ -616,7 +642,7 @@ instance Pretty Stm where
                         _ ->  colon <+/> ppr ins
                    <> case clobbered of
                         [] -> space <> colon
-                        _ ->  colon <+/> commasep (map text clobbered)
+                        _ ->  colon <+/> ncommasep (map text clobbered)
                   )
         <> semi
 
@@ -626,17 +652,17 @@ instance Pretty Stm where
         <> case isVolatile of
              True ->  space <> text "__volatile__"
              False -> empty
-        <> parens (ppr template
+        <> nparens (ppr template
                    <> colon
                    <> case ins of
                         [] -> space <> colon
                         _ ->  colon <+/> ppr ins
                    <> case clobbered of
                         [] -> space <> colon
-                        _ ->  colon <+/> commasep (map text clobbered)
+                        _ ->  colon <+/> ncommasep (map text clobbered)
                    <> case clobbered of
                         [] -> space <> colon
-                        _ ->  colon <+/> commasep (map ppr labels)
+                        _ ->  colon <+/> ncommasep (map ppr labels)
                   )
         <> semi
 
@@ -667,17 +693,17 @@ instance Pretty BlockItem where
             ppr item : loop items
 
 instance Pretty Const where
-    pprPrec p (IntConst s _ i orig)       = addOrig orig $ parensIf (i < 0 && p > unopPrec) $
+    pprPrec p (IntConst s _ i orig)       = addOrig orig $ nparensIf (i < 0 && p > unopPrec) $
                                             text s
-    pprPrec p (LongIntConst s _ i orig)   = addOrig orig $ parensIf (i < 0 && p > unopPrec) $
+    pprPrec p (LongIntConst s _ i orig)   = addOrig orig $ nparensIf (i < 0 && p > unopPrec) $
                                             text s
-    pprPrec p (LongLongIntConst s _ i orig)  = addOrig orig $ parensIf (i < 0 && p > unopPrec) $
+    pprPrec p (LongLongIntConst s _ i orig)  = addOrig orig $ nparensIf (i < 0 && p > unopPrec) $
                                                text s
-    pprPrec p (FloatConst s r orig)       = addOrig orig $ parensIf (r < 0 && p > unopPrec) $
+    pprPrec p (FloatConst s r orig)       = addOrig orig $ nparensIf (r < 0 && p > unopPrec) $
                                             text s
-    pprPrec p (DoubleConst s r orig)      = addOrig orig $ parensIf (r < 0 && p > unopPrec) $
+    pprPrec p (DoubleConst s r orig)      = addOrig orig $ nparensIf (r < 0 && p > unopPrec) $
                                             text s
-    pprPrec p (LongDoubleConst s r orig)  = addOrig orig $ parensIf (r < 0 && p > unopPrec) $
+    pprPrec p (LongDoubleConst s r orig)  = addOrig orig $ nparensIf (r < 0 && p > unopPrec) $
                                             text s
     pprPrec _ (CharConst s _ orig)        = addOrig orig $ text s
     pprPrec _ (StringConst ss _ orig)     = addOrig orig $ sep (map string ss)
@@ -714,22 +740,22 @@ instance Pretty Exp where
 
     pprPrec p (PreInc e orig) =
         addOrig orig $ 
-        parensIf (p > unopPrec) $
+        nparensIf (p > unopPrec) $
         text "++" <> pprPrec unopPrec1 e
 
     pprPrec p (PostInc e orig) =
         addOrig orig $ 
-        parensIf (p > unopPrec) $
+        nparensIf (p > unopPrec) $
         pprPrec unopPrec1 e <> text "++"
 
     pprPrec p (PreDec e orig) =
         addOrig orig $ 
-        parensIf (p > unopPrec) $
+        nparensIf (p > unopPrec) $
         text "--" <> pprPrec unopPrec1 e
 
     pprPrec p (PostDec e orig) =
         addOrig orig $ 
-        parensIf (p > unopPrec) $
+        nparensIf (p > unopPrec) $
         pprPrec unopPrec1 e <> text "--"
 
     pprPrec _ (EscExp e orig) =
@@ -738,7 +764,7 @@ instance Pretty Exp where
 
     pprPrec p (AntiEscExp e orig) =
         addOrig orig $ 
-        parensIf (p > unopPrec) $
+        nparensIf (p > unopPrec) $
         text e
 
     -- When printing leading + and - operators, we print the argument at
@@ -746,12 +772,12 @@ instance Pretty Exp where
     -- @-(-42)@. The same holds for @++@ and @--@ above.
     pprPrec p (UnOp op@Positive e orig) =
         addOrig orig $ 
-        parensIf (p > unopPrec) $
+        nparensIf (p > unopPrec) $
         ppr op <> pprPrec unopPrec1 e
 
     pprPrec p (UnOp op@Negate e orig) =
         addOrig orig $ 
-        parensIf (p > unopPrec) $
+        nparensIf (p > unopPrec) $
         ppr op <> pprPrec unopPrec1 e
 
     pprPrec p (UnOp op e orig) =
@@ -760,56 +786,56 @@ instance Pretty Exp where
 
     pprPrec p (SizeofExp e orig) =
         addOrig orig $ 
-        parensIf (p > unopPrec) $
-        text "sizeof" <> parens (ppr e)
+        nparensIf (p > unopPrec) $
+        text "sizeof" <> nparens (ppr e)
 
     pprPrec p (SizeofType tipe orig) =
         addOrig orig $ 
-        parensIf (p > unopPrec) $
-        text "sizeof" <> parens (ppr tipe)
+        nparensIf (p > unopPrec) $
+        text "sizeof" <> nparens (ppr tipe)
 
     pprPrec p (Cast tipe e orig) =
         addOrig orig $ 
-        parensIf (p > unopPrec) $
-        parens (ppr tipe) <+> pprPrec unopPrec e
+        nparensIf (p > unopPrec) $
+        nparens (ppr tipe) <+> pprPrec unopPrec e
 
     pprPrec p (Cond test then' else' orig) =
         addOrig orig $ 
-        parensIf (p > condPrec) $
+        nparensIf (p > condPrec) $
         pprPrec condPrec1 test <+> text "?" <+>
         pprPrec condPrec1 then' <+> colon <+>
         pprPrec condPrec else'
 
     pprPrec p (Member e ident orig) =
         addOrig orig $ 
-        parensIf (p > memberPrec) $
+        nparensIf (p > memberPrec) $
         pprPrec memberPrec e <> dot <> ppr ident
 
     pprPrec p (PtrMember e ident orig) =
         addOrig orig $ 
-        parensIf (p > memberPrec) $
+        nparensIf (p > memberPrec) $
         pprPrec memberPrec e <> text "->" <> ppr ident
 
     pprPrec p (Index e1 e2 orig) =
         addOrig orig $ 
-        parensIf (p > memberPrec) $
-        pprPrec memberPrec e1 <> brackets (ppr e2)
+        nparensIf (p > memberPrec) $
+        pprPrec memberPrec e1 <> nbrackets (ppr e2)
 
     pprPrec p (FnCall f args orig) =
         addOrig orig $ 
-        parensIf (p > memberPrec) $
+        nparensIf (p > memberPrec) $
         pprPrec memberPrec f <> parensList (map ppr args)
 
     pprPrec p (Seq e1 e2 orig) =
         addOrig orig $ 
-        parensIf (p > commaPrec) $
+        nparensIf (p > commaPrec) $
         pprPrec commaPrec e1 <> comma <+/> pprPrec commaPrec1 e2
 
     pprPrec p (CompoundLit ty inits orig) =
         addOrig orig $ 
-        parensIf (p > memberPrec) $
-        parens (ppr ty) <+>
-        braces (commasep (map pprInit inits))
+        nparensIf (p > memberPrec) $
+        nparens (ppr ty) <+>
+        nbraces (ncommasep (map pprInit inits))
       where
         pprInit :: (Maybe Designation, Initializer) -> Doc
         pprInit (Nothing, ini) = ppr ini
@@ -817,7 +843,7 @@ instance Pretty Exp where
 
     pprPrec _ (StmExpr blockItems orig) =
         addOrig orig $ 
-        parens $
+        nparens $
         ppr blockItems
 
     pprPrec _ (BuiltinVaArg e ty orig) =
@@ -871,20 +897,20 @@ instance Pretty UnOp where
 
 instance Pretty AsmOut where
     ppr (AsmOut Nothing constraint ident) =
-        text constraint <+> parens (ppr ident)
+        text constraint <+> nparens (ppr ident)
 
     ppr (AsmOut (Just sym) constraint ident) =
-        brackets (ppr sym) <+> text constraint <+> parens (ppr ident)
+        nbrackets (ppr sym) <+> text constraint <+> nparens (ppr ident)
 
     pprList []   = empty
-    pprList outs = commasep (map ppr outs)
+    pprList outs = ncommasep (map ppr outs)
 
 instance Pretty AsmIn where
     ppr (AsmIn Nothing constraint e) =
-        text constraint <+> parens (ppr e)
+        text constraint <+> nparens (ppr e)
 
     ppr (AsmIn (Just sym) constraint e) =
-        brackets (ppr sym) <+> text constraint <+> parens (ppr e)
+        nbrackets (ppr sym) <+> text constraint <+> nparens (ppr e)
 
     pprList []  = empty
-    pprList ins = commasep (map ppr ins)
+    pprList ins = ncommasep (map ppr ins)

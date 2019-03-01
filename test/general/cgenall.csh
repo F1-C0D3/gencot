@@ -10,7 +10,8 @@
 ../../bin/gencot-rempp test.rempp-pat < test-impl.remc > test-impl.remp
 ../../bin/gencot-cpp test-impl.dummydecls < test-impl.remp > test-impl.in
 ../../src/gencot-translate test.c < test-impl.in > test-impl.out
-../../bin/gencot-postproc < test-impl.out > test-impl.op
+../../bin/gencot-reporigs < test-impl.out > test-impl.reporigs
+../../bin/gencot-postproc < test-impl.reporigs > test-impl.op
 
 ../../bin/gencot-preppconst test.omitconst < test-impl.pps > test-impl.preppconst
 ../../bin/gencot-prcppconst < test-impl.preppconst > test-impl.prcppconst

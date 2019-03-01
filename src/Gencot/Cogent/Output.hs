@@ -62,8 +62,8 @@ instance PatnType GenIrrefPatn where
   prettyB (GenIrrefPatn _ p,mt,e) = prettyB (p,mt,e)
 
 instance Pretty GenExpr where
-  pretty (ConstExpr e) = (string . (TPM.pretty 80) . ppr) e
-  pretty (FunBody s) = {-hardline <>-} (string . (TPM.pretty 80) . ppr) s
+  pretty (ConstExpr e) = (string . (TPM.pretty 1000) . ppr) e
+  pretty (FunBody s) = {-hardline <>-} (string . (TPM.pretty 1000) . ppr) s
 {-
   pretty (ConstExpr e) = (string . show . GCO.opretty) e
   pretty (FunBody s) = {-hardline <>-} (string . show . GCO.oprettyPrec (-1)) s
@@ -72,6 +72,16 @@ instance Pretty GenExpr where
 --cAddOrig :: Origin -> TPM.Doc -> TPM.Doc
 --cAddOrig (Origin sn en) doc = TPM.line <> TPM.string "#Origin" <> TPM.line <> doc <> TPM.line <> TPM.text "#Endorig" <> TPM.line
 
+addOrig :: Origin -> Doc -> Doc
+addOrig (Origin sn en) doc =
+    mark "#ORIGIN" sn fstLine
+    <> doc <> 
+    mark "#ENDORIG" en lstLine
+    where mark marker ons ln = 
+              if null ons then empty 
+                          else (hardline <> text marker <+> cont ons ln <> hardline)
+          cont ons ln = (int . ln . fst . head) ons <> text (if snd $ head ons then " +" else "")
+{-
 addOrig :: Origin -> Doc -> Doc
 addOrig (Origin sn en) doc =
     (if null sn then empty 
@@ -84,5 +94,5 @@ addOrig (Origin sn en) doc =
           scmark = text (if snd $ head sn then " +" else "")
           ecmark = text (if snd $ head en then " +" else "")
 --addOrig (Origin [] _ _ _) doc = doc
-
+-}
  

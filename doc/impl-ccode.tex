@@ -29,8 +29,8 @@ The second task is only supported by the package language-c-quote, therefore it 
 The third task is supported by both packages, since both have a prettyprint function for outputting their AST. Since the 
 function bodies have been read from the input and are output with only minor modifications, it is easiest to use
 the language-c prettyprinter, since language-c has been used for parsing and the body is already represented by its 
-AST data structures. However, the language-c prettyprinter is not generic enough to adapt it to Gencot's requirements.
-For this reason Gencot uses an own reimplementation of the language-c prettyprinter for the third task (see 
+AST data structures. However, the language-c prettyprinter cannot be extended to generate the ORIGIN markers, therefore
+the AST is translated to the language-c-quote AST and the corresponding prettyprinter is used for the third task (see 
 Section~\ref{impl-ccode-expr}).
 
 Note that in both packages the main module is named \code{Language.C}. If both packages are exposed to the ghc Haskell
@@ -360,7 +360,7 @@ start line numbers in the \code{NodeInfo} values are used. The second list repre
 to be inserted after the construct, here only the end line numbers in the \code{NodeInfo} values are used. If no marker of
 one of the kinds shall be present, the corresponding list is empty.
 
-Additional Information must be added to represent the marker extensions for placing the comments (the trailing ``+'' signs).
+Additional information must be added to represent the marker extensions for placing the comments (the trailing ``+'' signs).
 Therefore, a boolean value is added to all list elements.
 
 Together, Gencot defines the type \code{Origin} for representing the origin information, with the value \code{noOrigin}

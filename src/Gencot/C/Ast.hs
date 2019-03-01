@@ -49,7 +49,7 @@ data TypeQual = Tconst    Origin
 
               -- GCC
               | T__restrict Origin
-              | TAttr Attr
+              | TAttr Attr Origin
 
     deriving (Eq, Ord, Show, Data, Typeable)
 

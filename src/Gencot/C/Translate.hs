@@ -14,142 +14,108 @@ import Numeric (showInt, showOct, showHex, readFloat)
 
 import Gencot.C.Ast as GCA
 import Gencot.Origin
-import Gencot.Traversal
 import Gencot.Names (transTagName,transFunName,transToField,mapNameToUpper,mapNameToLower)
 
-import Language.C.Analysis.TravMonad (getUserState)
+import Language.C.Analysis.TravMonad (MonadTrav)
 
-checkDeclr :: String -> LC.CDeclr -> OTrav ()
+checkDeclr :: MonadTrav m => String -> LC.CDeclr -> m ()
 checkDeclr s (LC.CDeclr _ _ Nothing [] _) = return ()
 checkDeclr s (LC.CDeclr _ _ _ cattrs n) | not $ null cattrs =
     error $ "Gencot unsupported C: CAttr in " ++ s ++ " at " ++ show n
 checkDeclr s (LC.CDeclr _ _ _ _ n) =
     error $ "Gencot unsupported C: asmname in " ++ s ++ " at " ++ show n
 
-retWithOrig :: NodeInfo -> (Origin -> a) -> OTrav a
-retWithOrig n gen = do
-    o <- getNOrigin n
-    return $ gen o
+transUnit :: MonadTrav m => LC.CTranslUnit -> m [GCA.Definition]
+transUnit (CTranslUnit edecls n) =
+    mapM transExtDecl edecls
 
-retWithOwnOrig :: OwnOrig -> (Origin -> a) -> OTrav a
-retWithOwnOrig oo gen = do
-    o <- getOrigin oo
-    return $ gen o
-
-retNoOrig :: (Origin -> a) -> OTrav a
-retNoOrig gen = return $ gen noOrigin
-
-transUnit :: LC.CTranslUnit -> OTrav [GCA.Definition]
-transUnit (CTranslUnit edecls n) = do
-    pushOrigs $ map ownOrig edecls
-    mapOrigs transExtDecl edecls
-
-transExtDecl :: LC.CExtDecl -> OTrav GCA.Definition
+transExtDecl :: MonadTrav m => LC.CExtDecl -> m GCA.Definition
 transExtDecl (LC.CDeclExt decl) = do
-    pushOrigs [ownOrig decl]
-    d <- useOrig transDecl decl
-    retWithOrig (nodeInfo decl) $ GCA.DecDef d
+    d <- transDecl decl
+    return $ GCA.DecDef d noOrigin
 transExtDecl (LC.CFDefExt fund) = do 
-    pushOrigs [ownOrig fund]
-    f <- useOrig transFunDef fund
-    retWithOrig (nodeInfo fund) $ GCA.FuncDef f
+    f <- transFunDef fund
+    return $ GCA.FuncDef f noOrigin
 transExtDecl (LC.CAsmExt (CStrLit (CString asmstr _) _) n) =
-    retWithOrig n $ GCA.EscDef ("asm(\"" ++ asmstr ++ "\")")
+    return $ GCA.EscDef ("asm(\"" ++ asmstr ++ "\")") $ mkOrigin n
 
-transFunDef :: LC.CFunDef -> OTrav GCA.Func
+transFunDef :: MonadTrav m => LC.CFunDef -> m GCA.Func
 transFunDef (LC.CFunDef declspecs dclr _{-old parms-} stat ndef) = do
     checkDeclr "fundef" dclr 
-    pushOrigs [lOwnOrig declspecs, ownOrig name, noOwnOrig, ownOrig fdclr, ownOrig stat]
-    ds <- useOrig transDeclSpecs declspecs
-    i <- useOrig transIdent name
-    rd <- useOrig transDerivedDeclrs resdclrs
-    ps <- useOrig transParams fdclr
-    (GCA.Block bis _) <- useOrig transStat stat
-    retWithOrig ndef $ GCA.Func ds i rd ps bis
+    ds <- transDeclSpecs declspecs
+    i <- transIdent name
+    rd <- transDerivedDeclrs resdclrs
+    ps <- transParams fdclr
+    (GCA.Block bis _) <- transStat stat
+    return $ GCA.Func ds i rd ps bis $ mkOrigin ndef
     where LC.CDeclr (Just name) (fdclr:resdclrs) asmname cattrs ndec = dclr
 
-transStat :: LC.CStat -> OTrav GCA.Stm
+transStat :: MonadTrav m => LC.CStat -> m GCA.Stm
 transStat (LC.CLabel ident stat cattrs n) = do
-    pushOrigs $ [ownOrig ident] ++ (map ownOrig cattrs) ++ [ownOrig stat]
-    i <- useOrig transIdent ident
-    as <- mapOrigs transAttr cattrs
-    s <- useOrig transStat stat
-    retWithOrig n $ GCA.Label i as s
+    i <- transIdent ident
+    as <- mapM transAttr cattrs
+    s <- transStat stat
+    return $ GCA.Label i as s $ mkOrigin n
 transStat (LC.CCase expr stat n) = do
-    pushOrigs [ownOrig expr, ownOrig stat]
-    e <- useOrig transExpr expr
-    s <- useOrig transStat stat
-    retWithOrig n $ GCA.Case e s
+    e <- transExpr expr
+    s <- transStat stat
+    return $ GCA.Case e s $ mkOrigin n
 transStat (LC.CCases expr1 expr2 stat n) =
     error $ "Gencot unsupported C: CCases at " ++ show n
 transStat (LC.CDefault stat n) = do
-    pushOrigs [ownOrig stat]
-    s <- useOrig transStat stat
-    retWithOrig n $ GCA.Default s
+    s <- transStat stat
+    return $ GCA.Default s $ mkOrigin n
 transStat (LC.CExpr mexpr n) = do
-    pushOrigs [mOwnOrig mexpr]
-    me <- optOrig transExpr mexpr
-    retWithOrig n $ GCA.Exp me
+    me <- mapM transExpr mexpr
+    return $ GCA.Exp me $ mkOrigin n
 transStat (LC.CCompound _{-localLabels-} bis n) = do
-    u1 <- getUserState
-    pushOrigs $ map ownOrig bis
-    u2 <- getUserState
-    error $ "transStat CCompound: u1 = "++(show u1)++" u2 = "++(show u2)
-    bs <- mapOrigs transBlockItem bis
-    retWithOrig n $ GCA.Block bs
+    bs <- mapM transBlockItem bis
+    return $ GCA.Block bs $ mkOrigin n
 transStat (LC.CIf expr stat mestat n) = do
-    pushOrigs [ownOrig expr, ownOrig stat, mOwnOrig mestat]
-    e <- useOrig transExpr expr
-    s <- useOrig transStat stat
-    ms <- optOrig transStat mestat
-    retWithOrig n $ GCA.If e s ms
+    e <- transExpr expr
+    s <- transStat stat
+    ms <- mapM transStat mestat
+    return $ GCA.If e s ms $ mkOrigin n
 transStat (LC.CSwitch expr stat n) = do
-    pushOrigs [ownOrig expr, ownOrig stat]
-    e <- useOrig transExpr expr
-    s <- useOrig transStat stat
-    retWithOrig n $ GCA.Switch e s
+    e <- transExpr expr
+    s <- transStat stat
+    return $ GCA.Switch e s $ mkOrigin n
 transStat (LC.CWhile expr stat False n) = do
-    pushOrigs [ownOrig expr, ownOrig stat]
-    e <- useOrig transExpr expr
-    s <- useOrig transStat stat
-    retWithOrig n $ GCA.While e s
+    e <- transExpr expr
+    s <- transStat stat
+    return $ GCA.While e s $ mkOrigin n
 transStat (LC.CWhile expr stat True n) = do
-    pushOrigs [ownOrig stat, ownOrig expr]
-    s <- useOrig transStat stat
-    e <- useOrig transExpr expr
-    retWithOrig n $ GCA.DoWhile s e
+    s <- transStat stat
+    e <- transExpr expr
+    return $ GCA.DoWhile s e $ mkOrigin n
 transStat (LC.CFor (Left mexpr) mcond mstep stat n) = do
-    pushOrigs [mOwnOrig mexpr, mOwnOrig mcond, mOwnOrig mstep, ownOrig stat]
-    me <- optOrig transExpr mexpr
-    mc <- optOrig transExpr mcond
-    ms <- optOrig transExpr mstep
-    s <- useOrig transStat stat
-    retWithOrig n $ GCA.For (Right me) mc ms s
+    me <- mapM transExpr mexpr
+    mc <- mapM transExpr mcond
+    ms <- mapM transExpr mstep
+    s <- transStat stat
+    return $ GCA.For (Right me) mc ms s $ mkOrigin n
 transStat (LC.CFor (Right decl) mcond mstep stat n) = do
-    pushOrigs [ownOrig decl, mOwnOrig mcond, mOwnOrig mstep, ownOrig stat]
-    d <- useOrig transDecl decl
-    mc <- optOrig transExpr mcond
-    ms <- optOrig transExpr mstep
-    s <- useOrig transStat stat
-    retWithOrig n $ GCA.For (Left d) mc ms s
+    d <- transDecl decl
+    mc <- mapM transExpr mcond
+    ms <- mapM transExpr mstep
+    s <- transStat stat
+    return $ GCA.For (Left d) mc ms s $ mkOrigin n
 transStat (LC.CGoto ident n) = do
-    pushOrigs [ownOrig ident]
-    i <- useOrig transIdent ident
-    retWithOrig n $ GCA.Goto i
+    i <- transIdent ident
+    return $ GCA.Goto i $ mkOrigin n
 transStat (LC.CGotoPtr expr n) =
     error $ "Gencot unsupported C: CGotoPtr at " ++ show n
 transStat (LC.CCont n) =
-    retWithOrig n $ GCA.Continue
+    return $ GCA.Continue $ mkOrigin n
 transStat (LC.CBreak n) =
-    retWithOrig n $ GCA.Break
+    return $ GCA.Break $ mkOrigin n
 transStat (LC.CReturn mexpr n) = do
-    pushOrigs [mOwnOrig mexpr]
-    me <- optOrig transExpr mexpr
-    retWithOrig n $ GCA.Return me
+    me <- mapM transExpr mexpr
+    return $ GCA.Return me $ mkOrigin n
 transStat (LC.CAsm asmStmt n) =
     transAsmStmt asmStmt
 
-transAsmStmt :: CAsmStmt -> OTrav GCA.Stm
+transAsmStmt :: CAsmStmt -> m GCA.Stm
 transAsmStmt (LC.CAsmStmt tyQual expr outOps inOps clobbers n) =
     error $ "Gencot unsupported C: CAsmStmt at " ++ show n
     {-
@@ -163,7 +129,7 @@ transAsmOperand :: CAsmOperand -> ??
 transAsmOperand (LC.CAsmOperand mArgName cnstr expr n) =
 -}
 
-transBlockItem :: LC.CBlockItem -> OTrav GCA.BlockItem
+transBlockItem :: MonadTrav m => LC.CBlockItem -> m GCA.BlockItem
 transBlockItem (LC.CBlockStmt stat) = do
     s <- transStat stat
     return $ GCA.BlockStm s
@@ -173,135 +139,121 @@ transBlockItem (LC.CBlockDecl decl) = do
 transBlockItem (LC.CNestedFunDef fundef) =
     error $ "Gencot unsupported C: CNestedFunDef at " ++ show (LCN.nodeInfo fundef)
 
-transDecl :: LC.CDecl -> OTrav GCA.InitGroup
+transDecl :: MonadTrav m => LC.CDecl -> m GCA.InitGroup
 transDecl (LC.CDecl specs divs n) | any isTypedef stor = do
-    pushOrigs $ [noOwnOrig] ++ map (tripOwnOrig mOwnOrig mOwnOrig mOwnOrig) divs
-    ss <- useOrig transDeclSpecs specs
-    td <- mapOrigs transDeclrToTypedef divs
-    retWithOrig n $ GCA.TypedefGroup ss [] td
+    ss <- transDeclSpecs specs
+    td <- mapM transDeclrToTypedef divs
+    return $ GCA.TypedefGroup ss [] td $ mkOrigin n
     where (stor,_,_,_,_,_) = LC.partitionDeclSpecs specs
           isTypedef (LC.CTypedef _) = True
           isTypedef _ = False
           transDeclrToTypedef ((Just dclr@(LC.CDeclr (Just name) _ _ cattrs _)),_,_) = do
-              pushOrigs $ [ownOrig name, noOwnOrig] ++ map ownOrig cattrs
-              i <- useOrig transIdent name
-              d <- useOrig transDeclr dclr
-              cs <- mapOrigs transAttr cattrs
-              retNoOrig $ GCA.Typedef i d cs
+              i <- transIdent name
+              d <- transDeclr dclr
+              cs <- mapM transAttr cattrs
+              return $ GCA.Typedef i d cs noOrigin
 transDecl (LC.CDecl specs divs n) = do
-    pushOrigs $ [noOwnOrig] ++ map (tripOwnOrig mOwnOrig mOwnOrig mOwnOrig) divs
-    ss <- useOrig transDeclSpecs specs
-    it <- mapOrigs transDeclrToInit divs
-    retWithOrig n $ GCA.InitGroup ss [] it
+    ss <- transDeclSpecs specs
+    it <- mapM transDeclrToInit divs
+    return $ GCA.InitGroup ss [] it $ mkOrigin n
     where transDeclrToInit ((Just dclr@(LC.CDeclr (Just name) _ masmname cattrs _)),minit,_) = do
-              pushOrigs $ [ownOrig name, noOwnOrig, mOwnOrig masmname, mOwnOrig minit] ++ map ownOrig cattrs
-              i <- useOrig transIdent name
-              d <- useOrig transDeclr dclr
-              ma <- optOrig transStrLit masmname
-              mi <- optOrig transInit minit
-              cs <- mapOrigs transAttr cattrs
-              retNoOrig $ GCA.Init i d ma mi cs
+              i <- transIdent name
+              d <- transDeclr dclr
+              ma <- mapM transStrLit masmname
+              mi <- mapM transInit minit
+              cs <- mapM transAttr cattrs
+              return $ GCA.Init i d ma mi cs noOrigin
 transDecl (LC.CStaticAssert expr str n) =
     error $ "Gencot unsupported C: CStaticAssert at " ++ show n
 
-transMemberDecl :: LC.CDecl -> OTrav GCA.FieldGroup
+transMemberDecl :: MonadTrav m => LC.CDecl -> m GCA.FieldGroup
 transMemberDecl (LC.CDecl specs divs n) = do
-    pushOrigs $ [noOwnOrig] ++ map (tripOwnOrig mOwnOrig mOwnOrig mOwnOrig) divs
-    ss <- useOrig transDeclSpecs specs
-    fd <- mapOrigs transDeclrToField divs
-    retWithOrig n $ GCA.FieldGroup ss fd
+    ss <- transDeclSpecs specs
+    fd <- mapM transDeclrToField divs
+    return $ GCA.FieldGroup ss fd $ mkOrigin n
     where 
           transDeclrToField ((Just dclr@(LC.CDeclr mid _ _ cattrs n)),_,mexpr) = do
               --checkDeclr "field" dclr
-              pushOrigs [mOwnOrig mid, noOwnOrig, mOwnOrig mexpr]
-              mi <- optOrig transIdent mid
-              d <- useOrig transDeclr dclr
-              me <- optOrig transExpr mexpr
-              retNoOrig $ GCA.Field mi (Just d) me
+              mi <- mapM transIdent mid
+              d <- transDeclr dclr
+              me <- mapM transExpr mexpr
+              return $ GCA.Field mi (Just d) me noOrigin
           transDeclrToField (Nothing,_,mexpr) = do
-              pushOrigs [mOwnOrig mexpr]
-              me <- optOrig transExpr mexpr
-              retNoOrig $ GCA.Field Nothing Nothing me
+              me <- mapM transExpr mexpr
+              return $ GCA.Field Nothing Nothing me noOrigin
 transMemberDecl (LC.CStaticAssert expr str n) =
     error $ "Gencot unsupported C: CStaticAssert at " ++ show n
 
-transParamDecl :: LC.CDecl -> OTrav GCA.Param
+transParamDecl :: MonadTrav m => LC.CDecl -> m GCA.Param
 transParamDecl (LC.CDecl specs [] n) = do
-    pushOrigs [noOwnOrig]
-    ss <- useOrig transDeclSpecs specs
-    retWithOrig n $ GCA.Param Nothing ss (GCA.DeclRoot noOrigin)
+    ss <- transDeclSpecs specs
+    return $ GCA.Param Nothing ss (GCA.DeclRoot noOrigin) $ mkOrigin n
 transParamDecl (LC.CDecl specs (((Just dclr@(LC.CDeclr mid _ _ cattrs _)),Nothing,Nothing):[]) n) = do
     checkDeclr "param" dclr
-    pushOrigs [noOwnOrig, mOwnOrig mid, noOwnOrig]
-    ss <- useOrig transDeclSpecs specs
-    mi <- optOrig transIdent mid
-    d <- useOrig transDeclr dclr
-    retWithOrig n $ GCA.Param mi ss d
+    ss <- transDeclSpecs specs
+    mi <- mapM transIdent mid
+    d <- transDeclr dclr
+    return $ GCA.Param mi ss d $ mkOrigin n
 
-transDeclSpecs :: [LC.CDeclSpec] -> OTrav GCA.DeclSpec
+transDeclSpecs :: MonadTrav m => [LC.CDeclSpec] -> m GCA.DeclSpec
 transDeclSpecs declspecs = 
     if (not $ null attr) || (not $ null aspc)
        then error $ "Gencot unsupported C: CAttr or CAlignSpec at " ++ (show $ LCN.nodeInfo $ head declspecs)
        else do
-           pushOrigs [noOwnOrig, noOwnOrig, noOwnOrig, lOwnOrig spec]
-           s <- useOrig (mapM transStorageSpec) stor
-           q <- useOrig (mapM transTypeQual) qual
-           f <- useOrig (mapM transFunSpec) fspc
-           t <- useOrig transTypeSpecs spec
-           retNoOrig $ GCA.DeclSpec s (q++f) t
+           s <- (mapM transStorageSpec) stor
+           q <- (mapM transTypeQual) qual
+           f <- (mapM transFunSpec) fspc
+           t <- transTypeSpecs spec
+           return $ GCA.DeclSpec s (q++f) t noOrigin
     where (stor,attr,qual,spec,fspc,aspc) = LC.partitionDeclSpecs declspecs
 
-transStorageSpec :: LC.CStorageSpec -> OTrav GCA.Storage
-transStorageSpec (LC.CAuto n) = retNoOrig GCA.Tauto
-transStorageSpec (LC.CRegister n) = retNoOrig GCA.Tregister
-transStorageSpec (LC.CStatic n) = retNoOrig GCA.Tstatic
-transStorageSpec (LC.CExtern n) = retNoOrig $ GCA.Textern Nothing
-transStorageSpec (LC.CTypedef n) = retNoOrig GCA.Ttypedef
+transStorageSpec :: MonadTrav m => LC.CStorageSpec -> m GCA.Storage
+transStorageSpec (LC.CAuto n) = return $ GCA.Tauto $ mkOrigin n
+transStorageSpec (LC.CRegister n) = return $ GCA.Tregister $ mkOrigin n
+transStorageSpec (LC.CStatic n) = return $ GCA.Tstatic $ mkOrigin n
+transStorageSpec (LC.CExtern n) = return $ GCA.Textern Nothing $ mkOrigin n
+transStorageSpec (LC.CTypedef n) = return $ GCA.Ttypedef $ mkOrigin n
 transStorageSpec (LC.CThread n) = 
     error $ "Gencot unsupported C: CThread at " ++ show n
 
-transTypeSpecs :: [LC.CTypeSpec] -> OTrav GCA.TypeSpec
-transTypeSpecs ss | (any isVoid ss)    = retNoOrig GCA.Tvoid
-transTypeSpecs ss | (any isChar ss)    = retNoOrig $ GCA.Tchar (sign ss)
-transTypeSpecs ss | (any isShort ss)   = retNoOrig $ GCA.Tshort (sign ss)
+transTypeSpecs :: MonadTrav m => [LC.CTypeSpec] -> m GCA.TypeSpec
+transTypeSpecs ss | (any isVoid ss)    = return $ GCA.Tvoid noOrigin
+transTypeSpecs ss | (any isChar ss)    = return $ GCA.Tchar (sign ss) noOrigin
+transTypeSpecs ss | (any isShort ss)   = return $ GCA.Tshort (sign ss) noOrigin
 transTypeSpecs ss | (any isComplex ss) = if any isFloat ss
-                                         then retNoOrig GCA.Tfloat_Complex
+                                         then return $ GCA.Tfloat_Complex noOrigin
                                          else if any isLong ss
-                                             then retNoOrig GCA.Tlong_double_Complex
-                                             else retNoOrig GCA.Tdouble_Complex
+                                             then return $ GCA.Tlong_double_Complex noOrigin
+                                             else return $ GCA.Tdouble_Complex noOrigin
 transTypeSpecs ss | (any isDouble ss)  = if any isLong ss 
-                                         then retNoOrig GCA.Tlong_double
-                                         else retNoOrig GCA.Tdouble
+                                         then return $ GCA.Tlong_double noOrigin
+                                         else return $ GCA.Tdouble noOrigin
 transTypeSpecs ss | (any isLong ss)    = if hasLongLong ss 
-                                         then retNoOrig $ GCA.Tlong_long (sign ss)
-                                         else retNoOrig $ GCA.Tlong (sign ss)
-transTypeSpecs ss | (any isInt ss)     = retNoOrig $ GCA.Tint (sign ss)
-transTypeSpecs ss | (any isSigned ss)  = retNoOrig $ GCA.Tint (sign ss)
-transTypeSpecs ss | (any isUnsigned ss)= retNoOrig $ GCA.Tint (sign ss)
-transTypeSpecs ss | (any isFloat ss)   = retNoOrig GCA.Tfloat
+                                         then return $ GCA.Tlong_long (sign ss) noOrigin
+                                         else return $ GCA.Tlong (sign ss) noOrigin
+transTypeSpecs ss | (any isInt ss)     = return $ GCA.Tint (sign ss) noOrigin
+transTypeSpecs ss | (any isSigned ss)  = return $ GCA.Tint (sign ss) noOrigin
+transTypeSpecs ss | (any isUnsigned ss)= return $ GCA.Tint (sign ss) noOrigin
+transTypeSpecs ss | (any isFloat ss)   = return $ GCA.Tfloat noOrigin
 transTypeSpecs ss | (any isFloatN ss)  = 
     error $ "Gencot unsupported C: CFloatNType at " ++ (show $ LCN.nodeInfo $ head ss)
-transTypeSpecs ss | (any isBool ss)    = retNoOrig GCA.T_Bool
+transTypeSpecs ss | (any isBool ss)    = return $ GCA.T_Bool noOrigin
 transTypeSpecs ss | (any isInt128 ss)  = 
     error $ "Gencot unsupported C: CInt128Type at " ++ (show $ LCN.nodeInfo $ head ss)
 transTypeSpecs ((LC.CSUType su n):_)  = transStructUnion su
 transTypeSpecs ((LC.CEnumType enum@(LC.CEnum mid menums _ _) n):_) = do
-    pushOrigs [mOwnOrig mid, maybeOwnOrig (listOwnOrig (pairOwnOrig ownOrig (mOwnOrig))) menums]
-    mi <- optOrig transIdent mid
-    es <- useOrig transEnum enum
-    retWithOrig n $ GCA.Tenum mi es []
+    mi <- mapM transIdent mid
+    es <- transEnum enum
+    return $ GCA.Tenum mi es [] $ mkOrigin n
 transTypeSpecs ((LC.CTypeDef ident n):_) = do
-    pushOrigs [ownOrig ident]
-    i <- useOrig transIdent ident
-    retNoOrig $ GCA.Tnamed i []
+    i <- transIdent ident
+    return $ GCA.Tnamed i [] noOrigin
 transTypeSpecs ((LC.CTypeOfExpr expr n):_) = do
-    pushOrigs [ownOrig expr]
-    e <- useOrig transExpr expr
-    retNoOrig $ GCA.TtypeofExp e
+    e <- transExpr expr
+    return $ GCA.TtypeofExp e noOrigin
 transTypeSpecs ((LC.CTypeOfType decl n):_) = do
-    pushOrigs [ownOrig decl]
-    d <- useOrig transDeclToType decl
-    retNoOrig $ GCA.TtypeofType d
+    d <- transDeclToType decl
+    return $ GCA.TtypeofType d noOrigin
 transTypeSpecs ss | (any isAtomic ss)  = 
     error $ "Gencot unsupported C: CAtomicType at " ++ (show $ LCN.nodeInfo $ head ss)
 
@@ -338,198 +290,166 @@ isAtomic (LC.CAtomicType _ _)   = True
 isAtomic _   = False
 hasLongLong ss = (length (filter isLong ss)) > 1
 
-transDeclToType :: LC.CDecl -> OTrav GCA.Type
+transDeclToType :: MonadTrav m => LC.CDecl -> m GCA.Type
 transDeclToType (LC.CDecl specs [((Just dclr@(LC.CDeclr _ _ _ cattrs ndeclr)),_,_)] n) = do
     checkDeclr "typename" dclr
-    pushOrigs [noOwnOrig, noOwnOrig]
-    ss <- useOrig transDeclSpecs specs
-    d <- useOrig transDeclr dclr
-    retWithOrig n $ GCA.Type ss d
+    ss <- transDeclSpecs specs
+    d <- transDeclr dclr
+    return $ GCA.Type ss d $ mkOrigin n
 transDeclToType (LC.CDecl specs [] n) = do
-    pushOrigs [noOwnOrig]
-    ss <- useOrig transDeclSpecs specs
-    retWithOrig n $ GCA.Type ss (GCA.DeclRoot noOrigin)
+    ss <- transDeclSpecs specs
+    return $ GCA.Type ss (GCA.DeclRoot noOrigin) $ mkOrigin n
 
-transTypeQual :: LC.CTypeQual -> OTrav GCA.TypeQual
-transTypeQual (LC.CConstQual n) = retNoOrig GCA.Tconst
-transTypeQual (LC.CVolatQual n) = retNoOrig GCA.Tvolatile
-transTypeQual (LC.CRestrQual n) = retNoOrig GCA.Trestrict
+transTypeQual :: MonadTrav m => LC.CTypeQual -> m GCA.TypeQual
+transTypeQual (LC.CConstQual n) = return $ GCA.Tconst noOrigin
+transTypeQual (LC.CVolatQual n) = return $ GCA.Tvolatile noOrigin
+transTypeQual (LC.CRestrQual n) = return $ GCA.Trestrict noOrigin
 transTypeQual (LC.CAtomicQual n) = 
     error $ "Gencot unsupported C: CAtomicQual at " ++ show n
 transTypeQual (LC.CAttrQual attr)  = do
-    pushOrigs [ownOrig attr]
-    a <- useOrig transAttr attr
-    return $ GCA.TAttr a
+    a <- transAttr attr
+    return $ GCA.TAttr a noOrigin
 transTypeQual (LC.CNullableQual n) =
     error $ "Gencot unsupported C: CNullableQual at " ++ show n
 transTypeQual (LC.CNonnullQual n) =
     error $ "Gencot unsupported C: CNonnullQual at " ++ show n
 
-transFunSpec :: LC.CFunSpec -> OTrav GCA.TypeQual
-transFunSpec (LC.CInlineQual n) = retNoOrig GCA.Tinline
+transFunSpec :: MonadTrav m => LC.CFunSpec -> m GCA.TypeQual
+transFunSpec (LC.CInlineQual n) = return $ GCA.Tinline noOrigin
 transFunSpec (LC.CNoreturnQual n) = 
     error $ "Gencot unsupported C: CNoreturnQual at " ++ show n
 
-transStructUnion :: LC.CStructUnion -> OTrav GCA.TypeSpec
+transStructUnion :: MonadTrav m => LC.CStructUnion -> m GCA.TypeSpec
 transStructUnion (LC.CStruct tag mid mcds cattrs n) = do
-    pushOrigs $ (map ownOrig cattrs) ++ [mOwnOrig mid, maybeOwnOrig lOwnOrig mcds]
-    cs <- mapOrigs transAttr cattrs
-    mi <- optOrig transIdent mid
-    mds <- optOrig transMemberDecls mcds
-    retWithOrig n $ case tag of 
-                        CStructTag -> GCA.Tstruct mi mds cs
-                        CUnionTag -> GCA.Tunion mi mds cs
-    where transMemberDecls cds = do
-            pushOrigs $ map ownOrig cds
-            r <- mapOrigs transMemberDecl cds
-            return r
+    cs <- mapM transAttr cattrs
+    mi <- mapM transIdent mid
+    mds <- mapM (mapM transMemberDecl) mcds
+    return $ case tag of 
+                        CStructTag -> GCA.Tstruct mi mds cs $ mkOrigin n
+                        CUnionTag -> GCA.Tunion mi mds cs $ mkOrigin n
 
-transEnum :: LC.CEnum -> OTrav [GCA.CEnum]
+transEnum :: MonadTrav m => LC.CEnum -> m [GCA.CEnum]
 transEnum (LC.CEnum _ Nothing _ n) = return []
-transEnum (LC.CEnum _ (Just vals) _ n) = do
-    pushOrigs $ map (pairOwnOrig ownOrig mOwnOrig) vals
-    es <- mapOrigs transEnumerator vals
-    return es
+transEnum (LC.CEnum _ (Just vals) _ n) =
+    mapM transEnumerator vals
 
-transEnumerator :: (LC.Ident,Maybe LC.CExpr) -> OTrav GCA.CEnum
+transEnumerator :: MonadTrav m => (LC.Ident,Maybe LC.CExpr) -> m GCA.CEnum
 transEnumerator enm@(name, mexpr) = do
-    pushOrigs [ownOrig name, mOwnOrig mexpr]
-    i <- useOrig transIdent name
-    me <- optOrig transExpr mexpr
-    retWithOwnOrig (pairOwnOrig ownOrig mOwnOrig enm) $ GCA.CEnum i me
+    i <- transIdent name
+    me <- mapM transExpr mexpr
+    return $ GCA.CEnum i me $ ownOrigin $ pairOwnOrig ownOrig mOwnOrig enm
 
-transDeclr :: LC.CDeclr -> OTrav GCA.Decl
+transDeclr :: MonadTrav m => LC.CDeclr -> m GCA.Decl
 transDeclr dclr@(LC.CDeclr _ derived_declrs _ _ n) = transDerivedDeclrs derived_declrs
 
-transDerivedDeclrs :: [LC.CDerivedDeclr] -> OTrav GCA.Decl
+transDerivedDeclrs :: MonadTrav m => [LC.CDerivedDeclr] -> m GCA.Decl
 transDerivedDeclrs ds = foldrM accdclr (GCA.DeclRoot noOrigin) ds
     where 
-        accdclr :: LC.CDerivedDeclr -> GCA.Decl -> OTrav GCA.Decl
+        accdclr :: MonadTrav m => LC.CDerivedDeclr -> GCA.Decl -> m GCA.Decl
         accdclr (LC.CPtrDeclr quals _) dcl = do
             qs <- mapM transTypeQual quals
-            retNoOrig $ GCA.Ptr qs dcl
+            return $ GCA.Ptr qs dcl noOrigin
         accdclr (LC.CArrDeclr quals size _) dcl = do
             qs <- mapM transTypeQual quals
             a <- transArrSize size
-            retNoOrig $ GCA.Array qs a dcl
+            return $ GCA.Array qs a dcl noOrigin
         accdclr fd@(LC.CFunDeclr _ _ _ ) dcl = do
             ps <- transParams fd
-            retNoOrig $ GCA.Proto dcl ps
+            return $ GCA.Proto dcl ps noOrigin
 
-transParams :: LC.CDerivedDeclr -> OTrav GCA.Params
+transParams :: MonadTrav m => LC.CDerivedDeclr -> m GCA.Params
 transParams (LC.CFunDeclr (Right (decls, isVariadic)) _{-fun_attrs-} n) = do
-    pushOrigs $ map ownOrig decls
-    ps <- mapOrigs transParamDecl decls
-    retNoOrig $ GCA.Params ps isVariadic
+    ps <- mapM transParamDecl decls
+    return $ GCA.Params ps isVariadic noOrigin
 
-transArrSize :: LC.CArrSize -> OTrav GCA.ArraySize
-transArrSize (LC.CNoArrSize True) = retNoOrig GCA.VariableArraySize
-transArrSize (LC.CNoArrSize False) = retNoOrig GCA.NoArraySize
+transArrSize :: MonadTrav m => LC.CArrSize -> m GCA.ArraySize
+transArrSize (LC.CNoArrSize True) = return $ GCA.VariableArraySize noOrigin
+transArrSize (LC.CNoArrSize False) = return $ GCA.NoArraySize noOrigin
 transArrSize (LC.CArrSize staticMod expr) = do
-    pushOrigs [ownOrig expr]
-    e <- useOrig transExpr expr
-    retNoOrig $ GCA.ArraySize staticMod e
+    e <- transExpr expr
+    return $ GCA.ArraySize staticMod e noOrigin
 
-transInit :: LC.CInit -> OTrav GCA.Initializer
+transInit :: MonadTrav m => LC.CInit -> m GCA.Initializer
 transInit (LC.CInitExpr expr n) = do
-    pushOrigs [ownOrig expr]
-    e <- useOrig transExpr expr
-    retWithOrig n $ GCA.ExpInitializer e
+    e <- transExpr expr
+    return $ GCA.ExpInitializer e $ mkOrigin n
 transInit (LC.CInitList initl n) = do
-    pushOrigs $ map (pairOwnOrig lOwnOrig ownOrig) initl
-    is <- mapOrigs transDesig initl
-    retWithOrig n $ GCA.CompoundInitializer is
+    is <- mapM transDesig initl
+    return $ GCA.CompoundInitializer is $ mkOrigin n
 
-transDesig :: ([LC.CDesignator], LC.CInit) -> OTrav (Maybe GCA.Designation, GCA.Initializer)
+transDesig :: MonadTrav m => ([LC.CDesignator], LC.CInit) -> m (Maybe GCA.Designation, GCA.Initializer)
 transDesig ([],ini) = do
-    pushOrigs [ownOrig ini]
-    i <- useOrig transInit ini
+    i <- transInit ini
     return (Nothing,i)
 transDesig (desigs,ini) = do
-    pushOrigs $ (map ownOrig desigs) ++ [ownOrig ini]
-    ds <- mapOrigs transDesignator desigs
-    i <- useOrig transInit ini
+    ds <- mapM transDesignator desigs
+    i <- transInit ini
     return (Just (GCA.Designation ds noOrigin),i)
 
-transDesignator :: LC.CDesignator -> OTrav GCA.Designator
+transDesignator :: MonadTrav m => LC.CDesignator -> m GCA.Designator
 transDesignator (LC.CArrDesig expr n) = do
-    pushOrigs [ownOrig expr]
-    e <- useOrig transExpr expr
-    retWithOrig n $ GCA.IndexDesignator e
+    e <- transExpr expr
+    return $ GCA.IndexDesignator e $ mkOrigin n
 transDesignator (LC.CMemberDesig ident n) = do
-    pushOrigs [ownOrig ident]
-    i <- useOrig transIdent ident
-    retWithOrig n $ GCA.MemberDesignator i
+    i <- transIdent ident
+    return $ GCA.MemberDesignator i $ mkOrigin n
 transDesignator (LC.CRangeDesig expr1 expr2 n) =
     error $ "Gencot unsupported C: CRangeDesig at " ++ show n
 
-transAttr :: LC.CAttr -> OTrav GCA.Attr
+transAttr :: MonadTrav m => LC.CAttr -> m GCA.Attr
 transAttr (LC.CAttr attrName attrParams n) = do
-    pushOrigs $ [ownOrig attrName] ++ map ownOrig attrParams
-    i <- useOrig transIdent attrName
-    es <- mapOrigs transExpr attrParams
-    retWithOrig n $ GCA.Attr i es
+    i <- transIdent attrName
+    es <- mapM transExpr attrParams
+    return $ GCA.Attr i es $ mkOrigin n
 
-transExpr :: LC.CExpr -> OTrav GCA.Exp
+transExpr :: MonadTrav m => LC.CExpr -> m GCA.Exp
 transExpr (LC.CComma [] n) = 
     error $ "Gencot unsupported C: CComma [] at " ++ show n
 transExpr (LC.CComma (_:[]) n) =
     error $ "Gencot unsupported C: CComma [expr] at " ++ show n
 transExpr (LC.CComma exprs n) = do
-    pushOrigs $ map ownOrig exprs
-    es <- mapOrigs transExpr exprs
-    retWithOrig n $ GCA.Seq (head es) $ foldr1 (\e2 -> (\e1 -> GCA.Seq e1 e2 noOrigin)) $ tail es
+    es <- mapM transExpr exprs
+    return $ GCA.Seq (head es) (foldr1 (\e2 -> (\e1 -> GCA.Seq e1 e2 noOrigin)) $ tail es) $ mkOrigin n
 transExpr (LC.CAssign op expr1 expr2 n) = do
-    pushOrigs [ownOrig expr1, ownOrig expr2]
-    e1 <- useOrig transExpr expr1
-    e2 <- useOrig transExpr expr2
-    retWithOrig n $ GCA.Assign e1 (tAssignOp op) e2
+    e1 <- transExpr expr1
+    e2 <- transExpr expr2
+    return $ GCA.Assign e1 (tAssignOp op) e2 $ mkOrigin n
 transExpr (LC.CCond expr1 Nothing expr3 n) = 
     error $ "Gencot unsupported C: CCond expr Nothing expr at " ++ show n
 transExpr (LC.CCond expr1 (Just expr2) expr3 n) = do
-    pushOrigs [ownOrig expr1, ownOrig expr2, ownOrig expr3]
-    e1 <- useOrig transExpr expr1
-    e2 <- useOrig transExpr expr2
-    e3 <- useOrig transExpr expr3
-    retWithOrig n $ GCA.Cond e1 e2 e3
+    e1 <- transExpr expr1
+    e2 <- transExpr expr2
+    e3 <- transExpr expr3
+    return $ GCA.Cond e1 e2 e3 $ mkOrigin n
 transExpr (LC.CBinary op expr1 expr2 n) = do
-    pushOrigs [ownOrig expr1, ownOrig expr2]
-    e1 <- useOrig transExpr expr1
-    e2 <- useOrig transExpr expr2
-    retWithOrig n $ GCA.BinOp (tBinaryOp op) e1 e2
+    e1 <- transExpr expr1
+    e2 <- transExpr expr2
+    return $ GCA.BinOp (tBinaryOp op) e1 e2 $ mkOrigin n
 transExpr (LC.CCast decl expr n) = do
-    pushOrigs [ownOrig decl, ownOrig expr]
-    d <- useOrig transDeclToType decl
-    e <- useOrig transExpr expr
-    retWithOrig n $ GCA.Cast d e
+    d <- transDeclToType decl
+    e <- transExpr expr
+    return $ GCA.Cast d e $ mkOrigin n
 transExpr (LC.CUnary LC.CPreIncOp expr n) = do
-    pushOrigs [ownOrig expr]
-    e <- useOrig transExpr expr
-    retWithOrig n $ GCA.PreInc e
+    e <- transExpr expr
+    return $ GCA.PreInc e $ mkOrigin n
 transExpr (LC.CUnary LC.CPreDecOp expr n) = do
-    pushOrigs [ownOrig expr]
-    e <- useOrig transExpr expr
-    retWithOrig n $ GCA.PreDec e
+    e <- transExpr expr
+    return $ GCA.PreDec e $ mkOrigin n
 transExpr (LC.CUnary LC.CPostIncOp expr n) = do
-    pushOrigs [ownOrig expr]
-    e <- useOrig transExpr expr
-    retWithOrig n $ GCA.PostInc e
+    e <- transExpr expr
+    return $ GCA.PostInc e $ mkOrigin n
 transExpr (LC.CUnary LC.CPostDecOp expr n) = do
-    pushOrigs [ownOrig expr]
-    e <- useOrig transExpr expr
-    retWithOrig n $ GCA.PostDec e
+    e <- transExpr expr
+    return $ GCA.PostDec e $ mkOrigin n
 transExpr (LC.CUnary op expr n) = do
-    pushOrigs [ownOrig expr]
-    e <- useOrig transExpr expr
-    retWithOrig n $ GCA.UnOp (tUnaryOp op) e
+    e <- transExpr expr
+    return $ GCA.UnOp (tUnaryOp op) e $ mkOrigin n
 transExpr (LC.CSizeofExpr expr n) = do
-    pushOrigs [ownOrig expr]
-    e <- useOrig transExpr expr
-    retWithOrig n $ GCA.SizeofExp e
+    e <- transExpr expr
+    return $ GCA.SizeofExp e $ mkOrigin n
 transExpr (LC.CSizeofType decl n) = do
-    pushOrigs [ownOrig decl]
-    d <- useOrig transDeclToType decl
-    retWithOrig n $ GCA.SizeofType d
+    d <- transDeclToType decl
+    return $ GCA.SizeofType d $ mkOrigin n
 transExpr (LC.CAlignofExpr expr n) =
     error $ "Gencot unsupported C: CAlignofExpr at " ++ show n
 transExpr (LC.CAlignofType decl n) =
@@ -539,53 +459,44 @@ transExpr (LC.CComplexReal expr n) =
 transExpr (LC.CComplexImag expr n) =
     error $ "Gencot unsupported C: CComplexImag at " ++ show n
 transExpr (LC.CIndex expr1 expr2 n) = do
-    pushOrigs [ownOrig expr1, ownOrig expr2]
-    e1 <- useOrig transExpr expr1
-    e2 <- useOrig transExpr expr2
-    retWithOrig n $ GCA.Index e1 e2
+    e1 <- transExpr expr1
+    e2 <- transExpr expr2
+    return $ GCA.Index e1 e2 $ mkOrigin n
 transExpr (LC.CCall expr args n) = do
-    pushOrigs $ [ownOrig expr] ++ map ownOrig args
-    e <- useOrig transExpr expr
-    as <- mapOrigs transExpr args
-    retWithOrig n $ GCA.FnCall e as
+    e <- transExpr expr
+    as <- mapM transExpr args
+    return $ GCA.FnCall e as $ mkOrigin n
 transExpr (LC.CMember expr ident isPtr n) = do
-    pushOrigs [ownOrig expr, ownOrig ident]
-    e <- useOrig transExpr expr
-    i <- useOrig transIdent ident
-    retWithOrig n $ (if isPtr then GCA.PtrMember else GCA.Member) e i
+    e <- transExpr expr
+    i <- transIdent ident
+    return $ (if isPtr then GCA.PtrMember else GCA.Member) e i $ mkOrigin n
 transExpr (LC.CVar ident n) = do
-    pushOrigs [ownOrig ident]
-    i <- useOrig transIdent ident
-    retWithOrig n $ GCA.Var i
+    i <- transIdent ident
+    return $ GCA.Var i $ mkOrigin n
 transExpr (LC.CConst constant) = do
-    pushOrigs [ownOrig constant]
-    c <- useOrig transConst constant
-    retNoOrig $ GCA.Const c
+    c <- transConst constant
+    return $ GCA.Const c noOrigin
 transExpr (LC.CCompoundLit decl initl n) = do
-    pushOrigs $ [ownOrig decl] ++ map (pairOwnOrig lOwnOrig ownOrig) initl
-    d <- useOrig transDeclToType decl
-    is <- mapOrigs transDesig initl
-    retWithOrig n $ GCA.CompoundLit d is
+    d <- transDeclToType decl
+    is <- mapM transDesig initl
+    return $ GCA.CompoundLit d is $ mkOrigin n
 transExpr (LC.CStatExpr (LC.CCompound _{-localLabels-} blockitems nstat) nexpr) = do
-    pushOrigs $ map ownOrig blockitems
-    bis <- mapOrigs transBlockItem blockitems
-    retWithOrig nexpr $ GCA.StmExpr bis -- is GCA.StmExpr correct here?
+    bis <- mapM transBlockItem blockitems
+    return $ GCA.StmExpr bis $ mkOrigin nexpr -- is GCA.StmExpr correct here?
 transExpr (LC.CStatExpr stat n) = do
-    pushOrigs [ownOrig stat]
-    s <- useOrig transStat stat
-    retWithOrig n $ GCA.StmExpr [GCA.BlockStm s]
+    s <- transStat stat
+    return $ GCA.StmExpr [GCA.BlockStm s] $ mkOrigin n
 transExpr (LC.CLabAddrExpr ident n) = 
     error $ "Gencot unsupported C: CLabAddrExpr at " ++ show n
 transExpr (LC.CGenericSelection expr assoc_list n) =
     error $ "Gencot unsupported C: CGenericSelection at " ++ show n
 transExpr (LC.CBuiltinExpr builtin) = transBuiltin builtin
 
-transBuiltin :: LC.CBuiltin -> OTrav GCA.Exp
+transBuiltin :: MonadTrav m => LC.CBuiltin -> m GCA.Exp
 transBuiltin (LC.CBuiltinVaArg expr ty_name n) = do
-    pushOrigs [ownOrig expr, ownOrig ty_name]
-    e <- useOrig transExpr expr
-    d <- useOrig transDeclToType ty_name
-    retWithOrig n $ GCA.BuiltinVaArg e d
+    e <- transExpr expr
+    d <- transDeclToType ty_name
+    return $ GCA.BuiltinVaArg e d $ mkOrigin n
 transBuiltin (LC.CBuiltinOffsetOf _ty_name otherDesigs n) =
     error $ "Gencot unsupported C: CBuiltinOffsetOf at " ++ show n
 transBuiltin (LC.CBuiltinTypesCompatible ty1 ty2 n) =
@@ -637,32 +548,32 @@ tUnaryOp op = case op of
     LC.CCompOp    -> GCA.Not
     LC.CNegOp     -> GCA.Lnot
 
-transConst :: LC.CConst -> OTrav GCA.Const
+transConst :: MonadTrav m => LC.CConst -> m GCA.Const
 transConst (LC.CIntConst   (LC.CInteger i rep flags) n) =
     if LC.testFlag LC.FlagLongLong flags
-       then retNoOrig $ GCA.LongLongIntConst (raw rep i) (signed flags) i
+       then return $ GCA.LongLongIntConst (raw rep i) (signed flags) i noOrigin
        else if LC.testFlag LC.FlagLong flags
-            then retNoOrig $ GCA.LongIntConst (raw rep i) (signed flags) i
-            else retNoOrig $ GCA.IntConst (raw rep i) (signed flags) i
+            then return $ GCA.LongIntConst (raw rep i) (signed flags) i noOrigin
+            else return $ GCA.IntConst (raw rep i) (signed flags) i noOrigin
 transConst (LC.CCharConst  (LC.CChar chr wd) n) = 
-    retNoOrig $ GCA.CharConst (prewd wd $ LC.showCharConst chr "") chr
+    return $ GCA.CharConst (prewd wd $ LC.showCharConst chr "") chr noOrigin
 {- Multicharacter char constants cannot be fully represented in language-c-quote,
    since GCA.CharConst uses a single Haskell char. 
    We generate only the raw representation and set the actual representation to ' '. 
    This is sufficient for prettyprinting. -}
 transConst (LC.CCharConst  (LC.CChars chrs wd) n) = 
-    retNoOrig $ GCA.CharConst (prewd wd ("'"++(init $ tail $ LC.showStringLit chrs "")++"'")) ' '
+    return $ GCA.CharConst (prewd wd ("'"++(init $ tail $ LC.showStringLit chrs "")++"'")) ' ' noOrigin
 {- Float constants are only represented in their raw form in language-c.
    Therefore we only transfer the raw representation to language-c-quote and set the actual float to 1.0.
    This is sufficient for prettyprinting, since language-c always generates positive float constants
    and language-c-quote uses only the sign of the actual representation for operator precedence. -}
 transConst (LC.CFloatConst (LC.CFloat str) n) = 
-    retNoOrig $ GCA.FloatConst str 1.0
+    return $ GCA.FloatConst str 1.0 noOrigin
 {- Sequences of String literals are concatenated by language-c.
    Therefore we cannot transfer the original sequence to language-c-quote.
    The prettyprinter directly uses the raw representation, therefore we only generate that. -}
 transConst (LC.CStrConst   (LC.CString str wd) n) = 
-    retNoOrig $ GCA.StringConst [prewd wd $ LC.showStringLit str ""] ""
+    return $ GCA.StringConst [prewd wd $ LC.showStringLit str ""] "" noOrigin
 
 prewd :: Bool -> String -> String
 prewd True s = "L" ++ s
@@ -680,9 +591,9 @@ raw DecRepr i = showInt i ""
 raw HexRepr i = (showString "0x" . showHex i) ""
 raw OctalRepr i = (showString "0" . showOct i) ""
 
-transStrLit :: LC.CStrLit -> OTrav GCA.StringLit
+transStrLit :: MonadTrav m => LC.CStrLit -> m GCA.StringLit
 transStrLit (LC.CStrLit (LC.CString str wd) n) = 
-    retWithOrig n $ GCA.StringLit [prewd wd $ LC.showStringLit str ""] ""
+    return $ GCA.StringLit [prewd wd $ LC.showStringLit str ""] "" $ mkOrigin n
 
-transIdent :: LCI.Ident -> OTrav GCA.Id
-transIdent (LCI.Ident name _ n) = retWithOrig n $ GCA.Id name
+transIdent :: MonadTrav m => LCI.Ident -> m GCA.Id
+transIdent (LCI.Ident name _ n) = return $ GCA.Id name $ mkOrigin n

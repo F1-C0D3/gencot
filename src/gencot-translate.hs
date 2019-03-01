@@ -13,6 +13,7 @@ main :: IO ()
 main = do
     globals <- readFromInput
     globals <- addInputName globals
+    --print $ show $ map getBody $ filter funcFilter $ getDeclEvents globals constructFilter
     print $ prettyTopLevels $ transGlobals globals $ getDeclEvents globals constructFilter
 
 constructFilter :: DeclEvent -> Bool
@@ -21,3 +22,11 @@ constructFilter (DeclEvent (Declaration _)) = False
 constructFilter (DeclEvent (ObjectDef _)) = False
 constructFilter _ = True
 
+------------------
+
+funcFilter :: DeclEvent -> Bool
+funcFilter (DeclEvent (FunctionDef _)) = True
+funcFilter _ = False
+
+getBody :: DeclEvent -> Stmt
+getBody ((DeclEvent (FunctionDef (FunDef _ s _)))) = s

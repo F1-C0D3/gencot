@@ -9,7 +9,7 @@ import Cogent.PrettyPrint
 
 import Text.PrettyPrint.ANSI.Leijen
 
-import Gencot.OldOrigin (Origin(..),fstLine,lstLine{- -},testOrig)
+import Gencot.Origin (Origin(..),fstLine,lstLine{- -},testOrig)
 import Gencot.Cogent.Ast
 import qualified Gencot.C.Output as GCO
 
@@ -62,8 +62,8 @@ instance PatnType GenIrrefPatn where
   prettyB (GenIrrefPatn _ p,mt,e) = prettyB (p,mt,e)
 
 instance Pretty GenExpr where
-  pretty (ConstExpr e) = (string . (TPM.pretty 1000) . ppr) e
-  pretty (FunBody s) = {-hardline <>-} (string . (TPM.pretty 1000) . ppr) s
+  pretty (ConstExpr e) = (string . (TPM.pretty 2000) . ppr) e
+  pretty (FunBody s) = {-hardline <>-} (string . (TPM.pretty 2000) . ppr) s
 {-
   pretty (ConstExpr e) = (string . show . GCO.opretty) e
   pretty (FunBody s) = {-hardline <>-} (string . show . GCO.oprettyPrec (-1)) s

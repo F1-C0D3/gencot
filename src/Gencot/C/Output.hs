@@ -8,7 +8,7 @@ import Data.Char (isAlphaNum,
                   isLower)
 import Data.Maybe (isJust)
 
-import Gencot.Origin (Origin(..))
+import Gencot.Origin (Origin(..),fstLine,lstLine)
 import Gencot.C.Ast
 
 import Text.PrettyPrint.Mainland
@@ -16,13 +16,13 @@ import Text.PrettyPrint.Mainland.Class
 
 addOrig :: Origin -> Doc -> Doc
 addOrig (Origin sn en) doc =
-    mark "#ORIGIN" sn
+    mark "#ORIGIN" sn fstLine
     <> doc <> 
-    mark "#ENDORIG" en
-    where mark marker ons = 
+    mark "#ENDORIG" en lstLine
+    where mark marker ons line = 
               if null ons then empty 
-                          else (hardline <> text marker <+> cont ons <> hardline)
-          cont ons = (int . fst . head) ons <> text (if snd $ head ons then " +" else "")
+                          else (hardline <> text marker <+> cont ons line <> hardline)
+          cont ons line = (int . line . fst . head) ons <> text (if snd $ head ons then " +" else "")
           hardline = nesting (\i -> text ("\n" ++ replicate i ' '))
 
 nst = nest 2

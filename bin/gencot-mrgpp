@@ -16,7 +16,7 @@ awk \
    while ((getline cline < cfile) > 0) { \
      if (cline ~ /#ORIGIN/) { \
        mrg++ \
-       content[mrg] = cline \
+       content[mrg] = "\n" cline \
        rest = substr(cline,9) \
        len = match(rest, /[[:blank:]]/) \
        origin[mrg] = substr(rest,1,len) \
@@ -26,15 +26,23 @@ awk \
      } \
    } \
    close(cfile) \
+   content[mrg] = content[mrg] "\n" \
    mrg = 1 \
  } \
 { if ($1 == "#ORIGIN") { \
-    while (origin[mrg] && (strtonum(origin[mrg]) < $2)) print content[mrg++] \
+    while (origin[mrg] && (strtonum(origin[mrg]) < $2)) { \
+      if (prevEndorig) { print ""; prevEndorig = 0 } \
+      printf content[mrg++] \
+    } \
   } \
-  print \
+  if (notfirst) print buf \
+  prevEndorig = match(buf,/#ENDORIG/) \
+  buf = $0; notfirst = 1 \
 } \
 END { \
-  while (origin[mrg]) print content[mrg++] \
+  if (notfirst) print buf \
+  if (match(buf,/#ENDORIG/)) print "" \
+  while (origin[mrg]) printf content[mrg++] \
 }' $1
 
 # documentation:
@@ -44,8 +52,17 @@ END { \
 # next #ORIGIN marker. The chunks are stored in array content, indexed by consecutive numbers starting with 1.
 # The chunk start lines according to their #ORIGIN markers are stored in array origin.
 #
+# An #ORIGIN marker always includes a newline before it. This is discarded when reading from cfile, hence
+# it is added explicitly at the beginning of content[mrg]. The newline of the next #ORIGIN marker is
+# read at the end, therefore no newline is added at the end of content[mrg] and content[mrg] is printed
+# with printf which does not add a newline. Only the last content[mrg] does not get a newline from a following
+# #ORIGIN marker, hence we add it explicitly after closing cfile.
+#
 # The line rule tests for an #ORIGIN marker in the input. If found, all chunks with a lower origin line
-# are inserted before it.
+# are inserted before it. Again, the newline before the #ORIGIN marker belongs to it, therefore we use
+# the buffer buf and the flag notfirst to defer output by one line.
+#
+# The variable prevEndorig is used to insert a newline before every conditional directive where this is necessary.
 #
 # Implementation in awk:
 # - The filename argument for the directive file must be copied and removed from the argument list ARGV

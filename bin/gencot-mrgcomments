@@ -10,7 +10,27 @@ if ( $#argv != 1) then
 endif
 
 awk \
-'BEGIN { \
+'function flushbufs() { \
+   hasBef = match(beforeBuf, /[^[:space:]]/) \
+   hasAft = match(afterBuf, /[^[:space:]]/) \
+   if (prevBuf && wassep && !(hasBef)) { \
+     prevBuf = prevBuf substr(lineBuf,indent) \
+     if (hasAft) { \
+       print prevBuf afterBuf \
+       prevBuf = "" \
+     } \
+   } \
+   else { \
+     if (prevBuf) { \
+       print prevBuf \
+       prevBuf = "" \
+     } \
+     if (hasAft) print beforeBuf lineBuf afterBuf \
+     else prevBuf = beforeBuf lineBuf \
+   } \
+   beforeBuf = ""; afterBuf = "" \
+ } \
+ BEGIN { \
    cfile = ARGV[1]; delete ARGV[1] \
    bef = 1; lnr = 0; unit = ""; ustart = 1 \
    while ((getline cline < cfile) > 0) { \
@@ -31,27 +51,33 @@ awk \
  } \
  { \
    if ($1 == "#ORIGIN") { \
+     separated = 1 \
      if (pending) { \
-       print beforeBuf lineBuf afterBuf \
-       beforeBuf = ""; afterBuf = "" \
+       flushbufs() \
        pending = 0 \
      } \
+     indent = match($0,/#/) \
      if ($3 == "+") beforeBuf = beforeBuf before[$2] \
    } \
    else if ($1 == "#ENDORIG") { \
+     separated = 1 \
+     nextindent = match($0,/#/) \
      if ($3 == "+") afterBuf = (afterBuf?afterBuf "\n":"") after[$2] \
    } \
    else { \
      if (pending) { \
-       print beforeBuf lineBuf afterBuf \
-       beforeBuf = ""; afterBuf = "" \
+       flushbufs() \
+       indent = nextindent \
      } \
      lineBuf = $0 \
      pending = 1 \
+     wassep = separated \
+     separated = 0 \
   } \
  } \
  END { \
-   if (pending) print beforeBuf lineBuf afterBuf \
+   if (pending) flushbufs() \
+   if (prevBuf) print prevBuf \
  }' $1
 
 # documentation:
@@ -69,22 +95,37 @@ awk \
 #
 # Variable ustart is used to avoid inserting a newline at the start of a unit. 
  
-# In the line rule we use three buffers to collect before-units, line content and after-units. The
-# buffers are output as a group whenever a normal line or an #ENDORIG marker is followed by
+# In the line rule we use three buffers beforeBuf, lineBuf, and afterBuf to collect before-units, 
+# line content and after-units. The buffers are processed whenever a normal line or an #ENDORIG marker
+# is followed by
 # - an #ORIGIN marker
 # - another normal line
 # The variable pending is set when a normal line has been buffered. It is cleared when the buffers 
 # are output.
-#
+# 
 # after-units are concatenated with a separating newline to end a trailing line comment. before-units
 # are concatenated immediately, since they either end with a newline or have no trailing line comment.
 # 
-# The print statement appends a newline to the group. Therefore, in the output, a
+# The function flushbufs processes all three buffers and resets beforeBuf and afterBuf.
+# 
+# If for a group the after-units are empty (contain only whitespace), the line content is retained in 
+# the separate buffer prevBuf. If for the next group the before-units are also empty (contain only 
+# whitespace), but there was at least one marker between the 
+# lines (as indicated by variable separated), the second line is appended to prevBuf without
+# a line break. Additionally the indentation of the appended line is removed. The indentation
+# is determined by the indentation of the last origin marker before the line content.
+# To make it available, the indentation of every marker is stored in the variable indent.
+# Concatenating lines in this way in prevBuf removes all markers completely which are not used
+# for inserting a comment. 
+#
+# In all other cases all three buffers are output after the content of prevBuf, if present.
+#
+# The print statements append a newline to every group. Therefore, in the output, a
 # before-unit always starts in a new line, even if in the original source it started in the same
 # line after the previous after-unit. This is intended, since the units can be reordered in the 
 # target code.
 
-# In the END rule a pending group is output.
+# In the END rule a pending group is output. If then the prevBuf is not empty, it is output as well.
 
 # Implementation in awk:
 # - The filename argument for the comment file must be copied and removed from the argument list ARGV
@@ -92,3 +133,6 @@ awk \
 # - The presence of the separator at the beginning of a line is tested by matching each line with the 
 #   pattern /^-\}_/. If present it is omitted by using substr(cline,4) which starts after the 
 #   separator.
+# - The indentation of an #ORIGIN marker is determined by match($0,/#/) which returns the position
+#   indent of the # sign in the marker line. The corresponding indentation is then removed from a content
+#   line cont by taking the substring substr(cont, indent).

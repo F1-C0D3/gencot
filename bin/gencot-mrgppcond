@@ -31,7 +31,7 @@ awk \
          lnr++ \
          dtext[dline] = dtext[dline] "\n" cline \
        } \
-       dtext[dline] = "#ORIGIN " dline " +\n" dtext[dline] "\n#ENDORIG " lnr " +\n" \
+       dtext[dline] = "\n#ORIGIN " dline " +\n" dtext[dline] "\n#ENDORIG " lnr " +\n" \
      } \
    } \
    close(cfile) \
@@ -40,14 +40,15 @@ awk \
 { if ($1 == "#ORIGIN") { \
     while (isec > 0 && ($2 > nextd[curgrps[isec]] || $2 < curgrps[isec])) { \
       e = eline[cursecs[isec]] \
+      if (prevEndorig) { print ""; prevEndorig = 0 } \
       if ($2 > e || $2 < curgrps[isec]) { \
-        printf dtext[e] \
+        print dtext[e] \
         actsecs[cursecs[isec--]] = 0 \
       } \
       else { \
         n = nextd[curgrps[isec]] \
         curgrps[isec] = n \
-        printf dtext[n] \
+        print dtext[n] \
       } \
     } \
     secnr = 0 \
@@ -56,20 +57,25 @@ awk \
       if (!(actsecs[s]) && $2 > s && $2 < eline[s]) { \
         cursecs[++isec] = s \
         actsecs[s] = 1 \
-        printf dtext[s] \
+        if (prevEndorig) { print ""; prevEndorig = 0 } \
+        print dtext[s] \
         while ($2 > nextd[s]) { \
           s = nextd[s] \
-          printf dtext[s] \
+          print dtext[s] \
         } \
         curgrps[isec] = s \
       } \
     } \
   } \
-  print \
+  if (notfirst) print buf \
+  prevEndorig = match(buf,/#ENDORIG/) \
+  buf = $0; notfirst = 1 \
 } \
 END { \
+  if (notfirst) print buf \
+  if (match(buf,/#ENDORIG/)) print "" \
   while (isec > 0) { \
-    printf dtext[eline[cursecs[isec--]]] \
+    print dtext[eline[cursecs[isec--]]] \
   } \
 }' $1
 
@@ -99,6 +105,8 @@ END { \
 # 
 # Additionally, in the BEGIN rule every directive is wrapped in a pair of #ORIGIN/#ENDORIG markers. This is done
 # by adding the markers in the dtext value.
+#
+# The variable prevEndorig is used to insert a newline before every conditional directive where this is necessary.
 #
 # The END rule flushes the stack by emitting the #endif directives for all sections still active at the end of the file.
 #

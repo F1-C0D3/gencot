@@ -14,8 +14,7 @@ import Cogent.Surface as CS
 import Cogent.Common.Syntax as CCS
 import Cogent.Common.Types as CCT
 
-import Gencot.OldOrigin
-import qualified Gencot.Origin as GO (noOrigin)
+import Gencot.Origin
 import Gencot.Names (transTagName,transFunName,transToField,mapNameToUpper,mapNameToLower)
 import Gencot.Cogent.Ast
 import Gencot.C.Ast as LQ

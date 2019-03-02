@@ -118,17 +118,31 @@ The state machine has the following states, nocode is the initial state:
 
 \subsection{Filter \code{gencot-mrgcomments}}
 
-The filter for merging comments into the target code is implemented as an awk script. It consists of a BEGIN rule, a line rule, and
-an END rule. The BEGIN rule reads the <file> line by line and collects before- and after-units as strings in the arrays \code{before} and \code{after}. The arrays are indexed with the (original) line number of the separator between before- and after-unit.
+The filter for merging comments into the target code is implemented as an awk script. It consists of a function 
+\code{flushbufs}, a BEGIN rule, a line rule, and an END rule. 
 
-The line rule uses a buffer for its output. It is used to process all \code{\#ORIGIN} and \code{\#ENDORIG} markers belonging to
-a line and collect the associated comment units and content. The END rule is used to flush the buffer.
+The BEGIN rule reads the <file> line by line and collects before- and after-units as strings in the arrays \code{before} and \code{after}. The arrays are indexed with the (original) line number of the separator between before- and after-unit.
 
-For every consecutive sequence of \code{\#ORIGIN} markers, the before units associated with the line numbers of all markers with 
-a ``+'' sign are collected in a buffer. Every single code line is put in a second buffer. For every consecutive sequence of
-\code{\#ENDORIG} markers, the after units associated with the line numbers of all markers with 
-a ``+'' sign are collected in a third buffer. Whenever a code line or an \code{\#ENDORIG} marker is followed by a line which 
-is no \code{\#ENDORIG} marker, the content of all three buffers is output and the buffers are reset.
+The line rule uses a buffer for its output. It is used to process all \code{\#ORIGIN} and \code{\#ENDORIG} markers around
+a nonempty line and collect the associated comment units and content. The END rule is used to flush the buffer.
+
+For every consecutive sequence of \code{\#ORIGIN} markers (i.e., separated by a single line containing only whitespace),
+the before units associated with the line numbers of all markers with 
+a ``+'' sign are collected in a buffer. The following nonempty code line is put in a second buffer. 
+For every consecutive sequence of \code{\#ENDORIG} markers, the after units associated with the line numbers of all 
+markers with a ``+'' sign are collected in a third buffer. Whenever a code line or an \code{\#ENDORIG} marker is 
+followed by a line which is no \code{\#ENDORIG} marker, the content of all three buffers is processed by the 
+function \code{flushbufs}.
+
+Normally, the buffers are output and reset. In the case that the third buffer is empty (there are no after 
+units for the code) the code line is retained in a separate buffer. If in the next group the first buffer is 
+empty (there are no before units for the code) the code lines of both groups are concatenated without a newline 
+in between (also removing the indentation for the second line). This has the effect of completely removing all 
+markers which are not used for inserting comments at their position, thus removing all unnecessary line breaks.
+
+Markers are also completely removed, if a unit exists but contains only whitespace (such as empty lines for
+formatting). This is done because the target code is already formatted during generation and inserting additional
+whitespace for formatting is not useful.
 
 In the buffer, before-units are concatenated without any separator. After-units are separated by a newline to end possibly 
 trailing line comments.

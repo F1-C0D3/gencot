@@ -337,7 +337,7 @@ transEnumerator :: MonadTrav m => (LC.Ident,Maybe LC.CExpr) -> m GCA.CEnum
 transEnumerator enm@(name, mexpr) = do
     i <- transIdent name
     me <- mapM transExpr mexpr
-    return $ GCA.CEnum i me $ ownOrigin $ pairOwnOrig ownOrig mOwnOrig enm
+    return $ GCA.CEnum i me $ pairOrigin origin (maybeOrigin origin) enm
 
 transDeclr :: MonadTrav m => LC.CDeclr -> m GCA.Decl
 transDeclr dclr@(LC.CDeclr _ derived_declrs _ _ n) = transDerivedDeclrs derived_declrs

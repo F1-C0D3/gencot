@@ -21,7 +21,6 @@
   | ../../bin/gencot-cpp test-impl.dummydecls \
   | ../../src/gencot-translate test.c \
   | ../../bin/gencot-reporigs \
-  | ../../bin/gencot-postproc \
   | ../../bin/gencot-mrgpp test-impl.prcppconst \
   | ../../bin/gencot-mrgppcond test-impl.ppsf \
   | ../../bin/gencot-mrgcomments test-impl.comm > test-impl.cogent

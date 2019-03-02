@@ -71,7 +71,7 @@ BEGIN { \
       } \
       types[nam] = tp \
       if (tp == "String") vals[nam] = substr(val,2,length(val)-2) \
-      if (!(forgn)) print "#ORIGIN " lnr " +\n#define " onam " " val \
+      if (!(forgn)) print "\n#ORIGIN " lnr " +\n#define " onam " " val \
     } \
     else if (cont) { \
       if (!(forgn)) print \
@@ -79,8 +79,7 @@ BEGIN { \
       else { cont = 0; cogent = 1 } \
     } \
     if (cogent && !(forgn)) { \
-      print nam ": " tp "\n" nam " = " onam \
-      print "#ENDORIG " lnr " +" \
+      print nam ": " tp "\n" nam " = " onam "\n#ENDORIG " lnr " +\n" \
       cogent = 0 \
     } \
   } \
@@ -110,7 +109,7 @@ BEGIN { \
 # - The array vals is used to associate for every constant definition with type "String" the string
 #   content with the Cogent variable name.
 # - The boolean variable forgn is set to 1 while processing content from an included file. It is 
-#   0 whlie processing content from file "<stdin>".
+#   0 while processing content from file "<stdin>".
 # - The variable lnr is used to count the current line number in file "<stdin>", respecting line
 #   directives for "<stdin>".
 # - Line directives are recognized by the first field being "#". Since directives are normalized, in all

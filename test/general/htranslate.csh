@@ -21,7 +21,6 @@
   | ../../bin/gencot-cpp test-types.dummydecls \
   | ../../src/gencot-translate test.h \
   | ../../bin/gencot-reporigs \
-  | ../../bin/gencot-postproc \
   | ../../bin/gencot-mrgpp test-types.prcppconst \
   | ../../bin/gencot-mrgppcond test-types.ppsf \
   | ../../bin/gencot-mrgcomments test-types.comm > test-types.cogent

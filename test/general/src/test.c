@@ -40,15 +40,17 @@ static uint32_t ssl_get_hs_total_len( mbedtls_ssl_context const *ssl );
 
 /* Length of the "epoch" field in the record header */
 static inline size_t ssl_ep_len( const mbedtls_ssl_context *ssl )
+/* before body */
 {
+    /* in body */
 #if defined(MBEDTLS_SSL_PROTO_DTLS)
     if( ssl->state == 5 )
         return( 2 );
 #else
     ((void) ssl);
 #endif
-    return( 0 );
-}
+    return( 0 ); // end body
+} /* after body */
 
 #define SSL_DONT_FORCE_FLUSH 0
 #define SSL_FORCE_FLUSH      1
@@ -63,7 +65,11 @@ static size_t ssl_get_maximum_datagram_size( mbedtls_ssl_context const *ssl )
 {
     size_t mtu = 100;
 
-    if( mtu != 0 && mtu < 100 )
+    if( mtu != 0 
+#if defined(X)
+        && mtu < 100
+#endif
+        )
         return( mtu );
 
     return( 100 );
@@ -82,7 +88,9 @@ int (*mbedtls_ssl_hw_record_init)( mbedtls_ssl_context *ssl,
  */
 void mbedtls_ssl_init( mbedtls_ssl_context *ssl )
 {
-    memset( ssl, 0, sizeof( mbedtls_ssl_context ) );
+    memset( ssl, 0, 
+#define Y
+            sizeof( mbedtls_ssl_context ) );
 }
 
 int mbedtls_ssl_setup( mbedtls_ssl_context *ssl,

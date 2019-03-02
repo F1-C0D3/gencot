@@ -260,6 +260,11 @@ can be removed from the stack accordingly.
 If an \code{\#ORIGIN} marker idicates, that the next line belongs to a group \textit{before} the active group, the
 steps described above imply that the current section is ended and restarted from the beginning.
 
+If the line before an inserted conditional directive contains an #ENDORIG marker the newline after it belongs
+to the marker. If the marker is not used to insert a comment it will be removed completely and the conditional
+directive will be appended to the previous code line. In this case an additional newline is inserted before 
+the conditional directive.
+
 \subsubsection{Filter \code{gencot-mrgpp}}
 
 The filter for merging other directives into the target code is implemented as an awk script. It can be used to 
@@ -270,3 +275,5 @@ The filter only interpretes \code{\#ORIGIN} markers. Whenever an \code{\#ORIGIN}
 code, all content is merged in up to the first \code{\#ORIGIN} marker with a line number not before that in the target
 code.
 
+If the line before an inserted code contains an #ENDORIG marker an additional newline is inserted before 
+the code for the same reason as for conditional directives.

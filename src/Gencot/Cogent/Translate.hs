@@ -11,25 +11,22 @@ import Language.C.Analysis as LCA
 import Language.C.Analysis.DefTable as LCD
 import Language.C.Syntax.AST as LCS
 
---import "language-c-quote" Language.C.Syntax as LQ
-
 import Cogent.Surface as CS
 import Cogent.Common.Syntax as CCS
 import Cogent.Common.Types as CCT
 
-import Gencot.Origin
+import Gencot.Origin (Origin,noOrigin,origin,mkOrigin,noComOrigin)
 import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapNameToLower)
 import Gencot.Cogent.Ast
 import Gencot.C.Translate (transStat,transExpr,resolveTypedef,isAggregate)
+import Gencot.Traversal (FTrav)
 
 genType t = GenType t noOrigin
 
-transGlobals :: MonadTrav m => LCD.DefTable -> [LCA.DeclEvent] -> m [GenToplv]
-transGlobals table gs = do
-    withDefTable $ const ((),table)
-    mapM transGlobal gs
+transGlobals :: [LCA.DeclEvent] -> FTrav [GenToplv]
+transGlobals = mapM transGlobal
 
-transGlobal :: MonadTrav m => LCA.DeclEvent -> m GenToplv
+transGlobal :: LCA.DeclEvent -> FTrav GenToplv
 transGlobal (LCA.TagEvent (LCA.CompDef (LCA.CompType sueref LCA.StructTag mems _ n))) = do
     tn <- transTagName $ LCA.TyComp $ LCA.CompTypeRef sueref LCA.StructTag n
     ms <- mapM transMember (aggBitfields mems)
@@ -94,25 +91,25 @@ aggBitfields ms = foldl accu [] ms
           isBitfield (LCA.MemberDecl _ Nothing _) = False
           isBitfield _ = True
 
-transMember :: MonadTrav m => LCA.MemberDecl -> m (CCS.FieldName, (GenType, CS.Taken))
+transMember :: LCA.MemberDecl -> FTrav (CCS.FieldName, (GenType, CS.Taken))
 transMember (LCA.MemberDecl (LCA.VarDecl (LCA.VarName idnam _) att typ) _ n) = do
     t <- transType typ
     return (mapIfUpper idnam, ((GenType (typeOfGT t) $ mkOrigin n), False))
 {- LCA.AnonBitField cannot occur since it is always replaced by aggBitfields -}
 
-transParamNames :: MonadTrav m => [LCA.ParamDecl] -> m GenIrrefPatn
+transParamNames :: [LCA.ParamDecl] -> FTrav GenIrrefPatn
 transParamNames [] = return $ GenIrrefPatn CS.PUnitel noOrigin
 transParamNames [pd] = transParamName pd
 transParamNames pars = do
     ps <- mapM transParamName pars
     return $ GenIrrefPatn (CS.PTuple ps) noOrigin
 
-transParamName :: MonadTrav m => LCA.ParamDecl -> m GenIrrefPatn
+transParamName :: LCA.ParamDecl -> FTrav GenIrrefPatn
 transParamName pd = 
     return $ GenIrrefPatn (CS.PVar $ mapIfUpper idnam) $ noComOrigin pd
     where (LCA.VarDecl (LCA.VarName idnam _) _ _) = getVarDecl pd
 
-transType :: MonadTrav m => LCA.Type -> m GenType 
+transType :: LCA.Type -> FTrav GenType 
 transType (LCA.DirectType TyVoid _ _) = 
     return $ GenType CS.TUnit noOrigin
 transType (LCA.DirectType tnam quals _) = do
@@ -155,17 +152,17 @@ transType (LCA.FunctionType (LCA.FunType ret pars False) _) = do
     ps <- transParamTypes pars
     return $ genType $ CS.TFun ps r
 transType (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) quals _) =
-    return $ boxIf (isFunction $ resolveTypedef typ) $ genType $ CS.TCon tn [] markUnbox
+    return $ boxIf (not $ isAggregate $ resolveTypedef typ) $ genType $ CS.TCon tn [] markUnbox
     where tn = mapNameToUpper idnam
 
-transParamTypes :: MonadTrav m => [LCA.ParamDecl] -> m GenType
+transParamTypes :: [LCA.ParamDecl] -> FTrav GenType
 transParamTypes [] = return $ genType CS.TUnit
 transParamTypes [pd] = transParamType pd
 transParamTypes pars = do
     ps <- mapM transParamType pars
     return $ genType $ CS.TTuple ps
 
-transParamType :: MonadTrav m => LCA.ParamDecl -> m GenType
+transParamType :: LCA.ParamDecl -> FTrav GenType
 transParamType pd = do
     t <- liftM (boxIf $ isArray $ resolveTypedef ptyp) $ transType ptyp
     return $ GenType (typeOfGT t) $ origin pd
@@ -190,5 +187,5 @@ boxIf False t = t
 markBox = CCT.Boxed False CS.noRepE
 markUnbox = CCT.Unboxed
 
-errType :: MonadTrav m => String -> m GenType
+errType :: String -> FTrav GenType
 errType s = return $ genType $ CS.TCon ("err-" ++ s) [] markUnbox

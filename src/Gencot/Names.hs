@@ -3,7 +3,6 @@ module Gencot.Names where
 
 import Data.Char (isUpper)
 import Data.List (isPrefixOf)
-import System.Environment (getArgs)
 import System.FilePath (takeFileName, dropExtension)
 
 import Language.C.Data.Ident as LCI
@@ -13,6 +12,8 @@ import Language.C.Analysis as LCA
 import Language.C.Analysis.DefTable as LCD
 
 import Cogent.Common.Syntax as CCS
+
+import Gencot.Traversal (FTrav)
 
 mapName :: Bool -> LCI.Ident -> String
 mapName True (LCI.Ident s _ _) = 
@@ -25,7 +26,7 @@ mapName False (LCI.Ident s _ _) =
     if "mbedtls_" `isPrefixOf` s 
        then "se" ++ s
        else if "MBEDTLS_" `isPrefixOf` s
-            then "sE" ++ s
+            then "se" ++ s
             else "cogent_" ++ s
 
 mapNameToUpper = mapName True
@@ -38,7 +39,7 @@ mapIfUpper :: LCI.Ident -> String
 mapIfUpper idnam = if isUpper $ head s then mapNameToLower idnam else s
     where (Ident s _ _) = idnam
 
-transTagName :: MonadTrav m => LCA.TypeName -> m CCS.TypeName
+transTagName :: LCA.TypeName -> FTrav CCS.TypeName
 transTagName (LCA.TyComp (LCA.CompTypeRef (LCI.NamedRef idnam) kind _)) = 
     return $ kindPrefix kind ++ mapNameToUpper idnam
     where kindPrefix LCA.StructTag = "Struct_"
@@ -53,7 +54,7 @@ transTagName (LCA.TyComp (LCA.CompTypeRef ref@(LCI.AnonymousRef unam) kind _)) =
 transTagName (LCA.TyEnum (LCA.EnumTypeRef (LCI.NamedRef idnam) _)) = 
     return $ "Enum_" ++ mapNameToUpper idnam
 
-transObjName :: MonadTrav m => LCI.Ident -> m CCS.VarName
+transObjName :: LCI.Ident -> FTrav CCS.VarName
 transObjName idnam = do
     (Just decdef) <- LCA.lookupObject idnam
     fnam <- srcFileName decdef
@@ -80,25 +81,7 @@ fileName = takeFileName . LCP.posFile . LCN.posOfNode . LCN.nodeInfo
 lineNr :: CNode a => a -> Int
 lineNr = LCP.posRow . LCN.posOfNode . LCN.nodeInfo
 
-srcFileName :: (MonadTrav m, CNode a) => a -> m String
-srcFileName n | "<stdin>" == fileName n = do
-    (Just dummy) <- lookupObject stdinIdent
-    return $ fileName dummy
+srcFileName :: CNode a => a -> FTrav String
+srcFileName n | "<stdin>" == fileName n = LCA.getUserState
 srcFileName n = return $ fileName n
-
-addInputName :: LCD.DefTable -> IO LCD.DefTable
-addInputName table = do
-    args <- getArgs
-    fnam <- if null args 
-               then error "Error: Source file name expected as argument" 
-               else return $ head args
-    return $ snd $ LCD.defineGlobalIdent stdinIdent (dummyDecl fnam) table
-
-stdinIdent = (Ident "<stdin>" 0 undefNode)
-
-dummyDecl :: String -> IdentDecl
-dummyDecl fnam = Declaration $ Decl 
-    (VarDecl NoName (DeclAttrs noFunctionAttrs NoStorage []) 
-        (DirectType TyVoid noTypeQuals [])) 
-        $ mkNodeInfoOnlyPos $ initPos fnam
 

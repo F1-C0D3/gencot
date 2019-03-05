@@ -74,6 +74,8 @@ union mbedtls_ssl_premaster_secret
 extern "C" {
 #endif
 
+typedef size_t mysize;
+
 /*
  * SSL state machine
  */

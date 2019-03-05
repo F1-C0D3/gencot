@@ -5,18 +5,15 @@ import Language.C.Data.Ident
 import Language.C.Analysis
 import Language.C.Analysis.DefTable (globalDefs)
 
-import Gencot.Input (readFromInput,getDeclEvents,showWarnings,errorOnLeft)
-import Gencot.Names (addInputName)
+import Gencot.Input (readFromInput,getDeclEvents)
+import Gencot.Traversal (runWithTable)
 import Gencot.Cogent.Output (prettyTopLevels)
 import Gencot.Cogent.Translate (transGlobals)
 
 main :: IO ()
 main = do
     table <- readFromInput
-    table <- addInputName table
-    (toplvs,warns) <- errorOnLeft "Error in transGlobal" $ 
-        runTrav_ $ transGlobals table $ getDeclEvents (globalDefs table) constructFilter
-    showWarnings warns
+    toplvs <- runWithTable table $ transGlobals $ getDeclEvents (globalDefs table) constructFilter
     print $ prettyTopLevels toplvs
 
 constructFilter :: DeclEvent -> Bool

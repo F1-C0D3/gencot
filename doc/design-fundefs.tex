@@ -88,16 +88,12 @@ Hence, comments associated with parameter declarations in C are moved to the par
 \subsubsection{Function Body}
 
 To preserve comments embedded in the C function body it is also considered as a structured source code part. Its 
-subparts are the declarations and the statements. A statement is structured if it contains declarations
-or statements, these are its subparts. Since in the target code only identifiers are substituted, the target code
+subpart structure corresponds to the syntactic structure of the C AST. Since in the target code only identifiers 
+are substituted, the target code
 structure is the same as that of the source code. The structure is only used for identifying and re-inserting
 the transferrable comments and preprocessor directives. Note that this works only if the conditional directive 
-structure is compatible with the statement structure, i.e., a group must always contain a sequence of complete
-statements and/or declarations, which is the usual case in C code.
-
-The declarations in the body are always unstructured. The reason is the simpler implementation, the existing language-c 
-output function can be used for the declarations without changes. Since declarations in a function body are typically
-single-line declarations for a local variable, not much structure is lost in this way. 
+structure is compatible with the syntactic structure, i.e., a group must always contain a complete syntactical
+unit such as a statements, expression or declaration, which is the usual case in C code in practice.
 
 An alternative approach would be to treat all nonempty source code lines as subparts of a function body, resulting
 in a flat sequence structure of single lines. The advantage is that it is always compatible to the conditional 

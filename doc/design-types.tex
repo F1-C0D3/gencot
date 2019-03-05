@@ -4,6 +4,7 @@ also depends on the way how values of the type are processed in the C program, t
 modification.
 
 \subsection{Numerical Types}
+\label{design-types-prim}
 
 The Cogent primitive types are mapped to C types in \code{cogent/lib/cogent-defns.h} which is included by the Cogent compiler
 in every generated C file with \code{\#include <cogent-defns.h>}. The mappings are: 
@@ -52,14 +53,20 @@ constant and be either \code{U8}, \code{U16}, \code{U32}, or maybe even \code{U6
 and gcc always use type \code{int}, independent of the value of the last enumeration constant. 
 Therefore Gencot always maps enumeration types to Cogent type \code{U32}.
 
+If an enumeration type has a tag, Gencot preserves the tag information for the programmer and uses
+a type name of the form \code{Enum\_tag}, as described in Section~\ref{design-names}. For tagless enums
+no type names are introduced, they are directly mapped to type \code{U32}.
+
+The rules for mapping enumeration types are
+\begin{verbatim}
+  enum { ... } -> U32
+  enum e { ... } -> Enum_e
+  enum e -> Enum_e
+\end{verbatim}
+
 The enumeration constants must be mapped to Cogent constant definitions of the corresponding type. In 
 C the value for an enumeration constant may be explicitly specified, this can easily be mapped to
 the Cogent constant definitions.
-
-The rule for mapping enumeration types is
-\begin{verbatim}
-  enum e -> U32
-\end{verbatim}
 
 An enumeration declaration of the form \code{enum e \{C1, C2, C3=5, C4\}} is translated as
 \begin{verbatim}
@@ -269,6 +276,7 @@ where \code{Struct\_s} and \code{Union\_s} are the names introduced for the stru
 and \code{T} are the Cogent types to which \code{a} and \code{t} are mapped, respectively.
 
 \subsection{Defined Type Names}
+\label{design-types-typedef}
 
 In C a typedef can be used to define a name for every possible type. In principle, it would be possible to
 map a typedef name by resolving it to its type and then mapping this type as described above. However, the

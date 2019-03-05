@@ -167,17 +167,22 @@ language-c analysis module is very
 useful for implementing Gencot translation. Function definition bodies are not covered by analysis, but they are
 not covered by Gencot either.
 
-The result of the analysis module is a map for all toplevel declarations and object definition, mapping the identifier
-to its semantics, which is mainly its declared type. Whereas in the abstract syntax tree there may be several declarators
+The main result of the analysis module is the symbol table. Since at the end of traversing a correct C AST the toplevel
+scope is reached, the symbol table only contains all globally defined identifiers. From this symbol table 
+a map is created containing all toplevel declarations and object definition, mapping the identifiers
+to their semantics, which is mainly its declared type. Whereas in the abstract syntax tree there may be several declarators
 in a declaration, declaring identifiers with different types derived from a common type, the map maps every identifier
 to its fully derived type. 
 
 Also, tags for structs, unions and enums are contained in the map. In C their definitions can be embedded in other declarations.
-The analysis module collects all these possibly embedded declarations in the map. The map also gives for every defined type name
-the definition.
+The analysis module collects all these possibly embedded declarations in the symbol table. The map also gives for
+every defined type name its definition.
 
 Together, the information in the map is much more appropriate for creating Cogent code, where all type definitions are on
-toplevel. Therefore, Gencot uses the map resulting from the analysis step as starting point for its translation.
+toplevel. Therefore, Gencot uses the map resulting from the analysis step as starting point for its translation. 
+Additionally, Gencot uses the symbol table built by the analysis module during its own processing to access the
+types of globally defined identifiers and for managing local declarations when traversing function bodies, as described in
+Section~\ref{impl-ccode-trav}.
 
 To use the analysis module, the following import is needed:
 \begin{verbatim}
@@ -186,13 +191,15 @@ To use the analysis module, the following import is needed:
 
 Then, if the abstract syntax tree has been bound to variable \code{ast}, it can be analysed by
 \begin{verbatim}
-  globals <- either (error . show) (return . fst) $ runTrav_ $ analyseAST ast
+  table <- either (error . show) (return . fst) $ runTrav_ $ (analyseAST ast >> getDefTable)
 \end{verbatim}
-which binds the resulting map to variable \code{globals}. \code{runTrav\_}
-returns a result of type \code{Either [CError] (GlobalDecls, [CError])}, where \code{GlobalDecls}
-is the type of the semantics map. The error list in the first alternative contains fatal errors which made the analysis fail. 
+which binds the resulting symbol table to variable \code{table}. \code{runTrav\_}
+returns a result of type \code{Either [CError] (DefTable, [CError])}, where \code{DefTable}
+is the type of the symbol table. The error list in the first alternative contains fatal errors which made the analysis fail. 
 The error list in the second alternative contains warnings about semantic inconsistencies, such as unknown identifiers,
-which are returned together with the map. 
+which are returned together with the symbol table.
+
+The semantics map is created from the symbol table by the function \code{globalDefs}, its type is \code{GlobalDecls}.
 
 \subsubsection{Source Code Origin}
 
@@ -219,7 +226,7 @@ result structures. This information can be used to
 
 For the last case the true name of the processed file is required, however, the parsed input is read from a pipe where
 the name is always given as \code{<stdin>}. The true name is passed to the Haskell program as an additional 
-argument, as described in Section~\ref{impl-ccode-filters}. Since there is no easy way to replace the file name in
+argument, as described in Section~\ref{impl-comps-filters}. Since there is no easy way to replace the file name in
 all \code{NodeInfo} values in the semantic map, Gencot adds a pseudo declaration for the identifier \code{<stdin>}
 (which is no valid C identifier) to the semantic map. It is mapped to a dummy declaration together with a \code{NodeInfo}
 which contains the true file name.
@@ -229,7 +236,7 @@ which contains the true file name.
 The main task for Gencot is to translate all declarations or definitions which are contained in a single source file, where
 nested declarations are translated to a sequence of toplevel Cogent definitions. This is achieved by parsing and analysing
 the content of the file and all included files, filtering the resulting set of declarations according to the source file name
-\code{<stdin>}, removing all declarations which are not translated to Cogent, and sorting the remaining in a list. 
+\code{<stdin>}, removing all declarations which are not translated to Cogent, and sorting the remaining ones in a list. 
 Translating every list entry to Cogent yields the resulting Cogent definitions in the correct ordering.
 
 The type \code{GlobalDecls} consists of three separate maps, one for tag definitions, one for type definitions,
@@ -237,32 +244,32 @@ and one for all other declarations and definitions. Every map uses its own type 
 there is the wrapper type \code{DeclEvent} which has a variant for each of them. 
 
 The language-c analysis module provides a filtering function for its resulting map of type \code{GlobalDecls}. The filter 
-predicate is defined for values of type \code{DeclEvent}. If the map has been bound to the variable \code{globals}, 
-as described above, it can be filtered by
+predicate is defined for values of type \code{DeclEvent}. If the map has been bound to the variable \code{gmap}
+it can be filtered by
 \begin{verbatim}
   filterGlobalDecls globalsFilter gmap
 \end{verbatim}
 where \code{globalsFilter} is the filter predicate.
 
-Gencot uses a filter which reduces the declarations to those directly in the input file, removing all
+Gencot uses a filter which reduces the declarations to those contained directly in the input file, removing all
 content from included files. Since the input file is always associated with the name \code{<stdin>} in the \code{NodeInfo}
 values, a corresponding filter function is
 \begin{verbatim}
   (maybe False ((==) "<stdin>") . fileOfNode)
 \end{verbatim}
-Additionally, the declarations are reduced to those which are processed by the specific Gencot processor.
+Additionally, for a specific Gencot component, the declarations are reduced to those which are processed by the component. 
 
 Every map range value, and hence every \code{DeclEvent} value contains the identifier which is mapped to it, 
 hence the full information required for translating the definitions is contained in the range values. 
 Gencot wraps every range value as a \code{DeclEvent}, and puts them in a common list for all three maps. This
 is done by the function
 \begin{verbatim}
-  listGlobals :: LCA.GlobalDecls -> [LCA.DeclEvent]
+  listGlobals :: GlobalDecls -> [DeclEvent]
   listGlobals gmap = 
       (concat $ map elems $ wraps <*> [gmap])
-      ++ (elems $ fmap LCA.TagEvent $ gTags gmap)
-      where wraps = [(fmap LCA.DeclEvent) . gObjs, 
-                     (fmap LCA.TypeDefEvent) . gTypeDefs]
+      ++ (elems $ fmap TagEvent $ gTags gmap)
+      where wraps = [(fmap DeclEvent) . gObjs, 
+                     (fmap TypeDefEvent) . gTypeDefs]
 \end{verbatim}
 
 Finally, the declarations in the list are sorted according to the offset position of their first tokens, using the
@@ -272,15 +279,15 @@ compare function
   compEvent ci1 ci2 = compare (posOf ci1) (posOf ci2)
 \end{verbatim}
 
-Together, the list for processing the code is prepared from map \code{globals} by
+Together, the list for processing the code is prepared from the symbol table \code{table} by
 \begin{verbatim}
-  sortBy compEvent $ listGlobals $ filterGlobalDecls globalsFilter gmap
+  sortBy compEvent $ listGlobals $ filterGlobalDecls globalsFilter $ globalDefs table
 \end{verbatim}
 
 All this preprocessing is implemented by module \code{Gencot.Input}. It provides the three functions
 \begin{verbatim}
-  readFromInput :: IO GlobalDecls
-  readFromFile :: FilePath -> IO GlobalDecls
+  readFromInput :: IO DefTable
+  readFromFile :: FilePath -> IO DefTable
   getDeclEvents :: GlobalDecls -> (DeclEvent -> Bool) -> [DeclEvent]
 \end{verbatim}
 The \code{readFrom*} functions parse and analyse the standard input or a file content, respectively. The function
@@ -396,7 +403,7 @@ and a C statement:
                | FunBody Stm
 \end{verbatim}
 where \code{Exp} and \code{Stm} are the types for C expressions and statements as defined by the language-c-quote AST 
-(see Section~\ref{imppl-ccode-expr}). Note that no \code{Origin} components are added, since the types \code{Exp} and 
+(see Section~\ref{impl-ccode-expr}). Note that no \code{Origin} components are added, since the types \code{Exp} and 
 \code{Stm} already contain \code{Origin} information. The Cogent AST expression type is not used by Gencot. 
 Since bindings only occur in expressions, the AST type for Cogent bindings is not used either.
 
@@ -610,6 +617,24 @@ yet present.
 For this reason Gencot uses the third approach and processes repeated markers in the generated target code text,
 independent from the syntactical structure.
 
+\subsubsection{Filter for Repeated Origin Marker Elimination}
+
+The filter \code{gencot-reporigs} is used for removing repeated origin markers. It is implemented as an awk script.
+
+It uses five string buffers: two for the previous two origin markers read, and three for the code before,
+between, and after both markers. Whenever all buffers are filled (the buffer after both markers with a 
+single text line; this line exists, since consecutive markers are always separated by an empty line),
+the markers are processed as follows, if they have the same line number: in the case of two 
+\code{\#ORIGIN} markers the second is deleted, in the
+case of two \code{\#ENDORIG} markers the first is deleted, and in the case of an \code{\#ORIGIN}
+marker after an \code{\#ENDORIG} marker both are deleted. In the latter case the line number of the
+\code{\#ORIGIN} marker is remembered and subsequent \code{\#ORIGIN} markers with the same line number
+are also deleted.
+
+When both markers have different line numbers or if an \code{\#ENDORIG} marker follows an \code{\#ORIGIN}
+marker the first marker and the code before it are output and the buffers are filled until the next marker
+has been read.
+
 \subsection{Generating Expressions}
 \label{impl-ccode-expr}
 
@@ -701,237 +726,122 @@ function in \code{Gencot.C.Translate} implements the following functionality:
 
 \subsubsection{Name Mapping}
 
+Name mapping depends on the kind of name and may additionally depend on its type. Both information is
+available in the symbol table (see Section~\ref{impl-ccode-trav}). However, the scope cannot be queried
+from the symbol table. Hence it is not possible to map names depending on whether they are locally defined
+or globally.
 
+The following kinds of names may occur in a function body: primitive types, typedefs, tags, members, 
+functions, global variables, enum constants, preprocessor constants, parameters and local variables.
 
-\subsection{Filters for C Code Processing}
-\label{impl-ccode-filters}
+Primitive type names and typedef names can only occur as name of a base type in a declaration. Primitive
+type names are mapped to Cogent primitive type names as described in Section~\ref{design-types-prim}.
 
-All filters which parse and process C code are implemented in Haskell and read the
-C code as described in Section~\ref{impl-ccode-read}.
+A typedef name may also occur in a declarator of a local typedef which defines the name. 
+In both cases, as described in Section~\ref{design-fundefs-body}, Gencot
+only maps the plain typedef names, not the derived types. The typedef names are mapped according to
+Section~\ref{design-types-typedef}: If they ultimately resolve to a struct, union, or array type they
+are mapped with an unbox operator applied, otherwise they are mapped without.
 
-The following filters always process the content of a single C source file and produce the content for a single 
-target file.
-\begin{description}
-\item[\code{gencot-translate}] translates a single file \code{x.c} or \code{x.h} to the Cogent code to be put in file
-\code{x-impl.cogent} or \code{x-types.cogent}. It processes typedefs, struct/union/enum definitions, and function
-definitions. 
-\item[\code{gencot-globals}] translates a single file \code{x.c} to the Cogent code to be put in file \code{x-globals.cogent}.
-It processes all global variable definitions.
-\item[\code{gencot-entries}] translates a single file \code{x.c} to the antiquoted C entry wrappers to be put in
-file \code{x-entry.ac}. It processes all function definitions with external linkage.
-\item[\code{gencot-abstypes}] translates a single file \code{x.c} or \code{x.h} to the C typedefs to be put in
-file \code{x-abstypes.c} or \code{x-abstypes.h}. It processes typedefs and struct/union/enum definitions.
-\item[\code{gencot-remfundef}] processes a single file \code{x.c} by removing all function definitions. The output
-is intended to be put in file \code{x-globals.c}
-\end{description}
+A tag name can only occur as base type in a declaration. It is always mapped to a name with a prefix 
+of \code{Struct\_}, \code{Union\_}, or \code{Enum\_}. Tagless structs/unions/enums are not mapped at all.
+Tag names are mapped according to Sections~\ref{design-types-enum} and~\ref{design-types-struct}: struct
+and union tags are mapped with an unbox operator applied, enum tags are mapped without.
 
-The filters \code{gencot-translate} and \code{gencot-abstypes} take the name of the original source file as additional
-argument, since they need it to generate Cogent names for C names with internal linkage and for tagless C struct/union
-types.
+Gencot also maps defining tag occurrences. Thus an occurrence of the form 
+\begin{verbatim}
+  struct s { ... }
+\end{verbatim}
+is translated to
+\begin{verbatim}
+  struct #Struct_s { ... }
+\end{verbatim}
 
-There are other target files which are generated for the whole package. The filters for generating these target files 
-must always determine and process the external name references in a set of
-C source files. This set is the subset of C sources in the <package> which is translated to Cogent and together yields
-the Cogent compilation unit. There are different possible approaches how to read and process this set of source files.
+Every occurrence of a field name can be syntactically distinguished. It is mapped according to 
+Section~\ref{design-names} to a lowercase Cogent name if it is uppercase, otherwise it is unchanged.
+Field names are also mapped in member declarations in locally defined structures and unions.
 
-The first approach is to use a single file which includes all files in the set. This file is processed as usual by
-\code{gencot-include}, \code{gencot-remcomments}, and \code{gencot-rempp} which yields the union of all definitions
-and declarations in all files in the set as input to the language-c parser. However, this input may contain conflicting
-definitions. For an identifier with internal linkage different definitions may be present in different source files.
-Also for identifiers with no linkage different definitions may be present, if, e.g., different \code{.c} files define
-a type with the same name. The language-c parser ignores duplicate definitions for identifiers with internal linkage,
-however, it treats duplicate definitions for identifiers without linkage as a fatal error. Hence Gencot does not use
-this approach.
+All other names syntactically occur as a primary expression. They are mapped depending on their semantic
+information retrieved from the symbol table. In a first step it distinguishes objects, functions, 
+and enumerators.
 
-The second approach ist to process every file in the set separately and merge the generated target code. However, for
-identifiers with external linkage (function definitions) the external references cannot be determined from the content
-of a single file. A non-local reference is only external if it is not defined in any of the files in the set. It would
-be possible to determine these external references in a separate processing step and using the result as additional input
-for the main processing step. Since this means to additionally implement reading and writing a list of external references,
-Gencot does not use this approach.
+An object identifier may be a global variable, parameter, or local variable. It may also be a preprocessor 
+constant since for them dummy declarations have been introduced which makes them appear as a global variable
+for the C analysis. For the mapping the linkage is relevant, this is also available from the symbol table.
 
-The third approach is to parse and analyse the content of every file separately, then merge the resulting semantic maps
-discarding any duplicate definitions. This approach assumes that the external name references, which are relevant for
-processing, are uniquely defined in all source files. If this is not the case, because conflicting definitions are used
-inside the <package>, which are external to the processed file subset, this must be handled manually. Note that the
-external references must be determined before the maps are merged, since they may occur in conflicting definitions
-which are discarded during the merge. This approach is used by Gencot.
+Identifiers for global variables may have external or internal linkage and are mapped depending on the
+linkage. Identifiers for parameters always have no linkage and are always mapped like field names. Identifiers
+for local variables either have no linkage or external linkage. In the first case they are mapped like
+field names. In the second case they cannot be distinguished from global variables with external linkage,
+and are mapped to lowercase. The dummy declarations introduced for preprocessor constants
+always have external linkage, the identifiers are mapped to lowercase. Together, object identifiers with 
+internal linkage are mapped as described in Section~\ref{design-names}, object identifiers with external
+linkage are mapped to lowercase, and object identifiers with no linkage are mapped to lowercase if they are
+uppercase and remain unchanged otherwise.
 
-Due to the approach used, the Gencot ``filters'' for generating the files common to the Cogent compilation unit are
-actually no filters, they take a list of file names as arguments and are called ``processors'' in the following.
-Like all other input to the language-c parser their
-content must have been processed by \code{gencot-include}, \code{gencot-remcomments}, and \code{gencot-rempp}.
+An identifier for a function has either internal or external linkage and is mapped depending on its linkage.
+An identifier for an enumerator is always mapped to lowercase, like preprocessor constants.
 
-Usually it is sufficient to specify only \code{.c} files in the set, since the information about all referenced 
-identifiers must be provided in included \code{.h} files. However, for determining which references are external, the
-\code{.h} files are needed as well, to distinguish between definitions provided by them and definitions provided
-by other \code{.h} files not belonging to the set. The \code{.h} files need not be parsed, since their content is
-already parsed together with the content of the \code{.c} files, only their names must be known. Hence the Gencot
-processors distinguish the argument file names according to their file name extension: if the extension is 
-\code{.gencot} a preprocessed \code{.c} file is expected to be parsed and processed, if the extension is \code{.h}
-an original include file is expected and only its name is used for determining external name references.
+Identifiers for local variables may also occur in a declarator of a local object definition which defines 
+the name. They are also mapped depending on their linkage, as described above.
 
-Gencot uses the following processors of this kind:
-\begin{description}
-\item[\code{gencot-exttypes}] generates the content to be put in the file \code{<package>-exttypes.cogent}. It 
-processes externally referenced typedefs, tag definitions and enum constant definitions.
-\item[\code{gencot-absext}] generates the content to be put in the file \code{<package>-exttypes.c}. It 
-processes externally referenced typedefs, tag definitions and enum constant definitions.
-\item[\code{gencot-exit}] generates the exit wrappers to be put in the file \code{<package>-exit.ac}. It processes
-the declarations of externally referenced functions.
-\item[\code{gencot-exitabs}] generates the abstract function definitions to be put in the file 
-\code{<package>-exit.cogent}. It processes the declarations of externally referenced functions.
-\item[\code{gencot-extincludes}] generates the list of include directives to be put in the file
-\code{<package>-extincludes.c}. It processes all external name references. 
-\end{description}
+\subsection{Traversing the C AST}
+\label{impl-ccode-trav}
 
-Additionally, Gencot uses the following filter for removing repeated origin markers from the generated target code:
-\begin{description}
-\item[\code{gencot-reporigs}] postprocesses the origin markers generated by the other filters and processors.
-\end{description}
+The package language-c uses a monad for traversing and analysing the C AST. The monad is defined in module 
+\code{Language.C.Analysis.TravMonad} and mainly provides the symbol table as global state during the traversal.
+The traversal itself is implemented by a recursive descent according to the C AST using a separate function
+for analysing every syntactic construct.
 
-\subsection{Main Translation to Cogent}
-\label{impl-ccode-main}
-
-The main translation from C to Cogent is implemented by the filter \code{gencot-translate}. It translates \code{DeclEvent}s
-of the following kinds:
+When processing the result of the analysis Gencot implements its own recursive descent using a processing
+function for every syntactic construct, but it uses the same monad for two reasons.
 \begin{itemize}
-\item struct/union definitions
-\item enum definitions with a tag
-\item enum constant definitions
-\item function definitions
-\item type definitions
+\item the definitions and declarations for the global identifiers are needed for mapping the identifiers to
+Cogent names,
+\item additionally, the definitions and declarations for locally defined identifiers are needed in C function
+bodies for mapping the identifiers.
 \end{itemize}
-The remaining global items are removed by the predicate passed to \code{Gencot.Input.getDeclEvents}: all declarations, 
-all object definitions, and all tagless enum definitions. No Cogent type name is generated for a tagless enum definition,
-references to it are always directly replaced by type \code{U32}.
 
-The translation of the \code{DeclEvent} sequence is implemented by the function
+The global definitions and declarations in the symbol table correspond to the semantics map which is the result 
+of the language-c analysis step. It is created from the symbol table after traversing the C AST. Although Gencot 
+processes the content of the semantics map, it is not available as a whole in the processing functions. Instead
+of passing the semantics map as an explicit parameter to all processing functions, Gencot uses a monadic traversal
+through the relevant parts of the semantics map, which implicitly makes the symbol table available to all 
+processing functions. This is achieved by reusing the symbol table after the analysis phase for the traversal
+of the semantics map.
+
+Additionally, when processing the C function bodies, the symbol table is used for managing the local declarations. 
+This is possible because although the analysis phase translates global declarations and definitions to a 
+semantic representation, it does not modify function bodies and returns them as the original C AST. Since
+the information about local declarations is discarded at the end of its scope, the information is not 
+present anymore in the symbol table after the analysis phase. Gencot uses the symbol table functionality
+to rebuild this information during its own traversal and uses it for name mapping.
+
+The function \code{withDefTable} is used to insert the existing symbol table into the monadic state before
+processing the list of \code{DeclEvent}s. Thus a toplevel Gencot processing function has the general form
 \begin{verbatim}
-  transGlobals :: GlobalDecls -> [DeclEvent] -> [GenToplv]
+procGlobals :: MonadTrav m => DefTable -> [DeclEvent] -> m [R]
+procGlobals table gs = do
+    withDefTable $ const ((),table)
+    mapM procGlobal gs
 \end{verbatim}
-where the first argument is used for name mapping as described in Section~\ref{impl-ccode-names}.
+where \code{R} is the result type of processing a single \code{DeclEvent} and \code{procGlobal} is the 
+corresponding monadic action.
 
-A struct/union/enum definition corresponds to a full specifier, as described in Section~\ref{design-decls-tags}.
-The language-c analyser already implements moving all full specifiers to separate global definitions and the
-sorting step done by \code{Gencot.Input.getDeclEvents} creates the desired ordering. Therefore, only the translation
-of the single struct/union/enum definitions has to be implemented by \code{gencot-translate}.
-
-A struct/union definition is translated to a Cogent type definition where the type name is constructed as described 
-in Section~\ref{design-names}. A struct is translated to a corresponding record type, a union is translated to an 
-abstract type, as described in Section~\ref{design-types}.
-In both cases the type name names the boxed type, i.e., it corresponds to the C type of a pointer to the struct/union.
-
-An enum definition with a tag is translated to a Cogent type definition where the type name is constructed as described 
-in Section~\ref{design-names}. The name is always defined for type \code{U32}, as described in Section~\ref{design-types}.
-
-An enum constant definition is translated to a Cogent constant definition where the name is constructed as described 
-in Section~\ref{design-names} and the type is always \code{U32}, as described in Section~\ref{design-types}.
-
-A function definition is translated to a Cogent function definition, as described in Section~\ref{design-fundefs}.
-
-A type definition is translated to a Cogent type definition as described in Section~\ref{design-decls-typedefs}.
-
-All these single translations are implemented by the function
+In the monadic actions the symbol table can be accessed by actions defined in the modules 
+\code{Language.C.Analysis.TravMonad} and \code{Language.C.Analysis.DefTable}. An identifier can be
+resolved using the actions
 \begin{verbatim}
-  transGlobal :: GlobalDecls -> DeclEvent -> Origin -> GenToplv
+lookupTypeDef :: MonadTrav m => Ident -> m Type
+lookupObject :: MonadTrav m => Ident -> m (Maybe IdentDecl)
 \end{verbatim}
-where the first argument is used for name mapping as described in Section~\ref{impl-ccode-names} and the third
-argument is the \code{Origin} to be used, with repeated markers removed as described in Section~\ref{impl-ccode-origin}.
-
-A type reference is translated by the function
+For resolving tag definitions the symbol table must be retrieved by
 \begin{verbatim}
-  transType :: GlobalDecls -> Type -> NodeInfo -> GenType 
+getDefTable :: MonadTrav m => m DefTable
 \end{verbatim}
-where the first argument is used for name mapping and the third argument is the original origin information of
-the C construct which has the type reference as a subpart. It is used for suppressing repeated origin markers
-as described in Section~\ref{impl-ccode-origin}.
-
-A type reference may be a direct type, a derived type, or a typedef name. For every typedef name a Cogent type
-name is defined, as described in Sections~\ref{design-names} and~\ref{design-modular}. A direct type is either
-the type \code{void}, a primitive C type, which is mapped to the name of a primitive Cogent type, or it is a 
-struct/union/enum type reference for which Gencot also introduces a Cogent type name or maps it to the 
-primitive Cogent type \code{U32} (tagless enums). Hence, both direct types and typedef names can always be mapped
-to Cogent type names, with the exception of type \code{void}, which is mapped to the Cogent unit type \code{()}.
-
-If a typedef name references (directly or indirectly) a struct or union type, the corresponding Cogent
-type name references the boxed type. Therefore, it must be modified by applying the unbox operator. If a typedef
-name references a primitive type, this is not necessary, since the corresponding Cogent type is always regular.
-However, the abstract Cogent surface syntax always associates a ``sigil'' with a type name. Unnecessary
-unbox operators are automatically suppressed by the Cogent prettyprint function. Therefore Gencot always 
-associates an unbox sigil with the Cogent type name if it corresponds to a direct type or a typedef name
-referencing a direct type.
-
-A derived type is either a pointer type, an array type, or a function type. It is derived from a base type
-which in case of a function type is the type of the function result. The base type may again be a derived
-type, ultimately it is a direct type or a typedef name.
-
-For a pointer type the translation depends on the base type. If it is a struct or union type or a typedef
-name referencing a struct or union type, the pointer type is translated to the Cogent type name corresponding
-to the base type. If it is a function type or a typedef name referencing a function type, the pointer type 
-is translated to the translation of the base type. In all other cases, as described in Section~\ref{design-types}, 
-the pointer type is translated to the name of an abstract type, which is introduced as described in 
-Section~\ref{design-names}, using a name for the base type. 
-
-For an array type, the translation also depends on the base type. If it is type \code{char}, the array 
-type is translated to the primitive Cogent type \code{String}. In all other cases it is translated 
-to the name of an abstract type, which is introduced as described in Section~\ref{design-names}, 
-using a name for the base type. This is even done if the base type is a typedef name which references
-type char, since Gencot assumes that in this case it is intended as a ``real'' array type and not
-as a string type.
-
-If an array type occurs as type of a function parameter, it is ``adjusted'' by C to a pointer type with
-the same base type. This is also done by Gencot. 
-
-A function type is always translated to the corresponding Cogent function type, where a tuple type is
-used as parameter type if there is more than one parameter, and the unit type is used if there is
-no parameter. 
-
-If a pointer type or array type is translated to the name of an abstract type, a name is required for
-the base type. If the base type is a direct type or a typedef name, a Cogent type name always exists 
-and is used. The only exception is type \code{void}, here the name \code{Void} is used.
-If the base type is a derived type, a name is constructed for it as described in Section~\ref{design-names},
-even if the base type would normally be mapped to a type expression (which is the case for a function type)
-or to its own base type (which is the case for pointer types to struct/union and function types). If the
-base type is array of char, the name \code{String} is used for it. 
-
-Note that for most cases where a typedef name occurs as reference or base type, it must be resolved to
-the ultimate direct type or derived type referenced by it. This is implemented by the function
+then the struct/union/enum reference can be resolved by
 \begin{verbatim}
-  resolveTypeDef :: TypeDefRef -> Type 
+lookupTag :: SUERef -> DefTable -> Maybe TagEntry
 \end{verbatim}
-The \code{GlobalDecls} map is not required here, since the language-c analyser puts the (directly) 
-referenced type in the \code{TypeDefRef}. 
 
-For a qualified C type Gencot only respects the \code{const} qualifier. For a direct type the \code{const}
-qualifier is ignored, since in Cogent values of unboxed and regular types are always immutable. For
-a function type the qualifier is also ignored since function types are regular in Cogent. For an array
-of char it is ignored since it is translated to type \code{String} which is regular.
-
-All other array types and all pointer types are translated to linear types which can be mutable in
-Cogent. Whenever the C type contains no mutable pointer types, it is translated to a readonly Cogent type by 
-applying a bang operator to it.
-
-An array type contains mutable pointers if its base type does so. A function type never contains mutable pointers.
-A pointer type contains mutable pointers if its base type is not \code{const} qualified or contains mutable pointers.
-A primitive type and an enum type does not contain mutable pointers. A struct or union type contains mutable 
-pointers, if the type of a member contains mutable pointers.
-
-\subsection{Repeated Origin Markers}
-\label{impl-ccode-reporigs}
-
-The filter \code{gencot-reporigs} for removing repeated origin markers is implemented as an awk script.
-
-It uses five string buffers: two for the previous two origin markers read, and three for the code before,
-between, and after both markers. Whenever all buffers are filled (the buffer after both markers with a 
-single text line; this line exists, since consecutive markers are always separated by an empty line),
-the markers are processed as follows, if they have the same line number: in the case of two 
-\code{\#ORIGIN} markers the second is deleted, in the
-case of two \code{\#ENDORIG} markers the first is deleted, and in the case of an \code{\#ORIGIN}
-marker after an \code{\#ENDORIG} marker both are deleted. In the latter case the line number of the
-\code{\#ORIGIN} marker is remembered and subsequent \code{\#ORIGIN} markers with the same line number
-are also deleted.
-
-When both markers have different line numbers or if an \code{\#ENDORIG} marker follows an \code{\#ORIGIN}
-marker the first marker and the code before it are output and the buffers are filled until the next marker
-has been read.
+Additionally, there are actions to enter and leave a scope and actions for inserting definitions.

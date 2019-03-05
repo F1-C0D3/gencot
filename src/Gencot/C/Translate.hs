@@ -7,16 +7,17 @@ import Language.C.Data.Node as LCN
 import Language.C.Data.Position as LCP
 import Language.C.Syntax.AST as LCS
 
-import Control.Applicative ((<*>))
+import Control.Applicative (liftA2)
 import Data.List (isPrefixOf)
 import Data.Foldable (foldrM)
 import Numeric (showInt, showOct, showHex, readFloat)
 
 import Gencot.C.Ast as GCA
 import Gencot.Origin
-import Gencot.Names (transTagName,transFunName,transToField,mapNameToUpper,mapNameToLower)
+import Gencot.Names (transTagName,transObjName,srcFileName,mapObjectName,mapIfUpper,mapNameToUpper,mapNameToLower)
 
 import Language.C.Analysis.TravMonad (MonadTrav)
+import qualified Language.C.Analysis as LCA
 
 checkDeclr :: MonadTrav m => String -> LC.CDeclr -> m ()
 checkDeclr s (LC.CDeclr _ _ Nothing [] _) = return ()
@@ -43,19 +44,21 @@ transFunDef :: MonadTrav m => LC.CFunDef -> m GCA.Func
 transFunDef (LC.CFunDef declspecs dclr _{-old parms-} stat ndef) = do
     checkDeclr "fundef" dclr 
     ds <- transDeclSpecs declspecs
-    i <- transIdent name
+    fnam <- srcFileName ndef
     rd <- transDerivedDeclrs resdclrs
     ps <- transParams fdclr
     (GCA.Block bis _) <- transStat stat
-    return $ GCA.Func ds i rd ps bis $ mkOrigin ndef
+    return $ GCA.Func ds (mkMapId (const $ mapObjectName name lnk fnam) name) rd ps bis $ mkOrigin ndef
     where LC.CDeclr (Just name) (fdclr:resdclrs) asmname cattrs ndec = dclr
+          lnk = if any isIntern declspecs then LCA.InternalLinkage else LCA.ExternalLinkage
+          isIntern (CStorageSpec (CStatic _)) = True
+          isIntern _ = False
 
 transStat :: MonadTrav m => LC.CStat -> m GCA.Stm
 transStat (LC.CLabel ident stat cattrs n) = do
-    i <- transIdent ident
     as <- mapM transAttr cattrs
     s <- transStat stat
-    return $ GCA.Label i as s $ mkOrigin n
+    return $ GCA.Label (mkId ident) as s $ mkOrigin n
 transStat (LC.CCase expr stat n) = do
     e <- transExpr expr
     s <- transStat stat
@@ -69,7 +72,9 @@ transStat (LC.CExpr mexpr n) = do
     me <- mapM transExpr mexpr
     return $ GCA.Exp me $ mkOrigin n
 transStat (LC.CCompound _{-localLabels-} bis n) = do
+    LCA.enterBlockScope
     bs <- mapM transBlockItem bis
+    LCA.leaveBlockScope
     return $ GCA.Block bs $ mkOrigin n
 transStat (LC.CIf expr stat mestat n) = do
     e <- transExpr expr
@@ -89,20 +94,23 @@ transStat (LC.CWhile expr stat True n) = do
     e <- transExpr expr
     return $ GCA.DoWhile s e $ mkOrigin n
 transStat (LC.CFor (Left mexpr) mcond mstep stat n) = do
+    LCA.enterBlockScope
     me <- mapM transExpr mexpr
     mc <- mapM transExpr mcond
     ms <- mapM transExpr mstep
     s <- transStat stat
+    LCA.leaveBlockScope
     return $ GCA.For (Right me) mc ms s $ mkOrigin n
 transStat (LC.CFor (Right decl) mcond mstep stat n) = do
+    LCA.enterBlockScope
     d <- transDecl decl
     mc <- mapM transExpr mcond
     ms <- mapM transExpr mstep
     s <- transStat stat
+    LCA.leaveBlockScope
     return $ GCA.For (Left d) mc ms s $ mkOrigin n
-transStat (LC.CGoto ident n) = do
-    i <- transIdent ident
-    return $ GCA.Goto i $ mkOrigin n
+transStat (LC.CGoto ident n) = 
+    return $ GCA.Goto (mkId ident) $ mkOrigin n
 transStat (LC.CGotoPtr expr n) =
     error $ "Gencot unsupported C: CGotoPtr at " ++ show n
 transStat (LC.CCont n) =
@@ -134,6 +142,7 @@ transBlockItem (LC.CBlockStmt stat) = do
     s <- transStat stat
     return $ GCA.BlockStm s
 transBlockItem (LC.CBlockDecl decl) = do
+    LCA.analyseDecl True decl
     d <- transDecl decl
     return $ GCA.BlockDecl d
 transBlockItem (LC.CNestedFunDef fundef) =
@@ -148,21 +157,20 @@ transDecl (LC.CDecl specs divs n) | any isTypedef stor = do
           isTypedef (LC.CTypedef _) = True
           isTypedef _ = False
           transDeclrToTypedef ((Just dclr@(LC.CDeclr (Just name) _ _ cattrs _)),_,_) = do
-              i <- transIdent name
               d <- transDeclr dclr
               cs <- mapM transAttr cattrs
-              return $ GCA.Typedef i d cs noOrigin
+              return $ GCA.Typedef (mkMapId mapNameToUpper name) d cs noOrigin
 transDecl (LC.CDecl specs divs n) = do
     ss <- transDeclSpecs specs
     it <- mapM transDeclrToInit divs
     return $ GCA.InitGroup ss [] it $ mkOrigin n
     where transDeclrToInit ((Just dclr@(LC.CDeclr (Just name) _ masmname cattrs _)),minit,_) = do
-              i <- transIdent name
+              i <- transObjName name
               d <- transDeclr dclr
               ma <- mapM transStrLit masmname
               mi <- mapM transInit minit
               cs <- mapM transAttr cattrs
-              return $ GCA.Init i d ma mi cs noOrigin
+              return $ GCA.Init (mkMapId (const i) name) d ma mi cs noOrigin
 transDecl (LC.CStaticAssert expr str n) =
     error $ "Gencot unsupported C: CStaticAssert at " ++ show n
 
@@ -174,10 +182,9 @@ transMemberDecl (LC.CDecl specs divs n) = do
     where 
           transDeclrToField ((Just dclr@(LC.CDeclr mid _ _ cattrs n)),_,mexpr) = do
               --checkDeclr "field" dclr
-              mi <- mapM transIdent mid
               d <- transDeclr dclr
               me <- mapM transExpr mexpr
-              return $ GCA.Field mi (Just d) me noOrigin
+              return $ GCA.Field (fmap (mkMapId mapIfUpper) mid) (Just d) me noOrigin
           transDeclrToField (Nothing,_,mexpr) = do
               me <- mapM transExpr mexpr
               return $ GCA.Field Nothing Nothing me noOrigin
@@ -191,9 +198,8 @@ transParamDecl (LC.CDecl specs [] n) = do
 transParamDecl (LC.CDecl specs (((Just dclr@(LC.CDeclr mid _ _ cattrs _)),Nothing,Nothing):[]) n) = do
     checkDeclr "param" dclr
     ss <- transDeclSpecs specs
-    mi <- mapM transIdent mid
     d <- transDeclr dclr
-    return $ GCA.Param mi ss d $ mkOrigin n
+    return $ GCA.Param (fmap (mkMapId mapIfUpper) mid) ss d $ mkOrigin n
 
 transDeclSpecs :: MonadTrav m => [LC.CDeclSpec] -> m GCA.DeclSpec
 transDeclSpecs declspecs = 
@@ -218,44 +224,47 @@ transStorageSpec (LC.CThread n) =
 
 transTypeSpecs :: MonadTrav m => [LC.CTypeSpec] -> m GCA.TypeSpec
 transTypeSpecs ss | (any isVoid ss)    = return $ GCA.Tvoid noOrigin
-transTypeSpecs ss | (any isChar ss)    = return $ GCA.Tchar (sign ss) noOrigin
-transTypeSpecs ss | (any isShort ss)   = return $ GCA.Tshort (sign ss) noOrigin
-transTypeSpecs ss | (any isComplex ss) = if any isFloat ss
-                                         then return $ GCA.Tfloat_Complex noOrigin
-                                         else if any isLong ss
-                                             then return $ GCA.Tlong_double_Complex noOrigin
-                                             else return $ GCA.Tdouble_Complex noOrigin
-transTypeSpecs ss | (any isDouble ss)  = if any isLong ss 
-                                         then return $ GCA.Tlong_double noOrigin
-                                         else return $ GCA.Tdouble noOrigin
-transTypeSpecs ss | (any isLong ss)    = if hasLongLong ss 
-                                         then return $ GCA.Tlong_long (sign ss) noOrigin
-                                         else return $ GCA.Tlong (sign ss) noOrigin
-transTypeSpecs ss | (any isInt ss)     = return $ GCA.Tint (sign ss) noOrigin
-transTypeSpecs ss | (any isSigned ss)  = return $ GCA.Tint (sign ss) noOrigin
-transTypeSpecs ss | (any isUnsigned ss)= return $ GCA.Tint (sign ss) noOrigin
-transTypeSpecs ss | (any isFloat ss)   = return $ GCA.Tfloat noOrigin
+transTypeSpecs ss | (any isChar ss)    = return $ mkTypeName ss "U8"
+transTypeSpecs ss | (any isShort ss)   = return $ mkTypeName ss "U16"
+transTypeSpecs ss | (any isComplex ss) = return $ mkTypeName ss "err-complex"
+transTypeSpecs ss | (any isDouble ss)  = return $ mkTypeName ss "err-float"
+transTypeSpecs ss | (any isLong ss)    = return $ mkTypeName ss "U64"
+transTypeSpecs ss | (any isInt ss)     = return $ mkTypeName ss "U32"
+transTypeSpecs ss | (any isSigned ss)  = return $ mkTypeName ss "U32"
+transTypeSpecs ss | (any isUnsigned ss)= return $ mkTypeName ss "U32"
+transTypeSpecs ss | (any isFloat ss)   = return $ mkTypeName ss "err-float"
 transTypeSpecs ss | (any isFloatN ss)  = 
     error $ "Gencot unsupported C: CFloatNType at " ++ (show $ LCN.nodeInfo $ head ss)
-transTypeSpecs ss | (any isBool ss)    = return $ GCA.T_Bool noOrigin
+transTypeSpecs ss | (any isBool ss)    = return $ mkTypeName ss "todo-bool"
 transTypeSpecs ss | (any isInt128 ss)  = 
     error $ "Gencot unsupported C: CInt128Type at " ++ (show $ LCN.nodeInfo $ head ss)
 transTypeSpecs ((LC.CSUType su n):_)  = transStructUnion su
 transTypeSpecs ((LC.CEnumType enum@(LC.CEnum mid menums _ _) n):_) = do
-    mi <- mapM transIdent mid
+    mi <- mapM (transTagName . mkEnumTagName) mid
     es <- transEnum enum
-    return $ GCA.Tenum mi es [] $ mkOrigin n
-transTypeSpecs ((LC.CTypeDef ident n):_) = do
-    i <- transIdent ident
-    return $ GCA.Tnamed i [] noOrigin
-transTypeSpecs ((LC.CTypeOfExpr expr n):_) = do
+    return $ GCA.Tenum (mId mi mid) es [] $ mkOrigin n
+transTypeSpecs ss@((LC.CTypeDef ident n):_) = do
+    t <- LCA.lookupTypeDef ident
+    let ub = if isAggregate $ resolveTypedef t then "#" else ""
+    return $ GCA.Tnamed (mkMapId ((ub ++) . mapNameToUpper) ident) [] $ listOrigin origin ss
+transTypeSpecs ss@((LC.CTypeOfExpr expr n):_) = do
     e <- transExpr expr
-    return $ GCA.TtypeofExp e noOrigin
-transTypeSpecs ((LC.CTypeOfType decl n):_) = do
+    return $ GCA.TtypeofExp e $ listOrigin origin ss
+transTypeSpecs ss@((LC.CTypeOfType decl n):_) = do
     d <- transDeclToType decl
-    return $ GCA.TtypeofType d noOrigin
+    return $ GCA.TtypeofType d $ listOrigin origin ss
 transTypeSpecs ss | (any isAtomic ss)  = 
     error $ "Gencot unsupported C: CAtomicType at " ++ (show $ LCN.nodeInfo $ head ss)
+
+mkTypeName :: [LC.CTypeSpec] -> String -> GCA.TypeSpec
+mkTypeName ss nam = GCA.Tnamed (GCA.Id nam noOrigin) [] $ listOrigin origin ss
+
+mkCompTagName :: LC.CStructTag -> LCI.Ident -> LCA.TypeName
+mkCompTagName tag idnam = (LCA.TyComp (LCA.CompTypeRef (LCI.NamedRef idnam) kind undefNode))
+    where kind = case tag of { LC.CStructTag -> LCA.StructTag; LC.CUnionTag -> LCA.UnionTag}
+
+mkEnumTagName :: LCI.Ident -> LCA.TypeName
+mkEnumTagName idnam = (LCA.TyEnum (LCA.EnumTypeRef (LCI.NamedRef idnam) undefNode))
 
 sign ss = if any isSigned ss then (Just $ Tsigned noOrigin)
                              else if any isUnsigned ss then (Just $ Tunsigned noOrigin)
@@ -290,6 +299,15 @@ isAtomic (LC.CAtomicType _ _)   = True
 isAtomic _   = False
 hasLongLong ss = (length (filter isLong ss)) > 1
 
+resolveTypedef :: LCA.Type -> LCA.Type
+resolveTypedef (LCA.TypeDefType (LCA.TypeDefRef _ t _) _ _) = resolveTypedef t
+resolveTypedef t = t
+
+isAggregate :: LCA.Type -> Bool
+isAggregate (LCA.DirectType (LCA.TyComp _) _ _) = True
+isAggregate (LCA.ArrayType _ _ _ _) = True
+isAggregate _ = False
+
 transDeclToType :: MonadTrav m => LC.CDecl -> m GCA.Type
 transDeclToType (LC.CDecl specs [((Just dclr@(LC.CDeclr _ _ _ cattrs ndeclr)),_,_)] n) = do
     checkDeclr "typename" dclr
@@ -322,11 +340,11 @@ transFunSpec (LC.CNoreturnQual n) =
 transStructUnion :: MonadTrav m => LC.CStructUnion -> m GCA.TypeSpec
 transStructUnion (LC.CStruct tag mid mcds cattrs n) = do
     cs <- mapM transAttr cattrs
-    mi <- mapM transIdent mid
+    mi <- mapM (transTagName . (mkCompTagName tag)) mid
     mds <- mapM (mapM transMemberDecl) mcds
     return $ case tag of 
-                        CStructTag -> GCA.Tstruct mi mds cs $ mkOrigin n
-                        CUnionTag -> GCA.Tunion mi mds cs $ mkOrigin n
+                        CStructTag -> GCA.Tstruct (mId mi mid) mds cs $ mkOrigin n
+                        CUnionTag -> GCA.Tunion (mId mi mid) mds cs $ mkOrigin n
 
 transEnum :: MonadTrav m => LC.CEnum -> m [GCA.CEnum]
 transEnum (LC.CEnum _ Nothing _ n) = return []
@@ -335,9 +353,8 @@ transEnum (LC.CEnum _ (Just vals) _ n) =
 
 transEnumerator :: MonadTrav m => (LC.Ident,Maybe LC.CExpr) -> m GCA.CEnum
 transEnumerator enm@(name, mexpr) = do
-    i <- transIdent name
     me <- mapM transExpr mexpr
-    return $ GCA.CEnum i me $ pairOrigin origin (maybeOrigin origin) enm
+    return $ GCA.CEnum (mkMapId mapNameToLower name) me $ pairOrigin origin (maybeOrigin origin) enm
 
 transDeclr :: MonadTrav m => LC.CDeclr -> m GCA.Decl
 transDeclr dclr@(LC.CDeclr _ derived_declrs _ _ n) = transDerivedDeclrs derived_declrs
@@ -391,16 +408,14 @@ transDesignator (LC.CArrDesig expr n) = do
     e <- transExpr expr
     return $ GCA.IndexDesignator e $ mkOrigin n
 transDesignator (LC.CMemberDesig ident n) = do
-    i <- transIdent ident
-    return $ GCA.MemberDesignator i $ mkOrigin n
+    return $ GCA.MemberDesignator (mkMapId mapIfUpper ident) $ mkOrigin n
 transDesignator (LC.CRangeDesig expr1 expr2 n) =
     error $ "Gencot unsupported C: CRangeDesig at " ++ show n
 
 transAttr :: MonadTrav m => LC.CAttr -> m GCA.Attr
 transAttr (LC.CAttr attrName attrParams n) = do
-    i <- transIdent attrName
     es <- mapM transExpr attrParams
-    return $ GCA.Attr i es $ mkOrigin n
+    return $ GCA.Attr (mkId attrName) es $ mkOrigin n
 
 transExpr :: MonadTrav m => LC.CExpr -> m GCA.Exp
 transExpr (LC.CComma [] n) = 
@@ -468,11 +483,11 @@ transExpr (LC.CCall expr args n) = do
     return $ GCA.FnCall e as $ mkOrigin n
 transExpr (LC.CMember expr ident isPtr n) = do
     e <- transExpr expr
-    i <- transIdent ident
     return $ (if isPtr then GCA.PtrMember else GCA.Member) e i $ mkOrigin n
+    where i = mkMapId mapIfUpper ident
 transExpr (LC.CVar ident n) = do
-    i <- transIdent ident
-    return $ GCA.Var i $ mkOrigin n
+    i <- transObjName ident
+    return $ GCA.Var (mkMapId (const i) ident) $ mkOrigin n
 transExpr (LC.CConst constant) = do
     c <- transConst constant
     return $ GCA.Const c noOrigin
@@ -481,7 +496,9 @@ transExpr (LC.CCompoundLit decl initl n) = do
     is <- mapM transDesig initl
     return $ GCA.CompoundLit d is $ mkOrigin n
 transExpr (LC.CStatExpr (LC.CCompound _{-localLabels-} blockitems nstat) nexpr) = do
+    LCA.enterBlockScope
     bis <- mapM transBlockItem blockitems
+    LCA.leaveBlockScope
     return $ GCA.StmExpr bis $ mkOrigin nexpr -- is GCA.StmExpr correct here?
 transExpr (LC.CStatExpr stat n) = do
     s <- transStat stat
@@ -595,5 +612,12 @@ transStrLit :: MonadTrav m => LC.CStrLit -> m GCA.StringLit
 transStrLit (LC.CStrLit (LC.CString str wd) n) = 
     return $ GCA.StringLit [prewd wd $ LC.showStringLit str ""] "" $ mkOrigin n
 
-transIdent :: MonadTrav m => LCI.Ident -> m GCA.Id
-transIdent (LCI.Ident name _ n) = return $ GCA.Id name $ mkOrigin n
+mkId :: LCI.Ident -> GCA.Id
+mkId = mkMapId identToString
+
+mkMapId :: (LCI.Ident -> String) -> LCI.Ident -> GCA.Id
+mkMapId f idnam = GCA.Id (f idnam) $ origin idnam
+
+mId :: (Maybe String) -> (Maybe LCI.Ident) -> (Maybe GCA.Id)
+mId ms mo = (liftA2 mkMapId (fmap const ms) mo)
+

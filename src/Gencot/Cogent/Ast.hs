@@ -15,16 +15,16 @@ data GenExpr = ConstExpr LQ.Exp
              | FunBody LQ.Stm deriving (Show)
 
 data GenToplv = GenToplv { 
-    orgOfTL :: Origin, 
-    toplOfGTL :: CS.TopLevel GenType GenIrrefPatn GenExpr 
+    toplOfGTL :: CS.TopLevel GenType GenIrrefPatn GenExpr,
+    orgOfTL :: Origin
     }  deriving (Show)
 data GenIrrefPatn = GenIrrefPatn { 
-    orgOfIP :: Origin, 
-    irpatnOfGIP :: CS.IrrefutablePattern VarName GenIrrefPatn 
+    irpatnOfGIP :: CS.IrrefutablePattern VarName GenIrrefPatn,
+    orgOfIP :: Origin
     } deriving (Show)
 data GenType = GenType { 
-    orgOfT :: Origin, 
-    typeOfGT :: CS.Type GenExpr GenType 
+    typeOfGT :: CS.Type GenExpr GenType,
+    orgOfT :: Origin
     } deriving (Show)
 {-
 type OStat = CStatement Origin

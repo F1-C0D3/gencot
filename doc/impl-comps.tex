@@ -1,0 +1,217 @@
+As described in Section~\ref{design-modular} there are several different Gencot components which process C code and generate 
+target code.
+
+\subsection{Filters for C Code Processing}
+\label{impl-comps-filters}
+
+All filters which parse and process C code are implemented in Haskell and read the
+C code as described in Section~\ref{impl-ccode-read}.
+
+The following filters always process the content of a single C source file and produce the content for a single 
+target file.
+\begin{description}
+\item[\code{gencot-translate}] translates a single file \code{x.c} or \code{x.h} to the Cogent code to be put in file
+\code{x-impl.cogent} or \code{x-types.cogent}. It processes typedefs, struct/union/enum definitions, and function
+definitions. 
+\item[\code{gencot-globals}] translates a single file \code{x.c} to the Cogent code to be put in file \code{x-globals.cogent}.
+It processes all global variable definitions.
+\item[\code{gencot-entries}] translates a single file \code{x.c} to the antiquoted C entry wrappers to be put in
+file \code{x-entry.ac}. It processes all function definitions with external linkage.
+\item[\code{gencot-abstypes}] translates a single file \code{x.c} or \code{x.h} to the C typedefs to be put in
+file \code{x-abstypes.c} or \code{x-abstypes.h}. It processes typedefs and struct/union/enum definitions.
+\item[\code{gencot-remfundef}] processes a single file \code{x.c} by removing all function definitions. The output
+is intended to be put in file \code{x-globals.c}
+\end{description}
+
+The filters \code{gencot-translate} and \code{gencot-abstypes} take the name of the original source file as additional
+argument, since they need it to generate Cogent names for C names with internal linkage and for tagless C struct/union
+types.
+
+There are other target files which are generated for the whole package. The filters for generating these target files 
+must always determine and process the external name references in a set of
+C source files. This set is the subset of C sources in the <package> which is translated to Cogent and together yields
+the Cogent compilation unit. There are different possible approaches how to read and process this set of source files.
+
+The first approach is to use a single file which includes all files in the set. This file is processed as usual by
+\code{gencot-include}, \code{gencot-remcomments}, and \code{gencot-rempp} which yields the union of all definitions
+and declarations in all files in the set as input to the language-c parser. However, this input may contain conflicting
+definitions. For an identifier with internal linkage different definitions may be present in different source files.
+Also for identifiers with no linkage different definitions may be present, if, e.g., different \code{.c} files define
+a type with the same name. The language-c parser ignores duplicate definitions for identifiers with internal linkage,
+however, it treats duplicate definitions for identifiers without linkage as a fatal error. Hence Gencot does not use
+this approach.
+
+The second approach ist to process every file in the set separately and merge the generated target code. However, for
+identifiers with external linkage (function definitions) the external references cannot be determined from the content
+of a single file. A non-local reference is only external if it is not defined in any of the files in the set. It would
+be possible to determine these external references in a separate processing step and using the result as additional input
+for the main processing step. Since this means to additionally implement reading and writing a list of external references,
+Gencot does not use this approach.
+
+The third approach is to parse and analyse the content of every file separately, then merge the resulting semantic maps
+discarding any duplicate definitions. This approach assumes that the external name references, which are relevant for
+processing, are uniquely defined in all source files. If this is not the case, because conflicting definitions are used
+inside the <package>, which are external to the processed file subset, this must be handled manually. Note that the
+external references must be determined before the maps are merged, since they may occur in conflicting definitions
+which are discarded during the merge. This approach is used by Gencot.
+
+Due to the approach used, the Gencot ``filters'' for generating the files common to the Cogent compilation unit are
+actually no filters, they take a list of file names as arguments and are called ``processors'' in the following.
+Like all other input to the language-c parser their
+content must have been processed by \code{gencot-include}, \code{gencot-remcomments}, and \code{gencot-rempp}.
+
+Usually it is sufficient to specify only \code{.c} files in the set, since the information about all referenced 
+identifiers must be provided in included \code{.h} files. However, for determining which references are external, the
+\code{.h} files are needed as well, to distinguish between definitions provided by them and definitions provided
+by other \code{.h} files not belonging to the set. The \code{.h} files need not be parsed, since their content is
+already parsed together with the content of the \code{.c} files, only their names must be known. Hence the Gencot
+processors distinguish the argument file names according to their file name extension: if the extension is 
+\code{.gencot} a preprocessed \code{.c} file is expected to be parsed and processed, if the extension is \code{.h}
+an original include file is expected and only its name is used for determining external name references.
+
+Gencot uses the following processors of this kind:
+\begin{description}
+\item[\code{gencot-exttypes}] generates the content to be put in the file \code{<package>-exttypes.cogent}. It 
+processes externally referenced typedefs, tag definitions and enum constant definitions.
+\item[\code{gencot-absext}] generates the content to be put in the file \code{<package>-exttypes.c}. It 
+processes externally referenced typedefs, tag definitions and enum constant definitions.
+\item[\code{gencot-exit}] generates the exit wrappers to be put in the file \code{<package>-exit.ac}. It processes
+the declarations of externally referenced functions.
+\item[\code{gencot-exitabs}] generates the abstract function definitions to be put in the file 
+\code{<package>-exit.cogent}. It processes the declarations of externally referenced functions.
+\item[\code{gencot-extincludes}] generates the list of include directives to be put in the file
+\code{<package>-extincludes.c}. It processes all external name references. 
+\end{description}
+
+Additionally, Gencot uses the following filter for removing repeated origin markers from the generated target code:
+\begin{description}
+\item[\code{gencot-reporigs}] postprocesses the origin markers generated by the other filters and processors.
+\end{description}
+
+\subsection{Main Translation to Cogent}
+\label{impl-comps-main}
+
+The main translation from C to Cogent is implemented by the filter \code{gencot-translate}. It translates \code{DeclEvent}s
+of the following kinds:
+\begin{itemize}
+\item struct/union definitions
+\item enum definitions with a tag
+\item enum constant definitions
+\item function definitions
+\item type definitions
+\end{itemize}
+The remaining global items are removed by the predicate passed to \code{Gencot.Input.getDeclEvents}: all declarations, 
+all object definitions, and all tagless enum definitions. No Cogent type name is generated for a tagless enum definition,
+references to it are always directly replaced by type \code{U32}.
+
+The translation of the \code{DeclEvent} sequence is implemented by the function
+\begin{verbatim}
+  transGlobals :: GlobalDecls -> [DeclEvent] -> [GenToplv]
+\end{verbatim}
+where the first argument is used for name mapping as described in Section~\ref{impl-ccode-names}.
+
+A struct/union/enum definition corresponds to a full specifier, as described in Section~\ref{design-decls-tags}.
+The language-c analyser already implements moving all full specifiers to separate global definitions and the
+sorting step done by \code{Gencot.Input.getDeclEvents} creates the desired ordering. Therefore, only the translation
+of the single struct/union/enum definitions has to be implemented by \code{gencot-translate}.
+
+A struct/union definition is translated to a Cogent type definition where the type name is constructed as described 
+in Section~\ref{design-names}. A struct is translated to a corresponding record type, a union is translated to an 
+abstract type, as described in Section~\ref{design-types}.
+In both cases the type name names the boxed type, i.e., it corresponds to the C type of a pointer to the struct/union.
+
+An enum definition with a tag is translated to a Cogent type definition where the type name is constructed as described 
+in Section~\ref{design-names}. The name is always defined for type \code{U32}, as described in Section~\ref{design-types}.
+
+An enum constant definition is translated to a Cogent constant definition where the name is constructed as described 
+in Section~\ref{design-names} and the type is always \code{U32}, as described in Section~\ref{design-types}.
+
+A function definition is translated to a Cogent function definition, as described in Section~\ref{design-fundefs}.
+
+A type definition is translated to a Cogent type definition as described in Section~\ref{design-decls-typedefs}.
+
+All these single translations are implemented by the function
+\begin{verbatim}
+  transGlobal :: GlobalDecls -> DeclEvent -> Origin -> GenToplv
+\end{verbatim}
+where the first argument is used for name mapping as described in Section~\ref{impl-ccode-names} and the third
+argument is the \code{Origin} to be used, with repeated markers removed as described in Section~\ref{impl-ccode-origin}.
+
+A type reference is translated by the function
+\begin{verbatim}
+  transType :: GlobalDecls -> Type -> NodeInfo -> GenType 
+\end{verbatim}
+where the first argument is used for name mapping and the third argument is the original origin information of
+the C construct which has the type reference as a subpart. It is used for suppressing repeated origin markers
+as described in Section~\ref{impl-ccode-origin}.
+
+A type reference may be a direct type, a derived type, or a typedef name. For every typedef name a Cogent type
+name is defined, as described in Sections~\ref{design-names} and~\ref{design-modular}. A direct type is either
+the type \code{void}, a primitive C type, which is mapped to the name of a primitive Cogent type, or it is a 
+struct/union/enum type reference for which Gencot also introduces a Cogent type name or maps it to the 
+primitive Cogent type \code{U32} (tagless enums). Hence, both direct types and typedef names can always be mapped
+to Cogent type names, with the exception of type \code{void}, which is mapped to the Cogent unit type \code{()}.
+
+If a typedef name references (directly or indirectly) a struct or union type, the corresponding Cogent
+type name references the boxed type. Therefore, it must be modified by applying the unbox operator. If a typedef
+name references a primitive type, this is not necessary, since the corresponding Cogent type is always regular.
+However, the abstract Cogent surface syntax always associates a ``sigil'' with a type name. Unnecessary
+unbox operators are automatically suppressed by the Cogent prettyprint function. Therefore Gencot always 
+associates an unbox sigil with the Cogent type name if it corresponds to a direct type or a typedef name
+referencing a direct type.
+
+A derived type is either a pointer type, an array type, or a function type. It is derived from a base type
+which in case of a function type is the type of the function result. The base type may again be a derived
+type, ultimately it is a direct type or a typedef name.
+
+For a pointer type the translation depends on the base type. If it is a struct or union type or a typedef
+name referencing a struct or union type, the pointer type is translated to the Cogent type name corresponding
+to the base type. If it is a function type or a typedef name referencing a function type, the pointer type 
+is translated to the translation of the base type. In all other cases, as described in Section~\ref{design-types}, 
+the pointer type is translated to the name of an abstract type, which is introduced as described in 
+Section~\ref{design-names}, using a name for the base type. 
+
+For an array type, the translation also depends on the base type. If it is type \code{char}, the array 
+type is translated to the primitive Cogent type \code{String}. In all other cases it is translated 
+to the name of an abstract type, which is introduced as described in Section~\ref{design-names}, 
+using a name for the base type. This is even done if the base type is a typedef name which references
+type char, since Gencot assumes that in this case it is intended as a ``real'' array type and not
+as a string type.
+
+If an array type occurs as type of a function parameter, it is ``adjusted'' by C to a pointer type with
+the same base type. This is also done by Gencot. 
+
+A function type is always translated to the corresponding Cogent function type, where a tuple type is
+used as parameter type if there is more than one parameter, and the unit type is used if there is
+no parameter. 
+
+If a pointer type or array type is translated to the name of an abstract type, a name is required for
+the base type. If the base type is a direct type or a typedef name, a Cogent type name always exists 
+and is used. The only exception is type \code{void}, here the name \code{Void} is used.
+If the base type is a derived type, a name is constructed for it as described in Section~\ref{design-names},
+even if the base type would normally be mapped to a type expression (which is the case for a function type)
+or to its own base type (which is the case for pointer types to struct/union and function types). If the
+base type is array of char, the name \code{String} is used for it. 
+
+Note that for most cases where a typedef name occurs as reference or base type, it must be resolved to
+the ultimate direct type or derived type referenced by it. This is implemented by the function
+\begin{verbatim}
+  resolveTypeDef :: TypeDefRef -> Type 
+\end{verbatim}
+The \code{GlobalDecls} map is not required here, since the language-c analyser puts the (directly) 
+referenced type in the \code{TypeDefRef}. 
+
+For a qualified C type Gencot only respects the \code{const} qualifier. For a direct type the \code{const}
+qualifier is ignored, since in Cogent values of unboxed and regular types are always immutable. For
+a function type the qualifier is also ignored since function types are regular in Cogent. For an array
+of char it is ignored since it is translated to type \code{String} which is regular.
+
+All other array types and all pointer types are translated to linear types which can be mutable in
+Cogent. Whenever the C type contains no mutable pointer types, it is translated to a readonly Cogent type by 
+applying a bang operator to it.
+
+An array type contains mutable pointers if its base type does so. A function type never contains mutable pointers.
+A pointer type contains mutable pointers if its base type is not \code{const} qualified or contains mutable pointers.
+A primitive type and an enum type does not contain mutable pointers. A struct or union type contains mutable 
+pointers, if the type of a member contains mutable pointers.
+

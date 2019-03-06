@@ -1,26 +1,30 @@
 #! /bin/csh
 
-../../bin/gencot-include src:include test.c < src/test.c > test-impl.gi
-../../bin/gencot-remcomments < test-impl.gi > test-impl.remc
+set s = test
+set t = ${s}-$1
+set G = ../../bin
+set GS = ../../src
+set M = src
 
-../../bin/gencot-selpp < test-impl.remc > test-impl.pps
-../../bin/gencot-selppconst test.selppconsts < test-impl.pps > test-impl.ppconsts
-../../bin/gencot-gendummydecls < test-impl.ppconsts > test-impl.dummydecls
+cat $s.addincl $M/$s.c | $G/gencot-include ${M}:include $s.c  > $t.gi
+$G/gencot-remcomments < $t.gi > $t.remc
 
-../../bin/gencot-rempp test.rempp-pat < test-impl.remc > test-impl.remp
-../../bin/gencot-cpp test-impl.dummydecls < test-impl.remp > test-impl.in
-../../src/gencot-translate test.c < test-impl.in > test-impl.out
-../../bin/gencot-reporigs < test-impl.out > test-impl.op
+$G/gencot-selpp < $t.remc > $t.pps
+$G/gencot-selppconst $s.selppconsts < $t.pps > $t.ppconsts
+$G/gencot-gendummydecls < $t.ppconsts > $t.dummydecls
 
-../../bin/gencot-preppconst test.omitconst < test-impl.pps > test-impl.preppconst
-../../bin/gencot-prcppconst < test-impl.preppconst > test-impl.prcppconst
-../../bin/gencot-mrgpp test-impl.prcppconst < test-impl.op > test-impl.ppconst
+$G/gencot-rempp $s.rempp-pat < $t.remc > $t.remp
+$G/gencot-chsystem $s.chsystem < $t.remp | $G/gencot-cpp $t.dummydecls > $t.in
+$GS/gencot-translate $s.c < $t.in > $t.out
+$G/gencot-reporigs < $t.out > $t.op
 
-../../bin/gencot-remcomments < src/test.c > test-impl.remcf
-../../bin/gencot-selpp < test-impl.remcf | ../../bin/gencot-unline > test-impl.ppsf
-../../bin/gencot-mrgppcond test-impl.ppsf < test-impl.ppconst > test-impl.ppcond
+$G/gencot-preppconst $s.omitconst < $t.pps > $t.preppconst
+$G/gencot-prcppconst < $t.preppconst > $t.prcppconst
+$G/gencot-mrgpp $t.prcppconst < $t.op > $t.ppconst
 
-../../bin/gencot-selcomments < src/test.c > test-impl.comm
-../../bin/gencot-mrgcomments test-impl.comm < test-impl.ppcond > test-impl.cogent
+$G/gencot-remcomments < $M/$s.c > $t.remcf
+$G/gencot-selpp < $t.remcf | $G/gencot-unline > $t.ppsf
+$G/gencot-mrgppcond $t.ppsf < $t.ppconst > $t.ppcond
 
-
+$G/gencot-selcomments < $M/$s.c > $t.comm
+$G/gencot-mrgcomments $t.comm < $t.ppcond > $t.cogent

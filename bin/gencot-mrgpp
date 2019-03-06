@@ -32,7 +32,7 @@ awk \
 { if ($1 == "#ORIGIN") { \
     while (origin[mrg] && (strtonum(origin[mrg]) < $2)) { \
       if (prevEndorig) { print ""; prevEndorig = 0 } \
-      printf content[mrg++] \
+      printf "%s", content[mrg++] \
     } \
   } \
   if (notfirst) print buf \
@@ -42,7 +42,7 @@ awk \
 END { \
   if (notfirst) print buf \
   if (match(buf,/#ENDORIG/)) print "" \
-  while (origin[mrg]) printf content[mrg++] \
+  while (origin[mrg]) printf "%s", content[mrg++] \
 }' $1
 
 # documentation:

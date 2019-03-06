@@ -1,27 +1,35 @@
 #! /bin/csh
 
-../../bin/gencot-selcomments < src/test.c > test-impl.comm
+set s = test
+set t = ${s}-$1
+set G = ../../bin
+set GS = ../../src
+set M = src
 
-../../bin/gencot-include src:include test.c < src/test.c \
-  | ../../bin/gencot-remcomments > test-impl.remc
+$G/gencot-selcomments < $M/$s.c > $t.comm
 
-../../bin/gencot-selpp < test-impl.remc \
-  | ../../bin/gencot-selppconst test.selppconsts \
-  | ../../bin/gencot-gendummydecls > test-impl.dummydecls
+cat $s.addincl $M/$s.c
+  | $G/gencot-include ${M}:include $s.c \
+  | $G/gencot-remcomments > $t.remc
+
+$G/gencot-selpp < $t.remc \
+  | $G/gencot-selppconst $s.selppconsts \
+  | $G/gencot-gendummydecls > $t.dummydecls
   
-../../bin/gencot-selpp < test-impl.remc \
-  | ../../bin/gencot-preppconst test.omitconst \
-  | ../../bin/gencot-prcppconst > test-impl.prcppconst
+$G/gencot-selpp < $t.remc \
+  | $G/gencot-preppconst $s.omitconst \
+  | $G/gencot-prcppconst > $t.prcppconst
 
-../../bin/gencot-remcomments < src/test.c \
-  | ../../bin/gencot-selpp \
-  | ../../bin/gencot-unline > test-impl.ppsf
+$G/gencot-remcomments < $M/$s.c \
+  | $G/gencot-selpp \
+  | $G/gencot-unline > $t.ppsf
 
-../../bin/gencot-rempp test.rempp-pat < test-impl.remc \
-  | ../../bin/gencot-cpp test-impl.dummydecls \
-  | ../../src/gencot-translate test.c \
-  | ../../bin/gencot-reporigs \
-  | ../../bin/gencot-mrgpp test-impl.prcppconst \
-  | ../../bin/gencot-mrgppcond test-impl.ppsf \
-  | ../../bin/gencot-mrgcomments test-impl.comm > test-impl.cogent
+$G/gencot-rempp $s.rempp-pat < $t.remc \
+  | $G/gencot-chsystem $s.chsystem \
+  | $G/gencot-cpp $t.dummydecls \
+  | $GS/gencot-translate $s.c \
+  | $G/gencot-reporigs \
+  | $G/gencot-mrgpp $t.prcppconst \
+  | $G/gencot-mrgppcond $t.ppsf \
+  | $G/gencot-mrgcomments $t.comm > $t.cogent
 

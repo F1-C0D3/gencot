@@ -1,0 +1,77 @@
+#! /bin/csh -f
+
+# Change system definitions by inserting content after the last system include.
+# This is a filter from stdin to stdout with an additional filename argument.
+
+if ( $#argv != 1) then
+  echo "Error: Single file name expected as argument."
+  exit 0
+endif
+
+awk \
+'BEGIN { \
+   cfile = ARGV[1]; delete ARGV[1] \
+   while ((getline cline < cfile) > 0) { \
+     cont = cont cline "\n" \
+   } \
+ } \
+ { if ($1 == "#") { \
+     if ($3 == "\"<stdin>\"") { \
+       lnr = $2 - 1 \
+       forgn = 0 \
+     } \
+     else forgn = 1 \
+     buf = buf $0 "\n" \
+   } \
+   else { \
+     if (!(forgn)) lnr++ \
+     if ($1 == "#include" && $2 ~ /^</) { \
+       sysinc = 1 \
+       printf "%s", buf \
+       buf = "" \
+       print \
+       if (forgn) inclnr = 0 \
+       else inclnr = lnr+1 \
+     } \
+     else buf = buf $0 "\n" \
+   } \
+ } \
+ END { \
+   if (sysinc) { \
+     if (inclnr) print "# 1 \"<chsystem>\" 1" \
+     printf "%s", cont \
+     if (inclnr) print "# " inclnr " \"<stdin>\" 2" \
+   } \
+   printf "%s", buf \
+ }' $1
+
+# documentation:
+# 
+# The content of the argument file is inserted immediately after the last system include.
+#
+# All lines are buffered in buf. When a system include is found the buffer is flushed and 
+# the system include is output. In the END rule, if there was a system include, the content
+# of the argument file is output, then the buffer is flushed.
+# 
+# The inserted content must not change line numbers in the part belonging to file "<stdin>".
+# This is achieved by inserting line directives as if the content came from an included file,
+# if the content is inserted in that part.
+# To create the line directive after the included content correctly all line directives must 
+# be read and interpreted. 
+# 
+# Implementation in awk:
+# - The filename argument for the content file must be copied and removed from the argument list ARGV
+#   to prevent its processing as normal input to awk. The content file is explicitly read by getline
+#   into the string variable cont.
+# - We assume that include directives have been normalized and can be detected by $1 being
+#   "#include". System includes can be detected by $2 starting with "<".
+# - The boolean variable sysinc is used to remember whether a system include was present.
+# - In cont and buf every line has a trailing newline. Printing them by printf will not add additional
+#   newlines.
+# - We assume that line directives have been normalized and can be detected by $1 being "#".
+# - Lines from "<stdin>" are counted in lnr, its value is the number of lines already output.
+# - forgn is a boolean variable which tells whether the next line is from an included file, if it is
+#   not a line directive.
+# - The line number after the last system include is stored in inclnr, if it is in "<stdin>". Otherwise
+#   inclnr is 0.
+

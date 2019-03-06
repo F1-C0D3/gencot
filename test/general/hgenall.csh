@@ -1,26 +1,30 @@
 #! /bin/csh
 
-../../bin/gencot-include include src/test.h < src/test.h > test-types.gi
-../../bin/gencot-remcomments < test-types.gi > test-types.remc
+set s = test
+set t = ${s}-$1
+set G = ../../bin
+set GS = ../../src
+set M = src
 
-../../bin/gencot-selpp < test-types.remc > test-types.pps
-../../bin/gencot-selppconst test.selppconsts < test-types.pps > test-types.ppconsts
-../../bin/gencot-gendummydecls < test-types.ppconsts > test-types.dummydecls
+cat $s.addincl $M/$s.h | $G/gencot-include include $M/$s.h  > $t.gi
+$G/gencot-remcomments < $t.gi > $t.remc
 
-../../bin/gencot-rempp test.rempp-pat < test-types.remc > test-types.remp
-../../bin/gencot-cpp test-types.dummydecls < test-types.remp > test-types.in
-../../src/gencot-translate test.h < test-types.in > test-types.out
-../../bin/gencot-reporigs < test-types.out > test-types.op
+$G/gencot-selpp < $t.remc > $t.pps
+$G/gencot-selppconst $s.selppconsts < $t.pps > $t.ppconsts
+$G/gencot-gendummydecls < $t.ppconsts > $t.dummydecls
 
-../../bin/gencot-preppconst test.omitconst < test-types.pps > test-types.preppconst
-../../bin/gencot-prcppconst < test-types.preppconst > test-types.prcppconst
-../../bin/gencot-mrgpp test-types.prcppconst < test-types.op > test-types.ppconst
+$G/gencot-rempp $s.rempp-pat < $t.remc > $t.remp
+$G/gencot-chsystem $s.chsystem < $t.remp | $G/gencot-cpp $t.dummydecls > $t.in
+$GS/gencot-translate $s.h < $t.in > $t.out
+$G/gencot-reporigs < $t.out > $t.op
 
-../../bin/gencot-remcomments < src/test.h > test-types.remcf
-../../bin/gencot-selpp < test-types.remcf | ../../bin/gencot-unline > test-types.ppsf
-../../bin/gencot-mrgppcond test-types.ppsf < test-types.ppconst > test-types.ppcond
+$G/gencot-preppconst $s.omitconst < $t.pps > $t.preppconst
+$G/gencot-prcppconst < $t.preppconst > $t.prcppconst
+$G/gencot-mrgpp $t.prcppconst < $t.op > $t.ppconst
 
-../../bin/gencot-selcomments < src/test.h > test-types.comm
-../../bin/gencot-mrgcomments test-types.comm < test-types.ppcond > test-types.cogent
+$G/gencot-remcomments < $M/$s.h > $t.remcf
+$G/gencot-selpp < $t.remcf | $G/gencot-unline > $t.ppsf
+$G/gencot-mrgppcond $t.ppsf < $t.ppconst > $t.ppcond
 
-
+$G/gencot-selcomments < $M/$s.h > $t.comm
+$G/gencot-mrgcomments $t.comm < $t.ppcond > $t.cogent

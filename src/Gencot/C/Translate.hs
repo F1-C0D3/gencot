@@ -48,7 +48,8 @@ transFunDef (LC.CFunDef declspecs dclr _{-old parms-} stat ndef) = do
     fnam <- srcFileName ndef
     rd <- transDerivedDeclrs resdclrs
     ps <- transParams fdclr
-    (GCA.Block bis _) <- transStat stat
+    ms <- transStat stat
+    let (GCA.Block bis _) = ms
     return $ GCA.Func ds (mkMapId (const $ mapObjectName name lnk fnam) name) rd ps bis $ mkOrigin ndef
     where LC.CDeclr (Just name) (fdclr:resdclrs) asmname cattrs ndec = dclr
           lnk = if any isIntern declspecs then LCA.InternalLinkage else LCA.ExternalLinkage

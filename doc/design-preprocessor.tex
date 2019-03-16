@@ -61,7 +61,7 @@ of conditional directives. In both cases the reference may be external in the se
 
 For such external references the definition must be made available in the Cogent compilation unit. Since
 the references shall be processed by the Cogent preprocessor this cannot be done by including the origin
-files using Cogent include statements, since the origin files normally also contain C code. Instead,
+files in the Cogent source files, since the origin files normally also contain C code. Instead,
 Gencot generates define directives for all such references in the file \code{<package>-exttypes.cogent}.
 
 To avoid introducing additional external references, in the macro substitution text all macro names are resolved to
@@ -151,12 +151,12 @@ includes is always fully contained in the file \code{<package>-exttypes.cogent}.
 \subsubsection{Translating Quoted Include Directives}
 
 Quoted include directives for a file \code{x.h} which belongs to the Cogent compilation unit are always translated 
-to the corresponding Cogent language include statement
+to the corresponding Cogent preprocessor include directive
 \begin{verbatim}
-  include "x-types.h"
+  #include "x-types.h"
 \end{verbatim}
-If the original include directive occurs in file \code{y.c} the translated statement is put into the file 
-\code{y-impl.cogent}. If the original include directive occurs in file \code{y.h} the translated statement is put into the file
+If the original include directive occurs in file \code{y.c} the translated directive is put into the file 
+\code{y-impl.cogent}. If the original include directive occurs in file \code{y.h} the translated directive is put into the file
 \code{y-types.h}. 
 
 Otherwise the quoted include includes an external file and is discarded in the Cogent source file for the same reason

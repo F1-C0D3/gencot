@@ -6,8 +6,12 @@ the C program at the level of Cogent source files.
 
 Note, that there are four kinds of include statements available in Cogent source files. One is the \code{include} statement which
 is part of the Cogent language. When it is used to include the same file several times in the same Cogent compilation unit,
-the file content is automatically inserted only once. The second kind is the Cogent preprocessor \code{\#include} directive, 
-it seems obsolete since it can be replaced by the Cogent language \code{include} statement.
+the file content is automatically inserted only once. However, the Cogent preprocessor is executed separately for every file included 
+with this \code{include} statement, thus preprocessor macros defined in an included file are not available in all other files. For 
+this reason it cannot be used to reflect the file structure of a C program.
+
+The second kind is the Cogent preprocessor \code{\#include} directive, it works like the C preprocessor \code{\#include} directive
+and is used by Gencot to integrate the separate Cogent source files. 
 The third kind is the preprocessor \code{\#include} directive 
 which can be used in antiquoted Cogent files where the Cogent \code{include} statement is not available. This is only possible 
 if the included content is also an antiquoted Cogent file. The fourth kind
@@ -34,8 +38,8 @@ is statically before or after this place.
 Therefore we map every C source file \code{x.c} to a Cogent source file \code{x-impl.cogent} containing definitions of the same 
 functions. We map every C include file \code{x.h} to a Cogent source file \code{x-types.cogent} 
 containing the corresponding constant and type definitions, but omitting any function declarations. The include relations among 
-\code{.c} and \code{.h} files are directly transferred to \code{-impl.cogent} and \code{-types.cogent} using the Cogent include
-statement. 
+\code{.c} and \code{.h} files are directly transferred to \code{-impl.cogent} and \code{-types.cogent} using the Cogent preprocessor 
+\code{\#include} directive. 
 
 Although it is named \code{x-types.cogent}, the file also contains Cogent value definitions generated from C preprocessor
 constant definitions and from enumeration constants (see below). It would be possible to put the value definitions in a 
@@ -47,7 +51,7 @@ This file mapping implies that for every translated \code{.c} file all directly 
 translated as well.
 Alternatively, instead of using a Cogent type definition for every C type in an included \code{.h} file, a Cogent abstract type
 can be used. In this way further included \code{.h} files may become unnecessary and need not be translated. However, this
-must be decided and realized manually. Gencot always generates default Cogent type definitions and the include statements for all
+must be decided and realized manually. Gencot always generates default Cogent type definitions and the include directives for all
 \code{-types.cogent} files.
 
 \subsubsection{External Name References}

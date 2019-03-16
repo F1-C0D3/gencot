@@ -56,7 +56,8 @@ transTagName (LCA.TyEnum (LCA.EnumTypeRef (LCI.NamedRef idnam) _)) =
 
 transObjName :: LCI.Ident -> FTrav CCS.VarName
 transObjName idnam = do
-    (Just decdef) <- LCA.lookupObject idnam
+    mdecdef <- LCA.lookupObject idnam
+    let (Just decdef) = mdecdef
     fnam <- srcFileName decdef
     let lnk = LCA.declLinkage decdef
     return $ case decdef of

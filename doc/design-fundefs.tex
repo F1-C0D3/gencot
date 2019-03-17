@@ -54,11 +54,18 @@ Cogent compiler. Therefore it is wrapped as a Cogent comment by adding a \code{-
 opening brace and before the closing brace.
 
 To yield a correct Cogent function, a dummy result expression is generated. Gencot generates the expression
-depending on the result type, as described in Section~\ref{design-types}.
+depending on the result type, as described in Section~\ref{design-types}. 
+
+The dummy result expression always ignores all parameter values. This will cause an error message by the
+Cogent compiler if any parameter type is linear, since then the parameter may not be discarded. Therefore
+Gencot always makes all parameter types readonly by applying the bang operator to the parameter type
+(which may be the tuple type of all parameter types if the C function has more than one parameter). If 
+not all parameters are in fact read only, this must be corrected when the function body is translated
+manually.
 
 The generated Cogent function definition has the form
 \begin{verbatim}
-<name> :: (<ptype1>, ..., <ptypen>) -> <restype>
+<name> :: (<ptype1>, ..., <ptypen>)! -> <restype>
 <name> (<pname1>, ..., <pnamen>) = <dummy result>
 {- <compound statement> -}
 \end{verbatim}

@@ -7,11 +7,12 @@ import Cogent.Common.Syntax (VarName)
 import Cogent.Common.Types (Sigil(Unboxed),readonly)
 import Cogent.PrettyPrint
 
+import Prelude hiding ((<$>))
 import Text.PrettyPrint.ANSI.Leijen
 
 import Gencot.Origin (Origin(..),fstLine,lstLine)
 import Gencot.Cogent.Ast
-import qualified Gencot.C.Output as GCO
+import Gencot.C.Output (pprCommented)
 
 import Text.PrettyPrint.Mainland.Class (ppr)
 import qualified Text.PrettyPrint.Mainland as TPM (pretty,Doc,string,line,nest,text,indent)
@@ -72,5 +73,5 @@ instance PatnType GenIrrefPatn where
 
 instance Pretty GenExpr where
   pretty (ConstExpr e) = (string . (TPM.pretty 2000) . ppr) e
-  pretty (FunBody s) = {-hardline <>-} (string . (TPM.pretty 2000) . ppr) s
+  pretty (FunBody d s) = (pretty d) <$> ((string . (TPM.pretty 2000) . pprCommented) s)
 

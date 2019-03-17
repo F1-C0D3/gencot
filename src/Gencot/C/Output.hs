@@ -25,6 +25,28 @@ addOrig (Origin sn en) doc =
           cont ons line = (int . line . fst . head) ons <> text (if snd $ head ons then " +" else "")
           hardline = nesting (\i -> text ("\n" ++ replicate i ' '))
 
+pprCommented :: Stm -> Doc
+pprCommented (Block items orig) =
+    addOrig orig $
+    emcomment $ loop items
+    where
+        emcomment [] = lbrace <> char '-' <+> char '-' <> rbrace
+        emcomment ds = lbrace <> char '-' <>
+             nest 4 (line <> stack ds) </>
+             char '-' <> rbrace
+        loop :: [BlockItem] -> [Doc]
+        loop [] =
+            []
+        loop [item] =
+            [ppr item]
+        loop (item1@(BlockDecl _) : item2@(BlockStm _) : items) =
+            (ppr item1 <> line) : loop (item2 : items)
+        loop (item1@(BlockStm _) : item2@(BlockDecl _) : items) =
+            (ppr item1 <> line) : loop (item2 : items)
+        loop (item : items) =
+            ppr item : loop items
+pprCommented s = lbrace <> char '-' <+> ppr s <+> char '-' <> rbrace
+
 nst = nest 2
 
 nparens :: Doc -> Doc

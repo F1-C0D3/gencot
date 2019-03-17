@@ -14,6 +14,7 @@ import Language.C.Syntax.AST as LCS
 import Cogent.Surface as CS
 import Cogent.Common.Syntax as CCS
 import Cogent.Common.Types as CCT
+import Cogent.Util (ffmap)
 
 import Gencot.Origin (Origin,noOrigin,origin,mkOrigin,noComOrigin)
 import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapNameToLower)
@@ -43,10 +44,11 @@ transGlobal (LCA.DeclEvent (LCA.FunctionDef (LCA.FunDef decl@(LCA.VarDecl (LCA.V
     ps <- transParamNames (if isVar then [] else pars)
     LCA.enterFunctionScope
     LCA.defineParams undefNode decl
+    d <- dummyExpr res
     s <- transStat stat
     LCA.leaveFunctionScope
-    return $ GenToplv (CS.FunDef f (CS.PT [] t) [CS.Alt ps CCS.Regular $ FunBody s]) $ mkOrigin n
-    where (LCA.FunctionType (LCA.FunType _ pars isVar) _) = typ
+    return $ GenToplv (CS.FunDef f (CS.PT [] $ makeParReadOnly t) [CS.Alt ps CCS.Regular $ FunBody d s]) $ mkOrigin n
+    where (LCA.FunctionType (LCA.FunType res pars isVar) _) = typ
 transGlobal (LCA.DeclEvent (LCA.EnumeratorDef (LCA.Enumerator idnam expr _ n))) = do
     e <- transExpr expr
     return $ GenToplv (CS.ConstDef en (genType $ CS.TCon "U32" [] markUnbox) $ ConstExpr e) $ mkOrigin n
@@ -56,6 +58,9 @@ transGlobal (LCA.TypeDefEvent (LCA.TypeDef idnam typ _ n)) = do
     return $ GenToplv (CS.TypeDec tn [] t) $ mkOrigin n
     where tn = mapNameToUpper idnam
 transGlobal _ = return $ GenToplv (CS.Include "err-unexpected toplevel") noOrigin
+
+makeParReadOnly (GenType (CS.TFun pt rt) o) = GenType (CS.TFun (genType $ CS.TBang pt) rt) o
+makeParReadOnly t = t
 
 aggBitfields :: [LCA.MemberDecl] -> [LCA.MemberDecl]
 aggBitfields ms = foldl accu [] ms
@@ -168,6 +173,50 @@ transParamType pd = do
     return $ GenType (typeOfGT t) $ origin pd
     where (LCA.VarDecl _ _ ptyp) = getVarDecl pd
 
+dummyExpr :: LCA.Type -> FTrav RawExpr
+dummyExpr (LCA.DirectType TyVoid _ _) = 
+    return $ CS.RE CS.Unitel
+dummyExpr (LCA.DirectType tnam@(LCA.TyComp _) _ _) = do
+    t <- transTagName tnam
+    return $ dummyApp ("dummy_Unbox_" ++ t)
+dummyExpr (LCA.DirectType tnam _ _) = do
+    return $ CS.RE $ CS.IntLit 0
+dummyExpr (LCA.PtrType (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _) _ _) | isAggregate $ resolveTypedef typ = do
+    return $ dummyApp ("dummy_" ++ (mapNameToUpper idnam))
+dummyExpr (LCA.PtrType (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _) _ _) | isFunction $ resolveTypedef typ = do
+    return $ dummyApp ("dummy_" ++ (mapNameToUpper idnam))
+dummyExpr (LCA.PtrType t _ _) | isFunction $ resolveTypedef t = do
+    e <- dummyExpr ret
+    return $ CS.RE $ CS.Lam (CS.RIP CS.PUnderscore) Nothing e
+    where (LCA.FunctionType (LCA.FunType ret _ _) _) = resolveTypedef t
+dummyExpr (LCA.PtrType t _ _) | isArray $ resolveTypedef t = do
+    tp <- transType eltp
+    return $ dummyPolyApp "dummy_Array" tp
+    where (LCA.ArrayType eltp _ _ _) = resolveTypedef t
+dummyExpr (LCA.PtrType t _ _) | isAggregate $ resolveTypedef t = do
+    t <- transTagName tnam
+    return $ dummyApp ("dummy_" ++ t)
+    where (LCA.DirectType tnam@(LCA.TyComp _) _ _) = resolveTypedef t
+dummyExpr (LCA.PtrType t _ _) = do
+    tp <- transType t
+    return $ dummyPolyApp "dummy_Pointer" tp
+dummyExpr (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _) = return $
+    case rtyp of
+         (LCA.DirectType (LCA.TyComp _) _ _) -> dummyApp ("dummy_Unbox_" ++ (mapNameToUpper idnam))
+         (LCA.DirectType TyVoid _ _) -> CS.RE CS.Unitel
+         (LCA.DirectType _ _ _) -> CS.RE $ CS.IntLit 0
+         _ -> dummyApp ("dummy_" ++ (mapNameToUpper idnam))
+    where rtyp = resolveTypedef typ
+
+dummyAppExpr :: CS.RawExpr -> CS.RawExpr
+dummyAppExpr fun = CS.RE $ CS.App fun (CS.RE CS.Unitel) False
+
+dummyApp :: String -> CS.RawExpr
+dummyApp fnam = dummyAppExpr $ CS.RE $ CS.Var fnam
+
+dummyPolyApp :: String -> GenType -> CS.RawExpr
+dummyPolyApp fnam typ = dummyAppExpr $ CS.RE $ CS.TypeApp fnam [Just $ stripOrigT typ] NoInline
+
 isFunction :: LCA.Type -> Bool
 isFunction (LCA.FunctionType _ _) = True
 isFunction _ = False
@@ -189,3 +238,6 @@ markUnbox = CCT.Unboxed
 
 errType :: String -> FTrav GenType
 errType s = return $ genType $ CS.TCon ("err-" ++ s) [] markUnbox
+
+stripOrigT :: GenType -> RawType
+stripOrigT = RT . fmap stripOrigT . ffmap (const $ CS.RE CS.Unitel) . typeOfGT

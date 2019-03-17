@@ -49,20 +49,20 @@ Section~\ref{design-names} the C parameter names are only mapped if they are upp
 translated to Cogent unmodified. If they are mapped they are substituted in the body. Since it is very unusual
 to use uppercase parameter names in C, the Cogent function will normally use the original C parameter names.
 
+If the C function body is directly written into the Cogent source file, it cannot be syntax checked by the 
+Cogent compiler. Therefore it is wrapped as a Cogent comment by adding a \code{-} sign immediately after the
+opening brace and before the closing brace.
+
+To yield a correct Cogent function, a dummy result expression is generated. Gencot generates the expression
+depending on the result type, as described in Section~\ref{design-types}.
+
 The generated Cogent function definition has the form
 \begin{verbatim}
 <name> :: (<ptype1>, ..., <ptypen>) -> <restype>
-<name> (<pname1>, ..., <pnamen>) =
-<compound statement>
+<name> (<pname1>, ..., <pnamen>) = <dummy result>
+{- <compound statement> -}
 \end{verbatim}
 where the \code{<compound statement>} is plain C code with substituted names.
-
-Of course this code cannot be syntax checked by the Cogent compiler. 
-It would be possible to include the C function body in a comment to improve that. However, then
-still a dummy result expression would be needed for the Cogent function to be valid Cogent code.
-It is not trivial to generate that for arbitrary result types, hence Gencot does not try
-to separate the C code from the Cogent code other than putting it in a new line after the 
-Cogent function header.
 
 \subsection{Comments in Function Definitions}
 

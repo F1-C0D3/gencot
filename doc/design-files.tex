@@ -71,6 +71,18 @@ The exit wrappers for invoking C functions from Cogent are only created for the 
 external references in a processing step for the whole <package>. They are implemented in antiquoted Cogent
 and put in the file \code{<package>-exit.ac}.
 
+\subsubsection{Dummy Value Functions}
+
+Gencot does not translate C function bodies, instead, it uses a Cogent expression for a dummy result value 
+(see Section~\ref{design-fundefs}). For linear and abstract Cogent types these expressions are constructed with the
+help of abstract functions. All these abstract function definitions are put in the file \code{<package>-dummies.cogent}.
+
+Since the dummy result expressions are intended to be eliminated when the C bodies are manually translated, Gencot 
+does not generate corresponding C function definitions for them.
+
+Putting all abstract dummy function definitions in a single file provides an easy way to remove them from the 
+Cogent compilation unit when the manual translation has been completed and they are not needed any more.
+
 \subsubsection{Abstract Functions as Interface to C Functions}
 
 If a Cogent function in \code{x-impl.cogent} invokes a function which is externally referenced and not defined in another
@@ -187,6 +199,7 @@ For the Cogent compilation unit the following common files are used:
 \begin{description}
 \item[\code{<package>-exttypes.cogent}] Type and constant definitions for all external type and constant references.
 \item[\code{<package>-exit.cogent}] Abstract function definitions for all external function references.
+\item[\code{<package>-dummies.cogent}] Abstract function definitions for dummy result values.
 \item[\code{<package>-exit.ac}] Exit wrapper definitions for all external function references.
 \item[\code{<package>-exttypes.c}] C type definitions for abstract types defined in \code{<package>-exttypes.cogent}.
 \item[\code{<package>-extincludes.c}] Include directives for the origin files of all external references.
@@ -195,7 +208,8 @@ For the Cogent compilation unit the following common files are used:
 \subsubsection{Main Files}
 
 To put everything together we use the files \code{<package>.cogent} and \code{<package>.ac}. The former includes all 
-existing \code{x-impl.cogent} files and the files \code{<package>-exttypes.cogent} and \code{<package>-exit.cogent}.
+existing \code{x-impl.cogent} files and the files \code{<package>-exttypes.cogent}, \code{<package>-exit.cogent}, and
+\code{<package>-dummies.cogent}.
 It is the file processed by the Cogent compiler which translates it to files \code{<package>.c} 
 and \code{<package>.h} where \code{<package>.c} includes \code{<package>.h}. 
 

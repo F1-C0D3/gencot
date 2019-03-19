@@ -10,15 +10,15 @@ cat $s.addincl $M/$s.h | $G/gencot-include include $M/$s.h  > $t.gi
 $G/gencot-remcomments < $t.gi > $t.remc
 
 $G/gencot-selpp < $t.remc > $t.pps
-$G/gencot-selppconst $s.selppconsts < $t.pps > $t.ppconsts
+$G/gencot-selppconst $s.gencot-manmacros < $t.pps > $t.ppconsts
 $G/gencot-gendummydecls < $t.ppconsts > $t.dummydecls
 
-$G/gencot-rempp $s.rempp-pat < $t.remc > $t.remp
+$G/gencot-rempp $s.gencot-ppretain < $t.remc > $t.remp
 $G/gencot-chsystem $s.chsystem < $t.remp | $G/gencot-cpp $t.dummydecls > $t.in
 $GS/gencot-translate $s.h < $t.in > $t.out
 $G/gencot-reporigs < $t.out > $t.op
 
-$G/gencot-preppconst $s.omitconst < $t.pps > $t.preppconst
+$G/gencot-preppconst < $t.ppconsts > $t.preppconst
 $G/gencot-prcppconst < $t.preppconst > $t.prcppconst
 $G/gencot-mrgpp $t.prcppconst < $t.op > $t.ppconst
 

@@ -1,14 +1,7 @@
 #! /bin/csh -f
 
-# Select preprocessor constant definitions from normalized preprocessor directives
-# and substitute constant names in their replacement bodies.
-# This is a filter from stdin to stdout with an additional filename argument.
-# The argument file must contain a list of preprocessor constant names (one per line).
-
-if ( $#argv > 1) then
-  echo "Error: Only optional file name expected."
-  exit 0
-endif
+# Substitute constant names in constant replacement bodies.
+# This is a filter from stdin to stdout.
 
 awk \
 'function mapname(nam) { \
@@ -18,19 +11,12 @@ awk \
    return res \
 } \
 BEGIN { \
-   if (ARGC > 1) { \
-     rfile = ARGV[1]; delete ARGV[1] \
-     while ((getline cline < rfile) > 0) { \
-       omit[cline] = 1 \
-     } \
-     close(rfile) \
-   } \
    lnr = 0 \
    cont = 0 \
    print "# 1 \"<mappings>\"" \
  } \
  { lnr++ \
-   if ($1 == "#define" && !($2 ~ /\(/) && !(omit[$2]) && (NF > 2 || $0 ~ /\\$/)) { \
+   if ($1 == "#define") { \
      print "#define " $2 " " mapname($2) \
      if ($0 ~ /\\$/) cont = 1 \
      else cont = 0 \
@@ -49,30 +35,20 @@ BEGIN { \
 END { \
   lnrb = 0 \
   while (lnrb < lnr) print buf[++lnrb] \
-}' $1 | cpp -nostdinc
+}' | cpp -nostdinc
 
 # documentation:
 # 
-# A preprocessor constant definition is a parameterless macro definition with a nonempty replacement body.
-# Definitions are omitted if the macro name is listed in the argument file.
-#
 # The output contains the masked constant definitions with line directives specifying the origin file and the 
 # line offset in that file. Constant names in replacement bodies have been substituted by cpp.
 #
 # Implementation in awk:
 # - Function mapname maps a macro name to a Cogent variable name, always starting with a lowercase letter.
-# - In the BEGIN rule, if a file name is specified as argument, all lines from the file are read as 
-#   strings. For every such string the entry in the boolean array omit is set to 1.
-#   If no argument is specified or the file cannot be read the array omit has no entries.
 # - lnr is a variable for counting line numbers. These are actual line numbers in the input, line directives
 #   are not reflected. The variable is only used for indexing the buf array.
 # - cont is a boolean variable which tells whether the next line is a continuation line for the
 #   same directive. It is set according to whether there is a backslash at the end of the previous line.
 #   This is detected by matching the line with the regular expression /\\$/.
-# - Definitions to be processed are recognized as follows: The macro name in field $2 must not contain
-#   an opening parenthesis (otherwise the macro would have parameters), it must not be marked in the omit array,
-#   and either there must be additional fields in the same line or there must be at least one continuation line
-#   (nonempty replacement body).
 # - Line directives are recognized by the first field being "#". Since directives are normalized, in all
 #   other cases the directive keyword must be part of the first field.
 # - In the line rule two processing phases are combined. For every processed definition a mapping definition

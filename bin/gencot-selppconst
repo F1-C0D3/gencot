@@ -2,38 +2,34 @@
 
 # Select preprocessor constant definitions from normalized preprocessor directives, retaining their line positions.
 # This is a filter from stdin to stdout with an additional filename argument.
-# The argument file must contain a list of preprocessor constant names (one per line).
+# The argument file must contain a list of preprocessor macro names (one per line).
 
-if ( $#argv != 1) then
-  echo "Error: Single file name expected as argument."
+if ( $#argv > 1) then
+  echo "Error: Only optional file name expected as arguments."
   exit 0
 endif
 
 awk \
 'BEGIN { \
-   cfile = ARGV[1]; delete ARGV[1] \
-   while ((getline cline < cfile) > 0) { \
-     if (cline ~ /^[A-Za-z_].*/) { \
-       predef[cline] = 1 \
+   if (ARGC > 1) { \
+     rfile = ARGV[1]; delete ARGV[1] \
+     while ((getline cline < rfile) > 0) { \
+       omit[cline] = 1 \
      } \
+     close(rfile) \
    } \
-   close(cfile) \
  } \
-{ if ($0 ~ /^#define[[:blank:]]/) { \
-     if (NF == 3 && !($0 ~ /\([A-Za-z_]./) && ! ($0 ~ /\\$/)) { \
-       if (($3 ~ /^[A-Za-z_].*/) && resolve[$3] ) { \
-         subs = resolve[$3] \
-       } \
-       else subs = $3 \
-       if (subs ~ /^[\(]?[-]?[0-9].*[\)]?/) { \
-         print \
-         resolve[$2] = subs \
-       } \
-       else printf "\n" \
-     } \
-     else if (predef[$2]) print \
-     else printf "\n" \
+ { if ($1 == "#define" && !($2 ~ /\(/) && !(omit[$2]) && (NF > 2 || $0 ~ /\\$/)) { \
+     print \
+     if ($0 ~ /\\$/) cont = 1 \
+     else cont = 0 \
    } \
+   else if (cont) { \
+     print \
+     if ($0 ~ /\\$/) cont = 1 \
+     else cont = 0 \
+   } \
+   else if ($1 == "#") print \
    else printf "\n" \
  }' $1
 
@@ -41,9 +37,16 @@ awk \
 # 
 # A preprocessor constant definition has the form
 #   #define NNN XXX
-# where NNN and XXX do not contain a "(" followed by an identifier (i.e. NNN is a macro without parameters)
-# XXX does not contain any whitespace and there is no "\" at the end of XXX (no continuation lines).
+# where NNN does not contain a "(" (parameterless macro) and XXX is not empty.
+# Definitions where NNN is listed in the argument file are omitted.
 #
 # Implementation in awk:
-# - After matching a normalized directive, NNN and XXX are fields 2 and 3, respectively.
-#   Then it is tested for being a constant definition, otherwise an empty line is emitted.
+# - After matching a normalized directive, NNN is field 2 and XXX consists of the remaining fields.
+# - To test whether field 2 contains a parenthesis it is matched against the pattern /\(/.
+# - To test whether XXX is empty the number of fields NF is tested to be larger than 2.
+# - Alternatively XXX may be specified in continuation lines. Then the definition line ends with a backslash
+#   which is tested by matching the definition line against the pattern /\\$/. 
+# - The boolean variable cont is set when the current line ends with a backslash. If it is true
+#   for an input line that line is a continuation line of a constant definition and is output.
+# - Line directives begin with an isolated # sign, this is tested by comparing field 1 with "#".
+#   Line directives are copied to the output.

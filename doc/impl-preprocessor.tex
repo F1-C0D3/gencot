@@ -7,44 +7,83 @@ The filter \code{gencot-selpp} selects all preprocessor directives and
 copies them to the output without changes. All other lines are replaced by empty lines, so that the original
 line numbers for all directives can still be determined. 
 
+The filter \code{gencot-selppconst <file>} selects from the result of \code{gencot-selpp} all macro definitions
+which shall be processed as preprocessor defined constant. If \code{<file>} is specified it must 
+contain the Gencot manual macro list (see Section~\ref{design-preprocessor-macros}).
+
 The filter \code{gencot-rempp <file>} removes all preprocessor directives from its input, replacing them by empty
 lines. All other lines are copied to the output without modification. If \code{<file>} is specified it must 
-contain a list of regular expressions for directives which shall be retained.
+contain the Gencot directive retainment list (see Section~\ref{design-preprocessor-config}) of regular 
+expressions for directives which shall be retained.
 
 The filter \code{gencot-unline} is a utility filter. It expects line directives in its input. It removes all
 included content (detected by the file specification in the line directives) and expands line directives
 in the content from \code{<stdin>} to sequences of empty lines.
 
 How the directives are processed depends on the kind of directives (see Section~\ref{design-preprocessor}).
-Gencot provides the processing filters \code{gencot-prcppconst, gencot-prcppmacro, gencot-prcppincl}. 
-Conditional directives are not processed, they are inserted
-without changes. However, they are merged into the target code in a different way, therefore Gencot provides 
-the specific merging filter \code{gencot-mrgppcond <file>} for them. All other directives are merged into the 
+Gencot provides the processing filters \code{gencot-prcppflags}, \code{gencot-prcppconst} and \code{gencot-prcppincl}. 
+Conditional directives are not processed, they are inserted without changes. Other macro
+definitions are processed manually, the result is simply inserted in the target code. Flags are not translated,
+but they must be selected and Origin markers must be added.
+
+Conditional directives are merged into the target code in a different way, therefore Gencot provides 
+the specific merging filter \code{gencot-mrgppcond <file>} for them. It also separates the conditional
+directives from other directives and adds Origin markers. All other directives are merged into the 
 target code by filter \code{gencot-mrgpp <file>}. Both filters merge the content in \code{<file>} 
-into the input and write the merged code to the output. \code{<file>} must contain the directives to be merged.
+into the input and write the merged code to the output. \code{<file>} must contain the directives to be merged,
+for \code{gencot-mrgpp} they must have been marked with Origin markers.
 
 Constant definitions must be preprocessed to map constants names in the replacement bodies (see below). This
 is done by filter \code{gencot-preppconst}.
 
 \subsection{Separating Directives}
 
-Gencot supports to keep some directives in the output of \code{gencot-rempp} to handle cases where
-the C code of different groups in a section causes conflicts. These conditional directives are still selected
-by \code{gencot-selpp} and re-inserted by \code{gencot-mrgcond}. 
+The Gencot directive retainment list is used to retain some directives in the output of \code{gencot-rempp}.
+These directives are still selected by \code{gencot-selpp} and re-inserted by \code{gencot-mrgcond}, if they
+are not suppressed during directive processing. For conditional directives it is intended to always re-insert
+them. Preprocessor defined constants are never suppressed. Other macros can be suppressed by not specifying
+a manual macro definition translation.
 
 \subsubsection{Filter \code{gencot-selpp}}
 
 The filter for selecting preprocessor directives from the input for separate processing and insertion into
 the generated target code is implemented as an awk script.
 
-It detects all kinds of preprocessor directives, which always begin at the beginning of a separate line.
+It detects all kinds of preprocessor directives (including line directives), which always begin at the 
+beginning of a separate line.
 A directive always ends at the next newline which is not preceded by a backslash \code{\\}. All corresponding
 lines are copied to the output without modifications.
 
 Copied directives are normalized in the following sense: All whitespace before and after the leading hash
-sign are removed. This is done to simplify further directive processing.
+sign are removed (for line directives a single blank is retained after the hash sign). This is done to 
+simplify further directive processing.
 
 Every other input line is replaced by an empty line in the output.
+
+\subsubsection{Filter \code{gencot-selppconst}}
+
+The filter for selecting constant definitions is implemented as an awk script. It is intended to be applied 
+to the output of \code{gencot-selpp}, hence it expects normalized preprocessor directives in its input.
+
+Roughly, preprocessor constant definitions are macro definitions without macro parameters but with a 
+nonempty replacement body (i.e., not a flag). However, parameterless macros can be used for defining
+and inserting all other kinds of C code fragments, such as statements or declarations. So, not all
+parameterless macro definitions can be translated to Cogent value definitions.
+
+Parameterless macro definitions can be recognized syntactically, since for a macro with parameters 
+an opening parenthesis must follow the macro name without separating whitespace. 
+
+Parameterless macro definitions to be translated to Cogent value definitions can in general not be 
+recognized without parsing the replacement body as C code, and even that would not be safe since 
+it can consist of arbitrary fragments with other macro calls embedded. Hence Gencot supports the Gencot
+manual macro list (see Section~\ref{design-preprocessor-macros})
+for cases which cannot be recognized automatically. Since usually these complex cases
+are seldom, the Gencot manual macro list consists of a file specifying names of parameterless macros which
+should \textit{not} be processed as a preprocessor defined constant. The name of this file is 
+passed to the filter \code{gencot-selppconst} as an additional argument.
+
+The filter selects and transfers all constant definitions to its output without modifications. Line directives 
+are also transferred. All lines belonging to other directives are replaced by empty lines.
 
 \subsubsection{Filter \code{gencot-rempp}}
 
@@ -58,9 +97,9 @@ during code processing.
 preprocessor to make the corresponding information available during code processing. Since it is assumed that
 all quoted include directives have already been processed in an initial step, simply all include
 directives are retained.
-\item directives which match a regular expression from a specified list are not removed, they are intended
-to be interpreted by the language-c preprocessor to suppress information which causes conflicts during code
-processing.
+\item directives which match a regular expression from the Gencot directive retainment list are not removed, 
+they are intended to be interpreted by the language-c preprocessor to suppress information which causes 
+conflicts during code processing or for other reasons.
 \end{itemize}
 
 For conditional directives always all directives belonging to the same section are treated in the same way.
@@ -91,31 +130,15 @@ All content which does not origin in file \code{<stdin>} is removed together wit
 
 \subsubsection{Processing Constants Defined as Preprocessor Macros}
 
-Roughly, preprocessor constant definitions are macro definitions without macro parameters but with a 
-nonempty replacement body (i.e., not a flag). However, parameterless macros can be used for defining
-and inserting all other kinds of C code fragments, such as statements or declarations. So, not all
-parameterless macro definitions can be translated to Cogent value definitions.
-
-Parameterless macro definitions can be recognized syntactically, since for a macro with parameters 
-an opening parenthesis must follow the macro name without separating whitespace. 
-
-Parameterless macro definitions to be translated to Cogent value definitions can in general not be 
-recognized without parsing the replacement body as C code, and even that would not be safe since 
-it can consist of arbitrary fragments with other macro calls embedded. Hence Gencot supports a manual
-specification for cases which cannot be recognized automatically. Since usually these complex cases
-are seldom, the manual specification consists of a file specifying names of parameterless macros which
-should \textit{not} be translated to a Cogent value definition. The name of this file is passed to the filter
-\code{gencot-preppconst} as an additional argument.
-
 The replacement body of a preprocessor constant definition may reference the names of other preprocessor
 constant definitions. They must be replaced by the mapped Cogent name which corresponds to the name of
 the Cogent constant. In general, that would also require at least a lexical analysis of the replacement
 bodies to find the preprocessor constant names. Gencot uses a simpler approach and implements this as follows.
 
-A file is generated which contains for every preprocessor constant definition a preprocessor definition 
+A file is generated which contains for every preprocessor constant definition a macro definition 
 which maps the original name to the Cogent name. This file is prepended to the original file where all
 constant definitions are masked in a way that they are not recognized by the C preprocessor.
-The resulting file is processed by the C preprocessor, this will substitute all names in the replacement 
+The resulting file is processed by the C preprocessor, this will substitute all constant names in the replacement 
 bodies by their mapped form. Together, these steps are implemented by the preprocessing filter 
 \code{gencot-preppconst}.
 
@@ -129,13 +152,11 @@ filter \code{gencot-prcppconst} to translate the constant definitions to Cogent 
 
 \paragraph{Filter \code{gencot-preppconst}}
 
-The preprocessing filter is implemented as an awk script. It selects all parameterless macro definitions,
-omitting those where the name is listed in the argument file. To omit flags it only selects macro 
-definitions whith text after the macro name or with a continuation line. Gencot assumes, that continuation
-lines always contain a nonempty replacement body.
+The preprocessing filter is implemented as an awk script. It is intended to be applied to the result
+of \code{gencot-selppconst}. 
 
-The selected macro definitions are processed twice. In the first phase for every macro definition of the
-form
+The selected macro definitions in the input are processed twice. In the first phase for every macro 
+definition of the form
 \begin{verbatim}
   #define CONST1 replacement-body
 \end{verbatim}
@@ -198,7 +219,38 @@ Cogent value definitions are only generated from constant definitions belonging 
 Every generated Cogent value definition is wrapped in \code{\#ORIGIN} markers according to the line offset
 of the original constant definition in \code{<stdin>}.
 
+\subsubsection{Processing Flags}
+
+Processing flags consists only in selecting the flag definitions from all preprocessor directives and adding
+\code{\#ORIGIN} markers.
+
+A flag definition is a parameterless macro definition with an empty replacement text. The macro name must 
+be followed by optional whitespace and a newline which is not masked by a backslash. Thus every flag definition
+occupies exactly one line.
+
+The processing filter \code{gencot-prcppflags} is implemented as an awk script. It is intended to be applied 
+to the result
+of \code{gencot-selpp} after applying \code{gencot-unline}. The latter removes all directives not contained
+in the current source file and expands line directives. 
+
+The processing filter wraps every selected flag definition line in a pair of \code{\#ORIGIN} and \code{\#ENDORIG} 
+markers for the corresponding line number.
+
 \subsubsection{Processing Other Preprocessor Macros}
+
+All other preprocessor macros must be processed manually by providing a Gencot macro call conversion and a
+Gencot macro translation (see Section~\ref{design-preprocessor-macros}). Each is provided by a manually
+prepared file.
+
+The Gencot macro call conversion file is passed as additional input to the language-c preprocessor when
+processing the result of \code{gencot-rempp}. The preprocessor prepends the file to its main input thus 
+the contained macro definitions are applied to all macro calls for converting them to valid C syntax.
+
+The Gencot macro translation file is passed as <file> argument to a separate execution of \code{gencot-mrgpp}
+before the execution of \code{gencot-mrgppcond}. It must contain \code{\#ORIGIN} and \code{\#ENDORIG}
+markers which have been manually inserted according to the origin line range of the translated macro
+definition. Note that, although \code{gencot-mrgpp} only processes \code{\#ORIGIN} markers, the \code{\#ENDORIG}
+markers are required for subsequent steps such as inserting conditional directives and comments.
 
 \subsubsection{Processing Include Directives}
 
@@ -257,7 +309,7 @@ Due to the nesting structure, when newly active sections are pushed on the stack
 first directive, the stack reflects the section nesting and the sections will be inactivated in the reverse order and
 can be removed from the stack accordingly.
 
-If an \code{\#ORIGIN} marker idicates, that the next line belongs to a group \textit{before} the active group, the
+If an \code{\#ORIGIN} marker indicates, that the next line belongs to a group \textit{before} the active group, the
 steps described above imply that the current section is ended and restarted from the beginning.
 
 If the line before an inserted conditional directive contains an \code{\#ENDORIG} marker the newline after it belongs

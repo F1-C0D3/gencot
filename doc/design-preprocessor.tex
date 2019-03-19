@@ -22,10 +22,11 @@ as described in Section~\ref{design-const}.
 For comment processing every preprocessor directive is treated as an unstructured source code part.
 
 \subsection{Configurations}
+\label{design-preprocessor-config}
 
 Conditional directives are often used in C code to support different configurations of the code. Every configuration
-is defined by a combination of preprocessor definitions. Using conditional directives in the code, whenever the
-code is processed only the code for one configuration is selected by the preprocessor.
+is defined by a combination of preprocessor macro definitions. Using conditional directives in the code, whenever the
+code is processed, only the code for one configuration is selected by the preprocessor.
 
 In Gencot the idea is to process all configurations at the same time. This is done by removing the conditional 
 directives from the code, process the code, and re-insert the conditional directives into the generated Cogent code.
@@ -48,24 +49,11 @@ usually results in all branches being empty but the branches which correspond to
 Thus the branches in the results from separate processing of different configurations can easily be merged manually
 or with the help of tools like diff and patch.
 
-Keeping Conditional directives for certain configurations in the processed code makes only sense if the corresponding
-macro definitions which are tested in the directives are kept as well. Therefore also define directives can be
-kept. The approach in Gencot is to specify a list of regular expressions in the format used by awk. All directives
-which mach one of these regular expressions are kept in the code to be interpreted before processing the code.
-
-\subsection{External References}
-
-Preprocessor constant names and other macro names can be referenced in normal C code where they are substituted
-by the corresponding definition. Additionally, defined preprocessor names can be referenced in the conditions
-of conditional directives. In both cases the reference may be external in the sense of Section~\ref{design-modular-extref}.
-
-For such external references the definition must be made available in the Cogent compilation unit. Since
-the references shall be processed by the Cogent preprocessor this cannot be done by including the origin
-files in the Cogent source files, since the origin files normally also contain C code. Instead,
-Gencot generates define directives for all such references in the file \code{<package>-exttypes.cogent}.
-
-To avoid introducing additional external references, in the macro substitution text all macro names are resolved to
-existing external reference names or until they are fully resolved.
+Retaining Conditional directives for certain configurations in the processed code makes only sense if the corresponding
+macro definitions which are tested in the directives are retained as well. Therefore also define directives can be
+retained. The approach in Gencot is to specify a list of regular expressions in the format used by awk. All directives
+which match one of these regular expressions are retained in the code to be interpreted before processing the code.
+The list is called the ``Gencot directive retainment list'' and may be specified for every invocation of Gencot.
 
 \subsection{Conditional Directives}
 
@@ -115,24 +103,137 @@ For every directive inserted in the target code origin markers are added, so tha
 and after-unit will be transferred as well, if present.
 
 \subsection{Macro Definitions}
+\label{design-preprocessor-macros}
 
-Macro definitions are transferred literally, the intention is that they are used in a similar way in the Cogent code.
+Preprocessor macros are defined in a definition, which specifies the macro name and the replacement text. Optionally,
+a macro may have parameters. After the definition a macro can be used any number of times in ``macro calls''.
+A macro call for a parameterless macro has the form of a single identifier (the macro name). A macro call for
+a macro with parameters has the form of a C function call: the macro name is followed by actual parameter values
+in parenthesis separated by commas. However, the actual parameter values need not be C expressions, they can be 
+arbitrary text, thus the macro call need not be a syntactically correct C function call.
+
+Macro calls can occur in C code or in other preprocessor directives (macro definitions, conditional directives, 
+and include directives). All macro calls occuring in C code must result in valid C code after full expansion 
+by the preprocessor.
+
+\subsubsection{General Approach}
+
+Gencot tries to preserve macros in the translated target code instead of expanding them. In general this requires
+to implement two processing aspects: translating the macro definitions and translating the macro calls. Since Gencot
+processes the C code separately from the preprocessor directives, macro call processing can be further distinguished
+according to macro calls in C code and in preprocessor directives.
+
+Gencot processes the C code by parsing it with a C parser. This implies that macro calls in C code must correspond
+to valid C syntax, or they must be preprocessed to convert them to valid C syntax. Note that it is always possible
+to do so by fully expanding the macro definition, however, then the macro calls cannot be preserved.
+
+There are several special cases for the general approach of macro processing:
+\begin{itemize}
+\item if calls for a macro never occur in C code they need not be converted to valid C syntax and they need
+only be processed in preprocessor directives. This is typically the case for ``flags'', i.e., macros with
+an empty replacement text which are used as boolean flags in conditional directives.
+\item if for a parameterless macro all calls in C code occur at positions where an identifier is expected,
+the calls need not be converted to valid C syntax and can be processed in the C code. This approach applies
+to the ``preprocessor defined constants'' as described in Section~\ref{design-const}. 
+\item if for a macro with parameters all calls in C code are syntactically valid C function calls and
+always occur at positions where a C function call is expected, the calls need not be converted to valid C 
+syntax and can be processed in the C code.
+\item if a macro need not be preserved by Gencot, its calls can be converted to valid C code by fully expanding
+them. Then the calls are not present anymore and the calls and the definition need not be processed at all.
+This approach is used for conflicting configurations as described in Section~\ref{design-preprocessor-config}.
+\end{itemize}
+
+When Gencot preserves a macro, there are several ways how to translate the macro definition and the macro calls.
+An apparent way is to use again a macro in the target code. Then the macro definition is translated by translating
+the replacement text and optionally also the macro name. If the macro name is translated then also all macro calls
+must be translated, otherwise macro calls need only be translated if the macro has parameters and the actual 
+parameter values must be translated.
+
+How the macro replacement text is translated depends on the places where the macro is used. If it is only used 
+in preprocessor directives, usually no translation is required. If it is used in C code parts which are translated to
+Cogent code, the replacement text must also be translated to Cogent. If it is used in C function bodies it must
+be translated in the same way as C function bodies, i.e., only the identifiers must be mapped and calls of other
+macros must be processed.
+
+A macro may also be translated to a target code construct. Then the macro definition is typically translated to 
+a target code definition (such as a type definition or a function definition) and the macro calls are translated
+to usages of that definition. This approach is used for the ``preprocessor defined constants'' as described in 
+Section~\ref{design-const}: the macro definitions are translated to Cogent constant definitions and the macro 
+calls occurring in C code are translated to the corresponding Cogent constant names. Additionally, the original
+macro definitions are retained and used for all macro calls occurring in conditional directives, which are not
+translated. Macro calls in the replacement text of other preprocessor constant definitions are translated to 
+the corresponding Cogent constant names.
+
+\subsubsection{Flag Translation}
+
+A flag is a parameterless macro with an empty replacement text. Its only use is in the conditions of 
+conditional preprocessor directives, hence macro calls for flags only occur in preprocessor directives.
+
+Gencot translates flags by directly transferring them to the target code. Neither their macro definitions 
+nor their macro calls are further processed by Gencot.
+
+\subsubsection{Manual Macro Translation}
+
+Most of the aspects of macro processing cannot be determined and handled automatically by Gencot. Therefore a
+general approach is supported by Gencot where macro processing is specified manually for specific macros used in the
+translated C program package.
+
+The manual specification consists of the following parts:
+\begin{itemize}
+\item A specification of all macros which shall not be preserved. This specification is included in the 
+Gencot directive retainment list, as described in 
+Section~\ref{design-preprocessor-config}. Retained macros are processed by the C preprocessor and thus 
+fully expanded before the C code is processed by Gencot.
+\item A specification of all parameterless macros which shall not be processed as preprocessor defined
+constants or flags. This specification consists of a list of macro names, it is called the ``Gencot manual macro list''.
+For all macros in this list a manual translation must be specified. Macros with parameters are never 
+processed automatically, for them a manual translation must always be specified if they shall be preserved.
+\item For all manually processed macros for which macro calls may occur in C code a conversion to valid C 
+code may be specified.
+This specification is itself a macro definition for the same macro, where the replacement text must be valid
+C code for all positions where macro calls occur. A set of such macro definitions is called a ``Gencot macro 
+call conversion''. It is applied to all macro calls and the result is fed to 
+the Gencot C code translation and is processed in the usual way, no further manual specification for the macro call
+translation can be provided. Since the conversion is applied after all preprocessor directives have been
+removed, it has no effect on macro calls in preprocessor directives. 
+\item For all manually translated macros a translation of the macro definition may be specified. It has the form 
+of arbitrary text marked with a specification of the position of the original macro definition in its source file.
+According to this position it is inserted in the corresponding target code file. A collection of such macro 
+definition translations is always specifi for a single source file and is called the ``Gencot macro translation''
+for the source file.
+\end{itemize}
+All four parts may be specified as additional input upon every invocation of Gencot.
+
+Macro definitions are always translated at the position where they occurred in the source file.
 If the definition occurs in a file \code{x.h} it is transferred to file \code{x-types.cogent} to a corresponding position,
 if it occurs in a file \code{x.c} it is transferred to file \code{x-impl.cogent} to a corresponding position.
 
-This implies that the macro definitions are not available in the file
-\code{x-globals.cogent} and in the files with
-antiquoted Cogent code. If they are used there (which mainly is the case if they are used in a conditional
-preprocessor directive which is transferred there), a manual solution is required. 
-
-The replacement text for a defined macro usually is C code. Thus the definition can normally not be used directly in
-the Cogent file, it must be adapted manually. 
+This implies that translated macro definitions are not available in the file \code{x-globals.cogent} and in the files with
+antiquoted Cogent code. If they are used there (which mainly is the case if macro calls occur in a conditional
+preprocessor directive which is transferred there), a manual solution is required.
 
 If different C compilation units use the same name for different macros, conflicts are caused in the integrated Cogent
 source. These conflicts are not detected by the Cogent compiler. A renaming scheme based on the name of the file 
 containing the macro definition would not be safe either, since it breaks situations where a macro is deliberately
 redefined in another file. Therefore, Gencot provides no support for macro name conflicts, they must be detected and
 handled manually.
+
+\subsubsection{External Macro References}
+
+Whenever a macro call occurs in a source file, it may reference a macro definition which is external in 
+the sense of Section~\ref{design-modular-extref}. For such external references the (translated) definition 
+must be made available in the Cogent compilation unit.
+
+For all preprocessor defined constants (i.e. parameterless nonempty macros not listed in the Gencot manual 
+macro list) Gencot adds the translated macro definition to the file \code{<package>-exttypes.cogent}. For
+manually translated macros a separate Gencot macro translation must be specified for external macro definitions.
+For them the position specification is omitted, they are simply appended to the file 
+\code{<package>-exttypes.cogent}. If this is not sufficient, because macro calls already occur in 
+\code{<package>-exttypes.cogent}, they must be inserted manually at the required position.
+
+To avoid introducing additional external references, in the macro replacement text for preprocessor defined 
+constants all macro calls are resolved to existing external reference names or until they are fully resolved.
+Manually translated macro definitions should handle external macro calls in a similar way.
 
 \subsection{Include Directives}
 

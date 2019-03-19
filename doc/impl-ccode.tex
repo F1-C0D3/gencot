@@ -297,7 +297,34 @@ As its second argument it expects a predicate for filtering the content of \code
 \subsection{Dummy Declarations for Preprocessor Macros}
 \label{impl-ccode-dummydecl}
 
-*** todo ***
+As described in Section~\ref{design-preprocessor-macros} macro calls in C code must either be syntactically correct
+C code or they must be converted to syntactically correct C code. Due to the language-c analysis step this is not 
+sufficient. The analysis step checks for additional properties. In particular, it requires that every identifier 
+is either declared or defined.
+
+Thus for every identifier which is part of a converted macro call a corresponding declaration must be added to the 
+C code. They are called ``dummy declarations'' since they are only used for making the analysis step happy. 
+
+For all preprocessor defined constants Gencot automatically generates the required dummy declarations. The corresponding
+macro calls always have the form of a single identifier occurring at positions where a C expression is expected. The type
+of the identifier is irrelevant, hence Gencot always uses type \code{int} for the dummy declarations. For every preprocessor
+constant definition of the form 
+\begin{verbatim}
+  #define NNN XXX
+\end{verbatim}
+a dummy declaration of the form
+\begin{verbatim}
+  int NNN;
+\end{verbatim}
+is generated. This is implemented by the additional filter \code{gencot-gendummydecls}. It is applied to the result of 
+\code{gencot-selppconst}. The resulting dummy declarations are prepended to the input of the language-c preprocessor
+since this prevents the lines from being counted for the \code{<stdin>} part.
+
+Flag macro calls do not occur in C code, hence no dummy declarations are required for them.
+
+For all other macros the required dummy declarations must be created manually and added to the Gencot macro call conversion.
+Even if no macro call conversion is needed because the macro calls are already in C syntax, it may be necessary to
+add dummy declarations to satisfy the requirements of the language-c analysis step.
 
 \subsection{Generating Cogent Code}
 \label{impl-ccode-gencog}

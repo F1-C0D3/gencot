@@ -3,6 +3,14 @@
 # Remove comments from a C source, retaining all preprocessor directives.
 # This is a filter from stdin to stdout.
 
-sed -e 's/^\([[:blank:]]*\)#define/\1_#define/; s/^\([[:blank:]]*\)#undef/_\1#undef/' \
+sed -e 's/^\([[:blank:]]*\)#define/\1_#define/; s/^\([[:blank:]]*\)#undef/_\1#undef/; s/__VA_ARGS__/___VA_ARGS__/' \
 | cpp -fpreprocessed \
-| sed -e 's/^\([[:blank:]]*\)_#define/\1#define/; s/^\([[:blank:]]*\)_#undef/\1#undef/'
+| sed -e 's/^\([[:blank:]]*\)_#define/\1#define/; s/^\([[:blank:]]*\)_#undef/\1#undef/; s/___VA_ARGS__/__VA_ARGS__/'
+
+# documentation:
+#
+# The main work is done by the C preprocessor.
+# 
+# To prevent it from interpreting macros all macro definitions are masked by inserting a "_" before the "#" sign.
+# __VA_ARGS__ is also masked to prevent cpp from complaining that it occurs outside a macro body (which it
+# does not recognise due to masking macro definitions).

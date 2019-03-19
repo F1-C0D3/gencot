@@ -14,7 +14,8 @@ $G/gencot-selppconst $s.gencot-manmacros < $t.pps > $t.ppconsts
 $G/gencot-gendummydecls < $t.ppconsts > $t.dummydecls
 
 $G/gencot-rempp $s.gencot-ppretain < $t.remc > $t.remp
-$G/gencot-chsystem $s.chsystem < $t.remp | $G/gencot-cpp $t.dummydecls > $t.in
+$G/gencot-chsystem $s.chsystem < $t.remp > $t.remps
+$G/gencot-cpp $t.dummydecls < $t.remps > $t.in
 $GS/gencot-translate $s.h < $t.in > $t.out
 $G/gencot-reporigs < $t.out > $t.op
 

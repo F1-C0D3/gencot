@@ -119,7 +119,11 @@ transType (LCA.DirectType TyVoid _ _) =
     return $ GenType CS.TUnit noOrigin
 transType (LCA.DirectType tnam quals _) = do
     t <- transTNam tnam
-    return $ genType $ CS.TCon t [] markUnbox
+    return $ genType $ CS.TCon t [] 
+        (case tnam of
+             (LCA.TyComp _) -> markUnbox
+             (LCA.TyEnum _) -> markUnbox
+             _ -> markBox)
     where transTNam (LCA.TyComp _) = transTagName tnam
           transTNam (LCA.TyEnum (LCA.EnumTypeRef (AnonymousRef _) _)) = return "U32"
           transTNam (LCA.TyEnum _) = transTagName tnam
@@ -144,12 +148,8 @@ transType (LCA.PtrType t quals _) | isFunction $ resolveTypedef t =
     transType t
 transType (LCA.PtrType t quals _) | isAggregate $ resolveTypedef t =
     liftM setBoxed $ transType t
-transType (LCA.PtrType t quals _) =
-    liftM ptrType $ transType t
-    where ptrType t = GenType (CS.TCon "CPointerTo" [t] $ markBox) noOrigin
-transType (LCA.ArrayType t _ quals _) =
-    liftM arrType $ transType t
-    where arrType t = GenType (CS.TUnbox $ GenType (CS.TCon "CArrayOf" [t] $ markBox) noOrigin) noOrigin
+transType (LCA.PtrType t quals _) = liftM ptrType $ transType t
+transType (LCA.ArrayType t _ quals _) = liftM arrType $ transType t
 transType (LCA.FunctionType (LCA.FunType _ _ True) _) = errType "fun-varargs"
 transType (LCA.FunctionType (LCA.FunTypeIncomplete _ ) _) = errType "fun-incompl"
 transType (LCA.FunctionType (LCA.FunType ret pars False) _) = do
@@ -159,6 +159,34 @@ transType (LCA.FunctionType (LCA.FunType ret pars False) _) = do
 transType (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) quals _) =
     return $ boxIf (not $ isAggregate $ resolveTypedef typ) $ genType $ CS.TCon tn [] markUnbox
     where tn = mapNameToUpper idnam
+
+ptrType :: GenType -> GenType
+--ptrType t = GenType (CS.TCon "CPointerTo" [t] $ markBox) noOrigin
+ptrType (GenType CS.TUnit o) = mkPtrType "CPointerTo_Void" o
+ptrType (GenType (CS.TCon nam [] CCT.Unboxed) o) = mkPtrType "err-CPointerTo_Unboxed" o
+ptrType (GenType (CS.TCon nam [] b) o) = mkPtrType ("CPointerTo_"++nam) o
+
+mkPtrType :: String -> Origin -> GenType
+mkPtrType nam = GenType (CS.TCon nam [] $ markBox)
+
+arrType :: GenType -> GenType
+--arrType t = GenType (CS.TUnbox $ GenType (CS.TCon "CArrayOf" [t] $ markBox) noOrigin) noOrigin
+arrType (GenType CS.TUnit o) = mkArrType "err-CArrayOf_Void" o
+arrType (GenType (CS.TCon nam [] CCT.Unboxed) o) = mkArrType ("CArrayOf_U_"++nam) o
+arrType (GenType (CS.TCon nam [] b) o) = mkArrType ("CArrayOf_"++nam) o
+arrType (GenType (CS.TFun ps r) o) = arrType $ funType r
+
+mkArrType :: String -> Origin -> GenType
+mkArrType nam = GenType (CS.TCon nam [] $ markUnbox)
+
+funType :: GenType -> GenType
+funType (GenType CS.TUnit o) = mkFunType "CFunRet_Void" o
+funType (GenType (CS.TCon nam [] CCT.Unboxed) o) = mkFunType ("CFunRet_U_"++nam) o
+funType (GenType (CS.TCon nam [] b) o) = mkArrType ("CFunRet_"++nam) o
+funType (GenType (CS.TFun ps r) o) = funType $ funType r
+
+mkFunType :: String -> Origin -> GenType
+mkFunType nam = GenType (CS.TCon nam [] $ markBox)
 
 transParamTypes :: [LCA.ParamDecl] -> FTrav GenType
 transParamTypes [] = return $ genType CS.TUnit
@@ -191,7 +219,7 @@ dummyExpr (LCA.PtrType t _ _) | isFunction $ resolveTypedef t = do
     where (LCA.FunctionType (LCA.FunType ret _ _) _) = resolveTypedef t
 dummyExpr (LCA.PtrType t _ _) | isArray $ resolveTypedef t = do
     tp <- transType eltp
-    return $ dummyPolyApp "dummy_Array" tp
+    return $ dummyArrApp tp
     where (LCA.ArrayType eltp _ _ _) = resolveTypedef t
 dummyExpr (LCA.PtrType t _ _) | isAggregate $ resolveTypedef t = do
     t <- transTagName tnam
@@ -199,7 +227,7 @@ dummyExpr (LCA.PtrType t _ _) | isAggregate $ resolveTypedef t = do
     where (LCA.DirectType tnam@(LCA.TyComp _) _ _) = resolveTypedef t
 dummyExpr (LCA.PtrType t _ _) = do
     tp <- transType t
-    return $ dummyPolyApp "dummy_Pointer" tp
+    return $ dummyPtrApp tp
 dummyExpr (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _) = return $
     case rtyp of
          (LCA.DirectType (LCA.TyComp _) _ _) -> dummyApp ("dummy_Unbox_" ++ (mapNameToUpper idnam))
@@ -214,8 +242,19 @@ dummyAppExpr fun = CS.RE $ CS.App fun (CS.RE CS.Unitel) False
 dummyApp :: String -> CS.RawExpr
 dummyApp fnam = dummyAppExpr $ CS.RE $ CS.Var fnam
 
-dummyPolyApp :: String -> GenType -> CS.RawExpr
-dummyPolyApp fnam typ = dummyAppExpr $ CS.RE $ CS.TypeApp fnam [Just $ stripOrigT typ] NoInline
+dummyPtrApp :: GenType -> CS.RawExpr
+dummyPtrApp (GenType CS.TUnit o) = dummyApp "dummy_Pointer_Void"
+dummyPtrApp (GenType (CS.TCon nam [] CCT.Unboxed) o) = dummyApp ("err-dummy_Pointer_U_"++nam)
+dummyPtrApp (GenType (CS.TCon nam [] b) o) = dummyApp ("dummy_Pointer_"++nam)
+
+dummyArrApp :: GenType -> CS.RawExpr
+dummyArrApp (GenType CS.TUnit o) = dummyApp "err-dummy_Array_Void"
+dummyArrApp (GenType (CS.TCon nam [] CCT.Unboxed) o) = dummyApp ("dummy_Array_U_"++nam)
+dummyArrApp (GenType (CS.TCon nam [] b) o) = dummyApp ("dummy_Array_"++nam)
+dummyArrApp (GenType (CS.TFun ps r) o) = dummyArrApp $ funType r
+
+--dummyPolyApp :: String -> GenType -> CS.RawExpr
+--dummyPolyApp fnam typ = dummyAppExpr $ CS.RE $ CS.TypeApp fnam [Just $ stripOrigT typ] NoInline
 
 isFunction :: LCA.Type -> Bool
 isFunction (LCA.FunctionType _ _) = True

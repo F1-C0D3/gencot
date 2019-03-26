@@ -8,7 +8,7 @@ set M = src
 
 $G/gencot-selcomments < $M/$s.h > $t.comm
 
-cat $s.addincl $M/$s.h \
+cat $s.gencot-addincl $M/$s.h \
   | $G/gencot-include ${M}:include $s.h \
   | $G/gencot-remcomments > $t.remc
 
@@ -28,7 +28,7 @@ $G/gencot-prcppflags < $t.ppsf > $t.prcppflags
 $G/gencot-prcppincl < $t.ppsf > $t.prcppincl
 
 $G/gencot-rempp $s.gencot-ppretain < $t.remc \
-  | $G/gencot-chsystem $s.chsystem \
+  | $G/gencot-chsystem $s.gencot-chsystem \
   | $G/gencot-cpp $t.dummydecls \
   | $GS/gencot-translate $s.h \
   | $G/gencot-reporigs \

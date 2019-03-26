@@ -205,8 +205,8 @@ for the source file.
 All four parts may be specified as additional input upon every invocation of Gencot.
 
 Macro definitions are always translated at the position where they occurred in the source file.
-If the definition occurs in a file \code{x.h} it is transferred to file \code{x-types.cogent} to a corresponding position,
-if it occurs in a file \code{x.c} it is transferred to file \code{x-impl.cogent} to a corresponding position.
+If the definition occurs in a file \code{x.h} it is transferred to file \code{x-incl.cogent} to a corresponding position,
+if it occurs in a file \code{x.c} it is transferred to file \code{x.cogent} to a corresponding position.
 
 This implies that translated macro definitions are not available in the file \code{x-globals.cogent} and in the files with
 antiquoted Cogent code. If they are used there (which mainly is the case if macro calls occur in a conditional
@@ -263,11 +263,11 @@ Macro call includes are normally assumed to be quoted includes and are treated s
 Quoted include directives for a file \code{x.h} which belongs to the Cogent compilation unit are always translated 
 to the corresponding Cogent preprocessor include directive
 \begin{verbatim}
-  #include "x-types.h"
+  #include "x-incl.h"
 \end{verbatim}
 If the original include directive occurs in file \code{y.c} the translated directive is put into the file 
-\code{y-impl.cogent}. If the original include directive occurs in file \code{y.h} the translated directive is put into the file
-\code{y-types.h}. 
+\code{y.cogent}. If the original include directive occurs in file \code{y.h} the translated directive is put into the file
+\code{y-incl.h}. 
 
 Other quoted include directives and macro call includes are transferred to the Cogent source file without modifications, if
 necessary they must be processed manually.

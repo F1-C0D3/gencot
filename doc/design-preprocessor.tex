@@ -245,9 +245,18 @@ and system includes of the form
 \begin{verbatim}
   #include <x.h>
 \end{verbatim}
+Additionally, there can be include directives where the included file is specified by a preprocessor macro call,
+they have the form
+\begin{verbatim}
+  #include MACROCALL
+\end{verbatim}
+for them it cannot be determined whether they are quoted or system includes.
+
 Files included by system includes are assumed to be always external to the translated <package>, therefore system
 include directives are discarded in the Cogent code. The information required by external references from system 
 includes is always fully contained in the file \code{<package>-exttypes.cogent}.
+
+Macro call includes are normally assumed to be quoted includes and are treated similar.
 
 \subsubsection{Translating Quoted Include Directives}
 
@@ -260,8 +269,8 @@ If the original include directive occurs in file \code{y.c} the translated direc
 \code{y-impl.cogent}. If the original include directive occurs in file \code{y.h} the translated directive is put into the file
 \code{y-types.h}. 
 
-Otherwise the quoted include includes an external file and is discarded in the Cogent source file for the same reason
-why the system includes are discarded.
+Other quoted include directives and macro call includes are transferred to the Cogent source file without modifications, if
+necessary they must be processed manually.
 
 \subsection{Other Directives}
 

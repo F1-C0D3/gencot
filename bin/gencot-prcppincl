@@ -1,0 +1,31 @@
+#! /bin/csh -f
+
+# Select and process include directives from normalized preprocessor directives.
+# This is a filter from stdin to stdout.
+
+awk \
+'{ lnr++ \
+   if ($1 == "#include" && !($2 ~ /^</)) { \
+     print "#ORIGIN " lnr " +" \
+     if ($2 ~ /^".*[.]h"$/) print "#include \"" substr($2,2,length($2)-4) "-incl.cogent\"" \
+     else print \
+     print "#ENDORIG " lnr " +\n\n" \
+   } \
+ }'
+
+# documentation:
+# 
+# An include directive has one of the forms
+#   #include "filename"
+#   #include MACROCALL
+#   #include <filename>
+# This filter processes only the first two forms, the third form (system includes) is discarded. 
+# For the first form, if filename has the form file.h it is replaced by file-incl.cogent. 
+# In all other cases and for the second form it is transferred without modification. 
+# For all transferred directives origin markers are added.
+#
+# Implementation in awk:
+# - After matching a normalized include directive, the file specification is field 2.
+# - To test whether field 2 starts with " it is matched against the pattern /¬"/.
+# - To test whether field 2 starts with < it is matched against the pattern /¬"/.
+# - In all other cases the second form is assumed.

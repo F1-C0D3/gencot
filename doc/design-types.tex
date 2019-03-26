@@ -171,22 +171,37 @@ abstract type always denotes a linear (boxed) type in Cogent. Therefore, as for 
 every C array type a name is introduced to refer to the type ``pointer to array'', the array type itself is
 translated to the type name with the unbox operator applied.
 
-Instead of generating a new name for every C array type, Gencot uses a single generic type for all 
-C array types. One advantage is that the element type need not be mapped to a type name, it may be mapped
-to an arbitrary Cogent type expression (which is done for all function types). The generic type for
-C arrays is assumed to be defined as
+It would be nice to use a single generic type for all C array types, instead of generating a new name for every 
+C array type. Then the element type need not be mapped to a type name, it may be mapped
+to an arbitrary Cogent type expression (which is done for all function types). A generic type for
+C arrays could have the form
 \begin{verbatim}
   type CArrayOf e
 \end{verbatim}
-A corresponding definition is always added to the file \code{<package>-exttypes.cogent} (see Section~\ref{design-files})
-by Gencot.
+Then a single mapping in antiquoted C would be sufficient to map all instances of the generic type to their 
+C equivalents. The Cogent compiler would be used to generate a monomorphic type for every usage in a program. 
+The common antiquoted C typedef would need to have the form 
+\begin{verbatim}
+  typedef e * $ty:(CArrayOf e) []
+\end{verbatim}
+However, the Cogent compiler does not support antiquoted type definitions of this form. Therefore Gencot has to
+generate the monomorphic types on its own. It uses abstract types of the form
+\begin{verbatim}
+  type CArrayOf_<element type name>
+\end{verbatim}
+If the element type is a (pointer to) function type, an element name is created for it, 
+so that the array type has the form
+\begin{verbatim}
+  type CArrayOf_CFunRet_<result type name>
+\end{verbatim}
+In all other cases the element type is already represented by a type name in Cogent.
 
 Together we have the following mapping rule for C arrays with element type \code{el} (if not specified for a 
 function parameter, see below):
 \begin{verbatim}
-  el[...] -> #CArrayOf El
+  el[...] -> #CArrayOf_El
 \end{verbatim}
-where El is the result of mapping the element type \code{el} to Cogent.
+where El is the result of mapping the element type \code{el} to a Cogent type name.
 
 Since dummy expressions are only used for function results and the result type of a C function may not be an array 
 type, Gencot does not define a C expression for mapped array types.
@@ -273,13 +288,17 @@ mapped like type \code{t}, but the unbox operator is omitted.
 
 The remaining cases are pointer types where \code{t} is a primitive type, an enum type, the type \code{void}, 
 or again a pointer type. All these cases have no specific representation in Cogent and are mapped by Gencot 
-to an abstract type. Similar as for arrays, Gencot uses a single generic abstract type for all such pointer 
-types. It is assumed to be defined as
+to an abstract type. For the same reason as for arrays, Gencot cannot use a single generic abstract type for all 
+such pointer types. Instead, it creates a monomorphic abstract type for every pointer type used in the program.
+The abstract type has the form
 \begin{verbatim}
-  type CPointerTo r
+  type CPointerTo_<type name>
 \end{verbatim}
-A corresponding definition is always added to the file \code{<package>-exttypes.cogent} (see Section~\ref{design-files})
-by Gencot.
+A pointer to \code{void} is mapped to
+\begin{verbatim}
+  type CPointerTo_Void
+\end{verbatim}
+in all other cases the target type is already represented by a type name in Cogent.
 
 In C, arrays of type \code{t[n]} can also be accessed through a Pointer of type \code{t*} using pointer
 arithmetics. In this case type \code{t*} could be mapped as ``pointer to array of \code{t}''. However, this case
@@ -289,35 +308,34 @@ information about the type and is not done by Gencot.
 
 If a C array type \code{t[...]} is specified for a function parameter, it is ``adjusted'' by C to the pointer
 type \code{t*} with the semantics of being a pointer to array of \code{t}. In this case Cogent maps the 
-array type as pointer to array, which results in a type of the form \code{CArrayOf T} where \code{t} is 
+array type as pointer to array, which results in a type of the form \code{CArrayOf\_T} where \code{t} is 
 mapped to \code{T}.
 
 Together we have the mapping rules for pointer types:
 \begin{verbatim}
   struct s * -> Struct_s
   union s * -> Union_s
-  (*a)[...] -> CArrayOf A
-  as parameter: a[...] -> CArrayOf A
-  otherwise: t * -> CPointerTo T
+  (*el)[...] -> CArrayOf_El
+  as parameter: el[...] -> CArrayOf_El
+  otherwise: t * -> CPointerTo_T
 \end{verbatim}
-where \code{Struct\_s} and \code{Union\_s} are the names introduced for the struct or union types and \code{A} 
-and \code{T} are the Cogent types to which \code{a} and \code{t} are mapped, respectively.
+where \code{Struct\_s} and \code{Union\_s} are the names introduced for the struct or union types and \code{El} 
+and \code{T} are the Cogent type names to which \code{el} and \code{t} are mapped, respectively.
 
 To be able to provide dummy expressions for pointer types, Gencot automatically defines an 
-abstract function from the unit type to the pointer target type:
+abstract function from the unit type to all used pointer target types:
 \begin{verbatim}
   struct s * -> dummy_Struct_s: () -> Struct_s
   union s * -> dummy_Union_s: () -> Union_s
-  dummy_Array: all a. () -> CArrayOf a
-  dummy_Pointer: all a. () -> CPointerTo a
+  dummy_Array_El: () -> CArrayOf_El
+  dummy_Pointer_T: () -> CPointerTo_T
 \end{verbatim}
-The functions \code{dummy\_Array} and \code{dummy\_Pointer} are polymorphic and are defined together with the 
-types \code{CArrayOf} and \code{CPointerTo}. Again, as for structure and union types, Gencot does not 
+Again, as for structure and union types, Gencot does not 
 provide C definitions for these abstract functions.
 
 The dummy expression for type \code{Struct\_s} is \code{dummy\_Struct\_s ()} and analogously
-for mapped union pointer types. The dummy expression for type \code{CArrayOf A} is 
-\code{dummy\_Array[A] ()} and for type \code{CArrayOf A} it is \code{dummy\_Pointer[A] ()}.
+for mapped union pointer types. The dummy expression for type \code{CArrayOf\_El} is 
+\code{dummy\_Array\_El ()} and for type \code{CPointerTo\_T} it is \code{dummy\_PointerTo\_T ()}.
 
 \subsection{Defined Type Names}
 \label{design-types-typedef}
@@ -330,19 +348,19 @@ to a Cogent type definition.
 
 A typedef name can be used in C to derive a pointer type from it. The mapping of pointer types depends on 
 the kind of base type, as described above. If the base type is a struct, union, or array type, the pointer 
-type is mapped to its name omitting the unbox operator. Otherwise, the generic type \code{CPointerTo} is used.
+type is mapped to its name omitting the unbox operator. Otherwise, a type name of the form \code{CPointerTo\_T} is used.
 
-Always mapping pointer types derived from typedef names with the help of \code{CPointerTo} would result in
+Always mapping pointer types derived from typedef names with the help of \code{CPointerTo\_T} would result in
 the following situation for the case where a typedef name is defined for a struct:
 \begin{verbatim}
   typedef struct s snam
   mapping: struct s -> #Struct_s
   mapping: struct s * -> Struct_s
   mapping: snam -> Cogent_snam
-  mapping: snam * -> CPointerTo Cogent_snam
+  mapping: snam * -> CPointerTo_Cogent_snam
 \end{verbatim}
 where \code{Struct\_s} is the name of the Cogent record type corresponding to \code{struct s}. The problem here
-is that \code{snam *} is mapped using \code{CPointerTo}, resolving to the Cogent type \code{CPointerTo \#Struct\_s}
+is that \code{snam *} is mapped using \code{CPointerTo\_T}, resolving to the Cogent type \code{CPointerTo\_\#Struct\_s}
 instead of \code{Struct\_s}, preventing access to the record in Cogent.
 
 Therefore Gencot treats every typedef name resolving to a struct, union, or array type as if it would resolve

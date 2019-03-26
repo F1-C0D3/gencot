@@ -1,0 +1,25 @@
+#! /bin/csh -f
+
+# Select preprocessor flag definitions from normalized preprocessor directives and add origin markers.
+# This is a filter from stdin to stdout.
+
+awk \
+'{ lnr++ \
+   if ($1 == "#define" && !($2 ~ /\(/) && NF == 2) { \
+     print "#ORIGIN " lnr " +" \
+     print \
+     print "#ENDORIG " lnr " +\n\n" \
+   } \
+ }'
+
+# documentation:
+# 
+# A preprocessor flag definition has the form
+#   #define NNN
+# where NNN is only followed by optional whitespace and a newline.
+#
+# Implementation in awk:
+# - After matching a normalized include directive, NNN is field 2.
+# - To test whether field 2 contains a parenthesis it is matched against the pattern /\(/.
+# - To test whether NNN is not followed by a replacement text or a backslash (for a continuation line)
+#   the number of fields NF is tested to be 2.

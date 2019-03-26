@@ -28,7 +28,7 @@ awk \
        retain = 0 \
        gsub(/^[[:blank:]]*#[[:blank:]]*/, "#") \
        $0 = $0 \
-       if ($0 ~ /^#include/) retain = 1 \
+       if ($0 ~ /^#include[[:blank:]]+</) retain = 1 \
        else if ($0 ~ /^#(define|undef|if)/) { \
          for (i=1; i <= nregs; i++) \
            if ($0 ~ regs[i]) { retain = 1; break } \
@@ -75,7 +75,7 @@ awk \
 #     all directives:             /^[[:blank:]]*#/
 #     line directives:            /^[[:blank:]]*#[[:blank:]]*[[:digit:]]+/
 # - We use the following regular expressions to match normalized directives:
-#     include directives:         /^#include/
+#     system include directives:  /^#include[[:blank:]]+</
 #     conditional section starts: /^#if/
 #     conditional section rest:   /^#(else|elif|endif)/
 #     conditional section end:    /^#endif/

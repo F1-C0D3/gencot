@@ -94,9 +94,10 @@ exceptions:
 \item line directives are never removed, they are required to identify the position in the original source
 during code processing.
 \item system include directives are never removed, they are intended to be interpreted by the language-c
-preprocessor to make the corresponding information available during code processing. Since it is assumed that
-all quoted include directives have already been processed in an initial step, simply all include
-directives are retained.
+preprocessor to make the corresponding information available during code processing. It is assumed that
+all quoted include directives have already been processed in an initial step, however, there may also be 
+include directives where the file is specified by a macro call, which should normally not be retained.
+Therefore system include directives are retained and all other include directives are removed.
 \item directives which match a regular expression from the Gencot directive retainment list are not removed, 
 they are intended to be interpreted by the language-c preprocessor to suppress information which causes 
 conflicts during code processing or for other reasons.

@@ -24,11 +24,17 @@ $G/gencot-remcomments < $M/$s.h \
   | $G/gencot-selpp \
   | $G/gencot-unline > $t.ppsf
 
+$G/gencot-prcppflags < $t.ppsf > $t.prcppflags
+$G/gencot-prcppincl < $t.ppsf > $t.prcppincl
+
 $G/gencot-rempp $s.gencot-ppretain < $t.remc \
   | $G/gencot-chsystem $s.chsystem \
   | $G/gencot-cpp $t.dummydecls \
   | $GS/gencot-translate $s.h \
   | $G/gencot-reporigs \
   | $G/gencot-mrgpp $t.prcppconst \
+  | $G/gencot-mrgpp $s.gencot-macrodefs \
+  | $G/gencot-mrgpp $t.prcppflags \
+  | $G/gencot-mrgpp $t.prcppincl \
   | $G/gencot-mrgppcond $t.ppsf \
   | $G/gencot-mrgcomments $t.comm > $t.cogent

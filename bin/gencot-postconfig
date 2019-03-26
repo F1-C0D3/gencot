@@ -1,0 +1,48 @@
+#! /bin/csh -f
+
+# Comment code generated from preprocessor directives if it was commented in the original source.
+# This is a filter from stdin to stdout with an additional filename argument.
+# The argument file must contain the original source.
+
+if ( $#argv != 1) then
+  echo "Error: Single file name expected as argument."
+  exit 0
+endif
+
+awk \
+'BEGIN { \
+   cfile = ARGV[1]; delete ARGV[1] \
+   lnr = 0 \
+   while ((getline cline < cfile) > 0) { \
+     lnr++ \
+     if (cline ~ /^[[:blank:]]*\/\/[[:blank:]]*#/) \
+       commented[lnr] = 1 \
+   } \
+   close(cfile) \
+ } \
+ { if ($1 == "#ORIGIN" && commented[$2]) { comm = 1; print } \
+   else if ($1 == "#ENDORIG") { comm = 0; print } \
+   else if (comm) print "--" $0 \
+   else print \
+ }' $1
+
+# documentation:
+#
+# The BEGIN rule reads the original source and detects all commented preprocessor directives of the form
+#   //#...
+# in a separate line with arbitrary whitespace before or after the //. The array commented is used as 
+# a boolean array, for every line number with a commented directive it is set to 1.
+# 
+# Whenever an #ORIGIN marker occurs in the input with a line number where commented is 1, all subsequent
+# lines are commented until the next #ENDORIG marker occurs. Hence, it is assumed that such origin marker
+# pairs always embrace a group of lines which origin from a single original source line.
+#
+# Implementation in awk:
+# - The filename argument for the original source file must be copied and removed from the argument list ARGV
+#   to prevent its processing as normal input to awk. The original source file is explicitly read by getline.
+# - The variable lnr is used to count lines in the original source file. It is assumed that there are no
+#   line directives.
+# - A commented preprocessor directive is matched by the regular expression 
+#     /^[[:blank:]]*//[[:blank:]]*#/
+# - For an #ORIGIN directive the line number is in field $2.
+# - The boolean variable comm tells whether the current input line has to be commented.

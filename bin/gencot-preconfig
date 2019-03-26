@@ -1,0 +1,22 @@
+#! /bin/csh -f
+
+# Uncomment commented preprocessor directives.
+# This is a filter from stdin to stdout.
+
+awk \
+'{ if ($0 ~ /^[[:blank:]]*\/\/[[:blank:]]*#/) { \
+     gsub(/^[[:blank:]]*\/\/[[:blank:]]*#/, "#") \
+   } \
+   print \
+ }'
+
+# documentation:
+#
+# A commented preprocessor directive has the form of a separate line 
+#   //#...
+# with arbitrary whitespace before or after the //.
+# 
+# Implementation in awk:
+# - A commented preprocessor directive is matched by the regular expressions 
+#     /^[[:blank:]]*//[[:blank:]]*#/
+# - gsub replaces the matched //# by #, thus removing the comment.

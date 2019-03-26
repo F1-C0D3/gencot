@@ -36,6 +36,11 @@ for \code{gencot-mrgpp} they must have been marked with Origin markers.
 Constant definitions must be preprocessed to map constants names in the replacement bodies (see below). This
 is done by filter \code{gencot-preppconst}.
 
+Configuration files typically consist of preprocessor flag definitions, where some of them are commented out.
+Gencot supports translating configuration files by providing two additional filters. The filter \code{gencot-preconfig}
+uncomments all commented macro definitions. The filter \code{gencot-postconfig <file>} re-comments the 
+generated target code, it takes the original configuration file as its argument.
+
 \subsection{Separating Directives}
 
 The Gencot directive retainment list is used to retain some directives in the output of \code{gencot-rempp}.
@@ -330,3 +335,18 @@ code.
 
 If the line before an inserted code contains an \code{\#ENDORIG} marker an additional newline is inserted before 
 the code for the same reason as for conditional directives.
+
+\subsection{Special Processing for Configuration Files}
+
+The filter \code{gencot-preconfig} simply removes all \code{//} comment starts before a preprocessor directive.
+It must be applied before \code{gencot-remcomments} so that the commented directives are still present. Gencot 
+assumes that commented directives have no continuation lines.
+
+The filter \code{gencot-postconfig <file>} reads the original file as its argument and determines from it the
+line numbers of all commented directives. As its input it expects a target code file with origin markers.
+According to the origin markers it inserts a \code{-{}-} comment start at the beginning of every line which
+originated from a line with a commented directive. 
+
+Although the Cogent preprocessor does not remove comments (neither C style nor Cogent style), the comment start
+marker prevents it to process a following directive. The commented target code is later discarded by the Cogent 
+parser.

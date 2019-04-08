@@ -8,6 +8,7 @@ import System.FilePath (takeFileName, dropExtension)
 import Language.C.Data.Ident as LCI
 import Language.C.Data.Node as LCN
 import Language.C.Data.Position as LCP
+import Language.C.Syntax.AST as LCS
 import Language.C.Analysis as LCA
 import Language.C.Analysis.DefTable as LCD
 
@@ -70,6 +71,29 @@ mapObjectName idnam lnk fnam =
          LCA.InternalLinkage -> mapInternal fnam idnam
          LCA.ExternalLinkage -> mapNameToLower idnam
          LCA.NoLinkage -> mapIfUpper idnam
+
+mapPtrDeriv :: String
+mapPtrDeriv = "P"
+
+mapArrDeriv :: LCA.ArraySize -> String
+mapArrDeriv (LCA.UnknownArraySize _) = "A"
+mapArrDeriv (LCA.ArraySize _ (LCS.CConst (LCS.CIntConst i _))) = "A'" ++ show i ++ "'" 
+mapArrDeriv (LCA.ArraySize _ (LCS.CVar (LCI.Ident s _ _) _)) = "A'" ++ s ++ "'" 
+mapArrDeriv _ = "A''"
+
+mapFunDeriv :: LCA.FunType -> [(Bool,String,String)] -> String
+mapFunDeriv (LCA.FunTypeIncomplete _) _ = "F"
+mapFunDeriv (LCA.FunType _ _ True) _ = "F"
+mapFunDeriv (LCA.FunType _ _ False) ps = 
+    "F_" ++ (concat $ map mkParTypeName ps) ++ (if null ps then "" else "'") ++ "_"
+
+mkDerivedName :: String -> String -> String
+mkDerivedName deriv base = deriv ++ sep ++ base
+    where sep = if null deriv || last deriv == '_' then "" else "_"
+
+mkParTypeName :: (Bool,String,String) -> String
+mkParTypeName (ubx,deriv,base) = 
+    "'" ++ (mkDerivedName (if ubx then "U"++deriv else deriv) base)
 
 mapFileChar :: Char -> Char
 mapFileChar '.' = '_'

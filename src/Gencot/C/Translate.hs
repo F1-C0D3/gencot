@@ -247,7 +247,7 @@ transTypeSpecs ((LC.CEnumType enum@(LC.CEnum mid menums _ _) n):_) = do
     return $ GCA.Tenum (mId mi mid) es [] $ mkOrigin n
 transTypeSpecs ss@((LC.CTypeDef ident n):_) = do
     t <- LCA.lookupTypeDef ident
-    let ub = if isAggregate $ resolveTypedef t then "#" else ""
+    let ub = if isAggregate t then "#" else ""
     return $ GCA.Tnamed (mkMapId ((ub ++) . mapNameToUpper) ident) [] $ listOrigin origin ss
 transTypeSpecs ss@((LC.CTypeOfExpr expr n):_) = do
     e <- transExpr expr
@@ -610,6 +610,7 @@ resolveTypedef (LCA.TypeDefType (LCA.TypeDefRef _ t _) _ _) = resolveTypedef t
 resolveTypedef t = t
 
 isAggregate :: LCA.Type -> Bool
+isAggregate (LCA.TypeDefType (LCA.TypeDefRef _ t _) _ _) = isAggregate $ resolveTypedef t
 isAggregate (LCA.DirectType (LCA.TyComp _) _ _) = True
 isAggregate (LCA.ArrayType _ _ _ _) = True
 isAggregate _ = False

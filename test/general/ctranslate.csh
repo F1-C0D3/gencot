@@ -24,7 +24,7 @@ $G/gencot-remcomments < $M/$s.c \
   | $G/gencot-selpp \
   | $G/gencot-unline > $t.ppsf
 
-$G/gencot-prcppflags < $t.ppsf > $t.prcppflags
+$G/gencot-prcppflags $s.gencot-manmacros < $t.ppsf > $t.prcppflags
 $G/gencot-prcppincl < $t.ppsf > $t.prcppincl
 
 $G/gencot-rempp $s.gencot-ppretain < $t.remc \

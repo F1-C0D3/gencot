@@ -28,7 +28,7 @@ $G/gencot-mrgpp $s.gencot-macrodefs < $t.ppconst > $t.ppmacros
 
 #$G/gencot-remcomments < $M/$s.h > $t.remcf
 $G/gencot-selpp < $t.remc | $G/gencot-unline > $t.ppsf
-$G/gencot-prcppflags < $t.ppsf > $t.prcppflags
+$G/gencot-prcppflags $s.gencot-manmacros < $t.ppsf > $t.prcppflags
 $G/gencot-mrgpp $t.prcppflags < $t.ppmacros > $t.ppflags
 $G/gencot-prcppincl < $t.ppsf > $t.prcppincl
 $G/gencot-mrgpp $t.prcppincl < $t.ppflags > $t.ppincl

@@ -172,6 +172,8 @@ conditional preprocessor directives, hence macro calls for flags only occur in p
 Gencot translates flags by directly transferring them to the target code. Neither their macro definitions 
 nor their macro calls are further processed by Gencot.
 
+The translation of a flag can be suppressed with the help of the Gencot manual macro list (see below).
+
 \subsubsection{Manual Macro Translation}
 
 Most of the aspects of macro processing cannot be determined and handled automatically by Gencot. Therefore a
@@ -203,6 +205,11 @@ definition translations is always specifi for a single source file and is called
 for the source file.
 \end{itemize}
 All four parts may be specified as additional input upon every invocation of Gencot.
+
+The usual application for suppressing a flag definition with the Gencot manual macro list ist a parameterless macro
+which is conditionally defined by a replacement text or as empty. The second definition then looks like a flag but
+other than for flags the macro calls typically occur in C code. Usually in this case also the macro calls should
+be suppressed, this can be done by adding an empty definition for the macro to the Gencot macro call conversion.
 
 Macro definitions are always translated at the position where they occurred in the source file.
 If the definition occurs in a file \code{x.h} it is transferred to file \code{x-incl.cogent} to a corresponding position,

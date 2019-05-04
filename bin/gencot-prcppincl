@@ -1,17 +1,32 @@
 #! /bin/csh -f
 
 # Select and process include directives from normalized preprocessor directives.
-# This is a filter from stdin to stdout.
+# This is a filter from stdin to stdout with an additional filename argument.
+# The argument file must contain a list of include file name strings or macro names (one per line).
+
+if ( $#argv > 1) then
+  echo "Error: Only optional file name expected as arguments."
+  exit 0
+endif
 
 awk \
-'{ lnr++ \
-   if ($1 == "#include" && !($2 ~ /^</)) { \
+'BEGIN { \
+   if (ARGC > 1) { \
+     rfile = ARGV[1]; delete ARGV[1] \
+     while ((getline cline < rfile) > 0) { \
+       omit[cline] = 1 \
+     } \
+     close(rfile) \
+   } \
+ } \
+ { lnr++ \
+   if ($1 == "#include" && !($2 ~ /^</) && !(omit[$2])) { \
      print "#ORIGIN " lnr " +" \
      if ($2 ~ /^".*[.]h"$/) print "#include \"" substr($2,2,length($2)-4) "-incl.cogent\"" \
      else print \
      print "#ENDORIG " lnr " +\n\n" \
    } \
- }'
+ }' $1
 
 # documentation:
 # 
@@ -23,9 +38,11 @@ awk \
 # For the first form, if filename has the form file.h it is replaced by file-incl.cogent. 
 # In all other cases and for the second form it is transferred without modification. 
 # For all transferred directives origin markers are added.
+# Includes of the first or second form are omitted, if the included file is listed in the argument file.
+# For the first form the included file name must be specified in "...".
 #
 # Implementation in awk:
 # - After matching a normalized include directive, the file specification is field 2.
-# - To test whether field 2 starts with " it is matched against the pattern /¬"/.
-# - To test whether field 2 starts with < it is matched against the pattern /¬"/.
+# - To test whether field 2 starts with " it is matched against the pattern /^"/.
+# - To test whether field 2 starts with < it is matched against the pattern /^</.
 # - In all other cases the second form is assumed.

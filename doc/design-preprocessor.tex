@@ -55,6 +55,12 @@ retained. The approach in Gencot is to specify a list of regular expressions in 
 which match one of these regular expressions are retained in the code to be interpreted before processing the code.
 The list is called the ``Gencot directive retainment list'' and may be specified for every invocation of Gencot.
 
+The retained directives affect only the C code, the preprocessor directives are already selected for separate processing.
+To suppress directives which belong to a configuration not to be translated, macro definitions must be explicitly
+suppressed with the help of the Gencot manual macro list (see below) and include directives must be suppressed
+with the help of the Gencot include omission list (see below). Conditional directives are automatically omitted
+if their content is omitted.
+
 \subsection{Conditional Directives}
 
 Conditional directives are used to suppress some source code according to specified conditions. Gencot aims to
@@ -239,6 +245,7 @@ constants all macro calls are resolved to existing external reference names or u
 Manually translated macro definitions should handle external macro calls in a similar way.
 
 \subsection{Include Directives}
+\label{design-preprocessor-incl}
 
 In C there are two forms of include directives: quoted includes of the form
 \begin{verbatim}
@@ -260,6 +267,9 @@ include directives are discarded in the Cogent code. The information required by
 includes is always fully contained in the file \code{<package>-exttypes.cogent}.
 
 Macro call includes are normally assumed to be quoted includes and are treated similar.
+
+Quoted includes and macro call includes can be omitted from the translation by adding the file specification
+to the ``Gencot include omission list''. 
 
 \subsubsection{Translating Quoted Include Directives}
 

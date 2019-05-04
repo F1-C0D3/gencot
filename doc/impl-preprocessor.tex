@@ -21,7 +21,8 @@ included content (detected by the file specification in the line directives) and
 in the content from \code{<stdin>} to sequences of empty lines.
 
 How the directives are processed depends on the kind of directives (see Section~\ref{design-preprocessor}).
-Gencot provides the processing filters \code{gencot-prcppflags}, \code{gencot-prcppconst} and \code{gencot-prcppincl}. 
+Gencot provides the processing filters \code{gencot-prcppflags <file>}, \code{gencot-prcppconst} and 
+\code{gencot-prcppincl <file>}. 
 Conditional directives are not processed, they are inserted without changes. Other macro
 definitions are processed manually, the result is simply inserted in the target code. Flags are not translated,
 but they must be selected and Origin markers must be added.
@@ -264,6 +265,12 @@ definition. Note that, although \code{gencot-mrgpp} only processes \code{\#ORIGI
 markers are required for subsequent steps such as inserting conditional directives and comments.
 
 \subsubsection{Processing Include Directives}
+
+The preprocessing filter \code{gencot-prcppincl} is implemented as an awk script. It is intended to be applied to the result
+of \code{gencot-selpp} after applying \code{gencot-unline}. The latter removes all directives not contained
+in the current source file and expands line directives. 
+
+The argument file contains the Gencot include omission list (see Section~\ref{design-preprocessor-incl}).
 
 \subsection{Merging Directive Processing Results}
 

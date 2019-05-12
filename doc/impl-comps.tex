@@ -104,11 +104,16 @@ The remaining global items are removed by the predicate passed to \code{Gencot.I
 all object definitions, and all tagless enum definitions. No Cogent type name is generated for a tagless enum definition,
 references to it are always directly replaced by type \code{U32}.
 
+The translation does not use the callback handler to collect information during analysis. It only uses the semantics map
+created by the analysis and processes the \code{DeclEvent} sequence created by preprocessing as described in 
+Section~\ref{impl-ccode-read}.
+
 The translation of the \code{DeclEvent} sequence is implemented by the function
 \begin{verbatim}
-  transGlobals :: GlobalDecls -> [DeclEvent] -> [GenToplv]
+  transGlobals :: [DeclEvent] -> FTrav [GenToplv]
 \end{verbatim}
-where the first argument is used for name mapping as described in Section~\ref{impl-ccode-names}.
+It performs the monadic traversal as described in Section~\ref{impl-ccode-trav} and returns the list of toplevel
+Cogent definitions of type \code{GenToplv}.
 
 A struct/union/enum definition corresponds to a full specifier, as described in Section~\ref{design-decls-tags}.
 The language-c analyser already implements moving all full specifiers to separate global definitions and the
@@ -132,18 +137,13 @@ A type definition is translated to a Cogent type definition as described in Sect
 
 All these single translations are implemented by the function
 \begin{verbatim}
-  transGlobal :: GlobalDecls -> DeclEvent -> Origin -> GenToplv
+  transGlobal :: DeclEvent -> FTrav GenToplv
 \end{verbatim}
-where the first argument is used for name mapping as described in Section~\ref{impl-ccode-names} and the third
-argument is the \code{Origin} to be used, with repeated markers removed as described in Section~\ref{impl-ccode-origin}.
 
 A type reference is translated by the function
 \begin{verbatim}
-  transType :: GlobalDecls -> Type -> NodeInfo -> GenType 
+  transType :: Type -> FTrav GenType
 \end{verbatim}
-where the first argument is used for name mapping and the third argument is the original origin information of
-the C construct which has the type reference as a subpart. It is used for suppressing repeated origin markers
-as described in Section~\ref{impl-ccode-origin}.
 
 A type reference may be a direct type, a derived type, or a typedef name. For every typedef name a Cogent type
 name is defined, as described in Sections~\ref{design-names} and~\ref{design-modular}. A direct type is either
@@ -152,6 +152,7 @@ struct/union/enum type reference for which Gencot also introduces a Cogent type 
 primitive Cogent type \code{U32} (tagless enums). Hence, both direct types and typedef names can always be mapped
 to Cogent type names, with the exception of type \code{void}, which is mapped to the Cogent unit type \code{()}.
 
+-------- todo: rest of subsection must be revised ---------
 If a typedef name references (directly or indirectly) a struct or union type, the corresponding Cogent
 type name references the boxed type. Therefore, it must be modified by applying the unbox operator. If a typedef
 name references a primitive type, this is not necessary, since the corresponding Cogent type is always regular.
@@ -214,4 +215,73 @@ An array type contains mutable pointers if its base type does so. A function typ
 A pointer type contains mutable pointers if its base type is not \code{const} qualified or contains mutable pointers.
 A primitive type and an enum type does not contain mutable pointers. A struct or union type contains mutable 
 pointers, if the type of a member contains mutable pointers.
+
+\subsection{Exit Wrapper Functions}
+\label{impl-comps-exitabs}
+
+For the exit wrapper functions Gencot generates the Cogent abstract function definitions and the implementations
+in antiquoted C. Exit wrappers are generated for all functions which are invoked but not defined in the Cogent code. 
+The information required for each of these functions is contained in the C function declaration.
+
+The easiest approach would be to generate an exit wrapper for every function which is declared but 
+not defined in the C program. However, often an
+include C source file contains many function declaration where only some of them are invoked. Therefore, Gencot
+determines the actually invoked functions from all bodies of defined functions. Only for them the declarations
+are translated.
+
+The set of invoked functions is determined by traversing the bodies of all function definitions after the analysis
+phase. The callback handler is not used since it is only invoked for declarations and definitions and does not help
+for processing function invocations.
+
+\subsubsection{Processor \code{gencot-exitabs}}
+
+The processor \code{gencot-exitabs} generates the Cogent abstract function definitions
+
+\subsubsection{Processor \code{gencot-exit}}
+
+The processor \code{gencot-exit} generates the wrapper implementations in antiquoted C code.
+
+\subsection{External Cogent Types}
+\label{impl-comps-exttypes}
+
+The filter \code{gencot-exttypes} generates the list of all Cogent type definitions which do not result from
+translating a C type or tag definition. There are two cases:
+\begin{itemize}
+\item The type is a C derived type, i.e., a pointer type, array type or function type. As described in 
+Section~\ref{design-types}, Gencot maps all derived types to abstract types in Cogent and generates type names for
+them. Whereas in C derived types are used in the form of type expressions, in Cogent explicit type definitions are
+required for all abstract types.
+\item The type is a C type which is not defined in the C source files translated to Cogent. Currently Gencot assumes
+that only the system include files are not translated to Cogent. 
+\end{itemize}
+
+Since often only a small selection of the types defined by a system include file is needed by a program, Gencot performs 
+an analysis determining all types used in the translated C source files. For all these types, if the definition is in a 
+system include file, it is translated in the usual way and added to the filter output.
+
+The used types are collected with the help of the callback handler during analysis, as described in 
+Section~\ref{impl-ccode-read}. Types can only be used in declarations and definitions and the callback handler is
+automatically invoked for all of them. Note that if a declaration consists of several declarators, the callback
+handler is invoked for every declarator separately. Types are used in the following cases:
+\begin{itemize}
+\item As type of a global or local variable.
+\item As result type of a function.
+\item As type of a function parameter.
+\item As type of a field in a struct or union.
+\item As defining type for a typedef name.
+\end{itemize}
+There are other uses of types in C, such as in \code{sizeof} expressions, these cases are ignored by Gencot.
+
+Since Gencot always translates a derived type to an opaque type name, a type occurring in a derived type (e.g.,
+as parameter type in a function type) is \textbf{not} required to be known in Cogent. Only the derived type
+as a whole is used and must be collected.
+
+Gencot does not translate global or local variables, this must be done manually. To support the manual translation, 
+however, Gencot provides the definitions for all external types used for local and global variables.
+
+Functions can be defined in the C source or they are only declared and invoked. In both cases the parameter and result
+types must be known in Cogent. In the latter case they must be determined from the declaration. Gencot determines the
+actually invoked external functions as described in Section~\ref{impl-comps-exitabs}. Only for them the declarations 
+are inspected to collect the parameter and result types.
+
 

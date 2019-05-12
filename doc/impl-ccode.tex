@@ -169,7 +169,7 @@ not covered by Gencot either.
 
 The main result of the analysis module is the symbol table. Since at the end of traversing a correct C AST the toplevel
 scope is reached, the symbol table only contains all globally defined identifiers. From this symbol table 
-a map is created containing all toplevel declarations and object definition, mapping the identifiers
+a map is created containing all toplevel declarations and object definitions, mapping the identifiers
 to their semantics, which is mainly its declared type. Whereas in the abstract syntax tree there may be several declarators
 in a declaration, declaring identifiers with different types derived from a common type, the map maps every identifier
 to its fully derived type. 
@@ -184,6 +184,12 @@ Additionally, Gencot uses the symbol table built by the analysis module during i
 types of globally defined identifiers and for managing local declarations when traversing function bodies, as described in
 Section~\ref{impl-ccode-trav}.
 
+Additionally, the analysis module provides a callback handler which is invoked for every declaration entered into the symbol 
+table (with the exception of tag forward declarations and enumerator declarations). The callback handler can accumulate results 
+in a user state which can be retrieved after analysis together with the
+semantics map. Since the callback handler is also invoked for all local declarations it is useful when all declarations
+shall be processed in some form.
+
 To use the analysis module, the following import is needed:
 \begin{verbatim}
   import Language.C.Analysis
@@ -191,15 +197,32 @@ To use the analysis module, the following import is needed:
 
 Then, if the abstract syntax tree has been bound to variable \code{ast}, it can be analysed by
 \begin{verbatim}
-  table <- either (error . show) (return . fst) $ runTrav_ $ (analyseAST ast >> getDefTable)
+  (table,state) <- either (error . show) return $ 
+    runTrav uinit (withExtDeclHandler (analyseAST ast >> getDefTable) uhandler)
 \end{verbatim}
-which binds the resulting symbol table to variable \code{table}. \code{runTrav\_}
-returns a result of type \code{Either [CError] (DefTable, [CError])}, where \code{DefTable}
-is the type of the symbol table. The error list in the first alternative contains fatal errors which made the analysis fail. 
-The error list in the second alternative contains warnings about semantic inconsistencies, such as unknown identifiers,
-which are returned together with the symbol table.
+which binds the resulting symbol table to variable \code{table} and the resulting state to \code{ustate}. \code{runTrav}
+returns a result of type \code{Either [CError] (DefTable, TravState s)}, where \code{DefTable}
+is the type of the symbol table and \code{s} is the type of the user state. The error list in the first alternative contains 
+fatal errors which made the analysis fail. The state in the second alternative contains warnings about semantic inconsistencies, 
+such as unknown identifiers, and it contains the user state. \code{uinit} is the initial user state and \code{uhandler}
+is the callback handler of type
+\begin{verbatim}
+  DeclEvent -> Trav s ()
+\end{verbatim}
+It returns a monadic action without result.
 
 The semantics map is created from the symbol table by the function \code{globalDefs}, its type is \code{GlobalDecls}.
+
+On this basis, Gencot implements the following functions in the module \code{Gencot.Input} as utility for parsing and analysis:
+\begin{verbatim}
+  readFromInput :: s -> (DeclEvent -> Trav s ()) -> IO (DefTable, s)
+  readFromFile :: FilePath -> s -> (DeclEvent -> Trav s ()) -> IO (DefTable, s)
+\end{verbatim}
+The first one takes as arguments an initial user state and a callback handler. It reads C code from standard input, parses
+and analyses it and returns the symbol table and the user state accumulated by the callback handler. The second function
+takes a file name as additional argument and does the same reading from the file.
+
+All Gencot filters which read C code use one of these two functions.
 
 \subsubsection{Source Code Origin}
 
@@ -264,11 +287,6 @@ Gencot wraps every range value as a \code{DeclEvent}, and puts them in a common 
 is done by the function
 \begin{verbatim}
   listGlobals :: GlobalDecls -> [DeclEvent]
-  listGlobals gmap = 
-      (concat $ map elems $ wraps <*> [gmap])
-      ++ (elems $ fmap TagEvent $ gTags gmap)
-      where wraps = [(fmap DeclEvent) . gObjs, 
-                     (fmap TypeDefEvent) . gTypeDefs]
 \end{verbatim}
 
 Finally, the declarations in the list are sorted according to the offset position of their first tokens, using the
@@ -283,16 +301,13 @@ Together, the list for processing the code is prepared from the symbol table \co
   sortBy compEvent $ listGlobals $ filterGlobalDecls globalsFilter $ globalDefs table
 \end{verbatim}
 
-All this preprocessing is implemented by module \code{Gencot.Input}. It provides the three functions
+All this preprocessing is implemented in module \code{Gencot.Input}. It provides the function
 \begin{verbatim}
-  readFromInput :: IO DefTable
-  readFromFile :: FilePath -> IO DefTable
   getDeclEvents :: GlobalDecls -> (DeclEvent -> Bool) -> [DeclEvent]
 \end{verbatim}
-The \code{readFrom*} functions parse and analyse the standard input or a file content, respectively. The function
-\code{getDeclEvents} performs the remaining preprocessing and returns the list of \code{DeclEvent}s to be processed.
+It performs the preprocessing and returns the list of \code{DeclEvent}s to be processed.
 As its second argument it expects a predicate for filtering the content of \code{<stdin>} to the
-\code{DeclEvent}s to be processed by the specific Gencot processor.
+\code{DeclEvent}s to be processed by the specific Gencot component.
 
 \subsection{Dummy Declarations for Preprocessor Macros}
 \label{impl-ccode-dummydecl}
@@ -822,12 +837,12 @@ the name. They are also mapped depending on their linkage, as described above.
 \label{impl-ccode-trav}
 
 The package language-c uses a monad for traversing and analysing the C AST. The monad is defined in module 
-\code{Language.C.Analysis.TravMonad} and mainly provides the symbol table as global state during the traversal.
+\code{Language.C.Analysis.TravMonad} and mainly provides the symbol table and user state during the traversal.
 The traversal itself is implemented by a recursive descent according to the C AST using a separate function
-for analysing every syntactic construct.
+for analysing every syntactic construct. 
 
-When processing the result of the analysis Gencot implements its own recursive descent using a processing
-function for every syntactic construct, but it uses the same monad for two reasons.
+When processing the semantic map resulting from the language-c analysis Gencot implements a similar recursive 
+descent using a processing function for every syntactic construct. For this it uses the same monad for two reasons.
 \begin{itemize}
 \item the definitions and declarations for the global identifiers are needed for mapping the identifiers to
 Cogent names,
@@ -850,14 +865,14 @@ the information about local declarations is discarded at the end of its scope, t
 present anymore in the symbol table after the analysis phase. Gencot uses the symbol table functionality
 to rebuild this information during its own traversal and uses it for name mapping.
 
-The monad provided by language-c is parameterized by a type for an additional ``user state''. Gencot uses this
-state extension to make the actual name of the processed file available during processing. In the \code{NodeInfo}
+The user state is used by Gencot in this processing phase to make the actual name of the processed file available 
+during processing. In the \code{NodeInfo}
 values in the AST it is always specified as \code{<stdin>} since the input is read from a pipe. The monadic
 action \code{srcFileName} returns the file name for a \code{NodeInfo} value and replaces it by the name in the user
 state if it is equal to \code{<stdin>}.
 
-The utilities for the monadic traversal are defined in module \code{Gencot.Traversal}. The monadic type is
-defined as
+The utilities for the monadic traversal of the semantics map are defined in module \code{Gencot.Traversal}. 
+The monadic type is defined as
 \begin{verbatim}
   type FTrav = Trav String
 \end{verbatim}

@@ -10,6 +10,12 @@ import Gencot.Input (showWarnings,errorOnLeft)
 
 type FTrav = Trav String
 
+runFTrav :: FTrav a -> IO a
+runFTrav action = do
+    (res,state) <- errorOnLeft "Error during translation" $ runTrav "" action
+    showWarnings $ travErrors state
+    return res
+    
 runWithTable :: DefTable -> FTrav a -> IO a
 runWithTable table action = do
     args <- getArgs

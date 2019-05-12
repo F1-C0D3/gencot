@@ -5,6 +5,7 @@ import System.IO (hPutStrLn, stderr)
 import qualified Data.ByteString as BSW
 import Data.Map (toList,elems,Map)
 import Data.List (sortBy)
+import Control.Monad (liftM)
 
 import "language-c" Language.C (CTranslUnit,CError,parseC,fileOfNode)
 import Language.C.Data.Position (initPos,posOf)
@@ -28,25 +29,34 @@ localFilter = (maybe False ((==) "<stdin>") . fileOfNode)
 compEvent :: DeclEvent -> DeclEvent -> Ordering
 compEvent ci1 ci2 = compare (posOf ci1) (posOf ci2)
 
-readFromInput :: IO DefTable
-readFromInput = do
-    input_stream <- BSW.getContents
-    readBytestring input_stream ""
-    
-readFromFile :: FilePath -> IO DefTable
-readFromFile input_file = do
-    input_stream <- BSW.readFile input_file
-    readBytestring input_stream $ " in " ++ input_file
+readFromInput_ :: IO DefTable
+readFromInput_ = (liftM fst) $ readFromInput () noUhandler
 
-readBytestring :: BSW.ByteString -> String -> IO DefTable
-readBytestring input_stream wher = do
+readFromInput :: s -> (DeclEvent -> Trav s ()) -> IO (DefTable, s)
+readFromInput uinit uhandler = do
+    input_stream <- BSW.getContents
+    readBytestring input_stream "" uinit uhandler
+    
+readFromFile_ :: FilePath -> IO DefTable
+readFromFile_ input_file = (liftM fst) $ readFromFile input_file () noUhandler
+
+readFromFile :: FilePath -> s -> (DeclEvent -> Trav s ()) -> IO (DefTable, s)
+readFromFile input_file uinit uhandler = do
+    input_stream <- BSW.readFile input_file
+    readBytestring input_stream (" in " ++ input_file) uinit uhandler
+
+readBytestring :: BSW.ByteString -> String -> s -> (DeclEvent -> Trav s ()) -> IO (DefTable, s)
+readBytestring input_stream wher uinit uhandler = do
     ast <- errorOnLeft ("Parse Error" ++ wher) $ parseC input_stream (initPos "<stdin>")
-    (table,warns) <- errorOnLeft ("Semantic Error" ++ wher) $ runTrav_ $ (analyseAST ast >> getDefTable)
-    showWarnings warns
-    return table
+    (table,state) <- errorOnLeft ("Semantic Error" ++ wher) $ runTrav uinit (withExtDeclHandler (analyseAST ast >> getDefTable) uhandler)
+    showWarnings $ travErrors state
+    return (table, userState state)
 
 errorOnLeft :: (Show a) => String -> (Either a b) -> IO b
 errorOnLeft msg = either (error . ((msg ++ ": ")++).show) return
+
+noUhandler :: DeclEvent -> Trav () ()
+noUhandler _ = return ()
 
 showWarnings :: [CError] -> IO ()
 showWarnings warns = do

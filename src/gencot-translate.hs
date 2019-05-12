@@ -5,14 +5,14 @@ import Language.C.Data.Ident
 import Language.C.Analysis
 import Language.C.Analysis.DefTable (globalDefs)
 
-import Gencot.Input (readFromInput,getDeclEvents)
+import Gencot.Input (readFromInput_,getDeclEvents)
 import Gencot.Traversal (runWithTable)
 import Gencot.Cogent.Output (prettyTopLevels)
 import Gencot.Cogent.Translate (transGlobals)
 
 main :: IO ()
 main = do
-    table <- readFromInput
+    table <- readFromInput_
     toplvs <- runWithTable table $ transGlobals $ getDeclEvents (globalDefs table) constructFilter
     print $ prettyTopLevels toplvs
 

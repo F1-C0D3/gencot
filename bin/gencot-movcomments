@@ -17,8 +17,7 @@ awk \
    bef = 1; lnr = 0; unit = ""; ustart = 1 \
    while ((getline cline < cfile) > 0) { \
      if (cline ~ /^-\}_/) { \
-       if (bef) before[alnr = lnr] = unit \
-       else after[alnr] = unit \
+       if (bef) before[lnr] = unit \
        unit = substr(cline,4) \
        if (unit == "") ustart = 1 \
        bef = 1 - bef \
@@ -29,23 +28,20 @@ awk \
      } \
    } \
    close(cfile) \
-   ORS = "" \
  } \
  /^#DECL/ { \
-   print before[$3] > ("before-" $2 ".comment") \
-   print after[$4] > ("after-" $2 ".comment") \
-   print $2 "\n" \
+   printf(before[$3]) > ($2 ".comment") \
+   print $2 \
  }' $1
 
 # documentation:
 #
-# In the BEGIN rule we read the comment units into the arrays before and after. The first unit is
+# In the BEGIN rule we read the before comment units into the array before. The first unit is
 # stored in before, then we switch whenever we find the separator -}_ at the beginning of a line.
-# The current array to be used is specified by the boolean variable bef.
+# Whether the current unit is a before unit is specified by the boolean variable bef.
 # 
 # All units are collected in variable unit until the separator occurs. Before-units are stored
-# in the element indexed by the current line number lnr of the separator. This line number is stored
-# in alnr and used as index for storing the following after-unit.
+# in the element indexed by the current line number lnr of the separator.
 #
 # The line number lnr is only counted for lines without separator, since the newline immediately before
 # the separator is a part of the separator and must not be counted.
@@ -58,6 +54,6 @@ awk \
 # - The presence of the separator at the beginning of a line is tested by matching each line with the 
 #   pattern /^-\}_/. If present it is omitted by using substr(cline,4) which starts after the 
 #   separator.
-# - Writing to the comment files is done with a redirected print. Since the content of before and after
-#   already consists of lines with a newline at the end we set ORS (output record separator) to empty
-#   in the BEGIN rule, to prevent appending an additional newline at the end of the comment files.
+# - Writing to the comment files is done with a redirected print. Since the content of before
+#   already consists of lines with a newline at the end we use printf to 
+#   prevent appending an additional newline at the end of the comment files.

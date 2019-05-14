@@ -147,11 +147,8 @@ whitespace for formatting is not useful.
 In the buffer, before-units are concatenated without any separator. After-units are separated by a newline to end possibly 
 trailing line comments.
 
-
-
-
-
 \subsection{Declaration Comments}
+\label{impl-comments-decl}
 
 To safely detect C declarations and C definitions Gencot uses the language-c parser. 
 
@@ -165,34 +162,33 @@ Processing the decalaration comments is implemented by the following filter step
 
 The filter \code{gencot-deccomments} parses the input. For every declaration it outputs a line
 \begin{verbatim}
-  #DECL <name> <bline> <aline>
+  #DECL <name> <bline>
 \end{verbatim}
-where \code{<name>} is the name of the declared item, \code{<bline>} is the original source line 
-number where the declaration begins and \code{<aline>} is
-the original source line number where the declaration ends. (In many cases the declaration will be
-a single line and \code{<bline>} and \code{<aline>} will be the same.)
+where \code{<name>} is the name of the declared item, and \code{<bline>} is the original source line 
+number where the declaration begins.
+
+The filter implementation is described in Section~\ref{impl-comps-decls}.
 
 \subsubsection{Filter \code{gencot-movcomments}}
 
 The filter \code{gencot-movcomments <file>} processes the output of \code{gencot-deccomments} as input. For every
-lines as above, it retrieves the before-unit of \code{<bline>} and the after-unit of \code{<aline>} from \code{<file>}
-and stores them in the files \code{before-<name>.comment} and \code{after-<name>.comment} in the
+line as above, it retrieves the before-unit of \code{<bline>} from \code{<file>}
+and stores it in the file \code{<name>.comment} in the
 current directory. The content of \code{<file>} must be the output of \code{gencot-selcomments} applied to the same
 original source from which the input of \code{gencot-deccomments} has been derived.
 
 The filter is implemented as an awk script. It consists of a 
 BEGIN rule reading \code{<file>} in the same way as \code{gencot-mrgcomments}, and a rule for lines starting with 
-\code{\#DECL}. For every such line it writes the associated comment units to the comment files. A comment
+\code{\#DECL}. For every such line it writes the associated comment unit to the comment file. A comment
 file is even written if the comment unit is empty.
 
 \subsubsection{Filter \code{gencot-defcomments}}
 
-For inserting the comments around the target code parts generated from a definition, Gencot uses the markers
+For inserting the comments before the target code parts generated from a definition, Gencot uses the marker
 \begin{verbatim}
-  #DEF before-<name>
-  #DEF after-<name>
+  #DEF <name>
 \end{verbatim}
-The markers must be inserted by the filter which generates the definition target code.
+The marker must be inserted by the filter which generates the definition target code.
 
 The filter \code{gencot-defcomments <dir>} replaces every marker line in its input by the content of the corresponding
 \code{.comment} file in directory \code{<dir>} and writes the result to its output.
@@ -200,5 +196,3 @@ The filter \code{gencot-defcomments <dir>} replaces every marker line in its inp
 It is implemented as an awk script with a single rule for all lines. If the line starts with \code{\#DEF} it is
 replaced by the content of the corresponding file in the output. All other lines are copied to the output without 
 modification.
-
- 

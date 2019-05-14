@@ -284,4 +284,25 @@ types must be known in Cogent. In the latter case they must be determined from t
 actually invoked external functions as described in Section~\ref{impl-comps-exitabs}. Only for them the declarations 
 are inspected to collect the parameter and result types.
 
+\subsection{Declarations}
+\label{impl-comps-decls}
 
+The filter \code{gencot-deccomments} is used to provide the information about the positions of all declarations with
+external linkage in
+a translated file, as described in Section~\ref{impl-comments-decl}. This information is used to move declaration
+comments to the corresponding definitions, as described in Section~\ref{design-comments-decl}.
+
+Only global declarations are processed by this filter. Therefore the filter processes the list of \code{DeclEvents}
+returned by \code{getDeclEvents} (see Section~\ref{impl-ccode-read}). The predicate for filtering the list
+selects all declarations with external linkage (i.e. removes all object/function/enumeration/type definitions and 
+all declarations with internal or no linkage). 
+The main application case are functions declared as external, but moving the comments may also be useful for 
+objects.
+
+For processing the declarations we do not need a monad since every declaration can be processed on its own. This is implemented
+be the function
+\begin{verbatim}
+  transDecl :: DeclEvent -> String
+\end{verbatim}
+in module \code{Gencot.Text.Decls}. It is mapped over the list of \code{DeclEvents} and the resulting string list
+is output one string per line.

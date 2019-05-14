@@ -2,7 +2,7 @@
 {-# LANGUAGE PackageImports #-}
 module Gencot.Cogent.Output where
 
-import Cogent.Surface (TopLevel, IrrefutablePattern, Type(TRecord,TTuple))
+import Cogent.Surface (TopLevel(FunDef), IrrefutablePattern, Type(TRecord,TTuple))
 import Cogent.Common.Syntax (VarName)
 import Cogent.Common.Types (Sigil(Unboxed),readonly)
 import Cogent.PrettyPrint
@@ -26,9 +26,14 @@ addOrig (Origin sn en) doc =
               if null ons then empty 
                           else (hardline <> text marker <+> cont ons ln <> hardline)
           cont ons ln = (int . ln . fst . head) ons <> text (if snd $ head ons then " +" else "")
- 
+
+markDef :: String -> Doc -> Doc
+markDef nam doc =
+    text ("#DEF " ++ nam) <> hardline <> doc
+
 instance Pretty GenToplv where
-  pretty (GenToplv t org) = addOrig org $ pretty t
+    pretty (GenToplv t@(FunDef v pt alts) org) = addOrig org $ markDef v $ pretty t
+    pretty (GenToplv t org) = addOrig org $ pretty t
 
 prettyTopLevels :: [GenToplv] -> Doc
 prettyTopLevels tll = plain $ vsep $ fmap pretty tll

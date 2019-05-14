@@ -33,5 +33,7 @@ $G/gencot-prcppincl < $t.ppsf > $t.prcppincl
 $G/gencot-mrgpp $t.prcppincl < $t.ppflags > $t.ppincl
 $G/gencot-mrgppcond $t.ppsf < $t.ppincl > $t.ppcond
 
+$G/gencot-defcomments comments < $t.ppcond > $t.defcomments
+
 $G/gencot-selcomments < $M/$s.c > $t.comm
-$G/gencot-mrgcomments $t.comm < $t.ppcond > $t.cogent
+$G/gencot-mrgcomments $t.comm < $t.defcomments > $t.cogent

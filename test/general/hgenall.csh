@@ -52,6 +52,8 @@ $G/gencot-cpp .gencot-macroconv  $t.dummydecls < $t.remps > $t.in
 $GS/gencot-translate $s.h < $t.in > $t.out
 $G/gencot-reporigs < $t.out > $t.op
 
+$GS/gencot-deccomments < $t.in > $t.decmarks
+
 $G/gencot-preppconst < $t.ppconsts > $t.preppconst
 $G/gencot-prcppconst < $t.preppconst > $t.prcppconst
 $G/gencot-mrgpp $t.prcppconst < $t.op > $t.ppconst
@@ -80,6 +82,9 @@ else
   $G/gencot-selcomments < $M/$s.h > $t.comm
   $G/gencot-mrgcomments $t.comm < $t.ppcond > $t.cogent
 endif
+
+if (! -e comments) mkdir comments
+(cd comments; ../$G/gencot-movcomments ../$t.comm < ../$t.decmarks)
 
 rm .gencot-addincl .gencot-manmacros .gencot-macroconv .gencot-ppretain .gencot-chsystem
 

@@ -90,17 +90,20 @@ is generated for the main part, it must be defined to which group of subpart tar
 main part is associated.
 
 \subsection{Declaration Comments}
+\label{design-comments-decl}
 
 Since toplevel declarations are not translated to a target code part in Cogent, all comments associated with them would
 be lost. However, often the API documentation of a function or global variable is associated with its declaration instead of the
 definition. 
 
-Therefore Gencot treats before- and after-units associated with a toplevel declaration in a specific way and 
-moves them to the target code part generated for the corresponding definition. There they are placed around 
-the comments associated with the definition itself. 
+Therefore Gencot treats before-units associated with a toplevel declaration in a specific way and 
+moves them to the target code part generated for the corresponding definition. There they are placed between
+the comments preceding the definition and the definition itself. 
 
 Gencot assumes, that only one declaration exists for each definition. If there are more than one declarations 
-in the C code the comments associated with one of them are moved to the definition, the comments associated with
+in the C code the comment associated with one of them is moved to the definition, the comments associated with
 the other declarations are lost. 
 
- 
+Only before-units are handled this way, due to a technical problem with the C parser used. For declarations it does not provide 
+the end position in a safe manner. For the intended application this is not a problem since API documentations are
+usually placed before the declaration and not after it.

@@ -1,10 +1,8 @@
-{-# LANGUAGE PackageImports #-}
+{-# LANGUAGE PackageImports, TypeSynonymInstances, FlexibleInstances #-}
 module Gencot.Traversal where
 
-import System.Environment (getArgs)
-
 import Language.C.Analysis.DefTable (DefTable)
-import Language.C.Analysis.TravMonad (Trav,runTrav,travErrors,withDefTable)
+import Language.C.Analysis.TravMonad (Trav,runTrav,travErrors,withDefTable,getUserState)
 
 import Gencot.Input (showWarnings,errorOnLeft)
 
@@ -16,14 +14,15 @@ runFTrav action = do
     showWarnings $ travErrors state
     return res
     
-runWithTable :: DefTable -> FTrav a -> IO a
-runWithTable table action = do
-    args <- getArgs
-    fnam <- if null args 
-               then error "Error: Source file name expected as argument" 
-               else return $ head args
+runWithTable :: DefTable -> String -> FTrav a -> IO a
+runWithTable table init action = do
     (res,state) <- errorOnLeft "Error during translation" $ 
-        runTrav fnam $ (withDefTable $ const ((),table)) >> action
+        runTrav init $ (withDefTable $ const ((),table)) >> action
     showWarnings $ travErrors state
     return res
 
+class (Monad m) => FileNameTrav m where
+    getFileName :: m String
+
+instance FileNameTrav FTrav where
+    getFileName = getUserState

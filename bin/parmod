@@ -1,0 +1,137 @@
+#!/bin/sh
+
+if [ -z "$GENCOT_HOME" ]
+then
+    echo "Cannot find Gencot installation."
+    echo "Please set environment variable GENCOT_HOME to root directory of Gencot installation."
+    exit
+fi
+
+BIN=$GENCOT_HOME/bin
+
+USAGE="Usage: $0 [-I<dir>] [-G<dir>] [-k] [check|init|show|addto|close|help] <file> [<file>]"
+
+long_usage()
+{
+    echo $USAGE
+    echo 'Manage Gencot parameter modification descriptions in JSON format.'
+    echo 'Commands:'
+    echo '  check <cfile>  Test C sourcefile <cfile> for parsability by Gencot'
+    echo '  init  <cfile>  Create parmod description for all functions defined in C sourcefile <cfile>'
+    echo '  close <cfile>  Create parmod description for all functions declared for C sourcefile <cfile>'
+    echo '  show  <json>   Display information about parmod description'
+    echo '  addto <json1> <json2>  Add to <json1> all required dependencies found in <json2>'
+    echo '  help           Display this help information'
+    echo '  (init|close|addto write the resulting parmod description to stdout)'
+    echo 'Options for commands check|init|close: '
+    echo '  -I<dir>  Directory for searching C include files. Can be repeated, as for cpp. '
+    echo '  -G<dir>  Directory for searching Gencot auxiliary files. Only one can be given, default is "."'
+    echo '  -k   Keep directory with intermediate files and display it at the end.'
+}
+
+short_usage()
+{
+    echo $USAGE
+    echo 'Run with -h for more information.'
+}
+
+# Parse options
+OPTS=$(getopt -o hkI:G: -n "$0" -- "$@")
+
+if [ $? != 0 ]
+then
+    short_usage
+    exit 1
+fi
+
+eval set -- "$OPTS"
+
+INCLPATH=''
+GENCOTDIR='.'
+KEEP=''
+add_incl()
+{
+    if [ "$1" == "." ] 
+    then INCL=""
+    else INCL="$1"
+    fi
+    if [ -z "$INCLPATH" ]
+    then INCLPATH=$1
+    elif [ "$INCLPATH" == "." ]
+    then INCLPATH=":$INCL"
+    else INCLPATH="${INCLPATH}:$INCL"
+    fi
+}
+
+while true; do
+    case "$1" in
+        -h) long_usage; exit;;
+        -k) KEEP='yes'; shift;;
+        -I) shift; add_incl "$1"; shift;;
+        -G) shift; GENCOTDIR="$1"; shift;;
+        --) shift; break;;
+    esac
+done
+
+# Parse command
+PARSE=''
+TAILCMD=''
+CLOSE=''
+REQARGS=1
+CMD=$1
+
+case "$CMD" in
+    check) TAILCMD='gencot-check';PARSE='yes';;
+    init) TAILCMD='parmod-gen';PARSE='yes';;
+    show) TAILCMD='parmod-proc';;
+    addto) TAILCMD='parmod-proc';REQARGS=2;;
+    close) TAILCMD='parmod-gen';PARSE='yes';CLOSE='close';;
+    help) long_usage; exit;;
+    *) echo "unknown parmod command: $1"; short_usage; exit;;
+esac
+
+shift
+if [ "$REQARGS" != "$#" ]
+then
+    echo "wrong number of arguments for parmod command ${CMD}: expected $REQARGS"
+fi
+
+prepare_aux()
+{
+    if [ -e $GENCOTDIR/$CNAME.gencot-$1 ] 
+    then
+        cat $GENCOTDIR/common.gencot-$1 $GENCOTDIR/$CNAME.gencot-$1 > $TMPDIR/gencot-$1
+    else
+        cp $GENCOTDIR/common.gencot-$1 $TMPDIR/gencot-$1
+    fi
+}
+
+if [ $PARSE ]
+then 
+    CFILE=$1
+    CBASE=$(basename $CFILE)
+    CNAME=$(expr match $CBASE '\(.*\)[.][^.]*' '|' $CBASE)
+    TMPDIR=$(mktemp -d)
+    for aux in addincl omitincl manmacros macroconv ppretain chsystem
+    do prepare_aux $aux
+    done
+    cat $TMPDIR/gencot-addincl $CFILE | $BIN/gencot-include $INCLPATH $CBASE \
+        | $BIN/gencot-remcomments | tee $TMPDIR/remc \
+        | $BIN/gencot-selpp \
+        | $BIN/gencot-selppconst $TMPDIR/gencot-manmacros \
+        | $BIN/gencot-gendummydecls > $TMPDIR/dummydecls
+    $BIN/gencot-rempp $TMPDIR/gencot-ppretain < $TMPDIR/remc \
+        | $BIN/gencot-chsystem $TMPDIR/gencot-chsystem \
+        | $BIN/gencot-cpp $TMPDIR/gencot-macroconv $TMPDIR/dummydecls \
+        | tee $TMPDIR/$CNAME.in \
+        | $BIN/$TAILCMD $CBASE $CLOSE 
+    if [ $KEEP ]
+    then
+        echo "Kept directory with intermediate files: $TMPDIR"
+    else
+        rm -r $TMPDIR
+    fi
+else
+    $BIN/$TAILCMD $1 $2
+fi
+

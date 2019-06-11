@@ -19,8 +19,9 @@ import Cogent.Util (ffmap)
 import Gencot.Origin (Origin,noOrigin,origin,mkOrigin,noComOrigin)
 import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapNameToLower,mapPtrDeriv,mapArrDeriv,mapFunDeriv,mkDerivedName,mkParTypeName)
 import Gencot.Cogent.Ast
-import Gencot.C.Translate (transStat,transExpr,resolveTypedef,isAggregate)
+import Gencot.C.Translate (transStat,transExpr)
 import Gencot.Traversal (FTrav)
+import Gencot.Util.Types (isAggOrFunc,isFunPointer,isFunction,isArray,resolveTypedef,isAggregate)
 
 genType t = GenType t noOrigin
 
@@ -38,12 +39,16 @@ transGlobal (LCA.TagEvent (LCA.CompDef (LCA.CompType sueref LCA.UnionTag _ _ n))
 transGlobal (LCA.TagEvent (LCA.EnumDef (LCA.EnumType sueref es _ n))) = do
     tn <- transTagName $ LCA.TyEnum $ LCA.EnumTypeRef sueref n
     return $ GenToplv (CS.TypeDec tn [] $ genType $ CS.TCon "U32" [] markUnbox) $ mkOrigin n
+transGlobal (LCA.DeclEvent (LCA.Declaration (LCA.Decl decl@(LCA.VarDecl (LCA.VarName idnam _) _ typ) n))) = do
+    f <- transObjName idnam
+    t <- transType typ
+    return $ GenToplv (CS.AbsDec f (CS.PT [] t)) $ mkOrigin n
 transGlobal (LCA.DeclEvent (LCA.FunctionDef (LCA.FunDef decl@(LCA.VarDecl (LCA.VarName idnam _) _ typ) stat n))) = do
     f <- transObjName idnam
     t <- transType typ
     ps <- transParamNames (if isVar then [] else pars)
     LCA.enterFunctionScope
-    LCA.defineParams undefNode decl
+    LCA.defineParams LCN.undefNode decl
     d <- dummyExpr res
     s <- transStat stat
     LCA.leaveFunctionScope
@@ -324,24 +329,6 @@ dummyArrApp (GenType (CS.TFun ps r) o) = dummyArrApp $ funType r
 
 --dummyPolyApp :: String -> GenType -> CS.RawExpr
 --dummyPolyApp fnam typ = dummyAppExpr $ CS.RE $ CS.TypeApp fnam [Just $ stripOrigT typ] NoInline
-
-isAggOrFunc :: LCA.Type -> Bool
-isAggOrFunc t = isAggregate t || isFunction t
-
-isFunPointer :: LCA.Type -> Bool
-isFunPointer (LCA.TypeDefType (LCA.TypeDefRef _ t _) _ _) = isFunPointer $ resolveTypedef t
-isFunPointer (LCA.PtrType t _ _) = isFunction t
-isFunPointer _ = False
-
-isFunction :: LCA.Type -> Bool
-isFunction (LCA.TypeDefType (LCA.TypeDefRef _ t _) _ _) = isFunction $ resolveTypedef t
-isFunction (LCA.FunctionType _ _) = True
-isFunction _ = False
-
-isArray :: LCA.Type -> Bool
-isArray (LCA.TypeDefType (LCA.TypeDefRef _ t _) _ _) = isArray $ resolveTypedef t
-isArray (LCA.ArrayType _ _ _ _) = True
-isArray _ = False
 
 setBoxed :: GenType -> GenType
 setBoxed (GenType (CS.TCon nam p _) o) = (GenType (CS.TCon nam p markBox) o)

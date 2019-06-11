@@ -24,5 +24,6 @@ rm $t.prcppincl
 rm $t.ppincl
 rm $t.ppcond
 rm $t.comm
+rm $t.defcomments
 
 

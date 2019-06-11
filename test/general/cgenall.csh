@@ -3,7 +3,6 @@
 set s = test
 set t = ${s}
 set G = ../../bin
-set GS = ../../src
 set M = src
 
 cat common.gencot-addincl $M/$s.c | $G/gencot-include ${M}:include $s.c  > $t.gi
@@ -16,7 +15,7 @@ $G/gencot-gendummydecls < $t.ppconsts > $t.dummydecls
 $G/gencot-rempp common.gencot-ppretain < $t.remc > $t.remp
 $G/gencot-chsystem common.gencot-chsystem < $t.remp > $t.remps
 $G/gencot-cpp common.gencot-macroconv $t.dummydecls < $t.remps > $t.in
-$GS/gencot-translate $s.c < $t.in > $t.out
+$G/gencot-translate $s.c < $t.in > $t.out
 $G/gencot-reporigs < $t.out > $t.op
 
 $G/gencot-preppconst < $t.ppconsts > $t.preppconst

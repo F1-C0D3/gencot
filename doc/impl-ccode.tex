@@ -865,25 +865,38 @@ the information about local declarations is discarded at the end of its scope, t
 present anymore in the symbol table after the analysis phase. Gencot uses the symbol table functionality
 to rebuild this information during its own traversal and uses it for name mapping.
 
-The user state is used by Gencot in this processing phase to make the actual name of the processed file available 
-during processing. In the \code{NodeInfo}
-values in the AST it is always specified as \code{<stdin>} since the input is read from a pipe. The monadic
-action \code{srcFileName} returns the file name for a \code{NodeInfo} value and replaces it by the name in the user
-state if it is equal to \code{<stdin>}.
+The user state is used by Gencot to provide additional information, depending on the purpose of the traversal.
+A common case is to make the actual name of the processed file available during processing. In the \code{NodeInfo}
+values in the AST it is always specified as \code{<stdin>} since the input is read from a pipe. All C processing 
+filters take the name of the original C source file as an additional argument. It is added to the user state 
+of traversal monads so that it can be used during traversal.
+
+This is supported by defining in module \code{Gencot.Traversal} the class \code{FileNameTrav} as
+\begin{verbatim}
+  class (Monad m) => FileNameTrav m where
+    getFileName :: m String
+\end{verbatim}
+so that the method \code{getFileName} can be used to retrieve the source file name from all traversal monads of 
+this class.
+
+In module \code{Gencot.Names} the monadic action \code{srcFileName} is defined to returns the file name for a 
+\code{NodeInfo} value and replace it by the original source file name if it is equal to \code{<stdin>}.
 
 The utilities for the monadic traversal of the semantics map are defined in module \code{Gencot.Traversal}. 
-The monadic type is defined as
+The minimal monadic type is defined as
 \begin{verbatim}
   type FTrav = Trav String
 \end{verbatim}
-where \code{String} is the type used for the user state. As execution function for the monadic actions
-the function
+where \code{String} is the type used for storing the original C source file name in the user state. It is an
+instance of \code{FileNameTrav}. As execution 
+function for the monadic actions the functions
 \begin{verbatim}
-  runWithTable :: DefTable -> FTrav a -> IO a
+  runFTrav :: FTrav a -> IO a
+  runWithTable :: DefTable -> String -> FTrav a -> IO a
 \end{verbatim}
-is defined. It takes the symbol table as argument to initialize the state. The function is itself an 
-\code{IO} action and reads the actual file name from the command line arguments and uses it to
-initialize the user state.
+are defined. The second one takes the symbol table and the original C source file name as arguments to initialize 
+the state. The first one leaves both empty. The functions are themselves 
+\code{IO} actions and print error messages generated during traversal to the standard output.
 
 In the monadic actions the symbol table can be accessed by actions defined in the modules 
 \code{Language.C.Analysis.TravMonad} and \code{Language.C.Analysis.DefTable}. An identifier can be
@@ -903,7 +916,63 @@ then the struct/union/enum reference can be resolved by
 
 Additionally, there are actions to enter and leave a scope and actions for inserting definitions.
 
-The actual name of the processed file can be accessed using the action
+An error can be recorded in the monad using the action
 \begin{verbatim}
-  getUserState :: FTrav String
+  recordError :: Language.C.Data.Error.Error e => e -> m () 
 \end{verbatim}
+
+\subsection{Creating the C Call Graph}
+\label{impl-ccode-callgraph}
+
+In some Gencot components we use the C call graph. This is the mapping from functions to the functions
+invoked in their body. Here we describe the module \code{Gencot.Util.CallGraph} which provides
+utility functions for creating the call graph.
+
+The set of invoked functions is determined by traversing the bodies of all function definitions after the analysis
+phase. The callback handler is not used since it is only invoked for declarations and definitions and does not help
+for processing function invocations.
+
+Invocations can be identified purely syntactically as C function call expressions. The invoked function is usually 
+specified by an identifier, however, it can be specified as an arbitrary C expression. The expression can use 
+identifiers which are locally declared, such as a parameter of the function where the invocation occurs. The 
+declaration information of these identifiers would not be available after the traversal which builds the call graph.
+
+To make the full information about the invoked functions available, Gencot inserts the declarations into the call graph 
+instead of the identifiers. This cannot be done for arbitrary expressions, hence Gencot only handles two special cases 
+of specifying the invoked function: as a single (globally or locally declared) identifier or as a member access from
+a single identifier. All other invocation where the invoked function is specified in a different way are ignored and
+not added to the call graph.
+
+The call graph has the form of a mapping from function names (invoking function) to sets of declarations
+(invoked functions):
+\begin{verbatim}
+  type CallGraph = Map Ident (Set CGDecl)
+  data CGDecl =
+    IdentDecl IdentDecl
+    MemberDecl MmberDecl
+\end{verbatim}
+An invoked function can be specified by an \code{IdentDecl} (function or object of function pointer type),
+or by a \code{MemberDecl} (struct or union member of function pointer type). Note that in a function definition
+the parameters are represented in the symbol table by \code{IdentDecl}s, not by \code{ParamDecl}s.
+
+To also access the declarations of locally declared identifiers, the symbol table with local declarations
+must be available while building the call graph. Therefore we traverse the function bodies with the help of
+the \code{FTrav} monad and \code{runWithTable} as described in Section~\ref{impl-ccode-trav}.
+
+The call graph is constructed by the monadic action
+\begin{verbatim}
+  getCallGraph :: [DeclEvent] -> FTrav CallGraph
+\end{verbatim}
+It processes all function definitions in its argument list and ignores all other \code{DeclEvent}s.
+
+As a utility the monadic action
+\begin{verbatim}
+  getInvocations :: [DeclEvent] -> FTrav (Set CGDecl)
+\end{verbatim}
+returns the union of all declarations of invoked functions in the call graph. It is implemented by an own
+traversal of the function bodies, directly building the union of all invocations.
+
+The declaration of an invoked function also tells 
+whether the function or object is defined or only declared. Note that the traversal for collecting invocations is a ``second 
+pass'' through the C source after the analysis phase of language-c. During analysis language-c replaces
+declarations in the symbol table whenever it finds the corresponding definition.

@@ -12,9 +12,7 @@ import Language.C.Syntax.AST as LCS
 import Language.C.Analysis as LCA
 import Language.C.Analysis.DefTable as LCD
 
-import Cogent.Common.Syntax as CCS
-
-import Gencot.Traversal (FTrav)
+import Gencot.Traversal (FileNameTrav,getFileName)
 
 mapName :: Bool -> LCI.Ident -> String
 mapName True (LCI.Ident s _ _) = 
@@ -40,7 +38,7 @@ mapIfUpper :: LCI.Ident -> String
 mapIfUpper idnam = if isUpper $ head s then mapNameToLower idnam else s
     where (Ident s _ _) = idnam
 
-transTagName :: LCA.TypeName -> FTrav CCS.TypeName
+transTagName :: (FileNameTrav f, MonadTrav f) => LCA.TypeName -> f String
 transTagName (LCA.TyComp (LCA.CompTypeRef (LCI.NamedRef idnam) kind _)) = 
     return $ kindPrefix kind ++ mapNameToUpper idnam
     where kindPrefix LCA.StructTag = "Struct_"
@@ -55,7 +53,7 @@ transTagName (LCA.TyComp (LCA.CompTypeRef ref@(LCI.AnonymousRef unam) kind _)) =
 transTagName (LCA.TyEnum (LCA.EnumTypeRef (LCI.NamedRef idnam) _)) = 
     return $ "Enum_" ++ mapNameToUpper idnam
 
-transObjName :: LCI.Ident -> FTrav CCS.VarName
+transObjName :: (FileNameTrav f, MonadTrav f) => LCI.Ident -> f String
 transObjName idnam = do
     mdecdef <- LCA.lookupObject idnam
     let (Just decdef) = mdecdef
@@ -101,12 +99,15 @@ mapFileChar '-' = '_'
 mapFileChar c = c
 
 fileName :: CNode a => a -> String
-fileName = takeFileName . LCP.posFile . LCN.posOfNode . LCN.nodeInfo
+fileName n = -- takeFileName . LCP.posFile . LCN.posOfNode . LCN.nodeInfo
+    case LCN.fileOfNode n of
+         Nothing -> "<unknown>"
+         Just res -> res
 
 lineNr :: CNode a => a -> Int
 lineNr = LCP.posRow . LCN.posOfNode . LCN.nodeInfo
 
-srcFileName :: CNode a => a -> FTrav String
-srcFileName n | "<stdin>" == fileName n = LCA.getUserState
+srcFileName :: (FileNameTrav f, CNode a) => a -> f String
+srcFileName n | "<stdin>" == fileName n = getFileName
 srcFileName n = return $ fileName n
 

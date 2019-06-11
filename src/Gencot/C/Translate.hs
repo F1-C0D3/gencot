@@ -16,6 +16,7 @@ import Gencot.C.Ast as GCA
 import Gencot.Origin (Origin,noOrigin,origin,mkOrigin,listOrigin,pairOrigin,maybeOrigin)
 import Gencot.Names (transTagName,transObjName,srcFileName,mapObjectName,mapIfUpper,mapNameToUpper,mapNameToLower)
 import Gencot.Traversal (FTrav)
+import Gencot.Util.Types (isAggregate,resolveTypedef)
 
 import Language.C.Analysis.TravMonad (MonadTrav)
 import qualified Language.C.Analysis as LCA
@@ -604,16 +605,6 @@ mkCompTagName tag idnam = (LCA.TyComp (LCA.CompTypeRef (LCI.NamedRef idnam) kind
 
 mkEnumTagName :: LCI.Ident -> LCA.TypeName
 mkEnumTagName idnam = (LCA.TyEnum (LCA.EnumTypeRef (LCI.NamedRef idnam) undefNode))
-
-resolveTypedef :: LCA.Type -> LCA.Type
-resolveTypedef (LCA.TypeDefType (LCA.TypeDefRef _ t _) _ _) = resolveTypedef t
-resolveTypedef t = t
-
-isAggregate :: LCA.Type -> Bool
-isAggregate (LCA.TypeDefType (LCA.TypeDefRef _ t _) _ _) = isAggregate $ resolveTypedef t
-isAggregate (LCA.DirectType (LCA.TyComp _) _ _) = True
-isAggregate (LCA.ArrayType _ _ _ _) = True
-isAggregate _ = False
 
 mkId :: LCI.Ident -> GCA.Id
 mkId = mkMapId identToString

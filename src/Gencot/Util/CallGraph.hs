@@ -1,0 +1,213 @@
+{-# LANGUAGE PackageImports, TypeSynonymInstances, FlexibleInstances #-}
+module Gencot.Util.CallGraph where
+
+import Data.Set as S (Set,empty,union,unions,insert,filter,toList,fromList,map)
+import Data.Foldable (foldlM,find)
+import Control.Monad (liftM,liftM2)
+
+import "language-c" Language.C as LC
+import Language.C.Data.Ident as LCI
+import Language.C.Data.Node as LCN
+import Language.C.Data.Position as LCP
+import Language.C.Syntax.AST as LCS
+import qualified Language.C.Analysis as LCA
+import qualified Language.C.Analysis.DefTable as LCD
+import Language.C.Analysis.TravMonad (MonadTrav,Trav,runTrav,travErrors,getUserState)
+
+import Gencot.Traversal (FTrav,FileNameTrav,getFileName,runWithTable)
+import Gencot.Input (showWarnings,errorOnLeft)
+import Gencot.Util.EqByPos
+import Gencot.Util.Types (resolveTypedef,getCompType,getMemberDecl)
+import Gencot.Util.Expr (getType)
+
+type CallGraph = Set CGFunInvoke
+type CGFunInvoke = (LCA.FunDef, CGInvoke, Bool)
+
+-- | A function invocation. 
+-- It is specified by the invoked function and the number of actual arguments.
+-- The invoked function is specified by its declaration (function or function pointer object)
+-- or by a struct type and member declaration (function pointer as struct member).
+data CGInvoke =
+          IdentInvoke LCA.IdentDecl Int
+        | MemberTypeInvoke LCA.CompType LCA.MemberDecl Int
+        | MemberObjInvoke LCA.IdentDecl LCA.MemberDecl Int
+
+invokeAnum :: CGInvoke -> Int
+invokeAnum (IdentInvoke _ i) = i
+invokeAnum (MemberTypeInvoke _ _ i) = i
+invokeAnum (MemberObjInvoke _ _ i) = i
+
+invokeType :: CGInvoke -> LCA.FunType
+invokeType cginvk = ftyp 
+    where (LCA.FunctionType ftyp _) = case resolveTypedef $ LCA.declType cginvk of
+             LCA.PtrType typ _ _ -> resolveTypedef typ
+             typ -> typ
+
+invokeParams :: CGInvoke -> [LCA.ParamDecl]
+invokeParams cginvk = case invokeType cginvk of
+                           LCA.FunType _ pars _ -> pars
+                           LCA.FunTypeIncomplete _ -> []
+
+instance LCN.CNode CGInvoke where
+    nodeInfo (IdentInvoke d _) = LCN.nodeInfo d
+    nodeInfo (MemberTypeInvoke c d _) = LCN.nodeInfo d
+    nodeInfo (MemberObjInvoke c d _) = LCN.nodeInfo d
+
+instance LCA.Declaration CGInvoke where
+    getVarDecl (IdentInvoke d _) = LCA.getVarDecl d
+    getVarDecl (MemberTypeInvoke c d _) = LCA.getVarDecl d
+    getVarDecl (MemberObjInvoke c d _) = LCA.getVarDecl d
+
+instance Pos CGInvoke where
+    posOf (IdentInvoke d _) = posOf d
+    posOf (MemberTypeInvoke c d _) = posOf d
+    posOf (MemberObjInvoke c d _) = posOf d
+
+instance Eq CGInvoke where
+    d1 == d2 = (posOf d1) == (posOf d2)
+
+instance Ord CGInvoke where
+    compare d1 d2 = compare (posOf d1) (posOf d2)
+
+getCallGraph :: LCD.DefTable -> [LCA.DeclEvent] -> IO CallGraph
+getCallGraph table evs = do
+    cg <- runWithTable table "" $ retrieveCallGraph evs
+    return $ S.map (markLocal table) cg
+
+retrieveCallGraph :: MonadTrav m => [LCA.DeclEvent] -> m CallGraph
+retrieveCallGraph evs = liftM unions $ mapM retrieveFunInvokes evs
+
+retrieveFunInvokes :: MonadTrav m => LCA.DeclEvent -> m CallGraph
+retrieveFunInvokes (LCA.DeclEvent fdef@(LCA.FunctionDef fd)) =
+    if (LCA.isNoName nam) 
+       then return empty 
+       else do 
+           hlist <- (liftM toList) $ retrieveInvokes fdef 
+           rlist <- mapM (\inv -> return (fd,inv,False)) hlist
+           return $ fromList rlist
+    where (LCA.VarDecl nam _ _) = LCA.getVarDecl fd
+retrieveFunInvokes _ = return empty
+
+markLocal :: LCD.DefTable -> CGFunInvoke -> CGFunInvoke
+markLocal table (fd,inv@(IdentInvoke idec _),_) = (fd,inv,isLocal table idec)
+markLocal table (fd,inv@(MemberObjInvoke idec _ _),_) = (fd,inv,isLocal table idec)
+markLocal table (fd,inv@(MemberTypeInvoke _ _ _),_) = (fd,inv,False)
+
+isLocal :: LCD.DefTable -> LCA.IdentDecl -> Bool
+isLocal table idec = case LCD.lookupIdent (LCA.declIdent idec) table of
+                          Just (Right gdec) -> idec /= gdec
+                          _ -> True
+
+unionM :: (MonadTrav m, Ord a) => m (Set a) -> m (Set a) -> m (Set a)
+unionM = liftM2 union
+
+class HasInvokes a where
+  retrieveInvokes :: MonadTrav m => a -> m (Set CGInvoke)
+  mretrieveInvokes :: MonadTrav m => (Maybe a) -> m (Set CGInvoke)
+  mretrieveInvokes = maybe (return empty) retrieveInvokes
+  
+instance HasInvokes a => HasInvokes [a] where
+    retrieveInvokes = foldlM accunion empty
+        where accunion s el = (liftM (union s)) (retrieveInvokes el)
+
+instance HasInvokes LCA.DeclEvent where
+    retrieveInvokes (LCA.DeclEvent idecl) = retrieveInvokes idecl
+    retrieveInvokes _ = return empty
+
+instance HasInvokes LCA.IdentDecl where
+    retrieveInvokes (LCA.FunctionDef (LCA.FunDef decl stat n)) = do
+        LCA.enterFunctionScope
+        LCA.defineParams n decl
+        res <- retrieveInvokes stat
+        LCA.leaveFunctionScope
+        return res
+    retrieveInvokes _ = return empty
+
+instance HasInvokes LC.CBlockItem where
+    retrieveInvokes (LC.CBlockStmt stat) = retrieveInvokes stat
+    retrieveInvokes (LC.CBlockDecl decl) = do
+        LCA.analyseDecl True decl
+        return empty
+    
+instance HasInvokes LCA.Stmt where
+    retrieveInvokes (LC.CExpr mexpr _) = mretrieveInvokes mexpr
+    retrieveInvokes (LC.CLabel _ stat _ _) = retrieveInvokes stat
+    retrieveInvokes (LC.CCase expr stat _) = unionM (retrieveInvokes expr) (retrieveInvokes stat)
+    retrieveInvokes (LC.CDefault stat _) = retrieveInvokes stat
+    retrieveInvokes (LC.CCompound _ bis _) = do 
+        LCA.enterBlockScope
+        bs <- retrieveInvokes bis
+        LCA.leaveBlockScope
+        return bs
+    retrieveInvokes (LC.CIf expr stat mestat _) = 
+        unionM (retrieveInvokes expr) 
+        $ unionM (retrieveInvokes stat) (mretrieveInvokes mestat)
+    retrieveInvokes (LC.CSwitch expr stat _) = unionM (retrieveInvokes expr) (retrieveInvokes stat)
+    retrieveInvokes (LC.CWhile expr stat _ _) = unionM (retrieveInvokes expr) (retrieveInvokes stat)
+    retrieveInvokes (LC.CFor exdec mcond mstep stat _) = do
+        LCA.enterBlockScope
+        res <- unionM ((either mretrieveInvokes (\_ -> (return empty))) exdec) 
+            $ unionM (mretrieveInvokes mcond)
+            $ unionM (mretrieveInvokes mstep) (retrieveInvokes stat)
+        LCA.leaveBlockScope
+        return res
+    retrieveInvokes (LC.CReturn mexpr _) = mretrieveInvokes mexpr
+    retrieveInvokes _ = return empty
+    
+instance HasInvokes LC.CExpr where
+    retrieveInvokes (LC.CCall expr args _) = do
+        a <- unionM (retrieveInvokes expr) (retrieveInvokes args)
+        minvk <- getCGInvoke expr $ length args
+        case minvk of
+             Just invk -> return $ insert invk a
+             _ -> return a
+    retrieveInvokes (LC.CComma exprs _) = retrieveInvokes exprs
+    retrieveInvokes (LC.CAssign _ expr1 expr2 _) = unionM (retrieveInvokes expr1) (retrieveInvokes expr2)
+    retrieveInvokes (LC.CCond expr1 mexpr2 expr3 _) = 
+        unionM (retrieveInvokes expr1) $ unionM (mretrieveInvokes mexpr2) (retrieveInvokes expr3)
+    retrieveInvokes (LC.CBinary _ expr1 expr2 _) = unionM (retrieveInvokes expr1) (retrieveInvokes expr2)
+    retrieveInvokes (LC.CCast _ expr _) = retrieveInvokes expr
+    retrieveInvokes (LC.CUnary _ expr _) = retrieveInvokes expr
+    retrieveInvokes (LC.CIndex expr1 expr2 _) = unionM (retrieveInvokes expr1) (retrieveInvokes expr2)
+    retrieveInvokes (LC.CMember expr _ _ n) = retrieveInvokes expr
+    retrieveInvokes _ = return empty
+
+getCGInvoke :: MonadTrav m => LC.CExpr -> Int -> m (Maybe CGInvoke)
+getCGInvoke (LC.CVar ident _) alen = do
+    mdecl <- LCA.lookupObject ident
+    case mdecl of
+         Just decl -> return $ Just (IdentInvoke decl alen)
+         _ -> return Nothing
+getCGInvoke (LC.CMember expr mid pointer _) alen = do
+    mtyp <- getType expr
+    case mtyp of
+         Nothing -> return Nothing
+         Just typ -> do
+--             let (LCA.VarDecl _ _ typ) = LCA.getVarDecl decl
+             dt <- LCA.getDefTable
+             let ctyp@(LCA.CompType sueref _ _ _ _) = getCompType typ dt
+             case getMemberDecl ctyp mid of
+                  Nothing -> return Nothing
+                  Just mdecl -> if isAnonymousRef sueref 
+                                   then return Nothing  -- (MemberObjInvoke decl mdecl alen)
+                                   else return $ Just (MemberTypeInvoke ctyp mdecl alen)
+getCGInvoke _ _ = return Nothing
+
+type CTrav = Trav (String,CallGraph)
+
+runWithCallGraph :: CallGraph -> LCD.DefTable -> String -> CTrav a -> IO a
+runWithCallGraph cg table init action = do
+    (res,state) <- errorOnLeft "Error during translation" $ 
+        runTrav (init,cg) $ (LCA.withDefTable $ const ((),table)) >> action
+    showWarnings $ travErrors state
+    return res
+
+lookupCallGraph :: LCI.Ident -> CTrav CallGraph
+lookupCallGraph idnam = do
+    u <- getUserState
+    return $ S.filter (\(fd,_,_) -> case LCA.declName fd of {LCA.VarName i _ -> i == idnam; LCA.NoName -> False}) $ snd u
+
+instance FileNameTrav CTrav where
+    getFileName = do
+        u <- getUserState
+        return $ fst u

@@ -3,7 +3,6 @@
 set s = $1
 set t = ${s}-$2
 set G = ../../bin
-set GS = ../../src
 set M = src
 set I = include
 
@@ -49,10 +48,10 @@ $G/gencot-gendummydecls < $t.ppconsts > $t.dummydecls
 $G/gencot-rempp .gencot-ppretain < $t.remc > $t.remp
 $G/gencot-chsystem .gencot-chsystem < $t.remp > $t.remps
 $G/gencot-cpp .gencot-macroconv  $t.dummydecls < $t.remps > $t.in
-$GS/gencot-translate $s.h < $t.in > $t.out
+$G/gencot-translate $s.h < $t.in > $t.out
 $G/gencot-reporigs < $t.out > $t.op
 
-$GS/gencot-deccomments < $t.in > $t.decmarks
+$G/gencot-deccomments < $t.in > $t.decmarks
 
 $G/gencot-preppconst < $t.ppconsts > $t.preppconst
 $G/gencot-prcppconst < $t.preppconst > $t.prcppconst

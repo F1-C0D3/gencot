@@ -1,6 +1,7 @@
 {-# LANGUAGE PackageImports #-}
 module Gencot.Input where
 
+import System.Environment (getArgs)
 import System.IO (hPutStrLn, stderr)
 import qualified Data.ByteString as BSW
 import Data.Map (toList,elems,Map)
@@ -12,9 +13,12 @@ import Language.C.Data.Position (initPos,posOf)
 import Language.C.Analysis
 import Language.C.Analysis.DefTable (DefTable)
 
-getDeclEvents :: GlobalDecls -> (DeclEvent -> Bool) -> [DeclEvent]
-getDeclEvents g f = sortBy compEvent $ listGlobals $ filterGlobalDecls globalsFilter g
+getOwnDeclEvents :: GlobalDecls -> (DeclEvent -> Bool) -> [DeclEvent]
+getOwnDeclEvents g f = getDeclEvents g globalsFilter
     where globalsFilter = and . ([localFilter, f] <*>) . pure 
+
+getDeclEvents :: GlobalDecls -> (DeclEvent -> Bool) -> [DeclEvent]
+getDeclEvents g f = sortBy compEvent $ listGlobals $ filterGlobalDecls f g
 
 listGlobals :: GlobalDecls -> [DeclEvent]
 listGlobals gmap = 
@@ -62,3 +66,10 @@ showWarnings :: [CError] -> IO ()
 showWarnings warns = do
     mapM (hPutStrLn stderr . show) warns
     return ()
+
+getArgFileName :: IO String
+getArgFileName = do
+    args <- getArgs
+    if null args 
+       then error "Error: Source file name expected as argument" 
+       else return $ head args

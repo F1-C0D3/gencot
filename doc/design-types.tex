@@ -341,8 +341,10 @@ have the same number of fields and the fields have equivalent types. To preserve
 a function definition, the parameter is matched with a tuple pattern containing variables of these
 names as fields.
 
-C function types where the parameters are omitted, such as in \code{t ()} or where a variable number of
-parameters is specified such as in \code{t (...)} cannot be mapped to a Cogent function type in this way. 
+C function types where the parameters are omitted, such as in \code{t ()} (``incomplete function type'') 
+or where a variable number of
+parameters is specified such as in \code{t (...)} (``variadic function type'') cannot be mapped to a Cogent 
+function type in this way. 
 They can only be mapped using an abstract type as parameter type. This can again lead to incompatible 
 Cogent types if a function pointer is assigned where parameters have been specified, these cases must 
 be treated manually in specific ways. Gencot maps these function types to a Cogent function type with an abstract
@@ -358,6 +360,32 @@ functions) are
   t(), t(*)(), t(t1,...,tn,...), t (*)(t1,...,tn,...) 
     -> P -> T, where P is abstract
 \end{verbatim}
+
+\subsubsection{Linear and Readonly Parameter Types}
+
+Like every other type, the type of a function parameter may be readonly because this property can be derived
+from the C type information, as described in Section~\ref{design-types-readonly}. However, in a C program 
+often a parameter is actually never modified, although this property cannot be derived from the C type information.
+Since this is an important property for working with linear types in Cogent, Gencot tries to capture these
+cases as well and make the parameter type readonly.
+
+For a parameter with linear type, the function can only be defined in Cogent if the parameter is not discarded,
+i.e. it must be part of the result. Gencot assumes the most simple handling of this case, where the result
+is a tuple consisting of the original result of the C function together with a component for every parameter
+of linear type. To avoid these extra result components, Gencot tries to make all parameters with linear type
+readonly and add only the remaining parameters to the result type.
+
+A parameter may be modified by a C function locally, e.g., by an assignment to a struct member. But it can 
+also be modified by passing it or a part of it as parameter to an invoked function which modifies its corresponding
+parameter. Gencot does not automatically detect parameter modification, this must be done manually. To support
+specifying parameter modification, Gencot generates a Json template from the C program. It can be used 
+to fill in all cases where a parameter is modified locally or is modified depending on a parameter modification
+of an invoked function. 
+
+The filled template is then read by Gencot upon translating the C program to Cogent
+and is used to determine all cases where a parameter may be modified. Parameters of linear type 
+are translated to a parameter with readonly type if they are not modified, otherwise a corresponding
+component is added to the result type.
 
 \subsubsection{Dummy Expressions for Function Types}
 
@@ -539,6 +567,43 @@ TN is a mapped struct or union type.
 
 \subsection{Readonly Types}
 \label{design-types-readonly}
+
+C types can be qualified as \code{const}. This means, the values of the type are immutable and could be stored in 
+a readonly memory. A variable declared with a readonly type is initialized with a value and cannot be modified 
+afterwards. The immutability of an aggregate type also implies that values cannot be modified by modifying parts: 
+for a struct the fields cannot be modified and for an array the elements cannot be modified. This behavior corresponds 
+to the behavior of all primitive and unboxed types in Cogent. 
+
+If a C type is not qualified as \code{const}, stored values of the type may be modified. This may have non-local
+effects if the stored value is shared (part of several other values). In Cogent, values of primitive and unboxed types
+cannot be shared (only copies can be part of other values). Therefore a modification of the C value always corresponds to
+replacing the value bound to a variable in Cogent. This can be represented by binding the new value to a variable
+of the same name which will shadow the previous binding. Together, this means that a \code{const} qualifier is
+irrelevant whenever a C type is translated to a primitive or unboxed type in Cogent.
+
+The situation is different for C pointer types which are translated to linear types in Cogent. Values of linear types
+may be modified using put and take operations in Cogent, but they are restricted in their use. Put and take operations
+correspond to modifications of the value referenced by the pointer. Thus, a \code{const} qualification of the pointer
+type is still irrelevant for them, however, a \code{const} qualification of the pointer's \textit{base type} means
+that put and take operations are not possible. This case is supported by Cogent as readonly types, which are not
+restricted in their use in the same way as linear types.
+
+Note, however, that Cogent does not separate between pointers and their referenced values: the referenced value
+is treated as part of the linear value. If the referenced value itself contains references, the values referenced
+by them are also treated as part of the overall value. This implies, that a readonly type in Cogent corresponds to
+a C pointer type with \code{const} qualified base type where all components with a pointer type recursively have
+the same property.
+
+An exception are C pointers to functions. It is assumed that the function code cannot be modified, hence for a C pointer 
+to function to have the readonly property, its base type need not be \code{const} qualified.
+
+Gencot tests every C pointer type for this property. If it is valid, the type is translated to a Cogent readonly type,
+by applying the bang operator \code{!} to the type after translating it as described in Section~\ref{design-types-pointer}.
+
+In particular, the property is valid for all pointer types where the base type contains no pointers, such as
+\code{const char*}.
+
+
 
 % For a \code{const} qualified C structure type the fields may not be modified. This is equivalent to the behavior
 % of an unboxed record in Cogent, the same mapping is used here.

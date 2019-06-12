@@ -22,9 +22,10 @@ import Language.C.Data.Node as LCN
 import Language.C.Data.Position as LCP
 import Language.C.Analysis as LCA
 
-import Gencot.Util.CallGraph (CallGraph,CGFunInvoke,CGInvoke(IdentInvoke,MemberTypeInvoke,MemberObjInvoke),CTrav,lookupCallGraph,invokeAnum,unionM,getCGInvoke,invokeType,invokeParams)
+import Gencot.Util.CallGraph (CallGraph,CGFunInvoke,CGInvoke(IdentInvoke,MemberTypeInvoke,MemberObjInvoke),CTrav,lookupCallGraph,invokeAnum,unionM,foldsets,getCGInvoke,invokeType,invokeParams)
 import Gencot.Util.Types (isLinearParType,isReadOnlyParType,isFunPointer,isFunction,resolveTypedef,getPointedType,getFunType)
 import Gencot.Util.Expr (getRootIdent,isReference)
+import Gencot.Util.Decl (traverseLocalDecl)
 import Gencot.Names (srcFileName)
 
 qmark = showJSON "?"
@@ -155,15 +156,44 @@ instance HasParMods a => HasParMods [a] where
 
 instance HasParMods LC.CBlockItem where
     findParMods p (LC.CBlockStmt stat) = findParMods p stat
-    findParMods p (LC.CBlockDecl decl) = do
-        LCA.analyseDecl True decl
-        return empty
+    findParMods p (LC.CBlockDecl decl) = 
+        traverseLocalDecl decl (findParMods p) foldsets
         
     findParDeps p (LC.CBlockStmt stat) = findParDeps p stat
-    findParDeps p (LC.CBlockDecl decl) = do
-        LCA.analyseDecl True decl
-        return empty
+    findParDeps p (LC.CBlockDecl decl) =
+        traverseLocalDecl decl (findParDeps p) foldsets
     
+instance HasParMods LC.CDecl where
+    findParMods p (LC.CDecl _ dclrs _) = findParMods p dclrs
+    findParMods _ _ = return empty
+
+    findParDeps p (LC.CDecl _ dclrs _) = findParDeps p dclrs
+    findParDeps _ _ = return empty
+    
+instance HasParMods (Maybe LC.CDeclr,Maybe LC.CInit, Maybe LC.CExpr) where
+    findParMods p (_,minit,_) = mfindParMods p minit
+
+    findParDeps p (_,minit,_) = mfindParDeps p minit
+
+instance HasParMods LC.CInit where
+    findParMods p (LC.CInitExpr expr _) = findParMods p expr
+    findParMods p (LC.CInitList ilist _) = findParMods p ilist
+
+    findParDeps p (LC.CInitExpr expr _) = findParDeps p expr
+    findParDeps p (LC.CInitList ilist _) = findParDeps p ilist
+
+instance HasParMods ([LC.CDesignator],LC.CInit) where
+    findParMods p (desigs,cinit) = unionM (findParMods p desigs) (findParMods p cinit)
+
+    findParDeps p (desigs,cinit) = unionM (findParDeps p desigs) (findParDeps p cinit)
+    
+instance HasParMods LC.CDesignator where
+    findParMods p (LC.CArrDesig expr _) = findParMods p expr
+    findParMods p (LC.CRangeDesig expr1 expr2 _) = unionM (findParMods p expr1) (findParMods p expr2)
+
+    findParDeps p (LC.CArrDesig expr _) = findParDeps p expr
+    findParDeps p (LC.CRangeDesig expr1 expr2 _) = unionM (findParDeps p expr1) (findParDeps p expr2)
+
 instance HasParMods LCA.Stmt where
     findParMods p (LC.CExpr mexpr _) = mfindParMods p mexpr
     findParMods p (LC.CLabel _ stat _ _) = findParMods p stat
@@ -181,7 +211,7 @@ instance HasParMods LCA.Stmt where
     findParMods p (LC.CWhile expr stat _ _) = unionM (findParMods p expr) (findParMods p stat)
     findParMods p (LC.CFor exdec mcond mstep stat _) = do
         LCA.enterBlockScope
-        res <- unionM ((either (mfindParMods p) (\_ -> (return empty))) exdec) 
+        res <- unionM ((either (mfindParMods p) (\d -> traverseLocalDecl d (findParMods p) foldsets)) exdec) 
             $ unionM (mfindParMods p mcond)
             $ unionM (mfindParMods p mstep) (findParMods p stat)
         LCA.leaveBlockScope
@@ -205,7 +235,7 @@ instance HasParMods LCA.Stmt where
     findParDeps p (LC.CWhile expr stat _ _) = unionM (findParDeps p expr) (findParDeps p stat)
     findParDeps p (LC.CFor exdec mcond mstep stat _) = do
         LCA.enterBlockScope
-        res <- unionM ((either (mfindParDeps p) (\_ -> (return empty))) exdec) 
+        res <- unionM ((either (mfindParDeps p) (\d -> traverseLocalDecl d (findParDeps p) foldsets)) exdec) 
             $ unionM (mfindParDeps p mcond)
             $ unionM (mfindParDeps p mstep) (findParDeps p stat)
         LCA.leaveBlockScope
@@ -235,7 +265,9 @@ instance HasParMods LC.CExpr where
     findParMods p (LC.CCast _ expr _) = findParMods p expr
     findParMods p (LC.CUnary _ expr _) = findParMods p expr
     findParMods p (LC.CIndex expr1 expr2 _) = unionM (findParMods p expr1) (findParMods p expr2)
-    findParMods p (LC.CMember expr _ _ n) = findParMods p expr
+    findParMods p (LC.CMember expr _ _ _) = findParMods p expr
+    findParMods p (LC.CCompoundLit _ ilist _) = findParMods p ilist
+    findParMods p (LC.CGenericSelection _ slist a) = findParMods p slist
     findParMods _ _ = return empty
     
     findParDeps p (LC.CCall expr args _) = do
@@ -254,8 +286,15 @@ instance HasParMods LC.CExpr where
     findParDeps p (LC.CCast _ expr _) = findParDeps p expr
     findParDeps p (LC.CUnary _ expr _) = findParDeps p expr
     findParDeps p (LC.CIndex expr1 expr2 _) = unionM (findParDeps p expr1) (findParDeps p expr2)
-    findParDeps p (LC.CMember expr _ _ n) = findParDeps p expr
+    findParDeps p (LC.CMember expr _ _ _) = findParDeps p expr
+    findParDeps p (LC.CCompoundLit _ ilist _) = findParDeps p ilist
+    findParDeps p (LC.CGenericSelection _ slist a) = findParDeps p slist
     findParDeps _ _ = return empty
+
+instance HasParMods (Maybe LC.CDecl, CExpr) where
+    findParMods p (_,expr) = findParMods p expr
+
+    findParDeps p (_,expr) = findParDeps p expr
 
 -- | Find parameter dependencies in a numbered argument of an invocation.
 -- The first argument is the set of all parameters, as returned by 'getParamObjs'.

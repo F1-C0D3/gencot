@@ -19,6 +19,7 @@ import Gencot.Input (showWarnings,errorOnLeft)
 import Gencot.Util.EqByPos
 import Gencot.Util.Types (resolveTypedef,getCompType,getMemberDecl)
 import Gencot.Util.Expr (getType)
+import Gencot.Util.Decl (traverseLocalDecl)
 
 type CallGraph = Set CGFunInvoke
 type CGFunInvoke = (LCA.FunDef, CGInvoke, Bool)
@@ -101,6 +102,9 @@ isLocal table idec = case LCD.lookupIdent (LCA.declIdent idec) table of
 unionM :: (MonadTrav m, Ord a) => m (Set a) -> m (Set a) -> m (Set a)
 unionM = liftM2 union
 
+foldsets :: Ord a => [Set a] -> Set a
+foldsets = foldl union empty
+
 class HasInvokes a where
   retrieveInvokes :: MonadTrav m => a -> m (Set CGInvoke)
   mretrieveInvokes :: MonadTrav m => (Maybe a) -> m (Set CGInvoke)
@@ -125,10 +129,27 @@ instance HasInvokes LCA.IdentDecl where
 
 instance HasInvokes LC.CBlockItem where
     retrieveInvokes (LC.CBlockStmt stat) = retrieveInvokes stat
-    retrieveInvokes (LC.CBlockDecl decl) = do
-        LCA.analyseDecl True decl
-        return empty
+    retrieveInvokes (LC.CBlockDecl decl) =
+        traverseLocalDecl decl retrieveInvokes foldsets
+
+instance HasInvokes LC.CDecl where
+    retrieveInvokes (LC.CDecl _ dclrs _) = retrieveInvokes dclrs
+    retrieveInvokes _ = return empty
     
+instance HasInvokes (Maybe LC.CDeclr,Maybe LC.CInit, Maybe LC.CExpr) where
+    retrieveInvokes (_,minit,_) = mretrieveInvokes minit
+
+instance HasInvokes LC.CInit where
+    retrieveInvokes (LC.CInitExpr expr _) = retrieveInvokes expr
+    retrieveInvokes (LC.CInitList ilist _) = retrieveInvokes ilist
+
+instance HasInvokes ([LC.CDesignator],LC.CInit) where
+    retrieveInvokes (desigs,cinit) = unionM (retrieveInvokes desigs) (retrieveInvokes cinit)
+    
+instance HasInvokes LC.CDesignator where
+    retrieveInvokes (LC.CArrDesig expr _) = retrieveInvokes expr
+    retrieveInvokes (LC.CRangeDesig expr1 expr2 _) = unionM (retrieveInvokes expr1) (retrieveInvokes expr2)
+
 instance HasInvokes LCA.Stmt where
     retrieveInvokes (LC.CExpr mexpr _) = mretrieveInvokes mexpr
     retrieveInvokes (LC.CLabel _ stat _ _) = retrieveInvokes stat
@@ -146,7 +167,7 @@ instance HasInvokes LCA.Stmt where
     retrieveInvokes (LC.CWhile expr stat _ _) = unionM (retrieveInvokes expr) (retrieveInvokes stat)
     retrieveInvokes (LC.CFor exdec mcond mstep stat _) = do
         LCA.enterBlockScope
-        res <- unionM ((either mretrieveInvokes (\_ -> (return empty))) exdec) 
+        res <- unionM ((either mretrieveInvokes (\d -> traverseLocalDecl d retrieveInvokes foldsets)) exdec) 
             $ unionM (mretrieveInvokes mcond)
             $ unionM (mretrieveInvokes mstep) (retrieveInvokes stat)
         LCA.leaveBlockScope
@@ -169,8 +190,13 @@ instance HasInvokes LC.CExpr where
     retrieveInvokes (LC.CCast _ expr _) = retrieveInvokes expr
     retrieveInvokes (LC.CUnary _ expr _) = retrieveInvokes expr
     retrieveInvokes (LC.CIndex expr1 expr2 _) = unionM (retrieveInvokes expr1) (retrieveInvokes expr2)
-    retrieveInvokes (LC.CMember expr _ _ n) = retrieveInvokes expr
+    retrieveInvokes (LC.CMember expr _ _ _) = retrieveInvokes expr
+    retrieveInvokes (LC.CCompoundLit _ ilist _) = retrieveInvokes ilist
+    retrieveInvokes (LC.CGenericSelection _ slist a) = retrieveInvokes slist
     retrieveInvokes _ = return empty
+
+instance HasInvokes (Maybe LC.CDecl, CExpr) where
+    retrieveInvokes (_,expr) = retrieveInvokes expr
 
 getCGInvoke :: MonadTrav m => LC.CExpr -> Int -> m (Maybe CGInvoke)
 getCGInvoke (LC.CVar ident _) alen = do

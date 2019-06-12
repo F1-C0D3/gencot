@@ -22,7 +22,7 @@ Installation
     This will yield `D/cogent`
 2. In a directory `G` clone this project (Gencot).  
     This will yield `G/gencot`
-3. adapt the two paths in `G/gencot/cabal.project` to point to  
+3. copy `G/gencot/cabal.project.template` to `G/gencot/cabal.project` and adapt the two contained paths to point to  
   `D/cogent/cogent`  
   and  
   `D/cogent/isa-parser`

@@ -1,0 +1,26 @@
+The following auxiliary Gencot components exist which do not process C source code:
+\begin{description}
+\item[\code{parmod-proc}] processes parameter modification descriptions in JSON format (see Section~\ref{impl-parmod}).
+\end{description}
+
+\subsection{Parameter Modification Descriptions}
+
+Processing parameter modification descriptions is implemented by the filter \code{parmod-proc}. It reads a parameter
+modification descriptions from standard input as described in Section~\ref{impl-parmod-json}. The kind of processing
+depends on whether an additional parameter is specified for the filter.
+
+If no additional parameter is specified, the filter generates a textual summary of the description. It lists
+all unconfirmed parameter descriptions in the form
+\begin{verbatim}
+  <function identifier> / <parameter identifier>
+\end{verbatim}
+and it lists all required invocations by their function identifiers.
+
+This summary is intended as a support for the developer when filling the description manually. The goal is that
+the summary is empty. If there are unconfirmed parameters they must be inspected and confirmed. This usually 
+modifies the list of required invocations. They can be reduced by generating and adding corresponding descriptions
+from other source files.
+
+If an additional parameter is specified, it must be the file name of another parameter modification description.
+In this case all required invocations which are found in this second description are added (appended) to the main 
+description and the result is written to the output as described in Section~\ref{impl-parmod-json}.

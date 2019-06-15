@@ -1,21 +1,26 @@
 #! /bin/csh -f
 
 # Expand transitively all quoted include directives in the input.
-# This is a filter from stdin to stdout with an additional directory list argument and an additional file name argument.
+# This is a filter from stdin to stdout with an additional directory list argument and an optional file name argument.
 # The directory list uses ":" as separator and specifies the directories to be searched for included Files.
 # For the current directory "." use the empty string "". Do not append a trailing "/" to directory pathnames.
-# The file name is the full pathname of the processed file to prevent including itself.
+# The optional file name specifies the file with the list of includes to be omitted.
 
-if ( $#argv != 2) then
-  echo "Error: Include directory search list and own file pathname expected as arguments."
+if ( $#argv == 0) then
+  echo "Error: Include directory search list expected as argument."
   exit 0
 endif
 
 awk \
 'BEGIN { \
    ndirs = split(ARGV[1], dirs, ":"); delete ARGV[1] \
-   ownname = ARGV[2]; delete ARGV[2] \
-   processed[ownname] = 1 \
+   if (ARGC > 2) { \
+     ofile = ARGV[2]; delete ARGV[2] \
+     while ((getline cline < ofile) > 0) { \
+       omit[cline] = 1 \
+     } \
+     close(ofile) \
+   } \
    stackptr = 0 \
    input[stackptr] = "/dev/stdin" \
    curdir[stackptr] = "-" \
@@ -29,35 +34,37 @@ awk \
          gsub(/^[[:blank:]]*#[[:blank:]]*include[[:blank:]]*\"/, "#include \"") \
          $0 = $0 \
          ipath = substr($2,2,length($2)-2) \
-         fpath = "" \
-         if (curdir[stackptr] != "-") { \
-           t = (curdir[stackptr] ipath) \
-           if ((getline junk < t) > 0) { \
-             close(t); fpath = t; \
-           } \
-         } \
-         if (! fpath) { \
-           for (i = 1; i <= ndirs; i++) { \
-             t = (dirs[i] (dirs[i]?"/":"") ipath) \
+         if (! omit[ipath]) { \
+           fpath = "" \
+           if (curdir[stackptr] != "-") { \
+             t = (curdir[stackptr] ipath) \
              if ((getline junk < t) > 0) { \
-               close(t); fpath = t; break; \
+               close(t); fpath = t; \
              } \
            } \
+           if (! fpath) { \
+             for (i = 1; i <= ndirs; i++) { \
+               t = (dirs[i] (dirs[i]?"/":"") ipath) \
+               if ((getline junk < t) > 0) { \
+                 close(t); fpath = t; break; \
+               } \
+             } \
+           } \
+           if (! fpath) { \
+             printf("cannot find %s (included in %s)\n", ipath, input[stackptr]) > "/dev/stderr" \
+             continue \
+           } \
+           printf("# 1 \"%s\" 1\n", fpath) \
+           if (! (fpath in processed)) { \
+             processed[fpath] = 1 \
+             input[++stackptr] = fpath \
+             flen = split(fpath,apath,"/") \
+             hdir = ""; for (i = 1; i < flen; i++) hdir = hdir apath[i] "/" \
+             curdir[stackptr] = hdir \
+             lnr[stackptr] = 0 \
+           } \
+           else printf("# %d \"%s\" 2\n", lnr[stackptr]+1, input[stackptr] == "/dev/stdin"?curnam:input[stackptr]) \
          } \
-         if (! fpath) { \
-           printf("cannot find %s (included in %s)\n", ipath, input[stackptr]) > "/dev/stderr" \
-           continue \
-         } \
-         printf("# 1 \"%s\" 1\n", fpath) \
-         if (! (fpath in processed)) { \
-           processed[fpath] = 1 \
-           input[++stackptr] = fpath \
-           flen = split(fpath,apath,"/") \
-           hdir = ""; for (i = 1; i < flen; i++) hdir = hdir apath[i] "/" \
-           curdir[stackptr] = hdir \
-           lnr[stackptr] = 0 \
-         } \
-         else printf("# %d \"%s\" 2\n", lnr[stackptr]+1, input[stackptr] == "/dev/stdin"?curnam:input[stackptr]) \
        } \
        else if ($0 ~ /^[[:blank:]]*#[[:blank:]]*[[:digit:]]+/) { \
          gsub(/^[[:blank:]]*#[[:blank:]]*/, "# ") \
@@ -95,6 +102,8 @@ awk \
 # - The program consists only of a BEGIN rule, it reads all input lines and the lines of all included
 #   files explicitly with getline.
 # - The argument directory list is read into the array dirs, the number of directories in the list is stored in ndirs.
+# - The optional list of includes to be omitted contains a pathname in every line. For every pathname read
+#   the corresponding entry in the boolean array omit is set to 1.
 # - For reading the standard input on level 0 with getline the pseudo pathname /dev/stdin is used which is 
 #   interpreted by awk.
 # - The for loop processes one file in each iteration. After each file the stack is popped by decrementing stackptr.
@@ -104,17 +113,20 @@ awk \
 # - An include directive may be written with or without whitespace before and after the include keyword and at
 #   the beginning of the line. All these possibilities are covered by the regular expression
 #     /^[[:blank:]]*#[[:blank:]]*include[[:blank:]]*\"/
-#   Due to the quote at the end it matches only quoted include directives, no system include directives.
+#   Due to the quote at the end it matches only quoted include directives, no system include directives and no
+#   include directives where the included file is specified by a macro call.
 #   The matched include directive is then normalized by creating the form where there is only one space after 
 #   the keyword. The statement $0 = $0 is used to reprocess the input line so that the quoted file name is in 
-#   field $2. The quotes are removed and the result is stored in ipath.
+#   field $2. The quotes are removed and the result is stored in ipath. If the array omit is set for ipath the
+#   include is ignored.
 # - Searching the included file is implemented by constructing the possible file name in t and trying to read 
 #   from the file with getline. When this succeeds, the file has been found.
 # - ipath is first searched using curdir on the current level, then the directories in dirs. If found, fpath
 #   is set to the pathname used for the successful file access.
 # - Multiple includes are prevented using the boolean array processed. It uses the full pathname of every included
-#   file as index. Upon the first include the value is set to 1.
-# - The line directive for the included file is generated whenever the file ahas been found, even if this is
+#   file as index. Upon the first include the value is set to 1. The same mechanism is used to omit includes
+#   by initializing the value for a pathname to 1.
+# - The line directive for the included file is generated whenever the file has been found, even if this is
 #   a repeated include.
 # - Upon first include of a file, a new level is pushed onto the stack. input is the full file pathname fpath, curdir
 #   is derived from fpath, and lnr is set to 0. Upon a repeated include only the final line directive is generated.

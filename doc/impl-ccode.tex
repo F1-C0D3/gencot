@@ -44,10 +44,11 @@ compiler, a package-qualified import must be used in the Haskell program, which 
 \subsection{Including Files}
 \label{impl-ccode-include}
 
-The filter \code{gencot-include <dirlist>} processes all quoted include directives and replaces them (transitively) by the 
+The filter \code{gencot-include <dirlist> [<filename>]} processes all quoted include directives and replaces them (transitively) by the 
 content of the included file. Line directives are inserted at the begin and end of an included file, so that
 for all code in the output the original source file name and line number can be determined. The \code{<dirlist>}
-specifies the directories to search for included files.
+specifies the directories to search for included files. The optional \code{<filename>}, if present, must be the name of
+a file with a list of names of files which should be omitted from being included.
 
 \subsubsection{Filter \code{gencot-include}}
 
@@ -76,7 +77,7 @@ the line directive
 \end{verbatim}
 is prepended to the output.
 
-If after a generated line directive with file name \code{\"fff\"} the input line \code{NNN} contains the 
+If after a generated line directive with file name \code{"fff"} the input line \code{NNN} contains the 
 directive 
 \begin{verbatim}
   #include "filepath"
@@ -88,9 +89,9 @@ the directive is replaced in the output by the lines
   # NNN+1 "fff" 2
 \end{verbatim}
 
-The \code{\"dir/\"} prefix in the line directives for included files is determined as follows. 
+The \code{"dir/"} prefix in the line directives for included files is determined as follows. 
 If the included file has been found in the 
-directory of its includer, the directory pathname is constructed from \code{\"fff\"} by taking the pathname 
+directory of its includer, the directory pathname is constructed from \code{"fff"} by taking the pathname 
 up to and including the last ``/'' (if present, otherwise the prefix is empty).
 If the included file has been found in a directory from the argument directory list
 the directory pathname is used as specified in the list.
@@ -106,6 +107,24 @@ not include due to repeated include, the corresponding line directives are never
   # 1 "dir/filepath" 1
   # NNN+1 "fff" 2
 \end{verbatim}
+
+\subsubsection{Omitted Includes}
+
+A special case of multiple include is the recursive include of the main input file. However, since it is read from standard
+input, its name is not known to \code{gencot-include}. If it may happen that it is recursively included, the corresponding
+pathname, as it appears in an include directive, must be added to the list of includes to be omitted.
+
+There are other reasons, why some include files should be omitted. One case is that an include file may or may not exists
+which is configured through a preprocessor flag. Since \code{gencot-include} ignores all conditional directives,
+this would not be detected and an error message would be caused if the file does not exist.
+
+The list of files to be omitted from inclusion is specified in the optional file passed as second argument to 
+\code{gencot-include}. Every file must be specified on a separate line by its pathname exactly in the form it occurs 
+in a quoted include directive (without quotes). Since system includes and includes where the included file is specified 
+as a macro call are not processed by \code{gencot-include} they need not be added to the list.
+
+Includes for files listed to be omitted are simply ignored. No line
+directives are generated for them.
 
 \subsection{Preprocessing}
 \label{impl-ccode-preproc}
@@ -249,7 +268,7 @@ result structures. This information can be used to
 
 For the last case the true name of the processed file is required, however, the parsed input is read from a pipe where
 the name is always given as \code{<stdin>}. The true name is passed to the Haskell program as an additional 
-argument, as described in Section~\ref{impl-comps-filters}. Since there is no easy way to replace the file name in
+argument, as described in Section~\ref{impl-ccomps-filters}. Since there is no easy way to replace the file name in
 all \code{NodeInfo} values in the semantic map, Gencot adds the name to the monadic state used for processing
 (see Section~\ref{impl-ccode-trav}).
 
@@ -921,7 +940,7 @@ An error can be recorded in the monad using the action
   recordError :: Language.C.Data.Error.Error e => e -> m () 
 \end{verbatim}
 
-\subsection{Creating the C Call Graph}
+\subsection{Creating and Using the C Call Graph}
 \label{impl-ccode-callgraph}
 
 In some Gencot components we use the C call graph. This is the mapping from functions to the functions
@@ -933,29 +952,34 @@ phase. The callback handler is not used since it is only invoked for declaration
 for processing function invocations.
 
 Invocations can be identified purely syntactically as C function call expressions. The invoked function is usually 
-specified by an identifier, however, it can be specified as an arbitrary C expression. The expression can use 
-identifiers which are locally declared, such as a parameter of the function where the invocation occurs. The 
+specified by an identifier, however, it can be specified as an arbitrary C expression. We only support the cases
+where the invoked function is specified as an identifier for a function or function pointer, or by a chain of 
+member access operations starting at an identifier for an object of struct or union type.  All other invocation where the invoked function is specified in a different way are ignored and not added to the call graph.
+
+The starting identifier can be locally declared, such as a parameter of the function where the invocation occurs. The 
 declaration information of these identifiers would not be available after the traversal which builds the call graph.
-
 To make the full information about the invoked functions available, Gencot inserts the declarations into the call graph 
-instead of the identifiers. This cannot be done for arbitrary expressions, hence Gencot only handles two special cases 
-of specifying the invoked function: as a single (globally or locally declared) identifier or as a member access from
-a single identifier. All other invocation where the invoked function is specified in a different way are ignored and
-not added to the call graph.
+instead of the identifiers. In the case of a member access chain it uses the struct or union type which has the 
+invoked function pointer as its direct member.
 
-The call graph has the form of a mapping from function names (invoking function) to sets of declarations
-(invoked functions):
+The information about such an invocation in a function body is represented by the following type:
 \begin{verbatim}
-  type CallGraph = Map Ident (Set CGDecl)
-  data CGDecl =
-    IdentDecl IdentDecl
-    MemberDecl MmberDecl
+  data CGInvoke =
+      IdentInvoke IdentDecl Int
+    | MemberTypeInvoke CompType MemberDecl Int
 \end{verbatim}
-An invoked function can be specified by an \code{IdentDecl} (function or object of function pointer type),
-or by a \code{MemberDecl} (struct or union member of function pointer type). Note that in a function definition
+The additional integer value specifies the number of actual arguments in this invocation.
+Note that in a function definition
 the parameters are represented in the symbol table by \code{IdentDecl}s, not by \code{ParamDecl}s.
 
-To also access the declarations of locally declared identifiers, the symbol table with local declarations
+The call graph has the form of a set of globally described invocations. These are triples consisting of the definition
+of the invoking function, the invocation, and a boolean value telling whether the identifier in the case of an
+\code{IdentInvoke} is locally defined in the invoking function:
+\begin{verbatim}
+  type CallGraph = Set CGFunInvoke
+  type CGFunInvoke = (FunDef, CGInvoke, Bool)
+\end{verbatim}
+To access the declarations of locally declared identifiers, the symbol table with local declarations
 must be available while building the call graph. Therefore we traverse the function bodies with the help of
 the \code{FTrav} monad and \code{runWithTable} as described in Section~\ref{impl-ccode-trav}.
 
@@ -976,3 +1000,15 @@ The declaration of an invoked function also tells
 whether the function or object is defined or only declared. Note that the traversal for collecting invocations is a ``second 
 pass'' through the C source after the analysis phase of language-c. During analysis language-c replaces
 declarations in the symbol table whenever it finds the corresponding definition.
+
+To use the call graph the \code{CallGraph} module defines an extension \code{CTrav} of the \code{FTrav} monad
+(see Section~\ref{impl-ccode-trav}) with the call graph in the user state. The corresponding execution function is
+\begin{verbatim}
+  runWithCallGraph :: CallGraph -> DefTable -> String -> CTrav a -> IO a
+\end{verbatim}
+which extends \code{runWithTable} by passing the call graph. The action to access the call graph is
+\begin{verbatim}
+  lookupCallGraph :: Ident -> CTrav CallGraph
+\end{verbatim}
+It takes the identifier of an invoking function as argument and returns the part of the call graph for this function,
+consisting of all invocations in its body.

@@ -6,7 +6,7 @@ set t = ${s}
 set G = ../../bin
 set M = src
 
-cat common.gencot-addincl $M/$s.c | $G/gencot-include ${M}:include $s.c  > $t.gi
+cat common.gencot-addincl $M/$s.c | $G/gencot-include ${M}:include > $t.gi
 $G/gencot-remcomments < $t.gi > $t.remc
 
 $G/gencot-selpp < $t.remc > $t.pps

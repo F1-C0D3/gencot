@@ -30,13 +30,11 @@ type CGFunInvoke = (LCA.FunDef, CGInvoke, Bool)
 -- or by a struct type and member declaration (function pointer as struct member).
 data CGInvoke =
           IdentInvoke LCA.IdentDecl Int
-        | MemberTypeInvoke LCA.CompType LCA.MemberDecl Int
-        | MemberObjInvoke LCA.IdentDecl LCA.MemberDecl Int
+        | MemberInvoke LCA.CompType LCA.MemberDecl Int
 
 invokeAnum :: CGInvoke -> Int
 invokeAnum (IdentInvoke _ i) = i
-invokeAnum (MemberTypeInvoke _ _ i) = i
-invokeAnum (MemberObjInvoke _ _ i) = i
+invokeAnum (MemberInvoke _ _ i) = i
 
 invokeType :: CGInvoke -> LCA.FunType
 invokeType cginvk = ftyp 
@@ -51,18 +49,15 @@ invokeParams cginvk = case invokeType cginvk of
 
 instance LCN.CNode CGInvoke where
     nodeInfo (IdentInvoke d _) = LCN.nodeInfo d
-    nodeInfo (MemberTypeInvoke c d _) = LCN.nodeInfo d
-    nodeInfo (MemberObjInvoke c d _) = LCN.nodeInfo d
+    nodeInfo (MemberInvoke c d _) = LCN.nodeInfo d
 
 instance LCA.Declaration CGInvoke where
     getVarDecl (IdentInvoke d _) = LCA.getVarDecl d
-    getVarDecl (MemberTypeInvoke c d _) = LCA.getVarDecl d
-    getVarDecl (MemberObjInvoke c d _) = LCA.getVarDecl d
+    getVarDecl (MemberInvoke c d _) = LCA.getVarDecl d
 
 instance Pos CGInvoke where
     posOf (IdentInvoke d _) = posOf d
-    posOf (MemberTypeInvoke c d _) = posOf d
-    posOf (MemberObjInvoke c d _) = posOf d
+    posOf (MemberInvoke c d _) = posOf d
 
 instance Eq CGInvoke where
     d1 == d2 = (posOf d1) == (posOf d2)
@@ -91,8 +86,7 @@ retrieveFunInvokes _ = return empty
 
 markLocal :: LCD.DefTable -> CGFunInvoke -> CGFunInvoke
 markLocal table (fd,inv@(IdentInvoke idec _),_) = (fd,inv,isLocal table idec)
-markLocal table (fd,inv@(MemberObjInvoke idec _ _),_) = (fd,inv,isLocal table idec)
-markLocal table (fd,inv@(MemberTypeInvoke _ _ _),_) = (fd,inv,False)
+markLocal table (fd,inv@(MemberInvoke _ _ _),_) = (fd,inv,False)
 
 isLocal :: LCD.DefTable -> LCA.IdentDecl -> Bool
 isLocal table idec = case LCD.lookupIdent (LCA.declIdent idec) table of
@@ -215,8 +209,8 @@ getCGInvoke (LC.CMember expr mid pointer _) alen = do
              case getMemberDecl ctyp mid of
                   Nothing -> return Nothing
                   Just mdecl -> if isAnonymousRef sueref 
-                                   then return Nothing  -- (MemberObjInvoke decl mdecl alen)
-                                   else return $ Just (MemberTypeInvoke ctyp mdecl alen)
+                                   then return Nothing
+                                   else return $ Just (MemberInvoke ctyp mdecl alen)
 getCGInvoke _ _ = return Nothing
 
 type CTrav = Trav (String,CallGraph)

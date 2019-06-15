@@ -2,7 +2,7 @@ As described in Section~\ref{design-modular} there are several different Gencot 
 target code.
 
 \subsection{Filters for C Code Processing}
-\label{impl-comps-filters}
+\label{impl-ccomps-filters}
 
 All filters which parse and process C code are implemented in Haskell and read the
 C code as described in Section~\ref{impl-ccode-read}.
@@ -21,8 +21,8 @@ file \code{x-entry.ac}. It processes all function definitions with external link
 file \code{x-abstypes.c} or \code{x-abstypes.h}. It processes typedefs and struct/union/enum definitions.
 \item[\code{gencot-remfundef}] processes a single file \code{x.c} by removing all function definitions. The output
 is intended to be put in file \code{x-globals.c}
-\item[\code{gencot-parmodtmpl}] processes a single file \code{x.c} and generates the Json template for specifying
-function parameter modification (see Section~\ref{design-types-function}).
+\item[\code{parmod-gen}] processes a single file \code{x.c} and generates the Json template for specifying
+function parameter modification (see Section~\ref{impl-parmod}).
 \end{description}
 
 All these filters take the name of the original source file as additional first
@@ -86,7 +86,7 @@ the declarations of externally referenced functions.
 \end{description}
 
 \subsection{Main Translation to Cogent}
-\label{impl-comps-main}
+\label{impl-ccomps-main}
 
 The main translation from C to Cogent is implemented by the filter \code{gencot-translate}. It translates \code{DeclEvent}s
 of the following kinds:
@@ -214,7 +214,7 @@ A primitive type and an enum type does not contain mutable pointers. A struct or
 pointers, if the type of a member contains mutable pointers.
 
 \subsection{Exit Wrapper Functions}
-\label{impl-comps-exit}
+\label{impl-ccomps-exit}
 
 For the exit wrapper functions Gencot generates the Cogent abstract function definitions and the implementations
 in antiquoted C. Exit wrappers are generated for all functions which are invoked but not defined in the Cogent code. 
@@ -258,7 +258,7 @@ in Cogent. The result is output using \code{prettyTopLevels} from module \code{G
 The processor \code{gencot-extfunsac} generates the wrapper implementations in antiquoted C code.
 
 \subsection{External Cogent Types}
-\label{impl-comps-exttypes}
+\label{impl-ccomps-exttypes}
 
 The filter \code{gencot-exttypes} generates the list of all Cogent type definitions which do not result from
 translating a C type or tag definition. There are two cases:
@@ -307,7 +307,7 @@ handler is invoked for every declarator separately.
 
 Functions can be defined in the C source or they are only declared and invoked. In both cases the parameter and result
 types must be known in Cogent. In the latter case they must be determined from the declaration. Gencot determines the
-actually invoked external functions as described in Section~\ref{impl-comps-exit}. Only for them the declarations 
+actually invoked external functions as described in Section~\ref{impl-ccomps-exit}. Only for them the declarations 
 are inspected to collect the parameter and result types.
 
 Gencot uses the callback handler
@@ -323,7 +323,7 @@ specified as absolute paths whereas include paths belonging to the <package> mus
 to make the heuristics work.
 
 After the language-c analysis phase the declarations of all invoked external functions are determined with the
-help of \code{getExtInvocations} as described in Section~\ref{impl-comps-exit} and the result and parameter 
+help of \code{getExtInvocations} as described in Section~\ref{impl-ccomps-exit} and the result and parameter 
 types used by them are added to the set of used types.
 
 The resulting set of types is filtered for derived types and for typedef and tag names defined in system include files
@@ -353,7 +353,7 @@ in module \code{Gencot.Cogent.Translate}.
 
 
 \subsection{Declarations}
-\label{impl-comps-decls}
+\label{impl-ccomps-decls}
 
 The filter \code{gencot-deccomments} is used to provide the information about the positions of all declarations with
 external linkage in
@@ -376,12 +376,38 @@ in module \code{Gencot.Text.Decls}. It is mapped over the list of \code{DeclEven
 is output one string per line.
 
 \subsection{Parameter Modification}
-\label{impl-comps-parmod}
+\label{impl-ccomps-parmod}
 
-The filter \code{gencot-parmodtmpl} is used to generate the Json template for manually filling in the information 
-about parameters which may be modified in a function. The filter processes all \code{DeclEvent}s which are function
-definitions. Additionally to the original source file name, it takes as optional second argument a file with a list 
-of function names. If the argument is present, only the definitions of the functions listed in the file are processed.
+The filter \code{parmod-gen} is used to generate the Json parameter modification description from a C source file.
+It may be invoked in two forms:
+\begin{verbatim}
+  parmod-gen <source file name>
+  parmod-gen <source file name> close
+\end{verbatim}
+The second form runs the filter in ``closing mode''.
+
+In normal mode the filter processes all \code{DeclEvent}s in the source file which are function
+definitions or definitions for objects with function pointer type. Every such definition is translated to an
+entry in the parameter modification description. A function definition is translated to the sequence of its
+own description entry and the entries for all invoked local function pointers.
+
+In closing mode the filter processes all \code{DeclEvent}s in the source file and in all included files which
+are declarations for functions or function pointers
+or type definitions for struct or union types. Every declaration is translated to an entry in the parameter
+modification description. Every type definition is translated to the sequence of entries for all members of
+function pointer type.
+
+After analysing the C code as described in Section~\ref{impl-ccode} the call graph is generated as described
+in Section~\ref{impl-ccode-callgraph}. Then another traversal is performed using the \code{CTrav} monad and
+\code{runWithCallGraph} with action
+\begin{verbatim}
+  transGlobals :: [DeclEvent] -> CTrav [JSObject JSValue]
+\end{verbatim}
+defined in module \code{Gencot.Json.Translate}. The resulting list of JSON objects is postprocessed by adding
+undeclared parameters (in case of functions with variadic or incomplete type) according to the maximal number
+of arguments found in the invocations. Finally, the list is output as described in Section~\ref{impl-parmod-json}.
+
+
 
 
 

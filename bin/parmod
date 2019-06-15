@@ -112,10 +112,10 @@ then
     CBASE=$(basename $CFILE)
     CNAME=$(expr match $CBASE '\(.*\)[.][^.]*' '|' $CBASE)
     TMPDIR=$(mktemp -d)
-    for aux in addincl omitincl manmacros macroconv ppretain chsystem
+    for aux in addincl omitincl noincl manmacros macroconv ppretain chsystem
     do prepare_aux $aux
     done
-    cat $TMPDIR/gencot-addincl $CFILE | $BIN/gencot-include $INCLPATH $CBASE \
+    cat $TMPDIR/gencot-addincl $CFILE | $BIN/gencot-include $INCLPATH $TMPDIR/gencot-noincl \
         | $BIN/gencot-remcomments | tee $TMPDIR/remc \
         | $BIN/gencot-selpp \
         | $BIN/gencot-selppconst $TMPDIR/gencot-manmacros \

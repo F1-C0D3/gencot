@@ -102,7 +102,7 @@ fileName :: CNode a => a -> String
 fileName n = -- takeFileName . LCP.posFile . LCN.posOfNode . LCN.nodeInfo
     case LCN.fileOfNode n of
          Nothing -> "<unknown>"
-         Just res -> res
+         Just res -> takeFileName res
 
 lineNr :: CNode a => a -> Int
 lineNr = LCP.posRow . LCN.posOfNode . LCN.nodeInfo

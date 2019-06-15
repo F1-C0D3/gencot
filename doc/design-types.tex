@@ -375,17 +375,26 @@ is a tuple consisting of the original result of the C function together with a c
 of linear type. To avoid these extra result components, Gencot tries to make all parameters with linear type
 readonly and add only the remaining parameters to the result type.
 
-A parameter may be modified by a C function locally, e.g., by an assignment to a struct member. But it can 
-also be modified by passing it or a part of it as parameter to an invoked function which modifies its corresponding
-parameter. Gencot does not automatically detect parameter modification, this must be done manually. To support
-specifying parameter modification, Gencot generates a Json template from the C program. It can be used 
-to fill in all cases where a parameter is modified locally or is modified depending on a parameter modification
-of an invoked function. 
+A parameter of linear type may not be discarded in Cogent, but it may be passed to an abstract function which discards
+it. In this case the parameter must not be returned, although it does not have readonly type.
 
-The filled template is then read by Gencot upon translating the C program to Cogent
-and is used to determine all cases where a parameter may be modified. Parameters of linear type 
-are translated to a parameter with readonly type if they are not modified, otherwise a corresponding
-component is added to the result type.
+Gencot determines the information about parameter modification and parameter discarding in a semi-automatic way
+as described in Section~\ref{design-parmod}. It uses this information to make parameter types readonly or
+add parameters to the function result, according to the following rules:
+\begin{itemize}
+\item If the C type of a parameter is not linear according to Section~\ref{design-types-readonly}, or if it
+is discarded according to Section~\ref{design-parmod}, it is translated as described before.
+\item Otherwise, if the C type of the parameter is readonly according to Section~\ref{design-types-readonly}, or
+is not modified according to Section~\ref{design-parmod} its translated type is made readonly by applying the
+bang operator \code{!}.
+\item Otherwise, the function result is changed to a tuple and the parameter is added as component to that tuple.
+\end{itemize}
+
+If the result is modified to a tuple, the first component is the original function result and the remaining components
+are the parameters of linear type in their order as they occur in the parameter tuple.
+
+The dummy result expression is then built as a tuple with a dummy result as the first component and the unmodified
+parameters as the remaining components.
 
 \subsubsection{Dummy Expressions for Function Types}
 
@@ -400,6 +409,7 @@ for function results and the result type of a C function may not be a function
 type, Gencot only defines dummy expressions for C function pointer types.
 
 \subsection{Pointer Types}
+\label{design-types-pointer}
 
 In general, a C pointer type \code{t*} is the kind of types targeted by Cogent linear types. The linear type 
 allows the Cogent compiler to statically guarantee that pointer values will neither be duplicated nor 
@@ -565,7 +575,7 @@ as function result types.
 Then the dummy expression for type \code{TN} is \code{dummy\_TN ()} or \code{dummy\_Unbox\_TN ()} if 
 TN is a mapped struct or union type.
 
-\subsection{Readonly Types}
+\subsection{Linear and Readonly Types}
 \label{design-types-readonly}
 
 C types can be qualified as \code{const}. This means, the values of the type are immutable and could be stored in 
@@ -594,13 +604,19 @@ by them are also treated as part of the overall value. This implies, that a read
 a C pointer type with \code{const} qualified base type where all components with a pointer type recursively have
 the same property.
 
-An exception are C pointers to functions. It is assumed that the function code cannot be modified, hence for a C pointer 
-to function to have the readonly property, its base type need not be \code{const} qualified.
+It further implies, that a C type also corresponds to a linear type in Cogent, if it directly or indirectly 
+\textit{contains} pointers where the base type is not \code{const} qualified. This may be the case for struct or union
+types (members may have such pointer types) or for array types (the elements may have such a pointer type).
 
-Gencot tests every C pointer type for this property. If it is valid, the type is translated to a Cogent readonly type,
+An exception are C pointers to functions. It is assumed that the function code cannot be modified, hence a C pointer 
+to function is treated like a primitive type in Cogent.
+
+Gencot tests every C type for being a pointer or containing a pointer. If this is the case, the translated Cogent 
+type is known to be linear. The C type is then further tested whether all pointers have a \code{const} qualified
+base type. If this is the case, the type is translated to a Cogent readonly type,
 by applying the bang operator \code{!} to the type after translating it as described in Section~\ref{design-types-pointer}.
 
-In particular, the property is valid for all pointer types where the base type contains no pointers, such as
+In particular, the readonly property is valid for all pointer types where the base type contains no pointers, such as
 \code{const char*}.
 
 

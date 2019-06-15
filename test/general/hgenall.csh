@@ -36,7 +36,7 @@ if ($s == "config") then
   $G/gencot-preconfig < $M/$s.h > $t.gi
 else
   cat .gencot-addincl $M/$s.h \
-  | $G/gencot-include $I $M/$s.h > $t.gi
+  | $G/gencot-include $I > $t.gi
 endif
 
 $G/gencot-remcomments < $t.gi > $t.remc

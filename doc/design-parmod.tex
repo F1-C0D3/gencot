@@ -1,1 +1,73 @@
+Gencot uses the information, whether a parameter value may be modified by a function, when it translates
+the function, as described in Section~\ref{design-types-function}.
+
+A parameter is modified, when a part of it is changed, which is referenced through a pointer. Only then the 
+modification is shared with the caller and persists after the function call.
+
+\subsection{Detecting Parameter Modifications}
+
+A parameter may be modified by an assignment to a referenced part. Such an assignment
+is easy to detect, if it directly involves the parameter name. However, the assignment can also be indirect, where
+the parameter or part of it is first assigned to a local variable or another structure and then the assignment
+is applied to this variable or structure. This implies that a full data flow analysis would be necessary
+to detect all parameter modifications.
+
+Gencot uses a simpler semiautomatic approach. It detects all direct parameter modifications which involve the 
+parameter name automatically. It then generates a JSON description which lists all functions with their parameters
+and the information about the detected modification cases. The developer has to check this description and
+manually add additional cases of other parameter modifications. The resulting description is then read by
+Gencot and used during translation.
+
+Parameter modifications are only relevant if the parameter is a pointer or if a pointer can be reached by the parameter
+and if at least one such pointer is not declared to have a \code{const} qualified referenced type. Gencot detects
+this information from the C type and adds it to the JSON description, so that the developer can easily identify
+the relevant cases where to look for modifications.
+
+In the case of a variadic function, the number of its parameters cannot be determined from the function definition.
+Here Gencot uses the invocation with the most arguments to determine the number of parameter descriptions added
+to the JSON description.
+
+A parameter may be modified by a C function locally, but it can 
+also be modified by passing it or a part of it as parameter to an invoked function which modifies its corresponding
+parameter. Gencot supports these dependent parameter modifications, by detecting dependencies on parameter
+modifications by invoked functions and adding them to the JSON description. Again, only dependencies which
+involve the parameter name are detected automatically, other dependencies must be added by the developer.
+
+When Gencot reads the JSON template it calculates the transitive closure of all dependencies and uses it to
+determine the parameter modification information. Thus the developer has only to look at every function locally,
+it is not necessary to take into account the effects of invoked functions.
+
+\subsection{Required Invocations}
+
+To support the incremental translation of single C source files, Gencot determines the parameter modification
+description for single C source files. It processes all function definitions in the file by analysing their 
+function bodies. However, for an invoked function the definition may not be available, it may be defined externally
+in another C source file. This situation must be handled manually: the developer has to process additional
+C source files where the invoked functions are defined, to add their descriptions.
+
+Gencot specifically selects only the relevant invocations, which are required because a parameter modification depends on it.
+If a parameter is already modified locally, additional dependencies are ignored and the corresponding invocations
+are not selected. In this way Gencot keeps the JSON descriptions minimal.
+
+An invoked function may also be specified using a function pointer. In this case the possible function bodies cannot 
+be determined from the program. Again, it is left to the developer to determine, whether such invocations may modify
+their parameters. Gencot supports this by also adding parameter description templates for function pointers defined in the 
+source file, to be filled by the developer. 
+
+In contrast to functions, function pointers can also be defined locally in a function\footnote{The current version of
+Gencot does not support C extensions for nested function definitions.} (as local variable or as parameter). Gencot
+automatically adds description templates for all invoked local function pointers.
+
+\subsection{External Invocations}
+
+Finally, a required invocation may be external to the package which is processed by Gencot, such as an invocation of
+a function in the C standard library. When all remaining required invocations are external in this sense, Gencot
+can be told to ``close'' the JSON description. Then it uses the declarations of all required invocations to generate
+a description template for each of them. Since no bodies are available, the developer must fill in the information
+for all these external functions (and function pointers).
+
+Invoked function pointers may also be members of a struct or union type. For them no definition exists, they are also 
+handled by Gencot when closing a JSON description: for all required invocations of a struct or union member a 
+description template is added which is identified by the member name and the tag of the struct or union type. Invocations
+of function pointer members in anonymous struct or union types are ignored by the current Gencot version.
  

@@ -22,7 +22,7 @@ import Language.C.Data.Node as LCN
 import Language.C.Data.Position as LCP
 import Language.C.Analysis as LCA
 
-import Gencot.Util.CallGraph (CallGraph,CGFunInvoke,CGInvoke(IdentInvoke,MemberTypeInvoke,MemberObjInvoke),CTrav,lookupCallGraph,invokeAnum,unionM,foldsets,getCGInvoke,invokeType,invokeParams)
+import Gencot.Util.CallGraph (CallGraph,CGFunInvoke,CGInvoke(IdentInvoke,MemberInvoke),CTrav,lookupCallGraph,invokeAnum,unionM,foldsets,getCGInvoke,invokeType,invokeParams)
 import Gencot.Util.Types (isLinearParType,isReadOnlyParType,isFunPointer,isFunction,resolveTypedef,getPointedType,getFunType)
 import Gencot.Util.Expr (getRootIdent,isReference)
 import Gencot.Util.Decl (traverseLocalDecl)
@@ -399,8 +399,7 @@ localPrefix (fd,_,True) = (getDeclName fd) ++ "/"
 localPrefix _ = ""
 
 memberInvkPrefix :: CGInvoke -> String
-memberInvkPrefix (MemberTypeInvoke (LCA.CompType (LCI.NamedRef cid) _ _ _ _) _ _) = memberPrefix cid
-memberInvkPrefix (MemberObjInvoke idec _ _) = (getDeclName idec) ++ "."
+memberInvkPrefix (MemberInvoke (LCA.CompType (LCI.NamedRef cid) _ _ _ _) _ _) = memberPrefix cid
 memberInvkPrefix _ = ""
 
 memberPrefix :: LCI.Ident -> String

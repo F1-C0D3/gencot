@@ -12,7 +12,7 @@ import Language.C.Analysis.DefTable (globalDefs)
 import Gencot.Input (readFromInput_,getDeclEvents,getOwnDeclEvents,getArgFileName)
 import Gencot.Util.CallGraph (getCallGraph,runWithCallGraph)
 import Gencot.Json.Translate (transGlobals)
-import Gencot.Json.Process (readParmods,addParsFromInvokes)
+import Gencot.Json.Process (addParsFromInvokes)
 import Gencot.Traversal (runWithTable)
 
 main :: IO ()

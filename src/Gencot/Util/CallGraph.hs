@@ -1,7 +1,7 @@
 {-# LANGUAGE PackageImports, TypeSynonymInstances, FlexibleInstances #-}
 module Gencot.Util.CallGraph where
 
-import Data.Set as S (Set,empty,union,unions,insert,filter,toList,fromList,map)
+import Data.Set as S (Set,empty,union,unions,insert,filter,toList,fromList,map,member,delete)
 import Data.Foldable (foldlM,find)
 import Control.Monad (liftM,liftM2)
 
@@ -174,7 +174,7 @@ instance HasInvokes LC.CExpr where
         a <- unionM (retrieveInvokes expr) (retrieveInvokes args)
         minvk <- getCGInvoke expr $ length args
         case minvk of
-             Just invk -> return $ insert invk a
+             Just invk -> return $ insertMaxArgs invk a
              _ -> return a
     retrieveInvokes (LC.CComma exprs _) = retrieveInvokes exprs
     retrieveInvokes (LC.CAssign _ expr1 expr2 _) = unionM (retrieveInvokes expr1) (retrieveInvokes expr2)
@@ -191,6 +191,18 @@ instance HasInvokes LC.CExpr where
 
 instance HasInvokes (Maybe LC.CDecl, CExpr) where
     retrieveInvokes (_,expr) = retrieveInvokes expr
+
+-- | Insert invocation with maximal number of arguments
+-- The number of arguments is not respected in CGInvoke equality.
+-- Here when inserting an invocation which is already in the set we use the invocation with most arguments.
+insertMaxArgs :: CGInvoke -> Set CGInvoke -> Set CGInvoke
+insertMaxArgs invk iset =
+    if member invk iset 
+       then let oinvk = head $ toList $ S.filter (invk ==) iset
+            in if invokeAnum invk > invokeAnum oinvk 
+                  then insert invk $ delete oinvk iset
+                  else iset
+       else insert invk iset 
 
 getCGInvoke :: MonadTrav m => LC.CExpr -> Int -> m (Maybe CGInvoke)
 getCGInvoke (LC.CVar ident _) alen = do

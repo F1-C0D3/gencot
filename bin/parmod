@@ -9,7 +9,7 @@ fi
 
 BIN=$GENCOT_HOME/bin
 
-USAGE="Usage: $0 [-I<dir>] [-G<dir>] [-k] [check|init|show|addto|close|help] <file> [<file>]"
+USAGE="Usage: $0 [-I<dir>] [-G<dir>] [-k] [check|init|show|addto|close|eval|help] <file> [<file>]"
 
 long_usage()
 {
@@ -21,8 +21,9 @@ long_usage()
     echo '  close <cfile>  Create parmod description for all functions declared for C sourcefile <cfile>'
     echo '  show  <json>   Display information about parmod description'
     echo '  addto <json1> <json2>  Add to <json1> all required dependencies found in <json2>'
+    echo '  eval  <json>   Evaluate finished parmod description'
     echo '  help           Display this help information'
-    echo '  (init|close|addto write the resulting parmod description to stdout)'
+    echo '  (init|close|addto|eval write the resulting parmod description to stdout)'
     echo 'Options for commands check|init|close: '
     echo '  -I<dir>  Directory for searching C include files. Can be repeated, as for cpp. '
     echo '  -G<dir>  Directory for searching Gencot auxiliary files. Only one can be given, default is "."'
@@ -86,6 +87,7 @@ case "$CMD" in
     show) TAILCMD='parmod-proc';;
     addto) TAILCMD='parmod-proc';REQARGS=2;;
     close) TAILCMD='parmod-gen';PARSE='yes';CLOSE='close';;
+    eval) TAILCMD='parmod-proc eval';;
     help) long_usage; exit;;
     *) echo "unknown parmod command: $1"; short_usage; exit;;
 esac
@@ -132,6 +134,6 @@ then
         rm -r $TMPDIR
     fi
 else
-    $BIN/$TAILCMD $1 $2
+    $BIN/$TAILCMD $2 < $1
 fi
 

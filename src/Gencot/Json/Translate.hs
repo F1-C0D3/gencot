@@ -244,25 +244,25 @@ instance HasParMods LCA.Stmt where
     findParDeps _ _ = return empty
     
 instance HasParMods LC.CExpr where
-    findParMods p (LC.CAssign _ lexpr expr _) = do
-        res <- unionM (findParMods p lexpr) (findParMods p expr)
-        let mlroot = getRootIdent lexpr
-        case mlroot of
+    findParMods p (LC.CAssign _ (LC.CIndex (LC.CVar sid _) iexpr _) expr _) = do
+        {- special case if sid is of array type, only modified if adjusted parameter -}
+        res <- unionM (findParMods p iexpr) (findParMods p expr)
+        mldec <- LCA.lookupObject sid
+        case mldec of
              Nothing -> return res
-             Just lroot -> do
-                 mldec <- LCA.lookupObject lroot
-                 case mldec of
-                      Nothing -> return res
-                      Just ldec -> if any (\(_,idec) -> LCA.declIdent idec == LCA.declIdent ldec) p
-                                      && isReference lexpr
-                                      then return $ insert ldec res 
-                                      else return res
+             Just ldec -> if any (\(_,idec) -> LCA.declIdent idec == LCA.declIdent ldec) p
+                          then return $ insert ldec res 
+                          else return res
+    findParMods p (LC.CAssign _ lexpr expr _) = 
+        unionM (lvalParMod p lexpr) $ unionM (findParMods p lexpr) (findParMods p expr)
     findParMods p (LC.CCall expr args _) = unionM (findParMods p expr) (findParMods p args)
     findParMods p (LC.CComma exprs _) = findParMods p exprs
     findParMods p (LC.CCond expr1 mexpr2 expr3 _) = 
         unionM (findParMods p expr1) $ unionM (mfindParMods p mexpr2) (findParMods p expr3)
     findParMods p (LC.CBinary _ expr1 expr2 _) = unionM (findParMods p expr1) (findParMods p expr2)
     findParMods p (LC.CCast _ expr _) = findParMods p expr
+    findParMods p (LC.CUnary op expr _) | isModifOp op = 
+        unionM (lvalParMod p expr) (findParMods p expr)
     findParMods p (LC.CUnary _ expr _) = findParMods p expr
     findParMods p (LC.CIndex expr1 expr2 _) = unionM (findParMods p expr1) (findParMods p expr2)
     findParMods p (LC.CMember expr _ _ _) = findParMods p expr
@@ -291,10 +291,32 @@ instance HasParMods LC.CExpr where
     findParDeps p (LC.CGenericSelection _ slist a) = findParDeps p slist
     findParDeps _ _ = return empty
 
-instance HasParMods (Maybe LC.CDecl, CExpr) where
+instance HasParMods (Maybe LC.CDecl, LC.CExpr) where
     findParMods p (_,expr) = findParMods p expr
 
     findParDeps p (_,expr) = findParDeps p expr
+
+isModifOp :: LC.CUnaryOp -> Bool
+isModifOp LC.CPreIncOp = True
+isModifOp LC.CPreDecOp = True
+isModifOp LC.CPostIncOp = True
+isModifOp LC.CPostDecOp = True
+isModifOp _ = False
+
+-- | If an lvalue is a modified parameter, return it as singleton modification
+-- Only tests for some simple cases.
+lvalParMod :: MonadTrav m => Set (Int,LCA.IdentDecl) -> LC.CExpr -> m (Set LCA.IdentDecl)
+lvalParMod p lexpr = 
+    case getRootIdent lexpr of
+         Nothing -> return empty
+         Just lroot -> do
+             mldec <- LCA.lookupObject lroot
+             case mldec of
+                  Nothing -> return empty
+                  Just ldec -> if any (\(_,idec) -> LCA.declIdent idec == LCA.declIdent ldec) p
+                                  && isReference lexpr
+                                  then return $ singleton ldec
+                                  else return empty
 
 -- | Find parameter dependencies in a numbered argument of an invocation.
 -- The first argument is the set of all parameters, as returned by 'getParamObjs'.

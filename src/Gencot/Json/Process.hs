@@ -17,8 +17,16 @@ qmark = showJSON "?"
 jsEmpty = JSArray []
 
 -- | Read a sequence of function descriptions from stdin.
-readParmods :: FilePath -> IO [JSObject JSValue]
-readParmods file = do 
+readParmodsFromInput :: IO [JSObject JSValue]
+readParmodsFromInput = do
+    inp <- getContents
+    case decode inp of
+         Ok res -> return res
+         Error msg -> error msg
+
+-- | Read a sequence of function descriptions from a file.
+readParmodsFromFile :: FilePath -> IO [JSObject JSValue]
+readParmodsFromFile file = do 
     inp <- readFile file 
     case decode inp of
          Ok res -> return res

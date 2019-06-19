@@ -7,8 +7,10 @@
 -- in the function body.
 module Gencot.Json.Process where
 
-import qualified Data.Set as S (toList,fromList,difference)
-import Data.List (find)
+import qualified Data.Set as S (Set,toList,fromList,difference,singleton,foldr,union,insert,empty)
+import Data.List (find,isSuffixOf)
+import qualified Data.Map.Strict as M (Map,unions,empty,singleton,foldr,map)
+import Data.Map.Strict ((!))
 import Data.Maybe (mapMaybe,isJust,fromJust)
 import Data.Char (isDigit)
 import Text.JSON
@@ -99,11 +101,12 @@ isDependentPar _ = False
 -- The result is a list of pairs (f,i) where f is the function name of the function invoking i.
 getInvokes :: [JSObject JSValue] -> [(String,JSObject JSValue)]
 getInvokes parmods = concatMap getFunInvokes $ getFunAttrs isInvokes parmods
-    where getFunInvokes :: (String,String,JSValue) -> [(String,JSObject JSValue)]
-          getFunInvokes (fnam,_,val) =
-              case readJSON val of
-                   Ok a -> map (\jso -> (fnam,jso)) a
-                   Error msg -> error $ "Cannot read invocations of " ++ fnam ++ " as a list of JSON objects.\n"
+
+getFunInvokes :: (String,String,JSValue) -> [(String,JSObject JSValue)]
+getFunInvokes (fnam,_,val) =
+    case readJSON val of
+         Ok a -> map (\jso -> (fnam,jso)) a
+         Error msg -> error $ "Cannot read invocations of " ++ fnam ++ " as a list of JSON objects.\n"
                             ++ msg
 
 isFunName :: (String,String,JSValue) -> Bool
@@ -113,6 +116,9 @@ isFunName _ = False
 isInvokes :: (String,String,JSValue) -> Bool
 isInvokes (_,"f_invocations",_) = True
 isInvokes _ = False
+
+isParam :: (String,String,JSValue) -> Bool
+isParam (_,nam,_) = isDigit $ head nam
 
 isRequiredInvoke :: [(String,String,JSValue)] -> (String,JSObject JSValue) -> Bool
 isRequiredInvoke dp (fnam,jso) = 
@@ -158,3 +164,88 @@ addParsFromInvokes parmods = map addPars parmods
 
 numArgs :: JSObject JSValue -> Int
 numArgs jso = (length $ fromJSObject jso) - 2
+
+-- | Evaluate a function description sequence by eliminating dependencies.
+-- Parameter dependencies are eliminated by following them.
+-- The resulting function description contains no dependencies and no invocation lists.
+-- Every parameter description has the value "nonlinear", "readonly", "yes", "discarded", or "no".
+-- If the input has unconfirmed parameter descriptions or missing required dependencies the 
+-- result of the evaluation is undefined.
+evaluateParmods :: [JSObject JSValue] -> [JSObject JSValue]
+evaluateParmods parmods =
+    map (simplifyDescr (evalDependencies (M.unions (map getFunParMap parmods)))) parmods
+
+-- | Internal representation for parameters and parameter descriptions.
+-- Parameters are specified as pair (function identifier, parameter identifier).
+-- Parameter descriptions are specified as the set of parameters they depend on
+-- or as a singleton set containing the pair ("",value) where value is one of
+-- "nonlinear", "readonly", "yes", "discarded", "no".
+type ParVal = (String,String)
+type ParMap = M.Map ParVal (S.Set ParVal)
+
+-- | Get the parameter map information from a function description.
+getFunParMap :: JSObject JSValue -> ParMap
+getFunParMap jso = M.unions $ (getParDeps $ getFAttrs isInvokes jso) : (map (getParMap . readValue) $ getFAttrs isParam jso)
+
+readValue :: (String,String,JSValue) -> (String,String,String)
+readValue (fnam,pnam,pval) = 
+    case readJSON pval of
+         Ok a -> (fnam,pnam,a)
+         Error msg -> error $ "Cannot read description of " ++ fnam ++ "/" ++ pnam ++ " as string.\n"
+                            ++ msg
+
+getParMap :: (String,String,String) -> ParMap
+getParMap (fnam,pnam,"depends") = M.empty
+getParMap (fnam,pnam,val) = M.singleton (fnam,pnam) $ S.singleton ("",val)
+
+getParDeps :: [(String,String,JSValue)] -> ParMap
+getParDeps invks =
+    if null invks
+       then M.empty
+       else M.unions $ map getInvkParDeps $ getFunInvokes $ head invks
+
+getInvkParDeps :: (String,JSObject JSValue) -> ParMap
+getInvkParDeps (fnam,invk) = M.unions $ map (getInvkSingleParDeps fnam inam) ipars
+    where inam = getInvokeName invk
+          ipars = filter (\(nam,val) -> (isDigit $ head nam) && isListVal val) $ fromJSObject invk
+          isListVal (JSArray _) = True
+          isListVal _ = False
+
+getInvkSingleParDeps :: String -> String -> (String, JSValue) -> ParMap
+getInvkSingleParDeps fnam inam (ipar, (JSArray fplist)) = 
+    M.unions $ map (\(JSString fpar) -> M.singleton (fnam,fromJSString fpar) $ S.singleton (inam,ipar)) fplist
+
+-- | Reduce the parameter map by eliminating all dependencies.
+evalDependencies :: ParMap -> ParMap
+evalDependencies pm = 
+    if M.foldr (\vset b -> b || any (\(f,_) -> not $ null f) vset) False pm 
+       then evalDependencies $ M.map (reduceParVals . followDeps pm) pm
+       else pm
+
+-- | Replace all parameters in a set by the union of all their ParMap values 
+followDeps :: ParMap -> S.Set ParVal -> S.Set ParVal
+followDeps pm vs =
+    S.foldr (\pv@(f,v) pvs -> if null f then S.insert pv pvs else S.union (pm!pv) pvs) S.empty vs
+
+reduceParVals :: S.Set ParVal -> S.Set ParVal
+reduceParVals vs =
+    if any (\(f,v) -> null f && v == "yes") vs
+       then S.singleton ("","yes")
+       else if all (\(f,_) -> null f) vs && any (\(_,v) -> v == "discarded") vs
+                then S.singleton ("","discarded")
+                else vs
+
+-- | Simplify a function description by replacing parameter dependencies by the description from the ParMap.
+-- Additionally, remove all information about invocations.
+simplifyDescr :: ParMap -> JSObject JSValue -> JSObject JSValue
+simplifyDescr pm jso =
+    toJSObject $ map (simplifyPar pm fnam) fattrs
+    where fattrs = filter (\(anam,_) -> not $ isSuffixOf "invocations" anam) $ fromJSObject jso
+          fnam = getFunName jso
+
+simplifyPar :: ParMap -> String -> (String,JSValue) -> (String,JSValue)
+simplifyPar pm fnam par@(pnam,(JSString val)) | isDigit $ head pnam =
+    if "depends" == fromJSString val 
+       then (pnam,showJSON $ snd $ head $ S.toList $ pm!(fnam,pnam))
+       else par
+simplifyPar _ _ attr = attr

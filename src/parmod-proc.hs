@@ -7,7 +7,7 @@ import Text.JSON (encode)
 import Text.Pretty.Simple (pStringNoColor)
 import Data.Text.Lazy (unpack)
 
-import Gencot.Json.Process (readParmodsFromFile,readParmodsFromInput,showRemainingPars,showRequired,addRequired,addParsFromInvokes)
+import Gencot.Json.Process (readParmodsFromFile,readParmodsFromInput,showRemainingPars,showRequired,addRequired,addParsFromInvokes,evaluateParmods)
 
 main :: IO ()
 main = do
@@ -23,14 +23,13 @@ main = do
            let rq = showRequired parmods
            putStrLn $ (show $ length rq) ++ " additional required dependencies:"
            putStrLn $ unlines rq
-       else if head args == "eval"
-       then do -- eval
-           let h ="X"
-           putStrLn "eval"
-       else do -- addto
-           {- read JSON from second input file -}
-           pmsrc <- readParmodsFromFile $ head args
-           let pmres = addParsFromInvokes $ addRequired parmods pmsrc
+       else do
+           pmres <- if head args == "eval"
+                       then return $ evaluateParmods parmods
+                       else do -- addto
+                           {- read JSON from second input file -}
+                           pmsrc <- readParmodsFromFile $ head args
+                           return $ addParsFromInvokes $ addRequired parmods pmsrc
            {- Output -}
            putStr $ unpack $ pStringNoColor $ encode pmres
 

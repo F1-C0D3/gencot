@@ -6,10 +6,12 @@ The following auxiliary Gencot components exist which do not process C source co
 \subsection{Parameter Modification Descriptions}
 
 Processing parameter modification descriptions is implemented by the filter \code{parmod-proc}. It reads a parameter
-modification descriptions from standard input as described in Section~\ref{impl-parmod-json}. The kind of processing
+modification description from standard input as described in Section~\ref{impl-parmod-json}. The kind of processing
 depends on whether an additional parameter is specified for the filter.
 
-If no additional parameter is specified, the filter generates a textual summary of the description. It lists
+If no additional parameter is specified, the filter verifies the structure of the parameter modification description 
+according to Section~\ref{impl-parmod-struct} and lists all errors found.
+Additionally, it generates a textual summary of the description. It lists
 all unconfirmed parameter descriptions in the form
 \begin{verbatim}
   <function identifier> / <parameter identifier>
@@ -21,6 +23,16 @@ the summary is empty. If there are unconfirmed parameters they must be inspected
 modifies the list of required invocations. They can be reduced by generating and adding corresponding descriptions
 from other source files.
 
-If an additional parameter is specified, it must be the file name of another parameter modification description.
-In this case all required invocations which are found in this second description are added (appended) to the main 
+If an additional parameter is specified, it must be either the string \code{"eval"} or the file name of another 
+parameter modification description.
+
+In the latter case all required invocations which are found in this second description are added (appended) to the main 
 description and the result is written to the output as described in Section~\ref{impl-parmod-json}.
+
+If the string \code{"eval"} is specified, the parameter modification description must be structurally correct, contain no
+unconfirmed parameter descriptions and contain no required dependencies (i.e. the filter invocation without arguments
+must produce an empty output). Then all dependencies are eliminated as described in Section~\ref{impl-parmod-eval}.
+The resulting parameter modification description is written to the output. It contains no parameter dependencies and
+no invocation descriptions. It is intended to be read by the filters which translate C function types and function 
+definitions.
+

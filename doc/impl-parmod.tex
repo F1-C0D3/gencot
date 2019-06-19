@@ -3,6 +3,7 @@ to be filled in collaboration with the developer to determine which function par
 a function call. 
 
 \subsection{Description Structure}
+\label{impl-parmod-struct}
 
 This
 description is structured as follows. It is a list of JSON objects, where each object is an entry which describes a function using
@@ -257,3 +258,41 @@ the resulting string representation is formatted using the general prettyprint p
 The function \code{pStringNoColor} is used since it does not insert control sequences for colored represenation
 and produces a plainly formatted text representation. Its result is of type \code{Text} and must be converted to a
 string using the function \code{unpack} from package \code{Data.Text}.
+
+\subsection{Evaluating a Description}
+\label{impl-parmod-eval}
+
+A parameter modification description is complete, if all paremeter descriptions are confirmed and the description 
+is ``closed'', i.e., has no required invocations. This implies that whenever a parameter is dependent on an invocation argument,
+there is a function description present for the invoked function where the corresponding parameter is described.
+This allows to eliminate all parameter dependencies by following them until an independent parameter description is found.
+This process is called ``evaluation'' of the parameter modification description.
+
+The result of evaluation is a simplified parameter modification description where the value \code{"depends"} does not 
+occur anymore as parameter description. Additionally, all information about function invocations is removed, since it is
+no more needed.
+
+Evaluation only terminates, if there are no cyclic parameter dependencies. This property is checked by Gencot. If there
+are cyclic parameter dependencies in the C code they must be eliminated manually by the developer by removing enough dependencies 
+to break all cycles.
+
+A parameter may have several dependencies, which may result in different description values. This cannot be the case for
+the values \code{"nonlinear"} and \code{"readonly"}: If the parameter of the invoked function has nonlinear type, this
+also holds for the passed parameter, no dependency can exist in this case. If the parameter of the invoked function has
+a readonly type, the passed parameter can still have a linear type which is not readonly. But it cannot be modified by the
+function invocation, hence no dependency can exist in this case either.
+
+Thus, after evaluation, a parameter may have any subset of the values \code{"yes"}, \code{"discarded"}, and \code{"no"}, meaning 
+that it may be modified by some invocations, discarded by some invocations, and not modified by others. This is reduced to
+a single value as follows. The value \code{"no"} is only used if none of the other two is present. If both \code{"yes"}
+and \code{"discarded"} are present, Gencot cannot decide whether the parameter is always discarded (perhaps after modification),
+or always modified (perhaps after discarding and reallocating it). In this case it always assumes a modification and
+uses the single value \code{"yes"}. If this is not correct it must be handled manually by the developer.
+
+The reason for this treatment is that before evaluation Gencot gives a local modification a higher priority than a dependency,
+to reduce the number of required invocations. This may hide a dependency which results in discarding the parameter. To
+be consistent, Gencot also prefers modifications resulting from dependencies after evaluation over discarding. 
+
+Since in evaluated parameter modification descriptions all parameter descriptions are still confirmed, the only values
+possible for a parameter description are \code{"nonlinear"}, \code{"readonly"}, \code{"yes"}, \code{"discarded"}, and \code{"no"}.
+This information is used by Gencot when translating function parameter and result types, as described in Section~\ref{design-parmod}.

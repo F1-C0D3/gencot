@@ -1,10 +1,6 @@
 {-# LANGUAGE PackageImports, TypeSynonymInstances, FlexibleInstances #-}
 
 -- | Translate C Code to JSON function descriptions.
--- A function description is represented as a JSON object and describes a function or a function pointer. 
--- It mainly consists of a description of the function parameters. 
--- For a function definition, it additionally describes all invocations of functions
--- in the function body.
 module Gencot.Json.Translate where
 
 import Data.Set (Set,size,toList,empty,union,fromList,insert,unions,singleton)
@@ -27,12 +23,13 @@ import Gencot.Util.Types (isLinearParType,isReadOnlyParType,isFunPointer,isFunct
 import Gencot.Util.Expr (getRootIdent,isReference)
 import Gencot.Util.Decl (traverseLocalDecl)
 import Gencot.Names (srcFileName)
+import Gencot.Json.Parmod (Parmod,Parmods)
 
 qmark = showJSON "?"
 jsEmpty = JSArray []
 
 -- | Translate a sequence of C global declarations to a sequence of function descriptions.
-transGlobals :: [LCA.DeclEvent] -> CTrav [JSObject JSValue]
+transGlobals :: [LCA.DeclEvent] -> CTrav Parmods
 transGlobals evs = (liftM concat) $ (mapM transGlobal) evs 
 
 -- | Translate a C global declaration to a sequence of function descriptions.
@@ -41,7 +38,7 @@ transGlobals evs = (liftM concat) $ (mapM transGlobal) evs
 -- pointer (a parameter or local variable), a function description for the local function pointer is appended.
 -- Every object definition with function pointer type is translated to a function definition.
 -- All other global declarations are ignored.
-transGlobal :: LCA.DeclEvent -> CTrav [JSObject JSValue]
+transGlobal :: LCA.DeclEvent -> CTrav Parmods
 transGlobal (LCA.DeclEvent (LCA.FunctionDef fdef)) = do
     sfn <- srcFileName fdef
     cg <- (liftM toList) $ lookupCallGraph $ LCA.declIdent fdef
@@ -72,7 +69,7 @@ transGlobal _ = return $ []
 
 -- | Translate a declaration of a function or function pointer to a sequence (of length 1) of function descriptions.
 -- getPrefix must be a function which returns the function name prefix when applied to the source file name.
-transDecl :: (CNode d,Declaration d) => (String -> String) -> d -> LCA.FunType -> CTrav [JSObject JSValue]
+transDecl :: (CNode d,Declaration d) => (String -> String) -> d -> LCA.FunType -> CTrav Parmods
 transDecl getPrefix decl ftyp@(LCA.FunType _ pars isVar) = do
     sfn <- srcFileName decl
     parlist <- mapM simpleParamEntry $ numberList pars
@@ -82,14 +79,14 @@ transDecl getPrefix decl ftyp@(LCA.FunTypeIncomplete _) = do
     return $ [toJSObject ([namEntry (getPrefix sfn) decl,comEntry,locEntry sfn,nmpEntry ftyp])] 
 
 -- | Translate a struct or union member to a function description, if it is a function pointer.
-transMember :: LCI.Ident -> LCA.MemberDecl -> CTrav (Maybe (JSObject JSValue))
+transMember :: LCI.Ident -> LCA.MemberDecl -> CTrav (Maybe (Parmod))
 transMember cid mdecl | isFunPointer $ LCA.declType mdecl =
     liftM (Just . head) $ transDecl (const (getGlobalMemberPrefix cid mdecl)) mdecl 
         $ getFunType $ getPointedType $ LCA.declType mdecl
 transMember _ _ = return Nothing
 
 -- | Translate an invocation of a local function pointer to a function description.
-transLocal :: String -> CGFunInvoke -> CTrav (JSObject JSValue)
+transLocal :: String -> CGFunInvoke -> CTrav (Parmod)
 transLocal sfn fi@(fd,invk,_) = do
     parlist <- mapM simpleParamEntry $ numberList $ invokeParams invk
     return $ toJSObject $ [namEntry (getNamPrefix fi sfn) invk,comEntry,locEntry sfn,nmpEntry $ invokeType invk] ++ parlist

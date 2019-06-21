@@ -860,21 +860,21 @@ The package language-c uses a monad for traversing and analysing the C AST. The 
 The traversal itself is implemented by a recursive descent according to the C AST using a separate function
 for analysing every syntactic construct. 
 
-When processing the semantic map resulting from the language-c analysis Gencot implements a similar recursive 
-descent using a processing function for every syntactic construct. For this it uses the same monad for two reasons.
+When processing the semantic map resulting from the language-c analysis Gencot implements similar recursive 
+descents using a processing function for every syntactic construct. For this it uses the same monad for two reasons.
 \begin{itemize}
-\item the definitions and declarations for the global identifiers are needed for mapping the identifiers to
-Cogent names,
-\item additionally, the definitions and declarations for locally defined identifiers are needed in C function
-bodies for mapping the identifiers.
+\item the definitions and declarations of the global identifiers are needed for accessing their types and for
+mapping the identifiers to Cogent names,
+\item additionally, the definitions and declarations of locally defined identifiers are needed in C function
+bodies for the same purpose.
 \end{itemize}
 
 The global definitions and declarations in the symbol table correspond to the semantics map which is the result 
-of the language-c analysis step. It is created from the symbol table after traversing the C AST. Although Gencot 
+of the language-c analysis step. It is created from the symbol table after the initial traversal of the C AST. Although Gencot 
 processes the content of the semantics map, it is not available as a whole in the processing functions. Instead
-of passing the semantics map as an explicit parameter to all processing functions, Gencot uses a monadic traversal
-through the relevant parts of the semantics map, which implicitly makes the symbol table available to all 
-processing functions. This is achieved by reusing the symbol table after the analysis phase for the traversal
+of passing the semantics map as an explicit parameter to all processing functions, Gencot uses monadic traversals
+through the relevant parts of the semantics map, which implicitly make the symbol table available to all 
+processing functions. This is achieved by reusing the symbol table after the analysis phase for the traversals
 of the semantics map.
 
 Additionally, when processing the C function bodies, the symbol table is used for managing the local declarations. 
@@ -882,7 +882,7 @@ This is possible because although the analysis phase translates global declarati
 semantic representation, it does not modify function bodies and returns them as the original C AST. Since
 the information about local declarations is discarded at the end of its scope, the information is not 
 present anymore in the symbol table after the analysis phase. Gencot uses the symbol table functionality
-to rebuild this information during its own traversal and uses it for name mapping.
+to rebuild this information during its own traversals.
 
 The user state is used by Gencot to provide additional information, depending on the purpose of the traversal.
 A common case is to make the actual name of the processed file available during processing. In the \code{NodeInfo}
@@ -890,31 +890,32 @@ values in the AST it is always specified as \code{<stdin>} since the input is re
 filters take the name of the original C source file as an additional argument. It is added to the user state 
 of traversal monads so that it can be used during traversal.
 
-This is supported by defining in module \code{Gencot.Traversal} the class \code{FileNameTrav} as
+This is supported by defining in module \code{Gencot.Name} the class \code{FileNameTrav} as
 \begin{verbatim}
   class (Monad m) => FileNameTrav m where
     getFileName :: m String
 \end{verbatim}
 so that the method \code{getFileName} can be used to retrieve the source file name from all traversal monads of 
-this class.
-
-In module \code{Gencot.Names} the monadic action \code{srcFileName} is defined to returns the file name for a 
+this class. Based on this the monadic action \code{srcFileName} is defined to return the file name for a 
 \code{NodeInfo} value and replace it by the original source file name if it is equal to \code{<stdin>}.
 
+Another information needed during C AST traversal is the parameter modification description (see Section~\ref{impl-parmod}).
+It is used for translating the types of all functions, as described in Section~\ref{design-types-function}.
+
 The utilities for the monadic traversal of the semantics map are defined in module \code{Gencot.Traversal}. 
-The minimal monadic type is defined as
+The main monadic type is defined as
 \begin{verbatim}
-  type FTrav = Trav String
+  type FTrav = Trav (String,Parmods)
 \end{verbatim}
-where \code{String} is the type used for storing the original C source file name in the user state. It is an
-instance of \code{FileNameTrav}. As execution 
-function for the monadic actions the functions
+where \code{String} is the type used for storing the original C source file name in the user state and
+\code{Parmods} is the type for storing the parameter modification description. \code{FTrav} is an
+instance of \code{FileNameTrav}. As execution function for the monadic actions the functions
 \begin{verbatim}
-  runFTrav :: FTrav a -> IO a
-  runWithTable :: DefTable -> String -> FTrav a -> IO a
+  runFTrav :: DefTable -> (String,Parmods) -> FTrav a -> IO a
+  runWithTable :: DefTable -> FTrav a -> IO a
 \end{verbatim}
-are defined. The second one takes the symbol table and the original C source file name as arguments to initialize 
-the state. The first one leaves both empty. The functions are themselves 
+are defined. The first one takes the symbol table, the original C source file name and the parameter modification
+description as arguments to initialize the state. The second one leaves the latter two empty. The functions are themselves 
 \code{IO} actions and print error messages generated during traversal to the standard output.
 
 In the monadic actions the symbol table can be accessed by actions defined in the modules 
@@ -940,12 +941,17 @@ An error can be recorded in the monad using the action
   recordError :: Language.C.Data.Error.Error e => e -> m () 
 \end{verbatim}
 
+The parameter modification description can be accessed by the monadic action
+\begin{verbatim}
+  getParmods :: FTrav Parmods
+\end{verbatim}
+
 \subsection{Creating and Using the C Call Graph}
 \label{impl-ccode-callgraph}
 
 In some Gencot components we use the C call graph. This is the mapping from functions to the functions
 invoked in their body. Here we describe the module \code{Gencot.Util.CallGraph} which provides
-utility functions for creating the call graph.
+utility functions for creating and using the call graph.
 
 The set of invoked functions is determined by traversing the bodies of all function definitions after the analysis
 phase. The callback handler is not used since it is only invoked for declarations and definitions and does not help
@@ -979,6 +985,9 @@ of the invoking function, the invocation, and a boolean value telling whether th
   type CallGraph = Set CGFunInvoke
   type CGFunInvoke = (FunDef, CGInvoke, Bool)
 \end{verbatim}
+The equality relation for values of type \code{CGFunInvoke} is based on the location of the contained declarations
+in the source file. This is correct since after the initial traversal every identifier has a unique declaration associated.
+
 To access the declarations of locally declared identifiers, the symbol table with local declarations
 must be available while building the call graph. Therefore we traverse the function bodies with the help of
 the \code{FTrav} monad and \code{runWithTable} as described in Section~\ref{impl-ccode-trav}.
@@ -989,26 +998,29 @@ The call graph is constructed by the monadic action
 \end{verbatim}
 It processes all function definitions in its argument list and ignores all other \code{DeclEvent}s.
 
-As a utility the monadic action
+The function 
 \begin{verbatim}
-  getInvocations :: [DeclEvent] -> FTrav (Set CGDecl)
+  getIdentInvokes :: CallGraph -> Set LCA.IdentDecl
 \end{verbatim}
-returns the union of all declarations of invoked functions in the call graph. It is implemented by an own
-traversal of the function bodies, directly building the union of all invocations.
+returns the set of all invoked functions which are specified directly as an identifier. In particular, they include
+all invoked functions which are no function pointers.
 
 The declaration of an invoked function also tells 
 whether the function or object is defined or only declared. Note that the traversal for collecting invocations is a ``second 
 pass'' through the C source after the analysis phase of language-c. During analysis language-c replaces
 declarations in the symbol table whenever it finds the corresponding definition.
 
-To use the call graph the \code{CallGraph} module defines an extension \code{CTrav} of the \code{FTrav} monad
-(see Section~\ref{impl-ccode-trav}) with the call graph in the user state. The corresponding execution function is
+To use the call graph the \code{CallGraph} module defines a traversal monad \code{CTrav} 
+with the call graph in the user state (in addition to the own source file name). The corresponding execution function is
 \begin{verbatim}
-  runWithCallGraph :: CallGraph -> DefTable -> String -> CTrav a -> IO a
+  runCTrav :: CallGraph -> DefTable -> String -> CTrav a -> IO a
 \end{verbatim}
-which extends \code{runWithTable} by passing the call graph. The action to access the call graph is
+The monadic action to access the call graph is
 \begin{verbatim}
   lookupCallGraph :: Ident -> CTrav CallGraph
 \end{verbatim}
 It takes the identifier of an invoking function as argument and returns the part of the call graph for this function,
 consisting of all invocations in its body.
+
+The monad \code{CTrav} is an instance of class \code{FileNameTrav}, so the own source file name can be accessed by
+\code{getFileName} (see Section~\ref{impl-ccode-trav}.

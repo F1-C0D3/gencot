@@ -10,7 +10,7 @@ import Language.C.Analysis
 import Language.C.Analysis.DefTable (globalDefs)
 
 import Gencot.Input (readFromInput_,getDeclEvents,getOwnDeclEvents,getArgFileName)
-import Gencot.Util.CallGraph (getCallGraph,runWithCallGraph)
+import Gencot.Util.CallGraph (getCallGraph,runCTrav)
 import Gencot.Json.Translate (transGlobals)
 import Gencot.Json.Process (addParsFromInvokes)
 import Gencot.Traversal (runWithTable)
@@ -31,7 +31,7 @@ main = do
     {- get call graph -}
     cg <- getCallGraph table globals
     {- translate functions to Json parmod template -}
-    parmodtmpl <- runWithCallGraph cg table fnam $ transGlobals globals
+    parmodtmpl <- runCTrav cg table fnam $ transGlobals globals
     {- add parameters from invocations to incomplete and variadic functions -}
     let iparmods = if close then addParsFromInvokes parmodtmpl else parmodtmpl
     {- Output -}

@@ -7,7 +7,8 @@ import Text.JSON (encode)
 import Text.Pretty.Simple (pStringNoColor)
 import Data.Text.Lazy (unpack)
 
-import Gencot.Json.Process (readParmodsFromFile,readParmodsFromInput,showRemainingPars,showRequired,addRequired,addParsFromInvokes,evaluateParmods)
+import Gencot.Json.Process (showRemainingPars,showRequired,addRequired,addParsFromInvokes,evaluateParmods)
+import Gencot.Json.Parmod (readParmodsFromFile,readParmodsFromInput)
 
 main :: IO ()
 main = do

@@ -12,7 +12,8 @@ import Language.C.Syntax.AST as LCS
 import Language.C.Analysis as LCA
 import Language.C.Analysis.DefTable as LCD
 
-import Gencot.Traversal (FileNameTrav,getFileName)
+class (Monad m) => FileNameTrav m where
+    getFileName :: m String
 
 mapName :: Bool -> LCI.Ident -> String
 mapName True (LCI.Ident s _ _) = 

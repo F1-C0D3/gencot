@@ -1,40 +1,22 @@
 {-# LANGUAGE PackageImports, TypeSynonymInstances, FlexibleInstances #-}
 
--- | Read and process JSON function descriptions.
--- A function description is represented as a JSON object and describes a function or a function pointer. 
--- It mainly consists of a description of the function parameters. 
--- For a function definition, it additionally describes all invocations of functions
--- in the function body.
+-- | Process JSON function descriptions.
 module Gencot.Json.Process where
 
 import qualified Data.Set as S (Set,toList,fromList,difference,singleton,foldr,union,insert,empty)
 import Data.List (find,isSuffixOf)
-import qualified Data.Map.Strict as M (Map,unions,empty,singleton,foldr,map)
+import qualified Data.Map.Strict as M (Map,unions,unionsWith,empty,singleton,foldr,map)
 import Data.Map.Strict ((!))
 import Data.Maybe (mapMaybe,isJust,fromJust)
 import Data.Char (isDigit)
 import Text.JSON
 
+import Gencot.Json.Parmod (Parmod,Parmods)
+
 qmark = showJSON "?"
 jsEmpty = JSArray []
 
--- | Read a sequence of function descriptions from stdin.
-readParmodsFromInput :: IO [JSObject JSValue]
-readParmodsFromInput = do
-    inp <- getContents
-    case decode inp of
-         Ok res -> return res
-         Error msg -> error msg
-
--- | Read a sequence of function descriptions from a file.
-readParmodsFromFile :: FilePath -> IO [JSObject JSValue]
-readParmodsFromFile file = do 
-    inp <- readFile file 
-    case decode inp of
-         Ok res -> return res
-         Error msg -> error msg
-
-showRemainingPars :: [JSObject JSValue] -> [String]
+showRemainingPars :: Parmods -> [String]
 showRemainingPars parmods =
     map showPar $ getFunAttrs isRemainingPar parmods
     where showPar (fun,par,mod) = "  " ++ fun ++ "/" ++ par
@@ -42,20 +24,20 @@ showRemainingPars parmods =
 -- | From a function description sequence retrieve all function attributes satisfying a predicate.
 -- The predicate is applied to all attributes of all function descriptions.
 -- The resulting list contains triples of function name, attribute name and attribute value
-getFunAttrs :: ((String,String,JSValue) -> Bool) -> [JSObject JSValue] -> [(String,String,JSValue)]
+getFunAttrs :: ((String,String,JSValue) -> Bool) -> Parmods -> [(String,String,JSValue)]
 getFunAttrs pred parmods = concatMap (getFAttrs pred) parmods
 
-getFAttrs :: ((String,String,JSValue) -> Bool) -> JSObject JSValue -> [(String,String,JSValue)]
+getFAttrs :: ((String,String,JSValue) -> Bool) -> Parmod -> [(String,String,JSValue)]
 getFAttrs pred jso = mapMaybe (selAttr pred) $ attrs
     where attrs = map (\(nam,val) -> (fnam,nam,val)) $ fromJSObject jso
           fnam = getFunName jso
 
-getFunName :: JSObject JSValue -> String
+getFunName :: Parmod -> String
 getFunName jso = case valFromObj "f_name" jso of
                       Ok s -> s
                       Error msg -> error $ "Name not found in function description:\n" ++ encode jso ++ "\n" ++ msg
 
-getFunNumPars :: JSObject JSValue -> JSValue
+getFunNumPars :: Parmod -> JSValue
 getFunNumPars jso = case valFromObj "f_num_params" jso of
                       Ok s -> s
                       Error msg -> error $ "Number of parameters not found in function description:\n" ++ encode jso ++ "\n" ++ msg
@@ -70,7 +52,7 @@ isRemainingPar (_,nam,val) | isDigit $ head nam =
          _ -> False
 isRemainingPar _ = False
 
-showRequired  :: [JSObject JSValue] -> [String]
+showRequired  :: Parmods -> [String]
 showRequired parmods =
     map showReq $ getRequired parmods
     where showReq req = "  " ++ req
@@ -79,7 +61,7 @@ showRequired parmods =
 -- This are all invocations on which a parameter depends which is specified as dependent, 
 -- where the invocation is not described in the sequence.
 -- The result is the list of the names of all such invocations, without duplicates.
-getRequired :: [JSObject JSValue] -> [String]
+getRequired :: Parmods -> [String]
 getRequired parmods = S.toList $ S.difference (S.fromList $ map (getInvokeName . snd) $ ri) fn
     where dp = getFunAttrs isDependentPar parmods
           ri = filter (isRequiredInvoke dp) $ getInvokes parmods
@@ -99,7 +81,7 @@ isDependentPar _ = False
 
 -- | Get all invocations from a sequence of function descriptions.
 -- The result is a list of pairs (f,i) where f is the function name of the function invoking i.
-getInvokes :: [JSObject JSValue] -> [(String,JSObject JSValue)]
+getInvokes :: Parmods -> [(String,JSObject JSValue)]
 getInvokes parmods = concatMap getFunInvokes $ getFunAttrs isInvokes parmods
 
 getFunInvokes :: (String,String,JSValue) -> [(String,JSObject JSValue)]
@@ -133,15 +115,15 @@ isRequiredInvoke dp (fnam,jso) =
           inDepend dp pnam = any (\(f,p,_) -> f == fnam && p == pnam) dp
         
 -- | Add the invocations required by a function description sequence from another function description sequence
-addRequired :: [JSObject JSValue] -> [JSObject JSValue] -> [JSObject JSValue]
+addRequired :: Parmods -> Parmods -> Parmods
 addRequired inparmods addparmods =
     inparmods ++ filter (reqFilter (getRequired inparmods)) addparmods
-    where reqFilter :: [String] -> JSObject JSValue -> Bool
+    where reqFilter :: [String] -> Parmod -> Bool
           reqFilter rs jso = any (\s -> s == getFunName jso) rs
 
 -- | Add parameters from the invcation with the most arguments.
 -- For function description with unknown or variadic parameters additional parameter descriptions are added.
-addParsFromInvokes :: [JSObject JSValue] -> [JSObject JSValue]
+addParsFromInvokes :: Parmods -> Parmods
 addParsFromInvokes parmods = map addPars parmods
     where invks = map snd $ getInvokes parmods
           invknams = S.toList $ S.fromList $ map getInvokeName invks
@@ -171,7 +153,7 @@ numArgs jso = (length $ fromJSObject jso) - 2
 -- Every parameter description has the value "nonlinear", "readonly", "yes", "discarded", or "no".
 -- If the input has unconfirmed parameter descriptions or missing required dependencies the 
 -- result of the evaluation is undefined.
-evaluateParmods :: [JSObject JSValue] -> [JSObject JSValue]
+evaluateParmods :: Parmods -> Parmods
 evaluateParmods parmods =
     map (simplifyDescr (evalDependencies (M.unions (map getFunParMap parmods)))) parmods
 
@@ -183,9 +165,12 @@ evaluateParmods parmods =
 type ParVal = (String,String)
 type ParMap = M.Map ParVal (S.Set ParVal)
 
+-- | combine ParMaps by uniting the value sets for same parameters
+combineParMap = M.unionsWith S.union
+
 -- | Get the parameter map information from a function description.
-getFunParMap :: JSObject JSValue -> ParMap
-getFunParMap jso = M.unions $ (getParDeps $ getFAttrs isInvokes jso) : (map (getParMap . readValue) $ getFAttrs isParam jso)
+getFunParMap :: Parmod -> ParMap
+getFunParMap jso = combineParMap $ (getParDeps $ getFAttrs isInvokes jso) : (map (getParMap . readValue) $ getFAttrs isParam jso)
 
 readValue :: (String,String,JSValue) -> (String,String,String)
 readValue (fnam,pnam,pval) = 
@@ -202,10 +187,10 @@ getParDeps :: [(String,String,JSValue)] -> ParMap
 getParDeps invks =
     if null invks
        then M.empty
-       else M.unions $ map getInvkParDeps $ getFunInvokes $ head invks
+       else combineParMap $ map getInvkParDeps $ getFunInvokes $ head invks
 
 getInvkParDeps :: (String,JSObject JSValue) -> ParMap
-getInvkParDeps (fnam,invk) = M.unions $ map (getInvkSingleParDeps fnam inam) ipars
+getInvkParDeps (fnam,invk) = combineParMap $ map (getInvkSingleParDeps fnam inam) ipars
     where inam = getInvokeName invk
           ipars = filter (\(nam,val) -> (isDigit $ head nam) && isListVal val) $ fromJSObject invk
           isListVal (JSArray _) = True
@@ -237,7 +222,7 @@ reduceParVals vs =
 
 -- | Simplify a function description by replacing parameter dependencies by the description from the ParMap.
 -- Additionally, remove all information about invocations.
-simplifyDescr :: ParMap -> JSObject JSValue -> JSObject JSValue
+simplifyDescr :: ParMap -> Parmod -> Parmod
 simplifyDescr pm jso =
     toJSObject $ map (simplifyPar pm fnam) fattrs
     where fattrs = filter (\(anam,_) -> not $ isSuffixOf "invocations" anam) $ fromJSObject jso

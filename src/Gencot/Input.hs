@@ -73,3 +73,10 @@ getArgFileName = do
     if null args 
        then error "Error: Source file name expected as argument" 
        else return $ head args
+
+getParmodFileName :: IO String
+getParmodFileName = do
+    args <- getArgs
+    if length args < 2
+       then return ""
+       else return $ head $ tail args

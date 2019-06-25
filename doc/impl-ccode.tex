@@ -905,10 +905,10 @@ It is used for translating the types of all functions, as described in Section~\
 The utilities for the monadic traversal of the semantics map are defined in module \code{Gencot.Traversal}. 
 The main monadic type is defined as
 \begin{verbatim}
-  type FTrav = Trav (String,Parmods)
+  type FTrav = Trav (String,ParmodMap)
 \end{verbatim}
 where \code{String} is the type used for storing the original C source file name in the user state and
-\code{Parmods} is the type for storing the parameter modification description. \code{FTrav} is an
+\code{ParmodMap} is the type for storing the parameter modification description. \code{FTrav} is an
 instance of \code{FileNameTrav}. As execution function for the monadic actions the functions
 \begin{verbatim}
   runFTrav :: DefTable -> (String,Parmods) -> FTrav a -> IO a
@@ -943,8 +943,10 @@ An error can be recorded in the monad using the action
 
 The parameter modification description can be accessed by the monadic action
 \begin{verbatim}
-  getParmods :: FTrav Parmods
+  getParmods :: String -> FTrav [String]
 \end{verbatim}
+where the \code{String} argument is a function identifier and the result is the list of parameter description values
+for the parameters of the identified function.
 
 \subsection{Creating and Using the C Call Graph}
 \label{impl-ccode-callgraph}

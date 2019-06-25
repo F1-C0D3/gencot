@@ -10,7 +10,6 @@ import Data.List (elemIndex)
 import Control.Monad (liftM)
 import Data.Foldable (foldlM)
 import Text.JSON
-import System.FilePath (takeExtension,takeFileName,takeBaseName)
 
 import "language-c" Language.C as LC hiding (pretty,Pretty)
 import Language.C.Data.Ident as LCI
@@ -23,7 +22,7 @@ import Gencot.Util.Types (isLinearParType,isReadOnlyParType,isFunPointer,isFunct
 import Gencot.Util.Expr (getRootIdent,isReference)
 import Gencot.Util.Decl (traverseLocalDecl)
 import Gencot.Names (srcFileName)
-import Gencot.Json.Parmod (Parmod,Parmods)
+import Gencot.Json.Parmod (Parmod,Parmods,getGlobalNamPrefix,getGlobalMemberPrefix,linkagePrefix,memberPrefix,pointerPrefix)
 
 qmark = showJSON "?"
 jsEmpty = JSArray []
@@ -33,10 +32,11 @@ transGlobals :: [LCA.DeclEvent] -> CTrav Parmods
 transGlobals evs = (liftM concat) $ (mapM transGlobal) evs 
 
 -- | Translate a C global declaration to a sequence of function descriptions.
--- Every function definition is translated to a function description.
+-- Every function definition and declaration is translated to a function description.
 -- For each invocation which invokes a local function
 -- pointer (a parameter or local variable), a function description for the local function pointer is appended.
--- Every object definition with function pointer type is translated to a function definition.
+-- Every object definition or declaration with function pointer type is translated to a function description.
+-- For every definition of a compound type all members of function pointer type are translated to function descriptions.
 -- All other global declarations are ignored.
 transGlobal :: LCA.DeclEvent -> CTrav Parmods
 transGlobal (LCA.DeclEvent (LCA.FunctionDef fdef)) = do
@@ -394,24 +394,9 @@ transInvocation pardeps sfnx fi@(fd,cgd,loc) = do
     where (LCI.Ident namstr _ _) = LCA.declIdent cgd
           fpdeps = S.filter (\(_,_,invk,_) -> invk == cgd) pardeps
 
-getGlobalNamPrefix :: LCA.Declaration d => d -> String -> String
-getGlobalNamPrefix idec sfn = (linkagePrefix idec sfn False) ++ (pointerPrefix idec)
-
-getGlobalMemberPrefix :: LCI.Ident -> LCA.MemberDecl -> String
-getGlobalMemberPrefix cid mdecl = (memberPrefix cid) ++ (pointerPrefix mdecl)
-
 getNamPrefix :: CGFunInvoke -> String -> String
 getNamPrefix fi@(_,idec,loc) sfn = 
     (linkagePrefix idec sfn loc) ++ (localPrefix fi) ++ (memberInvkPrefix idec) ++ (pointerPrefix idec)
-
-linkagePrefix :: LCA.Declaration d => d -> String -> Bool -> String
-linkagePrefix idec sfn False | isInternal idec = prefix ++ ":"
-    where prefix = if (takeExtension sfn) == ".c" then (takeBaseName sfn) else (takeFileName sfn)
-          isInternal idec = 
-            case LCA.declStorage idec of
-                 NoStorage -> False -- function pointer struct members
-                 _ -> LCA.declLinkage idec == LCA.InternalLinkage
-linkagePrefix _ _ _ = ""
 
 localPrefix :: CGFunInvoke -> String
 localPrefix (fd,_,True) = (getDeclName fd) ++ "/"
@@ -420,15 +405,6 @@ localPrefix _ = ""
 memberInvkPrefix :: CGInvoke -> String
 memberInvkPrefix (MemberInvoke (LCA.CompType (LCI.NamedRef cid) _ _ _ _) _ _) = memberPrefix cid
 memberInvkPrefix _ = ""
-
-memberPrefix :: LCI.Ident -> String
-memberPrefix (LCI.Ident idnam _ _) = idnam ++ "."
-
-pointerPrefix :: LCA.Declaration d => d -> String
-pointerPrefix idec = 
-    case resolveTypedef $ LCA.declType idec of
-         LCA.PtrType _ _ _ -> "*"
-         _ -> ""
 
 getDeclName :: LCA.Declaration d => d -> String
 getDeclName = LCI.identToString . LCA.declIdent

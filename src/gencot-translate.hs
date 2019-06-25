@@ -5,8 +5,10 @@ import Language.C.Data.Ident
 import Language.C.Analysis
 import Language.C.Analysis.DefTable (globalDefs)
 
-import Gencot.Input (readFromInput_,getOwnDeclEvents,getArgFileName)
-import Gencot.Traversal (runWithTable)
+import Gencot.Input (readFromInput_,getOwnDeclEvents,getArgFileName,getParmodFileName)
+import Gencot.Json.Parmod (readParmodsFromFile)
+import Gencot.Json.Process (convertParmods)
+import Gencot.Traversal (runFTrav)
 import Gencot.Cogent.Output (prettyTopLevels)
 import Gencot.Cogent.Translate (transGlobals)
 
@@ -14,7 +16,9 @@ main :: IO ()
 main = do
     table <- readFromInput_
     fnam <- getArgFileName
-    toplvs <- runWithTable table fnam $ transGlobals $ getOwnDeclEvents (globalDefs table) constructFilter
+    pnam <- getParmodFileName
+    parmods <- if null pnam then return [] else readParmodsFromFile pnam
+    toplvs <- runFTrav table (fnam,convertParmods parmods) $ transGlobals $ getOwnDeclEvents (globalDefs table) constructFilter
     print $ prettyTopLevels toplvs
 
 constructFilter :: DeclEvent -> Bool

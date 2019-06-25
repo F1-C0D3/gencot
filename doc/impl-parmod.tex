@@ -296,3 +296,49 @@ be consistent, Gencot also prefers modifications resulting from dependencies aft
 Since in evaluated parameter modification descriptions all parameter descriptions are still confirmed, the only values
 possible for a parameter description are \code{"nonlinear"}, \code{"readonly"}, \code{"yes"}, \code{"discarded"}, and \code{"no"}.
 This information is used by Gencot when translating function parameter and result types, as described in Section~\ref{design-parmod}.
+
+\subsection{Haskell Modules}
+\label{impl-parmod-modules}
+
+Parameter modification descriptions are implemented in the following three Haskell modules.
+
+Module \code{Gencot.Json.Parmod} defines the following types for representing parameter modification descriptions:
+\begin{verbatim}
+  type Parmod = JSObject JSValue
+  type Parmods = [Parmod]
+  type ParmodMap = Map String [String]
+\end{verbatim}
+The first two are used for constructing and processing the JSON representation. Type \code{Parmod} represents a single
+function description as a JSON object with arbitrary JSON values. Type \code{Parmods} represents a full parameter modification
+description consisting of a sequence of function descriptions.
+
+The type \code{ParmodMap} is used to represent the information from an evaluated parameter modification description for 
+applying it. It is a map from function identifiers to the list of parameter description values according to the function's
+parameters.
+
+Module \code{Gencot.Json.Translate} defines the translation from C source code to parameter modification descriptions
+in JSON format. The monadic action
+\begin{verbatim}
+  transGlobals :: [DeclEvent] -> CTrav Parmods
+\end{verbatim}
+translates a sequence of global declarations and definitions (see Section~\ref{impl-ccode-read}) to a sequence of
+function descriptions. It translates all definitions and declarations of functions and of objects with function pointer
+type and for every definition of a compound struct or union type it translates all members with function pointer type.
+All other \code{DeclEvent}s are ignored.
+
+Module \code{Gencot.Json.Process} defines functions for reading and processing parameter modification descriptions in JSON format.
+The main functions are 
+\begin{verbatim}
+  showRemainingPars :: Parmods -> [String]
+  getRequired :: Parmods -> [String]
+  evaluateParmods :: Parmods -> Parmods
+  convertParmods :: Parmods -> ParmodMap
+\end{verbatim}
+The first function retrieves the list of all unconfirmed parameters in the form
+\begin{verbatim}
+  <function identifier> / <parameter identifier>
+\end{verbatim}
+The function \code{getRequired} retrieves the function identifier of all invocations on which a parameter depends.
+The function \code{evaluateParmods} evaluates a parameter modification description as described in 
+Section~\ref{impl-parmod-eval}. The function \code{convertParmods} converts the JSON representation to the compact
+form \code{ParmodMap} for applying it when generating Cogent code.

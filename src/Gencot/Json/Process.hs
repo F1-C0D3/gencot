@@ -5,13 +5,13 @@ module Gencot.Json.Process where
 
 import qualified Data.Set as S (Set,toList,fromList,difference,singleton,foldr,union,insert,empty)
 import Data.List (find,isSuffixOf)
-import qualified Data.Map.Strict as M (Map,unions,unionsWith,empty,singleton,foldr,map)
+import qualified Data.Map.Strict as M (Map,unions,unionsWith,empty,singleton,foldr,map,fromList)
 import Data.Map.Strict ((!))
 import Data.Maybe (mapMaybe,isJust,fromJust)
 import Data.Char (isDigit)
 import Text.JSON
 
-import Gencot.Json.Parmod (Parmod,Parmods)
+import Gencot.Json.Parmod (Parmod,Parmods,ParmodMap)
 
 qmark = showJSON "?"
 jsEmpty = JSArray []
@@ -234,3 +234,12 @@ simplifyPar pm fnam par@(pnam,(JSString val)) | isDigit $ head pnam =
        then (pnam,showJSON $ snd $ head $ S.toList $ pm!(fnam,pnam))
        else par
 simplifyPar _ _ attr = attr
+
+-- | Convert a function description sequence.
+-- The result is a map from function identifiers to sequences of parameter description values.
+convertParmods :: Parmods -> ParmodMap
+convertParmods parmods = M.fromList $ map convertParmod parmods
+
+convertParmod :: Parmod -> (String,[String])
+convertParmod jso = (getFunName jso, map (\(_,_,(JSString js)) -> fromJSString js) $ getFAttrs isParam jso)
+    

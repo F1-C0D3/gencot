@@ -7,33 +7,37 @@ import Text.JSON (encode)
 import Text.Pretty.Simple (pStringNoColor)
 import Data.Text.Lazy (unpack)
 
-import Gencot.Json.Process (showRemainingPars,showRequired,addRequired,addParsFromInvokes,evaluateParmods)
+import Gencot.Json.Process (showRemainingPars,getRequired,filterParmods,addParsFromInvokes,evaluateParmods,getFunName,mergeParmods,sortParmods)
 import Gencot.Json.Parmod (readParmodsFromFile,readParmodsFromInput)
 
 main :: IO ()
 main = do
-    {- get JSON file name -}
+    {- get command line arguments -}
     args <- getArgs
-    {- read JSON from first input file -}
+    when (length args == 0) $ error "Command expected"
+    {- read JSON from standard input -}
     parmods <- readParmodsFromInput
-    if (length args) == 0
-       then do -- show
-           let rp = showRemainingPars parmods
-           putStrLn $ (show $ length rp) ++ " remaining parameters to be processed:"
-           putStrLn $ unlines rp
-           let rq = showRequired parmods
-           putStrLn $ (show $ length rq) ++ " additional required dependencies:"
-           putStrLn $ unlines rq
-       else do
-           pmres <- if head args == "eval"
-                       then return $ evaluateParmods parmods
-                       else do -- addto
-                           {- read JSON from second input file -}
-                           pmsrc <- readParmodsFromFile $ head args
-                           return $ addParsFromInvokes $ addRequired parmods pmsrc
-           {- Output -}
-           putStr $ unpack $ pStringNoColor $ encode pmres
+    {- interprete first argument as command string -}
+    case head args of
+         "check" -> error "check not yet implemented"
+         "funids" -> putStrLn $ unlines $ map getFunName parmods
+         "unconfirmed" -> putStrLn $ unlines $ showRemainingPars parmods
+         "required" -> putStrLn $ unlines $ getRequired parmods
+         "sort" -> do
+             when (length args == 1) $ error "sort: filename expected"
+             funids <- readFile $ head $ tail args
+             outputJson $ sortParmods parmods $ lines funids
+         "filter" -> do
+             when (length args == 1) $ error "filter: filename expected"
+             funids <- readFile $ head $ tail args
+             outputJson $ filterParmods parmods $ lines funids
+         "merge" -> do
+             when (length args == 1) $ error "merge: filename expected"
+             parmods2 <- readParmodsFromFile $ head $ tail args
+             outputJson $ mergeParmods parmods parmods2
+         "eval" -> outputJson $ evaluateParmods parmods
+         _ -> error $ "Unknown command: " ++ head args
 
-       
+outputJson parmods = putStr $ unpack $ pStringNoColor $ encode parmods
 
 

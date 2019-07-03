@@ -1,17 +1,16 @@
 {-# LANGUAGE PackageImports #-}
 module Gencot.Input where
 
-import System.Environment (getArgs)
 import System.IO (hPutStrLn, stderr)
 import qualified Data.ByteString as BSW
 import Data.Map (toList,elems,Map)
 import Data.List (sortBy)
-import Control.Monad (liftM)
+import Control.Monad (liftM,when)
 
 import "language-c" Language.C (CTranslUnit,CError,parseC,fileOfNode)
 import Language.C.Data.Position (initPos,posOf)
 import Language.C.Analysis
-import Language.C.Analysis.DefTable (DefTable)
+import Language.C.Analysis.DefTable (DefTable,emptyDefTable)
 
 getOwnDeclEvents :: GlobalDecls -> (DeclEvent -> Bool) -> [DeclEvent]
 getOwnDeclEvents g f = getDeclEvents g globalsFilter
@@ -49,6 +48,17 @@ readFromFile input_file uinit uhandler = do
     input_stream <- BSW.readFile input_file
     readBytestring input_stream (" in " ++ input_file) uinit uhandler
 
+readPackageFromInput_ :: IO DefTable
+readPackageFromInput_ = do
+    fnams <- (liftM lines) getContents
+    when (null fnams) $ error "empty input package"
+    tables <- mapM readFromFile_ fnams
+    return $ foldl1 combineTables tables
+    
+combineTables :: DefTable -> DefTable -> DefTable
+combineTables dt1 dt2 = emptyDefTable
+    
+
 readBytestring :: BSW.ByteString -> String -> s -> (DeclEvent -> Trav s ()) -> IO (DefTable, s)
 readBytestring input_stream wher uinit uhandler = do
     ast <- errorOnLeft ("Parse Error" ++ wher) $ parseC input_stream (initPos "<stdin>")
@@ -67,16 +77,3 @@ showWarnings warns = do
     mapM (hPutStrLn stderr . show) warns
     return ()
 
-getArgFileName :: IO String
-getArgFileName = do
-    args <- getArgs
-    if null args 
-       then error "Error: Source file name expected as argument" 
-       else return $ head args
-
-getParmodFileName :: IO String
-getParmodFileName = do
-    args <- getArgs
-    if length args < 2
-       then return ""
-       else return $ head $ tail args

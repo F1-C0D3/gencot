@@ -328,6 +328,65 @@ It performs the preprocessing and returns the list of \code{DeclEvent}s to be pr
 As its second argument it expects a predicate for filtering the content of \code{<stdin>} to the
 \code{DeclEvent}s to be processed by the specific Gencot component.
 
+\subsection{Reading Packages}
+\label{impl-ccode-package}
+
+In some cases several source files of the <package> must be processed together. The typical case is when the main
+files for the Cogent compilation unit are generated (see Section~\ref{design-files}. For this it is necessary 
+to determine and process the external name references in a set of
+C source files. This set is the subset of C sources in the <package> which is translated to Cogent and together yields
+the Cogent compilation unit. 
+
+\subsubsection{Approach}
+
+There are different possible approaches how to read and process this set of source files.
+
+The first approach is to use a single file which includes all files in the set. This file is processed as usual by
+\code{gencot-include}, \code{gencot-remcomments}, and \code{gencot-rempp} which yields the union of all definitions
+and declarations in all files in the set as input to the language-c parser. However, this input may contain conflicting
+definitions. For an identifier with internal linkage different definitions may be present in different source files.
+Also for identifiers with no linkage different definitions may be present, if, e.g., different \code{.c} files define
+a type with the same name. The language-c parser ignores duplicate definitions for identifiers with internal linkage,
+however, it treats duplicate definitions for identifiers without linkage as a fatal error. Hence Gencot does not use
+this approach.
+
+The second approach ist to process every file in the set separately and merge the generated target code. However, for
+identifiers with external linkage (function definitions) the external references cannot be determined from the content
+of a single file. A non-local reference is only external if it is not defined in any of the files in the set. It would
+be possible to determine these external references in a separate processing step and using the result as additional input
+for the main processing step. Since this means to additionally implement reading and writing a list of external references,
+Gencot does not use this approach.
+
+The third approach is to parse and analyse the content of every file separately, then merge the resulting semantic maps
+discarding any duplicate definitions. This approach assumes that the external name references, which are relevant for
+processing, are uniquely defined in all source files. If this is not the case, because conflicting definitions are used
+inside the <package>, which are external to the processed file subset, this must be handled manually. 
+This approach is used by Gencot.
+
+\subsubsection{Specifying Input Files}
+
+Due to the approach used, the Gencot filters for generating the files common to the Cogent compilation unit expect
+as input a list of names of the files which comprise the Cogent compilation unit. The file names must be pathnames which are either 
+absolute or relative to the current directory. Every file name must occur on a single line.
+
+Like all other input to the language-c parser their content must have been processed by \code{gencot-include}, 
+\code{gencot-remcomments}, and \code{gencot-rempp}. This implies that all included content is already present
+and need not be specified separately, usually only \code{.c} files need to be specified as input, after they have
+been processed as usual.
+
+In contrast to the single-file filters, the original file name is not required for the files input to a 
+Gencot processor. A processor only processes items which are external to all input files, whereas the original
+file name is needed for items which are defined in the input files. Therefore the list of input file names is
+sufficient and the input files may have arbitrary names which need not be related to the names of the original 
+\code{.c} files.
+
+\subsubsection{Combining Parser Results}
+
+When the parser results are combined it is relevant, how they are structured. The language-c parser 
+Also for combining the parser results there are several possibilities. 
+
+The combination can be done before or after the analysis phase. 
+
 \subsection{Dummy Declarations for Preprocessor Macros}
 \label{impl-ccode-dummydecl}
 

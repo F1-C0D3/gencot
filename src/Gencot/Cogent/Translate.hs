@@ -22,7 +22,7 @@ import Gencot.Cogent.Ast
 import Gencot.C.Translate (transStat,transExpr)
 import Gencot.Traversal (FTrav,getParmods)
 import Gencot.Util.Types (isAggOrFunc,isFunPointer,isFunction,isArray,resolveTypedef,isAggregate)
-import Gencot.Json.Parmod (getFunId)
+import Gencot.Json.Identifier (getFunId)
 
 genType t = GenType t noOrigin
 
@@ -340,3 +340,4 @@ errType s = return $ genType $ CS.TCon ("err-" ++ s) [] markUnbox
 
 stripOrigT :: GenType -> RawType
 stripOrigT = RT . fmap stripOrigT . ffmap (const $ CS.RE CS.Unitel) . typeOfGT
+

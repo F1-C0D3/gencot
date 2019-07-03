@@ -5,13 +5,13 @@ module Gencot.Json.Process where
 
 import qualified Data.Set as S (Set,toList,fromList,difference,singleton,foldr,union,insert,empty)
 import Data.List (find,isSuffixOf)
-import qualified Data.Map.Strict as M (Map,unions,unionsWith,empty,singleton,foldr,map,fromList)
+import qualified Data.Map.Strict as M (Map,unions,unionsWith,unionWith,empty,singleton,foldr,map,fromList,elems)
 import Data.Map.Strict ((!))
-import Data.Maybe (mapMaybe,isJust,fromJust)
+import Data.Maybe (mapMaybe,isJust,fromJust,catMaybes)
 import Data.Char (isDigit)
 import Text.JSON
 
-import Gencot.Json.Parmod (Parmod,Parmods,ParmodMap)
+import Gencot.Json.Parmod (Parmod,Parmods)
 
 qmark = showJSON "?"
 jsEmpty = JSArray []
@@ -19,7 +19,7 @@ jsEmpty = JSArray []
 showRemainingPars :: Parmods -> [String]
 showRemainingPars parmods =
     map showPar $ getFunAttrs isRemainingPar parmods
-    where showPar (fun,par,mod) = "  " ++ fun ++ "/" ++ par
+    where showPar (fun,par,mod) = fun ++ "/" ++ par
 
 -- | From a function description sequence retrieve all function attributes satisfying a predicate.
 -- The predicate is applied to all attributes of all function descriptions.
@@ -120,6 +120,31 @@ addRequired inparmods addparmods =
     inparmods ++ filter (reqFilter (getRequired inparmods)) addparmods
     where reqFilter :: [String] -> Parmod -> Bool
           reqFilter rs jso = any (\s -> s == getFunName jso) rs
+
+-- | Filter a function description sequence by a list of function identifiers
+filterParmods :: Parmods -> [String] -> Parmods
+filterParmods parmods funids = filter (reqFilter funids) parmods
+    where reqFilter :: [String] -> Parmod -> Bool
+          reqFilter rs jso = any (\s -> s == getFunName jso) rs
+
+-- | Merge two function description sequences.
+-- If a function is described in both sequences the description is selected
+-- where more parameter descriptions are confirmed.
+mergeParmods :: Parmods -> Parmods -> Parmods
+mergeParmods parmods parmods2 = M.elems $ M.unionWith confirmedFun (mkmap parmods) (mkmap parmods2)
+    where mkmap parmods = M.fromList $ map (\jso -> (getFunName jso,jso)) parmods
+
+confirmedFun :: Parmod -> Parmod -> Parmod
+confirmedFun jso jso2 = if uc < uc2 then jso else jso2
+    where uc = length $ filter isRemainingPar $ getFAttrs isParam jso
+          uc2 = length $ filter isRemainingPar $ getFAttrs isParam jso2
+
+-- | Sort a function description sequence according to a sequence of function identifiers
+-- The result contains all function descriptions where the identifier occurs in the identifier sequence.
+sortParmods :: Parmods -> [String] -> Parmods
+sortParmods parmods funids = catMaybes $ map (insrt parmods) funids
+    where insrt :: Parmods -> String -> Maybe Parmod
+          insrt parmods funid = find (\jso -> funid == getFunName jso) parmods
 
 -- | Add parameters from the invcation with the most arguments.
 -- For function description with unknown or variadic parameters additional parameter descriptions are added.
@@ -237,7 +262,7 @@ simplifyPar _ _ attr = attr
 
 -- | Convert a function description sequence.
 -- The result is a map from function identifiers to sequences of parameter description values.
-convertParmods :: Parmods -> ParmodMap
+convertParmods :: Parmods -> M.Map String [String]
 convertParmods parmods = M.fromList $ map convertParmod parmods
 
 convertParmod :: Parmod -> (String,[String])

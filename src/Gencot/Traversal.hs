@@ -2,15 +2,18 @@
 module Gencot.Traversal where
 
 import Control.Monad (liftM)
-import Data.Map ((!),empty)
+import Data.Map (Map,(!),empty)
 
 import Language.C.Analysis.DefTable (DefTable)
 import Language.C.Analysis.TravMonad (Trav,runTrav,travErrors,withDefTable,getUserState)
 
 import Gencot.Input (showWarnings,errorOnLeft)
-import Gencot.Json.Parmod (ParmodMap)
-
 import Gencot.Names (FileNameTrav,getFileName)
+
+-- | Simplified form of evaluated function descripton sequence.
+-- A mapping from function identifiers to sequences of parameter description values.
+-- For every parameter the description is one of "yes", "discarded", "no", "nonlinear", or "readonly".
+type ParmodMap = Map String [String]
 
 type FTrav = Trav (String,ParmodMap)
 

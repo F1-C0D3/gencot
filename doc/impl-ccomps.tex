@@ -21,6 +21,7 @@ file \code{x-entry.ac}. It processes all function definitions with external link
 file \code{x-abstypes.c} or \code{x-abstypes.h}. It processes typedefs and struct/union/enum definitions.
 \item[\code{gencot-remfundef}] processes a single file \code{x.c} by removing all function definitions. The output
 is intended to be put in file \code{x-globals.c}
+\item[\code{gencot-deccomments}] processes a single file \code{x.c} or \code{x.h} to 
 \item[\code{parmod-gen}] processes a single file \code{x.c} and generates the Json template for specifying
 function parameter modification (see Section~\ref{impl-parmod}).
 \end{description}
@@ -30,46 +31,15 @@ argument, since they need it to generate Cogent names for C names with internal 
 types.
 
 There are other target files which are generated for the whole package. The filters for generating these target files 
-must always determine and process the external name references in a set of
-C source files. This set is the subset of C sources in the <package> which is translated to Cogent and together yields
-the Cogent compilation unit. There are different possible approaches how to read and process this set of source files.
+take as input the list of file names to be processed (see Section~\ref{impl-ccode-package}). Filters of this kind 
+are called ``processors'' in the following. 
 
-The first approach is to use a single file which includes all files in the set. This file is processed as usual by
-\code{gencot-include}, \code{gencot-remcomments}, and \code{gencot-rempp} which yields the union of all definitions
-and declarations in all files in the set as input to the language-c parser. However, this input may contain conflicting
-definitions. For an identifier with internal linkage different definitions may be present in different source files.
-Also for identifiers with no linkage different definitions may be present, if, e.g., different \code{.c} files define
-a type with the same name. The language-c parser ignores duplicate definitions for identifiers with internal linkage,
-however, it treats duplicate definitions for identifiers without linkage as a fatal error. Hence Gencot does not use
-this approach.
-
-The second approach ist to process every file in the set separately and merge the generated target code. However, for
-identifiers with external linkage (function definitions) the external references cannot be determined from the content
-of a single file. A non-local reference is only external if it is not defined in any of the files in the set. It would
-be possible to determine these external references in a separate processing step and using the result as additional input
-for the main processing step. Since this means to additionally implement reading and writing a list of external references,
-Gencot does not use this approach.
-
-The third approach is to parse and analyse the content of every file separately, then merge the resulting semantic maps
-discarding any duplicate definitions. This approach assumes that the external name references, which are relevant for
-processing, are uniquely defined in all source files. If this is not the case, because conflicting definitions are used
-inside the <package>, which are external to the processed file subset, this must be handled manually. Note that the
-external references must be determined before the maps are merged, since they may occur in conflicting definitions
-which are discarded during the merge. This approach is used by Gencot.
-
-Due to the approach used, the Gencot ``filters'' for generating the files common to the Cogent compilation unit are
-actually no filters, they take a list of file names as arguments and are called ``processors'' in the following.
-Like all other input to the language-c parser their
-content must have been processed by \code{gencot-include}, \code{gencot-remcomments}, and \code{gencot-rempp}.
-
-Usually it is sufficient to specify only \code{.c} files in the set, since the information about all referenced 
-identifiers must be provided in included \code{.h} files. However, for determining which references are external, the
-\code{.h} files are needed as well, to distinguish between definitions provided by them and definitions provided
-by other \code{.h} files not belonging to the set. The \code{.h} files need not be parsed, since their content is
-already parsed together with the content of the \code{.c} files, only their names must be known. Hence the Gencot
-processors distinguish the argument file names according to their file name extension: if the extension is 
-\code{.gencot} a preprocessed \code{.c} file is expected to be parsed and processed, if the extension is \code{.h}
-an original include file is expected and only its name is used for determining external name references.
+Usually only \code{.c} files need to be specified as input to processors.
+In contrast to the single-file filters, the original file name is not required for the files input to a 
+Gencot processor. A processor only processes items which are external to all input files, whereas the original
+file name is needed for items which are defined in the input files. Therefore the list of input file names is
+sufficient and the input files may have arbitrary names which need not be related to the names of the original 
+\code{.c} files.
 
 Gencot uses the following processors of this kind:
 \begin{description}
@@ -79,8 +49,9 @@ processes externally referenced typedefs, tag definitions and enum constant defi
 processes externally referenced typedefs, tag definitions and enum constant definitions.
 \item[\code{gencot-exit}] generates the exit wrappers to be put in the file \code{<package>-exit.ac}. It processes
 the declarations of externally referenced functions.
-\item[\code{gencot-exitabs}] generates the abstract function definitions to be put in the file 
+\item[\code{gencot-extfuns}] generates the abstract function definitions to be put in the file 
 \code{<package>-exit.cogent}. It processes the declarations of externally referenced functions.
+\item[\code{gencot-extfunids}] generates the list of function identifiers of all externally referenced functions.
 \item[\code{gencot-extincludes}] generates the list of include directives to be put in the file
 \code{<package>-extincludes.c}. It processes all external name references. 
 \end{description}
@@ -253,6 +224,15 @@ declarations of all invoked external functions, it translates them using the fun
 module \code{Gencot.Cogent.Translate}. It translates C function declarations to abstract function definitions
 in Cogent. The result is output using \code{prettyTopLevels} from module \code{Gencot.Cogent.Output}.
 
+\subsubsection{Processor \code{gencot-extfunids}}
+
+The processor \code{gencot-extfunids} generates a list of identifiers for all invoked external functions.
+The identifiers have the form used in the parameter modification descriptions, as described in 
+Section~\ref{impl-parmod-ids}. Every identifier is output in a separate line.
+
+The list is intended as starting point for building the parameter modification description for \code{gencot-extfuns}.
+Therefore only invocations of declared functions are considered, invocations of function pointers are omitted.
+
 \subsubsection{Processor \code{gencot-extfunsac}}
 
 The processor \code{gencot-extfunsac} generates the wrapper implementations in antiquoted C code.
@@ -367,6 +347,11 @@ all declarations with internal or no linkage).
 The main application case are functions declared as external, but moving the comments may also be useful for 
 objects.
 
+If a function or object with external linkage is declared and defined in the same file, the language-c analysis step
+replaces the declaration by the corresponding definitions in the semantic map, hence it will not be found and processed
+by \code{gencot-deccomments}. However, it is assumed that in this case the documentation is assocatied with the definition
+and needs not be moved from the declaration to the definition.
+
 For processing the declarations we do not need a monad since every declaration can be processed on its own. This is implemented
 be the function
 \begin{verbatim}
@@ -401,7 +386,7 @@ After analysing the C code as described in Section~\ref{impl-ccode} the call gra
 in Section~\ref{impl-ccode-callgraph}. Then another traversal is performed using the \code{CTrav} monad and
 \code{runWithCallGraph} with action
 \begin{verbatim}
-  transGlobals :: [DeclEvent] -> CTrav [JSObject JSValue]
+  transGlobals :: [DeclEvent] -> CTrav Parmods
 \end{verbatim}
 defined in module \code{Gencot.Json.Translate}. The resulting list of JSON objects is postprocessed by adding
 undeclared parameters (in case of functions with variadic or incomplete type) according to the maximal number

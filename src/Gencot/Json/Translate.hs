@@ -22,7 +22,8 @@ import Gencot.Util.Types (isLinearParType,isReadOnlyParType,isFunPointer,isFunct
 import Gencot.Util.Expr (getRootIdent,isReference)
 import Gencot.Util.Decl (traverseLocalDecl)
 import Gencot.Names (srcFileName)
-import Gencot.Json.Parmod (Parmod,Parmods,getGlobalNamPrefix,getGlobalMemberPrefix,linkagePrefix,memberPrefix,pointerPrefix)
+import Gencot.Json.Parmod (Parmod,Parmods)
+import Gencot.Json.Identifier (getGlobalNamPrefix,getGlobalMemberPrefix,linkagePrefix,memberPrefix,pointerPrefix)
 
 qmark = showJSON "?"
 jsEmpty = JSArray []
@@ -468,3 +469,4 @@ maybeNumberList l = zipWith maybePair (iterate (1 +) 1) l
 maybePair :: b -> Maybe a -> Maybe (b,a)
 maybePair _ Nothing = Nothing
 maybePair x (Just y) = Just (x,y)
+

@@ -6,33 +6,57 @@ The following auxiliary Gencot components exist which do not process C source co
 \subsection{Parameter Modification Descriptions}
 
 Processing parameter modification descriptions is implemented by the filter \code{parmod-proc}. It reads a parameter
-modification description from standard input as described in Section~\ref{impl-parmod-json}. The kind of processing
-depends on whether an additional parameter is specified for the filter.
+modification description from standard input as described in Section~\ref{impl-parmod-json}. The first command line 
+argument acts as a command how to process the parameter modification description. The filter implements the following
+commands:
+\begin{description}
 
-If no additional parameter is specified, the filter verifies the structure of the parameter modification description 
+\item[\code{check}]
+Verify the structure of the parameter modification description 
 according to Section~\ref{impl-parmod-struct} and lists all errors found.
-Additionally, it generates a textual summary of the description. It lists
-all unconfirmed parameter descriptions in the form
+
+\item[\code{funids}]
+List the function identifiers of all functions described in the parameter modification description.
+
+\item[\code{unconfirmed}] 
+List all unconfirmed parameter descriptions in the form
 \begin{verbatim}
   <function identifier> / <parameter identifier>
 \end{verbatim}
-and it lists all required invocations by their function identifiers.
 
-This summary is intended as a support for the developer when filling the description manually. The goal is that
-the summary is empty. If there are unconfirmed parameters they must be inspected and confirmed. This usually 
-modifies the list of required invocations. They can be reduced by generating and adding corresponding descriptions
-from other source files.
+\item[\code{required}]
+List all required invocations by their function identifiers.
 
-If an additional parameter is specified, it must be either the string \code{"eval"} or the file name of another 
-parameter modification description.
+\item[\code{sort}]
+Takes an additional file name as command line argument. The file contains a list of function identifiers.
+The input is sorted according to the order in which the function identifiers appear in the list. This command
+is intended to be applied after the \code{merge} command to (re)establish a certain ordering.
 
-In the latter case all required invocations which are found in this second description are added (appended) to the main 
-description and the result is written to the output as described in Section~\ref{impl-parmod-json}.
+\item[\code{filter}]
+Takes an additional file name as command line argument. The file contains a list of function identifiers.
+The input is filtered and only function descriptions for the listed identifiers are retained in the output.
 
-If the string \code{"eval"} is specified, the parameter modification description must be structurally correct, contain no
-unconfirmed parameter descriptions and contain no required dependencies (i.e. the filter invocation without arguments
-must produce an empty output). Then all dependencies are eliminated as described in Section~\ref{impl-parmod-eval}.
-The resulting parameter modification description is written to the output. It contains no parameter dependencies and
+\item[\code{merge}]
+Takes an additional file name as command line argument. The file contains a parameter modification description 
+in JSON format. Both descriptions are merged. If both contain a description for the same function identifier,
+the description with less unconfirmed parameter descriptions is used in the output.
+
+\item[\code{eval}]
+The parameter modification description must be structurally correct, contain no
+unconfirmed parameter descriptions and contain no required dependencies. Then all dependencies are eliminated 
+as described in Section~\ref{impl-parmod-eval}.
+The resulting parameter modification description contains no parameter dependencies and
 no invocation descriptions. It is intended to be read by the filters which translate C function types and function 
 definitions.
+\end{description}
+
+All lists mentioned above are structured as a sequence of text lines.
+
+If the result is a parameter modification description in JSON format is written to the output as described in 
+Section~\ref{impl-parmod-json}.
+
+The first three commands are intended as a support for the developer when filling the description manually. The goal is that
+for all three the output is empty. If there are unconfirmed parameters they must be inspected and confirmed. This usually 
+modifies the list of required invocations. They can be reduced by generating and merging corresponding descriptions
+from other source files.
 

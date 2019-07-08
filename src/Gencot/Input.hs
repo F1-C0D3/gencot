@@ -3,14 +3,15 @@ module Gencot.Input where
 
 import System.IO (hPutStrLn, stderr)
 import qualified Data.ByteString as BSW
-import Data.Map (toList,elems,Map)
+import Data.Map (toList,elems)
 import Data.List (sortBy)
 import Control.Monad (liftM,when)
 
-import "language-c" Language.C (CTranslUnit,CError,parseC,fileOfNode)
+import "language-c" Language.C (CError,parseC,fileOfNode)
 import Language.C.Data.Position (initPos,posOf)
 import Language.C.Analysis
-import Language.C.Analysis.DefTable (DefTable,emptyDefTable)
+import Language.C.Analysis.DefTable (DefTable)
+
 
 getOwnDeclEvents :: GlobalDecls -> (DeclEvent -> Bool) -> [DeclEvent]
 getOwnDeclEvents g f = getDeclEvents g globalsFilter
@@ -48,17 +49,12 @@ readFromFile input_file uinit uhandler = do
     input_stream <- BSW.readFile input_file
     readBytestring input_stream (" in " ++ input_file) uinit uhandler
 
-readPackageFromInput_ :: IO DefTable
-readPackageFromInput_ = do
-    fnams <- (liftM lines) getContents
+readPackageFromInput :: IO [DefTable]
+readPackageFromInput = do
+    fnams <- (liftM ((filter (not . null)) . lines)) getContents
     when (null fnams) $ error "empty input package"
-    tables <- mapM readFromFile_ fnams
-    return $ foldl1 combineTables tables
+    mapM readFromFile_ fnams
     
-combineTables :: DefTable -> DefTable -> DefTable
-combineTables dt1 dt2 = emptyDefTable
-    
-
 readBytestring :: BSW.ByteString -> String -> s -> (DeclEvent -> Trav s ()) -> IO (DefTable, s)
 readBytestring input_stream wher uinit uhandler = do
     ast <- errorOnLeft ("Parse Error" ++ wher) $ parseC input_stream (initPos "<stdin>")

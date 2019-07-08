@@ -8,6 +8,7 @@ then
 fi
 
 BIN=$GENCOT_HOME/bin
+PRC=parmod-proc
 
 USAGE="Usage: $0 [-I<dir>] [-G<dir>] [-k] [check|init|show|addto|close|eval|help] <file> [<file>]"
 
@@ -84,10 +85,10 @@ CMD=$1
 case "$CMD" in
     check) TAILCMD='gencot-check';PARSE='yes';;
     init) TAILCMD='parmod-gen';PARSE='yes';;
-    show) TAILCMD='parmod-proc';;
-    addto) TAILCMD='parmod-proc';REQARGS=2;;
+    show) ;;
+    addto) REQARGS=2;;
     close) TAILCMD='parmod-gen';PARSE='yes';CLOSE='close';;
-    eval) TAILCMD='parmod-proc eval';;
+    eval) ;;
     help) long_usage; exit;;
     *) echo "unknown parmod command: $1"; short_usage; exit;;
 esac
@@ -108,12 +109,12 @@ prepare_aux()
     fi
 }
 
+TMPDIR=$(mktemp -d)
 if [ $PARSE ]
 then 
     CFILE=$1
     CBASE=$(basename $CFILE)
     CNAME=$(expr match $CBASE '\(.*\)[.][^.]*' '|' $CBASE)
-    TMPDIR=$(mktemp -d)
     for aux in addincl omitincl noincl manmacros macroconv ppretain chsystem
     do prepare_aux $aux
     done
@@ -127,13 +128,31 @@ then
         | $BIN/gencot-cpp $TMPDIR/gencot-macroconv $TMPDIR/dummydecls \
         | tee $TMPDIR/$CNAME.in \
         | $BIN/$TAILCMD $CBASE $CLOSE 
-    if [ $KEEP ]
-    then
-        echo "Kept directory with intermediate files: $TMPDIR"
-    else
-        rm -r $TMPDIR
-    fi
-else
-    $BIN/$TAILCMD $2 < $1
+elif [ "$CMD" == "show" ]
+then
+    $BIN/$PRC check < $1
+    $BIN/$PRC unconfirmed < $1 > $TMPDIR/uclist
+    echo
+    echo "$(wc -w < $TMPDIR/uclist) unconfirmed parameter descriptions:"
+    cat $TMPDIR/uclist
+    $BIN/$PRC required < $1 > $TMPDIR/rilist
+    echo "$(wc -w < $TMPDIR/rilist) required invocations:"
+    cat $TMPDIR/rilist
+elif [ "$CMD" == "addto" ]
+then
+    $BIN/$PRC funids < $1 > $TMPDIR/flist
+    $BIN/$PRC funids < $2 >> $TMPDIR/flist
+    $BIN/$PRC required < $1 > $TMPDIR/rilist
+    $BIN/$PRC filter $TMPDIR/rilist < $2 \
+        | $BIN/$PRC merge $1 | $BIN/$PRC sort $TMPDIR/flist
+elif [ "$CMD" == "eval" ]
+then
+    $BIN/$PRC eval < $1
 fi
 
+if [ $KEEP ]
+then
+    echo "Kept directory with intermediate files: $TMPDIR"
+else
+    rm -r $TMPDIR
+fi

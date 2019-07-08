@@ -17,7 +17,7 @@ import Language.C.Analysis.TravMonad (MonadTrav,Trav,runTrav,travErrors,getUserS
 import Gencot.Names (FileNameTrav,getFileName)
 import Gencot.Traversal (FTrav,runWithTable)
 import Gencot.Input (showWarnings,errorOnLeft)
-import Gencot.Util.EqByPos
+import Gencot.Util.Equality
 import Gencot.Util.Types (resolveTypedef,getCompType,getMemberDecl)
 import Gencot.Util.Expr (getType)
 import Gencot.Util.Decl (traverseLocalDecl)

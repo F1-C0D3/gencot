@@ -337,7 +337,7 @@ to determine and process the external name references in a set of
 C source files. This set is the subset of C sources in the <package> which is translated to Cogent and together yields
 the Cogent compilation unit. 
 
-\subsubsection{Approach}
+\subsubsection{General Approach}
 
 There are different possible approaches how to read and process this set of source files.
 
@@ -382,10 +382,92 @@ sufficient and the input files may have arbitrary names which need not be relate
 
 \subsubsection{Combining Parser Results}
 
-When the parser results are combined it is relevant, how they are structured. The language-c parser 
-Also for combining the parser results there are several possibilities. 
+When the parser results are combined it is relevant, how they are structured, in particular, if the same file
+is included by several of the \code{.c} files. Most of the information only depends on the parsed text.
+However, the language-c parser also uses unique identifiers, which are counted integers starting at 1 for every
+parsed file. This implies, that these identifiers are not unique anymore, if several files are parsed separately
+and then the results are combined.
 
-The combination can be done before or after the analysis phase. 
+The unique identifiers are associated with most of the AST nodes and are part of the \code{NodeInfo} values.
+In the analysis phase they are used to cache the relation between defining and referencing occurrences of C identifiers,
+and the relation between C expressions and their types. The corresponding caches are part of the symbol table structure.
+However, the first relation cache seems to be built but not used, the second relation cache is only used during 
+type analysis for expressions. In both cases, after the analysis phase the caches are still present, but are not 
+relevant for the further processing by Gencot.
+
+As a consequence, it is not possible to combine the raw AST structures and then perform the language-c analysis
+on the combined AST, since then the non-unique identifiers may cause problems. Instead, Gencot parses and analyses
+every file separately and the combines the resulting symbol tables.
+
+However, the unique identifiers are additionally used for identifying tagless struct/union/enum types in the symbol table.
+Language-c uses the alternative type \code{SUERef} to identify struct/union/enum types, with the alternatives 
+\code{NamedRef} and \code{AnonymousRef}, where the latter specifies the unique integer identifier of the AST node
+of the type definition. The symbol table maps \code{SUERef} values to their type definitions. This implies, that
+tagless types may be entered in different symbol tables under different keys. This must be detected and handled
+when combining the symbol tables.
+
+As described in Section~\ref{impl-ccode-read}, Gencot uses for its processing the list of \code{DeclEvent}s which is
+derived from the \code{GlobalDecls} map. This means, the combination could be implemented on the \code{GlobalDecls}
+maps or even on the \cpode{DeclEvent} lists. However, as described in Section~\ref{impl-ccode-trav}, Gencot also
+uses the symbol table during processing, for looking up identifiers. For this reason the combination is implemented
+on the symbol tables.
+
+A language-c symbol table is implemented by the type 
+\begin{verbatim}
+  data DefTable = DefTable {
+    identDecls   :: NameSpaceMap Ident IdentEntry,
+    tagDecls   :: NameSpaceMap SUERef TagEntry,
+    labelDefs  :: NameSpaceMap Ident Ident,
+    memberDecls :: NameSpaceMap Ident MemberDecl,
+    refTable   :: IntMap Name,
+    typeTable  :: IntMap Type
+  }
+\end{verbatim}
+where a \code{NameSpaceMap k v} is a mapping from \code{k} to \code{v} with nested scopes. The last two components are the 
+relation caches as described above, they are ignored and combined to be empty. After the analysis phase, on the toplevel, 
+the maps \code{labelDefs} and \code{memberDecls} are empty, since in C there are no global labels and \code{memberDecls}
+contains the struct/union members only while processing the corresponding declaration. So only the first two maps must
+be combined.
+
+The map \code{identDecls} contains all identifiers with file scope. For them, the linkage is relevant. If an identifier has 
+internal linkage, it is only valid in its symbol table and my denote a different object in another symbol table. These
+identifiers are not relevant for Gencot when processing several source files together, thus they are omitted when the
+symbol tables are combined. Only identifiers with external or no linkage are retained in the combined symbol table. Note
+that this implies that identifiers with internal linkage cannot be looked up in the combined table anymore.
+
+If an identifier has external linkage, it is assumed to denote the same object in every symbol table. However, it may be
+declared in one symbol table and defined in another one. In this case, always the definition is used for the combined
+table, the declaration is ignored. Only if it is declared in both symbol tables one of the declarations is put into the
+combined table. Note that if the C program is correct, the identifier may be defined in atmost one C compilation unit
+and thus occurs in at most one of the symbol tables.
+
+The typical case for a toplevel identifier with no linkage is a typedef name. It may occur in two symbol tables, if it is
+defined in a file included by both corresponding \code{.c} files. In this case it names the same type and one of both
+entries is put in the combined table. However, it may also be the case that the identifier is defined in both \code{.c}
+files and used for different types. In this case the combination approach does not work. Gencot assumes that this case
+does not occur and tests whether the identifier is mapped to the same semantics (determined from the position information
+of the corresponding definition). If not, an error is signaled, this must be handled manually by the developer.
+
+The map \code{tagDecls} contains all tags of struct/union/enum types, mapped to the type definition. For tagless types
+the unique identifier is used as key, as described above. If a tag is present, this corresponds to an identifier with 
+no linkage and is treated in the same way.
+
+A tagless struct/union/enum type in C can be referenced only from a single place, since it must be syntactically embedded
+there. This means, when the same tagless type occurs in two symbol tables using a different key, every symbol table
+contains atmost one reference to the key. When the symbol tables are combined, atmost one of these references are transferred
+to the combined table. Thus it is possible to use the same key for the transferred definition to yield a consistent
+combined table. The simples way to do so would be to always use the entry of the same symbol table for the combination 
+when an object occurs in both. However, this is not possible, since for identifiers with external linkage the definition
+must be preferred over a declaration, independent where it occurs. Therefore Gencot first transfers both definitions to the 
+combined table and afterwards removes all definitions which are not referenced there.
+
+The combination is implemented by the function
+\begin{verbatim}
+  combineTables :: DefTable -> DefTable -> DefTable
+\end{verbatim}
+in module \code{Gencot.Input}. It should be applied to the tables built by \code{readFromFile} for two different
+\code{.c} files of the same package. The result can then be processed mainly in the same way as described in 
+Section~\ref{impl-ccode-read} for a table built from a single input file.
 
 \subsection{Dummy Declarations for Preprocessor Macros}
 \label{impl-ccode-dummydecl}

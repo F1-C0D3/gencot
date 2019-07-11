@@ -10,22 +10,25 @@ fi
 BIN=$GENCOT_HOME/bin
 PRC=parmod-proc
 
-USAGE="Usage: $0 [-I<dir>] [-G<dir>] [-k] [check|init|show|addto|close|eval|help] <file> [<file>]"
+USAGE="Usage: $0 [-I<dir>] [-G<dir>] [-k] [check|init|close|extern|show|addto|merge|eval|help] <file> [<file>]"
 
 long_usage()
 {
     echo $USAGE
     echo 'Manage Gencot parameter modification descriptions in JSON format.'
     echo 'Commands:'
-    echo '  check <cfile>  Test C sourcefile <cfile> for parsability by Gencot'
-    echo '  init  <cfile>  Create parmod description for all functions defined in C sourcefile <cfile>'
-    echo '  close <cfile>  Create parmod description for all functions declared for C sourcefile <cfile>'
-    echo '  show  <json>   Display information about parmod description'
-    echo '  addto <json1> <json2>  Add to <json1> all required dependencies found in <json2>'
-    echo '  eval  <json>   Evaluate finished parmod description'
-    echo '  help           Display this help information'
+    echo '  check  <cfile>  Test C sourcefile <cfile> for parsability by Gencot'
+    echo '  init   <cfile>  Create parmod description for all functions defined in C sourcefile <cfile>'
+    echo '  close  <cfile>  Create parmod description for all functions declared for C sourcefile <cfile>'
+    echo '  extern <pckfile> <json> Select descriptions from <json> for externals used in <pckfile>'
+    echo '  show   <json>   Display information about parmod description'
+    echo '  addto  <json1> <json2>  Add to <json1> all required dependencies found in <json2>'
+    echo '  merge  <json1> <json2>  Union, selecting entries with more confirmed parameters'
+    echo '  eval   <json>   Evaluate finished parmod description'
+    echo '  help            Display this help information'
     echo '  (init|close|addto|eval write the resulting parmod description to stdout)'
-    echo 'Options for commands check|init|close: '
+    echo 'A <pckfile> contains a list of <cfile> names, each on a separate line.'
+    echo 'Options for commands check|init|close|extern: '
     echo '  -I<dir>  Directory for searching C include files. Can be repeated, as for cpp. '
     echo '  -G<dir>  Directory for searching Gencot auxiliary files. Only one can be given, default is "."'
     echo '  -k   Keep directory with intermediate files and display it at the end.'
@@ -80,54 +83,88 @@ PARSE=''
 TAILCMD=''
 CLOSE=''
 REQARGS=1
+OPTARGS=''
 CMD=$1
 
 case "$CMD" in
     check) TAILCMD='gencot-check';PARSE='yes';;
     init) TAILCMD='parmod-gen';PARSE='yes';;
+    close) TAILCMD='parmod-gen';PARSE='yes';CLOSE='close';;
+    extern) TAILCMD='parmod-extfuns';PARSE='yes';REQARGS=2;;
     show) ;;
     addto) REQARGS=2;;
-    close) TAILCMD='parmod-gen';PARSE='yes';CLOSE='close';;
+    merge) REQARGS=2;;
     eval) ;;
     help) long_usage; exit;;
     *) echo "unknown parmod command: $1"; short_usage; exit;;
 esac
 
 shift
-if [ "$REQARGS" != "$#" ]
+
+if [ $OPTARGS ]
 then
-    echo "wrong number of arguments for parmod command ${CMD}: expected $REQARGS"
+    if [ $REQARGS -gt $# ]
+    then
+        echo "wrong number of arguments for parmod command ${CMD}: expected at least $REQARGS"
+        exit
+    fi
+else
+    if [ "$REQARGS" != "$#" ]
+    then
+        echo "wrong number of arguments for parmod command ${CMD}: expected $REQARGS"
+        exit
+    fi
 fi
 
 prepare_aux()
 {
     if [ -e $GENCOTDIR/$CNAME.gencot-$1 ] 
     then
-        cat $GENCOTDIR/common.gencot-$1 $GENCOTDIR/$CNAME.gencot-$1 > $TMPDIR/gencot-$1
+        cat $GENCOTDIR/common.gencot-$1 $GENCOTDIR/$CNAME.gencot-$1 > $TMPDIR/$CNAME.gencot-$1
     else
-        cp $GENCOTDIR/common.gencot-$1 $TMPDIR/gencot-$1
+        cp $GENCOTDIR/common.gencot-$1 $TMPDIR/$CNAME.gencot-$1
     fi
 }
 
-TMPDIR=$(mktemp -d)
-if [ $PARSE ]
-then 
+prepare_cfile()
+{
     CFILE=$1
     CBASE=$(basename $CFILE)
     CNAME=$(expr match $CBASE '\(.*\)[.][^.]*' '|' $CBASE)
     for aux in addincl omitincl noincl manmacros macroconv ppretain chsystem
     do prepare_aux $aux
     done
-    cat $TMPDIR/gencot-addincl $CFILE | $BIN/gencot-include $INCLPATH $TMPDIR/gencot-noincl \
-        | $BIN/gencot-remcomments | tee $TMPDIR/remc \
+    cat $TMPDIR/$CNAME.gencot-addincl $CFILE | $BIN/gencot-include $INCLPATH $TMPDIR/$CNAME.gencot-noincl \
+        | $BIN/gencot-remcomments | tee $TMPDIR/$CNAME.remc \
         | $BIN/gencot-selpp \
-        | $BIN/gencot-selppconst $TMPDIR/gencot-manmacros \
-        | $BIN/gencot-gendummydecls > $TMPDIR/dummydecls
-    $BIN/gencot-rempp $TMPDIR/gencot-ppretain < $TMPDIR/remc \
-        | $BIN/gencot-chsystem $TMPDIR/gencot-chsystem \
-        | $BIN/gencot-cpp $TMPDIR/gencot-macroconv $TMPDIR/dummydecls \
-        | tee $TMPDIR/$CNAME.in \
-        | $BIN/$TAILCMD $CBASE $CLOSE 
+        | $BIN/gencot-selppconst $TMPDIR/$CNAME.gencot-manmacros \
+        | $BIN/gencot-gendummydecls > $TMPDIR/$CNAME.dummydecls
+    $BIN/gencot-rempp $TMPDIR/$CNAME.gencot-ppretain < $TMPDIR/$CNAME.remc \
+        | $BIN/gencot-chsystem $TMPDIR/$CNAME.gencot-chsystem \
+        | $BIN/gencot-cpp $TMPDIR/$CNAME.gencot-macroconv $TMPDIR/$CNAME.dummydecls \
+        > $TMPDIR/$CNAME.in
+    echo $TMPDIR/$CNAME.in >> $TMPDIR/infiles
+}
+
+TMPDIR=$(mktemp -d)
+if [ "$CMD" == "extern" ]
+then
+    for file in $(< $1)
+    do prepare_cfile $file
+    done
+    $BIN/$TAILCMD < $TMPDIR/infiles | sort > $TMPDIR/extfunids
+    $BIN/$PRC filter $TMPDIR/extfunids < $2 | tee $TMPDIR/extfuns.json \
+        | $BIN/$PRC funids | sort | diff - $TMPDIR/extfunids > $TMPDIR/extfunids.diff
+    if [ -s $TMPDIR/extfunids.diff ]
+    then
+        echo "Missing function descriptions:" >&2
+        cat $TMPDIR/extfunids.diff >&2
+    fi
+    cat $TMPDIR/extfuns.json
+elif [ $PARSE ]
+then 
+    prepare_cfile $1
+    $BIN/$TAILCMD $CBASE $CLOSE < $TMPDIR/$CNAME.in
 elif [ "$CMD" == "show" ]
 then
     $BIN/$PRC check < $1
@@ -145,6 +182,11 @@ then
     $BIN/$PRC required < $1 > $TMPDIR/rilist
     $BIN/$PRC filter $TMPDIR/rilist < $2 \
         | $BIN/$PRC merge $1 | $BIN/$PRC sort $TMPDIR/flist
+elif [ "$CMD" == "merge" ]
+then
+    $BIN/$PRC funids < $1 > $TMPDIR/flist
+    $BIN/$PRC funids < $2 >> $TMPDIR/flist
+    $BIN/$PRC merge $1 < $2 | $BIN/$PRC sort $TMPDIR/flist
 elif [ "$CMD" == "eval" ]
 then
     $BIN/$PRC eval < $1

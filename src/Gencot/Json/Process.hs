@@ -4,7 +4,7 @@
 module Gencot.Json.Process where
 
 import qualified Data.Set as S (Set,toList,fromList,difference,singleton,foldr,union,insert,empty)
-import Data.List (find,isSuffixOf)
+import Data.List (find,isSuffixOf,nub)
 import qualified Data.Map.Strict as M (Map,unions,unionsWith,unionWith,empty,singleton,foldr,map,fromList,elems)
 import Data.Map.Strict ((!))
 import Data.Maybe (mapMaybe,isJust,fromJust,catMaybes)
@@ -141,8 +141,9 @@ confirmedFun jso jso2 = if uc < uc2 then jso else jso2
 
 -- | Sort a function description sequence according to a sequence of function identifiers
 -- The result contains all function descriptions where the identifier occurs in the identifier sequence.
+-- If an identifier occurs in the sequence more than once, its first occurrence is used.
 sortParmods :: Parmods -> [String] -> Parmods
-sortParmods parmods funids = catMaybes $ map (insrt parmods) funids
+sortParmods parmods funids = catMaybes $ map (insrt parmods) $ nub funids
     where insrt :: Parmods -> String -> Maybe Parmod
           insrt parmods funid = find (\jso -> funid == getFunName jso) parmods
 

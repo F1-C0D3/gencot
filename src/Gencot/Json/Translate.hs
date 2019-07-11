@@ -336,16 +336,17 @@ argParDep p invk (i,expr) = do
                          then return empty
                          else do
                              let pnum = fst $ head $ toList pdecs
-                             if null apars then return $ singleton (adec,pnum,invk,i) 
-                             else do
-                                 let atyp = LCA.declType ((apars)!!(i-1))
-                                 lin <- isLinearParType atyp
-                                 if not lin
-                                    then return empty
-                                    else do
-                                        ro <- isReadOnlyParType atyp
-                                        if ro then return empty
-                                        else return $ singleton (adec,pnum,invk,i) 
+                             if (null apars) || (length apars) < i -- incomplete or variadic after defined parameters
+                                then return $ singleton (adec,pnum,invk,i) 
+                                else do
+                                    let atyp = LCA.declType ((apars)!!(i-1))
+                                    lin <- isLinearParType atyp
+                                    if not lin
+                                       then return empty
+                                       else do
+                                           ro <- isReadOnlyParType atyp
+                                           if ro then return empty
+                                                 else return $ singleton (adec,pnum,invk,i) 
     where apars = invokeParams invk
 
 simpleParamEntry :: (Int,LCA.ParamDecl) -> CTrav (String,JSValue)

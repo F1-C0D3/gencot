@@ -43,6 +43,7 @@ transGlobal (LCA.TagEvent (LCA.EnumDef (LCA.EnumType sueref es _ n))) = do
 transGlobal (LCA.DeclEvent (LCA.Declaration (LCA.Decl decl@(LCA.VarDecl (LCA.VarName idnam _) _ typ) n))) = do
     f <- transObjName idnam
     t <- transType typ
+    t <- applyParmods decl t
     return $ GenToplv (CS.AbsDec f (CS.PT [] t)) $ mkOrigin n
 transGlobal (LCA.DeclEvent (LCA.FunctionDef (LCA.FunDef decl@(LCA.VarDecl (LCA.VarName idnam _) _ typ) stat n))) = do
     f <- transObjName idnam
@@ -79,6 +80,7 @@ applyParmods decl (GenType (CS.TFun pt rt) o) = do
     where ptlist (GenType CS.TUnit _) = []
           ptlist (GenType (CS.TTuple ts) _) = ts
           ptlist gt = [gt]
+applyParmods _ t = return t
 
 applyToPars :: [(String,GenType)] -> GenType
 applyToPars pts = mkGenType $ map applyToPar pts

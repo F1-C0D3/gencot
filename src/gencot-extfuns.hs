@@ -39,8 +39,9 @@ main = do
     {- Output -}
     print $ prettyTopLevels absdefs
 
+-- | Predicate for all non-variadic functions completely declared but not defined in g
 extFunDecFilter :: LCA.GlobalDecls -> LCA.IdentDecl -> Bool
-extFunDecFilter g decl@(LCA.Declaration (LCA.Decl (LCA.VarDecl _ _ (LCA.FunctionType _ _)) _)) =
+extFunDecFilter g decl@(LCA.Declaration (LCA.Decl (LCA.VarDecl _ _ (LCA.FunctionType (LCA.FunType _ _ False) _)) _)) =
     case M.lookup (LCA.declIdent decl) $ LCA.gObjs g of
          Nothing -> False
          (Just d) -> d == decl

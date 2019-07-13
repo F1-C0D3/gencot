@@ -438,10 +438,11 @@ that this implies that identifiers with internal linkage cannot be looked up in 
 If an identifier has external linkage, it is assumed to denote the same object in every symbol table. However, it may be
 declared in one symbol table and defined in another one. In this case, always the definition is used for the combined
 table, the declaration is ignored. Only if it is declared in both symbol tables one of the declarations is put into the
-combined table. Note that if the C program is correct, the identifier may be defined in atmost one C compilation unit
-and thus occurs in at most one of the symbol tables.
+combined table. Note that if the C program is correct, the identifier may be defined in at most one C compilation unit
+and thus a dfinition for it occurs in at most one of the symbol tables.
 
-The typical case for a toplevel identifier with no linkage is a typedef name. It may occur in two symbol tables, if it is
+The typical cases for toplevel identifiers with no linkage are typedef names and struct/union/enum tags. Such an identifier
+may occur in two symbol tables, if it is
 defined in a file included by both corresponding \code{.c} files. In this case it names the same type and one of both
 entries is put in the combined table. However, it may also be the case that the identifier is defined in both \code{.c}
 files and used for different types. In this case the combination approach does not work. Gencot assumes that this case
@@ -449,23 +450,27 @@ does not occur and tests whether the identifier is mapped to the same semantics 
 of the corresponding definition). If not, an error is signaled, this must be handled manually by the developer.
 
 The map \code{tagDecls} contains all tags of struct/union/enum types, mapped to the type definition. For tagless types
-the unique identifier is used as key, as described above. If a tag is present, this corresponds to an identifier with 
-no linkage and is treated in the same way.
+the unique identifier is used as key, as described above. If a tag is present, it is treated in the same way as other 
+identifiers with no linkage.
 
 A tagless struct/union/enum type in C can be referenced only from a single place, since it must be syntactically embedded
 there. This means, when the same tagless type occurs in two symbol tables using a different key, every symbol table
-contains atmost one reference to the key. When the symbol tables are combined, atmost one of these references are transferred
+contains at most one reference to the key. When the symbol tables are combined, at most one of these references are transferred
 to the combined table. Thus it is possible to use the same key for the transferred definition to yield a consistent
 combined table. The simples way to do so would be to always use the entry of the same symbol table for the combination 
 when an object occurs in both. However, this is not possible, since for identifiers with external linkage the definition
 must be preferred over a declaration, independent where it occurs. Therefore Gencot first transfers both definitions to the 
 combined table and afterwards removes all definitions which are not referenced there.
 
+Finally, it may happen that the same unique identifier is used in different symbol tables to reference different types, 
+as described for type names above. This is not a problem in the C sources, it is an internal collision of the parser-generated 
+unique identifiers. The easiest way to solve this is to introduce a tag for at least one of both tagless types.
+
 The combination is implemented by the function
 \begin{verbatim}
   combineTables :: DefTable -> DefTable -> DefTable
 \end{verbatim}
-in module \code{Gencot.Input}. It should be applied to the tables built by \code{readFromFile} for two different
+in module \code{Gencot.SymTab}. It should be applied to the tables built by \code{readFromFile} for two different
 \code{.c} files of the same package. The result can then be processed mainly in the same way as described in 
 Section~\ref{impl-ccode-read} for a table built from a single input file.
 

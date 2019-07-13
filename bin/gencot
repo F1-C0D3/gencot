@@ -1,0 +1,233 @@
+#!/bin/sh
+
+if [ -z "$GENCOT_HOME" ]
+then
+    echo "Cannot find Gencot installation."
+    echo "Please set environment variable GENCOT_HOME to root directory of Gencot installation."
+    exit
+fi
+
+BIN=$GENCOT_HOME/bin
+
+USAGE="Usage: $0 [-I<dir>] [-G<dir>] [-C<dir>] [-k] [check|config|hfile|cfile|packg|help] <file> [<file>]"
+
+long_usage()
+{
+    echo $USAGE
+    echo 'Translate C source files to Cogent language.'
+    echo 'Commands:'
+    echo '  check  <cfile>  Test C sourcefile <cfile> for parsability by Gencot'
+    echo '  config <hfile>  Translate a C configuration include file to Cogent'
+    echo '  hfile  <hfile> [<json>] Translate a C include file to Cogent'
+    echo '  cfile  <cfile> [<json>] Translate a C source file to Cogent'
+    echo '  packg  <pckfile> [<json>] Generate auxiliary Cogent files for package described in <pckfile>'
+    echo '  help            Display this help information'
+    echo '  (the optional <json> file contains parameter modification descriptions for translated functions)'
+    echo 'A <pckfile> contains a list of <cfile> names, each on a separate line.'
+    echo 'Options for commands check|config|hfile|cfile|packg: '
+    echo '  -I<dir>  Directory for searching C include files. Can be repeated, as for cpp. '
+    echo '  -G<dir>  Directory for searching Gencot auxiliary files. Only one can be given, default is "."'
+    echo '  -C<dir>  Directory for stored declaration comments. Default is "./comments"'
+    echo '  -k   Keep directory with intermediate files and display it at the end.'
+}
+
+short_usage()
+{
+    echo $USAGE
+    echo 'Run with -h for more information.'
+}
+
+# Parse options
+OPTS=$(getopt -o hkI:G:C: -n "$0" -- "$@")
+
+if [ $? != 0 ]
+then
+    short_usage
+    exit 1
+fi
+
+eval set -- "$OPTS"
+
+INCLPATH=''
+GENCOTDIR='.'
+COMMENTDIR='./comments'
+KEEP=''
+add_incl()
+{
+    if [ "$1" == "." ] 
+    then INCL=""
+    else INCL="$1"
+    fi
+    if [ -z "$INCLPATH" ]
+    then INCLPATH=$1
+    elif [ "$INCLPATH" == "." ]
+    then INCLPATH=":$INCL"
+    else INCLPATH="${INCLPATH}:$INCL"
+    fi
+}
+
+while true; do
+    case "$1" in
+        -h) long_usage; exit;;
+        -k) KEEP='yes'; shift;;
+        -I) shift; add_incl "$1"; shift;;
+        -G) shift; GENCOTDIR="$1"; shift;;
+        -C) shift; COMMENTDIR="$1"; shift;;
+        --) shift; break;;
+    esac
+done
+
+# Parse command
+REQARGS=1
+OPTARGS='yes'
+CMD=$1
+
+case "$CMD" in
+    check) OPTARGS='';;
+    config) ;;
+    hfile) ;;
+    cfile) ;;
+    packg) ;;
+    help) long_usage; exit;;
+    *) echo "unknown gencot command: $1"; short_usage; exit;;
+esac
+
+shift
+
+if [ $OPTARGS ]
+then
+    if [ $REQARGS -gt $# ]
+    then
+        echo "wrong number of arguments for gencot command ${CMD}: expected at least $REQARGS"
+        exit
+    fi
+else
+    if [ "$REQARGS" != "$#" ]
+    then
+        echo "wrong number of arguments for gencot command ${CMD}: expected $REQARGS"
+        exit
+    fi
+fi
+
+CFILE=$1
+CBASE=$(basename $CFILE)
+CNAME=$(expr match $CBASE '\(.*\)[.][^.]*' '|' $CBASE)
+
+JFILE=$2
+
+TMPDIR=$(mktemp -d)
+
+if [ "$CMD" == "config" ]
+then
+    REMCOMM="($BIN/gencot-preconfig | $BIN/gencot-remcomments)"
+    SELCOMM="($BIN/gencot-preconfig | $BIN/gencot-selcomments)"
+    MRGCOMM="($BIN/gencot-postconfig $CFILE | $BIN/gencot-mrgcomments $TMPDIR/$CNAME.comm)"
+else
+    REMCOMM=$BIN/gencot-remcomments
+    SELCOMM=$BIN/gencot-selcomments
+    MRGCOMM="$BIN/gencot-mrgcomments $TMPDIR/$CNAME.comm"
+fi
+
+prepare_aux()
+{
+    if [ -e $GENCOTDIR/$1.gencot-$2 ] 
+    then
+        cat $GENCOTDIR/common.gencot-$2 $GENCOTDIR/$1.gencot-$2 > $TMPDIR/$1.gencot-$2
+    else
+        cp $GENCOTDIR/common.gencot-$2 $TMPDIR/$1.gencot-$2
+    fi
+}
+
+prepare_cfile()
+{
+    # input: $1
+    # output: $1.in, $1.ppconsts, $1.gencot-*
+    FILE=$1
+    BASE=$(basename $FILE)
+    NAME=$(expr match $BASE '\(.*\)[.][^.]*' '|' $BASE)
+    for aux in addincl omitincl noincl manmacros macroconv ppretain chsystem
+    do prepare_aux $NAME $aux
+    done
+    if [ "$CMD" == "config" ]
+    then
+        $BIN/gencot-preconfig < $FILE > $TMPDIR/$NAME.gi
+    else
+        cat $TMPDIR/$NAME.gencot-addincl $FILE | $BIN/gencot-include $INCLPATH $TMPDIR/$NAME.gencot-noincl > $TMPDIR/$NAME.gi
+    fi
+    $BIN/gencot-remcomments < $TMPDIR/$NAME.gi | tee $TMPDIR/$NAME.remc \
+        | $BIN/gencot-selpp \
+        | $BIN/gencot-selppconst $TMPDIR/$NAME.gencot-manmacros | tee $TMPDIR/$NAME.ppconsts \
+        | $BIN/gencot-gendummydecls > $TMPDIR/$NAME.dummydecls
+    $BIN/gencot-rempp $TMPDIR/$NAME.gencot-ppretain < $TMPDIR/$NAME.remc \
+        | $BIN/gencot-chsystem $TMPDIR/$NAME.gencot-chsystem \
+        | $BIN/gencot-cpp $TMPDIR/$NAME.gencot-macroconv $TMPDIR/$NAME.dummydecls \
+        > $TMPDIR/$NAME.in
+    echo $TMPDIR/$NAME.in >> $TMPDIR/infiles
+}
+
+process_directives()
+{
+    # input: $CFILE, $CNAME.out, $CNAME.ppconsts, $CNAME.gencot-manmacros, $CNAME.gencot-macrodefs, $CNAME.gencot-omitincl
+    # output: $CNAME.ppcond
+    $BIN/gencot-preppconst < $TMPDIR/$CNAME.ppconsts \
+        | $BIN/gencot-prcppconst > $TMPDIR/$CNAME.prcppconst
+    eval $REMCOMM < $CFILE \
+        | $BIN/gencot-selpp | $BIN/gencot-unline | tee $TMPDIR/$CNAME.ppsf \
+        | $BIN/gencot-prcppflags $TMPDIR/$CNAME.gencot-manmacros > $TMPDIR/$CNAME.prcppflags
+    $BIN/gencot-prcppincl $TMPDIR/$CNAME.gencot-omitincl < $TMPDIR/$CNAME.ppsf > $TMPDIR/$CNAME.prcppincl
+    $BIN/gencot-mrgpp $TMPDIR/$CNAME.prcppconst < $TMPDIR/$CNAME.out \
+        | $BIN/gencot-mrgpp $TMPDIR/$CNAME.gencot-macrodefs \
+        | $BIN/gencot-mrgpp $TMPDIR/$CNAME.prcppflags \
+        | $BIN/gencot-mrgpp $TMPDIR/$CNAME.prcppincl \
+        | $BIN/gencot-mrgppcond $TMPDIR/$CNAME.ppsf > $TMPDIR/$CNAME.ppcond
+}
+
+process_comments()
+{
+    # input: $CFILE, $CNAME.ppcond, $CNAME.in
+    # output: $CNAME.cogent
+    eval $SELCOMM < $CFILE > $TMPDIR/$CNAME.comm
+    if [ "$CMD" == "hfile" ]
+    then
+        if [ ! -e $COMMENTDIR ]
+        then
+            mkdir $COMMENTDIR
+        fi
+        (cd $COMMENTDIR; $BIN/gencot-deccomments < $TMPDIR/$CNAME.in \
+            | $BIN/gencot-movcomments $TMPDIR/$CNAME.comm)
+    fi
+    $BIN/gencot-defcomments $COMMENTDIR < $TMPDIR/$CNAME.ppcond \
+        | eval $MRGCOMM > $TMPDIR/$CNAME.cogent
+}
+
+if [ "$CMD" == "packg" ]
+then
+    for file in $(< $CFILE)
+    do prepare_cfile $file
+    done
+    $BIN/gencot-extfuns < $TMPDIR/infiles | $BIN/gencot-reporigs \
+        | $BIN/gencot-mrgcomments /dev/null > $TMPDIR/$CNAME-extfuns.cogent
+    cp $TMPDIR/$CNAME-extfuns.cogent .
+elif [ "$CMD" == "check" ]
+then 
+    prepare_cfile $CFILE
+    $BIN/gencot-check < $TMPDIR/$CNAME.in
+else
+    prepare_cfile $CFILE
+    $BIN/gencot-translate $CBASE $JFILE < $TMPDIR/$CNAME.in | $BIN/gencot-reporigs > $TMPDIR/$CNAME.out
+    process_directives
+    process_comments
+    if [ "$CMD" == "cfile" ]
+    then
+        cp $TMPDIR/$CNAME.cogent .
+    else
+        cp $TMPDIR/$CNAME.cogent ./$CNAME-incl.cogent
+    fi
+fi
+
+if [ $KEEP ]
+then
+    echo "Kept directory with intermediate files: $TMPDIR"
+else
+    rm -r $TMPDIR
+fi

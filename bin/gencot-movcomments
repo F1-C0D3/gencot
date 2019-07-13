@@ -4,7 +4,6 @@
 # This is a filter from stdin to stdout with an additional filename argument.
 # The argument file must contain output of gencot-selcomments.
 # The comment files are written in the current directory.
-# The names of all processed declarations are listed in the output.
 
 if ( $#argv != 1) then
   echo "Error: Single file name expected as argument."
@@ -31,7 +30,6 @@ awk \
  } \
  /^#DECL/ { \
    printf(before[$3]) > ($2 ".comment") \
-   print $2 \
  }' $1
 
 # documentation:

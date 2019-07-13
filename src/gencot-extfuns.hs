@@ -2,15 +2,15 @@
 module Main where
 
 import System.Environment (getArgs)
-import Data.List (sortBy)
-import Data.Set (toList,Set,empty)
 import Control.Monad (when)
+import Data.List (sortBy)
+import qualified Data.Map as M (lookup)
 
 import qualified Language.C.Analysis as LCA
-import qualified Language.C.Analysis.DefTable as LCD
+import Language.C.Analysis.DefTable (globalDefs)
 
-import Gencot.Input (readFromInput_,getOwnDeclEvents,compEvent)
-import Gencot.Util.CallGraph (getCallGraph,CallGraph,getIdentInvokes)
+import Gencot.Package (readPackageFromInput,getFunctionInvocations,foldTables)
+import Gencot.Input (compEvent)
 import Gencot.Json.Parmod (readParmodsFromFile)
 import Gencot.Json.Process (convertParmods)
 import Gencot.Traversal (runFTrav)
@@ -19,30 +19,29 @@ import Gencot.Cogent.Translate (transGlobals)
 
 main :: IO ()
 main = do
-    {- get and test arguments -}
+    {- get arguments -}
     args <- getArgs
-    when (null args || length args > 2) $ error "expected arguments: <original source file name> <parmod description file name>?"
-    {- get own file name (may be needed for translating tag names) -}
-    let fnam = head args
     {- get parameter modification descriptions -}
-    parmods <- if length args == 1 then return [] else readParmodsFromFile $ head $ tail args
-    {- parse and analyse C source and get global definitions -}
-    table <- readFromInput_
-    {- convert symbol table to list of declarations in processed file -}
-    let decls = getOwnDeclEvents (LCD.globalDefs table) (\_ -> True)
-    {- get call graph by traversing all function bodies in decls -}
-    cg <- getCallGraph table decls
-    {- get list of declarations of invoked functions -}
-    let invks = getIdentInvokes cg
-    {- convert to list and filter complete declarations of non-variadic functions -}
-    let extInvks = filter extDecFilter $ toList invks
+    parmods <- if null args then return [] else readParmodsFromFile $ head args
+    {- parse and analyse C sources and get global definitions -}
+    tables <- readPackageFromInput
+    {- Determine all invoked functions -}
+    invks <- getFunctionInvocations tables
+    {- combine symbol tables -}
+    table <- foldTables tables
+    let globals = globalDefs table
+    {- reduce invocations to those external to the package -}
+    let extInvks = filter (extFunDecFilter globals) invks
     {- wrap as DeclEvents and sort -}
     let extDecls = sortBy compEvent $ map LCA.DeclEvent extInvks
     {- translate external function declarations to Cogent abstract function definitions -}
-    absdefs <- runFTrav table (fnam, convertParmods parmods) $ transGlobals extDecls
+    absdefs <- runFTrav table ("", convertParmods parmods) $ transGlobals extDecls
     {- Output -}
     print $ prettyTopLevels absdefs
 
-extDecFilter :: LCA.IdentDecl -> Bool
-extDecFilter (LCA.Declaration (LCA.Decl (LCA.VarDecl _ _ (LCA.FunctionType (LCA.FunType _ _ False) _)) _)) = True
-extDecFilter _ = False
+extFunDecFilter :: LCA.GlobalDecls -> LCA.IdentDecl -> Bool
+extFunDecFilter g decl@(LCA.Declaration (LCA.Decl (LCA.VarDecl _ _ (LCA.FunctionType _ _)) _)) =
+    case M.lookup (LCA.declIdent decl) $ LCA.gObjs g of
+         Nothing -> False
+         (Just d) -> d == decl
+extFunDecFilter _ _ = False

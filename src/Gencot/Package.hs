@@ -1,23 +1,39 @@
 {-# LANGUAGE PackageImports #-}
-module Gencot.SymTab where
+module Gencot.Package where
 
 import System.IO (hPutStrLn, stderr)
 import qualified Data.Map as M (toList,Map,filter,elems,keys,filterWithKey)
 import qualified Data.IntMap as IntMap (empty)
 import Data.Map.Merge.Strict (merge,mapMissing,zipWithMatched)
 import Data.List (sortBy,isPrefixOf,nub,(\\))
-import qualified Data.Set as S (Set,filter,map)
+import qualified Data.Set as S (Set,filter,map,toList,unions)
 import Data.Maybe (catMaybes)
 import Control.Monad (liftM,when,foldM,mapM,sequence)
 
-import "language-c" Language.C (CTranslUnit,CError,parseC,fileOfNode,Ident,SUERef(AnonymousRef),isAnonymousRef,pretty,identToString)
+import "language-c" Language.C (CTranslUnit,CError,parseC,fileOfNode,CNode,nodeInfo,Ident,SUERef(AnonymousRef),isAnonymousRef,pretty,identToString)
 import Language.C.Data.Position (initPos,posOf,posFile,posRow,isSourcePos)
 import Language.C.Analysis
 import Language.C.Analysis.DefTable (DefTable,DefTable(..),emptyDefTable,IdentEntry,TagEntry,globalDefs)
 import Language.C.Analysis.NameSpaceMap (NameSpaceMap,nameSpaceMap,defGlobal,globalNames)
 
-import Gencot.Input (readFromFile_)
+import Gencot.Input (readFromFile_,getOwnDeclEvents,compEvent)
+import Gencot.Util.CallGraph (getCallGraph,CallGraph,getIdentInvokes)
 import Gencot.Util.Types (occurringTypes,transCloseTypes,selInAllTypes,isLeafType)
+
+readPackageFromInput :: IO [DefTable]
+readPackageFromInput = do
+    fnams <- (liftM ((filter (not . null)) . lines)) getContents
+    when (null fnams) $ error "empty input package"
+    mapM readFromFile_ fnams
+    
+getFunctionInvocations :: [DefTable] -> IO [IdentDecl]
+getFunctionInvocations tables = do
+    {- convert symbol tables to lists of declarations in processed files -}
+    let decls = map (\tab -> getOwnDeclEvents (globalDefs tab) (\_ -> True)) tables
+    {- get call graphs by traversing all function bodies in decls -}
+    cgs <- mapM (uncurry getCallGraph) $ zip tables decls
+    {- get lists of declarations of invoked functions -}
+    return $ S.toList $ S.unions $ map getIdentInvokes cgs
 
 debugTable :: DefTable -> IO ()
 debugTable = print . pretty . (filterGlobalDecls noBuiltin) . globalDefs
@@ -47,17 +63,9 @@ combineIdentDecls m1 m2 = do
 
 selIdentEntry :: Ident -> IdentEntry -> Maybe IdentEntry -> IO IdentEntry
 selIdentEntry k res Nothing = return res
-selIdentEntry k res@(Left (TypeDef _ _ _ n1)) (Just (Left (TypeDef _ _ _ n2))) = do
-    when (not $ samePos n1 n2) $ putStrLn $ "Warning: different definitions for " ++ identToString k
+selIdentEntry k res@(Left t1) (Just (Left t2)) = do
+    when (not $ samePos t1 t2) $ putStrLn $ "Warning: different definitions for " ++ identToString k
     return res
-    where samePos n1 n2 = 
-            let p1 = posOf n1
-                p2 = posOf n2
-            in if isSourcePos p1 && isSourcePos p2 
-                  then (posFile p1) == (posFile p2) &&
-                       (posFile p1) /= "<stdin>" &&
-                       (posRow p1) == (posRow p2)
-                  else p1 == p2
 selIdentEntry k res@(Right dec1) (Just (Right dec2)) | isDef dec1 && isDef dec2 = do
     putStrLn $ "Warning: different definitions for: " ++ identToString k
     return res
@@ -70,6 +78,16 @@ selIdentEntry k res _ = do
 
 isDef (Declaration _) = False
 isDef _ = True
+
+samePos :: CNode n => n -> n -> Bool
+samePos n1 n2 = 
+    if isSourcePos p1 && isSourcePos p2 
+       then (posFile p1) == (posFile p2) &&
+            (posFile p1) /= "<stdin>" &&
+            (posRow p1) == (posRow p2)
+       else p1 == p2
+    where p1 = posOf $ nodeInfo n1
+          p2 = posOf $ nodeInfo n2
 
 unionWithM :: Ord k => (k -> a -> Maybe a -> IO a) -> M.Map k a -> M.Map k a -> IO (M.Map k a)
 unionWithM cmb m1 m2 = 
@@ -89,8 +107,8 @@ combineTagDecls m1 m2 = do
     return $ mkNameSpaceMap cmap
 
 selTagEntry :: SUERef -> TagEntry -> Maybe TagEntry -> IO TagEntry
-selTagEntry (AnonymousRef _) res (Just other) = do
-    putStrLn $ "Warning: collision of internal identifier for tagless types:"
+selTagEntry (AnonymousRef _) res@(Right t1) (Just other@(Right t2)) = do
+    when (not $ samePos t1 t2) $ putStrLn $ "Warning: collision of internal identifier for tagless types:"
     print $ pretty res
     print $ pretty other
     putStrLn $ "To solve this, specify a tag for at least one of them."
@@ -102,7 +120,6 @@ adjustTagless dt = if null ua then dt else removeTagDefs ua dt
     where ua = unusedAnon dt
 
 -- | Tagless SUERefs which are not referenced.
--- 
 unusedAnon :: DefTable -> [SUERef]
 unusedAnon dt@(DefTable iDs tDs _ _ _ _) = anonRefs \\ usedAnon
     where anonRefs = filter isAnonymousRef $ M.keys $ globTags

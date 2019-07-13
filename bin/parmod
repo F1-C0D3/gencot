@@ -10,14 +10,13 @@ fi
 BIN=$GENCOT_HOME/bin
 PRC=parmod-proc
 
-USAGE="Usage: $0 [-I<dir>] [-G<dir>] [-k] [check|init|close|extern|show|addto|merge|eval|help] <file> [<file>]"
+USAGE="Usage: $0 [-I<dir>] [-G<dir>] [-k] [init|close|extern|show|addto|merge|eval|help] <file> [<file>]"
 
 long_usage()
 {
     echo $USAGE
     echo 'Manage Gencot parameter modification descriptions in JSON format.'
     echo 'Commands:'
-    echo '  check  <cfile>  Test C sourcefile <cfile> for parsability by Gencot'
     echo '  init   <cfile>  Create parmod description for all functions defined in C sourcefile <cfile>'
     echo '  close  <cfile>  Create parmod description for all functions declared for C sourcefile <cfile>'
     echo '  extern <pckfile> <json> Select descriptions from <json> for externals used in <pckfile>'
@@ -87,7 +86,6 @@ OPTARGS=''
 CMD=$1
 
 case "$CMD" in
-    check) TAILCMD='gencot-check';PARSE='yes';;
     init) TAILCMD='parmod-gen';PARSE='yes';;
     close) TAILCMD='parmod-gen';PARSE='yes';CLOSE='close';;
     extern) TAILCMD='parmod-extfuns';PARSE='yes';REQARGS=2;;

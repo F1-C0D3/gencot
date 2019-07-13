@@ -51,7 +51,7 @@ processes externally referenced typedefs, tag definitions and enum constant defi
 the declarations of externally referenced functions.
 \item[\code{gencot-extfuns}] generates the abstract function definitions to be put in the file 
 \code{<package>-exit.cogent}. It processes the declarations of externally referenced functions.
-\item[\code{gencot-extfunids}] generates the list of function identifiers of all externally referenced functions.
+\item[\code{parmod-extfuns}] generates the list of function identifiers of all externally referenced functions.
 \item[\code{gencot-extincludes}] generates the list of include directives to be put in the file
 \code{<package>-extincludes.c}. It processes all external name references. 
 \end{description}
@@ -184,7 +184,7 @@ A pointer type contains mutable pointers if its base type is not \code{const} qu
 A primitive type and an enum type does not contain mutable pointers. A struct or union type contains mutable 
 pointers, if the type of a member contains mutable pointers.
 
-\subsection{Exit Wrapper Functions}
+\subsection{External Functions}
 \label{impl-ccomps-exit}
 
 For the exit wrapper functions Gencot generates the Cogent abstract function definitions and the implementations
@@ -193,7 +193,7 @@ The information required for each of these functions is contained in the C funct
 
 The easiest approach would be to generate an exit wrapper for every function which is declared but 
 not defined in the C program. However, often an
-include C source file contains many function declaration where only some of them are invoked. Therefore, Gencot
+included C source file contains many function declaration where only some of them are invoked. Therefore, Gencot
 determines the declarations of all actually invoked functions using \code{getInvocations} as described in 
 Section~\ref{impl-ccode-callgraph}. Only for them declarations are translated.
 
@@ -219,19 +219,29 @@ definition shall be generated and an incomplete dummy declaration must be used.
 
 \subsubsection{Processor \code{gencot-extfuns}}
 
-The processor \code{gencot-extfuns} generates the Cogent abstract function definitions. After determining the
-declarations of all invoked external functions, it translates them using the function \code{transGlobals} of
+The processor \code{gencot-extfuns} generates the Cogent abstract function definitions. It parses and analyses
+all C source files specified in the package file, resulting in the list of corresponding symbol tables. Then
+it determines the for every table the invoked functions as described in Section~\ref{impl-ccode-callgraph}. This must
+be done before combining the tables, since invocations may also occur in the bodies of functions with internal
+linkage. These functions are removed during table combination.
+
+After determining the invoked functions, the tables are combined and the invocations are reduced to those for
+which a declarations is present in the combined table. These are the invocations of functions external to all
+read C souurces. The processor translates their declarations using the function \code{transGlobals} of
 module \code{Gencot.Cogent.Translate}. It translates C function declarations to abstract function definitions
 in Cogent. The result is output using \code{prettyTopLevels} from module \code{Gencot.Cogent.Output}.
 
-\subsubsection{Processor \code{gencot-extfunids}}
+\subsubsection{Processor \code{parmod-extfuns}}
 
-The processor \code{gencot-extfunids} generates a list of identifiers for all invoked external functions.
+The processor \code{parmod-extfuns} generates a list of identifiers for all invoked external functions.
 The identifiers have the form used in the parameter modification descriptions, as described in 
 Section~\ref{impl-parmod-ids}. Every identifier is output in a separate line.
 
 The list is intended as starting point for building the parameter modification description for \code{gencot-extfuns}.
 Therefore only invocations of declared functions are considered, invocations of function pointers are omitted.
+
+The processor is implemented in the same way as \code{gencot-extfuns}, determining the declarations of all invoked
+external functions. Then it outputs the corresponding list of function identifiers.
 
 \subsubsection{Processor \code{gencot-extfunsac}}
 

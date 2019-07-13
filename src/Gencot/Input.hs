@@ -49,12 +49,6 @@ readFromFile input_file uinit uhandler = do
     input_stream <- BSW.readFile input_file
     readBytestring input_stream (" in " ++ input_file) uinit uhandler
 
-readPackageFromInput :: IO [DefTable]
-readPackageFromInput = do
-    fnams <- (liftM ((filter (not . null)) . lines)) getContents
-    when (null fnams) $ error "empty input package"
-    mapM readFromFile_ fnams
-    
 readBytestring :: BSW.ByteString -> String -> s -> (DeclEvent -> Trav s ()) -> IO (DefTable, s)
 readBytestring input_stream wher uinit uhandler = do
     ast <- errorOnLeft ("Parse Error" ++ wher) $ parseC input_stream (initPos "<stdin>")

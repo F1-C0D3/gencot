@@ -101,11 +101,8 @@ C preprocessor \code{cpp} and by Haskell programs using the C parser \code{langu
 
 Many steps are implemented as Unix filters, reading from standard input and writing to standard output. A filter
 may read additional files when it merges information from several steps. The filters
-can be used manually or they can be combined in scripts or makefiles. Gencot provides some predefined scripts
+can be used manually or they can be combined in scripts or makefiles. Gencot provides predefined scripts
 for filter combinations.
-
-Steps which process a set of input files where the number of files is not restricted are implemented in the usual
-way by taking the list of file names as arguments.
 
 \section{Origin Positions}
 \label{impl-origin}
@@ -138,5 +135,41 @@ way by taking the list of file names as arguments.
 \section{Putting the Parts Together}
 \label{impl-all}
 \input{impl-all}
+
+\chapter{Application}
+
+The goal of applying Gencot to a C <package> is to translate a subset of the C sources to Cogent,
+resulting in a Cogent compilation unit which can be separately compiled and linked together with
+the rest of the <package> to yield a working system. The Cogent compilation unit is always a
+combination of one or more complete C compilation units, represented by the corresponding \code{.c} 
+files.
+
+We call this subset of \code{.c} files the ``translation base''. Additionally, all \code{.h} files
+included directly or indirectly by the translation base must be translated. Together, we call these
+source files the ``translation set''. Every file in the translation set will be translated to a 
+separate Cogent source file, as described in Section~\ref{design-files}. Additional Cogent sources
+and other files will be generated from the translation set to complete the Cogent Compilation Unit.
+
+Since there is only one Cogent compilation unit in the package, we sometimes use the term ``package''
+to refer to the Cogent compilation unit. 
+
+The Cogent compilation unit is defined by a ``package file''. It contains the names of all files
+comprising the translation base, every name on a separate line. 
+
+\section{Preparing to Read the Sources}
+\label{app-prep}
+%\input{app-prep}
+
+\section{Building Parmod Descriptions}
+\label{app-parmod}
+\input{app-parmod}
+
+\section{Translation to Cogent}
+\label{app-trans}
+%\input{app-trans}
+
+\section{Completing the Cogent Compilation Unit}
+\label{app-unit}
+%\input{app-unit}
 
 \end{document}

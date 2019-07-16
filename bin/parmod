@@ -25,7 +25,8 @@ long_usage()
     echo '  merge  <json1> <json2>  Union, selecting entries with more confirmed parameters'
     echo '  eval   <json>   Evaluate finished parmod description'
     echo '  help            Display this help information'
-    echo '  (init|close|addto|eval write the resulting parmod description to stdout)'
+    echo '  (init|close|eval write the resulting parmod description to stdout)'
+    echo '  (addto modifies its first argument)'
     echo 'A <pckfile> contains a list of <cfile> names, each on a separate line.'
     echo 'Options for commands check|init|close|extern: '
     echo '  -I<dir>  Directory for searching C include files. Can be repeated, as for cpp. '
@@ -179,12 +180,13 @@ then
     $BIN/$PRC funids < $2 >> $TMPDIR/flist
     $BIN/$PRC required < $1 > $TMPDIR/rilist
     $BIN/$PRC filter $TMPDIR/rilist < $2 \
-        | $BIN/$PRC merge $1 | $BIN/$PRC sort $TMPDIR/flist
+        | $BIN/$PRC merge $1 | $BIN/$PRC sort $TMPDIR/flist > $TMPDIR/result
+    cp $TMPDIR/result $1
 elif [ "$CMD" == "merge" ]
 then
     $BIN/$PRC funids < $1 > $TMPDIR/flist
     $BIN/$PRC funids < $2 >> $TMPDIR/flist
-    $BIN/$PRC merge $1 < $2 | $BIN/$PRC sort $TMPDIR/flist
+    $BIN/$PRC merge $2 < $1 | $BIN/$PRC sort $TMPDIR/flist
 elif [ "$CMD" == "eval" ]
 then
     $BIN/$PRC eval < $1

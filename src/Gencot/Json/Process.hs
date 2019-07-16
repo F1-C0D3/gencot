@@ -5,7 +5,7 @@ module Gencot.Json.Process where
 
 import qualified Data.Set as S (Set,toList,fromList,difference,singleton,foldr,union,insert,empty)
 import Data.List (find,isSuffixOf,nub)
-import qualified Data.Map.Strict as M (Map,unions,unionsWith,unionWith,empty,singleton,foldr,map,fromList,elems)
+import qualified Data.Map.Strict as M (Map,unions,unionsWith,unionWith,empty,singleton,foldr,map,fromList,elems,notMember)
 import Data.Map.Strict ((!))
 import Data.Maybe (mapMaybe,isJust,fromJust,catMaybes)
 import Data.Char (isDigit)
@@ -129,13 +129,14 @@ filterParmods parmods funids = filter (reqFilter funids) parmods
 
 -- | Merge two function description sequences.
 -- If a function is described in both sequences the description is selected
--- where more parameter descriptions are confirmed.
+-- where more parameter descriptions are confirmed. If the same number of descriptions
+-- are confirmed always the description in the first sequence is selected.
 mergeParmods :: Parmods -> Parmods -> Parmods
 mergeParmods parmods parmods2 = M.elems $ M.unionWith confirmedFun (mkmap parmods) (mkmap parmods2)
     where mkmap parmods = M.fromList $ map (\jso -> (getFunName jso,jso)) parmods
 
 confirmedFun :: Parmod -> Parmod -> Parmod
-confirmedFun jso jso2 = if uc < uc2 then jso else jso2
+confirmedFun jso jso2 = if uc <= uc2 then jso else jso2
     where uc = length $ filter isRemainingPar $ getFAttrs isParam jso
           uc2 = length $ filter isRemainingPar $ getFAttrs isParam jso2
 
@@ -147,7 +148,7 @@ sortParmods parmods funids = catMaybes $ map (insrt parmods) $ nub funids
     where insrt :: Parmods -> String -> Maybe Parmod
           insrt parmods funid = find (\jso -> funid == getFunName jso) parmods
 
--- | Add parameters from the invcation with the most arguments.
+-- | Add parameters from the invocation with the most arguments.
 -- For function description with unknown or variadic parameters additional parameter descriptions are added.
 addParsFromInvokes :: Parmods -> Parmods
 addParsFromInvokes parmods = map addPars parmods
@@ -235,8 +236,10 @@ evalDependencies pm =
 
 -- | Replace all parameters in a set by the union of all their ParMap values 
 followDeps :: ParMap -> S.Set ParVal -> S.Set ParVal
-followDeps pm vs =
-    S.foldr (\pv@(f,v) pvs -> if null f then S.insert pv pvs else S.union (pm!pv) pvs) S.empty vs
+followDeps pm vs = S.foldr addDeps S.empty vs
+    where addDeps pv@("",_) pvs = S.insert pv pvs 
+          addDeps pv pvs = if M.notMember pv pm then error ("notMember: " ++ show pv)
+                                                else S.union (pm!pv) pvs
 
 reduceParVals :: S.Set ParVal -> S.Set ParVal
 reduceParVals vs =

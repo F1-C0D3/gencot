@@ -36,9 +36,9 @@ main = do
     {- translate functions to Json parmod description -}
     parmods <- runCTrav cg table fnam $ transGlobals globals
     {- add parameters from invocations to incomplete and variadic functions -}
-    let iparmods = if close then addParsFromInvokes parmods else parmods
+    --let iparmods = if close then addParsFromInvokes parmods else parmods
     {- Output -}
-    putStr $ unpack $ pStringNoColor $ encode iparmods
+    putStr $ unpack $ pStringNoColor $ encode parmods
     
 defFilter :: DeclEvent -> Bool
 defFilter (DeclEvent (FunctionDef _)) = True

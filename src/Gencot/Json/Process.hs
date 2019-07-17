@@ -238,8 +238,7 @@ evalDependencies pm =
 followDeps :: ParMap -> S.Set ParVal -> S.Set ParVal
 followDeps pm vs = S.foldr addDeps S.empty vs
     where addDeps pv@("",_) pvs = S.insert pv pvs 
-          addDeps pv pvs = if M.notMember pv pm then error ("notMember: " ++ show pv)
-                                                else S.union (pm!pv) pvs
+          addDeps pv pvs = S.union (pm!pv) pvs
 
 reduceParVals :: S.Set ParVal -> S.Set ParVal
 reduceParVals vs =

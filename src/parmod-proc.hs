@@ -34,7 +34,7 @@ main = do
          "merge" -> do
              when (length args == 1) $ error "merge: filename expected"
              parmods2 <- readParmodsFromFile $ head $ tail args
-             outputJson $ mergeParmods parmods parmods2
+             outputJson $ addParsFromInvokes $ mergeParmods parmods parmods2
          "eval" -> outputJson $ evaluateParmods parmods
          _ -> error $ "Unknown command: " ++ head args
 

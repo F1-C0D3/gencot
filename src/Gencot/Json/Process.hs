@@ -5,7 +5,7 @@ module Gencot.Json.Process where
 
 import qualified Data.Set as S (Set,toList,fromList,difference,singleton,foldr,union,insert,empty)
 import Data.List (find,isSuffixOf,nub)
-import qualified Data.Map.Strict as M (Map,unions,unionsWith,unionWith,empty,singleton,foldr,map,fromList,elems,notMember)
+import qualified Data.Map.Strict as M (Map,unions,unionsWith,unionWith,empty,singleton,foldr,map,fromList,elems,notMember,keys)
 import Data.Map.Strict ((!))
 import Data.Maybe (mapMaybe,isJust,fromJust,catMaybes)
 import Data.Char (isDigit)
@@ -192,8 +192,13 @@ evaluateParmods parmods =
 type ParVal = (String,String)
 type ParMap = M.Map ParVal (S.Set ParVal)
 
--- | combine ParMaps by uniting the value sets for same parameters
-combineParMap = M.unionsWith S.union
+-- | combine ParMaps
+-- If for a parameter occurring in both maps the second set is empty, take the first, otherwise take the second.
+-- The second set is empty, if the parameter is described as "depends".
+-- Thus, dependencies specified in the invocations are ignored if the parameter description is not "depends".
+combineParMap = M.unionsWith combineParameter
+    where combineParameter dep desc | null desc = dep
+          combineParameter _ desc = desc
 
 -- | Get the parameter map information from a function description.
 getFunParMap :: Parmod -> ParMap
@@ -214,10 +219,10 @@ getParDeps :: [(String,String,JSValue)] -> ParMap
 getParDeps invks =
     if null invks
        then M.empty
-       else combineParMap $ map getInvkParDeps $ getFunInvokes $ head invks
+       else M.unionsWith S.union $ map getInvkParDeps $ getFunInvokes $ head invks
 
 getInvkParDeps :: (String,JSObject JSValue) -> ParMap
-getInvkParDeps (fnam,invk) = combineParMap $ map (getInvkSingleParDeps fnam inam) ipars
+getInvkParDeps (fnam,invk) = M.unionsWith S.union $ map (getInvkSingleParDeps fnam inam) ipars
     where inam = getInvokeName invk
           ipars = filter (\(nam,val) -> (isDigit $ head nam) && isListVal val) $ fromJSObject invk
           isListVal (JSArray _) = True
@@ -238,7 +243,10 @@ evalDependencies pm =
 followDeps :: ParMap -> S.Set ParVal -> S.Set ParVal
 followDeps pm vs = S.foldr addDeps S.empty vs
     where addDeps pv@("",_) pvs = S.insert pv pvs 
-          addDeps pv pvs = S.union (pm!pv) pvs
+          addDeps pv pvs = if M.notMember pv pm 
+                              then error ("notMember: " ++ show pv ++ show dbgkeys)
+                              else S.union (pm!pv) pvs
+          dbgkeys = filter (\(fnam,_) -> fnam == "ssl_tls:ssl_session_copy") $ M.keys pm
 
 reduceParVals :: S.Set ParVal -> S.Set ParVal
 reduceParVals vs =
@@ -259,8 +267,12 @@ simplifyDescr pm jso =
 simplifyPar :: ParMap -> String -> (String,JSValue) -> (String,JSValue)
 simplifyPar pm fnam par@(pnam,(JSString val)) | isDigit $ head pnam =
     if "depends" == fromJSString val 
-       then (pnam,showJSON $ snd $ head $ S.toList $ pm!(fnam,pnam))
+       then (pnam,showJSON transVal)
        else par
+    where transVal = if M.notMember (fnam,pnam) pm
+                       -- If (fnam,pnam) is not in pm, it has been described as "depends" but there was no dependency
+                       then "no"
+                       else snd $ head $ S.toList $ pm!(fnam,pnam)
 simplifyPar _ _ attr = attr
 
 -- | Convert a function description sequence.

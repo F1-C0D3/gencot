@@ -196,6 +196,8 @@ type ParMap = M.Map ParVal (S.Set ParVal)
 -- If for a parameter occurring in both maps the second set is empty, take the first, otherwise take the second.
 -- The second set is empty, if the parameter is described as "depends".
 -- Thus, dependencies specified in the invocations are ignored if the parameter description is not "depends".
+-- If the parameter is described as "depends" but there is no dependency, it will not be present in the
+-- first map and get the set from the second map which is empty. This is detected and handled in simplifyPar.
 combineParMap = M.unionsWith combineParameter
     where combineParameter dep desc | null desc = dep
           combineParameter _ desc = desc
@@ -212,7 +214,7 @@ readValue (fnam,pnam,pval) =
                             ++ msg
 
 getParMap :: (String,String,String) -> ParMap
-getParMap (fnam,pnam,"depends") = M.empty
+getParMap (fnam,pnam,"depends") = M.singleton (fnam,pnam) S.empty
 getParMap (fnam,pnam,val) = M.singleton (fnam,pnam) $ S.singleton ("",val)
 
 getParDeps :: [(String,String,JSValue)] -> ParMap
@@ -244,9 +246,8 @@ followDeps :: ParMap -> S.Set ParVal -> S.Set ParVal
 followDeps pm vs = S.foldr addDeps S.empty vs
     where addDeps pv@("",_) pvs = S.insert pv pvs 
           addDeps pv pvs = if M.notMember pv pm 
-                              then error ("notMember: " ++ show pv ++ show dbgkeys)
+                              then error ("missing required invocation: " ++ show pv)
                               else S.union (pm!pv) pvs
-          dbgkeys = filter (\(fnam,_) -> fnam == "ssl_tls:ssl_session_copy") $ M.keys pm
 
 reduceParVals :: S.Set ParVal -> S.Set ParVal
 reduceParVals vs =
@@ -267,12 +268,13 @@ simplifyDescr pm jso =
 simplifyPar :: ParMap -> String -> (String,JSValue) -> (String,JSValue)
 simplifyPar pm fnam par@(pnam,(JSString val)) | isDigit $ head pnam =
     if "depends" == fromJSString val 
-       then (pnam,showJSON transVal)
+       then (pnam,showJSON corrVal)
        else par
-    where transVal = if M.notMember (fnam,pnam) pm
-                       -- If (fnam,pnam) is not in pm, it has been described as "depends" but there was no dependency
+    where transVal = pm!(fnam,pnam)
+          corrVal = if null transVal
+                       -- If pm!(fnam,pnam) is empty, it has been described as "depends" but there was no dependency
                        then "no"
-                       else snd $ head $ S.toList $ pm!(fnam,pnam)
+                       else snd $ head $ S.toList $ transVal
 simplifyPar _ _ attr = attr
 
 -- | Convert a function description sequence.

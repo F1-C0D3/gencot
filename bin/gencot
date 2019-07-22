@@ -9,7 +9,7 @@ fi
 
 BIN=$GENCOT_HOME/bin
 
-USAGE="Usage: $0 [-I<dir>] [-G<dir>] [-C<dir>] [-k] [check|config|hfile|cfile|packg|help] <file> [<file>]"
+USAGE="Usage: $0 [-I<dir>] [-G<dir>] [-C<dir>] [-k] [check|config|hfile|cfile|unit|help] <file> [<file>]"
 
 long_usage()
 {
@@ -20,11 +20,11 @@ long_usage()
     echo '  config <hfile>  Translate a C configuration include file to Cogent'
     echo '  hfile  <hfile> [<json>] Translate a C include file to Cogent'
     echo '  cfile  <cfile> [<json>] Translate a C source file to Cogent'
-    echo '  packg  <pckfile> [<json>] Generate auxiliary Cogent files for package described in <pckfile>'
+    echo '  unit   <pckfile> [<json>] Generate auxiliary Cogent files for unit described in <pckfile>'
     echo '  help            Display this help information'
     echo '  (the optional <json> file contains parameter modification descriptions for translated functions)'
     echo 'A <pckfile> contains a list of <cfile> names, each on a separate line.'
-    echo 'Options for commands check|config|hfile|cfile|packg: '
+    echo 'Options for commands check|config|hfile|cfile|unit: '
     echo '  -I<dir>  Directory for searching C include files. Can be repeated, as for cpp. '
     echo '  -G<dir>  Directory for searching Gencot auxiliary files. Only one can be given, default is "."'
     echo '  -C<dir>  Directory for stored declaration comments. Default is "./comments"'
@@ -87,7 +87,7 @@ case "$CMD" in
     config) ;;
     hfile) ;;
     cfile) ;;
-    packg) ;;
+    unit) ;;
     help) long_usage; exit;;
     *) echo "unknown gencot command: $1"; short_usage; exit;;
 esac
@@ -200,7 +200,7 @@ process_comments()
         | eval $MRGCOMM > $TMPDIR/$CNAME.cogent
 }
 
-if [ "$CMD" == "packg" ]
+if [ "$CMD" == "unit" ]
 then
     for file in $(< $CFILE)
     do prepare_cfile $file

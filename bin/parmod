@@ -10,7 +10,7 @@ fi
 BIN=$GENCOT_HOME/bin
 PRC=parmod-proc
 
-USAGE="Usage: $0 [-I<dir>] [-G<dir>] [-k] [init|close|extern|show|addto|merge|eval|help] <file> [<file>]"
+USAGE="Usage: $0 [-I<dir>] [-G<dir>] [-k] [init|close|extern|show|addto|mergin|replin|eval|help] <file> [<file>]"
 
 long_usage()
 {
@@ -22,11 +22,12 @@ long_usage()
     echo '  extern <pckfile> <json> Select descriptions from <json> for externals used in <pckfile>'
     echo '  show   <json>   Display information about parmod description'
     echo '  addto  <json1> <json2>  Add to <json1> all required dependencies found in <json2>'
-    echo '  merge  <json1> <json2>  Union, selecting entries with more confirmed parameters'
+    echo '  mergin <json1> <json2>  Union, selecting entries with more confirmed parameters'
+    echo '  replin <json1> <json2>  Replace in <json1> entries with not less confirmed parameters in <json2>'
     echo '  eval   <json>   Evaluate finished parmod description'
     echo '  help            Display this help information'
     echo '  (init|close|eval write the resulting parmod description to stdout)'
-    echo '  (addto modifies its first argument)'
+    echo '  (addto, mergin and replin modify the first argument)'
     echo 'A <pckfile> contains a list of <cfile> names, each on a separate line.'
     echo 'Options for commands check|init|close|extern: '
     echo '  -I<dir>  Directory for searching C include files. Can be repeated, as for cpp. '
@@ -92,7 +93,8 @@ case "$CMD" in
     extern) TAILCMD='parmod-extfuns';PARSE='yes';REQARGS=2;;
     show) ;;
     addto) REQARGS=2;;
-    merge) REQARGS=2;;
+    mergin) REQARGS=2;;
+    replin) REQARGS=2;;
     eval) ;;
     help) long_usage; exit;;
     *) echo "unknown parmod command: $1"; short_usage; exit;;
@@ -166,11 +168,17 @@ then
     $BIN/$TAILCMD $CBASE $CLOSE < $TMPDIR/$CNAME.in
 elif [ "$CMD" == "show" ]
 then
-    $BIN/$PRC check < $1
+    #$BIN/$PRC check < $1
     $BIN/$PRC unconfirmed < $1 > $TMPDIR/uclist
+    ucfuns=$(wc -w < $TMPDIR/uclist)
     echo
-    echo "$(wc -w < $TMPDIR/uclist) unconfirmed parameter descriptions:"
+    echo "$ucfuns unconfirmed parameter descriptions:"
     cat $TMPDIR/uclist
+    if [ "0" != "$ucfuns" ]
+    then
+        echo "To confirm, edit the file $1"
+        echo
+    fi
     $BIN/$PRC required < $1 > $TMPDIR/rilist
     echo "$(wc -w < $TMPDIR/rilist) required invocations:"
     cat $TMPDIR/rilist
@@ -182,13 +190,34 @@ then
     $BIN/$PRC filter $TMPDIR/rilist < $2 \
         | $BIN/$PRC merge $1 | $BIN/$PRC sort $TMPDIR/flist > $TMPDIR/result
     cp $TMPDIR/result $1
-elif [ "$CMD" == "merge" ]
+elif [ "$CMD" == "mergin" ]
 then
     $BIN/$PRC funids < $1 > $TMPDIR/flist
     $BIN/$PRC funids < $2 >> $TMPDIR/flist
-    $BIN/$PRC merge $2 < $1 | $BIN/$PRC sort $TMPDIR/flist
+    $BIN/$PRC merge $2 < $1 | $BIN/$PRC sort $TMPDIR/flist > $TMPDIR/result
+    cp $TMPDIR/result $1
+elif [ "$CMD" == "replin" ]
+then
+    $BIN/$PRC funids < $1 > $TMPDIR/flist
+    $BIN/$PRC filter $TMPDIR/flist < $2 \
+        | $BIN/$PRC merge $1 | $BIN/$PRC sort $TMPDIR/flist > $TMPDIR/result
+    cp $TMPDIR/result $1
 elif [ "$CMD" == "eval" ]
 then
+    $BIN/$PRC unconfirmed < $1 > $TMPDIR/uclist
+    ucfuns=$(wc -w < $TMPDIR/uclist)
+    if [ "0" != "$ucfuns" ]
+    then
+        echo "Cannot evaluate $1 due to unconfirmed parameter descriptions." >&2
+        exit 1
+    fi
+    $BIN/$PRC required < $1 > $TMPDIR/rilist
+    rifuns=$(wc -w < $TMPDIR/rilist)
+    if [ "0" != "$rifuns" ]
+    then
+        echo "Cannot evaluate $1 due to missing required invocations." >&2
+        exit 1
+    fi
     $BIN/$PRC eval < $1
 fi
 

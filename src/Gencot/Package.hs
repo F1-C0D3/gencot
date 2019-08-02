@@ -5,35 +5,44 @@ import System.IO (hPutStrLn, stderr)
 import qualified Data.Map as M (toList,Map,filter,elems,keys,filterWithKey)
 import qualified Data.IntMap as IntMap (empty)
 import Data.Map.Merge.Strict (merge,mapMissing,zipWithMatched)
-import Data.List (sortBy,isPrefixOf,nub,(\\))
+import Data.List (sortBy,isPrefixOf,nub,(\\),union)
 import qualified Data.Set as S (Set,filter,map,toList,unions)
-import Data.Maybe (catMaybes)
+import Data.Maybe (catMaybes,isJust)
 import Control.Monad (liftM,when,foldM,mapM,sequence)
 
 import "language-c" Language.C (CTranslUnit,CError,parseC,fileOfNode,CNode,nodeInfo,Ident,SUERef(AnonymousRef),isAnonymousRef,pretty,identToString)
 import Language.C.Data.Position (initPos,posOf,posFile,posRow,isSourcePos)
 import Language.C.Analysis
-import Language.C.Analysis.DefTable (DefTable,DefTable(..),emptyDefTable,IdentEntry,TagEntry,globalDefs)
+import Language.C.Analysis.DefTable (DefTable,DefTable(..),emptyDefTable,IdentEntry,TagEntry,globalDefs,lookupTag,lookupIdent)
 import Language.C.Analysis.NameSpaceMap (NameSpaceMap,nameSpaceMap,defGlobal,globalNames)
 
-import Gencot.Input (readFromFile_,getOwnDeclEvents,compEvent)
+import Gencot.Input (readFromFile_,readFromFile,getOwnDeclEvents)
 import Gencot.Util.CallGraph (getCallGraph,CallGraph,getIdentInvokes)
-import Gencot.Util.Types (occurringTypes,transCloseTypes,selInAllTypes,isLeafType)
+import Gencot.Util.Types (TypeSet,TypeCarrier,TypeCarrierSet,carrierInTable,occurringTypes,transCloseTypes,selInAllTypes,selInContained,isLeafType)
 
-readPackageFromInput :: IO [DefTable]
-readPackageFromInput = do
+readPackageFromInput_ :: IO [DefTable]
+readPackageFromInput_ = do
     fnams <- (liftM ((filter (not . null)) . lines)) getContents
     when (null fnams) $ error "empty input package"
     mapM readFromFile_ fnams
     
-getFunctionInvocations :: [DefTable] -> IO [IdentDecl]
-getFunctionInvocations tables = do
+readPackageFromInput :: s -> (DeclEvent -> Trav s ()) -> IO [(DefTable,s)]
+readPackageFromInput uinit uhandler = do
+    fnams <- (liftM ((filter (not . null)) . lines)) getContents
+    when (null fnams) $ error "empty input package"
+    mapM (readFromFile uinit uhandler) fnams
+    
+getIdentInvocations :: [CallGraph] -> IO [IdentDecl]
+getIdentInvocations cgs = do
+    {- get lists of declarations of invoked functions -}
+    return $ S.toList $ S.unions $ map getIdentInvokes cgs
+
+getOwnCallGraphs :: [DefTable] -> IO [CallGraph]
+getOwnCallGraphs tables = do
     {- convert symbol tables to lists of declarations in processed files -}
     let decls = map (\tab -> getOwnDeclEvents (globalDefs tab) (\_ -> True)) tables
     {- get call graphs by traversing all function bodies in decls -}
-    cgs <- mapM (uncurry getCallGraph) $ zip tables decls
-    {- get lists of declarations of invoked functions -}
-    return $ S.toList $ S.unions $ map getIdentInvokes cgs
+    mapM (uncurry getCallGraph) $ zip tables decls
 
 debugTable :: DefTable -> IO ()
 debugTable = print . pretty . (filterGlobalDecls noBuiltin) . globalDefs
@@ -41,6 +50,28 @@ debugTable = print . pretty . (filterGlobalDecls noBuiltin) . globalDefs
 noBuiltin :: DeclEvent -> Bool
 noBuiltin (DeclEvent d@(Declaration _)) | isPrefixOf "__" $ identToString $ declIdent d = False
 noBuiltin _ = True
+
+{--------}
+foldTypeSets :: [TypeSet] -> DefTable -> TypeSet
+foldTypeSets tss dt = filter (typeInTable dt) $ foldr union (head tss) (tail tss)
+
+-- | Test whether directly contained tagless types are in the symbol table. 
+typeInTable :: DefTable -> Type -> Bool
+typeInTable dt t =
+    all (anonInTable dt) $ filter anonTagType $ transCloseTypes selTypes [t]
+    where selTypes = selInContained (not . isLeafType)
+          anonInTable dt t = isJust $ lookupTag (getSUERef t) dt
+{------------}
+          
+foldTypeCarrierSets :: [TypeCarrierSet] -> DefTable -> TypeCarrierSet
+foldTypeCarrierSets tcss dt =
+    (foldl union [] $ map (filter isLocalOrInternal) tcss)
+    ++ (filter (carrierInTable dt) $ foldl union [] $ map (filter (not . isLocalOrInternal)) tcss)
+
+isLocalOrInternal :: TypeCarrier -> Bool
+isLocalOrInternal (LocalEvent _) = True
+isLocalOrInternal (DeclEvent decl) = declLinkage decl == InternalLinkage
+isLocalOrInternal _ = False
 
 foldTables :: [DefTable] -> IO DefTable
 foldTables tables = foldM combineTables (head tables) (tail tables)

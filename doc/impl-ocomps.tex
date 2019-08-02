@@ -8,44 +8,43 @@ The following auxiliary Gencot components exist which do not process C source co
 Processing parameter modification descriptions is implemented by the filter \code{parmod-proc}. It reads a parameter
 modification description from standard input as described in Section~\ref{impl-parmod-json}. The first command line 
 argument acts as a command how to process the parameter modification description. The filter implements the following
-commands:
+commands with the help of the functions from module \code{Gencot.Json.Process}  (see Section~\ref{impl-parmod-modules}):
 \begin{description}
 
 \item[\code{check}]
 Verify the structure of the parameter modification description 
-according to Section~\ref{impl-parmod-struct} and lists all errors found.
+according to Section~\ref{impl-parmod-struct} and lists all errors found (not yet implemented).
+
+\item[\code{unconfirmed}] 
+List all unconfirmed parameter descriptions using function \code{showRemainingPars}.
+
+\item[\code{required}]
+List all required invocations by their function identifiers, using function \code{showRequired}.
 
 \item[\code{funids}]
 List the function identifiers of all functions described in the parameter modification description.
 
-\item[\code{unconfirmed}] 
-List all unconfirmed parameter descriptions in the form
-\begin{verbatim}
-  <function identifier> / <parameter identifier>
-\end{verbatim}
-
-\item[\code{required}]
-List all required invocations by their function identifiers.
-
 \item[\code{sort}]
 Takes an additional file name as command line argument. The file contains a list of function identifiers.
-The input is sorted according to the order in which the function identifiers appear in the list. This command
+The input is sorted using function \code{sortParmods}. This command
 is intended to be applied after the \code{merge} command to (re)establish a certain ordering.
 
 \item[\code{filter}]
 Takes an additional file name as command line argument. The file contains a list of function identifiers.
-The input is filtered and only function descriptions for the listed identifiers are retained in the output.
+The input is filtered using function \code{filterParmods}.
 
 \item[\code{merge}]
 Takes an additional file name as command line argument. The file contains a parameter modification description 
-in JSON format. Both descriptions are merged. If both contain a description for the same function identifier,
-the description with less unconfirmed parameter descriptions is used in the output. If both descriptions have 
-the same number of unconfirmed parameter descriptions, the description from standard input is used.
+in JSON format. Both descriptions are merged using function \code{mergeParmods}
+where the first parameter is the description read from standard input.
+After merging, function \code{addParsFromInvokes} is applied.
+Thus, if the merged information contains
+an invocation with more arguments than before, the function description is automatically extended.
 
 \item[\code{eval}]
-The parameter modification description must be structurally correct, contain no
-unconfirmed parameter descriptions and contain no required dependencies. Then all dependencies are eliminated 
-as described in Section~\ref{impl-parmod-eval}.
+Using the functions \code{showRemainingPars} and \code{showRequired} it is verified that the parameter modification 
+description contains no
+unconfirmed parameter descriptions and no required dependencies. Then it is evaluated using function \code{evalParmods}.
 The resulting parameter modification description contains no parameter dependencies and
 no invocation descriptions. It is intended to be read by the filters which translate C function types and function 
 definitions.
@@ -53,7 +52,7 @@ definitions.
 
 All lists mentioned above are structured as a sequence of text lines.
 
-If the result is a parameter modification description in JSON format is written to the output as described in 
+If the result is a parameter modification description in JSON format it is written to the output as described in 
 Section~\ref{impl-parmod-json}.
 
 The first three commands are intended as a support for the developer when filling the description manually. The goal is that

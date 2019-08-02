@@ -18,6 +18,24 @@ instance Eq LCA.IdentDecl where
 instance Ord LCA.IdentDecl where
     compare id1 id2 = compare (posOf id1) (posOf id2)
 
+instance Eq LCA.DeclEvent where
+    e1 == e2 = (posOf e1) == (posOf e2)
+    
+instance Ord LCA.DeclEvent where
+    compare e1 e2 = compare (posOf e1) (posOf e2)
+
+instance Eq LCA.TagDef where
+    td1 == td2 = (posOf td1) == (posOf td2)
+
+instance Ord LCA.TagDef where
+    compare td1 td2 = compare (posOf td1) (posOf td2)
+
+instance Eq LCA.TypeDef where
+    td1 == td2 = (posOf td1) == (posOf td2)
+
+instance Ord LCA.TypeDef where
+    compare td1 td2 = compare (posOf td1) (posOf td2)
+
 -- | Equality for types. Attributes are ignored.
 instance Eq LCA.Type where
     (LCA.DirectType tn1 q1 _) == (LCA.DirectType tn2 q2 _) = tn1 == tn2 && q1 == q2

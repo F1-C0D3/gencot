@@ -30,6 +30,10 @@ isReference (LC.CIndex expr _ _) = isReference expr
 isReference (LC.CMember expr _ _ _) = isReference expr
 isReference _ = False
 
+-- | Determine the type of an expression.
+-- This is only implemented for an identifier with an optional
+-- chain of member access operations.
+-- Otherwise the result is Nothing.
 getType :: MonadTrav m => LC.CExpr -> m (Maybe LCA.Type)
 getType (LC.CMember expr mid isRef _) = do
     mtyp <- getType expr

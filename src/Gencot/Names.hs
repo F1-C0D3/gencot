@@ -86,6 +86,12 @@ mapFunDeriv (LCA.FunType _ _ True) _ = "F"
 mapFunDeriv (LCA.FunType _ _ False) ps = 
     "F_" ++ (concat $ map mkParTypeName ps) ++ (if null ps then "" else "'") ++ "_"
 
+mapParmodDeriv :: String -> String
+mapParmodDeriv "yes" = "L"
+mapParmodDeriv "readonly" = "R"
+mapParmodDeriv "no" = "R"
+mapParmodDeriv _ = ""
+
 mkDerivedName :: String -> String -> String
 mkDerivedName deriv base = deriv ++ sep ++ base
     where sep = if null deriv || last deriv == '_' then "" else "_"

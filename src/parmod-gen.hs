@@ -35,17 +35,16 @@ main = do
     cg <- getCallGraph table globals
     {- translate functions to Json parmod description -}
     parmods <- runCTrav cg table fnam $ transGlobals globals
-    {- add parameters from invocations to incomplete and variadic functions -}
-    --let iparmods = if close then addParsFromInvokes parmods else parmods
     {- Output -}
     putStr $ unpack $ pStringNoColor $ encode parmods
     
 defFilter :: DeclEvent -> Bool
 defFilter (DeclEvent (FunctionDef _)) = True
 defFilter (DeclEvent (ObjectDef _)) = True
+defFilter (TagEvent (CompDef _)) = True
+defFilter (TypeDefEvent _) = True
 defFilter _ = False
 
 declFilter :: DeclEvent -> Bool
 declFilter (DeclEvent (Declaration _)) = True
-declFilter (TagEvent (CompDef _)) = True
 declFilter _ = False

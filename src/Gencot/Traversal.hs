@@ -2,7 +2,7 @@
 module Gencot.Traversal where
 
 import Control.Monad (liftM)
-import Data.Map (Map,(!),empty)
+import Data.Map (Map,findWithDefault,empty)
 
 import Language.C.Analysis.DefTable (DefTable)
 import Language.C.Analysis.TravMonad (Trav,runTrav,travErrors,withDefTable,getUserState)
@@ -12,7 +12,7 @@ import Gencot.Names (FileNameTrav,getFileName)
 
 -- | Simplified form of evaluated function descripton sequence.
 -- A mapping from function identifiers to sequences of parameter description values.
--- For every parameter the description is one of "yes", "discarded", "no", "nonlinear", or "readonly".
+-- For every parameter the description is one of "yes", "discarded", "no", "nonlinear", "result", or "readonly".
 type ParmodMap = Map String [String]
 
 type FTrav = Trav (String,ParmodMap)
@@ -33,4 +33,5 @@ instance FileNameTrav FTrav where
 getParmods :: String -> FTrav [String]
 getParmods fid = do
     u <- getUserState 
-    return ((snd u)!fid)
+    return $ findWithDefault [] fid $ snd u
+    --return ((snd u)!fid)

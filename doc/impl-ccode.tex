@@ -332,7 +332,7 @@ As its second argument it expects a predicate for filtering the content of \code
 \label{impl-ccode-package}
 
 In some cases several source files of the <package> must be processed together. The typical case is when the main
-files for the Cogent compilation unit are generated (see Section~\ref{design-files}. For this it is necessary 
+files for the Cogent compilation unit are generated (see Section~\ref{design-files}). For this it is necessary 
 to determine and process the external name references in a set of
 C source files. This set is the subset of C sources in the <package> which is translated to Cogent and together yields
 the Cogent compilation unit. 
@@ -379,6 +379,13 @@ Gencot processor. A processor only processes items which are external to all inp
 file name is needed for items which are defined in the input files. Therefore the list of input file names is
 sufficient and the input files may have arbitrary names which need not be related to the names of the original 
 \code{.c} files.
+
+The utility function
+\begin{verbatim}
+  readPackageFromInput :: IO [DefTable]
+\end{verbatim}
+in module \code{Gencot.Package} reads the file name list from input and parses and analyses all files using 
+\code{readFromFile}. It returns the list of resulting symbol tables.
 
 \subsubsection{Combining Parser Results}
 
@@ -470,8 +477,9 @@ The combination is implemented by the function
 \begin{verbatim}
   combineTables :: DefTable -> DefTable -> DefTable
 \end{verbatim}
-in module \code{Gencot.SymTab}. It should be applied to the tables built by \code{readFromFile} for two different
-\code{.c} files of the same package. The result can then be processed mainly in the same way as described in 
+in module \code{Gencot.Package}. It should be applied to the tables built by \code{readFromFile} for two different
+\code{.c} files of the same package. It can be iterated to combine the result of \code{readPackageFromInput}.
+The result can then be processed mainly in the same way as described in 
 Section~\ref{impl-ccode-read} for a table built from a single input file.
 
 \subsection{Dummy Declarations for Preprocessor Macros}
@@ -1057,7 +1065,7 @@ where \code{String} is the type used for storing the original C source file name
 \code{ParmodMap} is the type for storing the parameter modification description. \code{FTrav} is an
 instance of \code{FileNameTrav}. As execution function for the monadic actions the functions
 \begin{verbatim}
-  runFTrav :: DefTable -> (String,Parmods) -> FTrav a -> IO a
+  runFTrav :: DefTable -> (String,ParmodMap) -> FTrav a -> IO a
   runWithTable :: DefTable -> FTrav a -> IO a
 \end{verbatim}
 are defined. The first one takes the symbol table, the original C source file name and the parameter modification
@@ -1107,14 +1115,17 @@ for processing function invocations.
 
 Invocations can be identified purely syntactically as C function call expressions. The invoked function is usually 
 specified by an identifier, however, it can be specified as an arbitrary C expression. We only support the cases
-where the invoked function is specified as an identifier for a function or function pointer, or by a chain of 
-member access operations starting at an identifier for an object of struct or union type.  All other invocation where the invoked function is specified in a different way are ignored and not added to the call graph.
+where the invoked function is specified as an identifier for a function or function pointer, by a chain of 
+member access operations starting at an identifier for an object of struct or union type, or by an array index
+expression where the array is specified as an identifier or member access chain and the element type is a function
+pointer type. All other invocation where the invoked function is specified in a different way are ignored and not 
+added to the call graph.
 
 The starting identifier can be locally declared, such as a parameter of the function where the invocation occurs. The 
 declaration information of these identifiers would not be available after the traversal which builds the call graph.
 To make the full information about the invoked functions available, Gencot inserts the declarations into the call graph 
 instead of the identifiers. In the case of a member access chain it uses the struct or union type which has the 
-invoked function pointer as its direct member.
+invoked function pointer or the indexed function pointer array as its direct member.
 
 The information about such an invocation in a function body is represented by the following type:
 \begin{verbatim}
@@ -1124,7 +1135,8 @@ The information about such an invocation in a function body is represented by th
 \end{verbatim}
 The additional integer value specifies the number of actual arguments in this invocation.
 Note that in a function definition
-the parameters are represented in the symbol table by \code{IdentDecl}s, not by \code{ParamDecl}s.
+the parameters are represented in the symbol table by \code{IdentDecl}s, not by \code{ParamDecl}s. In the case
+of an array element invocation the actual index is ignored, all array elements are treated in a common way.
 
 The call graph has the form of a set of globally described invocations. These are triples consisting of the definition
 of the invoking function, the invocation, and a boolean value telling whether the identifier in the case of an
@@ -1171,4 +1183,4 @@ It takes the identifier of an invoking function as argument and returns the part
 consisting of all invocations in its body.
 
 The monad \code{CTrav} is an instance of class \code{FileNameTrav}, so the own source file name can be accessed by
-\code{getFileName} (see Section~\ref{impl-ccode-trav}.
+\code{getFileName} (see Section~\ref{impl-ccode-trav}).

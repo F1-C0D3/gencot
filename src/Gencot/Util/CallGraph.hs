@@ -34,8 +34,9 @@ type CGFunInvoke = (LCA.FunDef, CGInvoke, Bool)
 
 -- | An invocation description. 
 -- It is specified by the invoked function and the number of actual arguments.
--- The invoked function is specified by its declaration (function or function pointer object)
--- or by a struct type and member declaration (function pointer as struct member).
+-- The invoked function is specified by its declaration (function, function pointer object,
+-- function pointer array) or by a struct type and member declaration (function pointer 
+-- or function pointer array as struct member).
 data CGInvoke =
           IdentInvoke LCA.IdentDecl Int
         | MemberInvoke LCA.CompType LCA.MemberDecl Int
@@ -45,10 +46,10 @@ invokeAnum (IdentInvoke _ i) = i
 invokeAnum (MemberInvoke _ _ i) = i
 
 invokeType :: CGInvoke -> LCA.FunType
-invokeType cginvk = ftyp 
-    where (LCA.FunctionType ftyp _) = case resolveTypedef $ LCA.declType cginvk of
-             LCA.PtrType typ _ _ -> resolveTypedef typ
-             typ -> typ
+invokeType cginvk = ftyp $ resolveTypedef $ LCA.declType cginvk
+    where ftyp (LCA.FunctionType funtyp _) = funtyp
+          ftyp (LCA.PtrType typ _ _) = ftyp $ resolveTypedef typ
+          ftyp (LCA.ArrayType typ _ _ _) = ftyp $ resolveTypedef typ
 
 invokeParams :: CGInvoke -> [LCA.ParamDecl]
 invokeParams cginvk = case invokeType cginvk of
@@ -235,7 +236,6 @@ getCGInvoke (LC.CMember expr mid pointer _) alen = do
     case mtyp of
          Nothing -> return Nothing
          Just typ -> do
---             let (LCA.VarDecl _ _ typ) = LCA.getVarDecl decl
              dt <- LCA.getDefTable
              let ctyp@(LCA.CompType sueref _ _ _ _) = getCompType typ dt
              case getMemberDecl ctyp mid of
@@ -243,6 +243,8 @@ getCGInvoke (LC.CMember expr mid pointer _) alen = do
                   Just mdecl -> if isAnonymousRef sueref 
                                    then return Nothing
                                    else return $ Just (MemberInvoke ctyp mdecl alen)
+getCGInvoke (LC.CIndex expr _ _) alen = getCGInvoke expr alen
+--    error "function pointer array invocation"
 getCGInvoke _ _ = return Nothing
 
 type CTrav = Trav (String,CallGraph)

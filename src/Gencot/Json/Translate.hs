@@ -15,15 +15,16 @@ import "language-c" Language.C as LC hiding (pretty,Pretty)
 import Language.C.Data.Ident as LCI
 import Language.C.Data.Node as LCN
 import Language.C.Data.Position as LCP
-import Language.C.Analysis as LCA
+import Language.C.Analysis as LCA hiding (mapMaybeM)
 
 import Gencot.Util.CallGraph (CallGraph,CGFunInvoke,CGInvoke(IdentInvoke,MemberInvoke),CTrav,lookupCallGraph,invokeAnum,unionM,foldsets,getCGInvoke,invokeType,invokeParams)
-import Gencot.Util.Types (isLinearParType,isReadOnlyParType,isFunPointer,isFunction,resolveTypedef,getPointedType,getFunType)
+import Gencot.Util.Types (isLinearParType,isReadOnlyParType,isFunPointerOptArr,isFunction,resolveTypedef,getsParmodDescr,getParmodFunctionType,getFunType)
 import Gencot.Util.Expr (getRootIdent,isReference)
 import Gencot.Util.Decl (traverseLocalDecl)
 import Gencot.Names (srcFileName)
 import Gencot.Json.Parmod (Parmod,Parmods)
-import Gencot.Json.Identifier (getGlobalNamPrefix,getGlobalMemberPrefix,linkagePrefix,memberPrefix,pointerPrefix)
+import Gencot.Json.Identifier (getFunId,getFunTypeId,getGlobalNamPrefix,getGlobalMemberPrefix,getLocalNamPrefix,linkagePrefix,localPrefix,memberPrefix,pointerPrefix)
+import Gencot.Json.Process (mergeParmods)
 
 qmark = showJSON "?"
 jsEmpty = JSArray []
@@ -36,8 +37,9 @@ transGlobals evs = (liftM concat) $ (mapM transGlobal) evs
 -- Every function definition and declaration is translated to a function description.
 -- For each invocation which invokes a local function
 -- pointer (a parameter or local variable), a function description for the local function pointer is appended.
--- Every object definition or declaration with function pointer type is translated to a function description.
--- For every definition of a compound type all members of function pointer type are translated to function descriptions.
+-- Every object definition or declaration with function pointer (array) type is translated to a function description.
+-- For every definition of a compound type all members of function pointer (array) type are translated to function descriptions.
+-- Definitions of function (pointer (array)) types which directly include the function type are translated to function descriptions.
 -- All other global declarations are ignored.
 transGlobal :: LCA.DeclEvent -> CTrav Parmods
 transGlobal (LCA.DeclEvent (LCA.FunctionDef fdef)) = do
@@ -49,26 +51,32 @@ transGlobal (LCA.DeclEvent (LCA.FunctionDef fdef)) = do
     parlist <- mapM (paramEntry parmods fpardeps) $ numberList pars
     tinvokes <- mapM (transInvocation fpardeps sfn) cg
     let invokes = catMaybes tinvokes
+    funpars <- mapMaybeM (transParam fdef sfn) pars
     let localcg = filter (\(_,_,loc) -> loc) cg
     locals <- mapM (transLocal sfn) localcg
     return $ [toJSObject ([namEntry (getGlobalNamPrefix fdef sfn) fdef,comEntry,locEntry sfn,nmpEntry ftyp] ++ parlist ++ 
                 [nmiEntry invokes] ++ if not (null invokes) && (any maymodify parlist) then [invEntry invokes] else [])] 
-        ++ locals
+        ++ (mergeParmods funpars locals)
     where (LCA.FunctionType ftyp@(LCA.FunType restype pars isVar) _) = LCA.declType fdef
           maymodify (_,jss) = jss == qmark || jss == showJSON "?depends"
-transGlobal (LCA.DeclEvent (LCA.ObjectDef odef)) | isFunPointer $ LCA.declType odef =
-    transDecl (getGlobalNamPrefix odef) odef $ getFunType $ getPointedType $ LCA.declType odef
-transGlobal (LCA.DeclEvent (LCA.Declaration decl)) | isFunPointer $ LCA.declType decl =
-    transDecl (getGlobalNamPrefix decl) decl $ getFunType $ getPointedType $ LCA.declType decl
-transGlobal (LCA.DeclEvent (LCA.Declaration decl)) | isFunction $ LCA.declType decl =
-    transDecl (getGlobalNamPrefix decl) decl $ getFunType $ LCA.declType decl
+transGlobal (LCA.DeclEvent (LCA.ObjectDef odef)) | isFunPointerOptArr $ LCA.declType odef =
+    transDecl (getGlobalNamPrefix odef) odef $ getFunType $ getParmodFunctionType $ LCA.declType odef
+transGlobal (LCA.DeclEvent (LCA.Declaration decl)) | (isFunPointerOptArr typ || isFunction typ) =
+    transDecl (getGlobalNamPrefix decl) decl $ getFunType $ getParmodFunctionType typ
+    where typ = LCA.declType decl
 transGlobal (LCA.TagEvent (LCA.CompDef (LCA.CompType (LCI.NamedRef cid) _ mdecls _ _))) =
     mapMaybeM (transMember cid) mdecls
-    where mapMaybeM :: Monad m => (a -> m (Maybe b)) -> [a] -> m [b]
-          mapMaybeM f = liftM catMaybes . mapM f
+transGlobal (LCA.TypeDefEvent tdef@(LCA.TypeDef nam typ _ _)) | getsParmodDescr typ = do
+    sfn <- srcFileName tdef
+    parlist <- mapM simpleParamEntry $ numberList pars
+    return $ [toJSObject ([tdNamEntry tdef,comEntry,locEntry sfn,nmpEntry ftyp] ++ parlist)]
+    where ftyp@(LCA.FunType restype pars isVar) = getFunType $ getParmodFunctionType typ
 transGlobal _ = return $ []
 
--- | Translate a declaration of a function or function pointer to a sequence (of length 1) of function descriptions.
+mapMaybeM :: Monad m => (a -> m (Maybe b)) -> [a] -> m [b]
+mapMaybeM f = liftM catMaybes . mapM f
+
+-- | Translate a declaration of a function or function pointer (array) to a sequence (of length 1) of function descriptions.
 -- getPrefix must be a function which returns the function name prefix when applied to the source file name.
 transDecl :: (CNode d,Declaration d) => (String -> String) -> d -> LCA.FunType -> CTrav Parmods
 transDecl getPrefix decl ftyp@(LCA.FunType _ pars isVar) = do
@@ -79,15 +87,25 @@ transDecl getPrefix decl ftyp@(LCA.FunTypeIncomplete _) = do
     sfn <- srcFileName decl
     return $ [toJSObject ([namEntry (getPrefix sfn) decl,comEntry,locEntry sfn,nmpEntry ftyp])] 
 
--- | Translate a struct or union member to a function description, if it is a function pointer.
-transMember :: LCI.Ident -> LCA.MemberDecl -> CTrav (Maybe (Parmod))
-transMember cid mdecl | isFunPointer $ LCA.declType mdecl =
+-- | Translate a struct or union member to a function description, if it is a function pointer (array).
+transMember :: LCI.Ident -> LCA.MemberDecl -> CTrav (Maybe Parmod)
+transMember cid mdecl | isFunPointerOptArr $ LCA.declType mdecl =
     liftM (Just . head) $ transDecl (const (getGlobalMemberPrefix cid mdecl)) mdecl 
-        $ getFunType $ getPointedType $ LCA.declType mdecl
+        $ getFunType $ getParmodFunctionType $ LCA.declType mdecl
 transMember _ _ = return Nothing
 
+-- | Translate a function parameter, if it is a function (pointer (array)) directly containing the function type.
+-- Other function parameters are only described (by transLocal), if they are invoked.
+transParam :: LCA.FunDef -> String -> LCA.ParamDecl -> CTrav (Maybe Parmod)
+transParam fdef sfn pd | getsParmodDescr ptyp = do
+    parlist <- mapM simpleParamEntry $ numberList pars
+    return $ Just $ toJSObject $ [namEntry (getLocalNamPrefix (getFunId fdef sfn) pd) pd,comEntry,locEntry sfn,nmpEntry ftyp] ++ parlist
+    where ptyp = LCA.declType pd
+          ftyp@(LCA.FunType restype pars isVar) = getFunType $ getParmodFunctionType ptyp
+transParam _ _ _ = return Nothing
+
 -- | Translate an invocation of a local function pointer to a function description.
-transLocal :: String -> CGFunInvoke -> CTrav (Parmod)
+transLocal :: String -> CGFunInvoke -> CTrav Parmod
 transLocal sfn fi@(fd,invk,_) = do
     parlist <- mapM simpleParamEntry $ numberList $ invokeParams invk
     return $ toJSObject $ [namEntry (getNamPrefix fi sfn) invk,comEntry,locEntry sfn,nmpEntry $ invokeType invk] ++ parlist
@@ -380,6 +398,9 @@ isdep pds pdec = any (\(idec,_,_,_) -> LCA.declIdent idec == LCA.declIdent pdec)
 namEntry :: LCA.Declaration a => String -> a -> (String, JSValue)
 namEntry prefix decl = ("f_name", showJSON $ prefix ++ getDeclName decl)
 
+tdNamEntry :: LCA.TypeDef -> (String, JSValue)
+tdNamEntry tdef = ("f_name", showJSON $ getFunTypeId tdef)
+
 comEntry = ("f_comments", showJSON "")
 locEntry sfn = ("f_def_loc", showJSON $ sfn)
 nmpEntry ftyp = ("f_num_params", getNumParams ftyp)
@@ -398,11 +419,11 @@ transInvocation pardeps sfnx fi@(fd,cgd,loc) = do
 
 getNamPrefix :: CGFunInvoke -> String -> String
 getNamPrefix fi@(_,idec,loc) sfn = 
-    (linkagePrefix idec sfn loc) ++ (localPrefix fi) ++ (memberInvkPrefix idec) ++ (pointerPrefix idec)
+    (linkagePrefix idec sfn loc) ++ (localInvkPrefix fi) ++ (memberInvkPrefix idec) ++ (pointerPrefix idec)
 
-localPrefix :: CGFunInvoke -> String
-localPrefix (fd,_,True) = (getDeclName fd) ++ "/"
-localPrefix _ = ""
+localInvkPrefix :: CGFunInvoke -> String
+localInvkPrefix (fd,_,True) = localPrefix $ getDeclName fd
+localInvkPrefix _ = ""
 
 memberInvkPrefix :: CGInvoke -> String
 memberInvkPrefix (MemberInvoke (LCA.CompType (LCI.NamedRef cid) _ _ _ _) _ _) = memberPrefix cid
@@ -426,6 +447,7 @@ transInvk pardeps namstr (LCA.FunctionType ftyp _) anm = do
     where nam = ("name", showJSON namstr)
           nmp = ("num_params", getNumParams ftyp)
 transInvk pardeps namstr (LCA.PtrType typ _ _) anm = transInvk pardeps namstr typ anm
+transInvk pardeps namstr (LCA.ArrayType typ _ _ _) anm = transInvk pardeps namstr typ anm
 transInvk pardeps namstr (LCA.TypeDefType (LCA.TypeDefRef _ typ _) _ _) anm = transInvk pardeps namstr typ anm
 transInvk _ _ _ _ = return Nothing
 

@@ -204,7 +204,7 @@ is too complex (not a literal or single identifier) it is omitted and the type m
 element type is again a derived type the underscore is omitted.
 
 If \code{el} is mapped to a type name with the unbox operator applied, which is not a function pointer type,
-a letter ``U'' is prepended to \code{El} in the form of an additional derivation step. This can happen for struct, union
+a letter ``\code{U}'' is prepended to \code{El} in the form of an additional derivation step. This can happen for struct, union
 and array types.
 
 Since dummy expressions are only used for function results and the result type of a C function may not be an array 
@@ -313,9 +313,7 @@ is translated to the definitions
 
 \subsubsection{Mapping Function Parameters}
 
-All function pointers are represented by an integer in Cogent, hence a C function pointer type can be 
-mapped (through the from/to translation functions) to an arbitrary Cogent function type.
-Of course, to be useful the types of the parameters and result should be mapped as well. In Cogent every function
+In Cogent every function
 has only one parameter. To be mapped to Cogent, the parameters of a C function with more than one parameter must
 be aggregated in a tuple or in a record. A C function type \code{t (void)} which has no parameters is mapped
 to the Cogent function type \code{() -> T} with a parameter of unit type.
@@ -350,15 +348,17 @@ Cogent types if a function pointer is assigned where parameters have been specif
 be treated manually in specific ways. Gencot maps these function types to a Cogent function type with an abstract
 parameter type.
 
-Together the rules for mapping function types (and function pointer types through the from/to translation 
+All function pointers are represented by an integer in Cogent, hence a C function pointer type could be 
+mapped (through the from/invk/to translation functions) to an arbitrary Cogent function type.
+Of course, to be useful the types of the parameters and result should be mapped as well. This is done
+in the same way as described above for function types.
+
+Together the rules for mapping function types (and function pointer types through the from/invk/to translation 
 functions) are
 \begin{verbatim}
-  t(t1, ..., tn), t (*)(t1, ..., tn) 
-    -> (T1, ..., Tn) -> T
-  t(void), t (*)(void) 
-    -> () -> T
-  t(), t(*)(), t(t1,...,tn,...), t (*)(t1,...,tn,...) 
-    -> P -> T, where P is abstract
+  t(t1, ..., tn) -> (T1, ..., Tn) -> T
+  t(void) -> () -> T
+  t(), t(t1,...,tn,...) -> P -> T, where P is abstract
 \end{verbatim}
 
 \subsubsection{Linear and Readonly Parameter Types}
@@ -386,8 +386,16 @@ add parameters to the function result, according to the following rules:
 is discarded according to Section~\ref{design-parmod}, it is translated as described before.
 \item Otherwise, if the C type of the parameter is readonly according to Section~\ref{design-types-readonly}, or
 is not modified according to Section~\ref{design-parmod} its translated type is made readonly by applying the
-bang operator \code{!}.
+bang operator \code{!}. For a single such parameter of type \code{r} the translation rule becomes
+\begin{verbatim}
+  t(t1, ... r, ... tn) -> (T1, ... R!, ... Tn) -> T
+\end{verbatim}
+\item Otherwise, if the parameter is already returned as result of the function, it is translated as described before.
 \item Otherwise, the function result is changed to a tuple and the parameter is added as component to that tuple.
+For a single such parameter of type \code{l} the translation rule becomes
+\begin{verbatim}
+  t(t1, ... l, ... tn) -> (T1, ... L, ... Tn) -> (T,L)
+\end{verbatim}
 \end{itemize}
 
 If the result is modified to a tuple, the first component is the original function result and the remaining components
@@ -395,6 +403,44 @@ are the parameters of linear type in their order as they occur in the parameter 
 
 The dummy result expression is then built as a tuple with a dummy result as the first component and the unmodified
 parameters as the remaining components.
+
+\subsubsection{Linear and Readonly Parameter Types for Function Pointers}
+
+Since function pointer types shall be translated to function types through the from/invk/to translation functions, the 
+information about linear and readonly parameter types must also be available for them. Moreover, the same C function
+pointer type may be mapped to two different Cogent types depending on whether a certain parameter is modified or not. 
+
+To support this the information about linear and readonly parameter types is coded into the Cogent type name as follows.
+If the parameter type is readonly or it is linear but the parameter is not modified by the function the mapped
+parameter type is prepended with a letter ``\code{R}'' in the form of an additional derivation step (i.e. separated by 
+an underscore if the parameter type is not derived). Otherwise, if the parameter type is linear and the parameter is 
+neither discarded nor returned as the function result, the mapped parameter type is prepended with a 
+letter ``\code{L}'' in the same way. Otherwise, the mapped parameter type is unchanged.
+
+Note that the result tuple used for linear parameter types is not coded directly into the type, it must be 
+reconstructed from the parameter type information (all parameters with a prepended ``\code{L}''). 
+
+As an example consider the C function pointer type
+\begin{verbatim}
+  int (*)(char[4], const char*)
+\end{verbatim}
+where the first parameter may be modified by the function referenced by a pointer of that type.
+The type is translated to the Cogent type name
+\begin{verbatim}
+  F_'LA'4'_U8'RP_U8'_U32
+\end{verbatim}
+which is translated by the from/invk/to functions to the Cogent function type
+\begin{verbatim}
+  (A'4'_U8,P_U8!) -> (U32,A'4'_U8)
+\end{verbatim}
+If the first parameter is known to be never modified, the Cogent typename instead will be
+\begin{verbatim}
+  F_'RA'4'_U8'RP_U8'_U32
+\end{verbatim}
+and the corresponding Cogent function type will be
+\begin{verbatim}
+  (A'4'_U8!,P_U8!) -> U32
+\end{verbatim}
 
 \subsubsection{Dummy Expressions for Function Types}
 

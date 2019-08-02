@@ -10,7 +10,7 @@ fi
 BIN=$GENCOT_HOME/bin
 PRC=parmod-proc
 
-USAGE="Usage: $0 [-I<dir>] [-G<dir>] [-k] [init|close|extern|show|addto|mergin|replin|eval|help] <file> [<file>]"
+USAGE="Usage: $0 [-I<dir>] [-G<dir>] [-k] [init|close|extern|show|idlist|diff|iddiff|addto|mergin|replin|eval|help] <file> [<file>]"
 
 long_usage()
 {
@@ -21,6 +21,9 @@ long_usage()
     echo '  close  <cfile>  Create parmod description for all functions declared for C sourcefile <cfile>'
     echo '  extern <pckfile> <json> Select descriptions from <json> for externals used in <pckfile>'
     echo '  show   <json>   Display information about parmod description'
+    echo '  idlist <json>   List function identifiers of parmod descriptions'
+    echo '  diff   <json1> <json2>  Compare parmod descriptions in <json1> and <json2>'
+    echo '  iddiff <json1> <json2>  Compare the function identifiers from <json1> and <json2>'
     echo '  addto  <json1> <json2>  Add to <json1> all required dependencies found in <json2>'
     echo '  mergin <json1> <json2>  Union, selecting entries with more confirmed parameters'
     echo '  replin <json1> <json2>  Replace in <json1> entries with not less confirmed parameters in <json2>'
@@ -92,6 +95,9 @@ case "$CMD" in
     close) TAILCMD='parmod-gen';PARSE='yes';CLOSE='close';;
     extern) TAILCMD='parmod-extfuns';PARSE='yes';REQARGS=2;;
     show) ;;
+    idlist) ;;
+    diff) REQARGS=2;;
+    iddiff) REQARGS=2;;
     addto) REQARGS=2;;
     mergin) REQARGS=2;;
     replin) REQARGS=2;;
@@ -121,9 +127,19 @@ prepare_aux()
 {
     if [ -e $GENCOTDIR/$CNAME.gencot-$1 ] 
     then
-        cat $GENCOTDIR/common.gencot-$1 $GENCOTDIR/$CNAME.gencot-$1 > $TMPDIR/$CNAME.gencot-$1
+        if [ -e $GENCOTDIR/common.gencot-$1 ]
+        then
+            cat $GENCOTDIR/common.gencot-$1 $GENCOTDIR/$CNAME.gencot-$1 > $TMPDIR/$CNAME.gencot-$1
+        else
+            cp $GENCOTDIR/$CNAME.gencot-$1 $TMPDIR/$CNAME.gencot-$1
+        fi
     else
-        cp $GENCOTDIR/common.gencot-$1 $TMPDIR/$CNAME.gencot-$1
+        if [ -e $GENCOTDIR/common.gencot-$1 ]
+        then
+            cp $GENCOTDIR/common.gencot-$1 $TMPDIR/$CNAME.gencot-$1
+        else
+            touch $TMPDIR/$CNAME.gencot-$1
+        fi
     fi
 }
 
@@ -147,7 +163,11 @@ prepare_cfile()
     echo $TMPDIR/$CNAME.in >> $TMPDIR/infiles
 }
 
-TMPDIR=$(mktemp -d)
+if [ "$CMD" != "idlist" ]
+then
+    TMPDIR=$(mktemp -d)
+fi
+
 if [ "$CMD" == "extern" ]
 then
     for file in $(< $1)
@@ -182,6 +202,22 @@ then
     $BIN/$PRC required < $1 > $TMPDIR/rilist
     echo "$(wc -w < $TMPDIR/rilist) required invocations:"
     cat $TMPDIR/rilist
+elif [ "$CMD" == "idlist" ]
+then
+    $BIN/$PRC funids < $1
+elif [ "$CMD" == "diff" ]
+then
+    $BIN/$PRC funids < $1 > $TMPDIR/flist
+    $BIN/$PRC funids < $2 | cat $TMPDIR/flist - | sort | tee $TMPDIR/flistsort \
+        | uniq -d > $TMPDIR/flistcommon
+    uniq -u $TMPDIR/flistsort | cat $TMPDIR/flistcommon - > $TMPDIR/flist
+    $BIN/$PRC sort $TMPDIR/flist < $1 > $TMPDIR/sorted1
+    $BIN/$PRC sort $TMPDIR/flist < $2 > $TMPDIR/sorted2
+    diff $TMPDIR/sorted1 $TMPDIR/sorted2
+elif [ "$CMD" == "iddiff" ]
+then
+    $BIN/$PRC funids < $1 | sort > $TMPDIR/flist
+    $BIN/$PRC funids < $2 | sort | diff $TMPDIR/flist -
 elif [ "$CMD" == "addto" ]
 then
     $BIN/$PRC funids < $1 > $TMPDIR/flist
@@ -221,9 +257,12 @@ then
     $BIN/$PRC eval < $1
 fi
 
-if [ $KEEP ]
+if [ "$CMD" != "idlist" ]
 then
-    echo "Kept directory with intermediate files: $TMPDIR"
-else
-    rm -r $TMPDIR
+    if [ $KEEP ]
+    then
+        echo "Kept directory with intermediate files: $TMPDIR"
+    else
+        rm -r $TMPDIR
+    fi
 fi

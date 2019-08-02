@@ -132,9 +132,19 @@ prepare_aux()
 {
     if [ -e $GENCOTDIR/$1.gencot-$2 ] 
     then
-        cat $GENCOTDIR/common.gencot-$2 $GENCOTDIR/$1.gencot-$2 > $TMPDIR/$1.gencot-$2
+        if [ -e $GENCOTDIR/common.gencot-$2 ]
+        then
+            cat $GENCOTDIR/common.gencot-$2 $GENCOTDIR/$1.gencot-$2 > $TMPDIR/$1.gencot-$2
+        else
+            cp $GENCOTDIR/$1.gencot-$2 $TMPDIR/$1.gencot-$2
+        fi
     else
-        cp $GENCOTDIR/common.gencot-$2 $TMPDIR/$1.gencot-$2
+        if [ -e $GENCOTDIR/common.gencot-$2 ]
+        then
+            cp $GENCOTDIR/common.gencot-$2 $TMPDIR/$1.gencot-$2
+        else
+            touch $TMPDIR/$1.gencot-$2
+        fi
     fi
 }
 
@@ -176,7 +186,7 @@ process_directives()
         | $BIN/gencot-prcppflags $TMPDIR/$CNAME.gencot-manmacros > $TMPDIR/$CNAME.prcppflags
     $BIN/gencot-prcppincl $TMPDIR/$CNAME.gencot-omitincl < $TMPDIR/$CNAME.ppsf > $TMPDIR/$CNAME.prcppincl
     $BIN/gencot-mrgpp $TMPDIR/$CNAME.prcppconst < $TMPDIR/$CNAME.out \
-        | $BIN/gencot-mrgpp $TMPDIR/$CNAME.gencot-macrodefs \
+        | $BIN/gencot-mrgpp $GENCOTDIR/$CNAME.gencot-macrodefs \
         | $BIN/gencot-mrgpp $TMPDIR/$CNAME.prcppflags \
         | $BIN/gencot-mrgpp $TMPDIR/$CNAME.prcppincl \
         | $BIN/gencot-mrgppcond $TMPDIR/$CNAME.ppsf > $TMPDIR/$CNAME.ppcond
@@ -206,8 +216,11 @@ then
     do prepare_cfile $file
     done
     $BIN/gencot-extfuns $JFILE < $TMPDIR/infiles | $BIN/gencot-reporigs \
-        | $BIN/gencot-mrgcomments /dev/null > $TMPDIR/$CNAME-extfuns.cogent
-    cp $TMPDIR/$CNAME-extfuns.cogent .
+        | $BIN/gencot-mrgcomments /dev/null > $TMPDIR/$CNAME-exit.cogent
+    $BIN/gencot-exttypes $JFILE < $TMPDIR/infiles | $BIN/gencot-reporigs \
+        | $BIN/gencot-defcomments $COMMENTDIR \
+        | $BIN/gencot-mrgcomments /dev/null > $TMPDIR/$CNAME-exttypes.cogent
+    cp $TMPDIR/$CNAME-exit.cogent $TMPDIR/$CNAME-exttypes.cogent .
 elif [ "$CMD" == "check" ]
 then 
     prepare_cfile $CFILE

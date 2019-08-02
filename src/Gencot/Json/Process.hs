@@ -42,6 +42,11 @@ getFunNumPars jso = case valFromObj "f_num_params" jso of
                       Ok s -> s
                       Error msg -> error $ "Number of parameters not found in function description:\n" ++ encode jso ++ "\n" ++ msg
 
+getFunResult :: Parmod -> String
+getFunResult jso = case valFromObj "f_result" jso of
+                      Ok s -> s
+                      Error msg -> ""
+
 selAttr :: ((String,String,JSValue) -> Bool) -> (String,String,JSValue) -> Maybe (String,String,JSValue)
 selAttr pred attr = if pred attr then Just attr else Nothing
 
@@ -113,13 +118,6 @@ isRequiredInvoke dp (fnam,jso) =
           hasDepend _ _ = False
           inDepend :: [(String,String,JSValue)] -> String -> Bool
           inDepend dp pnam = any (\(f,p,_) -> f == fnam && p == pnam) dp
-        
--- | Add the invocations required by a function description sequence from another function description sequence
-addRequired :: Parmods -> Parmods -> Parmods
-addRequired inparmods addparmods =
-    inparmods ++ filter (reqFilter (getRequired inparmods)) addparmods
-    where reqFilter :: [String] -> Parmod -> Bool
-          reqFilter rs jso = any (\s -> s == getFunName jso) rs
 
 -- | Filter a function description sequence by a list of function identifiers
 filterParmods :: Parmods -> [String] -> Parmods
@@ -283,5 +281,9 @@ convertParmods :: Parmods -> M.Map String [String]
 convertParmods parmods = M.fromList $ map convertParmod parmods
 
 convertParmod :: Parmod -> (String,[String])
-convertParmod jso = (getFunName jso, map (\(_,_,(JSString js)) -> fromJSString js) $ getFAttrs isParam jso)
-    
+convertParmod jso = (getFunName jso, map mkval $ getFAttrs isParam jso)
+    where respar = getFunResult jso
+          mkval (_,anam,(JSString js)) = 
+              let r = fromJSString js in
+                  if r == "yes" && anam == respar then "result" else r
+

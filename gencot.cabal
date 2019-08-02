@@ -17,7 +17,7 @@ extra-source-files:  CHANGELOG.md, README.md
 
 executable gencot-check
   main-is:             gencot-check.hs
-  other-modules:       Gencot.Input
+  other-modules:       Gencot.Input, Gencot.Util.Equality
   other-extensions:    PackageImports
   build-depends:       base ^>=4.12.0.0, language-c ^>=0.8.2, bytestring ^>=0.10.8.2, containers ^>=0.6.0.1, filepath ^>=1.4.2.1
   hs-source-dirs:      src
@@ -25,7 +25,7 @@ executable gencot-check
 
 executable gencot-translate
   main-is:             gencot-translate.hs
-  other-modules:       Gencot.Traversal, Gencot.Input, Gencot.Origin, Gencot.Names, Gencot.Cogent.Translate, Gencot.Cogent.Ast, Gencot.Cogent.Output, Gencot.C.Translate, Gencot.C.Ast, Gencot.C.Output, Gencot.Util.Types, Gencot.Json.Identifier, Gencot.Json.Parmod, Gencot.Json.Process
+  other-modules:       Gencot.Traversal, Gencot.Input, Gencot.Origin, Gencot.Names, Gencot.Cogent.Translate, Gencot.Cogent.Ast, Gencot.Cogent.Output, Gencot.C.Translate, Gencot.C.Ast, Gencot.C.Output, Gencot.Util.Types, Gencot.Util.Equality, Gencot.Json.Identifier, Gencot.Json.Parmod, Gencot.Json.Process
   other-extensions:    PackageImports, DeriveDataTypeable, MultiWayIf, CPP, FlexibleInstances
   build-depends:       cogent >= 2.9.0.0
                        , mainland-pretty ^>=0.7
@@ -37,7 +37,7 @@ executable gencot-translate
 
 executable gencot-deccomments
   main-is:             gencot-deccomments.hs
-  other-modules:       Gencot.Input, Gencot.Names, Gencot.Text.Decls
+  other-modules:       Gencot.Input, Gencot.Names, Gencot.Text.Decls, Gencot.Util.Equality
   other-extensions:    PackageImports, DeriveDataTypeable, MultiWayIf, CPP, FlexibleInstances
   build-depends:       ansi-wl-pprint ^>=0.6.8.2
                        , base ^>=4.12.0.0, language-c ^>=0.8.2, bytestring ^>=0.10.8.2, containers ^>=0.6.0.1, filepath ^>=1.4.2.1
@@ -57,9 +57,22 @@ executable gencot-extfuns
   hs-source-dirs:      src
   default-language:    Haskell2010
 
+executable gencot-exttypes
+  main-is:             gencot-exttypes.hs
+  other-modules:       Gencot.Traversal, Gencot.Input, Gencot.Names, Gencot.Origin, Gencot.Package, Gencot.Util.CallGraph, Gencot.Cogent.Output, Gencot.Cogent.Translate, Gencot.Cogent.Ast, Gencot.C.Translate, Gencot.C.Ast, Gencot.C.Output, Gencot.Util.Equality, Gencot.Util.Expr, Gencot.Util.Types, Gencot.Util.Decl, Gencot.Json.Parmod, Gencot.Json.Identifier, Gencot.Json.Process
+  other-extensions:    PackageImports, DeriveDataTypeable, MultiWayIf, CPP, FlexibleInstances
+  build-depends:       cogent >= 2.9.0.0
+                       , mainland-pretty ^>=0.7
+                       , ansi-wl-pprint ^>=0.6.8.2
+                       , json ^>=0.9.3
+                       , pretty
+                       , base ^>=4.12.0.0, language-c ^>=0.8.2, bytestring ^>=0.10.8.2, containers ^>=0.6.0.1, filepath ^>=1.4.2.1
+  hs-source-dirs:      src
+  default-language:    Haskell2010
+
 executable parmod-extfuns
   main-is:             parmod-extfuns.hs
-  other-modules:       Gencot.Traversal, Gencot.Input, Gencot.Names, Gencot.Traversal, Gencot.Package, Gencot.Util.CallGraph, Gencot.Util.Equality, Gencot.Util.Expr, Gencot.Util.Types, Gencot.Util.Decl, Gencot.Json.Identifier
+  other-modules:       Gencot.Traversal, Gencot.Input, Gencot.Names, Gencot.Traversal, Gencot.Package, Gencot.Util.CallGraph, Gencot.Util.Equality, Gencot.Util.Expr, Gencot.Util.Types, Gencot.Util.Decl, Gencot.Util.Functions, Gencot.Json.Identifier
   other-extensions:    PackageImports
   build-depends:       ansi-wl-pprint ^>=0.6.8.2
                        , base ^>=4.12.0.0, language-c ^>=0.8.2, bytestring ^>=0.10.8.2, containers ^>=0.6.0.1, filepath ^>=1.4.2.1

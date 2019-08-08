@@ -93,7 +93,7 @@ CMD=$1
 case "$CMD" in
     init) TAILCMD='parmod-gen';PARSE='yes';;
     close) TAILCMD='parmod-gen';PARSE='yes';CLOSE='close';;
-    extern) TAILCMD='parmod-extfuns';PARSE='yes';REQARGS=2;;
+    extern) TAILCMD='parmod-externs';PARSE='yes';REQARGS=2;;
     show) ;;
     idlist) ;;
     diff) REQARGS=2;;
@@ -173,7 +173,14 @@ then
     for file in $(< $1)
     do prepare_cfile $file
     done
-    $BIN/$TAILCMD < $TMPDIR/infiles | sort > $TMPDIR/extfunids
+    UBASE=$(basename $1)
+    UNAME=$(expr match $UBASE '\(.*\)[.][^.]*' '|' $UBASE)
+    EVFILE=$GENCOTDIR/$UNAME.gencot-extvars
+    if [ ! -e $EVFILE ]
+    then
+        EVFILE=
+    fi
+    $BIN/$TAILCMD $EVFILE < $TMPDIR/infiles | sort > $TMPDIR/extfunids
     $BIN/$PRC filter $TMPDIR/extfunids < $2 | tee $TMPDIR/extfuns.json \
         | $BIN/$PRC funids | sort | diff - $TMPDIR/extfunids > $TMPDIR/extfunids.diff
     if [ -s $TMPDIR/extfunids.diff ]

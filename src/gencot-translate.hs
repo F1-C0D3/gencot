@@ -34,5 +34,4 @@ main = do
 constructFilter :: DeclEvent -> Bool
 constructFilter (TagEvent (EnumDef (EnumType (AnonymousRef _) _ _ _))) = False
 constructFilter (DeclEvent (Declaration _)) = False
-constructFilter (DeclEvent (ObjectDef _)) = False
 constructFilter _ = True

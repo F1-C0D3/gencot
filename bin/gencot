@@ -215,12 +215,17 @@ then
     for file in $(< $CFILE)
     do prepare_cfile $file
     done
-    $BIN/gencot-extfuns $JFILE < $TMPDIR/infiles | $BIN/gencot-reporigs \
-        | $BIN/gencot-mrgcomments /dev/null > $TMPDIR/$CNAME-exit.cogent
-    $BIN/gencot-exttypes $JFILE < $TMPDIR/infiles | $BIN/gencot-reporigs \
+    EVFILE=$GENCOTDIR/$CNAME.gencot-extvars
+    if [ ! -e $EVFILE ]
+    then
+        EVFILE=
+    fi
+    $BIN/gencot-externs $JFILE $EVFILE < $TMPDIR/infiles | $BIN/gencot-reporigs \
+        | $BIN/gencot-mrgcomments /dev/null > $TMPDIR/$CNAME-externs.cogent
+    $BIN/gencot-exttypes $JFILE $EVFILE < $TMPDIR/infiles | $BIN/gencot-reporigs \
         | $BIN/gencot-defcomments $COMMENTDIR \
         | $BIN/gencot-mrgcomments /dev/null > $TMPDIR/$CNAME-exttypes.cogent
-    cp $TMPDIR/$CNAME-exit.cogent $TMPDIR/$CNAME-exttypes.cogent .
+    cp $TMPDIR/$CNAME-externs.cogent $TMPDIR/$CNAME-exttypes.cogent .
 elif [ "$CMD" == "check" ]
 then 
     prepare_cfile $CFILE

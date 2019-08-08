@@ -13,30 +13,11 @@ import Language.C.Analysis.TravMonad (Trav,MonadSymtab)
 
 import Gencot.Util.Equality
 
-{-----------}
-collectUsedTypes :: LCA.DeclEvent -> Trav TypeSet ()
-collectUsedTypes (LCA.DeclEvent (LCA.Declaration decl)) | not $ isFunction $ LCA.declType decl =
-    addTypes $ declTypes (not . isPrimitive) decl
-collectUsedTypes (LCA.DeclEvent (LCA.ObjectDef odef)) = addTypes $ declTypes (not . isPrimitive) odef
-collectUsedTypes (LCA.DeclEvent (LCA.FunctionDef fdef)) = 
-    addTypes $ selInFunction (not . isPrimitive) $ LCA.declType fdef
-collectUsedTypes (LCA.LocalEvent decl) = addTypes $ declTypes (not . isPrimitive) decl
-collectUsedTypes (LCA.TypeDefEvent (LCA.TypeDef _ t _ _)) = addTypes $ considerType (not . isPrimitive) t
-collectUsedTypes (LCA.TagEvent (LCA.CompDef (LCA.CompType _ _ mems _ _))) = 
-    addTypes $ filter (not . isPrimitive) $ map LCA.declType mems
-collectUsedTypes _ = return ()
-
-addTypes :: TypeSet -> Trav TypeSet ()
-addTypes types = modifyUserState (union types)
-{------}
-
 type TypeCarrier = LCA.DeclEvent
 type TypeCarrierSet = [TypeCarrier]
 
 -- | Callback handler for collecting initial type carriers
 collectTypeCarriers :: TypeCarrier -> Trav TypeCarrierSet ()
-collectTypeCarriers e@(LCA.DeclEvent (LCA.Declaration (LCA.Decl (LCA.VarDecl _ _ t) _))) 
-    | (not $ isFunction t) && (not $ isFunPointerOptArr t) && carriesNonPrimitive e = modifyUserState (e:)
 collectTypeCarriers e@(LCA.DeclEvent (LCA.ObjectDef _)) | carriesNonPrimitive e = modifyUserState (e:)
 collectTypeCarriers e@(LCA.DeclEvent (LCA.FunctionDef _)) | carriesNonPrimitive e = modifyUserState (e:)
 collectTypeCarriers e@(LCA.LocalEvent _) | carriesNonPrimitive e = modifyUserState (e:)
@@ -58,8 +39,6 @@ carriedTypes (LCA.ParamEvent decl) = [LCA.declType decl]
 carriedTypes (LCA.TypeDefEvent (LCA.TypeDef _ t _ _)) = [t]
 carriedTypes (LCA.TagEvent (LCA.CompDef (LCA.CompType _ _ mems _ _))) = nub $ map LCA.declType mems
 carriedTypes _ = []
-
---carriedDerivedParts :: TypeCarrier - TypeSet
 
 transCloseUsedCarriers :: LCD.DefTable -> TypeCarrierSet -> TypeCarrierSet
 transCloseUsedCarriers dt tcs = transCloseCarriers (usedCarriers (usedTypeNames tcs) dt) tcs
@@ -161,15 +140,6 @@ closeDerivedAndExternal :: LCD.DefTable -> TypeSet -> TypeSet
 closeDerivedAndExternal dt types = transCloseTypes (selTypes (not . isPrimitive)) types
     where selTypes p = unionTypeSelector [selInDerived p, selInFunction p, selInExtTypeDef dt p, selInExtComp dt p]
 
--- | Retrieve from a set of type carriers all declarations with a directly specified function pointer (array) type
-getFunctionObjects :: TypeCarrierSet -> [LCA.IdentDecl]
-getFunctionObjects tcs = concat $ map getFunObjects tcs
-
-getFunObjects :: TypeCarrier -> [LCA.IdentDecl]
-getFunObjects (LCA.DeclEvent d@(LCA.Declaration decl)) | (not . isFunction) $ LCA.declType decl = 
-    if getsParmodDescr $ LCA.declType decl then [d] else []
-getFunObjects _ = []
-
 -- | Retrieve from a set of type carriers the referenced external type definitions for types
 -- which ultimately resolve to a function (pointer (array)) type
 getExtFunctionTypeDefs :: TypeCarrierSet -> [LCA.TypeDef]
@@ -177,38 +147,17 @@ getExtFunctionTypeDefs tcs = concat $ map getExtFunTypeDefs tcs
 
 getExtFunTypeDefs :: TypeCarrier -> [LCA.TypeDef]
 getExtFunTypeDefs (LCA.TypeDefEvent td@(LCA.TypeDef _ t _ _)) | isExtern td = 
-    let typ = resolveTypedef t in
-        if isFunction typ || isFunPointerOptArr typ then [td] else []
+    if isFunction t || isFunPointerOptArr t then [td] else []
 getExtFunTypeDefs _ = []
 
-{-- | Retrieve from a set of types the referenced external type definitions
--- for types which ultimately resolve to a function (pointer (array)) type
-getExternalFunTypeDefs :: LCD.DefTable -> TypeSet -> [LCA.TypeDef]
-getExternalFunTypeDefs dt types =
-    filter isExtern $ catMaybes $ map (getTypeDef dt) $ nub $ map typeIdent $ filter isFunTypeRef types 
-    where isFunTypeRef (LCA.TypeDefType (LCA.TypeDefRef _ t _) _ _) = isFunction t || isFunPointerOptArr t
-          isFunTypeRef _ = False
-          -}
-          
 -- | Retrieve from a set of type carriers all members of external composite types
 -- with a directly specified function (pointer (array)) type
 getExtFunctionMembers :: TypeCarrierSet -> [(LCI.SUERef, LCA.MemberDecl)]
 getExtFunctionMembers tcs = concat $ map getExtFunMembers tcs
 
-{--- | Retrieve from a set of types the referenced external composite type definitions
--- and for each of them all members with a directly specified function (pointer (array)) type
-getExternalFunMembers :: LCD.DefTable -> TypeSet -> [(LCI.SUERef, LCA.MemberDecl)]
-getExternalFunMembers dt types =
-    concat $ map getFunMembers ecomps
-    where ecomps = filter isExtern $ catMaybes $ map (getTagDef dt) $ nub $ map getRef $ filter isCompTypeRef types
-          isCompTypeRef (LCA.DirectType (LCA.TyComp _) _ _) = True
-          isCompTypeRef _ = False
-          getRef (LCA.DirectType (LCA.TyComp (LCA.CompTypeRef ref _ _)) _ _) = ref
-          -}
-
 getExtFunMembers :: TypeCarrier -> [(LCI.SUERef, LCA.MemberDecl)]
 getExtFunMembers e@(LCA.TagEvent (LCA.CompDef (LCA.CompType ref _ membs _ _))) | isExtern e =
-    map (\mdec -> (ref,mdec)) $ filter (getsParmodDescr . LCA.declType) membs
+    map (\mdec -> (ref,mdec)) $ filter (isFunPointerOptArr . LCA.declType) membs
 getExtFunMembers _ = []
 
 -- | Type selector combination.
@@ -290,13 +239,15 @@ selNonDerived p (LCA.FunctionType (LCA.FunType rt pars _) _) =
 selNonDerived p (LCA.FunctionType (LCA.FunTypeIncomplete rt) _) = selNonDerived p rt
 selNonDerived p t = considerType p t
 
-selDerivedParts :: TypeSelector
-selDerivedParts t@(LCA.PtrType bt _ _) = t : selDerivedParts bt
-selDerivedParts t@(LCA.ArrayType bt _ _ _) = t : selDerivedParts bt
-selDerivedParts t@(LCA.FunctionType (LCA.FunType rt pars _) _) = 
-    t : union (selDerivedParts rt) (nub $ concat $ map (selDerivedParts . LCA.declType) pars)
-selDerivedParts t@(LCA.FunctionType (LCA.FunTypeIncomplete rt) _) = t : selDerivedParts rt
-selDerivedParts t = []
+-- | Get derived types occurring syntactically in a type, including the type itself.
+-- All result types are paired with a function id. The first argument is a function id for the type itself.
+getDerivedParts :: String -> LCA.Type -> [(String,LCA.Type)]
+getDerivedParts fid t@(LCA.PtrType bt _ _) = (fid,t) : getDerivedParts "" bt
+getDerivedParts fid t@(LCA.ArrayType bt _ _ _) = (fid,t) : getDerivedParts "" bt
+getDerivedParts fid t@(LCA.FunctionType (LCA.FunType rt pars _) _) = 
+    (fid,t) : union (getDerivedParts "" rt) (nub $ concat $ map ((getDerivedParts "") . LCA.declType) pars)
+getDerivedParts fid t@(LCA.FunctionType (LCA.FunTypeIncomplete rt) _) = (fid,t) : getDerivedParts "" rt
+getDerivedParts _ _ = []
 
 isLinearType :: MonadSymtab m => LCA.Type -> m Bool
 isLinearType td@(LCA.TypeDefType _ _ _) = isLinearType $ resolveTypedef td

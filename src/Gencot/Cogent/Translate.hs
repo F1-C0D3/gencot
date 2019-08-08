@@ -23,8 +23,8 @@ import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapName
 import Gencot.Cogent.Ast
 import Gencot.C.Translate (transStat,transExpr)
 import Gencot.Traversal (FTrav,getParmods)
-import Gencot.Util.Types (carriedTypes,selDerivedParts,usedTypeNames,resolveFully,isExtern,isAggOrFunc,isAggPointer,isNamedFunPointer,isFunPointer,isFunction,isArray,resolveTypedef,isAggregate,isLinearParType,isReadOnlyParType,wrapFunAsPointer)
-import Gencot.Json.Identifier (getFunId,getFunMemberId,getFunTypeId,getLocalFunId)
+import Gencot.Util.Types (getDerivedParts,usedTypeNames,resolveFully,isExtern,isAggOrFunc,isAggPointer,isNamedFunPointer,isFunPointer,isFunction,isArray,resolveTypedef,isAggregate,isLinearParType,isReadOnlyParType,wrapFunAsPointer)
+import Gencot.Json.Identifier (getFunId,getFunMemberId,getFunTypeId,getLocalFunId,carriedWithFunIds)
 
 genType t = GenType t noOrigin
 
@@ -42,27 +42,32 @@ transGlobal (LCA.TagEvent (LCA.CompDef (LCA.CompType sueref LCA.UnionTag _ _ n))
 transGlobal (LCA.TagEvent (LCA.EnumDef (LCA.EnumType sueref es _ n))) = do
     tn <- transTagName $ LCA.TyEnum $ LCA.EnumTypeRef sueref n
     return $ GenToplv (CS.TypeDec tn [] $ genType $ CS.TCon "U32" [] markUnbox) $ mkOrigin n
-transGlobal (LCA.DeclEvent (LCA.Declaration (LCA.Decl decl@(LCA.VarDecl (LCA.VarName idnam _) _ typ) n))) = do
+transGlobal (LCA.DeclEvent (LCA.Declaration decl@(LCA.Decl (LCA.VarDecl (LCA.VarName idnam _) _ typ) n))) = do
     f <- transObjName idnam
     fid <- parmodFunId decl
     t <- transType fid typ
     t <- applyParmods fid t
-    return $ GenToplv (CS.AbsDec f (CS.PT [] t)) $ mkOrigin n
-transGlobal (LCA.DeclEvent (LCA.FunctionDef (LCA.FunDef decl@(LCA.VarDecl (LCA.VarName idnam _) _ typ) stat n))) = do
+    return $ GenToplv (CS.AbsDec f (CS.PT [] $ mkFunType t)) $ mkOrigin n
+transGlobal (LCA.DeclEvent (LCA.FunctionDef fdef@(LCA.FunDef decl@(LCA.VarDecl (LCA.VarName idnam _) _ typ) stat n))) = do
     f <- transObjName idnam
-    fid <- parmodFunId decl
+    fid <- parmodFunId fdef
     t <- transType fid typ
     t <- applyParmods fid t
     ps <- transParamNames pars
     LCA.enterFunctionScope
     LCA.defineParams LCN.undefNode decl
     d <- dummyExpr res
-    d <- extendExpr decl d pars
+    d <- extendExpr fdef d pars
     s <- transStat stat
     LCA.leaveFunctionScope
     return $ GenToplv (CS.FunDef f (CS.PT [] t) [CS.Alt ps CCS.Regular $ FunBody d s]) $ mkOrigin n
     where (LCA.FunctionType (LCA.FunType res vpars isVar) _) = typ
           pars = (if isVar then [] else vpars)
+transGlobal (LCA.DeclEvent odef@(LCA.ObjectDef (LCA.ObjDef decl@(LCA.VarDecl (LCA.VarName idnam _) _ typ) _ n))) = do
+    f <- transObjName idnam
+    fid <- parmodFunId odef
+    t <- transType fid typ
+    return $ GenToplv (CS.AbsDec f (CS.PT [] $ mkFunType t)) $ mkOrigin n
 transGlobal (LCA.DeclEvent (LCA.EnumeratorDef (LCA.Enumerator idnam expr _ n))) = do
     e <- transExpr expr
     return $ GenToplv (CS.ConstDef en (genType $ CS.TCon "U32" [] markUnbox) $ ConstExpr e) $ mkOrigin n
@@ -75,36 +80,45 @@ transGlobal (LCA.TypeDefEvent td@(LCA.TypeDef idnam typ _ n)) = do
                                         else typ
 transGlobal _ = return $ GenToplv (CS.Include "err-unexpected toplevel") noOrigin
 
-transExtTypeDefs :: [LCA.DeclEvent] -> FTrav [GenToplv]
-transExtTypeDefs tds = mapM (transExtTypeDef (usedTypeNames tds)) tds
+transExtGlobals :: [String] -> [LCA.DeclEvent] -> FTrav [GenToplv]
+transExtGlobals tds tcs = mapM (transExtGlobal tds) tcs
 
-transExtTypeDef :: [String] -> LCA.DeclEvent -> FTrav GenToplv
-transExtTypeDef tds (LCA.TypeDefEvent td@(LCA.TypeDef idnam typ _ n)) = do
+transExtGlobal :: [String] -> LCA.DeclEvent -> FTrav GenToplv
+transExtGlobal tds (LCA.TypeDefEvent td@(LCA.TypeDef idnam typ _ n)) = do
     t <- transType (getFunTypeId td) restyp
     return $ GenToplv (CS.TypeDec tn [] t) $ mkOrigin n
     where tn = mapNameToUpper idnam
           restyp = resolveFully tds modiftyp
           modiftyp = if isAggOrFunc typ then (LCA.PtrType typ LCA.noTypeQuals [])
                                         else typ
+transExtGlobal tds (LCA.TagEvent (LCA.CompDef (LCA.CompType sueref LCA.StructTag mems _ n))) = do
+    tn <- transTagName $ LCA.TyComp $ LCA.CompTypeRef sueref LCA.StructTag n
+    ms <- mapM (transExtMember tds sueref) (aggBitfields mems)
+    return $ GenToplv (CS.TypeDec tn [] $ genType $ CS.TRecord ms markBox) $ mkOrigin n
+transExtGlobal _ e = transGlobal e
 
-genTypeDefs :: [LCA.DeclEvent] -> FTrav [GenToplv]
-genTypeDefs tcs = do
-    derivedTypes <- liftM (nub . concat) $ mapM genDerivedTypeNames tcs
+genTypeDefs :: [String] -> [LCA.DeclEvent] -> FTrav [GenToplv]
+genTypeDefs tds tcs = do
+    derivedTypes <- liftM (nub . concat) $ mapM (genDerivedTypeNames tds) tcs
     mapM genAbsTypeDef derivedTypes
 
-genDerivedTypeNames :: LCA.DeclEvent -> FTrav [String]
-genDerivedTypeNames tc = liftM (map getName) $ mapM (transType "") $ filter (\t -> not $ (isAggPointer t || isNamedFunPointer t)) $ 
-                            nub $ map wrapFunAsPointer $ concat $ map selDerivedParts $ carriedTypes tc
+genDerivedTypeNames :: [String] -> LCA.DeclEvent -> FTrav [String]
+genDerivedTypeNames tdn tc = do
+    sfn <- srcFileName tc
+    liftM (map getName) $ mapM (\(fid,t) -> transType fid t) $ 
+        filter (\(_,t) -> not $ (isAggPointer t || isNamedFunPointer t)) $ 
+        nub $ map (\(fid,t) -> (fid,wrapFunAsPointer t)) $ 
+        concat $ map (uncurry getDerivedParts) $ carriedWithFunIds sfn tdn tc
     where getName (GenType (CS.TCon nam [] _) _) = nam
 
 genAbsTypeDef :: String -> FTrav GenToplv
 genAbsTypeDef nam = 
     return $ GenToplv (CS.AbsTypeDec nam [] []) noOrigin
 
-parmodFunId :: LCA.VarDecl -> FTrav String
-parmodFunId decl = do
-    sfn <- srcFileName $ LCA.declIdent decl
-    return $ getFunId decl sfn
+parmodFunId :: (LCA.Declaration d, LCN.CNode d) => d -> FTrav String
+parmodFunId fdef = do
+    sfn <- srcFileName $ LCA.declIdent fdef
+    return $ getFunId fdef sfn
 
 applyParmods :: String -> GenType -> FTrav GenType
 applyParmods fid (GenType (CS.TFun pt rt) o) = do
@@ -129,10 +143,10 @@ applyToRes pts rt = mkGenType $ addrps rt
           addrps (GenType CS.TUnit _) = rps
           addrps t = t : rps
 
-extendExpr :: LCA.VarDecl -> RawExpr -> [LCA.ParamDecl] -> FTrav RawExpr
-extendExpr decl e pars = do
-    sfn <- srcFileName $ LCA.declIdent decl
-    pms <- getParmods $ getFunId decl sfn
+extendExpr :: LCA.FunDef -> RawExpr -> [LCA.ParamDecl] -> FTrav RawExpr
+extendExpr fdef e pars = do
+    sfn <- srcFileName $ LCA.declIdent fdef
+    pms <- getParmods $ getFunId fdef sfn
     let res = map (CS.RE . CS.Var . mapIfUpper . LCA.declIdent . snd) $ filter (((==) "yes") . fst) $ zip pms pars
     return $ mkRawExpr $ addres res e
     where addres res (CS.RE CS.Unitel) = res
@@ -177,6 +191,11 @@ transMember sueref mdecl@(LCA.MemberDecl (LCA.VarDecl (LCA.VarName idnam _) att 
     t <- transType (getFunMemberId sueref mdecl) typ
     return (mapIfUpper idnam, ((GenType (typeOfGT t) $ mkOrigin n), False))
 {- LCA.AnonBitField cannot occur since it is always replaced by aggBitfields -}
+
+transExtMember :: [String] -> LCI.SUERef -> LCA.MemberDecl -> FTrav (CCS.FieldName, (GenType, CS.Taken))
+transExtMember tds sueref mdecl@(LCA.MemberDecl (LCA.VarDecl (LCA.VarName idnam _) att typ) _ n) = do
+    t <- transType (getFunMemberId sueref mdecl) (resolveFully tds typ)
+    return (mapIfUpper idnam, ((GenType (typeOfGT t) $ mkOrigin n), False))
 
 transParamNames :: [LCA.ParamDecl] -> FTrav GenIrrefPatn
 transParamNames [] = return $ GenIrrefPatn CS.PUnitel noOrigin
@@ -298,6 +317,10 @@ funType (GenType CS.TUnit o) = mkBoxedType "CFunRet_Void" o
 funType (GenType (CS.TCon nam [] CCT.Unboxed) o) = mkBoxedType ("CFunRet_U_"++nam) o
 funType (GenType (CS.TCon nam [] b) o) = mkUnboxedType ("CFunRet_"++nam) o
 funType (GenType (CS.TFun ps r) o) = funType $ funType r
+
+mkFunType :: GenType -> GenType
+mkFunType t@(GenType (CS.TFun _ _) _) = t
+mkFunType t = genType $ CS.TFun (mkGenType []) t
 
 -- The first argument is the parmod function identifier of the parameters' function.
 transParamTypes :: String -> [LCA.ParamDecl] -> FTrav GenType

@@ -22,8 +22,8 @@ file \code{x-abstypes.c} or \code{x-abstypes.h}. It processes typedefs and struc
 \item[\code{gencot-remfundef}] processes a single file \code{x.c} by removing all function definitions. The output
 is intended to be put in file \code{x-globals.c}
 \item[\code{gencot-deccomments}] processes a single file \code{x.c} or \code{x.h} to 
-\item[\code{parmod-gen}] processes a single file \code{x.c} and generates the Json template for specifying
-function parameter modification (see Section~\ref{impl-parmod}).
+\item[\code{parmod-gen}] processes a single file \code{x.c} and generates the 
+function parameter modification descriptions (see Section~\ref{impl-parmod}).
 \end{description}
 
 All these filters take the name of the original source file as additional first
@@ -47,13 +47,12 @@ Gencot uses the following processors of this kind:
 processes externally referenced typedefs, tag definitions and enum constant definitions.
 \item[\code{gencot-absext}] generates the content to be put in the file \code{<package>-exttypes.c}. It 
 processes externally referenced typedefs, tag definitions and enum constant definitions.
-\item[\code{gencot-exit}] generates the exit wrappers to be put in the file \code{<package>-exit.ac}. It processes
+\item[\code{gencot-externs}] generates the abstract function definitions to be put in the file 
+\code{<package>-externs.cogent}. It processes the declarations of externally referenced functions and variables.
+\item[\code{gencot-externsac}] generates the exit wrappers to be put in the file \code{<package>-externs.ac}. It processes
 the declarations of externally referenced functions.
-\item[\code{gencot-extfuns}] generates the abstract function definitions to be put in the file 
-\code{<package>-exit.cogent}. It processes the declarations of externally referenced functions.
-\item[\code{parmod-extfuns}] generates the list of function identifiers of all externally referenced functions.
-\item[\code{gencot-extincludes}] generates the list of include directives to be put in the file
-\code{<package>-extincludes.c}. It processes all external name references. 
+\item[\code{parmod-externs}] generates the list of function identifiers of all externally referenced functions and
+function pointer (array)s.
 \end{description}
 
 \subsection{Main Translation to Cogent}
@@ -184,12 +183,15 @@ A pointer type contains mutable pointers if its base type is not \code{const} qu
 A primitive type and an enum type does not contain mutable pointers. A struct or union type contains mutable 
 pointers, if the type of a member contains mutable pointers.
 
-\subsection{External Functions}
-\label{impl-ccomps-exit}
+\subsection{External Functions and Variables}
+\label{impl-ccomps-externs}
 
 For the exit wrapper functions Gencot generates the Cogent abstract function definitions and the implementations
 in antiquoted C. Exit wrappers are generated for all functions which are invoked but not defined in the Cogent code. 
 The information required for each of these functions is contained in the C function declaration.
+
+Additionally, Gencot generates Cogent abstract function definitions for access functions to selected external
+variables without providing an implementation in antiquoted C.
 
 \subsubsection{Determining External Functions}
 
@@ -221,33 +223,68 @@ using either an incomplete declaration or a complete declaration it can be contr
 function definition is generated for it. If the macro is translated to a macro in Cogent, no abstract function
 definition shall be generated and an incomplete dummy declaration must be used.
 
-\subsubsection{Processor \code{gencot-extfuns}}
+\subsubsection{Determining External Variables}
 
-The processor \code{gencot-extfuns} generates the Cogent abstract function definitions. It parses and analyses
+As for functions, Gencot also restricts the processed external variables to a subset of the declared variables.
+It would be possible to determine the accessed variables in a similar way as the functions are determined with
+the help of the call graph. Gencot does this for all variables of function pointer (array) type, using the 
+call graph. Variables accessed in other ways or of other types may be specified explicitly as a list. This
+provides more control about the processed external variables for the developer.
+
+The external variables are specified in an auxiliary input file by their names, each in a seperate line. Only
+variables with external linkage can be specified, for them the name is unique in the <package>.
+
+\subsubsection{Processor \code{gencot-externs}}
+
+The processor \code{gencot-externs} generates the Cogent abstract function definitions. It is invoked as
+\begin{verbatim}
+  gencot-externs [<parmod file> [<varlist file>]]
+\end{verbatim}
+where the optional arguments are a file with parameter modification descriptions and with the names of external
+variables to be processed.
+
+The processor parses and analyses
 all C source files specified in the package file, resulting in the list of corresponding symbol tables, as
 described in Section~\ref{impl-ccode-package}. Then
-it determines for every table the invoked functions as described in Section~\ref{impl-ccode-callgraph}. This must
+it determines for every table the invoked functions and function pointer (array)s as described in 
+Section~\ref{impl-ccode-callgraph}. This must
 be done before combining the tables, since invocations may also occur in the bodies of functions with internal
 linkage. These functions are removed during table combination.
 
 After determining the invoked functions, the tables are combined as described in Section~\ref{impl-ccode-package}
 and the invocations are reduced to those for
-which a declarations is present in the combined table. These are the invocations of functions external to all
+which a declarations is present in the combined table. These are the invocations of functions and function
+pointer (array) variables external to all
 read C sources. The processor translates their declarations using the function \code{transGlobals} of
-module \code{Gencot.Cogent.Translate}. It translates C function declarations to abstract function definitions
+module \code{Gencot.Cogent.Translate}. It translates C function and variable declarations to abstract function 
+definitions
 in Cogent. It reads and uses parameter modification descriptions to determine readonly parameter types, the
-descriptions are generated by \code{parmod-extfuns} as described in Section~\ref{impl-ccomps-parmod}.
+descriptions are generated by \code{parmod-externs} as described in Section~\ref{impl-ccomps-parmod}.
 The result is output using \code{prettyTopLevels} from module \code{Gencot.Cogent.Output}.
 
-\subsubsection{Processor \code{gencot-extfunsac}}
+The processor takes two files as optional arguments. The first file contains parameter modification descriptions
+and is used for translating the types of functions and function pointers. If it is not specified all linear
+parameters are assumed to be modifyable by the function. The second file contains a list of newline-separated 
+names of external variables to be processed in addition to the invoked function pointer (array)s. This file can
+only be specified if the parameter modification description file is also specified. If no parameter modifications
+shall be used, a file containing the empty list \code{[]} can be used.
 
-The processor \code{gencot-extfunsac} generates the wrapper implementations in antiquoted C code.
+\subsubsection{Processor \code{gencot-externsac}}
+
+The processor \code{gencot-externsac} generates the wrapper implementations in antiquoted C code.
 
 \subsection{External Cogent Types}
 \label{impl-ccomps-exttypes}
 
-The filter \code{gencot-exttypes} generates all Cogent type definitions which do not result from
-translating a C type or tag definition in the <package>. There are two cases:
+The processor \code{gencot-exttypes} generates all Cogent type definitions which do not result from
+translating a C type or tag definition in the <package>. It is invoked as
+\begin{verbatim}
+  gencot-exttypes [<parmod file> [<varlist file>]]
+\end{verbatim}
+where the optional arguments are a file with parameter modification descriptions and with the names of external
+variables to be processed.
+
+There are two cases of types for which a definition must be generated:
 \begin{itemize}
 \item The type is a C derived type, i.e., a pointer type, array type or function type. As described in 
 Section~\ref{design-types}, Gencot maps all derived types to abstract types in Cogent and generates type names for
@@ -288,8 +325,10 @@ are defined in system include files similar to a composite type.
 
 Generally, Gencot translates type carriers to Cogent. It translates functions as described in Section~\ref{design-fundefs}
 and it translates enum types, composite types and type definitions as described in Section~\ref{design-types}.
-Gencot does not translate global or local variables, this must be done manually. To support the manual translation, 
-however, Gencot treats variables as if it would translate them to Cogent code referencing the translated declared type.
+Gencot translates global variables to an abstract access function, using the translated type of the variable.
+Gencot does not translate local variables, this must be done manually. To support the manual translation, 
+however, Gencot treats local variables as if it would translate them to Cogent code referencing the translated 
+declared type.
 
 The task of \code{gencot-exttypes} is to provide abstract definitions for all Cogent type names referenced 
 in the translated code for which
@@ -302,7 +341,7 @@ the same way as struct types.
 
 Gencot always translates a derived type to a type name of a Cogent abstract type. Hence the syntactic part types are 
 not referenced in the translated Cogent code directly. However, for complementing the abstract type by abstract
-functions for working with it, the syntactic part types may be needed. For derived function types Gencot automatically
+functions for working with it, the syntactic part types may be needed. For derived function pointer types Gencot automatically
 provides the abstract from/to/invk conversion functions (see Section~\ref{design-types-function}), for other derived 
 types functions may be defined manually. Therefore \code{gencot-exttypes} also provides definitions for all syntactic
 part types associated with a type carrier.
@@ -323,21 +362,19 @@ with the exception of syntactic types associated with a function,
 Since often only a small selection of the types defined by a system include file is used by a program, Gencot performs 
 an analysis to reduce the type carriers to be processed. 
 
-As described in Section~\ref{impl-ccomps-exit}, Gencot only translates external functions if they are actually invoked.
-Therefore, \code{gencot-exttypes} determines the external invoked functions in the same way. However, to support
+As described in Section~\ref{impl-ccomps-externs}, Gencot only translates external functions and variables if they are 
+actually invoked or explicitly listed by the developer.
+Therefore, \code{gencot-exttypes} determines the external invoked functions and variables in the same way. However, to support
 the manual translation of invoked variadic and incompletely declared functions, it also includes them. Note that
 the external invoked functions include those defined in the <package> outside the Cogent compilation unit, as well
 as those declared in a system include file.
-
-For the variables a similar analysis is performed if they have a function pointer (array) type, only the invoked
-variables are processed. For the variables of other types Gencot simply uses all known
-(defined or declared) variables as type carriers, including those from system include files.
 
 Enum types, composite types and typedef names are reduced by an analysis of type usage by reference. Every type carrier can be
 associated with the enum types, composite types and typedef names referenced in all associated syntactic part types. For 
 Composite types and typedef names this usage relation is transitive. To determine the relevant enum types, composite types 
 and typedef names defined in system include files, \code{gencot-exttypes} starts with all initial type carriers belonging
-to the Cogent compilation unit, together with all external invoked functions. It then determines all transitively
+to the Cogent compilation unit, together with all external invoked functions and the processed external variables. 
+It then determines all transitively
 used enum types, composite types and typedef names (which all must be defined in system include files).
 
 To further reduce type carriers, the types associated with external type carriers are ``fully resolved'', i.e.~all
@@ -363,9 +400,9 @@ type carriers which are local, have internal linkage, or are still contained in 
 This will avoid duplicate occurrences of type carriers.
 
 All parameter declarations are ignored by the callback handler, since for every parameter declaration there must be 
-a \code{DeclEvent} for the containing function, which is processed by the handler. Function declarations are also
-ignored, since they represent external functions which are separately determined using the invocation relation. Also,
-a function declared in one source file may be defined in another source file of the Cogent compilation unit and thus 
+a \code{DeclEvent} for the containing function, which is processed by the handler. Function and global variable declarations 
+are also ignored, since they represent external functions and variables which are separately determined. Also,
+a function or variable declared in one source file may be defined in another source file of the Cogent compilation unit and thus 
 be not external. Type carriers where all associated types are primitive (including enum types) are also ignored, 
 since they may neither contain derived types nor reference other type carriers.
 
@@ -379,7 +416,7 @@ specified as absolute paths whereas include paths belonging to the <package> mus
 to make the heuristics work.
 
 After the language-c analysis phase the declarations of all invoked external functions are determined 
-as described in Section~\ref{impl-ccomps-exit}. If the associated syntactic type is a typedef name, it is resolved
+as described in Section~\ref{impl-ccomps-externs}. If the associated syntactic type is a typedef name, it is resolved
 to a derived function type. Afterwards, all invoked external functions where not all associated syntactic types
 are primitive are added to the combined type carriers determined by the callback handler. No duplicate type carriers
 will result here since the combined symbol table contains every external declaration only once.
@@ -396,10 +433,16 @@ syntactic entities in a source file, they can be identified and compared by thei
 
 For all external enum types, composite types and typedef names in the resulting set \code{gencot-exttypes} translates the
 definition to Cogent as described in Sections~\ref{design-types-enum} and~\ref{design-types-struct}.
-For type names it fully resolves the defining type, as described above.
+All types used in these definitions are fully resolved, as described above.
 
-This is implemented by the same monadic action \code{transGlobals} as the main translation to Cogent described
-in Section~\ref{impl-ccomps-main}.
+To support the full resolving of types, the normal monadic action \code{transGlobals} used by the main translation 
+to Cogent described in Section~\ref{impl-ccomps-main} cannot be used. The resolving needs access to all
+type names directly referenced from the Cogent compilation unit to stop the resolving there.
+The translation of external types is implemented by the monadic action 
+\begin{verbatim}
+  transExtGlobals :: [String] -> [DeclEvent] -> FTrav [GenToplv]
+\end{verbatim}
+where the string list contains the referenced type names.
 
 For all derived types associated as syntactic part type with a type carrier in the set, an abstract type
 definition must be generated (with the exception of the syntactic types of functions). Only one definition
@@ -418,10 +461,11 @@ derived types are omitted by \code{gencot-exttypes}.
 
 Generating the abstract type definitions for derived types is implemented by the monadic action
 \begin{verbatim}
-  genTypeDefs :: [DeclEvent] -> FTrav [GenToplv]
+  genTypeDefs :: [String] -> [DeclEvent] -> FTrav [GenToplv]
 \end{verbatim}
 in module \code{Gencot.Cogent.Translate}, where the list of \code{DeclEvent}s corresponds to the type carriers
-to be processed.
+to be processed. The string list contains the type names referenced in the Cogent compilation unit, it is
+used to fully resolve all types in external type carriers.
 
 \subsection{Declarations}
 \label{impl-ccomps-decls}
@@ -494,32 +538,44 @@ in Section~\ref{impl-ccode-callgraph}. Then another traversal is performed using
 defined in module \code{Gencot.Json.Translate}. The resulting list of JSON objects is output as described 
 in Section~\ref{impl-parmod-json}.
 
-\subsubsection{Processor \code{parmod-extfuns}}
+\subsubsection{Processor \code{parmod-externs}}
 
-The processor \code{parmod-extfuns} is used to generate the parameter modification descriptions intended
-to be used by \code{gencot-extfuns} (see Section~\ref{impl-ccomps-exit}) and \code{gencot-exttypes} 
-(see Section~\ref{impl-ccomps-exttypes}). Since all these parameter modification descriptions are already
+The processor \code{parmod-externs} is used to generate the parameter modification descriptions intended
+to be used by \code{gencot-externs} (see Section~\ref{impl-ccomps-externs}) and \code{gencot-exttypes} 
+(see Section~\ref{impl-ccomps-exttypes}). It is invoked as
+\begin{verbatim}
+  parmod-externs [<varlist file>]
+\end{verbatim}
+where the optional argument is a list of names of external variables to be processed.
+
+Since all these parameter modification descriptions are already
 generated by \code{parmod-gen}, the processor only generates a list of function identifiers, as described in 
 Section~\ref{impl-parmod-ids}. Every identifier is output in a separate line. The identifiers can be used
 to specifically select and manually process only those descriptions which are actually required by
-\code{gencot-extfuns} and \code{gencot-exttypes}. 
+\code{gencot-externs} and \code{gencot-exttypes}. 
 
 However, only identifiers for those descriptions are listed,
 which are not yet needed by \code{gencot-translate} to translate the source files of the Cogent compilation unit.
 The idea is to merge these with the descriptions selected by the listed identifiers to determine the 
-descriptions needed by \code{gencot-extfuns} and \code{gencot-exttypes}.
+descriptions needed by \code{gencot-externs} and \code{gencot-exttypes}.
 
-The processor \code{gencot-extfuns} processes declarations of external invoked functions. It needs parameter
+The processor \code{gencot-externs} processes declarations of external invoked functions. It needs parameter
 modification descriptions for these functions and for their parameters of function (pointer (array)) type.
-The descriptions for the parameters are needed by \code{gencot-extfuns} to translate the parameter type as part of the 
+The descriptions for the parameters are needed by \code{gencot-externs} to translate the parameter type as part of the 
 generated abstract Cogent function definition. 
 
-Although \code{gencot-extfuns} only processes complete function declarations of non-variadic external functions, 
-\code{parmod-extfuns} also lists identifiers for incompletely declared functions and for variadic functions,
+Although \code{gencot-externs} only processes complete function declarations of non-variadic external functions, 
+\code{parmod-externs} also lists identifiers for incompletely declared functions and for variadic functions,
 if they are invoked in the Cogent compilation unit. This is intended as an 
 information for the developer who has to translate invocations of such functions manually. All these
 external invoked functions are determined with the help of the call graph in the same way as described for 
-\code{gencot-extfuns} in Section~\ref{impl-ccomps-exit}.
+\code{gencot-externs} in Section~\ref{impl-ccomps-externs}.
+
+The processor \code{gencot-externs} also processes external variables, if they are invoked or listed explicitly
+by the developer. Parameter modification descriptions are only relevant for variables of function pointer (array)
+type. There may be such variables which are not invoked, but explicitly specified by the developer. For this
+reason \code{parmod-externs} also reads the list of external variables to be processed in addition to the
+invoked variables.
 
 External invoked composite type members are not included, since they will be added through the used types below. To invoke 
 a composite type member an object must exist which is a type carrier for the composite type. The parameter modification
@@ -536,15 +592,14 @@ for typedef names where the defining type is a function (pointer (array)) type. 
 function type must be syntactically included. If it is specified using a typedef name, the parameter modification
 description is only used for translating the corresponding type definition.
 
-Accordingly, \code{parmod-extfuns} lists for all processed type carriers the function ids of all composite type
+Accordingly, \code{parmod-externs} lists for all processed type carriers the function ids of all composite type
 members and of all typedef names which have a type of this kind. These descriptions cover all cases needed
 by \code{gencot-exttypes}.
 
 The type carriers to be processed are determined in the same way as by \code{gencot-exttypes}. Note that the 
-external invoked functions are already included there, however, those with only primitive types are omitted.
-Here we also include them, since \code{gencot-extfuns} processes them. Also included are all external 
-variables of function pointer (array) type, since they are processed by \code{gencot-exttypes}.
-For these external function pointer (array)s descriptions for parameters are not listed, since
+external invoked functions and variables are already included there, however, those with only primitive types are omitted.
+Here we also include them, since \code{gencot-externs} processes them. 
+For external function pointer (array)s descriptions for parameters are not listed, since
 for the parameter types of function pointers no parameter modification descriptions are used by Gencot, they
 are always translated assuming as default that all nonlinear parameters are modified.
 
@@ -552,18 +607,17 @@ Descriptions for composite types and typedef names need only be processed if the
 file. In all other cases they are already needed by \code{gencot-translate} for translating the source files
 of the Cogent compilation unit and are omitted here.
 
-For the determined type carriers \code{parmod-extfuns} lists the identifiers of 
+For the determined type carriers \code{parmod-externs} lists the identifiers of 
 the parameter modification descriptions for the following entities:
 \begin{itemize}
 \item declarations of external invoked functions, together with all their parameters, if the parameter
 type is a function (pointer (array)) type directly specifying the function type,
-\items declarations of external function pointer (array)s, if the declared type directly specifies
+\items declarations of external invoked or listed function pointer (array)s, if the declared type directly specifies
 the function type,
-\item members of all composite types defined in system include files, if their type is a function pointer (array) type
-directly specifying the function type,
+\item members of all composite types defined in system include files, if their type resolves to a function pointer (array) type.
 \item typedef names defined in a system include file, if they resolve to a function (pointer (array)) type.
 \end{itemize}
 
-Note that typedef names in system include files need not specify a function type directly for being listed, since 
-external typedef names are fully resolved by \code{gencot-exttypes} and the resulting type is needed to translate 
+Note that typedef names and member types in system include files need not specify a function type directly for being listed, 
+since types in external type carriers are fully resolved by \code{gencot-exttypes} and the resulting type is needed to translate 
 the type definition.

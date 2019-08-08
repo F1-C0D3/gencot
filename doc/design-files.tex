@@ -41,26 +41,37 @@ containing the corresponding constant and type definitions, but omitting any fun
 \code{.c} and \code{.h} files are directly transferred to \code{.cogent} and \code{-incl.cogent} using the Cogent preprocessor 
 \code{\#include} directive. 
 
-Although it is named \code{x-incl.cogent}, the file also contains Cogent value definitions generated from C preprocessor
+The file \code{x-incl.cogent} also contains Cogent value definitions generated from C preprocessor
 constant definitions and from enumeration constants (see below). It would be possible to put the value definitions in a 
 separate file. However, then for other preprocessor macro definitions it would not be clear where to put them, since they could
 be used both in constant and type definitions. They cannot be moved to a common file included by both at the beginning,
 since their position relative to the places where the macros are used is relevant.
 
+In some cases an \code{x.h} file contains function definitions, typically for inlined functions. They are translated to Cogent
+function defintions in the \code{x-incl.cogent} file in the usual way.
+
 This file mapping implies that for every translated \code{.c} file all directly or indirectly included \code{.h} files must be 
 translated as well.
-Alternatively, instead of using a Cogent type definition for every C type in an included \code{.h} file, a Cogent abstract type
-can be used. In this way further included \code{.h} files may become unnecessary and need not be translated. However, this
-must be decided and realized manually. Gencot always generates default Cogent type definitions and the include directives for all
-\code{-incl.cogent} files.
 
-\subsubsection{External Name References}
+\subsubsection{External Name References and Derived Types}
 
 For external name references Gencot generates the information required for Cogent. 
 All generated type and constant definitions are put in the file \code{<package>-exttypes.cogent}.
 
-Additionally, for all origin files used by at least one external reference, an include directive is put in the file
-\code{<package>-extincludes.c}, to make the information available on the C level.
+This file also contains abstract type definitions for all derived types used in the C source. 
+For pointer and function types Gencot also generates C type definitions, mapping the type name to
+a simplified derived type, omitting all non-derived types occurring in the original derived type (because 
+they are not available in the Cogent compilation unit). All pointer types are mapped to pointer to void.
+All function types are mapped to an incompletely defined function type returning void. In both cases
+the resulting type is binary compatible with the original derived type.
+
+Gencot puts the corresponding
+type mapping definitions in the file \code{<package>-exttypes.c}.
+
+For derived array types to be binary compatible, the element type must have the correct size and the 
+element number must be correct. Gencot cannot determine a corresponding C type without using the original
+element type and element number expression, a corresponding C type must be provided manually by the developer
+and added to file \code{<package>-exttypes.c}.
 
 \subsubsection{Wrapper Definition Files}
 
@@ -69,7 +80,7 @@ put in the file \code{x-entry.ac}.
 
 The exit wrappers for invoking C functions from Cogent are only created for the actual
 external references in a processing step for the whole <package>. They are implemented in antiquoted Cogent
-and put in the file \code{<package>-exit.ac}.
+and put in the file \code{<package>-externs.ac}.
 
 \subsubsection{Dummy Value Functions}
 
@@ -83,49 +94,17 @@ does not generate corresponding C function definitions for them.
 Putting all abstract dummy function definitions in a single file provides an easy way to remove them from the 
 Cogent compilation unit when the manual translation has been completed and they are not needed any more.
 
-\subsubsection{Abstract Functions as Interface to C Functions}
+\subsubsection{Abstract Functions as Interface to C Functions and Variables}
 
 If a Cogent function in \code{x.cogent} invokes a function which is externally referenced and not defined in another
 file \code{y.cogent}, this function must be declared as an abstract function in Cogent. These abstract function declarations
 are only created for the actual
-external references in a processing step for the whole <package>. They are put in the file \code{<package>-exit.cogent}.
+external references in a processing step for the whole <package>. They are put in the file \code{<package>-externs.cogent}.
 
-The implementation for these functions is provided by the exit wrappers in \code{<package>-exit.ac}.
+The implementation for these functions is provided by the exit wrappers in \code{<package>-externs.ac}.
 
-\subsubsection{Abstract Types as Interface to C Types}
-
-A C type can be used in Cogent in two possible ways. Either it is defined as a Cogent abstract type, or it is defined by providing
-a Cogent type expression as definition. In the second case the Cogent compiler will generate a C type definition with the
-same name. The Cogent type expression must be chosen in a way, that this C type definition is binary compatible to the
-original C type definition, i.e., it has the same memory layout. Since Gencot always maps a C type name to a different Cogent
-type name, both C type names do not conflict.
-
-For an abstract type the Cogent compiler does not generate any definition, it is intended to directly refer to the original
-C type. Since the Cogent type name is different from the C type name, or has been generated if the C type has no name,
-Gencot generates a C type definition mapping the Cogent type name to the C type name.
-However, this definition may only be present for abstract types, for the other types it would conflict with the C type
-definition generated by the Cogent compiler. 
-
-Abstract type definitions referencing an existing C type may be generated in the files \code{x-incl.cogent}, 
-\code{x.cogent}, and \code{<package>-exttypes.cogent}. 
-
-For file \code{x-incl.cogent} we put the corresponding 
-type mapping definitions in file \code{x-abstypes.h}. To make the information required for the referenced original 
-C type definitions available in the Cogent compilation unit the file \code{x.h} must be 
-included there as well. Note that this is 
-possible without conflicts, since the type names generated by the Cogent compiler for non-abstract types are always
-mapped and thus different from all types in \code{x.h} or included files.
-
-For file \code{x.cogent} we put the corresponding
-type mapping definitions in the file \code{x-abstypes.c}. However, to make the information required for the 
-referenced original C type definition
-available, it is not possible to include \code{x.c}, since the C function definitions would conflict with their
-entry wrappers in the Cogent compilation unit. Instead, the file \code{x-globals.c} is used, which is described in the
-next section.
-
-For file \code{<package>-exttypes.cogent} we put the corresponding
-type mapping definitions in the file \code{<package>-exttypes.c}. The information required for the referenced original C type
-definitions is always available, since all origin files for external references are included in the Cogent compilation unit.
+For external variables Gencot creates abstract access functions and also puts them in \code{<package>-externs.cogent}.
+These functions are mostly intended as information for the developer, no implementation is provided by Gencot.
 
 \subsubsection{Global Variables}
 
@@ -138,29 +117,25 @@ the file \code{x-globals.c} containing all toplevel object definitions with exte
 these definitions, some type and constant definitions may be required, so they must also be added to \code{x-globals.c}.
 Since the required types may be defined in included \code{.h} files, these files must be included in \code{x-globals.c}.
 Instead of tracking, what is required for the global variable definitions, Gencot simply generates \code{x-globals.c}
-from \code{x.c} by removing all function definitions and all object definitions with internal linkage. Note, that
-this approach also makes all type definitions available which are needed by \code{x-abstypes.c}.
+from \code{x.c} by removing all function definitions. 
 
 Toplevel object definitions with internal linkage cannot be accessed from other C compilation units. They cannot be
 accessed from Cogent code either, hence they are useless, they must be replaced manually by a Cogent solution for
-managing the corresponding global state. 
+managing the corresponding global state. They are not removed from \code{x-globals.c}, because they could be used in
+initializers of object definitions with external linkage.
 
-However, to inform the Cogent programmer about the global variables defined in \code{x.c} and their types, Gencot 
-generates corresponding Cogent value definitions for all toplevel object definitions with internal or external linkage. 
-For each of them the initializer is transferred unmodified from C, no Cogent expression for the defined value is 
-generated. Either the initializer is manually converted to a Cogent expression, or the value definition is replaced
-by another solution. 
-
-All Cogent value definitions for global variables in \code{x.c} are put in the file \code{x-globals.cogent}. Since it
-is only intended as an information for the Cogent programmer it is \textit{not} included automatically by any generated
-Cogent source file. For external references to global variables no information is generated.
+The files \code{x-globals.c} do not become part of the Cogent compilation unit, because they use the original 
+include files from the package and should not be read by the Isabelle C parser. Instead, each of them constitutes 
+an own C compilation unit which complements the Cogent compilation unit. It must be separately compiled and
+linked with the Cogent compilation unit to provide the global variables for the remaining C compilation units.
 
 \subsubsection{Abstract Data Types}
 
 There may also be cases of C types where no corresponding Cogent type can be defined, in this case it must be mapped to an 
 abstract data type T in Cogent, consisting of an abstract type together with abstract functions. Both are put in 
 the file \code{abstract/T.cogent} which must be included manually by all \code{x-incl.cogent} where it is used. The types and 
-functions of T must be implemented in additional C code. In contrast to the abstract functions defined in \code{<package>-exit.cogent},
+functions of T must be implemented in additional C code. In contrast to the abstract functions defined in 
+\code{<package>-externs.cogent},
 there are no existing C files where these functions are implemented. The implementations are provided as antiquoted Cogent 
 code in the file \code{abstract/T.ac}. If T is generic, the additional file \code{abstract/T.ah} is required for 
 implementing the types, otherwise they are implemented in \code{abstract/T.h}. 
@@ -180,49 +155,43 @@ instantiations of T with type arguments t1...tn used in the Cogent code.
 
 Summarizing, Gencot uses the following kinds of Cogent source files for existing C source files \code{x.c} and \code{x.h}:
 \begin{description}
-\item[\code{x.cogent}] Implementation of all functions defined in \code{x.c}. For each file \code{y.h} included by
+\item[\code{x.cogent}] Implementation of all functions defined in \code{x.c}. Abstract access functions for all global
+variables defined in \code{x.c}. For each file \code{y.h} included by
   \code{x.c} the file \code{y-incl.cogent} is included.
-\item[\code{x-globals.cogent}] Value definitions for all objects defined in \code{x.c}. No files are included, the file is not
-  included by any other file.
+
 \item[\code{x-incl.cogent}] Constant and type definitions for all constants and types defined in \code{x.h}. 
   If possible, for every C type definition a binary compatible Cogent type 
   definition is generated by Gencot. Otherwise an abstract type definition is used. Includes
   all \code{y-incl.cogent} for which \code{x.h} includes \code{y.h}.
 \item[\code{x-entry.ac}] Antiquoted Cogent definitions of entry wrapper functions for all function definitions with external linkage
   defined in \code{x.c}.
-\item[\code{x-abstypes.h}] C definitions for abstract Cogent types defined in \code{x-incl.cogent} used to reference existing C types.
-\item[\code{x-abstypes.c}] C definitions for abstract Cogent types defined in \code{x.cogent} used to reference existing C types.
 \item[\code{x-globals.c}] Content of \code{x.c} with all function definitions removed.
 \end{description}
 
 For the Cogent compilation unit the following common files are used:
 \begin{description}
-\item[\code{<package>-exttypes.cogent}] Type and constant definitions for all external type and constant references.
-\item[\code{<package>-exit.cogent}] Abstract function definitions for all external function references.
+\item[\code{<package>-exttypes.cogent}] Type and constant definitions for all derived and external type and constant references.
+\item[\code{<package>-externs.cogent}] Abstract function definitions for all external function and variable references.
 \item[\code{<package>-dummies.cogent}] Abstract function definitions for dummy result values.
-\item[\code{<package>-exit.ac}] Exit wrapper definitions for all external function references.
+\item[\code{<package>-externs.ac}] Exit wrapper definitions for all external function references.
 \item[\code{<package>-exttypes.c}] C type definitions for abstract types defined in \code{<package>-exttypes.cogent}.
-\item[\code{<package>-extincludes.c}] Include directives for the origin files of all external references.
 \end{description}
 
 \subsubsection{Main Files}
 
 To put everything together we use the files \code{<package>.cogent} and \code{<package>.ac}. The former includes all 
-existing \code{x.cogent} files and the files \code{<package>-exttypes.cogent}, \code{<package>-exit.cogent}, and
+existing \code{x.cogent} files and the files \code{<package>-exttypes.cogent}, \code{<package>-externs.cogent}, and
 \code{<package>-dummies.cogent}.
 It is the file processed by the Cogent compiler which translates it to files \code{<package>.c} 
 and \code{<package>.h} where \code{<package>.c} includes \code{<package>.h}. 
 
 The file \code{<package>.ac} includes all existing files 
-\code{x-entry.ac}, and the files \code{<package>-exit.ac} and \code{<package>.c} and is processed by the Cogent compiler through the 
-\code{--infer-c-funcs} flag. The resulting file is \code{<package>\_pp\_inferred.c} which is the C compilation unit for 
-all parts of <package> already translated to Cogent. All existing files \code{x-abstypes.h} and \code{x-abstypes.c} 
-and the files \code{<package>-exttypes.c} and \code{<package>-extincludes.c} are 
-\code{\$esc}-included in \code{<package>.ac}, thus the corresponding normal includes for them are present in 
+\code{x-entry.ac}, and the files \code{<package>-externs.ac} and \code{<package>.c} and is processed by the Cogent compiler through the 
+\code{--infer-c-funcs} flag. The resulting file is \code{<package>\_pp\_inferred.c} which is the C code of 
+the Cogent compilation unit. 
+The file \code{<package>-exttypes.c} is 
+\code{\$esc}-included in \code{<package>.ac}, thus the corresponding normal include directive for it is present in 
 \code{<package>\_pp\_inferred.c}.
-For all existing files \code{x.cogent} the corresponding file \code{x-globals.c} is \code{\$esc}-included in 
-\code{<package>.ac}, to make all global variables with external linkage and all type definitions in \code{x.c} 
-a part of \code{<package>\_pp\_inferred.c}.
 
 Every abstract type T yields an additional separate C compilation unit \code{T\_pp\_inferred.c}. 
 

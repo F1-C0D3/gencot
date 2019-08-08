@@ -1,13 +1,13 @@
 all: build links
 
-build: check deccm pmext pmgen pmprc trans extfs exttp
+build: check deccm pmext pmgen pmprc trans extns exttp
 
 CHECK = gencot-check
 TRANS = gencot-translate
 DECCM = gencot-deccomments
-EXTFS = gencot-extfuns
+EXTNS = gencot-externs
 EXTTP = gencot-exttypes
-PMEXT = parmod-extfuns
+PMEXT = parmod-externs
 PMGEN = parmod-gen
 PMPRC = parmod-proc
 
@@ -20,8 +20,8 @@ trans:
 deccm: 
 	cabal new-build $(DECCM)
 
-extfs: 
-	cabal new-build $(EXTFS)
+extns: 
+	cabal new-build $(EXTNS)
 
 exttp: 
 	cabal new-build $(EXTTP)
@@ -35,7 +35,7 @@ pmgen:
 pmprc: 
 	cabal new-build $(PMPRC)
 
-links: bin/$(CHECK) bin/$(DECCM) bin/$(PMEXT) bin/$(PMGEN) bin/$(PMPRC) bin/$(TRANS) bin/$(EXTFS)  bin/$(EXTTP)
+links: bin/$(CHECK) bin/$(DECCM) bin/$(PMEXT) bin/$(PMGEN) bin/$(PMPRC) bin/$(TRANS) bin/$(EXTNS)  bin/$(EXTTP)
 
 bin/$(CHECK):
 	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(CHECK)/build/$(CHECK)/$(CHECK) .)
@@ -46,8 +46,8 @@ bin/$(TRANS):
 bin/$(DECCM):
 	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(DECCM)/build/$(DECCM)/$(DECCM) .)
 
-bin/$(EXTFS):
-	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(EXTFS)/build/$(EXTFS)/$(EXTFS) .)
+bin/$(EXTNS):
+	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(EXTNS)/build/$(EXTNS)/$(EXTNS) .)
 
 bin/$(EXTTP):
 	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(EXTTP)/build/$(EXTTP)/$(EXTTP) .)

@@ -12,9 +12,9 @@ in the included files may be different, as long as they are binary compatible, i
 
 We exploit this organisation for an incremental translation from C to Cogent as follows. At every stage we replace some 
 C compilation units by Cogent sources. All C data types used both in C units and in Cogent units are mapped to binary compatible
-Cogent types. Compiling the Cogent sources again produces C code which together with the remaining C units are linked to
+Cogent types. Compiling the Cogent sources produces again C code which together with the remaining C units are linked to
 the target program. The C code resulting from Cogent compilation is completely separated from the code of the remaining C units,
-common include files are only used for types which are abstract in Cogent, i.e., have no Cogent definition.
+no common include files are used.
 
 All interfacing between C compilation units is done by name. All names of C objects with external linkage can be referred
 from other compilation units. This is possible for functions and for global variables. Interfacing from and to Cogent works
@@ -61,8 +61,12 @@ Accessing a Cogent object definition from C is not possible, since the Cogent co
 simply substitutes all uses of the object name by the corresponding value. Hence, all global variable definitions need to remain 
 in C code to be accessible there.
 
-Since the way how global state is treated in a Cogent program is crucial for proving program properties, Gencot does not 
-provide any automatic support for accessing global C variables from Cogent, this must always be implemented manually.
+The way how global state is treated in a Cogent program is crucial for proving program properties. Gencot does not 
+provide any automatic support for accessing global C variables from Cogent, this must always be implemented manually. 
+However, to inform the developer about the variable and its type, Gencot translates it to an abstract function
+from unit type to the type of the variable, without providing an implementation. It can be used to manually implement 
+read access to the variable, write access must be handled completely manually. The name of the abstract function is
+the mapped name of the variable.
 
 \subsubsection{Cogent Compilation Unit}
 
@@ -79,17 +83,31 @@ Cogent abstract data types).
 Conflicts for names with internal linkage originating in different C compilation units are avoided by Gencot's name mapping scheme
 as described in Section~\ref{design-names}.
 
+It would be possible to translate only some include files used by the Cogent compilation unit to Cogent and access the content
+of the others through abstract Cogent types and functions which are mapped in antiquoted C to the original C definitions. 
+However, for checking the refinement proof of the Cogent compilation unit, the Isabelle C parser reads the complete C program
+which results from translating the Cogent code to C. The Isabelle C parser only supports a C subset and normally the original
+<package> include files will not be restricted to this subset. Therefore we do not use any of them for the Cogent compilation
+unit. Gencot always assumes that \textit{all} include files used (transitively) by the Cogent compilation unit are also translated
+to Cogent and included in this form.
+
+The only exception are the system include files. Their content typically needs specific treatment anyways. Gencot replaces every 
+reference to such a content by an abstract type or function, whithout providing an implementation. It must be added manually
+by the developer.
+
 \subsubsection{External Name References}
 \label{design-modular-extref}
 
-To successfully compile the Cogent compilation unit all referenced identifiers must be declared in the C code. Those references which are
+To successfully compile the Cogent compilation unit all referenced identifiers must be declared in the C code. 
+Those references which are
 used in the generated Cogent code must additionally be defined in Cogent. A non-local reference in a C source file is every
 identifier which is used in the file but not defined or declared in the same file.
 
 In the original C source for every non-local reference there must be a declaration or definition present in one of the included
 files (its ``origin file''). If the origin file of a non-local reference is a file which has already been translated by 
-Gencot, the required information about the identifier is already present in the Cogent compilation unit. If the origin file
-of a non-local reference has not yet been translated, or is not a part of the <package> (which normally is the case for all
+Gencot, the required information about the identifier is already present in the Cogent compilation unit. As described above, 
+all used include files which belong to the <package> must have been translated. If the origin file
+of a non-local reference is not a part of the <package> (which normally is the case for all
 system includes), we call it an ``external reference''. For external references additional information must be created and 
 made available in the Cogent compilation unit.
 
@@ -106,9 +124,12 @@ looking at the content of all included files. Instead, all the files in the give
 the name's definition. Note that this is only necessary for deciding whether a reference is external. The information necessary
 for processing it is always present as part of the declaration in the included origin file.
 
-On the C level the information for external name references is provided by simply including the origin files of all external 
-references. On the Cogent
-level the information is provided as follows.
+On the C level the information for external name references with internal or no linkage must always be provided manually,
+since they are not defined in the <package>. The information for variable references with external must also be provided
+manually. The information for function references with external linkage is generated automatically by Gencot in the 
+form of the exit wrapper functions defined in antiquoted C. 
+
+On the Cogent level the information is provided as follows.
 \begin{itemize}
 \item If the external reference is a type name or a struct/union/enum tag, a Cogent type definition is generated for the mapped name.
 The defined Cogent type is determined
@@ -117,8 +138,8 @@ names used directly or indirectly by the C type are resolved, if they are not al
 introducing type names which are never referenced from any other place in the generated Cogent program. 
 \item If the external reference is a function name, an exit wrapper and the corresponding Cogent abstract function 
 definition is generated.
-\item If the external reference is the name of a global variable, no information is generated for Cogent, since Gencot does not
-support accessing global C variables from Cogent.
+\item If the external reference is the name of a global variable, the abstract access function is generated in the same 
+form as when translating a variable defined in the Cogent compilation unit.
 \item If the external reference is the name of an enum constant or a preprocessor defined constant, a Cogent constant definition 
 is generated.
 \item An external reference may be the name of a member in a struct or union. In this case also the struct or union tag must

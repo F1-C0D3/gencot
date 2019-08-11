@@ -78,11 +78,13 @@ mapMaybeM f = liftM catMaybes . mapM f
 
 -- | Translate a declaration of a function or function pointer (array) to a sequence (of length 1) of function descriptions.
 -- getPrefix must be a function which returns the function name prefix when applied to the source file name.
-transDecl :: (CNode d,Declaration d) => (String -> String) -> d -> LCA.FunType -> CTrav Parmods
+transDecl :: (LCN.CNode d,LCA.Declaration d) => (String -> String) -> d -> LCA.FunType -> CTrav Parmods
 transDecl getPrefix decl ftyp@(LCA.FunType _ pars isVar) = do
     sfn <- srcFileName decl
     parlist <- mapM simpleParamEntry $ numberList pars
+    funpars <- if isFunction $ LCA.declType decl then mapMaybeM (transParam decl sfn) pars else return []
     return $ [toJSObject ([namEntry (getPrefix sfn) decl,comEntry,locEntry sfn,nmpEntry ftyp] ++ parlist)] 
+                ++ funpars
 transDecl getPrefix decl ftyp@(LCA.FunTypeIncomplete _) = do
     sfn <- srcFileName decl
     return $ [toJSObject ([namEntry (getPrefix sfn) decl,comEntry,locEntry sfn,nmpEntry ftyp])] 
@@ -96,10 +98,10 @@ transMember _ _ = return Nothing
 
 -- | Translate a function parameter, if it is a function (pointer (array)) directly containing the function type.
 -- Other function parameters are only described (by transLocal), if they are invoked.
-transParam :: LCA.FunDef -> String -> LCA.ParamDecl -> CTrav (Maybe Parmod)
-transParam fdef sfn pd | getsParmodDescr ptyp = do
+transParam :: (LCN.CNode d,LCA.Declaration d) => d -> String -> LCA.ParamDecl -> CTrav (Maybe Parmod)
+transParam fdec sfn pd | getsParmodDescr ptyp = do
     parlist <- mapM simpleParamEntry $ numberList pars
-    return $ Just $ toJSObject $ [namEntry (getLocalNamPrefix (getFunId fdef sfn) pd) pd,comEntry,locEntry sfn,nmpEntry ftyp] ++ parlist
+    return $ Just $ toJSObject $ [namEntry (getLocalNamPrefix (getFunId fdec sfn) pd) pd,comEntry,locEntry sfn,nmpEntry ftyp] ++ parlist
     where ptyp = LCA.declType pd
           ftyp@(LCA.FunType restype pars isVar) = getFunType $ getParmodFunctionType ptyp
 transParam _ _ _ = return Nothing

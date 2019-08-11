@@ -30,9 +30,9 @@ All these filters take the name of the original source file as additional first
 argument, since they need it to generate Cogent names for C names with internal linkage and for tagless C struct/union
 types.
 
-There are other target files which are generated for the whole package. The filters for generating these target files 
+There are other target files which are generated for the whole Cogent compilation unit. The filters for generating these target files 
 take as input the list of file names to be processed (see Section~\ref{impl-ccode-package}). Filters of this kind 
-are called ``processors'' in the following. 
+are called ``processors'' in the following.
 
 Usually only \code{.c} files need to be specified as input to processors.
 In contrast to the single-file filters, the original file name is not required for the files input to a 
@@ -244,7 +244,7 @@ where the optional arguments are a file with parameter modification descriptions
 variables to be processed.
 
 The processor parses and analyses
-all C source files specified in the package file, resulting in the list of corresponding symbol tables, as
+all C source files specified in the input file name list, resulting in the list of corresponding symbol tables, as
 described in Section~\ref{impl-ccode-package}. Then
 it determines for every table the invoked functions and function pointer (array)s as described in 
 Section~\ref{impl-ccode-callgraph}. This must
@@ -523,7 +523,7 @@ the corresponding description.
 The descriptions of functions, their function parameters, composite type members, and typedef names are 
 intended to be used by \code{gencot-translate}
 when it translates the function and type definitions. The descriptions of invoked local function pointer (array)s
-are intended for evaluating dependencies as described in Section~\ref{impl-parmods}.
+are intended for evaluating dependencies as described in Section~\ref{impl-parmod}.
 
 In closing mode the filter processes all \code{DeclEvent}s in the source file and in all included files which
 are declarations for functions or function pointer (array)s. Every declaration is translated to an entry in the parameter
@@ -612,7 +612,7 @@ the parameter modification descriptions for the following entities:
 \begin{itemize}
 \item declarations of external invoked functions, together with all their parameters, if the parameter
 type is a function (pointer (array)) type directly specifying the function type,
-\items declarations of external invoked or listed function pointer (array)s, if the declared type directly specifies
+\item declarations of external invoked or listed function pointer (array)s, if the declared type directly specifies
 the function type,
 \item members of all composite types defined in system include files, if their type resolves to a function pointer (array) type.
 \item typedef names defined in a system include file, if they resolve to a function (pointer (array)) type.

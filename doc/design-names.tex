@@ -109,10 +109,10 @@ struct/union/enum types to a Cogent type name. Hence every derived type can be u
 of derivation steps starting with a type name. The sequence of derivation steps is syntactically encoded in the 
 generated name as follows.
 
-A pointer derivation step is encoded by a single letter ``P''. 
+A pointer derivation step is encoded by a single letter \code{"P"}. 
 
 An array derivation step without size
-specification is encoded by a single letter ``A''. An array derivation step with a literal or a single identifier
+specification is encoded by a single letter \code{"A"}. An array derivation step with a literal or a single identifier
 as size specification is encoded in the form
 \begin{verbatim}
   A'<size>'
@@ -122,19 +122,21 @@ In all other cases an array derivation step is encoded by
 \begin{verbatim}
   A''
 \end{verbatim}
-which may lead to name conflicts in Cogent and must be handled manually.
+which may lead to name conflicts in Cogent and must be handled manually. As explained in Section~\ref{design-types-array}
+two different Cogent type names are used for every C array type. The second form is build by encoding 
+the array derivation step with an additional letter \code{"U"} prepended.
 
 A function derivation step is encoded in the form
 \begin{verbatim}
   F_'<P1>'<P2>'...'<Pn>'_
 \end{verbatim}
 where the \code{<Pi>} are the parameter types. If parameters are not specified or are varargs the function
-derivation step is encoded by a single letter ``F'', which may lead to name conflicts in Cogent and must 
+derivation step is encoded by a single letter \code{"F"}, which may lead to name conflicts in Cogent and must 
 be handled manually.
 
 Function parameters of linear type my be readonly or not (see Section~\ref{design-types-readonly}). For a 
 parameter of linear type, the parameter type \code{<Pi>} is preceded by a letter \code{"R"} if it is readonly,
-otherwise it is preceded by a lettr \code{"L"}. If the parameter type is not derived, the letter is separated
+otherwise it is preceded by a letter \code{"L"}. If the parameter type is not derived, the letter is separated
 by an underscore. Parameters of nonlinear type are not marked in either of this ways.
 
 If several derivation steps are applied to a base type, their encodings are concatenated, beginning with the 

@@ -111,6 +111,11 @@ to a \code{struct} with a field for an \code{enum} covering the variants, and on
 is empty (has no additional fields), in the C \code{struct} it is present with type \code{unit\_t} which
 has the size of an \code{int}. Therefore Gencot maps every union type to an unboxed abstract Cogent type.
 
+Another semantic equivalent would be a Cogent record type, where always all fields but one are taken. However,
+this type is not binary compatible either, it is translated to a normal struct where every member has another
+offset. Even if the translated type in C is manually changed to a union, the Cogent take and put operations cannot
+be used since they respect the field offsets. 
+
 Together we have the mapping rules:
 \begin{verbatim}
   struct s -> #Struct_s
@@ -138,8 +143,10 @@ Then the dummy expression for type \code{\#Struct\_s} is \code{dummy\_Unbox\_Str
 for mapped union types. 
 
 \subsection{Array Types}
+\label{design-types-array}
 
-A C array type \code{t[n]} has the semantics of a consecutive sequence of n instances of type \code{t}. 
+A C array type \code{t[n]} has the semantics of a consecutive sequence of n instances of type \code{t}. A value
+of type \code{t[n]} is a pointer to the first element and therefore compatible to type \code{t*}.
 
 Basically, Cogent does not support accessing elements by an index value in an array. 
 This is an important security feature since the index value is computed at runtime and cannot be statically 
@@ -166,12 +173,51 @@ If the number of elements is not statically known the type cannot be mapped to a
 to an abstract type.
 
 Since the Cogent array type is still under development, the current version of Gencot does not use it for
-mapping C array types. Instead, all C array types are mapped to Cogent unboxed abstract types. The name of an 
-abstract type always denotes a linear (boxed) type in Cogent. Therefore, as for struct and union types, for
-every C array type a name is introduced to refer to the type ``pointer to array'', the array type itself is
-translated to the type name with the unbox operator applied.
+mapping C array types. Instead, all C array types are mapped to Cogent with the help of generated names for 
+abstract types.
 
-It would be nice to use a single generic type for all C array types, instead of generating a new name for every 
+\subsubsection{Mapping Array Types}
+
+A C array type \code{t[n]} has two slightly different meanings. When it is used for allocating space in memory,
+it is used to determine the required space as \code{n * sizeof(t)}. When it is used as declared type for an 
+identifier, it means that the identifier names a value of type \code{t*}, since C arrays are always represented
+by a pointer to the first element. In Cogent both cases must be supported. However, since the first case 
+corresponds to a nonlinear (unboxed) type and the second case corresponds to a linear type, different Cogent
+types must be used. Since the linear type is not the derived pointer type of the nonlinear type, the 
+difference cannot be implemented by using a single type name with the unbox operator applied or not. Therefore
+Gencot uses two different type names to represent both cases for a C array type in Cogent.
+
+The names are constructed as specified in Section~\ref{design-names}. For the array type \code{t[n]} the two
+type names have the form
+\begin{verbatim}
+  UA'n'_T
+  A'n'_T
+\end{verbatim}
+where the first name is used for the nonlinear case. It is used with the unbox operator applied.
+In antiquoted C it is implemented by the original array type. The second name is used for the linear
+case, always without unbox operator applied. In antiquoted C it is implemented by the ``pointer to
+element'' type. Thus the corresponding implementations in antiquoted C are
+\begin{verbatim}
+  typedef t UA_primen_prime_T[n]
+  typedef t *A_primen_prime_T
+\end{verbatim}
+
+The name \code{UA'n'\_T} without unbox operator applied is translated by Cogent to the corresponding 
+pointer type in C, which is a pointer to array. Gencot uses it to map this kind of types (see 
+Section~\ref{design-types-pointer}).
+The name \code{A'n'\_T} with unbox operator applied would be translated by Cogent to type \code{t}.
+It is thus redundant and should not be used in this form.
+
+If the element type \code{t} is again an array type, the meaning in C is a multidimensional array. The
+element type corresponds to the nonlinear case, therefore the type name constructed with \code{"U"}
+must be used for mapping the element type. For example, the C type \code{t[2][7]} is mapped to the
+two Cogent type names
+\begin{verbatim}
+  UA'2'UA'7'_T
+  A'2'UA'7'_T
+\end{verbatim}
+
+It would be nice to use two generic types for all C array types, instead of generating new names for every 
 C array type. Then the element type need not be mapped to a type name, it may be mapped
 to an arbitrary Cogent type expression. A generic type for
 C arrays could have the form
@@ -180,9 +226,9 @@ C arrays could have the form
 \end{verbatim}
 Then a single mapping in antiquoted C would be sufficient to map all instances of the generic type to their 
 C equivalents. The Cogent compiler would be used to generate a monomorphic type for every usage in a program. 
-The common antiquoted C typedef would need to have the form 
+The common antiquoted C typedef for the nonlinear case would need to have the form 
 \begin{verbatim}
-  typedef e * $ty:(CArrayOf e) []
+  typedef e $ty:(CArrayOf e) []
 \end{verbatim}
 However, the Cogent compiler does not support antiquoted type definitions of this form. Therefore Gencot has to
 generate the monomorphic types on its own. 
@@ -194,18 +240,65 @@ Cogent abstract type names. This is the reason why the size specification is enc
 as described in Section~\ref{design-names}. 
 
 Together we have the following mapping rule for C arrays with element type \code{el} and size 
-specification \code{<size>} (if not specified for a function parameter, see below):
+specification \code{<size>}:
 \begin{verbatim}
-  el[<size>] -> #A'<size>'_El
-  el[] -> #A_El
+  el[<size>] -> A'<size>'_El , #UA'<size>'_El
+  el[] -> A_El , #UA_El
 \end{verbatim}
 where El is the result of mapping the element type \code{el} to a Cogent type name. If the size specification
 is too complex (not a literal or single identifier) it is omitted and the type must be handled manually. If the
 element type is again a derived type the underscore is omitted.
 
 If \code{el} is mapped to a type name with the unbox operator applied, which is not a function pointer type,
-a letter ``\code{U}'' is prepended to \code{El} in the form of an additional derivation step. This can happen for struct, union
-and array types.
+a letter ``\code{U}'' is prepended to \code{El} in the form of an additional derivation step. This can happen for 
+struct and union types and is equivalent to the case where \code{el} is another array type.
+and array types. 
+
+\subsubsection{Support for Working with Arrays}
+
+The abstract types generated for arrays are complemented by Gencot by abstract functions for working with
+arrays. For these functions Gencot automatically generates the Cogent function definitions and the 
+implementations in antiquoted C.
+
+Gencot only supports arrays which are allocated on the heap. In C, arrays can also be introduced by defining
+them as global or local variable, but Cogent has no language constructs which support this.
+
+Gencot represents array values in Cogent always by a linear type of the form \code{A'<size>'\_El}.
+Hence Cogent does not provide a language construct to create such values. Gencot provides the function
+\begin{verbatim}
+  create_A'<size>'_El : () -> TA'<size>'_El
+\end{verbatim}
+to create a new array of type \code{A'<size>'\_El}. The function is implemented by simply allocating the
+required space on the heap, internally using the translation of type \code{\#UA'<size>'\_El} to specify
+the amount of space. 
+
+Gencot uses as result type the additional type \code{TA'<size>'\_El}, with a similar meaning as a Cogent
+record with all fields taken. It statically marks the array as uninitialized. The developer must manually provide
+an abstract initialization function with type \code{TA'<size>'\_El -> A'<size>'\_El}. The additional type
+is automatically defined by Gencot and is mapped to the same C type as \code{A'<size>'\_El}.
+
+Since the Cogent type \code{A'<size>'\_El} is linear, values of it may not be discared. Another abstract 
+Cogent function is required for
+disposing such values, implemented in antiquoted C by using the C standard function \code{free}:
+\begin{verbatim}
+  dispose_A'<size>'_El : TA'<size>'_El -> ()
+\end{verbatim}
+Again, the type for the uninitialized array is used. The developer has to provide an additional function
+of type \code{A'<size>'\_El -> TA'<size>'\_El} which in particular has the task of seperately disposing 
+all linear values which are array elements or parts of array elements.
+
+For read and write access to array elements Gencot provides the functions
+\begin{verbatim}
+  replacein_A'<size>'_El : (A'<size>'_El,U32,El) -> (A'<size>'_El,El)
+  modifyin_A'<size>'_El : (A'<size>'_El,U32,#F_'El'_El) -> A'<size>'_El
+\end{verbatim}
+which are implemented in antiquoted C using the C array access operator \code{[]}. The first function
+replaces the element at the specified position by the element passed as parameter and returns it in the result.
+The second function applies the function pointer passed as parameter to the element at the specified position.
+Note that both functions cause no sharing or discarding of linear values, even if the element type is
+linear.
+
+\subsubsection{Dummy Expressions for Array Types}
 
 Since dummy expressions are only used for function results and the result type of a C function may not be an array 
 type, Gencot does not define a C expression for mapped array types.
@@ -228,7 +321,7 @@ the Cogent compiler to the corresponding C function type.
 In other places, however, Cogent does not translate its function types to C function pointers. Instead, it uses 
 a C enumaration type where 
 every known function has an associated enumeration constant. Whenever a function is bound to a variable, passed 
-as a parameter or is invoked, it is represented by this enumeration constant in C, i.e., by an integer value.
+as a parameter or is invoked through a function pointer, it is represented by this enumeration constant in C, i.e., by an integer value.
 For function invocation Cogent generates dispatcher functions which receive the integer value as an argument
 and invoke the corresponding C function. 
 
@@ -263,7 +356,11 @@ where \code{Ti} is the name to which \code{ti} is mapped.
 If a \code{ti} is mapped to a type name with the unbox operator applied, which is not a function pointer type,
 a letter ``U'' is prepended to \code{Ti} in the form of a derivation step. This can only happen for struct and union types
 since array and function types are adjusted to pointer types when used as parameter type, and are not allowed as 
-function result types in C.
+function result types in C. In particular, if a parameter type \code{ti} is an array type, it is mapped to
+the name for the linear case. For example, the C function pointer type \code{int (*)(int, int[10])} is mapped to
+\begin{verbatim}
+  #F_'U32'A'10'_U32'_U32
+\end{verbatim}
 
 \subsubsection{Translating Function Pointer Values}
 
@@ -462,65 +559,109 @@ allows the Cogent compiler to statically guarantee that pointer values will neit
 discarded by Cogent code, it will always be passed through. 
 
 If a pointer points to a C \code{struct} there is additional support for field access available in Cogent by 
-mapping the pointer to a Cogent boxed record type. For all other pointer types the Cogent type must be abstract, 
-then the pointer is opaque in Cogent code, it can only be passed around but no operations can be performed 
-directly in Cogent. All processing must be implemented externally by an abstract data type.
+mapping the pointer to a Cogent boxed record type. For all other pointer types this support can be employed by
+mapping the type to a Cogent record with a single field of the type referenced by the pointer.
+
+\subsubsection{Mapping Pointer Types}
 
 A pointer to a function type is mapped to an unboxed abstract type, as described above.
 
-A pointer type \code{t*} to a struct, union, or array type is mapped to the corresponding boxed type, 
-that means, it is mapped like type \code{t}, but the unbox operator is omitted.
+A pointer type \code{t*} to a struct is mapped to the corresponding boxed type, 
+that means, it is mapped like the struct type \code{t}, but the unbox operator is omitted.
 
-The remaining cases are pointer types where \code{t} is a primitive type, an enum type, the type \code{void}, 
-or again a pointer type. All these cases have no specific representation in Cogent and are mapped by Gencot 
-to an abstract type. For the same reason as for arrays, Gencot cannot use a single generic abstract type for all 
-such pointer types. Instead, it creates a monomorphic abstract type for every pointer type used in the program.
-As described in Section~\ref{design-names} the abstract type has the form
+A pointer type \code{t*} where \code{t} is a union type is mapped in the same way to the corresponding
+boxed type, omitting the unbox operator from the mapped type \code{t}. Thus no support for accessing
+the referenced union is provided. The reason is, that access to the union as a whole is mostly useless
+and furthe access to the union mebers cannot be provided. For consistency, Gencot treats union types
+in the same way as struct types.
+
+A pointer type \code{t*} where \code{t} is an array type is mapped in a similar way as for struct and
+union types. As described in Section~\ref{design-types-array}, the array type name for the nonlinear case is
+used omitting the unbox operator. The reason is, that access to the array yields the unboxed array for
+which there is no support for working with it. In C, arrays cannot be asssigned as a whole, therefore
+the array cannot be bound to a variable in Cogent.
+
+A pointer type \code{t*} where \code{t} is a primitive type, an enum type, 
+or again a pointer type is mapped to a boxed record with a single field \code{cont} of the type to which \code{t} is 
+mapped. For every such type a name is introduced as described in Section~\ref{design-names}. This makes the 
+Cogent program slightly more readable and the name is required as parameter type name in mapped function pointer 
+types as described in Section~\ref{design-types-function}. For the same reason Gencot does not use a single generic type for all 
+such pointer types. Instead, like for arrays, it creates a monomorphic type for every pointer type used in the program.
+
+The resulting type is defined in the form
 \begin{verbatim}
-  type P_<type name>
+  type P_<type name> = { cont: <type name> }
 \end{verbatim}
-A pointer to \code{void} is mapped to
+If the \code{<type name>} is a mapped derived type the underscore is omitted.
+
+Values of such types are binary compatible to the C pointer type and they can be dereferenced with the help of
+the Cogent take and put operations, thus supporting the full functionality of the C pointer.
+
+Finally, a pointer to \code{void} is mapped to the abstract type
 \begin{verbatim}
   type P_Void
 \end{verbatim}
-in all other cases the target type is already represented by a type name in Cogent.
-
-In C, arrays of type \code{t[n]} can also be accessed through a Pointer of type \code{t*} using pointer
-arithmetics. In this case type \code{t*} could be mapped as ``pointer to array of \code{t}''. However, this case
-cannot be identified by only looking at the type, hence Gencot does not support it. In the other direction,
-a type ``pointer to array of \code{t}'' could always be mapped as \code{t*}. However, this would discard 
-information about the type and is not done by Gencot.
-
-If a C array type \code{t[...]} is specified for a function parameter, it is ``adjusted'' by C to the pointer
-type \code{t*} with the semantics of being a pointer to array of \code{t}. In this case Gencot also 
-adjusts the type and maps the 
-array type as pointer to the element type.
+Here the type of the referenced data is unknown and no support for dereferencing it can be provided in Cogent,
+all processing must be implemented by specific abstract functions.
 
 Together we have the mapping rules for pointer types:
 \begin{verbatim}
-  struct s * -> Struct_s
+  void * -> P_Void
+  r (*)(...) -> #F_'...'_R
+  struct s * -> Struct_s = { ... }
   union s * -> Union_s
-  (*el)[...] -> A'...'_El
-  otherwise: t * -> P_T
+  (*el)[...] -> UA'...'_El
+  otherwise: t * -> P_T = { cont: T }
 \end{verbatim}
-where \code{Struct\_s} and \code{Union\_s} are the names introduced for the struct or union types and \code{El} 
-and \code{T} are the Cogent type names to which \code{el} and \code{t} are mapped, respectively. If \code{El} 
+where \code{Struct\_s} and \code{Union\_s} are the names introduced for the struct or union types and \code{R}, \code{El} 
+and \code{T} are the Cogent type names to which \code{r}, \code{el} and \code{t} are mapped, respectively. If \code{El} 
 and \code{T} are derived, the underscore is omitted.
+
+\subsubsection{Creating and Disposing Pointers}
+
+Since all pointer types are mapped to Cogent linear types, Cogent does not provide support for creating values
+of these types. In C a pointer can be created using the address operator \code{\&} or by allocating data on
+the heap using a C standard function such as \code{malloc}. The address operator is supported by Gencot
+only for data on the heap, as explained in Section~\ref{app-trans-manbody}. Therefore, the basic functionality
+for pointer creation is allocation on the heap. This must be provided as an abstract Cogent function implemented
+in antiquoted C.
+
+Since values of a linear type cannot be discarded in Cogent, another abstract Cogent function is required for
+disposing such values, implemented in antiquoted C by using the C standard function \code{free}.
+
+Gencot automatically generates the Cogent abstract function definitions and their implementations in antiquoted
+C for every linear non-abstract type \code{T} (i.e., every record type) used in the Cogent program as follows:
+\begin{verbatim}
+  create_T : () -> T take (..)
+  dispose_T : T take (..) -> ()
+\end{verbatim}
+The \code{create\_T} functions only allocate space on the heap but do not initialize it, hence the result is 
+represented in Cogent by a record with all fields taken. They can be filled using the Cogent put operation.
+The \code{dispose\_T} functions expects a record with all fields taken and simply frees the heap space. In particular,
+this forces that all fields of linear type must have been taken and must be disposed separately.
+
+Linear abstract types are used for unions, arrays and void pointers. Functions for creating and disposing pointers
+to unions are not provided by Gencot. Functions for creating and disposing arrays are described in 
+Section~\ref{design-types-array}.
+For type \code{P\_Void}, as for dereferencing, no
+automatic support for creating and disposing these pointers can be provided by Gencot.
+
+\subsubsection{Dummy Expressions for Pointers}
 
 To be able to provide dummy expressions for pointer types, Gencot automatically defines an 
 abstract function from the unit type to all used pointer target types:
 \begin{verbatim}
   struct s * -> dummy_Struct_s: () -> Struct_s
   union s * -> dummy_Union_s: () -> Union_s
-  dummy_A'...'_El: () -> A'...'_El
+  dummy_UA'...'_El: () -> UA'...'_El
   dummy_P_T: () -> P_T
 \end{verbatim}
 Again, as for structure and union types, Gencot does not 
 provide C definitions for these abstract functions.
 
 The dummy expression for type \code{Struct\_s} is \code{dummy\_Struct\_s ()} and analogously
-for mapped union pointer types. The dummy expression for type \code{A'...'\_El} is 
-\code{dummy\_A'...'\_El ()} and for type \code{P\_T} it is \code{dummy\_P\_T ()}.
+for mapped union pointer types. The dummy expression for type \code{UA'...'\_El} is 
+\code{dummy\_UA'...'\_El ()} and for type \code{P\_T} it is \code{dummy\_P\_T ()}.
 
 \subsection{Defined Type Names}
 \label{design-types-typedef}

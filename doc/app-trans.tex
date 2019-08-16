@@ -57,10 +57,11 @@ The generated Cogent function definition has the form
 where the \code{<compound statement>} is plain C code with global names mapped to Cogent. The task of the manual
 translation is to replace the \code{<dummy result>} by a Cogent expression equivalent to the \code{<compound statement>}.
 
-In the following subsections we provide some patterns how to translate typical C constructs occurring in a
+In the following sections we provide some patterns how to translate typical C constructs occurring in a
 \code{<compound statement>}.
 
-\subsubsection{Function Pointer Invocation}
+\subsection{Function Pointer Invocation}
+\label{app-trans-funpointer}
 
 In C a function pointer may be \code{NULL}, therefore it is typically tested for being valid before the
 referenced function is invoked, such as in 
@@ -95,7 +96,8 @@ the corresponding invocation in Cogent would be
 \end{verbatim}
 with result type \code{U32}.
 
-\subsubsection{The Address Operator \code{\&}}
+\subsection{The Address Operator \code{\&}}
+\label{app-trans-addrop}
 
 The address operator \code{\&} is used in C to determine a pointer to data which is not yet accessed through a 
 pointer. The main use cases are
@@ -134,8 +136,9 @@ will not be able to process the abstract function, since it only supports the ad
 the result is a heap address.
 
 All these problems can be solved by allocating the variable on the heap instead. Then the variable definition
-must be replaced by a call to the (abstract) creation function for the corresponding linear type and 
-at the end of its scope a call to the (abstract) dircarding function must be added. Then the address
+must be replaced by a call to the (abstract) creation function for the corresponding linear type 
+(see Section~\ref{design-types-pointer}) and 
+at the end of its scope a call to the (abstract) discarding function must be added. Then the address
 operator need not be translated, since the creation function already returns the linear value which can be 
 used for the same purposes. The resulting Cogent code would be
 \begin{verbatim}
@@ -172,7 +175,7 @@ be overwritten. To prevent this it must be proven for the Cogent program that no
 
 An alternative implementation of \code{take\_i2} would allocate a new copy of member \code{i2} on the heap
 and return this heap pointer as first result component. The implementation of \code{put\_i2} would copy the 
-value from the heap and free the heap entry. Then no sharing can occur and the program has the 
+value back from the heap and free the heap entry. Then no sharing can occur and the program has the 
 same type safety properties as a usual Cogent program. However, the copying makes it less efficient.
 
 In both cases the Cogent code has the form
@@ -203,3 +206,117 @@ pointer types. The resulting Cogent code has the form
 \end{verbatim}
 In this case \code{ptr} has the nonlinear type \code{\#F\_'U32'\_U32} in Cogent and may freely be copied and
 discarded in its scope.
+
+\subsection{Using Pointers for Array Access}
+\label{app-trans-arrpoint}
+
+A common pattern in C programs is to explicitly use a pointer type instead of an array type for referencing an array,
+in particular if the array is allocated on the heap. This is typically done if the number of elements in the
+array is not statically known at compile time. The C concept of variable length array types can sometimes be
+used for a similar purpose, but is restricted to function parameters and local variables and cannot be used for
+structure members.
+
+In C the array subscription operator can be applied to terms of pointer type. The semantics is to access an element 
+in memory at the specified offset after the element referenced by the pointer. This makes it possible to use 
+a pointer as struct member which references an array as in
+\begin{verbatim}
+  struct ip {... int *p, ...} s;
+\end{verbatim}
+and access the array elements using the subscription operator as in \code{s.p[i]}.
+
+Gencot translates the struct type to a record type of the form
+\begin{verbatim}
+  type Struct_Cogent_ip = {... p: P_U32, ...}
+\end{verbatim}
+and does not generate abstract functions which allow to treat \code{p} as an array, this must be done manually.
+
+The main problem here is the unknown array size. In the C program, however, for working with the array it must be
+possible to determine the array size in some way at runtime. Here we distinguish two approaches how this is done.
+
+In the first case the array size can always be determined from the array content. Then the pointer to the first 
+element is always sufficient for working with the array. The two typical patterns of this kind either use a 
+stop element to mark the array end, such as the zero character ending C strings, or store the array size in a
+specific element or elements, such as in a network package represented as a byte array.
+
+Working with the array is supported by manually defining and implementing an abstract data type for the array as follows.
+Let \code{tt} be a unique name for the specific kind of array (how its size is determined) and let \code{El} be the
+name of the array element type. We use \code{CArray\_tt\_El} as type name for the array, thus the 
+type of \code{p} must be manually changed as follows:
+\begin{verbatim}
+  type Struct_Cogent_ip = {... p: CArray_tt_El, ...}
+\end{verbatim}
+
+Then the abstract functions for the array type are defined in the same way as for the mapped array types as described in
+Section~\ref{design-types-array}. The functions for creating and disposing arrays are:
+\begin{verbatim}
+  create_CArray_tt_El : U32 -> TCArray_tt_El
+  dispose_CArray_tt_El : TCArray_tt_El -> ()
+\end{verbatim}
+where the \code{create}-function takes the actual array size (number of elements) as argument. The type 
+\code{TCArray\_tt\_El} is used for the uninitialized array, corresponding abstract functions for initializing
+and freeing the array elements must be provided.
+
+The element access functions in the case of a non-linear element type are:
+\begin{verbatim}
+  get_CArray_tt_El : (CArray_tt_El!,U32) -> Option El
+  put_CArray_tt_El : (CArray_tt_El,U32,El) -> CArray_tt_El
+\end{verbatim}
+and for a linear element type:
+\begin{verbatim}
+  replacein_CArray_tt_El : (CArray_tt_El,U32,El) -> (CArray_tt_El,El)
+  modifyin_CArray_tt_El : (CArray_tt_El,U32,#F_'El'_El) -> CArray_tt_El
+  get_CArray_tt_El : (CArray_tt_El!,U32) -> Option El!
+\end{verbatim}
+
+The implementation in antiquoted C has the following form:
+\begin{verbatim}
+  typedef el *CArray_tt_El, *TCArray_tt_El;
+  
+  $ty:TCArray_tt_El $id:create_CArray_tt_El($ty:U32 size) { 
+    return calloc(size,sizeof(el));
+  }
+  $ty(()) $id:dispose_CArray_tt_El($ty:TCArray_tt_El arr) {
+    free(arr); return $exp(());
+  }
+  ...
+\end{verbatim}
+
+In the second case the array size is determined by additional information seperate from the pointer to the array.
+Either the size is specified as an integer value as in 
+\begin{verbatim}
+  struct ip {... int *p, int psize; ...} s;
+\end{verbatim}
+or it is specified by a second pointer, e.g., pointing to the last element as in
+\begin{verbatim}
+  struct ip {... int *p, int *pend; ...} s;
+\end{verbatim}
+In general there may be additional information, such as pointers into the array which are used to reference
+``current'' positions in the array. We assume that all this information is provided by a sequence of members
+in the surrounding struct:
+\begin{verbatim}
+  struct ip {...; t1 m1;...tn mn; ...} s;
+\end{verbatim}
+When working with the array all additional information is required, therefore it must be included in the abstract
+type. This is achieved by replacing the sequence of variables containing information about the array by a single
+field of the array type in Cogent:
+\begin{verbatim}
+  type Struct_Cogent_ip = {... a: #CArray_tt_El, ...}
+\end{verbatim}
+with the array type being defined in C as
+\begin{verbatim}
+  typedef struct { t1 m1;...tn mn; } CArray_tt_El;
+\end{verbatim}
+This makes the Cogent type \code{Struct\_Cogent\_ip} binary compatible with the C type \code{struct ip} and it allows
+to represent several groups of related members in the struct by a common abstract type. Of course this approach is 
+only possible if the members are contiguous in the struct.
+
+To access the group in the struct the abstract functions
+\begin{verbatim}
+  take_a: Struct_Cogent_ip -> (CArray_tt_El, Struct_Cogent_ip take a)
+  put_a: (CArray_tt_El, Struct_Cogent_ip take a) -> Struct_Cogent_ip
+\end{verbatim}
+are used in the same way as described in Section~\ref{app-trans-addrop}.
+
+The abstract functions for working with the array now look different from those above, since type \code{CArray\_tt\_El}
+does not correspond to a pointer to the array elements, but to a pointer to the substructure with members describing
+the array. The specific form and functionality of these functions depend on the actual members and their use.

@@ -87,10 +87,9 @@ carriedWithFunIds _ tdn (LCA.TypeDefEvent td@(LCA.TypeDef _ t _ _)) | isExtern t
     [typeWithFunId (getFunTypeId td) $ resolveFully tdn t]
 carriedWithFunIds _ tdn (LCA.TypeDefEvent td@(LCA.TypeDef _ t _ _)) = 
     [typeWithFunId (getFunTypeId td) t]
-carriedWithFunIds _ _ (LCA.TagEvent (LCA.CompDef (LCA.CompType (LCI.NamedRef idnam) _ mems _ _))) = 
-    nub $ map (\md -> typeWithFunId (getGlobalMemberPrefix idnam md) $ LCA.declType md) mems
-carriedWithFunIds _ _ (LCA.TagEvent (LCA.CompDef (LCA.CompType (LCI.AnonymousRef _) _ mems _ _))) = 
-    nub $ map (\md -> ("",LCA.declType md)) mems
+carriedWithFunIds _ _ (LCA.TagEvent def@(LCA.CompDef (LCA.CompType _ _ mems _ _))) = 
+    nub $ map (\md -> typeWithFunId (getFunMemberId ref md) $ LCA.declType md) mems
+    where ref = sueRef def
 carriedWithFunIds _ _ _ = []
 
 carriedInFunction :: String -> LCA.Type -> [(String,LCA.Type)]

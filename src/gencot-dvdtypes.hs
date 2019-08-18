@@ -13,7 +13,7 @@ import Gencot.Input (getDeclEvents)
 import Gencot.Json.Parmod (readParmodsFromFile)
 import Gencot.Json.Process (convertParmods)
 import Gencot.Package (readPackageFromInput,getIdentInvocations,getOwnCallGraphs,foldTables,foldTypeCarrierSets)
-import Gencot.Util.Types (collectTypeCarriers,transCloseUsedCarriers,usedTypeNames,carriesNonPrimitive,isExtern)
+import Gencot.Util.Types (collectTypeCarriers,transCloseUsedCarriers,usedTypeNames,carriesNonPrimitive)
 import Gencot.Traversal (runFTrav)
 import Gencot.Cogent.Translate (transExtGlobals,genTypeDefs)
 import Gencot.Cogent.Output (prettyTopLevels)
@@ -44,15 +44,10 @@ main = do
     let unitTypeNames = usedTypeNames unitTypeCarriers
     {- construct transitive closure of used type carriers -}
     let typeCarriers = transCloseUsedCarriers table unitTypeCarriers
-    {- translate type definitions in system include files -}
-    toplvs <- runFTrav table ("", parmods) $ transExtGlobals unitTypeNames $ filter isExternDef typeCarriers
+    {- generate abstract definitions for derived types in all type carriers -}
+    toplvs <- runFTrav table ("", parmods) $ genTypeDefs unitTypeNames $ typeCarriers
     {- Output -}
     print $ prettyTopLevels toplvs
-
-isExternDef :: LCA.DeclEvent -> Bool
-isExternDef (LCA.TagEvent cd) = isExtern cd
-isExternDef (LCA.TypeDefEvent td) = isExtern td
-isExternDef _ = False
 
 constructFilter :: [LCA.IdentDecl] -> [String] -> LCA.DeclEvent -> Bool
 constructFilter invks varnams (LCA.DeclEvent decl@(LCA.Declaration _)) = invokedOrListed decl

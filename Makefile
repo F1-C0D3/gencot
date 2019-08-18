@@ -1,12 +1,13 @@
 all: build links
 
-build: check deccm pmext pmgen pmprc trans extns exttp
+build: check deccm pmext pmgen pmprc trans extns exttp dvdtp
 
 CHECK = gencot-check
 TRANS = gencot-translate
 DECCM = gencot-deccomments
 EXTNS = gencot-externs
 EXTTP = gencot-exttypes
+DVDTP = gencot-dvdtypes
 PMEXT = parmod-externs
 PMGEN = parmod-gen
 PMPRC = parmod-proc
@@ -26,6 +27,9 @@ extns:
 exttp: 
 	cabal new-build $(EXTTP)
 
+dvdtp: 
+	cabal new-build $(DVDTP)
+
 pmext: 
 	cabal new-build $(PMEXT)
 
@@ -35,7 +39,7 @@ pmgen:
 pmprc: 
 	cabal new-build $(PMPRC)
 
-links: bin/$(CHECK) bin/$(DECCM) bin/$(PMEXT) bin/$(PMGEN) bin/$(PMPRC) bin/$(TRANS) bin/$(EXTNS)  bin/$(EXTTP)
+links: bin/$(CHECK) bin/$(DECCM) bin/$(PMEXT) bin/$(PMGEN) bin/$(PMPRC) bin/$(TRANS) bin/$(EXTNS) bin/$(EXTTP) bin/$(DVDTP)
 
 bin/$(CHECK):
 	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(CHECK)/build/$(CHECK)/$(CHECK) .)
@@ -51,6 +55,9 @@ bin/$(EXTNS):
 
 bin/$(EXTTP):
 	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(EXTTP)/build/$(EXTTP)/$(EXTTP) .)
+
+bin/$(DVDTP):
+	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(DVDTP)/build/$(DVDTP)/$(DVDTP) .)
 
 bin/$(PMEXT):
 	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(PMEXT)/build/$(PMEXT)/$(PMEXT) .)

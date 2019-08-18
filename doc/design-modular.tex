@@ -92,8 +92,8 @@ unit. Gencot always assumes that \textit{all} include files used (transitively) 
 to Cogent and included in this form.
 
 The only exception are the system include files. Their content typically needs specific treatment anyways. Gencot replaces every 
-reference to such a content by an abstract type or function, whithout providing an implementation. It must be added manually
-by the developer.
+reference to a function declared in a system include file by an abstract function, whithout providing an implementation. 
+It must be added manually by the developer. Referenced types defined in system include files are translated as usual.
 
 \subsubsection{External Name References}
 \label{design-modular-extref}
@@ -125,7 +125,7 @@ the name's definition. Note that this is only necessary for deciding whether a r
 for processing it is always present as part of the declaration in the included origin file.
 
 On the C level the information for external name references with internal or no linkage must always be provided manually,
-since they are not defined in the <package>. The information for variable references with external must also be provided
+since they are not defined in the <package>. The information for variable references with external linkage must also be provided
 manually. The information for function references with external linkage is generated automatically by Gencot in the 
 form of the exit wrapper functions defined in antiquoted C. 
 

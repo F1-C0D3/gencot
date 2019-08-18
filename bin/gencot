@@ -225,7 +225,10 @@ then
     $BIN/gencot-exttypes $JFILE $EVFILE < $TMPDIR/infiles | $BIN/gencot-reporigs \
         | $BIN/gencot-defcomments $COMMENTDIR \
         | $BIN/gencot-mrgcomments /dev/null > $TMPDIR/$CNAME-exttypes.cogent
-    cp $TMPDIR/$CNAME-externs.cogent $TMPDIR/$CNAME-exttypes.cogent .
+    $BIN/gencot-dvdtypes $JFILE $EVFILE < $TMPDIR/infiles | $BIN/gencot-reporigs \
+        | $BIN/gencot-defcomments $COMMENTDIR \
+        | $BIN/gencot-mrgcomments /dev/null > $TMPDIR/$CNAME-dvdtypes.cogent
+    cp $TMPDIR/$CNAME-externs.cogent $TMPDIR/$CNAME-exttypes.cogent $TMPDIR/$CNAME-dvdtypes.cogent .
 elif [ "$CMD" == "check" ]
 then 
     prepare_cfile $CFILE

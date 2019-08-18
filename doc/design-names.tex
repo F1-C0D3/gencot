@@ -34,7 +34,9 @@ type names, which must be uppercase, only one case variant is required.
 Member names of C structs or unions are translated to Cogent record field names. Both in C and Cogent the scope of these
 names is restricted to the surrounding structure. Therefore, Gencot normally does not map these names and uses them unmodified
 in Cogent. However, since Cogent field names must be lowercase, Gencot applies the normal mapping for lowercase target 
-names to all uppercase member names (which in practice are unusual in C). 
+names to all uppercase member names (which in practice are unusual in C). Moreover, Cogent field names must not begin
+with an underscore, so these names are mapped as well, by prepending \code{cogent\_} (which results in two consecutive 
+underscores).
 
 C function parameter names are translated to Cogent variable names bound in the Cogent function body expression. Hence, both
 in C and Cogent the scope of these names is restricted to the function body. They are treated by Gencot in the same way as 
@@ -77,15 +79,15 @@ function types. Basically, an unnamed C type could be mapped to a corresponding 
 this is not always possible or feasible.
 
 Tagless enum types
-are always mapped to a primitive type in Cogent. Also, for some pointer types corresponding Cogent type expressions can
-be defined. 
+are always mapped to a primitive type in Cogent.
 
 A tagless C struct could be mapped to a corresponding Cogent record type expression. However, the tagless struct
 can be used in several declarators and several different types can be derived from it. In this case the Cogent record
 expression would occur syntactically in several places, which is semantically correct, but may not be feasible for
 large C structs. Therefore, Gencot introduces a Cogent type name for every tagless C struct.
 
-In the remaining cases no corresponding binary compatible type can be defined for a C type in Cogent (see Section~\ref{design-types}). In these cases 
+In the remaining cases no corresponding binary compatible type can be defined for a C type in Cogent 
+(see Section~\ref{design-types}). In these cases 
 an abstract type is defined in Cogent which references the C type. The abstract type in Cogent is specified by its 
 name only, hence a Cogent type name must be introduced.
 

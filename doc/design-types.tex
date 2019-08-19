@@ -473,8 +473,10 @@ parameters is specified such as in \code{t (...)} (``variadic function type'') c
 function type in this way. 
 They can only be mapped using an abstract type as parameter type. This can again lead to incompatible 
 Cogent types if a function pointer is assigned where parameters have been specified, these cases must 
-be treated manually in specific ways. Gencot maps these function types to a Cogent function type with an abstract
-parameter type.
+be treated manually in specific ways. Gencot maps incomplete function types to a Cogent function type with the
+single abstract parameter type \code{Unknown_Cogent_Parameters}. The corresponding function pointer types
+have the form \code{F\_Unknown\_Cogent\_Parameters\_<result type>}. Gencot maps variadic function types
+with an additional last parameter type \code{Variadic\_Cogent\_Parameters} (without unbox operator applied).
 
 All function pointers are represented by an integer in Cogent, hence a C function pointer type could be 
 mapped (through the from/invk/to translation functions) to an arbitrary Cogent function type.
@@ -486,7 +488,8 @@ functions) are
 \begin{verbatim}
   t(t1, ..., tn) -> (T1, ..., Tn) -> T
   t(void) -> () -> T
-  t(), t(t1,...,tn,...) -> P -> T, where P is abstract
+  t(t1,...,tn,...) -> (T1, ..., Tn, Variadic_Cogent_Parameters) -> T
+  t() -> Unknown_Cogent_Parameters -> T
 \end{verbatim}
 
 \subsubsection{Linear and Readonly Parameter Types}

@@ -3,6 +3,7 @@ module Gencot.Cogent.Translate where
 
 import Control.Monad (liftM,when)
 import Data.List (nub)
+import Data.Map (Map,singleton,unions,toList)
 import Data.Maybe (catMaybes)
 
 import "language-c" Language.C as LC hiding (pretty,Pretty)
@@ -46,13 +47,14 @@ transGlobal (LCA.DeclEvent (LCA.Declaration decl@(LCA.Decl (LCA.VarDecl (LCA.Var
     f <- transObjName idnam
     fid <- parmodFunId decl
     t <- transType fid typ
-    t <- applyParmods fid t
+    t <- applyParmods [] fid t
     return $ GenToplv (CS.AbsDec f (CS.PT [] $ mkFunType t)) $ mkOrigin n
 transGlobal (LCA.DeclEvent (LCA.FunctionDef fdef@(LCA.FunDef decl@(LCA.VarDecl (LCA.VarName idnam _) _ typ) stat n))) = do
     f <- transObjName idnam
     fid <- parmodFunId fdef
     t <- transType fid typ
-    t <- applyParmods fid t
+    defaultParmods <- mapM mkDefaultParmod $ map LCA.declType pars
+    t <- applyParmods defaultParmods fid t
     ps <- transParamNames pars
     LCA.enterFunctionScope
     LCA.defineParams LCN.undefNode decl
@@ -99,36 +101,57 @@ transExtGlobal _ e = transGlobal e
 
 genTypeDefs :: [String] -> [LCA.DeclEvent] -> FTrav [GenToplv]
 genTypeDefs tds tcs = do
-    derivedTypes <- liftM (nub . concat) $ mapM (genDerivedTypeNames tds) tcs
-    mapM genAbsTypeDef derivedTypes
+    derivedTypes <- liftM (unions . concat) $ mapM (genDerivedTypeNames tds) tcs
+    liftM concat $ mapM (uncurry genDerivedTypeDefs) $ toList derivedTypes
 
-genDerivedTypeNames :: [String] -> LCA.DeclEvent -> FTrav [String]
+genDerivedTypeNames :: [String] -> LCA.DeclEvent -> FTrav [Map String (String,LCA.Type)]
 genDerivedTypeNames tdn tc = do
     sfn <- srcFileName tc
-    liftM (map getName) $ mapM (\(fid,t) -> transType fid t) $ 
+    liftM (map (\(gt,fid,t) -> singleton (getName gt) (fid,t))) $ 
+        mapM (\(fid,t) -> do gt <- transType fid t; return (gt,fid,t)) $ 
         filter (\(_,t) -> not $ (isAggPointer t || isNamedFunPointer t)) $ 
         nub $ map (\(fid,t) -> (fid,wrapFunAsPointer t)) $ 
         concat $ map (uncurry getDerivedParts) $ carriedWithFunIds sfn tdn tc
     where getName (GenType (CS.TCon nam [] _) _) = nam
 
-genAbsTypeDef :: String -> FTrav GenToplv
-genAbsTypeDef nam = 
-    return $ GenToplv (CS.AbsTypeDec nam [] []) noOrigin
+genDerivedTypeDefs :: String -> (String,LCA.Type) -> FTrav [GenToplv]
+genDerivedTypeDefs nam (fid,(LCA.PtrType t _ _)) | not $ isFunction t = do
+    gt <- transType "" t
+    return $ [GenToplv (CS.TypeDec nam [] $ genType $ CS.TRecord [("cont", (gt, False))] markBox) noOrigin]
+genDerivedTypeDefs nam (fid,(LCA.PtrType ftyp@(LCA.FunctionType (LCA.FunType ret pars False) _) _ _)) = do
+    t <- transType fid ftyp
+    defaultParmods <- mapM mkDefaultParmod $ map LCA.declType pars
+    t <- applyParmods defaultParmods fid t
+    let f_to = GenToplv (CS.AbsDec ("to_" ++ nam) (CS.PT [] $ genType $ CS.TFun t fptyp)) noOrigin
+    let f_invk = GenToplv (CS.AbsDec ("invk_" ++ nam) (CS.PT [] $ prepPar fptyp t )) noOrigin
+    return $ [tdef,f_to,f_invk]
+    where tdef = GenToplv (CS.AbsTypeDec nam [] []) noOrigin
+          fptyp = genType $ CS.TCon nam [] markUnbox
+          prepPar fptyp (GenType (CS.TFun pt rt) o) = GenType (CS.TFun (pPar fptyp pt) rt) o
+          pPar fptyp (GenType CS.TUnit o) = fptyp
+          pPar fptyp (GenType (CS.TTuple ts) o) = (GenType (CS.TTuple (fptyp : ts)) o)
+          pPar fptyp t = (GenType (CS.TTuple [fptyp,t]) noOrigin)
+-- Pointer to aggregate and pointer to named function are suppressed in genDerivedTypeNames
+-- Pointer to incomplete function or to variadic function are ???
+genDerivedTypeDefs nam (fid,t) = 
+    return $ [GenToplv (CS.AbsTypeDec nam [] []) noOrigin]
 
 parmodFunId :: (LCA.Declaration d, LCN.CNode d) => d -> FTrav String
 parmodFunId fdef = do
     sfn <- srcFileName $ LCA.declIdent fdef
     return $ getFunId fdef sfn
 
-applyParmods :: String -> GenType -> FTrav GenType
-applyParmods fid (GenType (CS.TFun pt rt) o) = do
+applyParmods :: [String] -> String -> GenType -> FTrav GenType
+applyParmods dpms fid (GenType (CS.TFun pt rt) o) = do
     pms <- getParmods fid
-    let pts = zip pms $ ptlist pt
+    let hpms = if (length pms) < (length ptl) then dpms else pms
+    let pts = zip hpms ptl
     return $ GenType (CS.TFun (applyToPars pts) (applyToRes pts rt)) o
-    where ptlist (GenType CS.TUnit _) = []
+    where ptl = ptlist pt
+          ptlist (GenType CS.TUnit _) = []
           ptlist (GenType (CS.TTuple ts) _) = ts
           ptlist gt = [gt]
-applyParmods _ t = return t
+applyParmods _ _ t = return t
 
 applyToPars :: [(String,GenType)] -> GenType
 applyToPars pts = mkGenType $ map applyToPar pts
@@ -213,9 +236,9 @@ transParamName pd =
 transType :: String -> LCA.Type -> FTrav GenType 
 transType _ (LCA.DirectType TyVoid _ _) = 
     return $ genType CS.TUnit
-transType fid (LCA.FunctionType (LCA.FunType ret pars False) _) = do
+transType fid (LCA.FunctionType (LCA.FunType ret pars variadic) _) = do
     r <- transType "" ret
-    ps <- transParamTypes fid pars
+    ps <- transParamTypes variadic fid pars
     return $ genType $ CS.TFun ps r
 transType fid t = do
     (u,d,b) <- transDerivedType fid t
@@ -322,11 +345,13 @@ mkFunType :: GenType -> GenType
 mkFunType t@(GenType (CS.TFun _ _) _) = t
 mkFunType t = genType $ CS.TFun (mkGenType []) t
 
--- The first argument is the parmod function identifier of the parameters' function.
-transParamTypes :: String -> [LCA.ParamDecl] -> FTrav GenType
-transParamTypes fid pars = do
+-- The second argument is the parmod function identifier of the parameters' function.
+transParamTypes :: Bool -> String -> [LCA.ParamDecl] -> FTrav GenType
+transParamTypes variadic fid pars = do
     ps <- mapM (transParamType fid) pars
-    return $ mkGenType ps
+    return $ mkGenType (ps ++ if variadic then [variadicType] else [])
+
+variadicType = genType (CS.TCon "Variadic_Cogent_Parameters" [] markBox)
 
 transParamType :: String -> LCA.ParamDecl -> FTrav GenType
 transParamType fid pd = do

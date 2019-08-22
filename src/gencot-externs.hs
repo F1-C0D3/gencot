@@ -40,12 +40,12 @@ main = do
     {- Output -}
     print $ prettyTopLevels absdefs
 
--- | Predicate for all non-variadic functions completely declared but not defined
+-- | Predicate for all functions completely declared but not defined
 -- which are either invoked or listed in varnams
 constructFilter :: [LCA.IdentDecl] -> [String] -> LCA.DeclEvent -> Bool
 constructFilter invks varnams (LCA.DeclEvent decl@(LCA.Declaration _)) = 
     case resolveTypedef $ LCA.declType decl of
-         LCA.FunctionType (LCA.FunType _ _ False) _ -> invokedOrListed decl
+         LCA.FunctionType (LCA.FunType _ _ _) _ -> invokedOrListed decl
          LCA.FunctionType _ _ -> False
          _ -> invokedOrListed decl
     where invokedOrListed decl = elem decl invks || elem (identToString $ LCA.declIdent decl) varnams

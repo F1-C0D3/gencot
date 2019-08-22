@@ -213,8 +213,6 @@ The external invoked functions are further filtered as follows:
 \begin{itemize}
 \item If the type is a function pointer, invocations are translated to Cogent in a different way as 
 described in Section~\ref{design-types-function}. Therefore we omit all function pointer invocations.
-\item Variadic functions cannot be translated to a single Cogent function. Therefore we omit invocations of
-variadic functions.
 \item A function which is only declared may be incomplete, i.e., its parameters (number and types) are not known. 
 We could translate such function declarations to Cogent abstract functions with Unit as argument type, however,
 that would not be related to the invocations and thus be useless. Therefore we omit invocations
@@ -228,6 +226,12 @@ using either an incomplete declaration or a complete declaration it can be contr
 function definition is generated for it. If the macro is translated to a macro in Cogent, no abstract function
 definition shall be generated and an incomplete dummy declaration must be used.
 
+There are cases where an external function is used without being seen by the call graph. This is the case when
+the function is assigned to a function pointer or when the function invocation is created by a macro call and
+is thus not visible for the call graph. For these cases Gencot supports a list where additional functions
+to be processed can be specified in an auxiliary input file by their names, each in a seperate line. Only
+functions with external linkage can be specified, for them the name is unique in the <package>.
+
 \subsubsection{Determining External Variables}
 
 As for functions, Gencot also restricts the processed external variables to a subset of the declared variables.
@@ -236,8 +240,7 @@ the help of the call graph. Gencot does this for all variables of function point
 call graph. Variables accessed in other ways or of other types may be specified explicitly as a list. This
 provides more control about the processed external variables for the developer.
 
-The external variables are specified in an auxiliary input file by their names, each in a seperate line. Only
-variables with external linkage can be specified, for them the name is unique in the <package>.
+The external variables are specified in the same list as the additional external functions.
 
 \subsubsection{Processor \code{gencot-externs}}
 
@@ -353,8 +356,7 @@ directly translates it to a Cogent type expression (Section~\ref{design-fundefs}
 A type can be used by code in a translated C soure file or by a declaration of an external function or variable.
 As described in Section~\ref{impl-ccomps-externs}, Gencot only translates external functions and variables if they are 
 actually invoked or explicitly listed by the developer.
-Therefore, \code{gencot-exttypes} determines the external invoked functions and variables in the same way. However, to support
-the manual translation of invoked variadic and incompletely declared functions, it also includes them. Note that
+Therefore, \code{gencot-exttypes} determines the external invoked functions and variables in the same way. Note that
 the external invoked functions include those defined in the <package> outside the Cogent compilation unit, as well
 as those declared in a system include file.
 

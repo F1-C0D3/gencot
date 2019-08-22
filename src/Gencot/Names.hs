@@ -81,9 +81,8 @@ mapArrDeriv (LCA.ArraySize _ (LCS.CVar (LCI.Ident s _ _) _)) = "A'" ++ s ++ "'"
 mapArrDeriv _ = "A''"
 
 mapFunDeriv :: LCA.FunType -> [(Bool,String,String)] -> String
-mapFunDeriv (LCA.FunTypeIncomplete _) _ = "F"
-mapFunDeriv (LCA.FunType _ _ True) _ = "F"
-mapFunDeriv (LCA.FunType _ _ False) ps = 
+mapFunDeriv (LCA.FunTypeIncomplete _) _ = "F_UnknownCogentParameters_"
+mapFunDeriv (LCA.FunType _ _ _) ps = 
     "F_" ++ (concat $ map mkParTypeName ps) ++ (if null ps then "" else "'") ++ "_"
 
 mapParmodDeriv :: String -> String
@@ -91,6 +90,9 @@ mapParmodDeriv "yes" = "L"
 mapParmodDeriv "readonly" = "R"
 mapParmodDeriv "no" = "R"
 mapParmodDeriv _ = ""
+
+mkNonLin :: String -> String
+mkNonLin d = 'U' : d
 
 mkDerivedName :: String -> String -> String
 mkDerivedName deriv base = deriv ++ sep ++ base

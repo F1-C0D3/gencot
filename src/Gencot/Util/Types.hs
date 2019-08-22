@@ -321,8 +321,11 @@ isExtern n = case LCN.fileOfNode n of
                   Nothing -> False
                   Just fpath -> "/" `isPrefixOf` fpath
 
-isAggOrFunc :: TypePred
-isAggOrFunc t = isAggregate t || isFunction t
+isCompOrFunc :: TypePred
+isCompOrFunc td@(LCA.TypeDefType _ _ _) = isCompOrFunc $ resolveTypedef td
+isCompOrFunc (LCA.DirectType (LCA.TyComp _) _ _) = True
+isCompOrFunc (LCA.FunctionType _ _) = True
+isCompOrFunc _ = False
 
 isAggPointer :: TypePred
 isAggPointer (LCA.PtrType t _ _) = isAggregate t
@@ -352,6 +355,11 @@ isFunction :: TypePred
 isFunction td@(LCA.TypeDefType _ _ _) = isFunction $ resolveTypedef td
 isFunction (LCA.FunctionType _ _) = True
 isFunction _ = False
+
+isComplete :: TypePred
+isComplete td@(LCA.TypeDefType _ _ _) = isComplete $ resolveTypedef td
+isComplete (LCA.FunctionType (LCA.FunTypeIncomplete _) _) = False
+isComplete _ = True
 
 isPointer :: TypePred
 isPointer td@(LCA.TypeDefType _ _ _) = isPointer $ resolveTypedef td

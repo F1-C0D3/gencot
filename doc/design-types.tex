@@ -202,6 +202,8 @@ element'' type. Thus the corresponding implementations in antiquoted C are
   typedef t *A_primen_prime_T
 \end{verbatim}
 
+To which of both Cogent types a C array is mapped depends on the context where it is used.
+
 The name \code{UA'n'\_T} without unbox operator applied is translated by Cogent to the corresponding 
 pointer type in C, which is a pointer to array. Gencot uses it to map this kind of types (see 
 Section~\ref{design-types-pointer}).
@@ -216,6 +218,24 @@ two Cogent type names
   UA'2'UA'7'_T
   A'2'UA'7'_T
 \end{verbatim}
+
+A C array type cannot be used as result type of a function. Thus, the remaining possible uses of a C array type are
+\begin{itemize}
+\item as type of a global variable. This is translated using an access function which returns the variable
+value. Since in C a function cannot return an array, the type \code{A'n'\_T} is used as result type.
+\item as type of a function parameter. In C this is ``adjusted'' to the pointer-to-element type. Since this
+corresponds to type \code{A'n'\_T}, it is used as parameter type in Cogent. Alternatively the adjusted type
+could be mapped, resulting in type \code{P\_T} or even \code{T}. The type \code{A'n'\_T} is preferred here
+by Gencot since it preserves more information.
+\item as type of a member in a struct type. Here the size of the array is relevant, therefore the Cogent type
+\code{#UA'n'\_T} is used as type for the corresponding Cogent record field.
+\item as defining type for a typedef name. Here the type to be used depends on the context where the typedef
+name is used. One approach would be to also define two syntactic variants of the typedef name so that the 
+correct name can be used depending on its context. Gencot uses the simpler approach to always define the mapped 
+typedef name as an alias for the Cogent type \code{A'n'\_T}. When a typedef name for an array type is used where 
+type \code{UA'n'\_T} would be required, the typedef name is fully resolved and the type \code{UA'n'\_T} is used
+instead.
+\end{itemize}
 
 It would be nice to use two generic types for all C array types, instead of generating new names for every 
 C array type. Then the element type need not be mapped to a type name, it may be mapped
@@ -240,10 +260,12 @@ Cogent abstract type names. This is the reason why the size specification is enc
 as described in Section~\ref{design-names}. 
 
 Together we have the following mapping rule for C arrays with element type \code{el} and size 
-specification \code{<size>}:
+specification \code{<size>}, depending on the context of the C array type:
 \begin{verbatim}
   el[<size>] -> A'<size>'_El , #UA'<size>'_El
+  el[<complex size>] -> A''_El, #UA''_El
   el[] -> A_El , #UA_El
+  el[*] -> A_El , #UA_El
 \end{verbatim}
 where El is the result of mapping the element type \code{el} to a Cogent type name. If the size specification
 is too complex (not a literal or single identifier) it is omitted and the type must be handled manually. If the
@@ -257,7 +279,12 @@ struct and union types and is equivalent to the case where \code{el} is another 
 
 The abstract types generated for arrays with known size are complemented by Gencot by abstract functions for working with
 arrays. For these functions Gencot automatically generates the Cogent function definitions and the 
-implementations in antiquoted C. For array types of the form \code{A\_El} no such support is provided.
+implementations in antiquoted C. All these implementations involve the array size in some way.
+
+If the array size is unknown (types of the form \code{A\_El}) or too complex (types of the form \code{A''\_El})
+only the Cogent function definitions are generated. The implementations must be provided manually. Often
+this is possible by the developer determining the array size from the context. If several array types with 
+different unknown sizes have been mapped to the same abstract type, they must be disambiguished manually.
 
 Gencot only supports arrays which are allocated on the heap. In C, arrays can also be introduced by defining
 them as global or local variable, but Cogent has no language constructs which support this.
@@ -304,17 +331,24 @@ However, this would be cumbersome in many applications and misleading for proofs
 the array. Note that the result type is not readonly although it is taken from a readonly array. Since it is nonlinear
 there is no difference between being readonly or not.
 
-If the element type is linear Gencot provides the abstract functions
+If the element type is linear Gencot provides the abstract function
 \begin{verbatim}
   replacein_A'<size>'_El : (A'<size>'_El,UNN,El) -> (A'<size>'_El,El)
-  modifyin_A'<size>'_El : (A'<size>'_El,UNN,#F_'El'_El) -> A'<size>'_El
 \end{verbatim}
-which are implemented in antiquoted C using the C array subscription operator \code{[]}. The first function
+which is implemented in antiquoted C using the C array subscription operator \code{[]}. It
 replaces the element at the specified position by the element passed as parameter and returns the old element in the result.
-The second function applies the function pointer passed as parameter to the element at the specified position.
-Note that both functions cause no sharing or discarding for the linear array element values. If the specified
-index is not in the range \code{0..<size>-1} the \code{replacein}-function returns the same element which has been
-passed as parameter and both functions return the unmodified array.
+Note that the function causes no sharing or discarding for the linear array element values. If the specified
+index is not in the range \code{0..<size>-1} the function returns the same element which has been
+passed as parameter and the unmodified array.
+
+Another useful function could be 
+\begin{verbatim}
+  modifyin_A'<size>'_El : (A'<size>'_El,UNN,#F_'L_El'_Void) -> A'<size>'_El
+\end{verbatim}
+which applies the function pointer passed as parameter to the element at the specified position to modify it. However, the applied
+function often needs additional information to modify the element. Also, it is difficult to generate the abstract
+type and function definitions for type \code{\#F\_'El'\_El}, since they are only required if the type does not occur in
+the regular translated code. For these reasons Gencot does not generate a definition for this abstract function.
 
 No equivalent for the Cogent take and put operations are provided for arrays with linear element type. It would be
 necessary to statically encode the set of array indices for which the elements have been taken in the type expression,
@@ -467,16 +501,24 @@ have the same number of fields and the fields have equivalent types. To preserve
 a function definition, the parameter is matched with a tuple pattern containing variables of these
 names as fields.
 
+C function types where a variable number of
+parameters is specified such as in \code{t (...)} (``variadic function type'') must 
+be treated manually in specific ways. Gencot maps variadic function types
+with an additional last parameter type \code{VariadicCogentParameters}. This pseudo type is intended 
+to inform the developer that manual action is required. The bang operator is applied as a hint
+that no modifications are returned. For a function pointer, the corresponding Cogent type name has
+the form \code{F\_'...'R\_VariadicCogentParameters'\_<result type>}.
+
 C function types where the parameters are omitted, such as in \code{t ()} (``incomplete function type'') 
-or where a variable number of
-parameters is specified such as in \code{t (...)} (``variadic function type'') cannot be mapped to a Cogent 
-function type in this way. 
+cannot be mapped to a Cogent function type in this way. 
 They can only be mapped using an abstract type as parameter type. This can again lead to incompatible 
 Cogent types if a function pointer is assigned where parameters have been specified, these cases must 
-be treated manually in specific ways. Gencot maps incomplete function types to a Cogent function type with the
-single abstract parameter type \code{Unknown_Cogent_Parameters}. The corresponding function pointer types
-have the form \code{F\_Unknown\_Cogent\_Parameters\_<result type>}. Gencot maps variadic function types
-with an additional last parameter type \code{Variadic\_Cogent\_Parameters} (without unbox operator applied).
+be treated manually in specific ways. Note that incomplete function types cannot be used for function
+definitions, only for function pointers and for declarations of external functions. Gencot maps pointers 
+to incomplete function types to type names of the form \code{F\_UnknownCogentParameters\_<result type>}. 
+Gencot does not translate declarations of functions with incomplete types, these must be added manually.
+This behavior of Gencot is also exploited to handle manually translated macros, as described in 
+Section~\ref{impl-ccomps-externs}.
 
 All function pointers are represented by an integer in Cogent, hence a C function pointer type could be 
 mapped (through the from/invk/to translation functions) to an arbitrary Cogent function type.
@@ -488,8 +530,8 @@ functions) are
 \begin{verbatim}
   t(t1, ..., tn) -> (T1, ..., Tn) -> T
   t(void) -> () -> T
-  t(t1,...,tn,...) -> (T1, ..., Tn, Variadic_Cogent_Parameters) -> T
-  t() -> Unknown_Cogent_Parameters -> T
+  t(t1,...,tn,...) -> (T1, ..., Tn, Variadic_Cogent_Parameters!) -> T
+  t(*)() -> #F_UnknownCogentParameters_T
 \end{verbatim}
 
 \subsubsection{Linear and Readonly Parameter Types}

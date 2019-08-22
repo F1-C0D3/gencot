@@ -138,14 +138,14 @@ the result is a heap address.
 All these problems can be solved by allocating the variable on the heap instead. Then the variable definition
 must be replaced by a call to the (abstract) creation function for the corresponding linear type 
 (see Section~\ref{design-types-pointer}) and 
-at the end of its scope a call to the (abstract) discarding function must be added. Then the address
+at the end of its scope a call to the (abstract) dispose function must be added. Then the address
 operator need not be translated, since the creation function already returns the linear value which can be 
 used for the same purposes. The resulting Cogent code would be
 \begin{verbatim}
   let ptr = create_P_U32 5
-  in free_P_U32(...ptr...)
+  in dispose_P_U32(...ptr...)
 \end{verbatim}
-where the argument of \code{free\_P\_U32} is an expression which uses and returns the \code{ptr} in the 
+where the argument of \code{dispose\_P\_U32} is an expression which uses and returns the \code{ptr} in the 
 usual way for a value of linear type.
 
 The second use case cannot be translated in this way, since the referenced data is a part of a larger structure.
@@ -256,18 +256,6 @@ where the \code{create}-function takes the actual array size (number of elements
 \code{TCArray\_tt\_El} is used for the uninitialized array, corresponding abstract functions for initializing
 and freeing the array elements must be provided.
 
-The element access functions in the case of a non-linear element type are:
-\begin{verbatim}
-  get_CArray_tt_El : (CArray_tt_El!,U32) -> Option El
-  put_CArray_tt_El : (CArray_tt_El,U32,El) -> CArray_tt_El
-\end{verbatim}
-and for a linear element type:
-\begin{verbatim}
-  replacein_CArray_tt_El : (CArray_tt_El,U32,El) -> (CArray_tt_El,El)
-  modifyin_CArray_tt_El : (CArray_tt_El,U32,#F_'El'_El) -> CArray_tt_El
-  get_CArray_tt_El : (CArray_tt_El!,U32) -> Option El!
-\end{verbatim}
-
 The implementation in antiquoted C has the following form:
 \begin{verbatim}
   typedef el *CArray_tt_El, *TCArray_tt_El;
@@ -279,6 +267,18 @@ The implementation in antiquoted C has the following form:
     free(arr); return $exp(());
   }
   ...
+\end{verbatim}
+
+The element access functions are defined in the same way as for array types (see Section~\ref{design-types-array}. 
+In the case of a non-linear element type they are:
+\begin{verbatim}
+  get_CArray_tt_El : (CArray_tt_El!,U32) -> Option El
+  put_CArray_tt_El : (CArray_tt_El,U32,El) -> CArray_tt_El
+\end{verbatim}
+and for a linear element type:
+\begin{verbatim}
+  get_CArray_tt_El : (CArray_tt_El!,U32) -> Option El!
+  replacein_CArray_tt_El : (CArray_tt_El,U32,El) -> (CArray_tt_El,El)
 \end{verbatim}
 
 In the second case the array size is determined by additional information seperate from the pointer to the array.

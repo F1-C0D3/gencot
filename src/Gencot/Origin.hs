@@ -28,6 +28,15 @@ mkSignedOrigin s n = if hasPosition n then Origin [(n,s)] [(n,s)] else noOrigin
 mkOrigin = mkSignedOrigin True
 mkNoComOrigin = mkSignedOrigin False
 
+mkBegSignedOrigin :: Bool -> NodeInfo -> Origin
+mkBegSignedOrigin s n = if hasPosition n then Origin [(n,s)] [] else noOrigin
+
+mkEndSignedOrigin :: Bool -> NodeInfo -> Origin
+mkEndSignedOrigin s n = if hasPosition n then Origin [] [(n,s)] else noOrigin
+
+mkBegOrigin = mkBegSignedOrigin True
+mkEndOrigin = mkEndSignedOrigin True
+
 origin :: CNode a => a -> Origin
 origin = mkOrigin . nodeInfo
 

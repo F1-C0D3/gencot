@@ -15,7 +15,7 @@ import Gencot.Json.Process (convertParmods)
 import Gencot.Package (readPackageFromInput,getIdentInvocations,getOwnCallGraphs,foldTables,foldTypeCarrierSets)
 import Gencot.Util.Types (collectTypeCarriers,transCloseUsedCarriers,usedTypeNames,carriesNonPrimitive,isExtern)
 import Gencot.Traversal (runFTrav)
-import Gencot.Cogent.Translate (transExtGlobals,genTypeDefs)
+import Gencot.Cogent.Translate (transExtGlobals)
 import Gencot.Cogent.Output (prettyTopLevels)
 
 main :: IO ()

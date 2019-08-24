@@ -19,7 +19,7 @@ import Cogent.Common.Syntax as CCS
 import Cogent.Common.Types as CCT
 import Cogent.Util (ffmap)
 
-import Gencot.Origin (Origin,noOrigin,origin,mkOrigin,noComOrigin)
+import Gencot.Origin (Origin,noOrigin,origin,mkOrigin,noComOrigin,mkBegOrigin,mkEndOrigin)
 import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapNameToLower,mapPtrDeriv,mapArrDeriv,mkNonLin,mapFunDeriv,mapParmodDeriv,mkDerivedName,mkParTypeName,srcFileName)
 import Gencot.Cogent.Ast
 import Gencot.C.Translate (transStat,transExpr)
@@ -30,25 +30,23 @@ import Gencot.Json.Identifier (getFunId,getFunMemberId,getFunTypeId,getLocalFunI
 genType t = GenType t noOrigin
 
 transGlobals :: [LCA.DeclEvent] -> FTrav [GenToplv]
-transGlobals = mapM transGlobal
+transGlobals tcs = liftM concat $ mapM transGlobal tcs
 
-transGlobal :: LCA.DeclEvent -> FTrav GenToplv
-transGlobal (LCA.TagEvent (LCA.CompDef (LCA.CompType sueref LCA.StructTag mems _ n))) = do
-    tn <- transTagName $ LCA.TyComp $ LCA.CompTypeRef sueref LCA.StructTag n
-    ms <- mapM (transMember sueref) (aggBitfields mems)
-    return $ GenToplv (CS.TypeDec tn [] $ genType $ CS.TRecord ms markBox) $ mkOrigin n
+transGlobal :: LCA.DeclEvent -> FTrav [GenToplv]
+transGlobal (LCA.TagEvent (LCA.CompDef ct@(LCA.CompType _ LCA.StructTag _ _ _))) =
+    transStruct ct transMember
 transGlobal (LCA.TagEvent (LCA.CompDef (LCA.CompType sueref LCA.UnionTag _ _ n))) = do
     tn <- transTagName $ LCA.TyComp $ LCA.CompTypeRef sueref LCA.UnionTag n
-    return $ GenToplv (CS.AbsTypeDec tn [] []) $ mkOrigin n
+    return $ [GenToplv (CS.AbsTypeDec tn [] []) $ mkOrigin n]
 transGlobal (LCA.TagEvent (LCA.EnumDef (LCA.EnumType sueref es _ n))) = do
     tn <- transTagName $ LCA.TyEnum $ LCA.EnumTypeRef sueref n
-    return $ GenToplv (CS.TypeDec tn [] $ genType $ CS.TCon "U32" [] markUnbox) $ mkOrigin n
+    return $ [GenToplv (CS.TypeDec tn [] $ genType $ CS.TCon "U32" [] markUnbox) $ mkOrigin n]
 transGlobal (LCA.DeclEvent (LCA.Declaration decl@(LCA.Decl _ n))) | isComplete typ = do
     f <- transObjName $ LCA.declIdent decl
     fid <- parmodFunId decl
     t <- transType fid typ
     t <- applyParmods typ fid t
-    return $ GenToplv (CS.AbsDec f (CS.PT [] $ mkFunType t)) $ mkOrigin n
+    return $ [GenToplv (CS.AbsDec f (CS.PT [] $ mkFunType t)) $ mkOrigin n]
     where typ = LCA.declType decl
           (LCA.FunctionType (LCA.FunType res vpars isVar) _) = typ
 transGlobal (LCA.DeclEvent (LCA.FunctionDef fdef@(LCA.FunDef decl stat n))) = do
@@ -63,42 +61,50 @@ transGlobal (LCA.DeclEvent (LCA.FunctionDef fdef@(LCA.FunDef decl stat n))) = do
     d <- extendExpr fdef d pars
     s <- transStat stat
     LCA.leaveFunctionScope
-    return $ GenToplv (CS.FunDef f (CS.PT [] t) [CS.Alt ps CCS.Regular $ FunBody d s]) $ mkOrigin n
+    return $ [GenToplv (CS.FunDef f (CS.PT [] t) [CS.Alt ps CCS.Regular $ FunBody d s]) $ mkOrigin n]
     where typ = LCA.declType decl
           (LCA.FunctionType (LCA.FunType res pars isVar) _) = typ
 transGlobal (LCA.DeclEvent odef@(LCA.ObjectDef (LCA.ObjDef decl@(LCA.VarDecl (LCA.VarName idnam _) _ typ) _ n))) = do
     f <- transObjName idnam
     fid <- parmodFunId odef
     t <- transType fid typ
-    return $ GenToplv (CS.AbsDec f (CS.PT [] $ mkFunType t)) $ mkOrigin n
+    return $ [GenToplv (CS.AbsDec f (CS.PT [] $ mkFunType t)) $ mkOrigin n]
 transGlobal (LCA.DeclEvent (LCA.EnumeratorDef (LCA.Enumerator idnam expr _ n))) = do
     e <- transExpr expr
-    return $ GenToplv (CS.ConstDef en (genType $ CS.TCon "U32" [] markUnbox) $ ConstExpr e) $ mkOrigin n
+    return $ [GenToplv (CS.ConstDef en (genType $ CS.TCon "U32" [] markUnbox) $ ConstExpr e) $ mkOrigin n]
     where en = mapNameToLower idnam
 transGlobal (LCA.TypeDefEvent td@(LCA.TypeDef idnam typ _ n)) = do
     t <- transType (getFunTypeId td) modiftyp
-    return $ GenToplv (CS.TypeDec tn [] t) $ mkOrigin n
+    return $ [GenToplv (CS.TypeDec tn [] t) $ mkOrigin n]
     where tn = mapNameToUpper idnam
           modiftyp = if isCompOrFunc typ then (LCA.PtrType typ LCA.noTypeQuals [])
                                          else typ
-transGlobal _ = return $ GenToplv (CS.Include "err-unexpected toplevel") noOrigin
+transGlobal _ = return $ [GenToplv (CS.Include "err-unexpected toplevel") noOrigin]
 
 transExtGlobals :: [String] -> [LCA.DeclEvent] -> FTrav [GenToplv]
-transExtGlobals tds tcs = mapM (transExtGlobal tds) tcs
+transExtGlobals tds tcs = liftM concat $ mapM (transExtGlobal tds) tcs
 
-transExtGlobal :: [String] -> LCA.DeclEvent -> FTrav GenToplv
+transExtGlobal :: [String] -> LCA.DeclEvent -> FTrav [GenToplv]
 transExtGlobal tds (LCA.TypeDefEvent td@(LCA.TypeDef idnam typ _ n)) = do
     t <- transType (getFunTypeId td) restyp
-    return $ GenToplv (CS.TypeDec tn [] t) $ mkOrigin n
+    return $ [GenToplv (CS.TypeDec tn [] t) $ mkOrigin n]
     where tn = mapNameToUpper idnam
           restyp = resolveFully tds modiftyp
           modiftyp = if isCompOrFunc typ then (LCA.PtrType typ LCA.noTypeQuals [])
                                          else typ
-transExtGlobal tds (LCA.TagEvent (LCA.CompDef (LCA.CompType sueref LCA.StructTag mems _ n))) = do
-    tn <- transTagName $ LCA.TyComp $ LCA.CompTypeRef sueref LCA.StructTag n
-    ms <- mapM (transExtMember tds sueref) (aggBitfields mems)
-    return $ GenToplv (CS.TypeDec tn [] $ genType $ CS.TRecord ms markBox) $ mkOrigin n
+transExtGlobal tds (LCA.TagEvent (LCA.CompDef ct@(LCA.CompType _ LCA.StructTag _ _ _))) = 
+    transStruct ct (transExtMember tds)
 transExtGlobal _ e = transGlobal e
+
+transStruct :: LCA.CompType -> (LCI.SUERef -> LCA.MemberDecl -> FTrav (CCS.FieldName, (GenType, CS.Taken))) -> FTrav [GenToplv]
+transStruct (LCA.CompType sueref LCA.StructTag mems _ n) trMember = do
+    tn <- transTagName $ LCA.TyComp $ LCA.CompTypeRef sueref LCA.StructTag n
+    ms <- mapM (trMember sueref) (aggBitfields mems)
+    let ttyp = genType $ CS.TTake Nothing $ genType $ CS.TCon tn [] markBox
+    let f_create = GenToplv (CS.AbsDec ("create_" ++ tn) (CS.PT [] $ genType $ CS.TFun utyp ttyp)) $ noOrigin
+    let f_dispose = GenToplv (CS.AbsDec ("dispose_" ++ tn) (CS.PT [] $ genType $ CS.TFun ttyp utyp)) $ mkEndOrigin n
+    return $ [GenToplv (CS.TypeDec tn [] $ genType $ CS.TRecord ms markBox) $ mkBegOrigin n,f_create,f_dispose]
+    where utyp = genType CS.TUnit
 
 genTypeDefs :: [String] -> [LCA.DeclEvent] -> FTrav [GenToplv]
 genTypeDefs tds tcs = do
@@ -118,7 +124,12 @@ genDerivedTypeNames tdn tc = do
 genDerivedTypeDefs :: String -> (String,LCA.Type) -> FTrav [GenToplv]
 genDerivedTypeDefs nam (fid,(LCA.PtrType t _ _)) | not $ isFunction t = do
     gt <- transType "" t
-    return $ [GenToplv (CS.TypeDec nam [] $ genType $ CS.TRecord [("cont", (gt, False))] markBox) noOrigin]
+    let ttyp = genType $ CS.TTake (Just [pfieldnam]) gt
+    let f_create = GenToplv (CS.AbsDec ("create_" ++ nam) (CS.PT [] $ genType $ CS.TFun utyp ttyp)) noOrigin
+    let f_dispose = GenToplv (CS.AbsDec ("dispose_" ++ nam) (CS.PT [] $ genType $ CS.TFun ttyp utyp)) noOrigin
+    return $ [GenToplv (CS.TypeDec nam [] $ genType $ CS.TRecord [(pfieldnam, (gt, False))] markBox) noOrigin,f_create,f_dispose]
+    where utyp = genType CS.TUnit
+          pfieldnam = "cont"
 genDerivedTypeDefs nam (fid,(LCA.PtrType ftyp@(LCA.FunctionType (LCA.FunType ret pars variadic) _) _ _)) = do
     t <- transType fid ftyp
     t <- applyParmods ftyp fid t

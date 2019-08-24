@@ -95,6 +95,7 @@ A C structure type of the form \code{struct \{ ... \}} is equivalent to a Cogent
 The Cogent compiler translates the unboxed record type to the C struct and maps all fields in the same order.
 If every C field type is mapped to a binary compatible Cogent field type both types are binary compatible as a whole.
 
+\subsubsection{Mapping Struct and Union Types}
 A C structure may contain bit-fields where the number of bits used for storing the field is explicitly specified.
 Gencot maps every consecutive sequence of bit-fields to a single Cogent field with a primitive Cogent type.
 The Cogent type is determined by the sum of the bits of the bit-fields in the sequence. It is the smallest 
@@ -129,6 +130,43 @@ even if no tag is present in C. Since the tag name is either defined to name a C
 it is always linear and names a boxed type which corresponds to a pointer. Hence, the type name generated for a struct
 is always used to refer to the type ``pointer to struct'', the struct type itself is translated to the type name 
 with the unbox operator applied. The same holds for union types.
+
+\subsubsection{Creating and Disposing Boxed Values}
+
+Since all pointer types are mapped to Cogent linear types, Cogent does not provide support for creating values
+of these types (``boxed values''). In C a pointer can be created using the address operator \code{\&} or by allocating data on
+the heap using a C standard function such as \code{malloc}. The address operator is supported by Gencot
+only for data on the heap, as explained in Section~\ref{app-trans-addrop}. Therefore, the basic functionality
+for pointer creation is allocation on the heap. This must be provided as an abstract Cogent function implemented
+in antiquoted C.
+
+Since values of a linear type cannot be discarded in Cogent, another abstract Cogent function is required for
+disposing such values, implemented in antiquoted C by using the C standard function \code{free}.
+
+Gencot automatically generates the Cogent abstract function definitions and their implementations in antiquoted
+C for every linear non-abstract type \code{T} (i.e., every record type) used in the Cogent program as follows:
+\begin{verbatim}
+  create_T : () -> T take (..)
+  dispose_T : T take (..) -> ()
+\end{verbatim}
+The \code{create\_T} functions only allocate space on the heap but do not initialize it, hence the result is 
+represented in Cogent by a record with all fields taken. They can be filled using the Cogent put operation.
+The \code{dispose\_T} functions expects a record with all fields taken and simply frees the heap space. In particular,
+this forces that all fields of linear type must have been taken and must be disposed separately.
+
+Cogent record types are used for mapping C struct types and C pointer types. The create/dispose functions for
+struct types have the form 
+\begin{verbatim}
+  create_Struct_s : () -> Struct_s take (..)
+  dispose_Struct_s : Struct_s take (..) -> ()
+\end{verbatim}
+The create/dispose functions for C pointer types are described in Section~\ref{design-types-pointer}.
+
+Linear abstract types are used for unions, arrays and void pointers. Functions for creating and disposing pointers
+to unions are not provided by Gencot. Functions for creating and disposing arrays are described in 
+Section~\ref{design-types-array}.
+
+\subsubsection{Dummy Expressions for Struct and Union Types}
 
 To be able to provide a dummy expression for mapped structure and union types, Gencot automatically defines an 
 abstract function from the unit type to the target type:
@@ -695,30 +733,12 @@ and \code{T} are derived, the underscore is omitted.
 
 \subsubsection{Creating and Disposing Pointers}
 
-Since all pointer types are mapped to Cogent linear types, Cogent does not provide support for creating values
-of these types. In C a pointer can be created using the address operator \code{\&} or by allocating data on
-the heap using a C standard function such as \code{malloc}. The address operator is supported by Gencot
-only for data on the heap, as explained in Section~\ref{app-trans-addrop}. Therefore, the basic functionality
-for pointer creation is allocation on the heap. This must be provided as an abstract Cogent function implemented
-in antiquoted C.
-
-Since values of a linear type cannot be discarded in Cogent, another abstract Cogent function is required for
-disposing such values, implemented in antiquoted C by using the C standard function \code{free}.
-
-Gencot automatically generates the Cogent abstract function definitions and their implementations in antiquoted
-C for every linear non-abstract type \code{T} (i.e., every record type) used in the Cogent program as follows:
+As described in Section~\ref{design-types-struct} Gencot provides abstract functions for creating and disposing
+values for all boxed record types. In the case of a mapped pointer type \code{P\_T} they have the form
 \begin{verbatim}
-  create_T : () -> T take (..)
-  dispose_T : T take (..) -> ()
+  create_P_T : () -> P_T take cont
+  dispose_P_T : P_T take cont -> ()
 \end{verbatim}
-The \code{create\_T} functions only allocate space on the heap but do not initialize it, hence the result is 
-represented in Cogent by a record with all fields taken. They can be filled using the Cogent put operation.
-The \code{dispose\_T} functions expects a record with all fields taken and simply frees the heap space. In particular,
-this forces that all fields of linear type must have been taken and must be disposed separately.
-
-Linear abstract types are used for unions, arrays and void pointers. Functions for creating and disposing pointers
-to unions are not provided by Gencot. Functions for creating and disposing arrays are described in 
-Section~\ref{design-types-array}.
 For type \code{P\_Void}, as for dereferencing, no
 automatic support for creating and disposing these pointers can be provided by Gencot.
 

@@ -157,42 +157,59 @@ by the linear Cogent type
 \begin{verbatim}
   type Struct_Cogent_ii = { i1: U32, i2: U32 }
 \end{verbatim}
-and it is possible to define and implement abstract functions
+
+If the overall structure in Cogent is readonly an abstract function of the form
+\begin{verbatim}
+  access_i2 : Struct_Cogent_ii! -> P_U32!
+\end{verbatim}
+can be used to access the Cogent field through a pointer. It returns the field as readonly, thus it is safe 
+since neither the field nor the structure can be modified.
+
+If the overall structure is modifyable, determining a pointer to the field would introduce sharing for the
+field, since it can be modified through the pointer or by modifying the structure. There are several possible
+approaches in this case.
+
+A straighforward approach uses two abstract functions
 \begin{verbatim}
   take_i2 : Struct_Cogent_ii -> (P_U32, Struct_Cogent_ii take i2)
   put_i2 : (P_U32, Struct_Cogent_ii take i2) -> Struct_Cogent_ii
 \end{verbatim}
-The first one is implemented in C by applying the address operator to the member \code{i2} of its argument
-and return it together with the argument. The second function is implemented by simply returning the second 
-tuple member. 
-
-Using a partial record type here is not necessary, but it makes the code safer, since the member \code{i2}
-cannot be accessed as long as the type has not been changed to the full record type again, which should be 
-done by \code{put\_i2}, discarding the pointer. However, it is possible to apply any other explicit \code{put}
-operation which writes the member \code{i2} while the pointer still exists, causing the shared content to
-be overwritten. To prevent this it must be proven for the Cogent program that no \code{put} operation for field 
-\code{i2} is applied to the result of \code{take\_i2} until it is restored by \code{put\_i2}.
-
-An alternative implementation of \code{take\_i2} would allocate a new copy of member \code{i2} on the heap
-and return this heap pointer as first result component. The implementation of \code{put\_i2} would copy the 
-value back from the heap and free the heap entry. Then no sharing can occur and the program has the 
+The implementation of \code{take\_i2} allocates a new copy of field \code{i2} on the heap
+and return this heap pointer as first result component. The implementation of \code{put\_i2} copies the 
+value back from the heap and frees the heap entry. Then no sharing can occur and the program has the 
 same type safety properties as a usual Cogent program. However, the copying makes it less efficient.
 
-In both cases the Cogent code has the form
-\begin{verbatim}
-  let (ptr,s') = take_i2 s
-  in put_i2 (...ptr...,s')
-\end{verbatim}
-where the first argument of \code{put\_i2} is an expression which uses and returns the \code{ptr} in the 
-usual way for a value of linear type.
+An alternative implementation of \code{take\_i2} would apply the address operator to the field \code{i2} of 
+its argument and return it together with the argument. Then \code{put\_i2} would do nothing and simply 
+return the record. Since the record returned by \code{take\_i2} has field \code{i2} taken, it
+cannot be accessed as long as the type has not been changed to the full record type again, which should be 
+done by \code{put\_i2}, discarding the pointer. However, it is possible to apply any other explicit \code{put}
+operation which writes the field \code{i2} while the pointer still exists, causing the shared content to
+be overwritten. To prevent this it must be proven for the Cogent program that no \code{put} operation for field 
+\code{i2} is applied to the result of \code{take\_i2} until it is restored by \code{put\_i2}. This implies that
+for proving the type safety properties an arbitrary complex part of the Cogent program must be taken into
+account.
 
-If the overall structure in Cogent is readonly the \code{take\_i2} function cannot be used, since it modifies
-the structure. For this case a function 
+A better approach is to combine the pseudo take an put operations in a single abstract function. It takes
+as parameter a function for working with the field, accessing it through a pointer. The working function
+may need additional information which must be passed to it. To support arbitrary types of additional information
+the main function can be defined as polymorphic. Then it has the form
 \begin{verbatim}
-  takeRO_i2 : Struct_Cogent_ii! -> P_U32!
+  modify_i2 : all a:<DS. (Struct_Cogent_ii,
+    (P_U32,(Struct_Cogent_ii take i2)!,a)->P_U32, a)
+    -> Struct_Cogent_ii
 \end{verbatim}
-can be used. It returns the member as readonly, thus it is safe since neither the member nor the structure
-can be modified.
+Here the type parameter \code{a} is restricted to be regular or readonly, so it can be discarded by \code{modify\_i2}.
+The working function takes as parameters the pointer to the field, the remaining structure, and the additional information
+of type \code{a}. The remaining structure is provided since often its content is also required for working on 
+field \code{i2}. It is passed with field \code{i2} taken, so no sharing occurs in the working function. Additionally,
+it is passed as readonly, so no other value can be put into field \code{i2} in the working function. The working
+function returns the pointer to the modified field, thus it does not discard it and can be fully implemented in Cogent.
+
+There could be more complex cases of working with a structure through pointers to fields. The working function could
+take an additional argument where it returns information, then an additional type variable \code{b} would be required
+which is escapable. The working function could modify several record fields at the same time, then for every such field
+a pointer is passed to it. This complexity is the reason why Gencot does not generate according definitions automatically.
 
 The third use case is translated in a specific way for function pointers, using the translation function
 \code{to\_F\_...} (see Section~\ref{design-types-function}), which is generated by Gencot for all function
@@ -300,23 +317,24 @@ When working with the array all additional information is required, therefore it
 type. This is achieved by replacing the sequence of variables containing information about the array by a single
 field of the array type in Cogent:
 \begin{verbatim}
-  type Struct_Cogent_ip = {... a: #CArray_tt_El, ...}
+  type Struct_Cogent_ip = {... a: #SArray_tt_El, ...}
 \end{verbatim}
 with the array type being defined in C as
 \begin{verbatim}
-  typedef struct { t1 m1;...tn mn; } CArray_tt_El;
+  typedef struct { t1 m1;...tn mn; } SArray_tt_El;
 \end{verbatim}
 This makes the Cogent type \code{Struct\_Cogent\_ip} binary compatible with the C type \code{struct ip} and it allows
 to represent several groups of related members in the struct by a common abstract type. Of course this approach is 
 only possible if the members are contiguous in the struct.
 
-To access the group in the struct the abstract functions
+To access the group in the struct the abstract function
 \begin{verbatim}
-  take_a: Struct_Cogent_ip -> (CArray_tt_El, Struct_Cogent_ip take a)
-  put_a: (CArray_tt_El, Struct_Cogent_ip take a) -> Struct_Cogent_ip
+  modify_a: all a:<DS. (Struct_Cogent_ip,
+    (SArray_tt_El, (Struct_Cogent_ip take a)!,a)->SArray_tt_El,a)
+    -> Struct_Cogent_ip
 \end{verbatim}
-are used in the same way as described in Section~\ref{app-trans-addrop}.
+is used in the same way as described in Section~\ref{app-trans-addrop}.
 
-The abstract functions for working with the array now look different from those above, since type \code{CArray\_tt\_El}
+The functions for working with the array now look different from those above, since type \code{SArray\_tt\_El}
 does not correspond to a pointer to the array elements, but to a pointer to the substructure with members describing
 the array. The specific form and functionality of these functions depend on the actual members and their use.

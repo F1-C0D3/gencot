@@ -36,7 +36,7 @@ mapInternal :: String -> LCI.Ident -> String
 mapInternal fnam (LCI.Ident s _ _) = "local_" ++ (dropExtension $ fnam) ++ "_" ++ s
 
 mapIfUpper :: LCI.Ident -> String
-mapIfUpper idnam = if isUpper $ head s then mapNameToLower idnam else s
+mapIfUpper idnam = if (isUpper $ head s) || "_" `isPrefixOf` s then mapNameToLower idnam else s
     where (Ident s _ _) = idnam
 
 transTagName :: (FileNameTrav f, MonadTrav f) => LCA.TypeName -> f String

@@ -22,10 +22,9 @@ addOrig (Origin sn en) doc =
     mark "#ORIGIN" sn fstLine
     <> doc <> 
     mark "#ENDORIG" en lstLine
-    where mark marker ons ln = 
-              if null ons then empty 
-                          else (hardline <> text marker <+> cont ons ln <> hardline)
-          cont ons ln = (int . ln . fst . head) ons <> text (if snd $ head ons then " +" else "")
+    where mark marker [] ln = empty
+          mark marker (on:ons) ln = (hardline <> text marker <+> cont on ln <> hardline) <> mark marker ons ln
+          cont on ln = (int . ln . fst) on <> text (if snd on then " +" else "")
 
 markDef :: String -> Doc -> Doc
 markDef nam doc =

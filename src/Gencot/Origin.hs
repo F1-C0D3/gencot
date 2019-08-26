@@ -37,6 +37,15 @@ mkEndSignedOrigin s n = if hasPosition n then Origin [] [(n,s)] else noOrigin
 mkBegOrigin = mkBegSignedOrigin True
 mkEndOrigin = mkEndSignedOrigin True
 
+prepSignedOrigin :: Bool -> NodeInfo -> Origin -> Origin
+prepSignedOrigin sgn n (Origin s e) = Origin ((n,sgn):s) e
+
+appdSignedOrigin :: Bool -> NodeInfo -> Origin -> Origin
+appdSignedOrigin sgn n (Origin s e) = Origin s ((n,sgn):e)
+
+prepOrigin = prepSignedOrigin True
+appdOrigin = appdSignedOrigin True
+
 origin :: CNode a => a -> Origin
 origin = mkOrigin . nodeInfo
 
@@ -67,6 +76,10 @@ lstLine = posRow . fst . getLastTokenPos
 
 hasPosition :: NodeInfo -> Bool
 hasPosition n = (isSourcePos $ posOfNode n) && (isSourcePos $ fst $ getLastTokenPos n) 
+
+isNested :: NodeInfo -> NodeInfo -> Bool
+isNested n1 n2 =
+    hasPosition n1 && hasPosition n2 && (fstLine n1 >= fstLine n2) && (lstLine n1 <= lstLine n2)
 
 testpos1 = retPos $ initPos "<stdin>"
 testpos2 = retPos testpos1

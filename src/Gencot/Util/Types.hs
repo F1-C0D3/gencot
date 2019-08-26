@@ -387,6 +387,11 @@ isPrimitive :: TypePred
 isPrimitive (LCA.DirectType (LCA.TyEnum _) _ _) = False
 isPrimitive t = isLeafType t
 
+isTagRef :: TypePred
+isTagRef (LCA.DirectType (LCA.TyEnum _) _ _) = True
+isTagRef (LCA.DirectType (LCA.TyComp _) _ _) = True
+isTagRef _ = False
+
 isTypeDefRef :: TypePred
 isTypeDefRef (LCA.TypeDefType _ _ _) = True
 isTypeDefRef _ = False

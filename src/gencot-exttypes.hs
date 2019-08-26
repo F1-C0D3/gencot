@@ -3,6 +3,7 @@ module Main where
 
 import System.Environment (getArgs)
 import Control.Monad (liftM)
+import Data.List (sort)
 
 import Language.C.Pretty (pretty)
 import Language.C.Data.Ident (identToString)
@@ -45,7 +46,7 @@ main = do
     {- construct transitive closure of used type carriers -}
     let typeCarriers = transCloseUsedCarriers table unitTypeCarriers
     {- translate type definitions in system include files -}
-    toplvs <- runFTrav table ("", parmods) $ transExtGlobals unitTypeNames $ filter isExternDef typeCarriers
+    toplvs <- runFTrav table ("", parmods) $ transExtGlobals unitTypeNames $ sort $ filter isExternDef typeCarriers
     {- Output -}
     print $ prettyTopLevels toplvs
 

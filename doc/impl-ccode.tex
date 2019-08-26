@@ -280,6 +280,28 @@ the content of the file and all included files, filtering the resulting set of d
 \code{<stdin>}, removing all declarations which are not translated to Cogent, and sorting the remaining ones in a list. 
 Translating every list entry to Cogent yields the resulting Cogent definitions in the correct ordering.
 
+For syntactically nested constructs in C the analysis phase creates separate declarations. This corresponds to the 
+Cogent form where every declaration becomes a seperate toplevel construct. However, for generating the origin information 
+a seperate processing of these declarations would yield repeated origin ranges which may result in repeated comment units in
+the target code. Therefore Gencot processes nested 
+constructs as part of the containing constructs. Sorting the declarations according to their positions always puts the
+nested declarations after their containing declarations. Processing them as part of the containing declaration will
+always be done before the nested declaration occurs in the main list of declarations. By maintaining a list of declarations
+already processed as nested, Gencot skips these declarations when it finds them in the main list.
+
+The only C constructs which can be nested are tag definitions for struct, union, and enum types (all other cases of nesting
+occurs only in C function bodies where the nested parts are not contained as seperate entries in the main list). Tag definitions
+can occur as part of every type specification, the most important case is the occurrence in a typedef as in
+\begin{verbatim}
+  typedef struct s { ... } t
+\end{verbatim}
+Other relevant cases are the occurrence in the declaration of a global variable, in the result or parameter types of a 
+function declaration and in the declaration of a struct or union member (which may result in arbitrarily deep nesting).
+
+For these cases, if the type references a tag definition, Gencot inspects the position information of the tag definition.
+If it is syntactically embedded, it processes it and marks it as processed so that it is skipped when it finds it in the
+main list.
+
 The type \code{GlobalDecls} consists of three separate maps, one for tag definitions, one for type definitions,
 and one for all other declarations and definitions. Every map uses its own type for its range values, however, 
 there is the wrapper type \code{DeclEvent} which has a variant for each of them. 
@@ -1056,20 +1078,26 @@ this class. Based on this the monadic action \code{srcFileName} is defined to re
 Another information needed during C AST traversal is the parameter modification description (see Section~\ref{impl-parmod}).
 It is used for translating the types of all functions, as described in Section~\ref{design-types-function}.
 
+Finally, Gencot maintains a list of tag definitions which are processed in advance as nested, as described in 
+Section~\ref{impl-ccode-read}. This list is implemented as a list of elements of type \code{SUERef} which is used
+by language-c to identify both tagged and untagged struct/union/enum types.
+
 The utilities for the monadic traversal of the semantics map are defined in module \code{Gencot.Traversal}. 
 The main monadic type is defined as
 \begin{verbatim}
-  type FTrav = Trav (String,ParmodMap)
+  type FTrav = Trav (String,ParmodMap,[SUERef])
 \end{verbatim}
-where \code{String} is the type used for storing the original C source file name in the user state and
-\code{ParmodMap} is the type for storing the parameter modification description. \code{FTrav} is an
+where \code{String} is the type used for storing the original C source file name in the user state,
+\code{ParmodMap} is the type for storing the parameter modification description, and the third component is the list for
+maintaining tag definitions processed as nested. \code{FTrav} is an
 instance of \code{FileNameTrav}. As execution function for the monadic actions the functions
 \begin{verbatim}
   runFTrav :: DefTable -> (String,ParmodMap) -> FTrav a -> IO a
   runWithTable :: DefTable -> FTrav a -> IO a
 \end{verbatim}
 are defined. The first one takes the symbol table, the original C source file name and the parameter modification
-description as arguments to initialize the state. The second one leaves the latter two empty. The functions are themselves 
+description as arguments to initialize the state. The tag definition list is always initialized as empty. The second 
+function leaves also the other two components empty. The functions are themselves 
 \code{IO} actions and print error messages generated during traversal to the standard output.
 
 In the monadic actions the symbol table can be accessed by actions defined in the modules 
@@ -1086,6 +1114,11 @@ For resolving tag definitions the symbol table must be retrieved by
 then the struct/union/enum reference can be resolved by
 \begin{verbatim}
   lookupTag :: SUERef -> DefTable -> Maybe TagEntry
+\end{verbatim}
+To maintain the list of tag definitions processed as nested two monadic actions are defined:
+\begin{verbatim}
+  markTagAsNested :: SUERef -> FTrav ()
+  isMarkedAsNested :: SUERef -> FTrav Bool
 \end{verbatim}
 
 Additionally, there are actions to enter and leave a scope and actions for inserting definitions.

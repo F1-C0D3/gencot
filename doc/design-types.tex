@@ -236,11 +236,19 @@ type names have the form
   A'n'_T
 \end{verbatim}
 where the first name is used for the nonlinear case. It is used with the unbox operator applied.
-In antiquoted C it is implemented by the original array type. The second name is used for the linear
+
+If an array is embedded as member in a C struct, the type of the corresponding Cogent record field
+is \code{\#UA'n'\_T}. Since Cogent translates take and put operations for a record field to an assignment,
+this type cannot be implemented by the C array type, since arrays cannot be assigned in C. Instead,
+another C type of the same size must be used which can be assigned. The straightforward solution is
+a struct where the array is its only member. If the C implementation adds padding after the array (it
+cannot add it before the array according to the C specification), another type must be chosen manually.
+
+The second name is used for the linear
 case, always without unbox operator applied. In antiquoted C it is implemented by the ``pointer to
-element'' type. Thus the corresponding implementations in antiquoted C are
+element'' type. Thus the corresponding implementations in antiquoted C are normally
 \begin{verbatim}
-  typedef t UA_primen_prime_T[n]
+  typedef struct { t arr[n]; } UA_primen_prime_T
   typedef t *A_primen_prime_T
 \end{verbatim}
 
@@ -373,24 +381,21 @@ However, this would be cumbersome in many applications and misleading for proofs
 the array. Note that the result type is not readonly although it is taken from a readonly array. Since it is nonlinear
 there is no difference between being readonly or not.
 
-If the element type is linear Gencot provides the abstract function
+If the element type is linear Gencot provides the abstract functions
 \begin{verbatim}
   replacein_A'<size>'_El : (A'<size>'_El,UNN,El) -> (A'<size>'_El,El)
+  modifyin_A'<size>'_El : all a :<DS. 
+        (A'<size>'_El,UNN,(El,a)->El,a) -> A'<size>'_El
 \end{verbatim}
-which is implemented in antiquoted C using the C array subscription operator \code{[]}. It
+which are implemented in antiquoted C using the C array subscription operator \code{[]}. The first function
 replaces the element at the specified position by the element passed as parameter and returns the old element in the result.
-Note that the function causes no sharing or discarding for the linear array element values. If the specified
-index is not in the range \code{0..<size>-1} the function returns the same element which has been
-passed as parameter and the unmodified array.
-
-Another useful function could be 
-\begin{verbatim}
-  modifyin_A'<size>'_El : (A'<size>'_El,UNN,#F_'L_El'_Void) -> A'<size>'_El
-\end{verbatim}
-which applies the function pointer passed as parameter to the element at the specified position to modify it. However, the applied
-function often needs additional information to modify the element. Also, it is difficult to generate the abstract
-type and function definitions for type \code{\#F\_'El'\_El}, since they are only required if the type does not occur in
-the regular translated code. For these reasons Gencot does not generate a definition for this abstract function.
+The second function modifies the element at the specified position ``in-place'' by applying a modification function
+which is passed as the third parameter. The modification function
+may need additional information which must be passed to it. To support arbitrary types of additional information
+the main function is defined as polymorphic using type parameter \code{a}. \code{a} is restricted to be regular or readonly, so it can be discarded by \code{modifyin\_A'<size>'\_El}.
+Note that the functions cause no sharing or discarding for the linear array element values. If the specified
+index is not in the range \code{0..<size>-1} the first function returns the same element which has been
+passed as parameter, both functions return the unmodified array.
 
 No equivalent for the Cogent take and put operations are provided for arrays with linear element type. It would be
 necessary to statically encode the set of array indices for which the elements have been taken in the type expression,

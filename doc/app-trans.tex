@@ -73,7 +73,7 @@ We assume that fptr shall have a type which is binary compatible to the function
 This prevents to use a Cogent type \code{Option a} as the natural equivalent of a value that may be undefined.
 \code{Option a} is a Cogent variant type and is not binary equivalent to the C function pointer type.
 
-If \code{fptr} is a member of a C struct, it would be possible to use a Cogent recored with a taken field,
+If \code{fptr} is a member of a C struct, it would be possible to use a Cogent record with a taken field,
 if the function pointer is undefined. Then it would be clear from the record type whether the function pointer
 is valid and can be invoked. However, this would require two implementations for all functions with such a records 
 as parameter, which is usually infeasible.
@@ -96,6 +96,71 @@ the corresponding invocation in Cogent would be
 \end{verbatim}
 with result type \code{U32}.
 
+\subsection{The Null Pointer}
+\label{app-trans-null}
+
+The type safety of Cogent relies on the fact that the pointers representing values of linear types are never \code{NULL}.
+If null pointers are used in the C source, there is no immediate translation. The way how to translate C code which uses 
+null ponters in a binary compatible way depends on the way how the null pointers are used.
+
+A null pointer can be used as struct member \code{f} of linear Type \code{T} in an ``uninitialized state''. 
+It is set when the struct is created and later
+replaced by a valid pointer. It remains valid until the struct is disposed. If additionally the struct is used only in places
+during the ``uninitialized state'' which are different from those afterwards, the ``uninitialized state'' can be represented
+by using the record type with the field \code{f} taken. Initializing the pointer changes the type to the normal record
+type.
+
+If the field \code{f} is initialized ``on demand'', i.e., not at a statical point in the program, this solution is not possible.
+The main problem here is that it must be possible to determine at runtime whether \code{f} is initialized or not. So simply
+allocating a ``dummy'' to get a valid pointer is not sufficient, it must also be possible to recognize the dummy pointer.
+
+One possibility for this is if the data structure referenced by the pointer has a field value which never occurs for a valid
+pointer. Then it can be used to mark the pointer as dummy.
+
+Another possibility is to use a single dummy pointer for all values of a specific linear type which can be null and store it 
+in a seperate place for comparing it. However, this cannot be done in Cogent since the dummy pointer would be a shared linear 
+value. Even if implemened in antiquoted C through abstract functions, to prove memory safety every access to such a value must 
+be guarded with a test for the dummy pointer. Thus it is easier to actually use the null pointer instead of the dummy pointer,
+in combination with a guard testing for the null pointer.
+
+The straightforward approach uses abstract functions
+\begin{verbatim}
+  null_T: () -> T
+  ronull_T: () -> T!
+  isNull_T: T! -> Bool
+\end{verbatim}
+to work with the null pointer. To dispose it the function \code{dispose\_T} must also check for the null pointer and ignore
+invocations for it. The existence of the function \code{null\_T} makes it necessary to guard all accesses to values of type
+\code{T} and \code{T!} with the help of \code{isNull\_T}. The function \code{ronull\_T} is required to initialize record fields 
+of readonly type. This cannot be done by applying the bang operator to the result of \code{null\_T} since then the value
+cannot escape the banged context. The existence of the function \code{ronull\_T} makes it necessary to guard
+all accesses to values of type \code{T!}, the values of type \code{T} need not be guarded since a readonly value can never be 
+made modifyable again. Therefore Gencot does not automatically define the functions for all 
+linear types \code{T}.
+
+It may seem to be a better approach to avoid arbitrary access to the null pointer and use it only bound to the struct field
+using the following abstract function instead:
+\begin{verbatim}
+  isNull_f: R -> Bool
+\end{verbatim}
+where \code{R} is the type of the struct containing field \code{f}. The null value would be inserted in the initialization 
+function which transforms the result of \code{create\_R} from type \code{R take (..)} to type \code{R}. However, the null 
+pointer can still be accessed by taking it from the record, so this is no improvement.
+
+A null pointer can also be used as an ``error'' or ``escape'' value for function parameters or results. If the function is
+invoked from Cogent to C code or vice versa, a binary compatible solution is required. Again, the two abstract functions 
+\code{null\_T} and \code{isNull\_T} provide such a solution.
+
+If the situations where a value of type \code{T} can be null are restricted to some places in the program, a seperate abstract
+type \code{Null\_T} can be used with the meaning ``value of type T which maybe null''. Since it is abstract it cannot be
+accessed directly. Then the following abstract functions are used:
+\begin{verbatim}
+  null_T: () -> Null_T
+  isNull_T: Null_T -> Bool
+  mayNull_T: T -> Null_T
+  notNull_T: Null_T -> Option T
+\end{verbatim}
+
 \subsection{The Address Operator \code{\&}}
 \label{app-trans-addrop}
 
@@ -114,6 +179,12 @@ pointer. The main use cases are
   int *ptr = &(s.i2);
 \end{verbatim}
 
+\item determine a pointer for an array elemnt as in the example
+\begin{verbatim}
+  int arr[20];
+  int *ptr = &(arr[5]);
+\end{verbatim}
+
 determine a pointer to a function as in the example
 \begin{verbatim}
   int f(int p) { return p+1; }
@@ -128,9 +199,11 @@ in a data structure.
 The binary compatible Cogent equivalent of the pointer is a value of a linear type. However, there is
 no Cogent functionality to create such values. Hence it must be implemented by an abstract function.
 
+\subsubsection{Address of Variable}
+
 In the first use case there are several problems with this approach. First, there is no true equivalent
 for C variables in Cogent. Second, it is not possible to pass the variable to the implementation of the
-abstract function, without determining its address using the address operator. Third, if the address
+abstract function, without first determining its address using the address operator. Third, if the address
 operator is applied to the variable in the implementation of the abstract function, the Isabelle c-parser
 will not be able to process the abstract function, since it only supports the address operator when 
 the result is a heap address.
@@ -147,6 +220,8 @@ used for the same purposes. The resulting Cogent code would be
 \end{verbatim}
 where the argument of \code{dispose\_P\_U32} is an expression which uses and returns the \code{ptr} in the 
 usual way for a value of linear type.
+
+\subsubsection{Address of Struct Member}
 
 The second use case cannot be translated in this way, since the referenced data is a part of a larger structure.
 If it is separated from the structure and allocated on the heap, the structure is not binary compatible any more.
@@ -206,12 +281,47 @@ field \code{i2}. It is passed with field \code{i2} taken, so no sharing occurs i
 it is passed as readonly, so no other value can be put into field \code{i2} in the working function. The working
 function returns the pointer to the modified field, thus it does not discard it and can be fully implemented in Cogent.
 
+If the record field is an unboxed record with type \code{\#R}, the type of the pointer to the field has the boxed record
+type \code{R} in all cases above. If the record field is an array of type \code{\#UA'n'\_El} the pointer to the field
+has the corresponding array type \code{A'n'\_El} (see Section~\ref{design-types-array}.
+
 There could be more complex cases of working with a structure through pointers to fields. The working function could
 take an additional argument where it returns information, then an additional type variable \code{b} would be required
 which is escapable. The working function could modify several record fields at the same time, then for every such field
 a pointer is passed to it. This complexity is the reason why Gencot does not generate according definitions automatically.
 
-The third use case is translated in a specific way for function pointers, using the translation function
+\subsubsection{Address of Array Element}
+
+The third use case is similar to the second. It often occurs if the array itself is represented by a pointer to its first
+element (see Section~\ref{app-trans-arrpoint}). This case can simply be replaced by using the element index instead of a 
+pointer to the element. The array index is nonlinear and thus easier to work with. However, this solution is not binary
+compatible, if the element pointer is also accessed outside the Cogent compilation unit.
+
+A binary compatible solution can be achieved in a similar way as for struct members. The first prerequisite for it is
+to allocate the array on the heap.
+
+If the array in Cogent has the readonly type \code{Arr!} with element type \code{El} an abstract function of the form
+\begin{verbatim}
+  access_Arr : (Arr!, UNN) -> Option P_El!
+\end{verbatim}
+can be used to access the element with the second argument as index.  If the specified index is not in the range of the array the
+function returns None. Otherwise it returns a readonly pointer to the element. This is safe 
+since neither the element nor the array can be modified. Note the similarity to the \code{get\_} functions defined in
+Sections~\ref{design-types-array} and~\ref{app-trans-arrpoint} which return the element itself instead of a pointer.
+
+If the array is not readonly an element can be modified in-place through a pointer by a function of the form
+\begin{verbatim}
+  modify_Arr : all a:<DS. (Arr, UNN, (P_El,a)->P_El, a) -> Arr
+\end{verbatim}
+As for the struct member the working function takes an additional information of nonlinear type as argument, which can be
+used as input for the modification. Other than for the struct member it does not get the remaining array as argument,
+since the type of an array with a specific element ``taken'' cannot be expressed in Cogent. Note that it is not possible
+to pass the array or parts of it as additional information in the parameter of type \code{a}, since that would always by
+a second use of the array of linear type.
+
+\subsubsection{Address of Function}
+
+The last use case is translated in a specific way for function pointers, using the translation function
 \code{to\_F\_...} (see Section~\ref{design-types-function}), which is generated by Gencot for all function
 pointer types. The resulting Cogent code has the form
 \begin{verbatim}
@@ -266,10 +376,12 @@ type of \code{p} must be manually changed as follows:
 Then the abstract functions for the array type are defined in the same way as for the mapped array types as described in
 Section~\ref{design-types-array}. The functions for creating and disposing arrays are:
 \begin{verbatim}
-  create_CArray_tt_El : U32 -> TCArray_tt_El
+  create_CArray_tt_El : UNN -> TCArray_tt_El
   dispose_CArray_tt_El : TCArray_tt_El -> ()
 \end{verbatim}
-where the \code{create}-function takes the actual array size (number of elements) as argument. The type 
+where the \code{create}-function takes the actual array size (number of elements) as argument. The type \code{UNN} must be
+chosen by the developer so that it can represent all sizes which are used for the array. It is also used for the index
+values below. The type 
 \code{TCArray\_tt\_El} is used for the uninitialized array, corresponding abstract functions for initializing
 and freeing the array elements must be provided.
 
@@ -289,13 +401,20 @@ The implementation in antiquoted C has the following form:
 The element access functions are defined in the same way as for array types (see Section~\ref{design-types-array}. 
 In the case of a non-linear element type they are:
 \begin{verbatim}
-  get_CArray_tt_El : (CArray_tt_El!,U32) -> Option El
-  put_CArray_tt_El : (CArray_tt_El,U32,El) -> CArray_tt_El
+  get_CArray_tt_El : (CArray_tt_El!,UNN) -> Option El
+  put_CArray_tt_El : (CArray_tt_El,UNN,El) -> CArray_tt_El
 \end{verbatim}
 and for a linear element type:
 \begin{verbatim}
-  get_CArray_tt_El : (CArray_tt_El!,U32) -> Option El!
-  replacein_CArray_tt_El : (CArray_tt_El,U32,El) -> (CArray_tt_El,El)
+  get_CArray_tt_El : (CArray_tt_El!,UNN) -> Option El!
+  replacein_CArray_tt_El : 
+        (CArray_tt_El,UNN,El) -> (CArray_tt_El,El)
+\end{verbatim}
+Functions for accessing the element through a pointer (see Section~\ref{app-trans-addrop}) are in both cases:
+\begin{verbatim}
+  access_CArray_tt_El : (CArray_tt_El!,UNN) -> Option P_El!
+  modify_CArray_tt_El : all a:<DS. 
+        (CArray_tt_El,UNN,(P_El,a)->P_El, a) -> CArray_tt_El
 \end{verbatim}
 
 In the second case the array size is determined by additional information seperate from the pointer to the array.
@@ -338,3 +457,85 @@ is used in the same way as described in Section~\ref{app-trans-addrop}.
 The functions for working with the array now look different from those above, since type \code{SArray\_tt\_El}
 does not correspond to a pointer to the array elements, but to a pointer to the substructure with members describing
 the array. The specific form and functionality of these functions depend on the actual members and their use.
+
+\subsection{Initializing Values of Linear Type}
+\label{app-trans-init}
+
+As described in Section~\ref{design-types-struct} the function \code{create\_T} returns a record with all fields taken.
+Before it can be used it must be initialized by putting values for all fields. We assume here that this is done by a 
+function of the form
+\begin{verbatim}
+  init_T: T take (..) -> T
+\end{verbatim}
+which puts simple fixed values into the fields and does not require any additional information.
+Similarly, as described in Section~\ref{design-types-array} the function \code{create\_A'<size>'\_El} returns an 
+unitialized array of type \code{TA'<size>'\_El} and we assume an initialization function of the form
+\begin{verbatim}
+  init_A'<size>'_El: TA'<size>'_El -> A'<size>'_El
+\end{verbatim}
+
+Putting values into fields of primitive type is straightforward. For fields of linear type \code{T} a value can be created 
+using the function \code{create\_T} or \code{null\_T} (see Section~\ref{app-trans-null}) and put into the field using their
+Cogent put operation. Not so clear is how to initialize fields of unboxed types.
+
+A field \code{f} with an unboxed record type \code{\#S} corresponds to an embedded struct in C. The space for this struct is allocated together
+with the space for the surrounding struct by function \code{create\_T}. The initialization should be done using the 
+function \code{init\_S} which takes as input a value of type \code{S take (..)}. 
+
+The most natural way of initializing an embedded struct would be in-place using a pointer to the embedded struct as described
+in Section~\ref{app-trans-addrop}. But the function \code{modify\_f} described there takes as argument a record of type \code{T}
+where no field is taken, so it cannot be used to put the taken field \code{f} into the record. Seperate \code{modify}-functions
+are required for the record with taken fields. If the record contains several embedded structs every \code{modify}-function
+puts one field and the result type has one field less taken. Thus, defining such \code{modify}-functions imposes an order
+in which the embedded structs must be initialized and whether they are initialized before or after the other fields. A corresponding
+\code{modify}-function for field \code{f} which must be initialized before field \code{g} but after all other fields would be
+\begin{verbatim}
+  put_f : (S take (..)->S, T take (f,g)) -> T take g
+\end{verbatim}
+It is defined in a way that it can be invoked with function \code{init\_S} as its first argument. This implies that other than
+\code{modify\_f} the modification function neither takes the remaining record as argument nor additional information.
+The implementation in antiquoted C would simply apply the first argument to a pointer to member \code{f} which is retrieved
+using the address operator \code{\&}.
+
+A more flexible way would be to use the Cogent put operation. However, for field \code{f} it needs a value of type 
+\code{\#S} which is not produced by \code{init\_S}. To bridge this gap we can use an abstract function
+\begin{verbatim}
+  deref_S : S -> #S
+\end{verbatim}
+which dereferences the argument pointer, and returns a copy of its content. Additionally it frees the pointer so that the
+linear input value is safely disposed. (Note that the argument cannot be readonly to avoid freeing the pointer, since then
+the result must also be readonly if it contains linear values.) Then the Cogent code to initialize the embedded struct 
+\code{f} in a record \code{t} would be
+\begin{verbatim}
+  t { f = deref_S init_S create_S }
+\end{verbatim}
+It is not as efficient as in-place initialization, since it allocates a struct of type \code{S} on the heap, initializes it,
+copies it to the embedded struct \code{f} and deallocates it.
+
+Since both ways may be useful in certain contexts Gencot does not generate one or both of them, they must be provided manually.
+
+Another approach could be that the function \code{create\_T} returns a value where only the fields of primitive and linear type
+are taken and the embedded structs are present, but again with all primitive and linear fields taken. Then the function \code{init\_S}
+could be directly applied to a pointer to field \code{f}. However, it is still necessary to retrieve the pointer to \code{f}
+with the help of an abstract function which now has to respect the fact that other embedded struct fields have types with
+some fields taken. So the same number of additional abstract functions is needed as in the approach above and their argument
+types are of similar complexity.
+
+Fields of an unboxed abstract type are created by Gencot only in the case of arrays and function pointers (see 
+Section~\ref{design-types-array} and~\ref{design-types-function}). Initializing an embedded array field \code{f} of type 
+\code{\#UA'<size>'\_El} can be done in-place or separate like an embedded struct field. In the first case an abstract
+function of the form 
+\begin{verbatim}
+  put_f : (TA'<size>'_El->A'<size>'_El, T take (f,g)) -> T take g
+\end{verbatim}
+is required which can be invoked with function \code{init\_A'<size>'\_El} as its second argument. In the second case an
+abstract function of the form
+\begin{verbatim}
+  deref_A'<size>'_El : A'<size>'_El -> #UA'<size>'_El
+\end{verbatim}
+is required which copies the array content and frees the array on the heap.
+
+Initializing an array field \code{f} of a function pointer type \code{\#F\_...} can always be done using the Cogent put operation.
+The value to be put must be constructed using the function \code{to\_F\_...} (see Section~\ref{design-types-function}). To
+avoid null pointers to functions, as described in Section~\ref{app-trans-funpointer}, a dummy function should be defined in
+Cogent and passed to the \code{to\_F\_...} function.

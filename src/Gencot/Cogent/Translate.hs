@@ -84,8 +84,7 @@ transGlobal (LCA.DeclEvent (LCA.EnumeratorDef (LCA.Enumerator idnam expr _ n))) 
 transGlobal (LCA.TypeDefEvent td@(LCA.TypeDef idnam typ _ n)) = do
     t <- transType (getFunTypeId td) modiftyp
     nt <- transTagIfNested typ n
-    let o = if null nt then mkOrigin n else mkEndOrigin n
-    return $ nt ++ [GenToplv (CS.TypeDec tn [] t) o]
+    return $ wrapOrigin n (nt ++ [GenToplv (CS.TypeDec tn [] t) noOrigin])
     where tn = mapNameToUpper idnam
           modiftyp = if isCompOrFunc typ then (LCA.PtrType typ LCA.noTypeQuals [])
                                          else typ
@@ -115,12 +114,17 @@ transStruct (LCA.CompType sueref LCA.StructTag mems _ n) trMember = do
        then return []
        else do
            tn <- transTagName $ LCA.TyComp $ LCA.CompTypeRef sueref LCA.StructTag n
-           ms <- mapM (trMember sueref) (aggBitfields mems)
+           ms <- mapM (trMember sueref) aggmems
+           nts <- liftM concat $ mapM transMemTagIfNested aggmems
            let ttyp = genType $ CS.TTake Nothing $ genType $ CS.TCon tn [] markBox
-           let f_create = GenToplv (CS.AbsDec ("create_" ++ tn) (CS.PT [] $ genType $ CS.TFun utyp ttyp)) $ noOrigin
-           let f_dispose = GenToplv (CS.AbsDec ("dispose_" ++ tn) (CS.PT [] $ genType $ CS.TFun ttyp utyp)) $ mkEndOrigin n
-           return $ [GenToplv (CS.TypeDec tn [] $ genType $ CS.TRecord ms markBox) $ mkBegOrigin n,f_create,f_dispose]
+           let f_create = GenToplv (CS.AbsDec ("create_" ++ tn) (CS.PT [] $ genType $ CS.TFun utyp ttyp)) noOrigin
+           let f_dispose = GenToplv (CS.AbsDec ("dispose_" ++ tn) (CS.PT [] $ genType $ CS.TFun ttyp utyp)) noOrigin
+           return $ wrapOrigin n ([GenToplv (CS.TypeDec tn [] $ genType $ CS.TRecord ms markBox) noOrigin,f_create,f_dispose] ++ nts)
     where utyp = genType CS.TUnit
+          aggmems = aggBitfields mems
+
+transMemTagIfNested :: LCA.MemberDecl -> FTrav [GenToplv]
+transMemTagIfNested mdecl = transTagIfNested (LCA.declType mdecl) $ LCN.nodeInfo mdecl
 
 transTagIfNested :: LCA.Type -> NodeInfo -> FTrav [GenToplv]
 transTagIfNested typ@(LCA.DirectType tn _ _) n | isTagRef typ = do
@@ -133,13 +137,18 @@ transTagIfNested typ@(LCA.DirectType tn _ _) n | isTagRef typ = do
                then do
                    ng <- transGlobal $ LCA.TagEvent td
                    markTagAsNested $ sueRef td
-                   case ng of
-                        (GenToplv t o):rng -> return $ (GenToplv t $ prepOrigin n o):rng
-                        _ -> return []
+                   return ng
                else return []
     where getSUERef (LCA.TyComp r) = sueRef r
           getSUERef (LCA.TyEnum r) = sueRef r
 transTagIfNested _ _ = return []
+
+wrapOrigin :: LCN.NodeInfo -> [GenToplv] -> [GenToplv]
+wrapOrigin n [] = []
+wrapOrigin n [GenToplv t o] = [GenToplv t $ prepOrigin n $ appdOrigin n o]
+wrapOrigin n gts = (GenToplv t1 $ prepOrigin n o1):((init $ tail gts)++[GenToplv t2 $ appdOrigin n o2])
+    where (GenToplv t1 o1) = head gts
+          (GenToplv t2 o2) = last gts
 
 genTypeDefs :: [String] -> [LCA.DeclEvent] -> FTrav [GenToplv]
 genTypeDefs tds tcs = do

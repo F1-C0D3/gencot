@@ -41,7 +41,7 @@ prepSignedOrigin :: Bool -> NodeInfo -> Origin -> Origin
 prepSignedOrigin sgn n (Origin s e) = Origin ((n,sgn):s) e
 
 appdSignedOrigin :: Bool -> NodeInfo -> Origin -> Origin
-appdSignedOrigin sgn n (Origin s e) = Origin s ((n,sgn):e)
+appdSignedOrigin sgn n (Origin s e) = Origin s (e++[(n,sgn)])
 
 prepOrigin = prepSignedOrigin True
 appdOrigin = appdSignedOrigin True

@@ -121,9 +121,10 @@ Another possibility is to use a single dummy pointer for all values of a specifi
 in a seperate place for comparing it. However, this cannot be done in Cogent since the dummy pointer would be a shared linear 
 value. Even if implemened in antiquoted C through abstract functions, to prove memory safety every access to such a value must 
 be guarded with a test for the dummy pointer. Thus it is easier to actually use the null pointer instead of the dummy pointer,
-in combination with a guard testing for the null pointer.
+in combination with a guard testing for the null pointer, resulting in a solution which is binary compatible with the C 
+implementation.
 
-The straightforward approach uses abstract functions
+A straightforward approach uses abstract functions
 \begin{verbatim}
   null_T: () -> T
   ronull_T: () -> T!
@@ -138,8 +139,23 @@ all accesses to values of type \code{T!}, the values of type \code{T} need not b
 made modifyable again. Therefore Gencot does not automatically define the functions for all 
 linear types \code{T}.
 
-It may seem to be a better approach to avoid arbitrary access to the null pointer and use it only bound to the struct field
-using the following abstract function instead:
+A safer approach replaces type \code{T} by an abstract type and uses type \code{T} only in places where a value has been checked
+for not being null. The abstract type must be specific for \code{T} and it must be complemented with abstract functions for
+generating and testing the null pointer. Together the following abstract data type should be used:
+\begin{verbatim}
+  type MayNull a 
+  null: all(a). () -> MayNull a
+  roNull: all(a). () -> (MayNull a)!
+  mayNull: all(a). a -> MayNull a
+  isNull: all(a). (MayNull a)! -> Bool
+  notNull: all(a). MayNull a -> Option a
+\end{verbatim}
+The function \code{notNull} returns \code{None} if the argument is null and \code{Some x} if the argument \code{x} is not null.
+Since it is the only function which makes the value available as type \code{a} it is guaranteed that all accesses to the value
+are guarded.
+
+It may seem to be an alternative approach to avoid arbitrary access to the null pointer by using it always bound to the struct field \code{f}
+with an abstract function of the following form instead:
 \begin{verbatim}
   isNull_f: R -> Bool
 \end{verbatim}
@@ -148,18 +164,8 @@ function which transforms the result of \code{create\_R} from type \code{R take 
 pointer can still be accessed by taking it from the record, so this is no improvement.
 
 A null pointer can also be used as an ``error'' or ``escape'' value for function parameters or results. If the function is
-invoked from Cogent to C code or vice versa, a binary compatible solution is required. Again, the two abstract functions 
-\code{null\_T} and \code{isNull\_T} provide such a solution.
-
-If the situations where a value of type \code{T} can be null are restricted to some places in the program, a seperate abstract
-type \code{Null\_T} can be used with the meaning ``value of type T which maybe null''. Since it is abstract it cannot be
-accessed directly. Then the following abstract functions are used:
-\begin{verbatim}
-  null_T: () -> Null_T
-  isNull_T: Null_T -> Bool
-  mayNull_T: T -> Null_T
-  notNull_T: Null_T -> Option T
-\end{verbatim}
+invoked from Cogent to C code or vice versa, a binary compatible solution is required. Again, the type \code{MayNull} can
+be used here.
 
 \subsection{The Address Operator \code{\&}}
 \label{app-trans-addrop}
@@ -475,7 +481,7 @@ unitialized array of type \code{TA'<size>'\_El} and we assume an initialization 
 \end{verbatim}
 
 Putting values into fields of primitive type is straightforward. For fields of linear type \code{T} a value can be created 
-using the function \code{create\_T} or \code{null\_T} (see Section~\ref{app-trans-null}) and put into the field using their
+using the function \code{create\_T} or \code{null[T]} (see Section~\ref{app-trans-null}) and put into the field using the
 Cogent put operation. Not so clear is how to initialize fields of unboxed types.
 
 A field \code{f} with an unboxed record type \code{\#S} corresponds to an embedded struct in C. The space for this struct is allocated together

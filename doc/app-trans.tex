@@ -78,6 +78,10 @@ if the function pointer is undefined. Then it would be clear from the record typ
 is valid and can be invoked. However, this would require two implementations for all functions with such a records 
 as parameter, which is usually infeasible.
 
+The generic type \code{MayNull} (see Section~\ref{app-trans-null} cannot be used for function pointers since
+it is linear and the corresponding abstract functions expect values of the boxed type, whereas function pointers
+are always represented by an unboxed type.
+
 The simplest solution is to assume that function pointers are always defined. Instead of using the value 
 \code{NULL}, they must then be set to point to a default function. Then no test is required, the function
 can simply be invoked in Cogent.
@@ -95,6 +99,104 @@ the corresponding invocation in Cogent would be
   invk_F_'U32'RP_U8'_U32 (fptr,arg1,arg2)
 \end{verbatim}
 with result type \code{U32}.
+
+\subsection{Modifying Linear Values}
+\label{app-trans-modify}
+
+Values of linear type can be modified in Cogent. Modification is directly supported by the Cogent language only by the put
+and take operations which are applicable to record values and in the simplest case have the form
+\begin{verbatim}
+  let r' = r { f = v } in ...
+  let r' { f = p } = r in ...
+\end{verbatim}
+Here \code{r} is the old record value, \code{f} is the field to be modified, \code{r'} is the modified record value.
+In the put operation \code{v} is the new field value. The type of \code{r'} is either the same as for \code{r} or it
+differs, if field \code{f} was taken in \code{r}. In the take operation \code{p} is a pattern for binding the old 
+field value, in \code{r'} the field is not present anymore, the type of \code{r'} is always different from that of \code{r}.
+
+For abstract types, which are also linear, a modification operation can only be defined with the help of an abstract function.
+To provide a common framework for modification operations, Gencot defines function types for modification functions 
+in \code{include/gencot/ModFun.cogent}. The basic function types are
+\begin{verbatim}
+  type ModTypeFun obj arg res = (obj,arg) -> res
+  type ModFun obj arg = ModTypeFun obj arg obj
+\end{verbatim}
+The first type covers the genaral case where the type of the modified value is different from that of the old value, in the second
+case the type is the same before and after the modification. In both cases a value of type \code{arg} is passed to the modification
+function, it may provide information about how to modify the value. 
+
+The put operation can now be represented as a function of type \code{ModTypeFun R V (R put f)} where \code{R} is the type of
+\code{r} and \code{V} that of field \code{f} and value \code{v}. If the field is not taken in \code{R} the type is \code{ModFun R V}.
+The take operation can be represented as a function of type \code{ModTypeFun R () (R take f)}. If the value of the taken
+field should also be returned it can be represented as a function of type \code{ModTypeFun R () (V,R take f)} where the result
+is a pair of the taken field value and the remaining record.
+
+Gencot defines macros in \code{include/gencot/ModFun.cogent} to generate the type of simple put and take operations.
+A macro call of the form 
+\begin{verbatim}
+  PUTFUN<n>(R,(f1,...,fn),f,A)
+\end{verbatim}
+expands to the type
+\begin{verbatim}
+  ModTypeFun (R take (f,f1,...,fn)) A (R take (f1,...,fn)) 
+\end{verbatim}
+for a function which puts field \code{f} while the fields \code{fi} are already taken. A macro call of the form
+\begin{verbatim}
+  TAKEFUN<n>(R,(f1,...,fn),f,A)
+\end{verbatim}
+expands to the type
+\begin{verbatim}
+  ModTypeFun (R take (f1,...,fn)) A (R take (f,f1,...,fn)) 
+\end{verbatim}
+for a function which takes field \code{f} while the fields \code{fi} are already taken.
+
+If field \code{f} again has a linear type, it must have been taken before the put operation can be applied. Thus the 
+typical pattern for modifying a field of linear type is
+\begin{verbatim}
+  let r' { f = p } = r 
+  and r'' = r' { f = v }
+\end{verbatim}
+This can be represented as a function of type \code{ModFun R V} if the old field value is discarded (which is only possible
+if the function is abstract). However, often the linear value of field \code{f} is not replaced but modified and then put back
+in. This case can be represented by a function of type \code{ModFun R (ModFun V)} where the additional information for the modification
+of \code{r} is the modification function to be applied to the value of field \code{f}. More generally, it must also be possible
+to specify the additional argument to be passed to the modification function for the field, so the argument to the outer 
+modification function should be a pair of the inner modification function and its argument. Gencot defines the corresponding
+function type
+\begin{verbatim}
+  type ModPartFun obj prt arg = ModFun obj (ModFun prt arg, arg)
+\end{verbatim}
+where \code{obj} is the type of the modified object, \code{prt} is the type of the part to be modified, and \code{arg} is the type
+of the information passed to the modification function of the part.
+
+Since every \code{ModPartFun} is a \code{ModFun}, modification functions of this type can be chained to modify linear parts arbitrarily 
+deep embedded in other linear parts. Moreover, a \code{ModPartFun} corresponds to combined take and put operation and can be used
+to model ``in-place modification'' of linear parts. For these reasons Gencot uses such functions for all cases of modifications 
+in the following sections.
+
+As an example, to modify a part \code{p} of type \code{P} in a part \code{q} of type \code{Q} in a linear value \code{r} of type \code{R}
+an expression of the form
+\begin{verbatim}
+  modify_q_of_R (r, (modify_p_of_Q, (modify_P, arg)))
+\end{verbatim}
+modifies \code{p} by replacing it by \code{modify\_P (p,arg)}. To make the modification functions generic they can be defined as polymorphic:
+\begin{verbatim}
+  modify_q_of_R: all(a). ModPartFun R Q a
+  modify_p_of_Q: all(a). ModPartFun Q P a
+  modify_P: ModFun P A
+\end{verbatim}
+
+If the modification function \code{modify\_P} needs as input information of noninear type from other linear parts of \code{q} or \code{r} it is not
+possible to pass these parts to \code{modify\_P}. Either they must be taken from \code{r} and put back in after the modification, then
+the type of \code{r} is \code{R take (...)} and \code{modify\_q\_of\_R} cannot be applied because of type incompatibility. Or the parts are
+accessed as readonly in a banged context for \code{r}, then the readonly parts cannot escape from the banged context to be passed to the
+modification operation (which must be outside of the banged context since it modifies \code{r}. Instead, the required nonlinear information must 
+be retrieved from the linear parts in a banged context for \code{r}. Since it is nonlinear it may escape from the context and can be passed 
+to the modification operation.
+
+In C it is a common pattern to pass pointers to other parts of a data structure around for efficiency and access values through these pointers 
+only when needed to modify parts of the structure. In the Cogent translation the values must be accessed separately in a banged context and then
+passed to the modification operation.
 
 \subsection{The Null Pointer}
 \label{app-trans-null}
@@ -141,18 +243,23 @@ linear types \code{T}.
 
 A safer approach replaces type \code{T} by an abstract type and uses type \code{T} only in places where a value has been checked
 for not being null. The abstract type must be specific for \code{T} and it must be complemented with abstract functions for
-generating and testing the null pointer. Together the following abstract data type should be used:
+generating and testing the null pointer. Gencot provides the following generic abstract data type in \code{include/gencot/MayNull.cogent}:
 \begin{verbatim}
   type MayNull a 
-  null: all(a). () -> MayNull a
-  roNull: all(a). () -> (MayNull a)!
-  mayNull: all(a). a -> MayNull a
-  isNull: all(a). (MayNull a)! -> Bool
-  notNull: all(a). MayNull a -> Option a
+  null:      all(a). () -> MayNull a
+  roNull:    all(a). () -> (MayNull a)!
+  mayNull:   all(a). a -> MayNull a
+  roMayNull: all(a). a! -> (MayNull a)!
+  notNull:   all(a). MayNull a -> Option a
+  roNotNull: all(a). (MayNull a)! -> (Option a)!
+  isNull:    all(a). (MayNull a)! -> Bool
+  modifyNull: all(a,b:<DS). ModPartFun (MayNull a) a b
 \end{verbatim}
 The function \code{notNull} returns \code{None} if the argument is null and \code{Some x} if the argument \code{x} is not null.
 Since it is the only function which makes the value available as type \code{a} it is guaranteed that all accesses to the value
-are guarded.
+are guarded. The function \code{roNotNull} does the same for a readonly argument. The function \code{modifyNull} is a 
+modification function according to Section~\ref{app-trans-modify} which treats the non-null pointer as a part of the 
+arbitrary pointer. It modifies the object referenced by the non-null pointer if it is present and otherwise does nothing.
 
 It may seem to be an alternative approach to avoid arbitrary access to the null pointer by using it always bound to the struct field \code{f}
 with an abstract function of the following form instead:
@@ -167,25 +274,63 @@ A null pointer can also be used as an ``error'' or ``escape'' value for function
 invoked from Cogent to C code or vice versa, a binary compatible solution is required. Again, the type \code{MayNull} can
 be used here.
 
+A typical pattern in C is a guarded access to a member of a struct referenced by a pointer:
+\begin{verbatim}
+  if (p != NULL) res = p->m;
+\end{verbatim}
+In Cogent the value \code{p} has type \code{MayNull R} where \code{R} is the record type with field \code{m}. 
+Then a translation may be
+\begin{verbatim}
+  let res = roNotNull p 
+            | None -> dflt
+            | Some s -> s.m
+      !p
+\end{verbatim}
+Note that a value \code{dflt} must be selected here to bind it to res if the pointer is \code{NULL}. Also note that the access is
+done in a banged context for p. Therefore it is only possible if the type of \code{m} is not linear, since otherwise the result
+cannot escape from the context.
+
+Another typical pattern in C is a guarded modification of the referenced structure:
+\begin{verbatim}
+  if (p != NULL) p->m = v;
+\end{verbatim}
+A translation to Cogent may be
+\begin{verbatim}
+  let p' = notNull p 
+           | None -> p
+           | Some s -> mayNull s{m = v}
+\end{verbatim}
+where the reference to the modified structure is bound to \code{p'}. Alternatively this can be translated using the modification
+framework from Section~\ref{app-trans-modify}:
+\begin{verbatim}
+  let p' = modifyNull (p, (putMInP, v))
+\end{verbatim}
+where the function used for modifying the structure is defined as
+\begin{verbatim}
+  putMInP: ModFun P M
+  putMInP (s,v) = s{m = v}
+\end{verbatim}
+and \code{M} is the type of field \code{m}.
+
 \subsection{The Address Operator \code{\&}}
 \label{app-trans-addrop}
 
 The address operator \code{\&} is used in C to determine a pointer to data which is not yet accessed through a 
 pointer. The main use cases are
 \begin{itemize}
-\item determine a pointer for a local or global variable as in the example
+\item determine a pointer to a local or global variable as in the example
 \begin{verbatim}
   int i = 5;
   int *ptr = &i;
 \end{verbatim}
 
-\item determine a pointer for a member in a struct as in the example
+\item determine a pointer to a member in a struct as in the example
 \begin{verbatim}
   struct ii { int i1; int i2; } s = {17,4};
   int *ptr = &(s.i2);
 \end{verbatim}
 
-\item determine a pointer for an array elemnt as in the example
+\item determine a pointer to an array elemnt as in the example
 \begin{verbatim}
   int arr[20];
   int *ptr = &(arr[5]);
@@ -271,27 +416,24 @@ be overwritten. To prevent this it must be proven for the Cogent program that no
 for proving the type safety properties an arbitrary complex part of the Cogent program must be taken into
 account.
 
-A better approach is to combine the pseudo take an put operations in a single abstract function. It takes
-as parameter a function for working with the field, accessing it through a pointer. The working function
-may need additional information which must be passed to it. To support arbitrary types of additional information
-the main function can be defined as polymorphic. Then it has the form
+A better approach is to combine the pseudo take an put operations in a single abstract modification function according
+to the modification framework described in Section~\ref{app-trans-modify}:
 \begin{verbatim}
-  modify_i2 : all a:<DS. (Struct_Cogent_ii,
-    (P_U32,(Struct_Cogent_ii take i2)!,a)->P_U32, a)
-    -> Struct_Cogent_ii
+  modifyI2InStruct_Cogent_ii : all(a). 
+    ModPartFun Struct_Cogent_ii P_U32 
+               ((Struct_Cogent_ii take i2)!,a)
 \end{verbatim}
-Here the type parameter \code{a} is restricted to be regular or readonly, so it can be discarded by \code{modify\_i2}.
-The working function takes as parameters the pointer to the field, the remaining structure, and the additional information
+The information passed to the field modification function consists of the remaining structure, and the additional information
 of type \code{a}. The remaining structure is provided since often its content is also required for working on 
-field \code{i2}. It is passed with field \code{i2} taken, so no sharing occurs in the working function. Additionally,
-it is passed as readonly, so no other value can be put into field \code{i2} in the working function. The working
-function returns the pointer to the modified field, thus it does not discard it and can be fully implemented in Cogent.
+field \code{i2}. It is passed with field \code{i2} taken, so no sharing occurs in the field modification function. Additionally,
+it is passed as readonly, so no other value can be put into field \code{i2} in the field modification function. It
+returns the pointer to the modified field, thus it does not discard it and can be fully implemented in Cogent.
 
 If the record field is an unboxed record with type \code{\#R}, the type of the pointer to the field has the boxed record
 type \code{R} in all cases above. If the record field is an array of type \code{\#UA'n'\_El} the pointer to the field
 has the corresponding array type \code{A'n'\_El} (see Section~\ref{design-types-array}.
 
-There could be more complex cases of working with a structure through pointers to fields. The working function could
+There could be more complex cases of working with a structure through pointers to fields. The field modification function could
 take an additional argument where it returns information, then an additional type variable \code{b} would be required
 which is escapable. The working function could modify several record fields at the same time, then for every such field
 a pointer is passed to it. This complexity is the reason why Gencot does not generate according definitions automatically.
@@ -315,11 +457,13 @@ function returns None. Otherwise it returns a readonly pointer to the element. T
 since neither the element nor the array can be modified. Note the similarity to the \code{get\_} functions defined in
 Sections~\ref{design-types-array} and~\ref{app-trans-arrpoint} which return the element itself instead of a pointer.
 
-If the array is not readonly an element can be modified in-place through a pointer by a function of the form
+If the array is not readonly an element can be modified in-place through a pointer by a modification function of the form
 \begin{verbatim}
-  modify_Arr : all a:<DS. (Arr, UNN, (P_El,a)->P_El, a) -> Arr
+  modify_Arr : all(a). ModFun Arr (UNN, (P_El,a)->P_El, a)
 \end{verbatim}
-As for the struct member the working function takes an additional information of nonlinear type as argument, which can be
+The type of this function is similar to a \code{ModPartFun}, but it differs because in addition to the element modification 
+functio and its argument the element index must be passed as argument.
+As for the struct member the element modification function takes an additional information as argument, which can be
 used as input for the modification. Other than for the struct member it does not get the remaining array as argument,
 since the type of an array with a specific element ``taken'' cannot be expressed in Cogent. Note that it is not possible
 to pass the array or parts of it as additional information in the parameter of type \code{a}, since that would always by
@@ -419,11 +563,10 @@ and for a linear element type:
 Functions for accessing the element through a pointer (see Section~\ref{app-trans-addrop}) are in both cases:
 \begin{verbatim}
   access_CArray_tt_El : (CArray_tt_El!,UNN) -> Option P_El!
-  modify_CArray_tt_El : all a:<DS. 
-        (CArray_tt_El,UNN,(P_El,a)->P_El, a) -> CArray_tt_El
+  modify_CArray_tt_El : all(a). ModFun CArray_tt_El (UNN,(P_El,a)->P_El, a)
 \end{verbatim}
 
-In the second case the array size is determined by additional information seperate from the pointer to the array.
+In the second case the array size is determined by additional information separate from the pointer to the array.
 Either the size is specified as an integer value as in 
 \begin{verbatim}
   struct ip {... int *p, int psize; ...} s;
@@ -452,11 +595,11 @@ This makes the Cogent type \code{Struct\_Cogent\_ip} binary compatible with the 
 to represent several groups of related members in the struct by a common abstract type. Of course this approach is 
 only possible if the members are contiguous in the struct.
 
-To access the group in the struct the abstract function
+To modify the group in the struct the abstract modification function 
 \begin{verbatim}
-  modify_a: all a:<DS. (Struct_Cogent_ip,
-    (SArray_tt_El, (Struct_Cogent_ip take a)!,a)->SArray_tt_El,a)
-    -> Struct_Cogent_ip
+  modifyAInStruct_Cogent_ip: all(a). 
+    ModPartFun Struct_Cogent_ip SArray_tt_El 
+               ((Struct_Cogent_ip take a)!,a)
 \end{verbatim}
 is used in the same way as described in Section~\ref{app-trans-addrop}.
 
@@ -464,44 +607,75 @@ The functions for working with the array now look different from those above, si
 does not correspond to a pointer to the array elements, but to a pointer to the substructure with members describing
 the array. The specific form and functionality of these functions depend on the actual members and their use.
 
-\subsection{Initializing Values of Linear Type}
+\subsection{Initializing and Clearing Values of Linear Type}
 \label{app-trans-init}
 
 As described in Section~\ref{design-types-struct} the function \code{create\_T} returns a record with all fields taken.
-Before it can be used it must be initialized by putting values for all fields. We assume here that this is done by a 
-function of the form
-\begin{verbatim}
-  init_T: T take (..) -> T
-\end{verbatim}
-which puts simple fixed values into the fields and does not require any additional information.
-Similarly, as described in Section~\ref{design-types-array} the function \code{create\_A'<size>'\_El} returns an 
-unitialized array of type \code{TA'<size>'\_El} and we assume an initialization function of the form
-\begin{verbatim}
-  init_A'<size>'_El: TA'<size>'_El -> A'<size>'_El
-\end{verbatim}
+Before it can be used it must be initialized by putting values for all fields. Similarly, as described in 
+Section~\ref{design-types-array} the function \code{create\_A'<size>'\_El} returns an 
+unitialized array of type \code{TA'<size>'\_El} which must be initialized before it is used.
+Dually, before disposing a record or an array the value must be cleared.
 
-Putting values into fields of primitive type is straightforward. For fields of linear type \code{T} a value can be created 
-using the function \code{create\_T} or \code{null[T]} (see Section~\ref{app-trans-null}) and put into the field using the
-Cogent put operation. Not so clear is how to initialize fields of unboxed types.
+Gencot defines in \code{include/gencot/ModFun.cogent} the generic types
+\begin{verbatim}
+  type IniFun uni ini = uni -> ini
+  type ClrFun ini uni = ini -> uni
+\end{verbatim}
+for functions which initialize or clear a value. An initialization function puts simple fixed values into the fields, 
+a clearing function takes the fields and disposes all values of linear type. Therefore both do not require any additional 
+information as input.
+
+Gencot defines the preprocessor macros
+\begin{verbatim}
+  RECINIFUN(rectyp)
+  RECCLRFUN(rectyp)
+  ARRINIFUN(arrtyp)
+  ARRCLRFUN(arrtyp)
+\end{verbatim}
+which generate the types for initialization and clearing function given a record or an array type. (They are implemented 
+as preprocessor macros because they cannot be implemented as generic types in Cogent.)
+
+Functions for initializing and clearing an array must be defined as abstract and implemented in antiquoted C. Functions
+for initializing and clearing a record \code{r} of type \code{R} can be defined in Cogent by putting or taking values 
+into/from all fields.
+
+Putting values into fields of primitive type is straightforward. For fields of a boxed record type \code{S} a value can be created 
+using the function \code{create\_S}, then applying an initialization function of type RECINIFUN(S) and putting the result into the field using the
+Cogent put operation. For fields of a boxed abstract type it depends which abstract functions are available for creating and 
+initializing values. For boxed array fields of type \code{A'<size>'\_El} the function \code{create\_A'<size>'\_El} can be used 
+with an initialization function of type \code{ARRINIFUN(A'<size>'\_El)}. Fields of type \code{MayNull a} can be initialized by
+putting \code{null[a]()}.
+
+Fields of a readonly record type \code{S!} cannot be initialized according to this schema. If a value is created in the 
+initialization function for \code{r} it must be banged there but then it may not leave the banged context. The readonly record must be created
+outside and then passed to a banged context. The initialization of \code{r}, its use and its clearing must all happen inside
+this context. To support this, the initialization functions must be extended to take as additional argument a tuple of all
+values to be used for readonly fields. A simpler solution is to use type \code{(MayNull S)!} instead for the field and 
+put the value \code{roNull[a]()} during initialization. Then a readonly non-null value can be set later in the corresponding
+banged context. For fields of a readonly abstract type \code{S!} either an abstract function must be provided which returns
+a readonly value without using an explicit banged context (which will cause problems for the refinement proof), or the type
+\code{(MayNull S)!} is used as for the record type.
+
+Another problem is how to initialize fields of unboxed types.
 
 A field \code{f} with an unboxed record type \code{\#S} corresponds to an embedded struct in C. The space for this struct is allocated together
-with the space for the surrounding struct by function \code{create\_T}. The initialization should be done using the 
-function \code{init\_S} which takes as input a value of type \code{S take (..)}. 
+with the space for the surrounding struct by function \code{create\_T}. The initialization should be done by again using
+an initialization function of type \code{RECINIFUN(S)}.
 
 The most natural way of initializing an embedded struct would be in-place using a pointer to the embedded struct as described
-in Section~\ref{app-trans-addrop}. But the function \code{modify\_f} described there takes as argument a record of type \code{T}
-where no field is taken, so it cannot be used to put the taken field \code{f} into the record. Seperate \code{modify}-functions
-are required for the record with taken fields. If the record contains several embedded structs every \code{modify}-function
-puts one field and the result type has one field less taken. Thus, defining such \code{modify}-functions imposes an order
+in Section~\ref{app-trans-addrop}. But the function \code{modifyFInR} described there takes as argument a record of type \code{R}
+where no field is taken, so it cannot be used to put the taken field \code{f} into the record. Separate modification functions
+are required for the record with taken fields. If the record contains several embedded structs every modification function
+puts one field and the result type has one field less taken. Thus, defining such modification functions imposes an order
 in which the embedded structs must be initialized and whether they are initialized before or after the other fields. A corresponding
-\code{modify}-function for field \code{f} which must be initialized before field \code{g} but after all other fields would be
+modification function for field \code{f} which must be initialized before field \code{g} but after all other fields would be
 \begin{verbatim}
-  put_f : (S take (..)->S, T take (f,g)) -> T take g
+  putFInR : PUTFUN1(R,(g),f,RECINIFUN(S))
 \end{verbatim}
-It is defined in a way that it can be invoked with function \code{init\_S} as its first argument. This implies that other than
-\code{modify\_f} the modification function neither takes the remaining record as argument nor additional information.
-The implementation in antiquoted C would simply apply the first argument to a pointer to member \code{f} which is retrieved
-using the address operator \code{\&}.
+where \code{PUTFUN1} is a macro instance for the type of modification functions which put a field, as described in 
+Section~\ref{app-trans-modify}. It is invoked with the initialization function for the embedded record as additional information.
+The implementation of \code{putFInR} in antiquoted C would simply apply the initialization function to a pointer to member 
+\code{f} which is retrieved using the address operator \code{\&}.
 
 A more flexible way would be to use the Cogent put operation. However, for field \code{f} it needs a value of type 
 \code{\#S} which is not produced by \code{init\_S}. To bridge this gap we can use an abstract function
@@ -511,16 +685,16 @@ A more flexible way would be to use the Cogent put operation. However, for field
 which dereferences the argument pointer, and returns a copy of its content. Additionally it frees the pointer so that the
 linear input value is safely disposed. (Note that the argument cannot be readonly to avoid freeing the pointer, since then
 the result must also be readonly if it contains linear values.) Then the Cogent code to initialize the embedded struct 
-\code{f} in a record \code{t} would be
+\code{f} in a record \code{r} would be
 \begin{verbatim}
-  t { f = deref_S init_S create_S }
+  r { f = deref_S init_S create_S }
 \end{verbatim}
 It is not as efficient as in-place initialization, since it allocates a struct of type \code{S} on the heap, initializes it,
 copies it to the embedded struct \code{f} and deallocates it.
 
 Since both ways may be useful in certain contexts Gencot does not generate one or both of them, they must be provided manually.
 
-Another approach could be that the function \code{create\_T} returns a value where only the fields of primitive and linear type
+Another approach could be that the function \code{create\_R} returns a value where only the fields of primitive and linear type
 are taken and the embedded structs are present, but again with all primitive and linear fields taken. Then the function \code{init\_S}
 could be directly applied to a pointer to field \code{f}. However, it is still necessary to retrieve the pointer to \code{f}
 with the help of an abstract function which now has to respect the fact that other embedded struct fields have types with
@@ -532,10 +706,10 @@ Section~\ref{design-types-array} and~\ref{design-types-function}). Initializing 
 \code{\#UA'<size>'\_El} can be done in-place or separate like an embedded struct field. In the first case an abstract
 function of the form 
 \begin{verbatim}
-  put_f : (TA'<size>'_El->A'<size>'_El, T take (f,g)) -> T take g
+  putFInR : PUTFUN1(,(g),f,ARRINIFUN(A'<size>'_El))
 \end{verbatim}
-is required which can be invoked with function \code{init\_A'<size>'\_El} as its second argument. In the second case an
-abstract function of the form
+is required which uses an array initialization function and puts \code{f} while field \code{g} is still taken. 
+In the second case an abstract function of the form
 \begin{verbatim}
   deref_A'<size>'_El : A'<size>'_El -> #UA'<size>'_El
 \end{verbatim}
@@ -545,3 +719,33 @@ Initializing an array field \code{f} of a function pointer type \code{\#F\_...} 
 The value to be put must be constructed using the function \code{to\_F\_...} (see Section~\ref{design-types-function}). To
 avoid null pointers to functions, as described in Section~\ref{app-trans-funpointer}, a dummy function should be defined in
 Cogent and passed to the \code{to\_F\_...} function.
+
+In a clearing function for a record all content shall be discarded. For fields of primitive and readonly type this is
+straightforward by using the Cogent take operation and ignoring the taken value. For fields of linear type the taken value
+cannot be simply discarded, it needs special treatment.
+
+For a field of a boxed record type \code{S} the taken value must be disposed by applying the function \code{dispose\_S}.
+For a field of a boxed abstract type it depends on the available abstract functions for disposing values. For a boxed
+array of type \code{A'<size>'\_El} the function \code{dispose\_A'<size>'\_El} can be used. For a field of type
+\code{MayNull S} the value must be tested whether it is null, otherwise the function \code{dispose\_S} must be used. In
+all these cases a clearing function for type \code{S} must be applied first, so that the dispose-function is applicable.
+
+A field of unboxed record type \code{\#S} is linear, if the embedded record contains linear fields. During clearing these must be
+disposed. This can be achieved by applying a clearing function for type \code{S} before taking the field. Dually to the 
+initialization of an embedded record this can be done in-place or using a copy. The in-place approach requires an abstract
+function of the form
+\begin{verbatim}
+  takeFInR : TAKEFUN1(R,(g),f,RECCLRFUN(S))
+\end{verbatim}
+which applies a clearing function of type \code{RECCLRFUN(S)} and takes the field \code{f} while field \code{g} is already taken.
+The other approach requires an abstract function 
+\begin{verbatim}
+  refer_S : #S -> S
+\end{verbatim}
+which allocates an object on the heap and stores the content of its argument into it. Then field \code{f} can be taken, the taken
+value passed to \code{refer\_S}, and a clearing function applied to its result, before it is disposed.
+
+A field of an unboxed abstract type is never linear, so the field can always be taken and the taken value discarded.
+However, if the C implementation of the abstract type contains pointers, they must be deallocated. This can be achieved by
+applying a clearing function in the same way as for an unboxed record field with the help of an abstract function
+\code{takeFInR} or \code{refer\_S}.

@@ -177,20 +177,20 @@ in the following sections.
 As an example, to modify a part \code{p} of type \code{P} in a part \code{q} of type \code{Q} in a linear value \code{r} of type \code{R}
 an expression of the form
 \begin{verbatim}
-  modify_q_of_R (r, (modify_p_of_Q, (modify_P, arg)))
+  modifyQInR (r, (modifyPInQ, (modifyP, arg)))
 \end{verbatim}
-modifies \code{p} by replacing it by \code{modify\_P (p,arg)}. To make the modification functions generic they can be defined as polymorphic:
+modifies \code{p} by replacing it by \code{modifyP (p,arg)}. To make the modification functions generic they can be defined as polymorphic:
 \begin{verbatim}
-  modify_q_of_R: all(a). ModPartFun R Q a
-  modify_p_of_Q: all(a). ModPartFun Q P a
-  modify_P: ModFun P A
+  modifyQInR: all(a). ModPartFun R Q a
+  modifyPInQ: all(a). ModPartFun Q P a
+  modifyP: ModFun P A
 \end{verbatim}
 
-If the modification function \code{modify\_P} needs as input information of noninear type from other linear parts of \code{q} or \code{r} it is not
-possible to pass these parts to \code{modify\_P}. Either they must be taken from \code{r} and put back in after the modification, then
-the type of \code{r} is \code{R take (...)} and \code{modify\_q\_of\_R} cannot be applied because of type incompatibility. Or the parts are
+If the modification function \code{modifyP} needs as input information of nonlinear type from other linear parts of \code{q} or \code{r} it is not
+possible to pass these parts to \code{modifyP}. Either they must be taken from \code{r} and put back in after the modification, then
+the type of \code{r} is \code{R take (...)} and \code{modifyQInR} cannot be applied because of type incompatibility. Or the parts are
 accessed as readonly in a banged context for \code{r}, then the readonly parts cannot escape from the banged context to be passed to the
-modification operation (which must be outside of the banged context since it modifies \code{r}. Instead, the required nonlinear information must 
+modification operation (which must be outside of the banged context since it modifies \code{r}). Instead, the required nonlinear information must 
 be retrieved from the linear parts in a banged context for \code{r}. Since it is nonlinear it may escape from the context and can be passed 
 to the modification operation.
 
@@ -366,10 +366,10 @@ at the end of its scope a call to the (abstract) dispose function must be added.
 operator need not be translated, since the creation function already returns the linear value which can be 
 used for the same purposes. The resulting Cogent code would be
 \begin{verbatim}
-  let ptr = create_P_U32 5
-  in dispose_P_U32(...ptr...)
+  let ptr = create[P_U32] () {cont = 5}
+  in dispose (...ptr...)
 \end{verbatim}
-where the argument of \code{dispose\_P\_U32} is an expression which uses and returns the \code{ptr} in the 
+where the argument of \code{dispose} is an expression which uses and returns the \code{ptr} in the 
 usual way for a value of linear type.
 
 \subsubsection{Address of Struct Member}
@@ -386,7 +386,7 @@ by the linear Cogent type
 
 If the overall structure in Cogent is readonly an abstract function of the form
 \begin{verbatim}
-  access_i2 : Struct_Cogent_ii! -> P_U32!
+  accessI2InCogent_ii : Struct_Cogent_ii! -> P_U32!
 \end{verbatim}
 can be used to access the Cogent field through a pointer. It returns the field as readonly, thus it is safe 
 since neither the field nor the structure can be modified.
@@ -416,26 +416,34 @@ be overwritten. To prevent this it must be proven for the Cogent program that no
 for proving the type safety properties an arbitrary complex part of the Cogent program must be taken into
 account.
 
-A better approach is to combine the pseudo take an put operations in a single abstract modification function according
+A better approach is to combine the pseudo take and put operations in a single abstract modification function according
 to the modification framework described in Section~\ref{app-trans-modify}:
 \begin{verbatim}
-  modifyI2InStruct_Cogent_ii : all(a). 
-    ModPartFun Struct_Cogent_ii P_U32 
-               ((Struct_Cogent_ii take i2)!,a)
+  modifyI2InCogent_ii : all(a). 
+    ModPartFun Struct_Cogent_ii P_U32 a
 \end{verbatim}
-The information passed to the field modification function consists of the remaining structure, and the additional information
-of type \code{a}. The remaining structure is provided since often its content is also required for working on 
-field \code{i2}. It is passed with field \code{i2} taken, so no sharing occurs in the field modification function. Additionally,
-it is passed as readonly, so no other value can be put into field \code{i2} in the field modification function. It
+The function expects as arguments the record to be modified, a field modification function and the additional argument
+of type \code{a} for the field modification function. The field modification function
 returns the pointer to the modified field, thus it does not discard it and can be fully implemented in Cogent.
 
 If the record field is an unboxed record with type \code{\#R}, the type of the pointer to the field has the boxed record
 type \code{R} in all cases above. If the record field is an array of type \code{\#UA'n'\_El} the pointer to the field
 has the corresponding array type \code{A'n'\_El} (see Section~\ref{design-types-array}.
 
+An alternative definition could be
+\begin{verbatim}
+  modifyI2InCogent_ii : all(a). 
+    ModPartFun Struct_Cogent_ii P_U32
+               ((Struct_Cogent_ii take i2)!,a)
+\end{verbatim}
+Here in addition to the value of type \code{a} the field modification function gets the remaining structure as input.
+The remaining structure can be required for working on 
+field \code{i2}. It is passed with field \code{i2} taken, so no sharing occurs in the field modification function. Additionally,
+it is passed as readonly, so no other value can be put into field \code{i2} in the field modification function.
+
 There could be more complex cases of working with a structure through pointers to fields. The field modification function could
 take an additional argument where it returns information, then an additional type variable \code{b} would be required
-which is escapable. The working function could modify several record fields at the same time, then for every such field
+which is escapable. The field modification function could modify several record fields at the same time, then for every such field
 a pointer is passed to it. This complexity is the reason why Gencot does not generate according definitions automatically.
 
 \subsubsection{Address of Array Element}
@@ -448,26 +456,17 @@ compatible, if the element pointer is also accessed outside the Cogent compilati
 A binary compatible solution can be achieved in a similar way as for struct members. The first prerequisite for it is
 to allocate the array on the heap.
 
-If the array in Cogent has the readonly type \code{Arr!} with element type \code{El} an abstract function of the form
-\begin{verbatim}
-  access_Arr : (Arr!, UNN) -> Option P_El!
-\end{verbatim}
-can be used to access the element with the second argument as index.  If the specified index is not in the range of the array the
-function returns None. Otherwise it returns a readonly pointer to the element. This is safe 
-since neither the element nor the array can be modified. Note the similarity to the \code{get\_} functions defined in
-Sections~\ref{design-types-array} and~\ref{app-trans-arrpoint} which return the element itself instead of a pointer.
+Then the polymorphic functions \code{arrAccess} and \code{arrModify} (see Section~\ref{design-types-array}) can be used
+for working with pointers to elements.
 
-If the array is not readonly an element can be modified in-place through a pointer by a modification function of the form
-\begin{verbatim}
-  modify_Arr : all(a). ModFun Arr (UNN, (P_El,a)->P_El, a)
-\end{verbatim}
-The type of this function is similar to a \code{ModPartFun}, but it differs because in addition to the element modification 
-functio and its argument the element index must be passed as argument.
+The type of \code{arrModify} is similar to a \code{ModPartFun}, but it differs because in addition to the element modification 
+function and its argument the element index must be passed as argument.
 As for the struct member the element modification function takes an additional information as argument, which can be
-used as input for the modification. Other than for the struct member it does not get the remaining array as argument,
+used as input for the modification. Other than for the struct member it cannot get the remaining array as additional input,
 since the type of an array with a specific element ``taken'' cannot be expressed in Cogent. Note that it is not possible
-to pass the array or parts of it as additional information in the parameter of type \code{a}, since that would always by
-a second use of the array of linear type.
+to pass the array or parts of it as additional information in the parameter of type \code{a}, since that would always be
+a second use of the array of linear type. If several elements must be modified together, a specific modification function
+must be defined and used instead of \code{arrModify}.
 
 \subsubsection{Address of Function}
 
@@ -523,13 +522,12 @@ type of \code{p} must be manually changed as follows:
   type Struct_Cogent_ip = {... p: CArray_tt_El, ...}
 \end{verbatim}
 
-Then the abstract functions for the array type are defined in the same way as for the mapped array types as described in
-Section~\ref{design-types-array}. The functions for creating and disposing arrays are:
+For the type \code{CArray\_tt\_El} the polymorphic function \code{create} cannot be used since no instance has been
+generated by Gencot for it. An abstract function of the form
 \begin{verbatim}
   create_CArray_tt_El : UNN -> TCArray_tt_El
-  dispose_CArray_tt_El : TCArray_tt_El -> ()
 \end{verbatim}
-where the \code{create}-function takes the actual array size (number of elements) as argument. The type \code{UNN} must be
+must be defined and implemented manually. It takes the actual array size (number of elements) as argument. The type \code{UNN} must be
 chosen by the developer so that it can represent all sizes which are used for the array. It is also used for the index
 values below. The type 
 \code{TCArray\_tt\_El} is used for the uninitialized array, corresponding abstract functions for initializing
@@ -542,11 +540,13 @@ The implementation in antiquoted C has the following form:
   $ty:TCArray_tt_El $id:create_CArray_tt_El($ty:U32 size) { 
     return calloc(size,sizeof(el));
   }
-  $ty(()) $id:dispose_CArray_tt_El($ty:TCArray_tt_El arr) {
-    free(arr); return $exp(());
-  }
-  ...
 \end{verbatim}
+
+For disposing values of the array type the usual polymorphic function \code{dispose} can be used, its implementation in
+antiquoted C automatically provides instances for all types for which it is used.
+
+
+
 
 The element access functions are defined in the same way as for array types (see Section~\ref{design-types-array}. 
 In the case of a non-linear element type they are:

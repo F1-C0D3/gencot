@@ -359,68 +359,101 @@ Again, the type for the uninitialized array is used. The developer has to provid
 of type \code{A'<size>'\_El -> TA'<size>'\_El} which in particular has the task of seperately disposing 
 all linear values which are array elements or parts of array elements.
 
-For read and write access to array elements Gencot distinguishes two cases, depending on whether the array element
-type is linear (contains pointers) or not.
-
-For arrays with nonlinear element type Gencot provides the polymorphic abstract functions
+For read access Gencot provides the polymorphic function
 \begin{verbatim}
-  arrGet : all(arr,idx,el:<DS). (arr!,idx) -> Option el
-  arrSet : all(arr,idx,el:<DS). (arr,idx,el) -> arr
+  arrGet : all(arr,idx,el). (arr!,idx) -> Option el!
 \end{verbatim}
-with the expected semantics. The type variable \code{arr} denotes the array type, \code{idx} denotes the index type and
+The type variable \code{arr} denotes the array type, \code{idx} denotes the index type and
 \code{el} denotes the element type. The result type of \code{arrGet} uses the generic type \code{Option} defined in
 the Cogent standard library.  Function \code{arrGet} expects a readonly array, so it may only be used in a context where
 the array has been made readonly. The alternative would be a function which returns the array together with the element.
 However, this would be cumbersome in many applications and misleading for proofs, since the function never modifies
-the array. Note that the result type is not readonly although it is taken from a readonly array. Since it is nonlinear
-there is no difference between being readonly or not.
+the array. The function result is also readonly, so for an array with linear element type the result can be shared 
+with the array content.
 
-For every array type \code{A'<size>'\_El} used in the program, where \code{El} is nonlinear, Gencot automatically 
-generates C implementations for instances of both functions which have the form
+For every array type \code{A'<size>'\_El} used in the program, Gencot automatically 
+generates a C implementation for an instance of the form
 \begin{verbatim}
   arrGet[A'<size>'_El,UNN,El]
-  arrSet[A'<size>'_El,UNN,El]
 \end{verbatim}
-and are implemented in C using the C array subscription operator \code{[]}. 
+implemented in C using the C array subscription operator \code{[]}. 
 \code{UNN} is one of \code{U8, U16, U32} according to the \code{<size>} of the array. If the specified index 
-is not in the range \code{0..<size>-1} the \code{arrGet}-instance returns \code{None}, the \code{arrSet}-instance
-returns the unmodified array.
+is not in the range \code{0..<size>-1} the instance returns \code{None}. F
 
-For arrays with linear element type Gencot provides the polymorphic abstract functions
+For a multidimensional array type \code{A'<size>'UA'<size>'...\_El} the index type is a tuple \code{(UNN1,UNN2,...)}.
+
+For an array type \code{A'<size>'U\_El} with an unboxed element type the 
+instance of \code{arrGet} has the form
 \begin{verbatim}
-  arrReplace : all(arr,idx,el). (arr,idx,el) -> (arr,el)
+  arrGet[A'<size>'U_El,UNN,#El]
+\end{verbatim}
+
+For write access to array elements Gencot provides the polymorphic abstract functions
+\begin{verbatim}
+  arrSet : all(arr,idx,el:<D). (arr,idx,el) -> arr
+  arrExchng : all(arr,idx,el). (arr,idx,el) -> (arr,el)
   arrModify : all(arr,idx,el,arg). 
     (arr,idx,(el,arg)->el,arg) -> arr
 \end{verbatim}
-The first function
+Function \code{arrSet} is only defined for a discardable element type. It simply discards the old value of the indexed element.
+Function \code{arrExchng}
 replaces the element at the specified position by the element passed as parameter and returns the old element in the result.
-The second function modifies the element at the specified position ``in-place'' by applying a modification function
-which is passed as the third parameter. The modification function may need additional information which must be passed to it. 
+Function \code{arrModify} modifies the element at the specified position in-place by applying a modification function,
+which is passed as the third parameter, to a pointer to the element. The modification function may need additional information 
+which must be passed to it. 
 To support arbitrary types of additional information the type variable \code{arg} is used.
-Note that the functions cause no sharing or discarding for the linear array element values.
+Note that the last two functions cause no sharing or discarding for the array element values and are defined for arbitrary 
+element types.
 
-For every array type \code{A'<size>'\_El} used in the program, where \code{El} is linear, Gencot automatically 
-generates C implementations for instances of both functions which have the form
+For every array type \code{A'<size>'\_El} used in the program, and every type \code{Arg} for which
+arrModify is used Gencot automatically 
+generates C implementations for instances of the last two functions which have the form
 \begin{verbatim}
-  arrReplace[A'<size>'_El,UNN,El]
-  arrModify[A'<size>'_El,UNN,El]
+  arrExchng[A'<size>'_El,UNN,El]
+  arrModify[A'<size>'_El,UNN,P_El,Arg]
 \end{verbatim}
 If the specified
 index is not in the range \code{0..<size>-1} the first function returns the same element which has been
 passed as parameter, both functions return the unmodified array. 
 
+For every array type \code{A'<size>'U\_El} the instances have the form
+\begin{verbatim}
+  arrExchng[A'<size>'U_El,UNN,#El]
+  arrModify[A'<size>'U_El,UNN,El,Arg]
+\end{verbatim}
+
+C implementations for instances of \code{arrSet} are only generated if the element type is nonlinear. For an array type
+\code{A'<size>'\_El} it has the form
+\begin{verbatim}
+  arrSet[A'<size>'_El,UNN,El]
+\end{verbatim}
+and for an array type \code{A'<size>'U\_El} it has the form
+\begin{verbatim}
+  arrSet[A'<size>'U_El,UNN,#El]
+\end{verbatim}
+If the specified index is not in the range \code{0..<size>-1} the instance returns the unmodified array.
+
 No equivalent for the Cogent take and put operations are provided for arrays with linear element type. It would be
 necessary to statically encode the set of array indices for which the elements have been taken in the type expression,
 this is not feasible.
 
-For a readonly array it is possible to access elements directly, even if they are of linear type. Gencot generates
-an implementation of the instance
+To access array elements through a pointer Gencot provides the polymorphic function
 \begin{verbatim}
-  arrGet[A'<size>'_El,UNN,El!]
+  arrAccess : all(arr,idx,el). (arr!,idx) -> Option el!
 \end{verbatim}
-for this purpose. Here the bang operator for the result type is relevant. The function is implemented by returning
-the pointer to the element in the array without copying the element. This is safe since both the array and the element
-type are readonly. If the specified index is not in the range \code{0..<size>-1} the function returns \code{None}.
+The function returns a pointer to the element in the array without copying the element. This is safe since both the array and the result
+type are readonly. If the specified index is not in the range \code{0..<size>-1} the function returns \code{None}. 
+
+For every array type \code{A'<size>'\_El} used in the program Gencot automatically generates a C implementation
+for an instance of the form
+\begin{verbatim}
+  arrAccess[A'<size>'_El,UNN,P_El]
+\end{verbatim}
+and for every array type \code{A'<size>'U\_El} with an unboxed element type a C implementation for an
+instance of the form
+\begin{verbatim}
+  arrAccess[A'<size>'U_El,UNN,El]
+\end{verbatim}
 
 \subsubsection{Dummy Expressions for Array Types}
 

@@ -480,57 +480,25 @@ arraySizeType _ = genType $ CS.TCon "U32" [] markBox
 dummyExpr :: LCA.Type -> FTrav RawExpr
 dummyExpr (LCA.DirectType TyVoid _ _) = 
     return $ CS.RE CS.Unitel
-dummyExpr (LCA.DirectType tnam@(LCA.TyComp _) _ _) = do
-    t <- transTagName tnam
-    return $ dummyApp ("dummy_Unbox_" ++ t)
-dummyExpr (LCA.DirectType tnam _ _) = do
+dummyExpr (LCA.DirectType (LCA.TyComp _) _ _) = do
+    return $ dummyApp "gencotDummy"
+dummyExpr (LCA.DirectType _ _ _) = do
     return $ CS.RE $ CS.IntLit 0
-dummyExpr (LCA.PtrType (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _) _ _) | isAggregate typ = do
-    return $ dummyApp ("dummy_" ++ (mapNameToUpper idnam))
-dummyExpr (LCA.PtrType (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _) _ _) | isFunction typ = do
-    return $ dummyApp ("dummy_" ++ (mapNameToUpper idnam))
-dummyExpr (LCA.PtrType t _ _) | isFunction t = do
-    e <- dummyExpr ret
-    return $ CS.RE $ CS.Lam (CS.RIP CS.PUnderscore) Nothing e
-    where (LCA.FunctionType (LCA.FunType ret _ _) _) = resolveTypedef t
-dummyExpr (LCA.PtrType t _ _) | isArray t = do
-    tp <- transType ""{-todo-} eltp
-    return $ dummyArrApp tp
-    where (LCA.ArrayType eltp _ _ _) = resolveTypedef t
-dummyExpr (LCA.PtrType t _ _) | isAggregate t = do
-    t <- transTagName tnam
-    return $ dummyApp ("dummy_" ++ t)
-    where (LCA.DirectType tnam@(LCA.TyComp _) _ _) = resolveTypedef t
-dummyExpr (LCA.PtrType t _ _) = do
-    tp <- transType ""{-todo-} t
-    return $ dummyPtrApp tp
 dummyExpr (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _) = return $
     case rtyp of
-         (LCA.DirectType (LCA.TyComp _) _ _) -> dummyApp ("dummy_Unbox_" ++ (mapNameToUpper idnam))
+         (LCA.DirectType (LCA.TyComp _) _ _) -> dummyApp "gencotDummy"
          (LCA.DirectType TyVoid _ _) -> CS.RE CS.Unitel
          (LCA.DirectType _ _ _) -> CS.RE $ CS.IntLit 0
-         _ -> dummyApp ("dummy_" ++ (mapNameToUpper idnam))
+         _ -> dummyApp "gencotDummy"
     where rtyp = resolveTypedef typ
+dummyExpr _ = do
+    return $ dummyApp "gencotDummy"
 
 dummyAppExpr :: CS.RawExpr -> CS.RawExpr
 dummyAppExpr fun = CS.RE $ CS.App fun (CS.RE CS.Unitel) False
 
 dummyApp :: String -> CS.RawExpr
 dummyApp fnam = dummyAppExpr $ CS.RE $ CS.Var fnam
-
-dummyPtrApp :: GenType -> CS.RawExpr
-dummyPtrApp (GenType CS.TUnit o) = dummyApp "dummy_Pointer_Void"
-dummyPtrApp (GenType (CS.TCon nam [] CCT.Unboxed) o) = dummyApp ("err-dummy_Pointer_U_"++nam)
-dummyPtrApp (GenType (CS.TCon nam [] b) o) = dummyApp ("dummy_Pointer_"++nam)
-
-dummyArrApp :: GenType -> CS.RawExpr
-dummyArrApp (GenType CS.TUnit o) = dummyApp "err-dummy_Array_Void"
-dummyArrApp (GenType (CS.TCon nam [] CCT.Unboxed) o) = dummyApp ("dummy_Array_U_"++nam)
-dummyArrApp (GenType (CS.TCon nam [] b) o) = dummyApp ("dummy_Array_"++nam)
-dummyArrApp (GenType (CS.TFun ps r) o) = dummyArrApp $ funType r
-
---dummyPolyApp :: String -> GenType -> CS.RawExpr
---dummyPolyApp fnam typ = dummyAppExpr $ CS.RE $ CS.TypeApp fnam [Just $ stripOrigT typ] NoInline
 
 mkGenType :: [GenType] -> GenType
 mkGenType [] = genType CS.TUnit

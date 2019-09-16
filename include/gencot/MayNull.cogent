@@ -1,11 +1,15 @@
 {- Abstract data type for linear types which may be NULL -}
 
-#ifndef ABSTRACT_MAYNULL
-#define ABSTRACT_MAYNULL
+#ifndef GENCOT_MAYNULL
+#define GENCOT_MAYNULL
 
+#include "Memory.cogent"
+
+-- Linear type with the additional value NULL
+--   a: linear type of all non-null values
 type MayNull a 
 
--- Construct the NULL pointer
+-- Construct the NULL value
 null: all(a). () -> MayNull a
 roNull: all(a). () -> (MayNull a)!
 
@@ -17,23 +21,36 @@ roMayNull: all(a). a! -> (MayNull a)!
 notNull: all(a). MayNull a -> Option a
 roNotNull: all(a). (MayNull a)! -> (Option a)!
 
+-- Utility functions
+
 -- test for being NULL
 isNull: all(a). (MayNull a)! -> Bool
 isNull mn = roNotNull mn 
    | None -> True 
    | Some _ -> False
 
-modifyNull: all(a,b:<DS). ModPartFun (MayNull a) a b
-modifyNull (mn, (f,v)) = notNull[a] mn
-   | None -> null[a] ()
-   | Some x -> mayNull[a] (f (x,v))
+-- Part access functions
 
-createNull: all(a). () -> MayNull a
-createNull () = mayNull (create ())
+-- replace a value, disposing it if it is not NULL
+--   ea: the empty-value type corresponding to type a
+--   arg: the type of additional input for the crearing function
+setNotNull: all(a,ea,arg:<DS). ModFun (MayNull a) (a, ClrFun a ea arg,arg)
+setNotNull (mn, (nn, clrfun, addinput)) = notNull mn
+   | None -> mayNull nn
+   | Some x -> dispose (clrfun (x,addinput)); mayNull nn
 
-disposeNull: all(a). MayNull a -> ()
-disposeNull mn = notNull mn
-   | None -> ()
-   | Some x -> dispose x
+-- exchange values if not NULL
+exchngNull: all(a). (MayNull a,a) -> (MayNull a,a)
+exchngNull (mn, nn) = notNull mn
+   | None -> (null(),nn)
+   | Some x -> (mayNull nn, x)
 
-#endif {- ABSTRACT_MAYNULL -}
+-- apply modification function if not NULL
+--   arg: the type of additional input for the modification function
+modifyNull: all(a,arg:<DS). ModPartFun (MayNull a) a arg
+modifyNull (mn, (modfun,addinput)) = notNull mn
+   | None -> null ()
+   | Some x -> mayNull (modfun (x,addinput))
+
+
+#endif {- GENCOT_MAYNULL -}

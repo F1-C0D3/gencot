@@ -131,42 +131,6 @@ it is always linear and names a boxed type which corresponds to a pointer. Hence
 is always used to refer to the type ``pointer to struct'', the struct type itself is translated to the type name 
 with the unbox operator applied. The same holds for union types.
 
-\subsubsection{Creating and Disposing Boxed Values}
-
-Since all pointer types are mapped to Cogent linear types, Cogent does not provide support for creating values
-of these types (``boxed values''). In C a pointer can be created using the address operator \code{\&} or by allocating data on
-the heap using a C standard function such as \code{malloc}. The address operator is supported by Gencot
-only for data on the heap, as explained in Section~\ref{app-trans-addrop}. Therefore, the basic functionality
-for pointer creation is allocation on the heap. This must be provided as an abstract Cogent function implemented
-in antiquoted C.
-
-Since values of a linear type cannot be discarded in Cogent, another abstract Cogent function is required for
-disposing such values, implemented in antiquoted C by using the C standard function \code{free}.
-
-Gencot provides polymorphic abstract functions
-\begin{verbatim}
-  create : all(a). () -> a
-  dispose : all(a). a -> ()
-\end{verbatim}
-for creating and disposing values of linear types.
-
-For every linear non-abstract type \code{T} (i.e., every record type) used in the Cogent program, Gencot automatically
-generates an implementation for instances of both functions in antiquoted C. These instances have the form:
-\begin{verbatim}
-  create[T take (..)]
-  dispose[T take (..)]
-\end{verbatim}
-The \code{create} instance only allocates space on the heap but does not initialize it, hence the result is 
-represented in Cogent by a record with all fields taken. They can be filled using the Cogent put operation.
-The \code{dispose} instance expects a record with all fields taken and simply frees the heap space. In particular,
-this forces that all fields of linear type must have been taken and must be disposed separately.
-
-The create/dispose instances for C pointer types are described in Section~\ref{design-types-pointer}.
-
-Linear abstract types are used for unions, arrays and void pointers. Functions for creating and disposing pointers
-to unions are not provided by Gencot. Functions for creating and disposing arrays are described in 
-Section~\ref{design-types-array}.
-
 \subsubsection{Dummy Expressions for Struct and Union Types}
 
 To be able to provide a dummy expression for mapped structure and union types, Gencot automatically defines an 
@@ -322,139 +286,6 @@ If \code{el} is mapped to a type name with the unbox operator applied, which is 
 a letter ``\code{U}'' is prepended to \code{El} in the form of an additional derivation step. This can happen for 
 struct and union types and is equivalent to the case where \code{el} is another array type.
 
-\subsubsection{Support for Working with Arrays}
-
-The abstract types generated for arrays with known size are complemented by Gencot by abstract functions for working with
-arrays. For these functions Gencot automatically generates the Cogent function definitions and the 
-implementations in antiquoted C. All these implementations involve the array size in some way.
-
-If the array size is unknown (types of the form \code{A\_El}) or too complex (types of the form \code{A''\_El})
-only the Cogent function definitions are generated. The implementations must be provided manually. Often
-this is possible by the developer determining the array size from the context. If several array types with 
-different unknown sizes have been mapped to the same abstract type, they must be disambiguished manually.
-
-Gencot only supports arrays which are allocated on the heap. In C, arrays can also be introduced by defining
-them as global or local variable, but Cogent has no language constructs which support this.
-
-Gencot represents array values in Cogent always by a linear type of the form \code{A'<size>'\_El}.
-Hence Cogent does not provide a language construct to create such values. Gencot generates an instance
-\begin{verbatim}
-  create[TA'<size>'_El]
-\end{verbatim}
-for every type \code{A'<size>'\_El} used in the program. The instance is implemented by simply allocating the
-required space on the heap, internally using the translation of type \code{\#UA'<size>'\_El} to specify
-the amount of space. 
-
-Gencot uses as result type the additional type \code{TA'<size>'\_El}, with a similar meaning as a Cogent
-record with all fields taken. It statically marks the array as uninitialized. The developer must manually provide
-an abstract initialization function with type \code{TA'<size>'\_El -> A'<size>'\_El}. The additional type
-is automatically defined by Gencot and is mapped to the same C type as \code{A'<size>'\_El}.
-
-Since the Cogent type \code{A'<size>'\_El} is linear, values of it may not be discared. Gencot generates an instance 
-\begin{verbatim}
-  dispose[TA'<size>'_El]
-\end{verbatim}
-for every type \code{A'<size>'\_El} used in the program, implemented by using the C standard function \code{free}.
-Again, the type for the uninitialized array is used. The developer has to provide an additional function
-of type \code{A'<size>'\_El -> TA'<size>'\_El} which in particular has the task of seperately disposing 
-all linear values which are array elements or parts of array elements.
-
-For read access Gencot provides the polymorphic function
-\begin{verbatim}
-  arrGet : all(arr,idx,el). (arr!,idx) -> Option el!
-\end{verbatim}
-The type variable \code{arr} denotes the array type, \code{idx} denotes the index type and
-\code{el} denotes the element type. The result type of \code{arrGet} uses the generic type \code{Option} defined in
-the Cogent standard library.  Function \code{arrGet} expects a readonly array, so it may only be used in a context where
-the array has been made readonly. The alternative would be a function which returns the array together with the element.
-However, this would be cumbersome in many applications and misleading for proofs, since the function never modifies
-the array. The function result is also readonly, so for an array with linear element type the result can be shared 
-with the array content.
-
-For every array type \code{A'<size>'\_El} used in the program, Gencot automatically 
-generates a C implementation for an instance of the form
-\begin{verbatim}
-  arrGet[A'<size>'_El,UNN,El]
-\end{verbatim}
-implemented in C using the C array subscription operator \code{[]}. 
-\code{UNN} is one of \code{U8, U16, U32} according to the \code{<size>} of the array. If the specified index 
-is not in the range \code{0..<size>-1} the instance returns \code{None}. F
-
-For a multidimensional array type \code{A'<size>'UA'<size>'...\_El} the index type is a tuple \code{(UNN1,UNN2,...)}.
-
-For an array type \code{A'<size>'U\_El} with an unboxed element type the 
-instance of \code{arrGet} has the form
-\begin{verbatim}
-  arrGet[A'<size>'U_El,UNN,#El]
-\end{verbatim}
-
-For write access to array elements Gencot provides the polymorphic abstract functions
-\begin{verbatim}
-  arrSet : all(arr,idx,el:<D). (arr,idx,el) -> arr
-  arrExchng : all(arr,idx,el). (arr,idx,el) -> (arr,el)
-  arrModify : all(arr,idx,el,arg). 
-    (arr,idx,(el,arg)->el,arg) -> arr
-\end{verbatim}
-Function \code{arrSet} is only defined for a discardable element type. It simply discards the old value of the indexed element.
-Function \code{arrExchng}
-replaces the element at the specified position by the element passed as parameter and returns the old element in the result.
-Function \code{arrModify} modifies the element at the specified position in-place by applying a modification function,
-which is passed as the third parameter, to a pointer to the element. The modification function may need additional information 
-which must be passed to it. 
-To support arbitrary types of additional information the type variable \code{arg} is used.
-Note that the last two functions cause no sharing or discarding for the array element values and are defined for arbitrary 
-element types.
-
-For every array type \code{A'<size>'\_El} used in the program, and every type \code{Arg} for which
-arrModify is used Gencot automatically 
-generates C implementations for instances of the last two functions which have the form
-\begin{verbatim}
-  arrExchng[A'<size>'_El,UNN,El]
-  arrModify[A'<size>'_El,UNN,P_El,Arg]
-\end{verbatim}
-If the specified
-index is not in the range \code{0..<size>-1} the first function returns the same element which has been
-passed as parameter, both functions return the unmodified array. 
-
-For every array type \code{A'<size>'U\_El} the instances have the form
-\begin{verbatim}
-  arrExchng[A'<size>'U_El,UNN,#El]
-  arrModify[A'<size>'U_El,UNN,El,Arg]
-\end{verbatim}
-
-C implementations for instances of \code{arrSet} are only generated if the element type is nonlinear. For an array type
-\code{A'<size>'\_El} it has the form
-\begin{verbatim}
-  arrSet[A'<size>'_El,UNN,El]
-\end{verbatim}
-and for an array type \code{A'<size>'U\_El} it has the form
-\begin{verbatim}
-  arrSet[A'<size>'U_El,UNN,#El]
-\end{verbatim}
-If the specified index is not in the range \code{0..<size>-1} the instance returns the unmodified array.
-
-No equivalent for the Cogent take and put operations are provided for arrays with linear element type. It would be
-necessary to statically encode the set of array indices for which the elements have been taken in the type expression,
-this is not feasible.
-
-To access array elements through a pointer Gencot provides the polymorphic function
-\begin{verbatim}
-  arrAccess : all(arr,idx,el). (arr!,idx) -> Option el!
-\end{verbatim}
-The function returns a pointer to the element in the array without copying the element. This is safe since both the array and the result
-type are readonly. If the specified index is not in the range \code{0..<size>-1} the function returns \code{None}. 
-
-For every array type \code{A'<size>'\_El} used in the program Gencot automatically generates a C implementation
-for an instance of the form
-\begin{verbatim}
-  arrAccess[A'<size>'_El,UNN,P_El]
-\end{verbatim}
-and for every array type \code{A'<size>'U\_El} with an unboxed element type a C implementation for an
-instance of the form
-\begin{verbatim}
-  arrAccess[A'<size>'U_El,UNN,El]
-\end{verbatim}
-
 \subsubsection{Dummy Expressions for Array Types}
 
 Since dummy expressions are only used for function results and the result type of a C function may not be an array 
@@ -517,52 +348,6 @@ function result types in C. In particular, if a parameter type \code{ti} is an a
 the name for the linear case. For example, the C function pointer type \code{int (*)(int, int[10])} is mapped to
 \begin{verbatim}
   #F_'U32'A'10'_U32'_U32
-\end{verbatim}
-
-\subsubsection{Translating Function Pointer Values}
-
-For the values of the abstract type for function pointers in Cogent there are two relevant operations: invoking
-it as a function and converting a Cogent function to a value of that type. Both are supported by Gencot
-by automatically defining abstract functions for the task.
-
-The latter operation is supported for every mapped function pointer type by the abstract function
-\begin{verbatim}
-  to_<name>: <Cogent function type> -> <name>
-\end{verbatim}
-where \code{<name>} is the mapped name of the function pointer type.
-
-Invoking a function can be supported in two different ways. The first approach is by an abstract function
-\begin{verbatim}
-  from_<name>: <name> -> <Cogent function type>
-\end{verbatim}
-which translates the function pointer to the Cogent function (equivalent to the enumeration value) which
-then can be invoked in the usual way in Cogent. The second approach is by an abstract function 
-\begin{verbatim}
-  invk_<name>: (<name>, <argument types>) -> <result type>
-\end{verbatim}
-which internally translates and invokes the function and returns its result.
-
-If the first approach is used, all functions which are passed to Cogent as a parameter or as a field in a record must be known to
-Cogent so that there is an enumeration constant for it. It is not possible to pass a pointer to an arbitrary 
-C function to Cogent, the function must either be defined in Cogent or it must be defined as an abstract function 
-in Cogent. Moreover, if no function of the \code{<Cogent function type>} is defined in the Cogent program, the
-generated C code from an invocation in Cogent is incomplete, since it invokes the dispatcher function which does
-not exist.
-
-The second approach always causes correct C code to be generated by the Cogent compiler, however, since the functions
-invoked from function pointers are not known to Cogent, they cannot be taken into account by Cogent proofs.
-
-For simplicity, the current Gencot version only supports the second approach.
-
-Hence for example the C type
-\begin{verbatim}
-  int *()(int, short)
-\end{verbatim}
-is translated to the definitions
-\begin{verbatim}
-  type F_'U32'U16'_P_U32
-  to_F_'U32'U16'_P_U32: ((U32,U16) -> P_U32) -> #F_'U32'U16'_P_U32
-  invk_F_'U32'U16'_P_U32: (#F_'U32'U16'_P_U32,U32,U16) -> P_U32
 \end{verbatim}
 
 \subsubsection{Mapping Function Parameters}
@@ -727,20 +512,29 @@ allows the Cogent compiler to statically guarantee that pointer values will neit
 discarded by Cogent code, it will always be passed through. 
 
 If a pointer points to a C \code{struct} there is additional support for field access available in Cogent by 
-mapping the pointer to a Cogent boxed record type. For all other pointer types this support can be employed by
-mapping the type to a Cogent record with a single field of the type referenced by the pointer.
+mapping the pointer to a Cogent boxed record type. 
+
+It is tempting to employ this support also for all other pointer types by
+mapping the pointer type to a Cogent record with a single field of the type referenced by the pointer. This 
+would normally be binary compatible in C because a struct with a single field of type T is represented in memory
+in the same way as a value of type T. However, when the C implementation of an abstract function uses the
+C address operator to retrieve a pointer to a struct member or array element, the C pointer to T must be
+cast to the pointer to the struct with the single field. Such type casts are not supported by the 
+Isabelle C parser and must be avoided in the C program resulting from translating the Cogent program. 
+
+For this reason all C pointer types which are not pointers to a struct are mapped to abstract types in Cogent.
 
 \subsubsection{Mapping Pointer Types}
 
-A pointer to a function type is mapped to an unboxed abstract type, as described above.
+A pointer to a function type is mapped to an unboxed abstract type, as described in Section~\ref{design-types-function}.
 
-A pointer type \code{t*} to a struct is mapped to the corresponding boxed type, 
+A pointer type \code{t*} to a struct is mapped to the corresponding boxed record type, 
 that means, it is mapped like the struct type \code{t}, but the unbox operator is omitted.
 
 A pointer type \code{t*} where \code{t} is a union type is mapped in the same way to the corresponding
 boxed type, omitting the unbox operator from the mapped type \code{t}. Thus no support for accessing
 the referenced union is provided. The reason is, that access to the union as a whole is mostly useless
-and furthe access to the union mebers cannot be provided. For consistency, Gencot treats union types
+and further access to the union mebers cannot be provided. For consistency, Gencot treats union types
 in the same way as struct types.
 
 A pointer type \code{t*} where \code{t} is an array type is mapped in a similar way as for struct and
@@ -750,27 +544,21 @@ which there is no support for working with it. In C, arrays cannot be asssigned 
 the array cannot be bound to a variable in Cogent.
 
 A pointer type \code{t*} where \code{t} is a primitive type, an enum type, 
-or again a pointer type is mapped to a boxed record with a single field \code{cont} of the type to which \code{t} is 
-mapped. For every such type a name is introduced as described in Section~\ref{design-names}. This makes the 
-Cogent program slightly more readable and the name is required as parameter type name in mapped function pointer 
+or again a pointer type is mapped to an abstract type with a generated name as described in Section~\ref{design-names}. This
+name is used as parameter type name in mapped function pointer 
 types as described in Section~\ref{design-types-function}. For the same reason Gencot does not use a single generic type for all 
 such pointer types. Instead, like for arrays, it creates a monomorphic type for every pointer type used in the program.
 
 The resulting type is defined in the form
 \begin{verbatim}
-  type P_<type name> = { cont: <type name> }
+  type P_<type name>
 \end{verbatim}
 If the \code{<type name>} is a mapped derived type the underscore is omitted.
-
-Values of such types are binary compatible to the C pointer type and they can be dereferenced with the help of
-the Cogent take and put operations, thus supporting the full functionality of the C pointer.
 
 Finally, a pointer to \code{void} is mapped to the abstract type
 \begin{verbatim}
   type P_Void
 \end{verbatim}
-Here the type of the referenced data is unknown and no support for dereferencing it can be provided in Cogent,
-all processing must be implemented by specific abstract functions.
 
 Together we have the mapping rules for pointer types:
 \begin{verbatim}
@@ -779,23 +567,11 @@ Together we have the mapping rules for pointer types:
   struct s * -> Struct_s = { ... }
   union s * -> Union_s
   (*el)[...] -> UA'...'_El
-  otherwise: t * -> P_T = { cont: T }
+  otherwise: t * -> P_T
 \end{verbatim}
 where \code{Struct\_s} and \code{Union\_s} are the names introduced for the struct or union types and \code{R}, \code{El} 
 and \code{T} are the Cogent type names to which \code{r}, \code{el} and \code{t} are mapped, respectively. If \code{El} 
 and \code{T} are derived, the underscore is omitted.
-
-\subsubsection{Creating and Disposing Pointers}
-
-As described in Section~\ref{design-types-struct} Gencot provides instances of the polymorphic functions \code{create}
-and \code{dispose} for creating and disposing
-values for all boxed record types. In the case of a mapped pointer type \code{P\_T} they have the form
-\begin{verbatim}
-  create[P_T take cont]
-  dispose[P_T take cont]
-\end{verbatim}
-For type \code{P\_Void}, as for dereferencing, no
-automatic support for creating and disposing these pointers can be provided by Gencot.
 
 \subsubsection{Dummy Expressions for Pointers}
 

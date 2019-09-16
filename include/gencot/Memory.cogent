@@ -1,14 +1,97 @@
 {- Functions for allocating and deallocating data on the heap. -}
 
+#ifndef GENCOT_MEMORY
+#define GENCOT_MEMORY
+
+#include "ModFun.cogent"
+
 -- Creating a value of linear type by allocating memory for it 
 -- and returning a pointer to the allocated space.
---   a: the type of the created value (must be a boxed 
---      record type or a boxed abstract type). 
---      For a boxed record type all fields should be taken.
-create: all(a). () -> a
+--   evt: the linear type of the empty values created.
+create: all(evt). () -> evt
 
 -- Disposing a value of linear type by deallocating its memory.
---   a: the type of the disposed value (must be a boxed 
---      record type or a boxed abstract type)
---      For a boxed record type all fields should be taken.
-dispose: all(a). a -> ()
+--   evt: the linear type of the empty values to be disposed.
+dispose: all(evt). evt -> ()
+
+-- Initialization function which modifies an empty value to a valid value
+-- without using any additional information
+--   evt: type of empty values
+--   vvt: type of valid values
+--   arg: type of additional input
+type IniFun evt vvt arg = ModTypeFun evt vvt arg
+
+-- Clearing function which modifies a valid value to an empty value
+-- without using any additional information
+--   vvt: type of valid values
+--   evt: type of empty values
+--   arg: type of additional input
+type ClrFun vvt evt arg = ModTypeFun vvt evt arg
+
+-- helper macros
+#define GENCOT_ID(x) x
+#define GENCOT_PRETAK(dummy) T
+#define GENCOT_ARRBEG(dummy) A'
+#define GENCOT_ARREND(dummy) '_
+#define UGENCOT_ARREND(dummy) 'U_
+#define GENCOT_EMP(tp) GENCOT_PRETAK()tp
+#define UGENCOT_EMP(tp) tp take (..)
+#define GENCOT_PTR(dummy) P_
+#define UGENCOT_PTR(dummy)
+#define GENCOT_MKARRTYP(size,arrend,el) GENCOT_ARRBEG()GENCOT_ID(size)arrend()el
+#define GENCOT_ARRTYP(size,k,el) GENCOT_MKARRTYP(size,GENCOT_ID(k)GENCOT_ARREND,el)
+#define GENCOT_MKARRELP(arrelp,el) arrelp()el
+#define GENCOT_ARRELP(k,el) GENCOT_MKARRELP(GENCOT_ID(k)GENCOT_PTR,el)
+#define GENCOT_MKARRELEP(arrelemp,arrelp,el) arrelemp(arrelp()el)
+#define GENCOT_ARRELEP(k,el) GENCOT_MKARRELEP(GENCOT_ID(k)GENCOT_EMP,GENCOT_ID(k)GENCOT_PTR,el)
+
+-- Record types
+---------------
+
+-- Empty-value type
+#define RECEMPTY(rectyp) rectyp take (..)
+
+-- Initialization and clearing function types
+#define RECINIFUN(rectyp,arg) IniFun (RECEMPTY(rectyp)) rectyp arg
+#define RECCLRFUN(rectyp,arg) ClrFun rectyp (RECEMPTY(rectyp)) arg
+
+-- Array types
+--------------
+
+-- Initialization function for arrays 
+-- which uses an initialization function for the elements 
+--   evt: type of empty-value arrays
+--   vvt: type of valid-value arrays
+--   ept: type of empty-value element pointers
+--   vpt: type of valid-value element pointers
+--   arg: type of additional input
+type ArrIniFun evt vvt epe vpe arg = IniFun evt vvt (IniFun epe vpe arg,arg)
+
+-- Clearing function for arrays 
+-- which uses an initialization function for the elements 
+--   vvt: type of valid-value arrays
+--   evt: type of empty-value arrays
+--   vpt: type of valid-value element pointers
+--   ept: type of empty-value element pointers
+--   arg: type of additional input
+type ArrClrFun vvt evt vpe epe arg = ClrFun vvt evt (ClrFun vpe epe arg,arg)
+
+-- Empty-value type
+#define ARREMPTY(arrtyp) GENCOT_PRETAK()arrtyp
+
+-- Initialization and clearing function types
+--   size: the number of array elements
+--   k: kind of element type (R,U,F,P,empty)
+--   el: element type
+--   arg: type of additional input to element function
+#define ARRINIARGS(size,k,el,arg) ARREMPTY(GENCOT_ARRTYP(size,k,el)), GENCOT_ARRTYP(size,k,el), GENCOT_ARRELEP(k,el), GENCOT_ARRELP(k,el), arg
+#define ARRCLRARGS(size,k,el,arg) GENCOT_ARRTYP(size,k,el), ARREMPTY(GENCOT_ARRTYP(size,k,el)), GENCOT_ARRELP(k,el), GENCOT_ARRELEP(k,el), arg
+#define ARRINIFUN(size,k,el,arg) ArrIniFun ARREMPTY(GENCOT_ARRTYP(size,k,el)) GENCOT_ARRTYP(size,k,el) GENCOT_ARRELEP(k,el) GENCOT_ARRELP(k,el) arg
+#define ARRCLRFUN(size,k,el,arg) ArrClrFun GENCOT_ARRTYP(size,k,el) ARREMPTY(GENCOT_ARRTYP(size,k,el)) GENCOT_ARRELP(k,el) GENCOT_ARRELEP(k,el) arg
+
+-- Initialization and clearing functions
+initArr: all(evt,vvt,epe,vpe,arg:<S). ArrIniFun evt vvt epe vpe arg
+clearArr: all(vvt,evt,vpe,epe,arg:<S). ArrClrFun evt vvt epe vpe arg
+
+
+#endif {- GENCOT_MEMORY -}

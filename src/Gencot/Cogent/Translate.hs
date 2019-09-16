@@ -168,12 +168,10 @@ genDerivedTypeNames tdn tc = do
 genDerivedTypeDefs :: String -> (String,LCA.Type) -> FTrav [GenToplv]
 genDerivedTypeDefs nam (fid,(LCA.PtrType t _ _)) | not $ isFunction t = do
     gt <- transType "" t
-    --let ttyp = genType $ CS.TTake (Just [pfieldnam]) $ genType $ CS.TCon nam [] markBox
-    --let f_create = GenToplv (CS.AbsDec ("create_" ++ nam) (CS.PT [] $ genType $ CS.TFun utyp ttyp)) noOrigin
-    --let f_dispose = GenToplv (CS.AbsDec ("dispose_" ++ nam) (CS.PT [] $ genType $ CS.TFun ttyp utyp)) noOrigin
-    return $ [GenToplv (CS.TypeDec nam [] $ genType $ CS.TRecord [(pfieldnam, (gt, False))] markBox) noOrigin{-,f_create,f_dispose-}]
-    where utyp = genType CS.TUnit
-          pfieldnam = "cont"
+    return [tdef nam, tdef ("T"++nam)]
+    --return $ [GenToplv (CS.TypeDec nam [] $ genType $ CS.TRecord [(pfieldnam, (gt, False))] markBox) noOrigin{-,f_create,f_dispose-}]
+    where tdef nam = GenToplv (CS.AbsTypeDec nam [] []) noOrigin
+          --pfieldnam = "cont"
 genDerivedTypeDefs nam (fid,(LCA.PtrType ftyp@(LCA.FunctionType (LCA.FunType ret pars variadic) _) _ _)) = do
     t <- transType fid ftyp
     t <- applyParmods ftyp fid t
@@ -191,32 +189,8 @@ genDerivedTypeDefs nam (fid,(LCA.PtrType ftyp@(LCA.FunctionType (LCA.FunTypeInco
 -- Pointer to aggregate and pointer to named function are suppressed in genDerivedTypeNames
 genDerivedTypeDefs nam (fid,atyp@(LCA.ArrayType etyp as _ _)) = do
     t <- transType fid etyp
-    --let styp = arraySizeType as
-    --let f_crea = GenToplv (CS.AbsDec ("create_" ++ nam) (CS.PT [] $ genType $ CS.TFun unitT takeT)) noOrigin
-    --let f_disp = GenToplv (CS.AbsDec ("dispose_" ++ nam) (CS.PT [] $ genType $ CS.TFun takeT unitT)) noOrigin
-    let basdef = [tdef nam, tdef ("U"++nam), tdef ("T"++nam){-, f_crea, f_disp-}]
-    lint <- isLinearType etyp
-    if lint -- readonly is irrelevant here
-       then do
-           --let p_getr = genType $ CS.TTuple [rarrT,styp]
-           --let r_getr = genType $ CS.TCon "Option" [genType $ CS.TBang t] markBox
-           --let f_getr = GenToplv (CS.AbsDec ("get_" ++ nam) (CS.PT [] $ genType $ CS.TFun p_getr r_getr)) noOrigin
-           --let p_repl = genType $ CS.TTuple [arryT,styp,t]
-           --let r_repl = genType $ CS.TTuple [arryT,t]
-           --let f_repl = GenToplv (CS.AbsDec ("replacein_" ++ nam) (CS.PT [] $ genType $ CS.TFun p_repl r_repl)) noOrigin
-           return $ basdef {- ++ [f_getr, f_repl]-}
-       else do
-           --let p_get = genType $ CS.TTuple [rarrT,styp]
-           --let r_get = genType $ CS.TCon "Option" [t] markBox
-           --let f_get = GenToplv (CS.AbsDec ("get_" ++ nam) (CS.PT [] $ genType $ CS.TFun p_get r_get)) noOrigin
-           --let p_put = genType $ CS.TTuple [arryT,styp,t]
-           --let f_put = GenToplv (CS.AbsDec ("put_" ++ nam) (CS.PT [] $ genType $ CS.TFun p_put arryT)) noOrigin
-           return $ basdef {- ++ [f_get, f_put] -}
+    return [tdef nam, tdef ("U"++nam), tdef ("T"++nam)]
     where tdef nam = GenToplv (CS.AbsTypeDec nam [] []) noOrigin
-          --unitT = genType CS.TUnit
-          --arryT = genType $ CS.TCon nam [] markBox
-          --takeT = genType $ CS.TCon ("T"++nam) [] markBox
-          --rarrT = genType $ CS.TBang arryT
 genDerivedTypeDefs nam (fid,t) = 
     return $ [GenToplv (CS.AbsTypeDec nam [] []) noOrigin]
 
@@ -420,30 +394,11 @@ mkDefaultParmod t = do
            if ro then return "readonly"
            else return "yes"
 
-ptrType :: GenType -> GenType
---ptrType t = GenType (CS.TCon "CPointerTo" [t] $ markBox) noOrigin
-ptrType (GenType CS.TUnit o) = mkBoxedType "CPointerTo_Void" o
-ptrType (GenType (CS.TCon nam [] CCT.Unboxed) o) = mkBoxedType "err-CPointerTo_Unboxed" o
-ptrType (GenType (CS.TCon nam [] b) o) = mkBoxedType ("CPointerTo_"++nam) o
-
 mkBoxedType :: String -> Origin -> GenType
 mkBoxedType nam = GenType (CS.TCon nam [] $ markBox)
 
-arrType :: GenType -> GenType
---arrType t = GenType (CS.TUnbox $ GenType (CS.TCon "CArrayOf" [t] $ markBox) noOrigin) noOrigin
-arrType (GenType CS.TUnit o) = mkUnboxedType "err-CArrayOf_Void" o
-arrType (GenType (CS.TCon nam [] CCT.Unboxed) o) = mkUnboxedType ("CArrayOf_U_"++nam) o
-arrType (GenType (CS.TCon nam [] b) o) = mkUnboxedType ("CArrayOf_"++nam) o
-arrType (GenType (CS.TFun ps r) o) = arrType $ funType r
-
 mkUnboxedType :: String -> Origin -> GenType
 mkUnboxedType nam = GenType (CS.TCon nam [] $ markUnbox)
-
-funType :: GenType -> GenType
-funType (GenType CS.TUnit o) = mkBoxedType "CFunRet_Void" o
-funType (GenType (CS.TCon nam [] CCT.Unboxed) o) = mkBoxedType ("CFunRet_U_"++nam) o
-funType (GenType (CS.TCon nam [] b) o) = mkUnboxedType ("CFunRet_"++nam) o
-funType (GenType (CS.TFun ps r) o) = funType $ funType r
 
 mkFunType :: GenType -> GenType
 mkFunType t@(GenType (CS.TFun _ _) _) = t

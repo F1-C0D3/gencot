@@ -1,0 +1,33 @@
+{- Functions for dereferencing C pointers -}
+
+#ifndef GENCOT_CARRAY
+#define GENCOT_CARRAY
+
+#include "ModFun.cogent"
+
+-- Get referenced value of readonly non-function pointer
+--   ptr: the pointer type
+--   ref: the type of referenced value
+getPtr : all(ptr,ref). ptr! -> ref!
+
+-- Set referenced nonlinear value for non-function pointer
+--   ptr: the pointer type
+--   ref: the type of referenced value
+setPtr : all(ptr,ref:<D). ModFun p ref ()
+
+-- Exchange referenced value for non-function pointer
+--   ptr: the pointer type
+--   ref: the type of referenced value
+exchngPtr : all(ptr,ref). (ptr,ref) -> (ptr,ref)
+
+-- Convert from function to function pointer
+--   fun: function type
+--   fptr: function pointer type
+toFunPtr : all(fun,fptr). fun -> #fptr
+
+-- Convert from function pointer to function
+--   fptr: function pointer type
+--   fun: function type
+fromFunPtr : all(fptr,fun). #fptr -> fun
+
+#endif {- GENCOT_CARRAY -}

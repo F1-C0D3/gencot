@@ -1,31 +1,39 @@
-{- Functions for working with C arrays -}
+{- Access functions for C array elements -}
 
 #ifndef GENCOT_CARRAY
 #define GENCOT_CARRAY
 
--- Get element at index in readonly array with nonlinear element type
+-- Get element at index in readonly array
 --   arr: the array type
 --   idx: the array index type
 --   el: the array element type
-arrGet : all(arr,idx,el:<DS). (arr!,idx) -> Option el
+getArr : all(arr,idx,el). (arr!,idx) -> Option el!
 
 -- Set element at index in array with nonlinear element type
 --   arr: the array type
 --   idx: the array index type
 --   el: the array element type
-arrSet : all(arr,idx,el:<DS). (arr,idx,el) -> arr
+setArr : all(arr,idx,el:<D). (arr,idx,el) -> (arr,())
 
 -- Exchange element at index in array
 --   arr: the array type
 --   idx: the array index type
 --   el: the array element type
-arrExchng : all(arr,idx,el). (arr,idx,el) -> (arr,el)
+exchngArr : all(arr,idx,el). (arr,idx,el) -> (arr,el)
 
--- Modify element at index in array in-place
+-- Return pointer to element at index in readonly array
 --   arr: the array type
 --   idx: the array index type
---   el: the array element type
---   arg: argument type for modification function
-arrModify : all(arr,idx,el,arg). (arr,idx,ModFun el arg,arg) -> arr
+--   pel: the type of pointer to array elements
+accessArr : all(arr,idx,pel). (arr!,idx) -> Option pel!
+
+-- Modify element at index in array in-place
+-- using a modification function
+--   arr: the array type
+--   idx: the array index type
+--   pel: the type of pointer to array elements
+--   arg: additional argument type for modification function
+--   out: type of the auxiliary output of modification function
+modifyArr : all(arr,idx,pel,arg:<D,out). ModFun arr (idx,ModFun pel arg out,arg) out
 
 #endif {- GENCOT_CARRAY -}

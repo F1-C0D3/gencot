@@ -4,6 +4,7 @@
 #define GENCOT_MAYNULL
 
 #include "Memory.cogent"
+#include "Default.cogent"
 
 -- Linear type with the additional value NULL
 --   a: linear type of all non-null values
@@ -35,6 +36,7 @@ isNull mn = roNotNull mn
 --   ea: the empty-value type corresponding to type a
 --   arg: the type of additional input for the crearing function
 setNotNull: all(a,ea,arg:<DS). ModFun (MayNull a) (a, ClrFun a ea arg,arg)
+  {- DS is used instead of D to avoid an internal Cogent error -}
 setNotNull (mn, (nn, clrfun, addinput)) = notNull mn
    | None -> mayNull nn
    | Some x -> dispose (clrfun (x,addinput)); mayNull nn
@@ -47,10 +49,11 @@ exchngNull (mn, nn) = notNull mn
 
 -- apply modification function if not NULL
 --   arg: the type of additional input for the modification function
-modifyNull: all(a,arg:<DS). ModPartFun (MayNull a) a arg
+modifyNull: all(a,arg:<DS,out). ModPartFun (MayNull a) a arg out
+  {- DS is used instead of D to avoid an internal Cogent error -}
 modifyNull (mn, (modfun,addinput)) = notNull mn
-   | None -> null ()
-   | Some x -> mayNull (modfun (x,addinput))
+   | None -> (null (), defaultVal ())
+   | Some x -> let (r,y) = modfun (x,addinput) in (maynull r,y)
 
 
 #endif {- GENCOT_MAYNULL -}

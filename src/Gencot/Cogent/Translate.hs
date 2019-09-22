@@ -175,15 +175,15 @@ genDerivedTypeDefs nam (fid,(LCA.PtrType t _ _)) | not $ isFunction t = do
 genDerivedTypeDefs nam (fid,(LCA.PtrType ftyp@(LCA.FunctionType (LCA.FunType ret pars variadic) _) _ _)) = do
     t <- transType fid ftyp
     t <- applyParmods ftyp fid t
-    let f_to = GenToplv (CS.AbsDec ("to_" ++ nam) (CS.PT [] $ genType $ CS.TFun t fptyp)) noOrigin
-    let f_invk = GenToplv (CS.AbsDec ("invk_" ++ nam) (CS.PT [] $ prepPar fptyp t )) noOrigin
-    return $ [tdef,f_to,f_invk]
+    --let f_to = GenToplv (CS.AbsDec ("to_" ++ nam) (CS.PT [] $ genType $ CS.TFun t fptyp)) noOrigin
+    --let f_invk = GenToplv (CS.AbsDec ("invk_" ++ nam) (CS.PT [] $ prepPar fptyp t )) noOrigin
+    return $ [tdef{-,f_to,f_invk-}]
     where tdef = GenToplv (CS.AbsTypeDec nam [] []) noOrigin
-          fptyp = genType $ CS.TCon nam [] markUnbox
-          prepPar fptyp (GenType (CS.TFun pt rt) o) = GenType (CS.TFun (pPar fptyp pt) rt) o
-          pPar fptyp (GenType CS.TUnit o) = fptyp
-          pPar fptyp (GenType (CS.TTuple ts) o) = (GenType (CS.TTuple (fptyp : ts)) o)
-          pPar fptyp t = genType $ CS.TTuple [fptyp,t]
+          --fptyp = genType $ CS.TCon nam [] markUnbox
+          --prepPar fptyp (GenType (CS.TFun pt rt) o) = GenType (CS.TFun (pPar fptyp pt) rt) o
+          --pPar fptyp (GenType CS.TUnit o) = fptyp
+          --pPar fptyp (GenType (CS.TTuple ts) o) = (GenType (CS.TTuple (fptyp : ts)) o)
+          --pPar fptyp t = genType $ CS.TTuple [fptyp,t]
 genDerivedTypeDefs nam (fid,(LCA.PtrType ftyp@(LCA.FunctionType (LCA.FunTypeIncomplete ret) _) _ _)) =
     return $ [GenToplv (CS.AbsTypeDec nam [] []) noOrigin]
 -- Pointer to aggregate and pointer to named function are suppressed in genDerivedTypeNames

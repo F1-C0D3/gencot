@@ -21,11 +21,20 @@ setArr : all(arr,idx,el:<D). (arr,idx,el) -> (arr,())
 --   el: the array element type
 exchngArr : all(arr,idx,el). (arr,idx,el) -> (arr,el)
 
+-- Modify element at index in array
+-- using a modification function
+--   arr: the array type
+--   idx: the array index type
+--   el: the array element type
+--   arg: additional argument type for modification function
+--   out: type of the auxiliary output of modification function
+modifyArr : all(arr,idx,el,arg:<D,out). ModFun arr (idx,ModFun el arg out,arg) out
+
 -- Return pointer to element at index in readonly array
 --   arr: the array type
 --   idx: the array index type
 --   pel: the type of pointer to array elements
-accessArr : all(arr,idx,pel). (arr!,idx) -> Option pel!
+getrefArr : all(arr,idx,pel). (arr!,idx) -> Option pel!
 
 -- Modify element at index in array in-place
 -- using a modification function
@@ -34,6 +43,6 @@ accessArr : all(arr,idx,pel). (arr!,idx) -> Option pel!
 --   pel: the type of pointer to array elements
 --   arg: additional argument type for modification function
 --   out: type of the auxiliary output of modification function
-modifyArr : all(arr,idx,pel,arg:<D,out). ModFun arr (idx,ModFun pel arg out,arg) out
+modrefArr : all(arr,idx,pel,arg:<D,out). ModFun arr (idx,ModFun pel arg out,arg) out
 
 #endif {- GENCOT_CARRAY -}

@@ -13,12 +13,20 @@ getPtr : all(ptr,ref). ptr! -> ref!
 -- Set referenced nonlinear value for non-function pointer
 --   ptr: the pointer type
 --   ref: the type of referenced value
-setPtr : all(ptr,ref:<D). ModFun p ref ()
+setPtr : all(ptr,ref:<D). ModFun ptr ref ()
 
 -- Exchange referenced value for non-function pointer
 --   ptr: the pointer type
 --   ref: the type of referenced value
 exchngPtr : all(ptr,ref). (ptr,ref) -> (ptr,ref)
+
+-- Modify referenced value
+-- using a modification function
+--   ptr: the pointer type
+--   ref: the type of referenced value
+--   arg: additional argument type for modification function
+--   out: type of the auxiliary output of modification function
+modifyPtr: all(ptr,ref,arg,out). ModPartFun ptr ref arg out
 
 -- Convert from function to function pointer
 --   fun: function type

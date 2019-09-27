@@ -35,7 +35,7 @@ and the unmodified parameters as the remaining components.
 Since all pointer types are mapped to Cogent linear types, Cogent does not provide support for creating values
 of these types (``boxed values''). In C a pointer can be created using the address operator \code{\&} or by allocating data on
 the heap using a C standard function such as \code{malloc}. The address operator is supported by Gencot
-only for data on the heap, as explained in Section~\ref{app-trans-addrop}. Therefore, the basic functionality
+only for data on the heap, as explained in Section~\ref{app-transfunction-addrop}. Therefore, the basic functionality
 for pointer creation is allocation on the heap. This must be provided as an abstract Cogent function.
 
 Since values of a linear type cannot be discarded in Cogent, another abstract Cogent function is required for
@@ -62,27 +62,31 @@ types \code{evt}. However, Gencot only provides instances for (empty-value) line
 to express this type property in Cogent, the use of unsupported instances of both functions are not detected by the 
 Cogent compiler.
 
-\subsubsection{Modifying Boxed Values}
+\subsubsection{Modifying Values}
 
-Boxed values can be modified in Cogent. Modification is directly supported by the Cogent language only by the put
-and take operations which are applicable to boxed record values and in the simplest case have the form
+Record fields can be modified in Cogent by the put and take operations which in the simplest case have the form
 \begin{verbatim}
   let r' = r { f = v } in ...
   let r' { f = p } = r in ...
 \end{verbatim}
-Here \code{r} is the old record value, \code{f} is the field to be modified, \code{r'} is the modified record value.
-In the put operation \code{v} is the new field value. The type of \code{r'} is either the same as for \code{r} or it
-differs, if field \code{f} was taken in \code{r}. In the take operation \code{p} is a pattern for binding the old 
-field value, in \code{r'} the field is not present anymore, the type of \code{r'} is always different from that of \code{r}.
+In the put operation \code{r} is the old record value, \code{f} is the field to be modified, \code{r'} is the 
+new record value and \code{v} is the new field value. The type of \code{r'} is either the same as for \code{r} or it
+differs, if field \code{f} was taken in \code{r}. In the take operation \code{r} is the old record value, \code{f} 
+is the field to be taken, \code{r'} is the record without \code{f} and \code{p} is a pattern for binding the old 
+field value. The type of \code{r'} is always different from that of \code{r}.
 
-For boxed abstract types a modification operation can only be defined with the help of an abstract function.
-To provide a common framework for modification operations, Gencot defines function types for modification functions 
+Here ``modifying'' the field can have several slightly different meanings. The field value may be initialized, replaced,
+or removed, or it may be modified in-place, if it is a structured value. Modifying the field always modifies the 
+containing record.
+
+We generalize this idea to abstract types, by defining operations for modifying a part in the form of abstract functions.
+To provide a common framework for modification operations, Gencot defines function types for such modification functions 
 in \code{include/gencot/ModFun.cogent}. The basic function types are
 \begin{verbatim}
   type ModTypeFun obj res arg out = (obj,arg) -> (res,out)
   type ModFun obj arg out = ModTypeFun obj obj arg out
 \end{verbatim}
-The first type covers the genaral case where the type of the modified value is different from that of the old value, in the second
+The first type covers the genaral case where the type of the new value is different from that of the old value, in the second
 case the type is the same before and after the modification. In both cases a value of type \code{arg} is passed to the modification
 function, it may provide information about how to modify the value, and the modification function additionally returns a value of
 type \code{out}, e.g., an error code. The functions \code{fst} and \code{snd} defined in the Cogent standard library can be used
@@ -93,31 +97,42 @@ The put operation can now be represented as a function of type \code{ModTypeFun 
 The take operation can be represented as a function of type \code{ModTypeFun R (R take f) () V}, it returns 
 a pair of the remaining record and the taken field value.
 
-If field \code{f} again has a linear type, it must have been taken before the put operation can be applied. Thus the 
-typical pattern for modifying a field of linear type is
+For an abstract type \code{A} we can now define abstract functions with a similar semantics. We use another abstract type \code{TA}
+which represents all values of \code{A} where the part is not present, and an arbitrary type \code{V} for the part. Then
+a generalized put-function has the type \code{ModTypeFun TA A V ()} and a generalized take-function has the type
+\code{ModTypeFun A TA () V}.
+
+A typical pattern for modifying a record field is a combination of a take and a put operation of the form
 \begin{verbatim}
   let r' { f = p } = r 
-  and r'' = r' { f = v }
+  and r'' = r' { f = m(p) }
 \end{verbatim}
-This can be represented as a function of type \code{ModFun R V V} where the old field value is returned.
-However, often the linear value of field \code{f} is not replaced but modified and then put back
-in. This case can be represented by a function of type \code{ModFun R (ModFun V () ()) ()} where the additional input for the modification
-of \code{r} is the modification function to be applied to the value of field \code{f}. More generally, it must also be possible
-to specify the additional argument to be passed to the modification function for the field, so the argument to the outer 
-modification function should be a pair of the inner modification function and its argument. Finally, the outer modification function
-should return the additional output of the inner modification function. Gencot defines the corresponding
-function type
+where a function \code{m} is used to determine the new field value from the old field value. We can generalize function
+\code{m} to a modification function of type \code{ModFun V arg out} which takes additional input of type \code{arg} and
+returns additional output of type \code{out}. Now we can define a function for the combined field modification as
+\begin{verbatim}
+  modify (r,(m,x)) = 
+    let r' { f = p } = r
+    and (v,y) = m(p,x)
+    in (r' { f = v }, y)
+\end{verbatim}
+It has the function type \code{ModFun R (ModFun V arg out, arg) out}, accepts as additional input a pair of a modification
+function for the field value and its additional input, and returns the modified record and the additional result of
+the field modification function. Note that \code{modify} also respects the type constraints if the field type \code{V}
+is linear. The field value is neither duplicated nor discarded. In this case an alternative semantics is that the field 
+value modification function \code{m} modifies the field value in-place.
+
+For this kind of modifying a part Gencot defines the corresponding generalized function type
 \begin{verbatim}
   type ModPartFun obj prt arg out = ModFun obj (ModFun prt arg out, arg) out
 \end{verbatim}
 where \code{obj} is the type of the modified object, \code{prt} is the type of the part to be modified, \code{arg} is the type
 of the information passed to the part modification function, and \code{out} is the type of additional output of both modification functions.
 
-Since every \code{ModPartFun} is a \code{ModFun}, modification functions of this type can be chained to modify linear parts arbitrarily 
-deep embedded in other linear parts. Moreover, a \code{ModPartFun} corresponds to combined take and put operation and can be used
-to model ``in-place modification'' of linear parts.
+Since every \code{ModPartFun} is a \code{ModFun}, modification functions of this type can be chained to modify parts arbitrarily 
+deep embedded in other parts. 
 
-As an example, to modify a part \code{p} of type \code{P} in a part \code{q} of type \code{Q} in a linear value \code{r} of type \code{R}
+As an example, to modify a part \code{p} of type \code{P} in a part \code{q} of type \code{Q} in a value \code{r} of type \code{R}
 an expression of the form
 \begin{verbatim}
   modifyQInR (r, (modifyPInQ, (modifyP, arg)))
@@ -200,7 +215,6 @@ Gencot supports the following conceptual operations on structured values:
   \item[\code{get}] access the value of a part for reading,
   \item[\code{set}] replace the value of a part by a given value, discarding the old value,
   \item[\code{exchng}] replace the value of a part by a given value, returning the old value,
-  \item[\code{access}] return a pointer to a part,
   \item[\code{modify}] apply a modification function in-place to a part.
 \end{description}
 
@@ -215,46 +229,57 @@ The function \code{get} has functionality \code{T! -> S!}. It expects a readonly
 a readonly copy of the part's value. This operation can be defined in Cogent for arbitrary types \code{S}
 because the returned value can be shared with the value remaining in the structure since both are readonly.
 
-The function \code{set} has functionality \code{(T,S) -> T}. It expects a structure and the new value as input
-and returns a structure where only the value of the part has been replaced by the new value. If type \code{S}
-is not linear the old value can be safely discarded. Otherwise the old value must be cleared and disposed.
-For this the operation either uses a fixed clearing function for type \code{S} or it expects such a clearing
-function as additional input.
+An alternative to the function \code{get} would be a function which takes a modifyable structure and returns the structure
+together with the element. However, this would be cumbersome in many applications and misleading for proofs, since 
+the function never modifies the structure. 
 
-The function \code{exchng} has functionality \code{(T,S) -> (T,S)}. It works like \code{set}, but instead of
+The function \code{set} has functionality \code{(T,S) -> (T,())} which is equivalent to \code{ModFun T S ()}. 
+It expects a structure and the new value as input
+and returns a structure where only the value of the part has been replaced by the new value. The result value is 
+structured as a pair, so that the function has the form of a modification function. Since the old
+value of the part is discarded, function \code{set} is only defined if type \code{S} is discardible.
+
+The function \code{exchng} has functionality \code{(T,S) -> (T,S)} which is equivalent to \code{ModFun T S S}. 
+It works like \code{set}, but instead of
 discarding the old value of the part it returns it in the result. This can be done for arbitrary types \code{S}
 since values of this type are neither shared nor discarded.
 
-The function \code{access} has functionality \code{T! -> PS!} where \code{PS} is the mapped type used by Gencot
+The function \code{modify} has functionality \code{ModPartFun T S A O} where \code{A} and \code{O} are
+arbitrary types.
+According to the definition of \code{ModPartFun} \code{modify} applies a part modification function of
+type \code{ModFun S A O} to modify the part. All types may be linear, since the corresponding values are
+only passed through to the part modification function and back.
+The part modification function determines the new part value from the old part value. If the part's type \code{S}
+is linear it can be implemented by modifying the part's value ``in-place''. In particular, this can be done by
+again using \code{modify} as part modification function modifying a part's part, as it has been described
+for the function type \code{ModPartFun} above.
+
+If the part's type \code{S} is not linear, function \code{modify} removes the part's value from the structure,
+passes it to the part modification function and puts the result back into the structure. This is
+inefficient for large parts when only a small subpart is modified, since the whole part value must be copied.
+In C the typical way of dealing with this situation is to pass a pointer to the part modification function 
+instead. Gencot supports this with the following two operations:
+\begin{description}
+  \item[\code{getref}] return a pointer to a part,
+  \item[\code{modref}] apply a modification function in-place to a part.
+\end{description}
+
+The function \code{getref} has functionality \code{T! -> PS!} where \code{PS} is the mapped type used by Gencot
 for pointer to \code{S}. If \code{S} is an unboxed record or abstract type \code{\#B} then \code{PS} is the
 corresponding boxed type \code{B}. Otherwise \code{PS} is the type \code{P\_S} generated by Gencot for pointers
 to values of type \code{S}. The function cannot be implemented in Cogent and is usually implemented in C using the address 
 operator \code{\&}. The operation is safe since both the structure and the result type are readonly. The shared
 memory used by both can neither be modified through the structure nor through the resulting pointer. 
 
-The function \code{modify} has functionality \code{(ModPartFun T PS A O} where \code{A} and \code{O} are
-arbitrary types.
-According to the definition of \code{ModPartFun} \code{modify} applies a part modification function of
-type \code{ModFun PS A O} to modify the part.
-The part modification function expects a pointer to the part as input and modifies the part's value ``in-place''. If
-\code{S} is a linear type the part's value is not discarded but modified. In particular, this can be done by
-again using \code{modify} as part modification function modifying a part's part, as it has been described
-for the function type \code{ModPartFun} above.
-
-Instead of passing a pointer to the part modification function, the part's value could be removed from the structure,
-passed to a modification function of type \code{ModFun S A O} and then be put back into the structure. However, this
-would be less efficient since to remove the value from the structure it must be copied.
-
-Note that the use of the pointer in the modification function is safe, no sharing can occur for the part's memory
+The function \code{modref} has functionality \code{ModPartFun T PS A O} where \code{A} and \code{O} are
+arbitrary types. It behaves like \code{modify} but uses a part modification function of
+type \code{ModFun PS A O} to modify the part, which is passed as a pointer.
+Note that the use of the pointer is safe, no sharing can occur for the part's memory
 space. For sharing to occur, the structure value or a part of it must be passed to the part modification function as
 part of the additional input of type \code{A}. If the structure is modifyable, type \code{T} is linear and passing 
 the value as part of the additional input would be a double use which is prevented by the Cogent type constraints.
 
-An alternative to the function \code{get} would be a function which takes a modifyable structure and returns the structure
-together with the element. However, this would be cumbersome in many applications and misleading for proofs, since 
-the function never modifies the structure. 
-
-An alternative to the function \code{modify} would be a pair of functions \code{ref} and \code{deref} where \code{ref}
+An alternative to the function \code{modref} would be a pair of functions \code{ref} and \code{deref} where \code{ref}
 returns the pointer together with the structure converted to a type which marks the part as removed (for a record this
 corresponds to the type with a field taken), and \code{deref} converts the type back to normal. 
 Since the structure has the converted type the part cannot be accessed through it
@@ -266,12 +291,12 @@ is applied to the structure. This implies that
 for proving the type safety properties an arbitrary complex part of the Cogent program must be taken into
 account. Therefore Gencot does not support such functions.
 
-To make the other parts of the structure available in the modification operation the \code{modify} operation could
+To make the other parts of the structure available in the modification operation the \code{modref} operation could
 pass the structure to it together with the additional input, with the type converted to a readonly type where the modified
 part is marked as removed. This is safe because in the modification function the part cannot be accessed
 through the structure and the structure cannot be modified by inserting another value for the part since it is
 readonly in the modification operation. Note however, that instead of passing the structure to the modification operation,
-all (nonlinear) values required from it can also be retrieved outside of \code{modify} and passed to it as part of the 
+all (nonlinear) values required from it can also be retrieved outside of \code{modref} and passed to it as part of the 
 additional information of type \code{A}.
 
 \subsection{Primitive Types}
@@ -287,9 +312,10 @@ instances the resulting C program will not compile.
 
 \subsubsection{Modifying Values}
 
-Values of primitive types cannot be modified. The type constructors \code{ModTypeFun}, \code{ModFun}, and \code{ModPartFun}
-can be applied to primitive types. The resulting types are consistent and may be useful, however they do not have the
-intended semantics of ``modification functions''. Therefore they should not be used.
+Values of primitive types cannot be modified, they can only be replaced. The type constructors \code{ModTypeFun} and \code{ModFun}
+can be used to define such replacement functions for primitive types. The type constructor \code{ModPartFun} also
+can be applied to primitive types, however the resulting function type does not have the
+intended semantics of ``modification functions''. Therefore such types should not be used.
 
 \subsubsection{Initializing and Clearing Values}
 
@@ -430,21 +456,23 @@ and a pointer \code{p} of type \code{PP\_U32} can be cleared with typechecks by 
 
 If a pointer is seen as a structured value, it has the referenced value as a single part.
 Then the operations for accessing parts of a structured value can be defined for a Gencot pointer type as follows
-The operation \code{access} corresponds to the identity, the operation \code{modify} is equivalent to applying the
-part modification function directly to the pointer. Therefore both operations are not provided separately for pointers. 
-The other operations all dereference the pointer in some way and are provided by the polymorphic functions
+The operation \code{getref} corresponds to the identity, the operation \code{modref} is equivalent to applying the
+part modification function directly to the pointer. Both are not provided separately for pointers.
+The other operations all dereference the pointer in some way. Gencot provides the polymorphic functions
 \begin{verbatim}
   getPtr: all(ptr,ref). ptr! -> ref! 
   setPtr: all(ptr,ref:<D). ModFun ptr ref ()
-  exchngPtr: all(ptr,ref). (ptr,ref) -> (ptr,ref)
+  exchngPtr: all(ptr,ref). ModFun ptr ref ref
+  modifyPtr: all(ptr,ref,arg,out). ModPartFun ptr ref arg out
 \end{verbatim}
 Instances of these functions are only defined if \code{ptr} is a Gencot pointer type and \code{ref} is the corresponding
 type of the referenced values. 
 
 The function \code{getPtr} dereferences a readonly pointer and returns the result as readonly. The function \code{setPtr}
 replaces the referenced value by its second argument, discarding the old value. Therefore the type \code{ref} of the referenced 
-value must be discardable. The function \code{exchngPtr} works like
-\code{setPtr} but returns the old referenced value as additional result.
+value must be discardable. The function \code{exchngPtr} works like \code{setPtr} but returns the old referenced value as 
+additional result. The function \code{modifyPtr} applies a modification function to the referenced value, replacing or
+modifying it.
 
 \subsection{Function Pointer Types}
 \label{design-operations-function}
@@ -459,9 +487,7 @@ for function pointer types.
 
 \subsubsection{Modifying Values}
 
-Function pointers cannot be modified. The type constructors \code{ModTypeFun}, \code{ModFun}, and \code{ModPartFun}
-can be applied to function pointer types. The resulting types are consistent and may be useful, however they do not have the
-intended semantics of ``modification functions''. Therefore they should not be used.
+Function pointers cannot be modified. As for primitive types the type constructor \code{ModPartFun} should not be used for them.
 
 \subsubsection{Initializing and Clearing Values}
 
@@ -495,6 +521,13 @@ Invoking a function is supported by the polymorphic abstract function
 which translates the function pointer to the Cogent function (equivalent to the enumeration value) which
 then can be invoked in the usual way in Cogent. 
 
+The Cogent compiler cannot derive the type \code{fptr} when instances of these functions are used. It
+must me xplicitly specified such as in 
+\begin{verbatim}
+  toFunPtr[_,#F_...]
+  fromFunPtr[#F_...,_]
+\end{verbatim}
+
 All functions for which a function pointer is accepted or returned by these functions must be known to
 Cogent so that there is an enumeration constant for it. It is not possible to pass a pointer to an arbitrary 
 C function to Cogent as a parameter or as a field in a record. The function must either be defined in Cogent 
@@ -522,9 +555,10 @@ Hence for example for the C type
 \end{verbatim}
 the following function instances are provided
 \begin{verbatim}
-  toFunPtr[((U32,U16) -> P_U32), #F_'U32'U16'_P_U32]
-  fromFunPtr[#F_'U32'U16'_P_U32, (U32,U16), P_U32]
+  toFunPtr[(U32,U16) -> P_U32, #F_'U32'U16'_P_U32]
+  fromFunPtr[#F_'U32'U16'_P_U32, (U32,U16) -> P_U32]
 \end{verbatim}
+
 
 \subsection{The NULL Pointer}
 \label{design-operations-null}
@@ -632,35 +666,29 @@ semantics.
 
 Conceptually, the type \code{MayNull a} can be seen as a structured value with the value referenced by the non-null pointer of type \code{a} being
 an optional part. Then the operations for accessing parts of a structured value can be defined for \code{MayNull a} as follows
-The operation \code{get} corresponds to \code{roNotNull}, the operation \code{access} corresponds to the
-identity operation. Both operations are not provided separately. The other operations are provided
+The operation \code{get} corresponds to \code{roNotNull}. The operation \code{set} cannot be defined, since the type \code{a} of the 
+``part'' is always linear and thus not discardible. The operations \code{getref} and \code{modref} cannot be defined, since
+the ``part'' is identical to the container and need not be stored somewhere on the heap. 
+All four operations are not provided separately. The other two operations are provided
 by the polymorphic functions
 \begin{verbatim}
-  setNotNull: all(a,ea,arg:<D). 
-     ModFun (MayNull a) (a, ClrFun a ea arg (), arg) ()
   exchngNull: all(a).
-     (MayNull a,a) -> (MayNull a,a)
+     ModFun (MayNull a) a a
   modifyNull: all(a,arg:<D,out).
      ModPartFun (MayNull a) a arg out
 \end{verbatim}
 Again, instances of the functions are only defined if \code{a} is a linear type. 
 
-The function \code{setNotNull (mn, (p,clrfun))} takes as input two pointers and a clearing function. The pointer \code{mn} may be null. 
-If it is not null it is cleared using \code{clrfun} and disposed. The result is always \code{mayNull p}. Note that the input type is
-structured in a way that the function's type is equivalent to \code{ModFun (MayNull a) (a, ClrFun a ea arg, arg) ()} so that the function can be used
-as argument to a \code{ModPartFun}. The type \code{arg} of the additional input passed to the clearing function must be discardable, because
-it is discarded if \code{mn} is not null. The type \code{ea} must be the empty-value type corresponding to the valid-value type \code{a}. This 
-cannot be enforced by Cogent, but if the clearing function is correctly defined the type \code{ea} will be derived from it by Cogent.
-
 The function \code{exchngNull (mn, p)} takes as input two pointers, one of which may be null. If \code{mn} is null the result is
 \code{(mn,p)}, otherwise it is the pair of \code{mayNull p} and the non-null pointer corresponding to \code{mn}.
 
 The function \code{modifyNull (mn, (modfun,addinput))} is a 
-modification function according to the description of \code{ModPartFun} in Section~\ref{design-operations-concept} 
+modification function according to the description of \code{ModPartFun} in Section~\ref{design-operations-concept}.
 If \code{mn} is not null it modifies the object referenced by \code{mn} by applying the part modification function \code{modfun} of type 
 \code{ModFun a arg} to \code{mn} and returns \code{mn} and the additional result of type \code{out}. Otherwise it returns the null pointer \code{mn}
 together with a fixed additional result. The type \code{arg} of the additional input
-must be discardable, because it is discarded, if \code{mn} is null. For the fixed result Gencot uses the polymorphic abstract function
+must be discardable, because it is discarded, if \code{mn} is null and the part modification function is never used. 
+For the fixed result Gencot uses the polymorphic abstract function
 \begin{verbatim}
   defaultVal: all(out). () -> out
 \end{verbatim}
@@ -671,7 +699,8 @@ Other instances must be defined manually.
 \subsection{Record Types}
 \label{design-operations-record}
 
-As described in Section~\ref{design-types-struct} C struct types are always mapped to Cogent record types, no other record types are generated by Gencot. 
+As described in Section~\ref{design-types-struct} C struct types are always mapped to Cogent record types, no other 
+record types are generated by Gencot. 
 Additional record types may be introduced manually in the translated Cogent program.
 
 \subsubsection{Creating and Disposing Records}
@@ -737,7 +766,8 @@ expands to the type
 for a function which takes field \code{f} while the fields \code{fi} are already taken.
 
 Gencot does not automatically define modification functions for record types, since a record can be modified using the
-Cogent get and put operations for its fields. Only if a field of record type is modified through a modification function for its context, the record fields
+Cogent get and put operations for its fields. Only if a field of record type is modified through a modification function for 
+its context, the record fields
 must be manipulated using modification functions for the record. Then such operations must be defined manually.
 
 \subsubsection{Initializing and Clearing Records}
@@ -829,7 +859,7 @@ is required which copies the array content and frees the array on the heap.
 
 Initializing a field \code{f} of a function pointer type \code{\#F\_...} can always be done using the Cogent put operation.
 The value to be put must be constructed using the function \code{to\_F\_...} (see Section~\ref{design-types-function}). To
-avoid null pointers to functions, as described in Section~\ref{app-trans-funpointer}, a dummy function should be defined in
+avoid null pointers to functions, as described in Section~\ref{app-transfunction-pointer}, a dummy function should be defined in
 Cogent and passed to the \code{to\_F\_...} function.
 
 In a clearing function for a record all content shall be discarded. For fields of primitive and readonly type this is
@@ -869,25 +899,48 @@ The parts of a record are its fields. The conceptual operations for accessing pa
 The field to be accessed by the operation must be specified by its name. This can only be done as part of the function name.
 Therefore Gencot does not define polymorphic functions for accessing the fields of arbitrary record types. For every record type
 \code{R} a set of differently named functions must be defined for every field \code{f}. Since only some of the functions are needed, Gencot
-does not automatically generate such functions, they must be defined manually, if required.
+does not automatically generate such functions, they must be defined manually, if required, then they have the following forms
+
+\begin{verbatim}
+  getFInR : R! -> S!
+  getFInR r = r.f
+  setFInR : ModFun R S ()
+  setFInR (r,v) = r{f=v}
+  exchngFInR : ModFun R S S
+  exchngFInR (r,v) = let r{f=v'} in (r{f=v},v')
+  modifyFInR : all(arg,out). ModPartFun R S arg out
+  modifyFInR (r,(m,x)) = 
+    let r{f} and (f,y) = m(f,x) in (r{f=f},y)
+\end{verbatim}
 
 The operation \code{get} for a field \code{f} of a record \code{r} corresponds to the Cogent member access operation \code{r.f}.
 Since the \code{get} operation is not passed as argument to other functions, it need not be defined for record fields, it is always possible
 to use the Cogent member access operation instead.
 
 The operation \code{set} for a field \code{f} of a record \code{r} and a value \code{v} corresponds to the Cogent put operation r{f = v}, if
-the field has a nonlinear type. Otherwise it must first take the old value, clear it and dispose it. All these operations can be impleented in Cogent.
+the field has a nonlinear type. Otherwise it is not supported.
 
 The operation \code{exchng} for a field \code{f} of a record \code{r} and a value \code{v} can be implemented in Cogent by first taking the 
 old value of \code{f}, then putting \code{v} and finally returning the record together with the old value.
 
-The operations \code{access} and \code{modify} cannot be implemented in Cogent, they must be defined as abstract function which are implemented in 
+The operation \code{modify} for a field \code{f} of a record \code{r} and a field modification function can be implemented in Cogent 
+by first taking the value of \code{f}, then applying the modification function to it, and finally putting the result back into
+the field.
+
+The operations \code{getref} and \code{modref} cannot be implemented in Cogent, they must be defined as abstract function which are implemented in 
 C with the help of the address operator \code{\&}. For a field \code{f} of type \code{S} the corresponding function definitions have the form
 \begin{verbatim}
-  accessFInR : R! -> PS!
-  modifyFInR : all(arg,out). ModPartFun R PS arg out
+  getrefFInR : R! -> PS!
+  modrefFInR : all(arg,out). ModPartFun R PS arg out
 \end{verbatim}
-where \code{PS} is the Gencot mapping of the type of pointer to \code{S}.
+where \code{PS} is the Gencot mapping of the type of pointer to \code{S}. Remember that according to the definition of 
+\code{ModPartFun} the function \code{modrefFInR} is invoked in the form
+\begin{verbatim}
+  (r',o) = modrefFInR(r, (m,a))
+\end{verbatim}
+where \code{r} is a boxed record value which is not readonly, \code{m} is a modification function of type \code{ModFun PS arg out} which
+is equivalent to type \code{(PS,arg) -> (PS,out)}, \code{a} is the argument of type \code{arg} passed to \code{m}, \code{r'} is
+the record value \code{r} after the modification, and \code{o} is the additional result of type \code{out} returned by \code{m}.
 
 \subsection{Array Types}
 \label{design-operations-array}
@@ -1023,19 +1076,21 @@ Gencot provides instances of these functions also for multidimensional array typ
 
 If an array is seen as a structured value, its elements are its parts.
 Then all operations for accessing parts of a structured value are nontrivial. Since elements are specified by an index value
-Gencot provides polymorphic functions for all five operations
+Gencot provides polymorphic functions for all six operations
 \begin{verbatim}
   getArr : all(arr,idx,el). (arr!,idx) -> Option el!
-  setArr : all(arr,idx,el:<D). (arr,idx,el) -> (arr,())
-  exchngArr : all(arr,idx,el). (arr,idx,el) -> (arr,el)
-  accessArr : all(arr,idx,pel). (arr!,idx) -> Option pel!
-  modifyArr : all(arr,idx,pel,arg:<D,out). 
+  setArr : all(arr,idx,el:<D). ModFun arr (idx,el) ()
+  exchngArr : all(arr,idx,el). ModFun arr (idx,el) el
+  modifyArr : all(arr,idx,el,arg:<D,out). 
+    ModFun arr (idx, ModFun el arg out, arg) out
+  getrefArr : all(arr,idx,pel). (arr!,idx) -> Option pel!
+  modrefArr : all(arr,idx,pel,arg:<D,out). 
     ModFun arr (idx, ModFun pel arg out, arg) out
 \end{verbatim}
 The type variable \code{arr} denotes the array type, \code{idx} denotes the index type,
 \code{el} denotes the array element type, and \code{pel} denotes the type of pointers to elements. 
-The result type of \code{getArr} uses the generic type \code{Option} defined in
-the Cogent standard library. All functions take the element index as second argument.
+The result types of \code{getArr} and \code{getrefArr} use the generic type \code{Option} defined in
+the Cogent standard library.
 
 Instances of these functions are only defined if \code{arr} is a Gencot array type. Type \code{idx}
 must be one of \code{U8, U16, U32} according to the \code{<size>} of the array. Types \code{el} and
@@ -1054,23 +1109,25 @@ If the specified
 index is not in the range \code{0..<size>-1} the function returns the same element which has been
 passed as input, together with the unmodified array. 
 
-Function \code{accessArr} returns a pointer to the element in the array without copying the element. This is safe since 
-both the array and the result
-type are readonly. If the specified index is not in the range \code{0..<size>-1} the function returns \code{None}. 
-
-Function \code{modifyArr} modifies the element at the specified position in-place by applying the element modification function
-to a pointer to the element. 
-If the specified
+Function \code{modifyArr} modifies the element at the specified position by applying the element modification function
+to it. If the specified
 index is not in the range \code{0..<size>-1} the function returns the unmodified array together with the default value
 \code{defaultVal ()} for type \code{out}. Since in this case the 
 additional input to the modification function is discarded, its type \code{arg} must be discardable.
 
-The type of \code{modifyArr} is similar to a \code{ModPartFun}, but it differs because in addition to the element modification 
-function and its argument the element index must be passed as argument.
+Function \code{getrefArr} returns a pointer to the element in the array without copying the element. This is safe since 
+both the array and the result
+type are readonly. If the specified index is not in the range \code{0..<size>-1} the function returns \code{None}. 
+
+Function \code{modrefArr} works like \code{modifyArr} but passes a pointer to the element to the element modification function.
+
+The types of \code{modifyArr} and \code{modrefArr} are similar to a \code{ModPartFun}, but differ because in addition to the 
+element modification function and its argument the element index must be passed as argument.
+
 Note that it is not possible
-to pass the array or parts of it as additional information in the parameter of type \code{a}, since that would always be
+to pass the array or parts of it as additional information in the parameter of type \code{arg}, since that would always be
 a second use of the array of linear type. If several elements must be modified together, a specific modification function
-must be defined and used instead of \code{modifyArr}.
+must be defined and used instead of \code{modifyArr} or \code{modrefArr}.
 
 Gencot does not provide instances of these functions for multidimensional array types of the form \code{A'<size>'UA'<size>'...\_El}.
 

@@ -32,15 +32,6 @@ isNull mn = roNotNull mn
 
 -- Part access functions
 
--- replace a value, disposing it if it is not NULL
---   ea: the empty-value type corresponding to type a
---   arg: the type of additional input for the crearing function
-setNotNull: all(a,ea,arg:<DS). ModFun (MayNull a) (a, ClrFun a ea arg,arg)
-  {- DS is used instead of D to avoid an internal Cogent error -}
-setNotNull (mn, (nn, clrfun, addinput)) = notNull mn
-   | None -> mayNull nn
-   | Some x -> dispose (clrfun (x,addinput)); mayNull nn
-
 -- exchange values if not NULL
 exchngNull: all(a). (MayNull a,a) -> (MayNull a,a)
 exchngNull (mn, nn) = notNull mn
@@ -53,7 +44,7 @@ modifyNull: all(a,arg:<DS,out). ModPartFun (MayNull a) a arg out
   {- DS is used instead of D to avoid an internal Cogent error -}
 modifyNull (mn, (modfun,addinput)) = notNull mn
    | None -> (null (), defaultVal ())
-   | Some x -> let (r,y) = modfun (x,addinput) in (maynull r,y)
+   | Some x -> let (r,y) = modfun (x,addinput) in (mayNull r,y)
 
 
 #endif {- GENCOT_MAYNULL -}

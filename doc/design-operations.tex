@@ -43,11 +43,15 @@ disposing such values, implemented by using the C standard function \code{free}.
 
 Gencot provides the polymorphic abstract functions defined in \code{include/gencot/Memory.cogent}:
 \begin{verbatim}
-  create : all(evt). () -> evt
-  dispose : all(evt). evt -> ()
+  create : all(evt). Heap -> Result (evt,Heap) Heap
+  dispose : all(evt). (evt,Heap) -> Heap
 \end{verbatim}
 for creating and disposing values of linear types. Gencot provides instance implementations for all linear
-types, i.e. all (boxed) record types and abstract types.
+types, i.e. all (boxed) record types and abstract types. \code{Heap} is an abstract data type for modelling
+the C heap where the data structures are allocated, it is defined in \code{include/gencot/Memory.cogent}.
+\code{Result} is a variant type defined in the Cogent standard library (usually abbreviated as \code{R})
+with variants for the success and error cases. In the success case \code{create} returns the newly allocated 
+boxed value and the modified heap, in the error case it only returns the heap.
 
 The \code{create} instances only allocate space on the heap but do not initialize it. To model this property in 
 Cogent, Gencot uses two different Cogent types for every linear type to represent uninitialized (``empty'') and 
@@ -165,12 +169,14 @@ After a boxed value has been created it must be initialized to be used, before i
 Initialization must set every part of a structured value to a valid value. For parts of nonlinear type this is
 straightforward, since values of nonlinear types can be directly denoted in Cogent programs in most cases. Parts
 of unboxed record and abstract types are made valid by converting them to a boxed value and initializing it.
-Parts of linear value are created using function \code{create} and then initialized.
+Parts of linear type are created using function \code{create} and then initialized. Thus, initialization functions
+for values with linear parts need the heap as additional in- and output.
 
 Clearing must convert every part of a structured value to an empty value. For parts of nonlinear type nothing
 needs to be done, or the value can be explicitly set to a default value to overwrite the stored information for
 security reason. Parts of unboxed record and abstract types are made empty by converting them to a boxed value 
-and clearing it. Parts of linear value are cleared and then disposed using function \code{dispose}. Together, 
+and clearing it. Parts of linear type are cleared and then disposed using function \code{dispose}, in this case
+the clearing function takes the heap as additional in- and output. Together, 
 clearing a structured value will deallocate all mamory referenced by contained pointers, without deallocating
 the memory used by the structured value itself.
 
@@ -199,10 +205,13 @@ Initialization and clearing functions are defined by Gencot to expect additional
 arbitrary types \code{arg} and \code{out}. The input value can be used to specify default values to be used and initialization and clearing 
 functions for parts of the value. If a function only uses fixed default values and functions for parts 
 the unit type \code{()} is used for type \code{arg}. The output value can be used to return an error code.
+For values with linear parts input and output values include the heap required for creating and disposing
+the values for the linear parts.
 
-The additional input is required for cases where Gencot automatically defines initialization and clearing
+The additional input is also required for cases where Gencot automatically defines initialization and clearing
 functions for types which may have parts of types for which Gencot does not define such functions. Then 
-it cannot specify fixed functions for the parts, the functions to be used must be passed as arguments.
+it cannot specify fixed initialization and clearing functions for the parts, the functions to be used must be
+passed as arguments.
 
 \subsubsection{Accessing Parts of Structured Values}
 
@@ -278,6 +287,9 @@ Note that the use of the pointer is safe, no sharing can occur for the part's me
 space. For sharing to occur, the structure value or a part of it must be passed to the part modification function as
 part of the additional input of type \code{A}. If the structure is modifyable, type \code{T} is linear and passing 
 the value as part of the additional input would be a double use which is prevented by the Cogent type constraints.
+
+Note that all part access functions are defined in a way that they never allocate or deallocate memory on the heap.
+therefore they never need the heap as additional in- and output.
 
 An alternative to the function \code{modref} would be a pair of functions \code{ref} and \code{deref} where \code{ref}
 returns the pointer together with the structure converted to a type which marks the part as removed (for a record this
@@ -390,15 +402,17 @@ Gencot defines generic types for such pointer initialization and clearing functi
 \begin{verbatim}
   type PtrIniFun evt vvt ref = IniFun evt vvt ref ()
   type PtrClrFun vvt evt = ClrFun vvt evt () ()
-  type PtrPtrClrFun vvt evt ref eref arg out = ClrFun vvt evt (ClrFun ref eref arg out, arg) out
+  type PtrPtrClrFun vvt evt ref eref arg out = ClrFun vvt evt (ClrFun ref eref arg out, arg, Heap) (out,Heap)
 \end{verbatim}
 where \code{evt} is the empty-value pointer type, \code{vvt} is the valid-value pointer type, and \code{ref} is the valid-value
 type of the referenced values. A pointer initialization function always expects as additional input the value to be stored in
-the referenced memory region and does not return any output. A function of type \code{PtrClrFun} has no additional input or output, it may overwrite the referenced memory
+the referenced memory region and does not return any output. A function of type \code{PtrClrFun} has no additional input or output, 
+it may overwrite the referenced memory
 with a fixed value or leave it unchanged. The type \code{PtrPtrClrFun} is used if \code{ref} is a non-function pointer type. It takes 
-as additional input a clearing function for type \code{ref} together with its argument. \code{eref} is the empty-value type
+as additional input a clearing function for type \code{ref} together with its argument, and the heap. \code{eref} is the empty-value type
 corresponding to \code{ref}, \code{arg} is the type of the additional input for the clearing function for the referenced value,
-and \code{out} is the type of it's additional output.
+and \code{out} is the type of it's additional output. The heap is required for deallocating the referenced pointer and is returned 
+together with the clearing function's output.
 All types besides \code{arg} and \code{out} are uniquely determined by the 
 pointer type \code{vvt}, although this cannot be expressed by Cogent type constraints. Therefore Gencot  defines in 
 \code{include/gencot/Memory.cogent} the preprocessor macros
@@ -449,7 +463,7 @@ For example a pointer \code{p} of type \code{TP\_U32} can be initialized to the 
 \end{verbatim}
 and a pointer \code{p} of type \code{PP\_U32} can be cleared with typechecks by the Cogent expression
 \begin{verbatim}
-  clearPtrPtr[PTRCLRINST(P_U32,P,(),())] (p,(clearPtr,()))
+  clearPtrPtr[PTRCLRINST(P_U32,P,(),())] (p,(clearPtr,(),heap))
 \end{verbatim}
 
 \subsubsection{Dereferencing Pointers}

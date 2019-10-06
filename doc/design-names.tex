@@ -114,15 +114,20 @@ generated name as follows.
 A pointer derivation step is encoded by a single letter \code{"P"}. 
 
 An array derivation step without size
-specification is encoded by a single letter \code{"A"}. An array derivation step with a literal or a single identifier
+specification is encoded by a single letter \code{"A"}. An array derivation step with a literal
 as size specification is encoded in the form
 \begin{verbatim}
-  A'<size>'
+  A<size>
 \end{verbatim}
-where \code{<size>} is the size specification (note, that the prime character is valid in Cogent identifiers). 
+where \code{<size>} is the size specification. If the size is specified by a single identifier the 
+step is encoded in the form
+\begin{verbatim}
+  AX<size>X
+\end{verbatim}
+where \code{X} is a letter not occurring in the identifier.
 In all other cases an array derivation step is encoded by
 \begin{verbatim}
-  A''
+  AII
 \end{verbatim}
 which may lead to name conflicts in Cogent and must be handled manually. As explained in Section~\ref{design-types-array}
 two different Cogent type names are used for every C array type. The second form is build by encoding 
@@ -130,16 +135,19 @@ the array derivation step with an additional letter \code{"U"} prepended.
 
 A function derivation step is encoded in the form
 \begin{verbatim}
-  F_'<P1>'<P2>'...'<Pn>'_
+  F_X<P1>X<P2>X...X<Pn>X_
 \end{verbatim}
-where the \code{<Pi>} are the parameter types. If parameters are not specified or are varargs the function
-derivation step is encoded by a single letter \code{"F"}, which may lead to name conflicts in Cogent and must 
-be handled manually.
+where the \code{<Pi>} are the parameter types and \code{X} is a letter not occurring in any of the parameter
+type names. 
 
 Function parameters of linear type my be readonly or not (see Section~\ref{design-types-readonly}). For a 
 parameter of linear type, the parameter type \code{<Pi>} is preceded by a letter \code{"R"} if it is readonly,
 otherwise it is preceded by a letter \code{"L"}. If the parameter type is not derived, the letter is separated
 by an underscore. Parameters of nonlinear type are not marked in either of this ways.
+
+If parameters are not specified a step of the form \code{F\_UnknownCogentParameters\_} is used.
+If the function is variadic, the step ends with \code{XR\_VariadicCogentParametersX\_}.Both forms
+may lead to name conflicts in Cogent and must be handled manually.
 
 If several derivation steps are applied to a base type, their encodings are concatenated, beginning with the 
 last derivation step. The identifier for the base type is appended to the encoding for the first derivation step,
@@ -153,9 +161,9 @@ Hence, for example for the C type
 \end{verbatim}
 the generated name is
 \begin{verbatim}
-  A'5'PF_'U32'RP_U16'_U32
+  A5PF_XU32XRP_U16X_U32
 \end{verbatim}
 
 Note that the generated Cogent type names could still cause conflicts with mapped type names. These conflicts can be
-avoided if no configured mapping prefix starts with one of the \code{<kind>} strings. 
-or an possible encoding of a derivation step.
+avoided if no configured mapping prefix starts with one of the \code{<kind>} strings
+or a possible encoding of a derivation step.

@@ -327,16 +327,16 @@ since all other types are also mapped to either boxed or unboxed types.
 
 Together the rule for mapping a function pointer type is
 \begin{verbatim}
-  t0 (*)(t1, ..., tn) -> #F_'T1'...'Tn'_T0
+  t0 (*)(t1, ..., tn) -> #F_XT1X...XTnX_T0
 \end{verbatim}
-where \code{Ti} is the name to which \code{ti} is mapped.
+where \code{Ti} is the name to which \code{ti} is mapped and \code{X} is a letter not occurring in the \code{Ti}.
 If a \code{ti} is mapped to a type name with the unbox operator applied, which is not a function pointer type,
 a letter ``U'' is prepended to \code{Ti} in the form of a derivation step. This can only happen for struct and union types
 since array and function types are adjusted to pointer types when used as parameter type, and are not allowed as 
 function result types in C. In particular, if a parameter type \code{ti} is an array type, it is mapped to
 the name for the linear case. For example, the C function pointer type \code{int (*)(int, int[10])} is mapped to
 \begin{verbatim}
-  #F_'U32'A'10'_U32'_U32
+  #F_XU32XA10_U32X_U32
 \end{verbatim}
 
 \subsubsection{Mapping Function Parameters}
@@ -373,7 +373,7 @@ be treated manually in specific ways. Gencot maps variadic function types
 with an additional last parameter type \code{VariadicCogentParameters}. This pseudo type is intended 
 to inform the developer that manual action is required. The bang operator is applied as a hint
 that no modifications are returned. For a function pointer, the corresponding Cogent type name has
-the form \code{F\_'...'R\_VariadicCogentParameters'\_<result type>}.
+the form \code{F\_X...XR\_VariadicCogentParametersX\_<result type>}.
 
 C function types where the parameters are omitted, such as in \code{t ()} (``incomplete function type'') 
 cannot be mapped to a Cogent function type in this way. 
@@ -463,19 +463,19 @@ As an example consider the C function pointer type
 where the first parameter may be modified by the function referenced by a pointer of that type.
 The type is translated to the Cogent type name
 \begin{verbatim}
-  F_'LA'4'_U8'RP_U8'_U32
+  F_XLA4_U8XRP_U8X_U32
 \end{verbatim}
 which is translated by the from/invk/to functions to the Cogent function type
 \begin{verbatim}
-  (A'4'_U8,P_U8!) -> (U32,A'4'_U8)
+  (A4_U8,P_U8!) -> (U32,A4_U8)
 \end{verbatim}
 If the first parameter is known to be never modified, the Cogent typename instead will be
 \begin{verbatim}
-  F_'RA'4'_U8'RP_U8'_U32
+  F_XRA4_U8XRP_U8X_U32
 \end{verbatim}
 and the corresponding Cogent function type will be
 \begin{verbatim}
-  (A'4'_U8!,P_U8!) -> U32
+  (A4_U8!,P_U8!) -> U32
 \end{verbatim}
 
 \subsection{Pointer Types}
@@ -537,10 +537,10 @@ Finally, a pointer to \code{void} is mapped to the abstract type
 Together we have the mapping rules for pointer types:
 \begin{verbatim}
   void * -> P_Void
-  r (*)(...) -> #F_'...'_R
+  r (*)(...) -> #F_X...X_R
   struct s * -> Struct_s = { ... }
   union s * -> Union_s
-  (*el)[...] -> UA'...'_El
+  (*el)[...] -> PUA..._El
   otherwise: t * -> P_T
 \end{verbatim}
 where \code{Struct\_s} and \code{Union\_s} are the names introduced for the struct or union types and \code{R}, \code{El} 

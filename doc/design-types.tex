@@ -486,53 +486,61 @@ allows the Cogent compiler to statically guarantee that pointer values will neit
 discarded by Cogent code, it will always be passed through. 
 
 If a pointer points to a C \code{struct} there is additional support for field access available in Cogent by 
-mapping the pointer to a Cogent boxed record type. 
+mapping the pointer to a Cogent boxed record type. For all other pointer types this support can be employed by
+mapping the type to a Cogent record with a single field of the type referenced by the pointer.
 
-It is tempting to employ this support also for all other pointer types by
-mapping the pointer type to a Cogent record with a single field of the type referenced by the pointer. This 
-would normally be binary compatible in C because a struct with a single field of type T is represented in memory
-in the same way as a value of type T. However, when the C implementation of an abstract function uses the
-C address operator to retrieve a pointer to a struct member or array element, the C pointer to T must be
-cast to the pointer to the struct with the single field. Such type casts are not supported by the 
-Isabelle C parser and must be avoided in the C program resulting from translating the Cogent program. 
-
-For this reason all C pointer types which are not pointers to a struct are mapped to abstract types in Cogent.
+In C, a pointer-to-array type is not the type of pointers to the array address, instead its values are array addresses.
+The difference from the array type is only that when applying the index operator \code{[]}, the whole array is
+selected instead of only the first element. In Cogent the corresponding type is a Cogent record with a single
+field of the mapped array type. Note, that this is equivalent to the mapping of the array type itself, as defined
+in Section~\ref{design-types-array}.
 
 \subsubsection{Mapping Pointer Types}
 
 A pointer to a function type is mapped to an unboxed abstract type, as described in Section~\ref{design-types-function}.
 
-A pointer type \code{t*} to a struct is mapped to the corresponding boxed record type, 
+A pointer type \code{t*} to a struct is mapped to the corresponding boxed type, 
 that means, it is mapped like the struct type \code{t}, but the unbox operator is omitted.
 
 A pointer type \code{t*} where \code{t} is a union type is mapped in the same way to the corresponding
 boxed type, omitting the unbox operator from the mapped type \code{t}. Thus no support for accessing
 the referenced union is provided. The reason is, that access to the union as a whole is mostly useless
-and further access to the union mebers cannot be provided. For consistency, Gencot treats union types
+and furthe access to the union mebers cannot be provided. For consistency, Gencot treats union types
 in the same way as struct types.
 
-A pointer type \code{t*} where \code{t} is an array type is mapped in a similar way as for struct and
-union types. As described in Section~\ref{design-types-array}, the array type name for the nonlinear case is
-used omitting the unbox operator. The reason is, that access to the array yields the unboxed array for
-which there is no support for working with it. In C, arrays cannot be asssigned as a whole, therefore
-the array cannot be bound to a variable in Cogent.
-
 A pointer type \code{t*} where \code{t} is a primitive type, an enum type, 
-or again a pointer type is mapped to an abstract type with a generated name as described in Section~\ref{design-names}. This
-name is used as parameter type name in mapped function pointer 
+or again a pointer type is mapped to a boxed record with a single field \code{cont} of the type to which \code{t} is 
+mapped. For every such type a name is introduced as described in Section~\ref{design-names}. This makes the 
+Cogent program slightly more readable and the name is required as parameter type name in mapped function pointer 
 types as described in Section~\ref{design-types-function}. For the same reason Gencot does not use a single generic type for all 
 such pointer types. Instead, like for arrays, it creates a monomorphic type for every pointer type used in the program.
 
 The resulting type is defined in the form
 \begin{verbatim}
-  type P_<type name>
+  type P_<type name> = { cont: <type name> }
 \end{verbatim}
 If the \code{<type name>} is a mapped derived type the underscore is omitted.
+
+Values of such types are binary compatible to the C pointer type and they can be dereferenced with the help of
+the Cogent take and put operations, thus supporting the full functionality of the C pointer.
+
+A pointer type \code{t*} where \code{t} is an array type is mapped to a boxed record with a single field
+\code{cont} of the unboxed array type:
+\begin{verbatim}
+  type PAn_<type name> = { cont: #An_<type name> }
+\end{verbatim}
+where \code{An\_<type name>} is the mapping of the array type. This pointer type is binary compatible with 
+the mapped array type \code{An\_<type name>}, however it is not equivalent as a Cogent type. This is intended
+since other abstract functions should be available for the pointer than for the array. In particular, since
+the field \code{cont} has type \code{\#An\_<type name>} instead of \code{\#UAn\_<type name>} it can be accessed
+using take and put operations in Cogent, as for the other mapped pointer types.
 
 Finally, a pointer to \code{void} is mapped to the abstract type
 \begin{verbatim}
   type P_Void
 \end{verbatim}
+Here the type of the referenced data is unknown and no support for dereferencing it can be provided in Cogent,
+all processing must be implemented by specific abstract functions.
 
 Together we have the mapping rules for pointer types:
 \begin{verbatim}
@@ -540,8 +548,8 @@ Together we have the mapping rules for pointer types:
   r (*)(...) -> #F_X...X_R
   struct s * -> Struct_s = { ... }
   union s * -> Union_s
-  (*el)[...] -> PUA..._El
-  otherwise: t * -> P_T
+  (*el)[...] -> PA..._El = { cont: #A..._El }
+  otherwise: t * -> P_T = { cont: T }
 \end{verbatim}
 where \code{Struct\_s} and \code{Union\_s} are the names introduced for the struct or union types and \code{R}, \code{El} 
 and \code{T} are the Cogent type names to which \code{r}, \code{el} and \code{t} are mapped, respectively. If \code{El} 
@@ -597,11 +605,16 @@ for names of function pointer types:
 \begin{verbatim}
   tn -> #TN
 \end{verbatim}
-for names of a struct, union, or array type:
+for names of a struct or union type:
 \begin{verbatim}
   tn -> #TN
   tn* -> TN
 \end{verbatim}
+for names of an array type:
+\begin{verbatim}
+  tn -> TN, #TN
+\end{verbatim}
+depending on its usage context, 
 and for all other type names:
 \begin{verbatim}
   tn -> TN
@@ -609,7 +622,7 @@ and for all other type names:
 where \code{TN} is the name mapping of \code{tn}.
 
 This implies, that also the Cogent type definitions generated from a C typedef have to be modified, if
-the target type is a struct, union, or array type. In this case Gencot translates the typedef 
+the target type is a struct or union type. In this case Gencot translates the typedef 
 to a Cogent type definition which defines the mapped typedef name as a synonym 
 for the corresponding boxed type in Cogent.
 

@@ -1,15 +1,14 @@
-For working with the mapped C datatypes, in particular for those mapped to abstract Cogent types., Gencot provides support by
+For working with the mapped C datatypes, in particular for those mapped using abstract Cogent types, Gencot provides support by
 defining and implementing polymorphic Cogent functions, some of which are abstract and some of which are implemented in Cogent.
 
-\subsection{Conceptual Operations}
-\label{design-operations-concept}
-
-Although the operations provided for different kinds of datatypes have different semantics, there have common properties
-and are represented by common polymorphic functions. Here the operations are introduced conceptually, together with
-the polymorphic functions. Gencot provides the polymorphic function definitions in separate Cogent files which can be
+Although the operations provided for different kinds of datatypes have different semantics, they have common properties
+and most are represented by common polymorphic functions. Here the operations are first introduced conceptually, together with
+the polymorphic functions, then they are presented for specific kinds of data types.
+Gencot provides the polymorphic function definitions in separate Cogent files which can be
 included in a Cogent source.
 
-\subsubsection{Dummy Expressions}
+\subsection{Dummy Expressions}
+\label{design-operations-dummy}
 
 For every mapped type Gencot defines a dummy expression of that type. It is used as a replacement for the actual 
 body when translating C functions (see Section~\ref{design-fundefs}).
@@ -30,7 +29,8 @@ original result and all such parameters (see Section~\ref{design-parmod}).
 The dummy result expression is then built as a tuple with a dummy expression for the original result as the first component 
 and the unmodified parameters as the remaining components.
 
-\subsubsection{Default Values}
+\subsection{Default Values}
+\label{design-operations-default}
 
 Conceptually, Gencot provides a default value for every regular non-function Cogent type. For the primitive numeric types it is 
 \code{0}, for type \code{String} it is \code{""}, and for type \code{()} it is the unit value \code{()}.
@@ -41,15 +41,17 @@ the default value of the first variant.
 
 Gencot defines the polymorphic abstract function
 \begin{verbatim}
-  defaultVal: all(out). () -> out
+  defaultVal: all(out:<DSE). () -> out
 \end{verbatim}
 in \code{include/gencot/Default.cogent}. 
 
 Gencot provides instances for the numeric types \code{U8,U16,U32,U64} which return 0, for the unit type \code{()} which returns 
 \code{()}, and for type \code{String} which returns \code{""}. 
+
 Other instances must currently be defined manually, Gencot could be extended to provide automatic support for them as well.
 
-\subsubsection{Creating and Disposing Boxed Values}
+\subsection{Creating and Disposing Boxed Values}
+\label{design-operations-create}
 
 Since all pointer types are mapped to Cogent linear types, Cogent does not provide support for creating values
 of these types (``boxed values''). In C a pointer can be created using the address operator \code{\&} or by allocating data on
@@ -85,7 +87,22 @@ types \code{evt}. However, Gencot only provides instances for (empty-value) line
 to express this type property in Cogent, the use of unsupported instances of both functions are not detected by the 
 Cogent compiler.
 
-\subsubsection{Modifying Values}
+When Gencot maps a C type to a linear Cogent type, it always uses a Cogent record type (see Section~\ref{design-types}).
+For these types the empty-value type is implemented by the record with all fields taken. Gencot defines in 
+\code{include/gencot/Memory.cogent} the preprocessor macro
+\begin{verbatim}
+  EVTYPE(vvt)
+\end{verbatim}
+which expands to the empty-value type \code{vvt take (..)} corresponding to the valid-value type \code{vvt}. 
+It can be used to specify the correct
+instances of \code{create} and \code{dispose} for all types implemented as Cogent record. For example, the 
+\code{create} instance for a mapped array type \code{A5\_U32} can be specified as
+\begin{verbatim}
+  create[EVTYPE(A5_U32)]
+\end{verbatim}
+
+\subsection{Modifying Values}
+\label{design-operations-modify}
 
 Record fields can be modified in Cogent by the put and take operations which in the simplest case have the form
 \begin{verbatim}
@@ -102,14 +119,14 @@ Here ``modifying'' the field can have several slightly different meanings. The f
 or removed, or it may be modified in-place, if it is a structured value. Modifying the field always modifies the 
 containing record.
 
-We generalize this idea to abstract types, by defining operations for modifying a part in the form of abstract functions.
+We generalize this idea by defining operations for modifying a part in the form of Cogent functions.
 To provide a common framework for modification operations, Gencot defines function types for such modification functions 
 in \code{include/gencot/ModFun.cogent}. The basic function types are
 \begin{verbatim}
   type ModTypeFun obj res arg out = (obj,arg) -> (res,out)
   type ModFun obj arg out = ModTypeFun obj obj arg out
 \end{verbatim}
-The first type covers the genaral case where the type of the new value is different from that of the old value, in the second
+The first type covers the general case where the type of the new value is different from that of the old value, in the second
 case the type is the same before and after the modification. In both cases a value of type \code{arg} is passed to the modification
 function, it may provide information about how to modify the value, and the modification function additionally returns a value of
 type \code{out}, e.g., an error code. The functions \code{fst} and \code{snd} defined in the Cogent standard library can be used
@@ -120,10 +137,10 @@ The put operation can now be represented as a function of type \code{ModTypeFun 
 The take operation can be represented as a function of type \code{ModTypeFun R (R take f) () V}, it returns 
 a pair of the remaining record and the taken field value.
 
-For an abstract type \code{A} we can now define abstract functions with a similar semantics. We use another abstract type \code{TA}
+For an arbitrary type \code{A} we can now define functions with a similar semantics. We use another type \code{TA}
 which represents all values of \code{A} where the part is not present, and an arbitrary type \code{V} for the part. Then
 a generalized put-function has the type \code{ModTypeFun TA A V ()} and a generalized take-function has the type
-\code{ModTypeFun A TA () V}.
+\code{ModTypeFun A TA () V}. Both types \code{A} and \code{TA} may be abstract, then the functions will be abstract as well.
 
 A typical pattern for modifying a record field is a combination of a take and a put operation of the form
 \begin{verbatim}
@@ -142,12 +159,12 @@ returns additional output of type \code{out}. Now we can define a function for t
 It has the function type \code{ModFun R (ModFun V arg out, arg) out}, accepts as additional input a pair of a modification
 function for the field value and its additional input, and returns the modified record and the additional result of
 the field modification function. Note that \code{modify} also respects the type constraints if the field type \code{V}
-is linear. The field value is neither duplicated nor discarded. In this case an alternative semantics is that the field 
-value modification function \code{m} modifies the field value in-place.
+is linear. The field value is neither duplicated nor discarded.
 
 For this kind of modifying a part Gencot defines the corresponding generalized function type
 \begin{verbatim}
-  type ModPartFun obj prt arg out = ModFun obj (ModFun prt arg out, arg) out
+  type ModPartFun obj prt arg out = 
+    ModFun obj (ModFun prt arg out, arg) out
 \end{verbatim}
 where \code{obj} is the type of the modified object, \code{prt} is the type of the part to be modified, \code{arg} is the type
 of the information passed to the part modification function, and \code{out} is the type of additional output of both modification functions.
@@ -178,16 +195,46 @@ to the modification operation.
 
 In C it is a common pattern to pass pointers to other parts of a data structure around for efficiency and access values through these pointers 
 only when needed to modify parts of the structure. In the Cogent translation the values must be accessed separately in a banged context and then
-passed to the modification operation.
+passed to the modification operation as copies.
 
-\subsubsection{Initializing and Clearing Boxed Values}
+If type \code{prt} of the part to be modified is not linear, function \code{modify} removes the part's value from the structure,
+passes it to the part modification function and puts the result back into the structure. This is
+inefficient for large parts when only a small subpart is modified, since the whole part value must be copied.
+In C the typical way of dealing with this situation is to pass a pointer to the part modification function 
+instead. 
+
+The same approach can be used in Cogent defining a function \code{modref} which works like \code{modify}, but
+passes a pointer to the part modification function instead of a copy of the part. In Cogent the pointer corresponds
+to a value of linear type, so the part modification function can usually be implemented in Cogent. Function
+\code{modref}, instead, must be abstract and implemented in C with the help of the address operator \code{\&}.
+It has the Cogent type
+\begin{verbatim}
+  modref: ModPartFun obj pprt arg out
+\end{verbatim}
+where \code{pprt} is the pointer type corresponding to the part's type \code{prt}. Note that Gencot's type mapping 
+scheme supports for every mapped C type a corresponding pointer type.
+
+Of course, using a pointer to the in-place part of the boxed value introduces sharing between both. However, the 
+part modification function has no access to the boxed value other than by the pointer to the part. It could only get
+access if the boxed value or a part of it would be passed to it using the additional input of type \code{arg}. But since
+that is passed to \code{modref} together with the boxed value itself, the Cogent type checking rules prevent this
+as a double use of the boxed value. Thus the approach is safe and the part modification function can work with the
+pointer according to the usual Cogent rules, as long as it always returns the same pointer as result value (which is
+the intended behavior for a ``modification function''). This
+means it cannot dispose it and it cannot store it in another structured value and return a different pointer of
+the same type. Function \code{modref} then simply discards the returned pointer so that the sharing ends when it
+completes.
+
+\subsection{Initializing and Clearing Boxed Values}
+\label{design-operations-init}
 
 Gencot uses the terms ``initialization'' and ``clearing'' for the conversions between empty and valid boxed values.
 After a boxed value has been created it must be initialized to be used, before it is disposed it must be cleared.
 
 Initialization must set every part of a structured value to a valid value. For parts of nonlinear type this is
 straightforward, since values of nonlinear types can be directly denoted in Cogent programs in most cases. Parts
-of unboxed record and abstract types are made valid by converting them to a boxed value and initializing it.
+of unboxed record and abstract types are made valid by passing a pointer to the part to an initialization
+function for the corresponding boxed part value.
 
 For parts of linear type there are two possible approaches: they can be created during initialization 
 or they can be passed as arguments. If they are created, the initialization function needs the heap as additional 
@@ -202,12 +249,12 @@ instead for the part and use \code{roNull()} as initial value. Then a readonly n
 
 Clearing must convert every part of a structured value to an empty value. For parts of nonlinear type nothing
 needs to be done, or the value can be explicitly set to a default value to overwrite the stored information for
-security reason. Parts of unboxed record and abstract types are made empty by converting them to a boxed value 
-and clearing it. 
+security reason. Parts of unboxed record and abstract types are made empty by passing a pointer to a clearing 
+function for the boxed part value.
 
 Parts of linear type, dually to initializing them, can be disposed during clearing, or they can be returned
 as result. If they are disposed, the clearing function takes the heap as additional in- and output. Otherwise
-it returns all parts of linear type as output. if several parts
+it returns all parts of linear type as output. If several parts
 of linear type exist, some of them can be disposed and some returned as results.
 
 Parts of readonly type need no specific treatment during clearing, since they can be discarded in the same way as
@@ -215,12 +262,18 @@ parts of nonlinear type.
 
 Gencot defines the following generic types in \code{Memory.cogent}:
 \begin{verbatim}
-  type IniFun evt vvt arg out = ModTypeFun evt vvt arg out
+  type IniFun evt vvt arg out = ModTypeFun evt (Result vvt evt) arg out
   type ClrFun vvt evt arg out = ModTypeFun vvt evt arg out
 \end{verbatim}
 They can be used by the developer to mark functions as initialization or clearing functions. This is purely 
 informal since no constraint between the type parameters can be enforced by Cogent, so a correct pair of 
 empty-value type and the corresponding valid-value type must be specified by the developer.
+
+The type for initialization functions returns a result of type \code{Result vvt evt}, using the generic type 
+\code{Result} from the Cogent standard library. The reason is that we assume that initialization may fail. 
+This is typically the case when initializing a part of the value includes allocating space on the heap.
+Whenever there is any problem during initialization the initialization is rolled back and the original
+empty value of type \code{evt} is returned. For clearing we always assume that no error can occur.
 
 Initialization and clearing functions are defined by Gencot to always expect additional input and output values of 
 arbitrary types \code{arg} and \code{out}. The input value can be used to specify default values to be used,
@@ -229,11 +282,6 @@ functions for parts of the value. If a function only uses fixed default values a
 the unit type \code{()} is used for type \code{arg}. The output value can be used to return an error code,
 the modified heap, or parts of linear type which have not been disposed.
 
-The additional input is also required for cases where Gencot automatically defines initialization and clearing
-functions for types which may have parts of types for which Gencot does not define such functions. Then 
-it cannot specify fixed initialization and clearing functions for the parts, the functions to be used must be
-passed as arguments.
-
 An initialization or clearing function for a type with several parts must handle all parts together because it must
 transform from the empty-value type, where all parts are taken, to the valid-value type, where all parts are present.
 If an initialization or clearing function handles only one part, its type must respect which other parts are 
@@ -241,55 +289,63 @@ taken and which are not. This is not feasible for types with many parts. However
 there are many ways how to do so, especially if there are parts of linear and/or readonly type. 
 
 Gencot provides the following polymorphic abstract initialization and clearing functions which are defined for only 
-some of these cases, determined by the types of the additional in- and output:
+some of these cases:
 \begin{verbatim}
-  init : IniFun evt vvt arg out
-  clear : ClrFun vvt evt arg out
+  initFull : all(evt,vvt). IniFun evt vvt #vvt ()
+  clearFull : all(vvt,evt). ClrFun vvt evt () #vvt
+  initHeap : all(evt,vvt:<E). IniFun evt vvt Heap Heap
+  clearHeap : all(vvt:<E,evt). ClrFun vvt evt Heap Heap
+  initSimp : all(evt,vvt:<DSE). IniFun evt vvt () ()
+  clearSimp : all(vvt:<DSE,evt). ClrFun vvt evt () ()
 \end{verbatim}
 Generally, these functions are only defined if \code{evt} is the empty-value type corresponding to the valid-value
-type \code{vvt}. Moreover, one of the following three cases must be apply:
-\begin{itemize}
-\item Passing the full content as argument: type \code{arg} for \code{init} and type \code{out} for \code{clear} is the 
-unboxed type \code{\#vvt}. It is used to pass all content for the referenced memory region to \code{init} which
-copies it there. For \code{clear} it is used to return all content, in particular, all content of linear type, so that 
-it is not discarded. Type \code{out} for \code{init} and type \code{arg} for \code{clear} must be \code{()}.
-\item Passing the heap as argument: all types \code{arg} and \code{out} must be \code{Heap}. Additionally, \code{vvt}
-must be escapeable (no readonly parts). In this case \code{init}
-allocates all parts of linear type on the heap and \code{clear} disposes them. All parts of nonprimitive type are
-initialized or cleared using function \code{init} or \code{clear}, respectively, in the same way passing the heap to 
-it. All parts of primitive type are initialized to their default value \code{defaultVal ()} and are cleared by
+type \code{vvt}. Since this cannot be expressed by constraints in Cogent, Gencot defines the preprocessor macros:
+\begin{verbatim}
+  INIT(<k>,vvt) -> init<k>[EVTYPE(vvt),vvt]
+  CLEAR(<k>,vvt) -> clear<k>[vvt,EVTYPE(vvt)]
+\end{verbatim}
+They can be used to specify valid instances of the functions with the correct types so that the constraints
+between them are fulfilled and the Cogent typechecker can be used to test for correct application.
+For example, \code{INIT(Full,vvt)} expands to \code{initFull[EVTYPE(vvt),vvt]}.
+
+The first two functions pass the full content as argument: the additional input type for initialization and the additional
+result type for clearing is the
+unboxed type \code{\#vvt}. It is used to pass all content for the referenced memory region to \code{initFull} which
+copies it there. For \code{clearFull} it is used to return all content, in particular, all content of linear type, so that 
+it is not discarded.
+
+The second pair passes the heap as additional input and result. Additionally, \code{vvt}
+must be escapeable (no readonly parts), because these cannot be initialized internally. Function \code{initHeap}
+allocates all parts of linear type on the heap and \code{clearHeap} disposes them. Parts of type \code{MayNull a} (see 
+Section~\ref{design-operations-null}) are initialzed to \code{null} and are disposed only if they are not \code{null}.
+All parts of nonprimitive type are
+initialized or cleared using function \code{initHeap} or \code{clearHeap}, respectively.
+All parts of primitive type are initialized to their default value \code{defaultVal ()} and are cleared by
 doing nothing. 
-\item Passing nothing: all types \code{arg} and \code{out} must be \code{()}. Moreover, \code{vvt} must be regular
-(no linear or readonly parts). In this case \code{init} and \code{clear} work as when the heap is passed as argment, 
+
+The third pair passes no additional information. Moreover, \code{vvt} must be regular
+(no linear or readonly parts). Functions \code{initSimp} and \code{clearSimp} work as \code{initHeap} or \code{clearHeap},
 but the heap is not required since there are no linear parts which must be allocated or disposed.
-\end{itemize}
 
-The first case is the most general, it is applicable to all kinds of valid-value types \code{vvt}. However, it bears the
+The first pair is the most general, it is applicable to all kinds of valid-value types \code{vvt}. However, it bears the
 most overhead, since all content must be passed as argument and copied to the memory to be initialized. The other
-two cases support ``in-place'' operation, however, they are more restrictive.
+two pairs support ``in-place'' operation, however, they are more restrictive. 
 
-Gencot defines the following preprocessor macros for the three cases 
+Although all initialization functions return a value of type \code{Result vvt evt}, the functions \code{initFull} and
+\code{initSimp} can never fail and will always return a value \code{Success v} where \code{v} is of type \code{vvt}.
+The functions are defined in this way for consistency, so that all have the same type and can be passed as argument
+to a common function parameter. It is assumed that the overhead for the additional unnecessary 
+checks are not crucial for the performance.
 
+Functions \code{clearFull}, \code{clearHeap}, and \code{clearSimp} do not overwrite the referenced memory with a 
+``clearing value''. If this is required, a manually defined clearing function must be used instead.
 
 For specific types \code{vvt} custom initialization and clearing functions can be defined manually. Typically, they 
 pass values for some parts as parameters (in particular those of readonly types), and use default values or heap
 allocation for the others.
 
-
-
-
-
-It would be possible for Gencot to provide initialization and clearing functions for every pair of empty-value
-and valid-value types generated by mapping the types in the translated C program. However, in general there are 
-several diffent ways how to initialize a specific data structure. Moerover, for types introduced manually the developer 
-must implement initialization and clearing functions anyways. Therefore Gencot automatically generates
-monomorphic initializing and clearing functions only for some types of boxed values.
-
-
-\subsubsection{Accessing Parts of Structured Values}
-
-All types generated by Gencot are either primitive, records, or abstract. For record and abstract types both 
-unboxed and boxed types are generated. Abstract types may be used to represent structured C values.
+\subsection{Accessing Parts of Structured Values}
+\label{design-operations-parts}
 
 For working with a structured value it is often necessary to access its parts for reading or modifying them.
 Gencot supports the following conceptual operations on structured values:
@@ -297,19 +353,35 @@ Gencot supports the following conceptual operations on structured values:
   \item[\code{get}] access the value of a part for reading,
   \item[\code{set}] replace the value of a part by a given value, discarding the old value,
   \item[\code{exchng}] replace the value of a part by a given value, returning the old value,
-  \item[\code{modify}] apply a modification function in-place to a part.
+  \item[\code{modify}] apply a modification function to a part.
 \end{description}
 
 Every function accesses only a single part of the structured value, if several parts must be accessed at the same
-time other operations must be defined manually.
+time custom operations must be defined manually.
 
-The actual function types of the operations differ depending on the way how the part is specified for them.
-However, if the structured value has type \code{T} and the part has type \code{S} the conceptual functionalities 
-are as follows:
+Depending on the type of structured value and the kind of specifying the part, the part may safely exist or not.
+For example, for a record field specified by its name it can be statically determined whether it exists,
+for an array element specified by a calculated index value this is not the case. 
 
-The function \code{get} has functionality \code{T! -> S!}. It expects a readonly value as input and returns
+The actual function types of the operations differ depending on the way how the part is specified for them and
+whether it safely exists. However, if the structured value has type \code{T} and the part has type \code{S} 
+the conceptual functionalities are as follows:
+
+The function \code{get} has functionality \code{T! -> S!}, if the part safely exists. It expects a readonly value as input and returns
 a readonly copy of the part's value. This operation can be defined in Cogent for arbitrary types \code{S}
 because the returned value can be shared with the value remaining in the structure since both are readonly.
+
+If the part does not safely exists there are two possible functionalities: either the function returns a variant
+value, or it returns a default value if the part does not exists. The variant value is the simpler and ``cleaner''
+form, possible variant types are \code{Option} and \code{Result} from the Cogent standard library (the former treating
+the part semantically as ``optional'', the latter treating its nonexistence as an ``error''). However, the use
+of the variant value introduces an overhead, since Cogent implements it as a record. It must be constructed, passed
+on the stack as function result, and then tested and deconstructed, for very frequent accesses to a part this may
+cause a relevant performance reduction. Therefore an alternative form should be provided which always passes the
+part's value directly, using a default if the part does not exist. It should only be used if it is clear from the
+context that the part exists. A possible choice for the default value is \code{defaultVal} (defined in 
+Section~\ref{design-operations-default}), however that is restricted to parts of regular type, therefore other 
+solutions are required additionally.
 
 An alternative to the function \code{get} would be a function which takes a modifyable structure and returns the structure
 together with the element. However, this would be cumbersome in many applications and misleading for proofs, since 
@@ -320,11 +392,13 @@ It expects a structure and the new value as input
 and returns a structure where only the value of the part has been replaced by the new value. The result value is 
 structured as a pair, so that the function has the form of a modification function. Since the old
 value of the part is discarded, function \code{set} is only defined if type \code{S} is discardable.
+If the part does not exist, the function returns the unmodified structure.
 
 The function \code{exchng} has functionality \code{(T,S) -> (T,S)} which is equivalent to \code{ModFun T S S}. 
 It works like \code{set}, but instead of
 discarding the old value of the part it returns it in the result. This can be done for arbitrary types \code{S}
-since values of this type are neither shared nor discarded.
+since values of this type are neither shared nor discarded. If the part does not exist, the function returns
+the unmodified structure together with the input value.
 
 The function \code{modify} has functionality \code{ModPartFun T S A O} where \code{A} and \code{O} are
 arbitrary types.
@@ -332,15 +406,19 @@ According to the definition of \code{ModPartFun} \code{modify} applies a part mo
 type \code{ModFun S A O} to modify the part. All types may be linear, since the corresponding values are
 only passed through to the part modification function and back.
 The part modification function determines the new part value from the old part value. If the part's type \code{S}
-is linear it can be implemented by modifying the part's value ``in-place''. In particular, this can be done by
+is linear it can be implemented by actually modifying the part's value. In particular, this can be done by
 again using \code{modify} as part modification function modifying a part's part, as it has been described
-for the function type \code{ModPartFun} above.
+for the \code{modify} function above.
 
-If the part's type \code{S} is not linear, function \code{modify} removes the part's value from the structure,
-passes it to the part modification function and puts the result back into the structure. This is
-inefficient for large parts when only a small subpart is modified, since the whole part value must be copied.
-In C the typical way of dealing with this situation is to pass a pointer to the part modification function 
-instead. Gencot supports this with the following two operations:
+If the part does not exist, function \code{modify} returns the unmodified structure. However, it must also
+return a value of type \code{O}, although the part modification function is never executed. Similar as for 
+function \code{get} there are two possibilities: returning a variant value or a default value. A third
+possibility here is to use the same type \code{A} as additional input and result to the part modification 
+function. Then, if the part modification function is not executed, its additional input can be returned
+as result. This works even for linear types \code{A} since this way the value is not discarded.
+
+If the part's type \code{S} is not linear, it can be efficiently accessed using a pointer to it.
+Gencot supports this with the following two operations:
 \begin{description}
   \item[\code{getref}] return a pointer to a part,
   \item[\code{modref}] apply a modification function in-place to a part.
@@ -353,13 +431,12 @@ to values of type \code{S}. The function cannot be implemented in Cogent and is 
 operator \code{\&}. The operation is safe since both the structure and the result type are readonly. The shared
 memory used by both can neither be modified through the structure nor through the resulting pointer. 
 
+If the part does not safely exist, the situation is similat to function \code{get}. However, now the result 
+type \code{PS} is always linear, so \code{defaultVal} cannot be used to provide a default value.
+
 The function \code{modref} has functionality \code{ModPartFun T PS A O} where \code{A} and \code{O} are
-arbitrary types. It behaves like \code{modify} but uses a part modification function of
-type \code{ModFun PS A O} to modify the part, which is passed as a pointer.
-Note that the use of the pointer is safe, no sharing can occur for the part's memory
-space. For sharing to occur, the structure value or a part of it must be passed to the part modification function as
-part of the additional input of type \code{A}. If the structure is modifyable, type \code{T} is linear and passing 
-the value as part of the additional input would be a double use which is prevented by the Cogent type constraints.
+arbitrary types. It behaves as described above. If the part does not safely exist, the possible solutions
+are the same as for function \code{modify}.
 
 Note that all part access functions are defined in a way that they never allocate or deallocate memory on the heap.
 therefore they never need the heap as additional in- and output.
@@ -419,43 +496,38 @@ by Gencot because there is no known size for \code{String} values.
 \subsection{Pointer Types}
 \label{design-operations-pointer}
 
-Here we denote as ``Gencot pointer types'' all mappings of C pointer types \code{t*} where \code{t} is no C struct, union, array or function.
-As described in Section~\ref{design-types-pointer} , Gencot pointer types are 
-Cogent abstract types with a name of the form \code{P\_T} where \code{T} is the Cogent mapping of a primitive, enumeration, struct, or union 
-type \code{t} or a name of the form \code{PT} where \code{T} is the Cogent mapping of a function pointer or array or \code{T} is again a 
-Gencot pointer type.
+Here we denote as ``Gencot pointer types'' all Cogent types of the form 
+\begin{verbatim}
+  type P... = { cont: ... }
+\end{verbatim}
+generated by Gencot for several C pointer types (see Section~\ref{design-types-pointer}).
+
+Gencot pointer types always point to a value of primitive type, of an abstract type representing an unboxed array, or again a pointer 
+(which may also be a function pointer, or a pointer used to represent an array or a boxed record).
 
 Gencot pointer types do not include the type \code{P\_Void}. For \code{P\_Void} no information about the referenced data structure is available. 
 Therefore Gencot cannot support any operations 
 for it. Values of this type are fully opaque, they can be passed around but neither created, nor manipulated or disposed. 
 
-It is possible for the developer to manually define additional Gencot pointer types by defining abstract types using the same naming schema.
+It is possible for the developer to manually define additional Gencot pointer types by defining types using the same definition schema.
 Gencot provides the operation support described in the following sections also for such types.
 
 \subsubsection{Creating and Disposing Pointers}
 
-The empty-value type corresponding to a Gencot pointer type \code{P...} is the type \code{TP...} which
-is automatically generated by Gencot. It has a similar meaning as a Cogent
-record with all fields taken. It statically marks the pointer as referencing uninitialized memory. It is mapped to the same C 
-type as \code{P...}.
-
-Gencot defines in \code{include/gencot/Memory.cogent} the preprocessor macro 
-\begin{verbatim}
-  PTREMPTY(P...)
-\end{verbatim}
-to specify the empty-value type for the valid-value Gencot pointer type \code{P...}. (It is implemented 
-as preprocessor macro because it cannot be implemented as generic type in Cogent.)
+The empty-value type corresponding to a Gencot pointer type \code{P...} is the type \code{P... take cont} which
+is equivalent to the expansion of the macro call \code{EVTYPE(P...)} (see Section~\ref{design-operations-create}).
 
 For every Gencot pointer type \code{P...} used in the Cogent program Gencot automatically
 generates instances of the functions \code{create} and \code{dispose} of the form:
 \begin{verbatim}
-  create[PTREMPTY(P...)]
-  dispose[PTREMPTY(P...)]
+  create[EVTYPE(P...)]
+  dispose[EVTYPE(P...)]
 \end{verbatim}
 
 \subsubsection{Modifying Pointers}
 
-Since pointer types are always abstract, all modifications of pointer values must be performed using abstract functions.
+Since Gencot pointer types are specific Cogent record types, modifications of pointer values can be done with the Cogent take and 
+put functions.
 
 The only modification function applicable to a pointer consists of replacing the referenced value. Such modifications correspond
 either to initialization and clearing operations or to dereferencing operations, described in the next two sections.
@@ -465,79 +537,42 @@ either to initialization and clearing operations or to dereferencing operations,
 Before a pointer returned by \code{create} can be used it must be initialized by storing a value into the referenced memory region.
 Dually, before disposing a pointer the memory region may be cleared.
 
-Since Gencot pointer types \code{P...} point to a value of primitive type or again a pointer (which may be a function pointer,
-or a pointer used to represent an array or a boxed record), an in-place
-stepwise initialization of the referenced value is not possible. Initialization is always done by writing a single value or pointer
-into the referenced memory. Clearing disposes a referenced non-function pointer, in all cases it may overwrite the referenced value
-for security reasons.
+All instances of the functions \code{initFull/Heap/Simp} and \code{clearFull/Heap/SIMP} described in 
+Section~\ref{design-operations-init} are available
+for Gencot pointer types. Functions \code{initFull} and \code{clearFull} additionally pass the value referenced
+by the pointer (wrapped in an unboxed record). Functions \code{initSimp} and \code{clearSimp} set the referenced
+value to the default value, ignoring it upon clearing. Functions \code{initHeap} and \code{clearHeap} 
+are required, if the referenced value is linear, for allocating or deallocating it on the heap. Functions
+\code{initHeap} and \code{clearHeap} must also be used if the referenced value is of type \code{MayNull a} 
+(see Section~\ref{design-operations-null}) since it has linear type. Note that function \code{initHeap}
+actaully does not use the heap since it sets the referenced value to null. However, we assume that this is
+feasible and do not provide alternative support for it, since it can also be implemented in Cogent using
+the put operation.
 
-Gencot defines generic types for such pointer initialization and clearing functions in \code{include/gencot/Memory.cogent}:
+For example a pointer \code{p} of type \code{EVTYPE(P\_U32)} can be initialized to the value \code{5} with typechecks by the 
+Cogent expression
 \begin{verbatim}
-  type PtrIniFun evt vvt ref = IniFun evt vvt ref ()
-  type PtrClrFun vvt evt = ClrFun vvt evt () ()
-  type PtrPtrClrFun vvt evt ref eref arg out = ClrFun vvt evt (ClrFun ref eref arg out, arg, Heap) (out,Heap)
-\end{verbatim}
-where \code{evt} is the empty-value pointer type, \code{vvt} is the valid-value pointer type, and \code{ref} is the valid-value
-type of the referenced values. A pointer initialization function always expects as additional input the value to be stored in
-the referenced memory region and does not return any output. A function of type \code{PtrClrFun} has no additional input or output, 
-it may overwrite the referenced memory
-with a fixed value or leave it unchanged. The type \code{PtrPtrClrFun} is used if \code{ref} is a non-function pointer type. It takes 
-as additional input a clearing function for type \code{ref} together with its argument, and the heap. \code{eref} is the empty-value type
-corresponding to \code{ref}, \code{arg} is the type of the additional input for the clearing function for the referenced value,
-and \code{out} is the type of it's additional output. The heap is required for deallocating the referenced pointer and is returned 
-together with the clearing function's output.
-All types besides \code{arg} and \code{out} are uniquely determined by the 
-pointer type \code{vvt}, although this cannot be expressed by Cogent type constraints. Therefore Gencot  defines in 
-\code{include/gencot/Memory.cogent} the preprocessor macros
-\begin{verbatim}
-  PTRINIFUN(REF,k)
-  PTRCLRFUN(REF,k,AIT,AOT)
-\end{verbatim}
-for the types of initialization and clearing functions for a Gencot pointer type referencing a value of type \code{REF}
-The additional parameter \code{k} is used to tell the kind of \code{REF}. It may be empty for a primitive type,
-\code{F} for a function pointer type, \code{R} for a record type, or \code{P} for all other pointer types. Types \code{AIT}
-and \code{AOT}
-are the types of the additional input and output for the clearing function for the referenced value. If \code{k} is \code{F} or
-empty they are ignored and may be empty.
-
-For example the macro call \code{PTRINIFUN(U32,)} expands to the pointer initialization function type
-\begin{verbatim}
-  PtrIniFun TP_U32 P_U32 U32
-\end{verbatim}
-and the macro call \code{PTRCLRFUN(P\_U32,P,Arg,Out)} expands to the pointer clearing function type
-\begin{verbatim}
-  PtrClrFun PP_U32 TPP_U32 P_U32 TP_U32 Arg Out
-\end{verbatim}
-
-Gencot defines the polymorphic functions
-\begin{verbatim}
-  initPtr: all(evt,vvt,ref). PtrIniFun evt vvt ref
-  clearPtr: all(vvt,evt). PtrClrFun evt vvt
-  clearPtrPtr: all(vvt,evt,ref,eref,arg,out). PtrPtrClrFun vvt evt ref eref arg out
-\end{verbatim}
-Gencot defines instances of \code{initPtr} for all Gencot pointer types. It provides instances of \code{clearPtr} only for Gencot pointer types which
-reference a primitive or function pointer value, and it provides instances of \code{clearPtrPtr} only for all other Gencot pointer types.
-The \code{initPtr} instances store the additional input value 
-into the referenced memory. The \code{clearPtr} instances do nothing and return their first argument (they do not overwrite the referenced memory).
-The \code{clearPtrPtr} instances invoke the clearing function on the referenced value and the additional input and apply \code{dispose} to the result.
-They leave the referenced memory unchanged. 
-
-Gencot defines the preprocessor macros
-\begin{verbatim}
-  PTRINIINST(REF,k)
-  PTRCLRINST(REF,k,AIT,AOT)
-\end{verbatim}
-with the same parameters as above. They can be added to the initialization and clearing functions to select a specific instance
-to employ the Cogent type checker for checking the type consistency of the function use.
-
-For example a pointer \code{p} of type \code{TP\_U32} can be initialized to the value \code{5} with typechecks by the Cogent expression
-\begin{verbatim}
-  initPtr[PTRINIINST(U32,)] (p,5)
+  INIT(Full,P\_U32) (p,#{cont=5})
 \end{verbatim}
 and a pointer \code{p} of type \code{PP\_U32} can be cleared with typechecks by the Cogent expression
 \begin{verbatim}
-  clearPtrPtr[PTRCLRINST(P_U32,P,(),())] (p,(clearPtr,(),heap))
+  CLEAR(Heap,PP\_U32) (p,heap)
 \end{verbatim}
+which clears and disposes the referenced pointer.
+
+Alternatively values of Gencot pointer type can be initialized and cleared using the Cogent put and take
+operations. Then the code for the initialization example above is
+\begin{verbatim}
+  p{cont=5}
+\end{verbatim}
+and for the clearing example is
+\begin{verbatim}
+  let p{cont=h}
+  and h{cont}
+  and heap = dispose(h,heap)
+  in (p,heap)
+\end{verbatim}
+where clearing the value referenced by \code{h} is omitted since it is of primitive type.
 
 \subsubsection{Dereferencing Pointers}
 
@@ -545,7 +580,8 @@ If a pointer is seen as a structured value, it has the referenced value as a sin
 Then the operations for accessing parts of a structured value can be defined for a Gencot pointer type as follows
 The operation \code{getref} corresponds to the identity, the operation \code{modref} is equivalent to applying the
 part modification function directly to the pointer. Both are not provided separately for pointers.
-The other operations all dereference the pointer in some way. Gencot provides the polymorphic functions
+The other operations all dereference the pointer in some way. Gencot provides in \code{inlude/gencot/CPointer.cogent} 
+the polymorphic functions
 \begin{verbatim}
   getPtr: all(ptr,ref). ptr! -> ref! 
   setPtr: all(ptr,ref:<D). ModFun ptr ref ()
@@ -556,10 +592,12 @@ Instances of these functions are only defined if \code{ptr} is a Gencot pointer 
 type of the referenced values. 
 
 The function \code{getPtr} dereferences a readonly pointer and returns the result as readonly. The function \code{setPtr}
-replaces the referenced value by its second argument, discarding the old value. Therefore the type \code{ref} of the referenced 
-value must be discardable. The function \code{exchngPtr} works like \code{setPtr} but returns the old referenced value as 
-additional result. The function \code{modifyPtr} applies a modification function to the referenced value, replacing or
-modifying it.
+replaces the referenced value by its second argument, discarding the old value. The function \code{exchngPtr} works like 
+\code{setPtr} but returns the old referenced value as additional result. The function \code{modifyPtr} applies a modification 
+function to the referenced value, replacing or modifying it.
+
+Since a Gencot pointer type corresponds to a pointer which is guaranteed to be not null, the value referenced by the 
+pointer safely exists and the functions need not handle the case where it does not exist.
 
 \subsection{Function Pointer Types}
 \label{design-operations-function}
@@ -642,10 +680,9 @@ Hence for example for the C type
 \end{verbatim}
 the following function instances are provided
 \begin{verbatim}
-  toFunPtr[(U32,U16) -> P_U32, #F_'U32'U16'_P_U32]
-  fromFunPtr[#F_'U32'U16'_P_U32, (U32,U16) -> P_U32]
+  toFunPtr[(U32,U16) -> P_U32, #F_XU32XU16X_P_U32]
+  fromFunPtr[#F_XU32XU16X_P_U32, (U32,U16) -> P_U32]
 \end{verbatim}
-
 
 \subsection{The NULL Pointer}
 \label{design-operations-null}
@@ -720,7 +757,8 @@ It is available for all linear Cogent types, not only for types generated by Gen
 The function \code{null} returns the null pointer, the function \code{mayNull} casts a non-null pointer of type \code{a}
 to type \code{MayNull a}. The operations \code{roNull} and \code{roMayNull} do the same for readonly pointers. 
 
-The type \code{Option} is used from the Cogent standard library. 
+The type \code{Option} is used from the Cogent standard library. It is preferred over type \code{Result} because being null
+is not interpreted as an error here.
 The function \code{notNull} returns \code{None} if the argument is null and \code{Some x} if the argument \code{x} is not null.
 The function \code{roNotNull} does the same for a readonly argument. 
 Since \code{notNull} and \code{roNotNull} are the only functions which make the value available as a value of type \code{a} 
@@ -730,7 +768,8 @@ As usual,
 the type parameter \code{a} cannot be restricted by Cogent to linear types. However, Gencot provides instances of the functions only for
 linear types \code{a}.
 
-Note that since the type \code{MayNull a} is not denoted by a single type name it is not possible to construct Cogent mappings of derived types for it, such
+Note that since the type \code{MayNull a} is not denoted by a single type name it is not possible to construct Cogent mappings of 
+derived types for it, such
 as a function type with a parameter of type \code{MayNull a}. This is correct, since the function would be polymorphic. If a Cogent type name 
 is defined for a specific instance of \code{MayNull}, mappings of derived types for the instance can be constructed using this type name.
 
@@ -751,7 +790,7 @@ semantics.
 
 \subsubsection{Part Access Operations}
 
-Conceptually, the type \code{MayNull a} can be seen as a structured value with the value referenced by the non-null pointer of type \code{a} being
+Conceptually, the type \code{MayNull a} can be seen as a structured value with the non-null pointer of type \code{a} being
 an optional part. Then the operations for accessing parts of a structured value can be defined for \code{MayNull a} as follows
 The operation \code{get} corresponds to \code{roNotNull}. The operation \code{set} cannot be defined, since the type \code{a} of the 
 ``part'' is always linear and thus not discardable. The operations \code{getref} and \code{modref} cannot be defined, since
@@ -761,50 +800,52 @@ by the polymorphic functions
 \begin{verbatim}
   exchngNull: all(a).
      ModFun (MayNull a) a a
-  modifyNull: all(a,arg:<D,out).
+  modifyNull: all(a,arg).
+     ModPartFun (MayNull a) a arg arg
+  modifyNullDflt: all(a,arg:<D,out:<DSE).
      ModPartFun (MayNull a) a arg out
 \end{verbatim}
 Again, instances of the functions are only defined if \code{a} is a linear type. 
 
-The function \code{exchngNull (mn, p)} takes as input two pointers, one of which may be null. If \code{mn} is null the result is
-\code{(mn,p)}, otherwise it is the pair of \code{mayNull p} and the non-null pointer corresponding to \code{mn}.
+The function \code{exchngNull (mn, p)} takes as input two pointers, the first of which may be null. If \code{mn} is not null 
+the result is the pair of \code{mayNull p} and the non-null pointer corresponding to \code{mn}.
 
-The function \code{modifyNull (mn, (modfun,addinput))} is a 
-modification function according to the description of \code{ModPartFun} in Section~\ref{design-operations-concept}.
+The functions \code{modifyNull (mn, (modfun,addinput))} and \code{modifyNullDflt (mn, (modfun,addinput))} are
+alternatives for operation \code{modify} as described in Section~\ref{design-operations-parts}.
 If \code{mn} is not null it modifies the object referenced by \code{mn} by applying the part modification function \code{modfun} of type 
-\code{ModFun a arg} to \code{mn} and returns \code{mn} and the additional result of type \code{out}. Otherwise it returns the null pointer \code{mn}
-together with a fixed additional result. The type \code{arg} of the additional input
-must be discardable, because it is discarded, if \code{mn} is null and the part modification function is never used. 
-For the fixed result Gencot uses the polymorphic abstract function
-\begin{verbatim}
-  defaultVal: all(out). () -> out
-\end{verbatim}
-defined in \code{include/gencot/Default.cogent}. 
-It provides instances for the numeric types \code{U8,U16,U32,U64} which return 0 and for the unit type \code{()} which returns \code{()}. 
-Other instances must be defined manually.
+\code{ModFun a arg out} to \code{mn} and returns \code{mn} and the additional result of type \code{out}. 
+
+The case where the \code{MayNull a} value is null corresponds to the case where the part does not exist. According to the description in
+Section~\ref{design-operations-parts} the function \code{roNotNull} corresponds to function \code{get} with a variant type as result.
+Here a more efficient alternative passing the result value immediately is not possible, since in the null case a valid pointer must
+be passed, which is not available. Therefore the typical C pattern of dereferencing a pointer without testing for null, because
+we know from the context that it is not null, cannot be transferred directly to Cogent. However, a similar effect can be achieved
+using type \code{a} for which it is guaranteed by the Cogent type system that it is a non-null pointer and which is always dereferenced
+without testing it for null. 
+
+Function \code{exchngNull} behaves in the null case as described in Section~\ref{design-operations-parts}, it returns its input \code{(mn,p)}.
+Function \code{modifyNull} corresponds to the third case described in Section~\ref{design-operations-parts}. It uses the same type
+for the additional input and result and returns the input to the part modification functio as output when the part modification 
+function is not used. This is the most general solution, therefore it is preferred over the other two. Since it restricts the function
+to be used as part modification functions, the alternative \code{modifyNullDflt} is provided which discards the additional argument
+and returns the default value \code{defaultVal[out]()} as additional result.
 
 \subsection{Record Types}
 \label{design-operations-record}
 
-As described in Section~\ref{design-types-struct} C struct types are always mapped to Cogent record types, no other 
-record types are generated by Gencot. 
+As described in Section~\ref{design-types-struct} C struct types are always mapped to Cogent record types.
 Additional record types may be introduced manually in the translated Cogent program.
 
 \subsubsection{Creating and Disposing Records}
 
-The empty-value type corresponding to a record type \code{R} is the type \code{R take (..)} where all fields are taken.
-Gencot defines in \code{include/gencot/Memory.cogent} the preprocessor macro 
-\begin{verbatim}
-  RECEMPTY(R)
-\end{verbatim}
-to specify the empty-value type for \code{R}. (It is implemented 
-as preprocessor macro because, like \code{PTREMPTY}, it cannot be implemented as generic type in Cogent.)
+The empty-value type corresponding to a record type \code{R} is the type \code{R take (..)} where all fields are taken,
+which may be denoted by \code{EVTYPE(R)} (see Section~\ref{design-operations-create}).
 
 For every record type \code{R} used in the Cogent program (not only those generated by mapping a C type) Gencot automatically
 generates instances of the functions \code{create} and \code{dispose} of the form:
 \begin{verbatim}
-  create[RECEMPTY(R)]
-  dispose[RECEMPTY(R)]
+  create[EVTYPE(R)]
+  dispose[EVTYPE(R)]
 \end{verbatim}
 
 \subsubsection{Modifying Records}
@@ -818,37 +859,37 @@ record types.
 
 A macro call of the form 
 \begin{verbatim}
-  PUTFUN(R,f,A)
+  PUTFUN(R,f,A,O)
 \end{verbatim}
 expands to the type
 \begin{verbatim}
-  ModTypeFun (R take f) R A ()
+  ModTypeFun (R take f) R A O
 \end{verbatim}
 for a function which puts field \code{f} in a record of type \code{R}. A macro call of the form
 \begin{verbatim}
-  TAKEFUN(R,f,A)
+  TAKEFUN(R,f,A,O)
 \end{verbatim}
 expands to the type
 \begin{verbatim}
-  ModTypeFun R (R take f) A ()
+  ModTypeFun R (R take f) A O
 \end{verbatim}
 for a function which takes field \code{f} in a record of type \code{R} (without returning the taken value).
 
 A macro call of the form 
 \begin{verbatim}
-  PUTFUN<n>(R,(f1,...,fn),f,A)
+  PUTFUN<n>(R,(f1,...,fn),f,A,O)
 \end{verbatim}
 expands to the type
 \begin{verbatim}
-  ModTypeFun (R take (f,f1,...,fn)) (R take (f1,...,fn)) A ()
+  ModTypeFun (R take (f,f1,...,fn)) (R take (f1,...,fn)) A O
 \end{verbatim}
 for a function which puts field \code{f} while the fields \code{fi} are already taken. A macro call of the form
 \begin{verbatim}
-  TAKEFUN<n>(R,(f1,...,fn),f,A)
+  TAKEFUN<n>(R,(f1,...,fn),f,A,O)
 \end{verbatim}
 expands to the type
 \begin{verbatim}
-  ModTypeFun (R take (f1,...,fn)) (R take (f,f1,...,fn)) A ()
+  ModTypeFun (R take (f1,...,fn)) (R take (f,f1,...,fn)) A O
 \end{verbatim}
 for a function which takes field \code{f} while the fields \code{fi} are already taken.
 
@@ -859,124 +900,64 @@ must be manipulated using modification functions for the record. Then such opera
 
 \subsubsection{Initializing and Clearing Records}
 
-Gencot defines in \code{include/gencot/Memory.cogent} the preprocessor macros
-\begin{verbatim}
-  RECINIFUN(R,AIT,AOT)
-  RECCLRFUN(R,AIT,AOT)
-\end{verbatim}
-for the types of initialization and clearing functions for a record type \code{R} with additional input and output of types
-\code{AIT} and \code{AOT}.
-
 Before a record returned by \code{create} can be used it must be initialized by putting values for all fields. 
 Dually, before disposing a record it must be cleared by taking all fields.
 
+All instances of the functions \code{initFull/Heap/Simp} and \code{clearFull/Heap/Simp} described in 
+Section~\ref{design-operations-init} are available
+for record types. Functions \code{initFull} and \code{clearFull} pass a value of the corresponding
+unboxed record type. Functions \code{initSimp} and \code{clearSimp} set all fields to
+their default value, ignoring them upon clearing. Functions \code{initHeap} and \code{clearHeap} 
+are required if the record contains fields of linear type, for allocating or deallocating values for them on the heap.
+
 Functions
-for initializing and clearing a record \code{r} of type \code{R} can be defined in Cogent by putting or taking values 
-into/from all fields.
+for initializing and clearing a record \code{r} of type \code{R} by treating the fields differently can be manually 
+defined in Cogent by putting or taking values into/from all fields.
 
-Putting values into fields of primitive type is straightforward. For fields of a boxed record type \code{S} a value can be created 
-using the function \code{create}, then applying an initialization function of type RECINIFUN(S) and putting the result into the field using the
-Cogent put operation. For fields of a boxed abstract type it depends which abstract functions are available for creating and 
-initializing values. Fields of type \code{MayNull a} can be initialized by putting \code{null()}. For fields of array type and Gencot
-pointer type, instances of \code{create} are available and the type specific initialization functions described in 
-Sections~\ref{design-operations-pointer} and~\ref{design-operations-array}.
-
-Fields of a readonly boxed type \code{S!} cannot be initialized according to this schema. If a value is created in the 
-initialization function for \code{r} it must be banged there but then it may not leave the banged context. The readonly value must be created
-outside and then passed to a banged context. The initialization of \code{r}, its use and its clearing must all happen inside
-this context. To support this, the initialization functions for type \code{R} must take as additional input a tuple of all
-values to be used for readonly fields. A simpler solution is to use type \code{(MayNull S)!} instead for the field and 
-put the value \code{roNull()} during initialization. Then a readonly non-null value can be set later in the corresponding
-banged context. Fields of type \code{(MayNull a)!} can be initialized by putting \code{roNull()}.
+If fields of linear type or of unboxed record or abstract type should be initialized or cleared using specific initialization
+or clearing functions, these functions can either be specified explicitly in the code or they can be passed as additional
+parameter to the initialization or clearing function. 
 
 A field \code{f} with an unboxed record type \code{\#S} corresponds to an embedded struct in C. The space for this struct is allocated together
-with the space for \code{r} by function \code{create}, so it needs only to be initialized. The initialization should be possible by using
-an initialization function of type \code{RECINIFUN(S,AIT)}.
+with the space for \code{r} by function \code{create}, so it needs only to be initialized. The \code{initFull} instance initializes 
+it by writing the value in one assignment. The \code{initHeap/Simp} instances instead pass a pointer to the embedded struct
+to corresponding \code{initHeap/Simp} instances for the part. 
 
-The most natural way of initializing an embedded struct would be in-place using a pointer to the embedded struct as described
-for operation \code{modify} in Section~\ref{design-operations-concept}. But \code{modify} takes as argument a value of type \code{R}
-where no field is taken, so it cannot be used to put the taken field \code{f} into the record. Separate modification functions
+When an initialization function for \code{R} is implemented
+manually, it should be possible to do the same with an arbitrary initialization function of type \code{IniFun EVTYPE(S) S arg out}
+for the part. This is the same approach as for the operation \code{modref} described in Section~\ref{design-operations-modify}.
+However, \code{modref} takes as argument a value of type \code{R}
+where no field is taken, so it cannot be used to put the taken field \code{f} by initializing it. Separate modification functions
 are required for the record with taken fields. If the record contains several embedded structs every modification function
-puts one field and the result type has one field less taken. Thus, defining such modification functions imposes an order
+initializes one field and the result type has one field less taken. Thus, defining such modification functions imposes an order
 in which the embedded structs must be initialized and whether they are initialized before or after the other fields. A corresponding
 modification function for field \code{f} which must be initialized before field \code{g} but after all other fields would be
 \begin{verbatim}
-  putFInR : PUTFUN1(R,(g),f,(RECINIFUN(S,AIT,AOT),AIT))
+  putFInR : all(arg,out). 
+    PUTFUN1(R,(g),f,(IniFun EVTYPE(S) S arg out,arg),out)
 \end{verbatim}
 It is invoked with the initialization function for the embedded record and its argument 
-as additional information.
-
-A more flexible way would be to use the Cogent put operation. However, for field \code{f} it needs a value of type 
-\code{\#S} which is not produced by the initialization function. To bridge this gap we can use an abstract function
+as additional information. In a similar way a field of unboxed record type \code{\#S} can be cleared in-place using an abstract
+function of the form
 \begin{verbatim}
-  deref : S -> #S
+  takeFInR : all(arg,out).
+    TAKEFUN1(R,(g),f,(ClrFun S EVTYPE(S) arg out,arg),out)
 \end{verbatim}
-which dereferences the argument pointer, and returns a copy of its content. Additionally it frees the pointer so that the
-linear input value is safely disposed. (Note that the argument cannot be readonly to avoid freeing the pointer, since then
-the result must also be readonly if it contains linear values.) Then the Cogent code to initialize the embedded struct 
-\code{f} in a record \code{r} using the initialization function \code{init} with additional input \code{arg} would be
-\begin{verbatim}
-  r { f = deref (fst (init (create (),arg))) }
-\end{verbatim}
-It is not as efficient as in-place initialization, since it allocates a struct of type \code{S} on the heap, initializes it,
-copies it to the embedded struct \code{f} and deallocates it.
+which applies a clearing function of type \code{ClrFun S EVTYPE(S) arg out} and takes the field \code{f} while field \code{g} 
+is already taken. Of course, instead of polymorphic functions for all types \code{arg} and \code{out} the specific forms
+corresponding to \code{initFull}, \code{initHeap}, or \code{initSimp} can be defined.
 
-Since both ways may be useful in certain contexts Gencot does not generate one or both of them, they must be provided manually.
-
-Another approach could be that the function \code{create[RECEMPTY(R)]} returns a value where only the fields of primitive and linear type
+Another approach could be that the function \code{create[EVTYPE(R)]} returns a value where only the fields of primitive and linear type
 are taken and the embedded structs are present, but again with all primitive and linear fields taken. Then the initialization function for
 field \code{f} could be directly applied to a pointer to field \code{f}. However, it is still necessary to retrieve the pointer to \code{f}
 with the help of an abstract function which now has to respect the fact that other embedded record fields have types with
 some fields taken. So the same number of additional abstract functions is needed as in the approach above and their argument
 types are of similar complexity.
 
-Fields of an unboxed abstract type are created by Gencot only in the case of arrays and function pointers (see 
-Section~\ref{design-types-array} and~\ref{design-types-function}). Initializing an embedded array field \code{f} of type 
-\code{\#UA'<size>'\_El} can be done in-place or separate like an embedded record field. In the first case an abstract
-function of the form 
-\begin{verbatim}
-  putFInR : PUTFUN1(R,(g),f,(ARRINIFUN(A'<size>'_El,AIT,AOT),AIT))
-\end{verbatim}
-is required which uses an array initialization function and puts \code{f} while field \code{g} is still taken. 
-In the second case an abstract function of the form
-\begin{verbatim}
-  deref : A'<size>'_El -> #UA'<size>'_El
-\end{verbatim}
-is required which copies the array content and frees the array on the heap.
-
-Initializing a field \code{f} of a function pointer type \code{\#F\_...} can always be done using the Cogent put operation.
+Initializing a field \code{f} with a function pointer type \code{\#F\_...} can always be done using the Cogent put operation.
 The value to be put must be constructed using the function \code{to\_F\_...} (see Section~\ref{design-types-function}). To
 avoid null pointers to functions, as described in Section~\ref{app-transfunction-pointer}, a dummy function should be defined in
 Cogent and passed to the \code{to\_F\_...} function.
-
-In a clearing function for a record all content shall be discarded. For fields of primitive and readonly type this is
-straightforward by using the Cogent take operation and ignoring the taken value. For fields of linear type the taken value
-cannot be simply discarded, it needs special treatment.
-
-For a field of a boxed type \code{S} the taken value must be disposed by applying the function \code{dispose}.
-For a field of type
-\code{MayNull S} the value must be tested whether it is null, otherwise the function \code{dispose} must be applied. In
-all these cases a clearing function for type \code{S} must be applied first, so that the dispose-function is applicable.
-
-A field of unboxed record type \code{\#S} is linear, if the embedded record contains linear fields. During clearing these must be
-disposed. This can be achieved by applying a clearing function for type \code{S} before taking the field. Dually to the 
-initialization of an embedded record this can be done in-place or using a copy. The in-place approach requires an abstract
-function of the form
-\begin{verbatim}
-  takeFInR : TAKEFUN1(R,(g),f,(RECCLRFUN(S,AIT,AOT),AIT))
-\end{verbatim}
-which applies a clearing function of type \code{RECCLRFUN(S,AIT,AOT)} and takes the field \code{f} while field \code{g} is already taken.
-The other approach requires an abstract function 
-\begin{verbatim}
-  refer : #S -> S
-\end{verbatim}
-which allocates an object on the heap and stores the content of its argument into it. Then field \code{f} can be taken, the taken
-value passed to \code{refer}, and a clearing function applied to its result, before it is disposed.
-
-A field of an unboxed abstract type is never linear, so the field can always be taken and the taken value discarded.
-However, if the C implementation of the abstract type contains pointers, they must be deallocated. This can be achieved by
-applying a clearing function in the same way as for an unboxed record field with the help of an abstract function
-\code{takeFInR} or \code{refer}.
 
 \subsubsection{Accessing Record Fields}
 
@@ -986,60 +967,71 @@ The parts of a record are its fields. The conceptual operations for accessing pa
 The field to be accessed by the operation must be specified by its name. This can only be done as part of the function name.
 Therefore Gencot does not define polymorphic functions for accessing the fields of arbitrary record types. For every record type
 \code{R} a set of differently named functions must be defined for every field \code{f}. Since only some of the functions are needed, Gencot
-does not automatically generate such functions, they must be defined manually, if required, then they have the following forms
+does not automatically generate such functions, they must be defined manually, if required.
 
+The access functions can be defined as polymorphic functions in respect to the record type. Then, for every field name
+\code{f} there is a polymorphic function which can be used for all records with a field named \code{f}. Additionally, the
+function must be polymorphic in the field type, so that it supports fields of different type. The resulting 
+functions have the following forms
 \begin{verbatim}
-  getFInR : R! -> S!
-  getFInR r = r.f
-  setFInR : ModFun R S ()
-  setFInR (r,v) = r{f=v}
-  exchngFInR : ModFun R S S
-  exchngFInR (r,v) = let r{f=v'} in (r{f=v},v')
-  modifyFInR : all(arg,out). ModPartFun R S arg out
-  modifyFInR (r,(m,x)) = 
-    let r{f} and (f,y) = m(f,x) in (r{f=f},y)
+  getFldF : all(rec,fld). rec! -> fld!
+  setFldF : all(rec,fld:<D). ModFun rec fld ()
+  exchngFldF : all(rec,fld). ModFun rec fld fld
+  modifyFldF : all(rec,fld,arg,out). ModPartFun rec fld arg out
 \end{verbatim}
+where \code{rec} is the type of the record and \code{fld} is the type of the field.
 
-The operation \code{get} for a field \code{f} of a record \code{r} corresponds to the Cogent member access operation \code{r.f}.
+The operation \code{getFldF} for a field \code{f} corresponds to the Cogent member access operation \code{r.f}.
 Since the \code{get} operation is not passed as argument to other functions, it need not be defined for record fields, it is always possible
 to use the Cogent member access operation instead.
 
-The operation \code{set} for a field \code{f} of a record \code{r} and a value \code{v} corresponds to the Cogent put operation r{f = v}, if
-the field has a nonlinear type. Otherwise it is not supported.
+The operation \code{setFldF} for a field \code{f} and a value \code{v} corresponds to the Cogent put operation r{f = v}, if
+the field has a discardable type. Otherwise it is not supported.
 
-The operation \code{exchng} for a field \code{f} of a record \code{r} and a value \code{v} can be implemented in Cogent by first taking the 
+The operation \code{exchngFldF} for a field \code{f} and a value \code{v} can be implemented in Cogent by first taking the 
 old value of \code{f}, then putting \code{v} and finally returning the record together with the old value.
 
-The operation \code{modify} for a field \code{f} of a record \code{r} and a field modification function can be implemented in Cogent 
+The operation \code{modifyFldF} for a field \code{f} and a field modification function can be implemented in Cogent 
 by first taking the value of \code{f}, then applying the modification function to it, and finally putting the result back into
-the field.
+the field. 
+
+All three operations may be passed as argument to other modification functions, then they must be defined and cannot be replaced
+by a direct implementation in Cogent.
 
 The operations \code{getref} and \code{modref} cannot be implemented in Cogent, they must be defined as abstract function which are implemented in 
-C with the help of the address operator \code{\&}. For a field \code{f} of type \code{S} the corresponding function definitions have the form
+C with the help of the address operator \code{\&}. For a field \code{f} the corresponding function definitions have the form
 \begin{verbatim}
-  getrefFInR : R! -> PS!
-  modrefFInR : all(arg,out). ModPartFun R PS arg out
+  getrefFldF : all(rec,pfld). rec! -> pfld!
+  modrefFldF : all(rec,pfld,arg,out). ModPartFun rec pfld arg out
 \end{verbatim}
-where \code{PS} is the Gencot mapping of the type of pointer to \code{S}. Remember that according to the definition of 
-\code{ModPartFun} the function \code{modrefFInR} is invoked in the form
+where \code{pfld} is the Gencot mapping of the type of pointer to the field type. 
+
+Since whenever an instance of these functions is defined, the field is safely existing, the case of the nonexisting
+part needs not be respected.
+
+Remember that according to the definition of 
+\code{ModPartFun} the function \code{modrefFldF} is invoked in the form
 \begin{verbatim}
-  (r',o) = modrefFInR(r, (m,a))
+  (r',o) = modrefFldF(r, (m,a))
 \end{verbatim}
-where \code{r} is a boxed record value which is not readonly, \code{m} is a modification function of type \code{ModFun PS arg out} which
-is equivalent to type \code{(PS,arg) -> (PS,out)}, \code{a} is the argument of type \code{arg} passed to \code{m}, \code{r'} is
+where \code{r} is a boxed record value which is not readonly, \code{m} is a modification function of type \code{ModFun pfld arg out} which
+is equivalent to type \code{(pfld,arg) -> (pfld,out)}, \code{a} is the argument of type \code{arg} passed to \code{m}, \code{r'} is
 the record value \code{r} after the modification, and \code{o} is the additional result of type \code{out} returned by \code{m}.
 
 \subsection{Array Types}
 \label{design-operations-array}
 
-The abstract types generated for arrays with known size are complemented by Gencot by abstract polymorphic 
-functions for working with
+Gencot represents arrays of known size in Cogent always by a (boxed) record of a type \code{An...} (where \code{n} is the array size)
+with a single field of (unboxed) abstract type \code{\#UAn...} which in C is defined to be the array type (see Section~\ref{design-types-array}).
+We call these types ``Gencot array types'' here.
+
+Gencot array types are complemented abstract polymorphic functions for working with
 arrays. For these functions Gencot automatically generates the instance 
 implementations in C. All these implementations involve the array size in some way. The developer may manually introduce
-other array types by adhering to the Gencot naming schema for array types. Then Gencot also supports these types and
-generates instances of all polymorphic functions for them.
+additional Gencot array types by adhering to the Gencot naming schema for array types (see Section~\ref{design-types-array}). 
+Then Gencot also supports these types and generates instances of all polymorphic functions for them.
 
-If the array size is unknown (types of the form \code{A\_El}) or too complex (types of the form \code{A''\_El})
+If the array size is unknown (types of the form \code{A\_El})
 no instances of the polymorphic functions are provided by Gencot. However, implementations may be provided manually. Often
 this is possible by the developer determining the array size from the context. If several array types with 
 different unknown sizes have been mapped to the same abstract type, they must be disambiguished manually.
@@ -1049,34 +1041,27 @@ them as global or local variable, but Cogent has no language constructs which su
 
 \subsubsection{Creating and Disposing Arrays}
 
-Gencot represents array values in Cogent always by an abstract type of the form \code{A'<size>'...}.
-Hence Cogent does not provide a language construct to create such values. 
+Cogent does not provide a language construct to create or dispose values for Gencot array types.
 
-The empty-value type corresponding to type \code{A'<size>'...} is the abstract type \code{TA'<size>'...} which
-is automatically generated by Gencot. It has a similar meaning as a Cogent
-record with all fields taken. It statically marks the array as uninitialized. It is mapped to the same C 
-type as \code{A'<size>'...}.
+The empty-value type corresponding to type \code{An...} is the type generated by the macro call \code{EVTYPE(An...)} as 
+usual. It statically marks the array as uninitialized.
 
-Gencot defines in \code{include/gencot/Memory.cogent} the preprocessor macro 
-\begin{verbatim}
-  ARREMPTY(A...)
-\end{verbatim}
-to specify the empty-value type for an array type \code{A...}.
-
-For every array type \code{A...} used in the Cogent program (not only those generated by mapping a C type) Gencot automatically
+For every Gencot array type \code{An...} used in the Cogent program Gencot automatically
 generates instances of the functions \code{create} and \code{dispose} of the form:
 \begin{verbatim}
-  create[ARREMPTY(A...)]
-  dispose[ARREMPTY(A...)]
+  create[EVTYPE(An...)]
+  dispose[EVTYPE(An...)]
 \end{verbatim}
 
-Both functions also support multidimensional array types of the form \code{A'<size>'UA'<size>'...\_El}.
+Both functions also support multidimensional array types of the form \code{An1An2...}.
 
 \subsubsection{Modifying Arrays}
 
-Since array types are always abstract, all modifications of array values must be performed using abstract functions.
+If an array is seen as a structured value, its elements are its parts.
 
-The type constructors \code{ModFun}, \code{ModTypeFun}, and \code{ModPartFun} can be applied to array types with the 
+Since the actual array type is always abstract, all accesses to array elements must be performed using abstract functions.
+
+The type constructors \code{ModFun}, \code{ModTypeFun}, and \code{ModPartFun} can be applied to Gencot array types with the 
 usual intended semantics. 
 
 Gencot provides no equivalent for the Cogent take and put operations for array elements. It would be
@@ -1087,134 +1072,170 @@ this is not feasible.
 
 An array initialization function sets a valid value for every element. An array clearing function clears every element, 
 clearing and disposing all linear values contained in elements. Since all elements are of the same type, they can all be
-treated in the same way by an initialization or clearing function for the element type. Initializing and clearing an element
-can be done ``in-place'' by passing a pointer to the element to the element initialization or clearing function. As usual,
-an additional input given to the array function is passed through to every invocation of the element function. 
+treated in the same way by an initialization or clearing function for the element type. Array elements are similar to
+an embedded struct: the element value is stored in-place in the memory region used for the array. Hence, initializing and 
+clearing an element can also be done in-place by passing a pointer to the element to the element initialization or 
+clearing function. As usual, an additional input given to the array function is passed through to every invocation 
+of the element function. 
 
-It could be useful to also know the element index in the element function. This could by supported by passing the index
-as additional input to the elemet functions. However, this implies that the normal initialization and clearing functions
+All instances of the functions \code{initFull/Heap/Simp} and \code{clearFull/Heap/Simp} described in 
+Section~\ref{design-operations-init} are available
+for Gencot array types. Functions \code{initFull} and \code{clearFull} take or return the complete array content
+as an unboxed value of type \code{\#An...}. Functions \code{initSimp} and \code{clearSimp} set all elements
+to their default value, ignoring them upon clearing. Functions \code{initHeap} and \code{clearHeap} 
+are required, if the element type is linear, for allocating or deallocating it on the heap.
+
+For example an array \code{a} of type \code{EVTYPE(A16\_U32)} can be initialized by setting all elements to \code{0} 
+(the \code{defaultVal[U32]()}) with typechecks by the Cogent expression
+\begin{verbatim}
+  INIT(Simp,A16\_U32) (a,())
+\end{verbatim}
+and an array \code{a} of pointers to integers with Cogent type \code{A16P\_U32} can be cleared with typechecks by the Cogent expression
+\begin{verbatim}
+  CLEAR(Heap,A16P\_U32) (a,heap)
+\end{verbatim}
+which will clear and dispose all elements.
+
+Additionally, Gencot provides operations where the user can specify how to initialize or clear a single element, which is then
+applied to all elements. The specification for a single element is done by passing an initialization or clearing function which
+can be applied to a pointer to the element. Gencot defines the corresponding polymorphic abstract functions
+\begin{verbatim}
+  initArrPar: all(evt,vvt,epe,vpe,arg:<S,out). 
+     IniFun evt vvt (IniFun epe vpe arg out, arg, (out,out)->out) out
+  clearArrPar: all(vvt,evt,vpe,epe,arg:<S,out). 
+     ClrFun vvt evt (ClrFun vpe epe arg out, arg, (out,out)->out) out
+  initArrSimp: all(evt,vvt,epe,vpe,arg:<S). 
+     IniFun evt vvt (IniFun epe vpe arg (), arg) ()
+  clearArrSimp: all(vvt,evt,vpe,epe,arg:<S). 
+     ClrFun vvt evt (ClrFun vpe epe arg (), arg) ()
+  initArrSeq: all(evt,vvt,epe,vpe,arg). 
+     IniFun evt vvt (IniFun epe vpe arg arg, arg) arg
+  clearArrSeq: all(evt,vvt,epe,vpe,arg). 
+     IniFun evt vvt (IniFun epe vpe arg arg, arg) arg
+\end{verbatim}
+where \code{epe} is the empty-value type for a pointer to an element and \code{vpe} is the corresponding valid-value type.
+The first pair of functions passes the additional input of type \code{arg} to every invocation of the element function, 
+therefore it must be sharable. The outputs of type \code{out} are combined using the function passed as third part of
+the additional input to \code{initArrPar} or \code{clearArrPar}. 
+The second pair uses an element function which does not return a result and needs no combination function.
+The third pair of functions passes the additional result of every invocation of the element function as additional input 
+to the invocation for the next element. Thus it must have a common type, which may be linear, since it is neither shared nor
+discarded. In particular, it is possible to use \code{initHeap} or \code{clearHeap} as element function (which has exactly
+the same effect as using \code{initHeap} or \code{clearHeap} for the array as a whole).
+
+For every array type \code{AnEl} (or \code{An\_El}) Gencot provides the instances
+\begin{verbatim}
+  initArrPar[EVTYPE(AnEl),AnEl,EVTYPE(El),El,A,O]
+  clearArrPar[AnEl,EVTYPE(AnEl),El,EVTYPE(El),A,O]
+  initArrSimp[EVTYPE(AnEl),AnEl,EVTYPE(El),El,A]
+  clearArrSimp[AnEl,EVTYPE(AnEl),El,EVTYPE(El),A]
+  initArrSeq[EVTYPE(AnEl),AnEl,EVTYPE(El),El,A]
+  clearArrSeq[AnEl,EVTYPE(AnEl),El,EVTYPE(El),A]
+\end{verbatim}
+for all types \code{A} and \code{O}.
+
+In these instances all types besides \code{A} and \code{O} are uniquely determined by the array type \code{AnEl}, although
+this cannot be expressed by Cogent type constraints. Therefore Gencot defines in \code{include/gencot/Memory.cogent}
+the preprocessor macros
+\begin{verbatim}
+  INITARR(<k>,n,ek,El,A,O)
+  CLEARARR(<k>,n,ek,El,A,O)
+\end{verbatim}
+which expand to the corresponding instance specifications shown above. Parameter \code{<k>} is either \code{Par}, \code{Simp}
+or \code{Seq}. The additional parameter \code{ek} is required for technical reasons and specifies the
+kind of the element type. It may be empty for a primitive type, \code{F} for a function pointer type, \code{R} for
+a boxed record type, \code{U} for an unboxed record type, \code{A} for a Gencot array type, and \code{P} for all Gencot 
+pointer types. If \code{<k>} is not \code{Par} the last parameter \code{O} is ignored and may be empty.
+
+For example an array \code{a} of type \code{EVTYPE(A16\_U32)} can be initialized by setting all elements to \code{5} 
+with typechecks by the Cogent expression
+\begin{verbatim}
+  INITARR(Simp,16,,U32,U32,) (a,(INIT(Full,P\_U32),5))
+\end{verbatim}
+
+It could be useful to also know the element index in the element function. This could be supported by passing the index
+as additional input to the element functions. However, this implies that the normal initialization and clearing functions
 for the element type cannot be used as element functions here, since they do not expect the index as additional input.
-Therefore the functions automatically supported by Gencot for initializing and clearing array do not pass the index 
-to the element functions. If needed, such functions can be defined manually.
-
-Gencot defines generic types for array initialization and clearing functions in \code{include/gencot/Memory.cogent}:
-\begin{verbatim}
-  type ArrIniFun evt vvt epe vpe arg out =
-    IniFun evt vvt (IniFun epe vpe arg out, arg) out
-  type ArrClrFun vvt evt vpe epe arg out =
-    ClrFun vvt evt (ClrFun vpe epe arg out, arg) out
-\end{verbatim}
-where \code{evt} is the empty-value array type, \code{vvt} is the valid-value array type, \code{epe} is the empty-value
-element pointer type and \code{vpe} is the valid-value element pointer type. \code{arg} and \code{out}
-are the types of the additional input and output for the element function. All types besides \code{arg} and \code{out} are uniquely determined by the 
-array type \code{vvt}, although this cannot be expressed by Cogent type constraints. Therefore Gencot  defines in 
-\code{include/gencot/Memory.cogent} the preprocessor macros
-\begin{verbatim}
-  ARRINIFUN(size,k,EL,AIT,AOT)
-  ARRCLRFUN(size,k,EL,AIT,AOT)
-\end{verbatim}
-for the types of initialization and clearing functions for an array type \code{A} with additional input and output of types \code{AIT} and \code{AOT}.
-The array type \code{A} is determined by the number of elements \code{size} and the element type 
-\code{EL}. The additional parameter \code{k} specifies the kind of the element type. It may be empty for a primitive type,
-\code{F} for a function pointer type, \code{R} for a boxed record type, \code{U} for an unboxed record type, or \code{P} for 
-all other pointer types. 
-
-For example the macro call \code{ARRINIFUN(16,,U32,(),())} expands to the initialization function type
-\begin{verbatim}
-  IniFun TA'16'_U32 A'16'_U32 TP_U32 P_U32 () ()
-\end{verbatim}
-and the macro call \code{ARRCLRFUN(300,U,R,Arg,U16)} expands to the clearing function type
-\begin{verbatim}
-  ClrFun A'300'U_R TA'300'U_R R (R take (..)) Arg U16
-\end{verbatim}
-
-Gencot defines the polymorphic functions
-\begin{verbatim}
-  initArr: all(evt,vvt,epe,vpe,arg:<S,out). 
-     ArrIniFun evt vvt epe vpe arg out
-  clearArr: all(vvt,evt,vpe,epe,arg:<S,out). 
-     ArrClrFun evt vvt epe vpe arg out
-\end{verbatim}
-Since the additional input of type \code{arg} is passed to every invocation of the initialization or clearing function
-it must be sharable. The outputs of type \code{out} are combined using the function
-\begin{verbatim}
-  defaultCombine: all(out). (out,out) -> out
-\end{verbatim}
-defined in \code{include/gencot/Default.cogent}. It provides instances for the numeric types which return the first argument if it
-is not 0, otherwise the second, and it provides an instance for the unit type \code{()} which returns \code{()}.
-
-Gencot defines the preprocessor macros
-\begin{verbatim}
-  ARRINIINST(size,k,EL,AIT,AOT)
-  ARRCLRINST(size,k,EL,AIT,AOT)
-\end{verbatim}
-with the same parameters as above. They can be added to the initialization and clearing functions to select a specific instance
-to employ the Cogent type checker for checking the type consistency of the function use.
-
-For example an array \code{a} of type \code{TA'16'\_U32} can be initialized by setting all elements to \code{5} with typechecks by 
-the Cogent expression
-\begin{verbatim}
-  initArr[ARRINIFUN(16,,U32,(),())] (a,(initPtr,5))
-\end{verbatim}
-
-Gencot provides instances of these functions also for multidimensional array types of the form \code{A'<size>'UA'<size>'...\_El}.
+Therefore the functions automatically supported by Gencot for initializing and clearing arrays do not pass the index 
+to the element functions. However, using \code{initArrSeq} or \code{clearArrSeq}, the index can be calculated by
+passing it from one invocation of the element function to the next, counting it up in the element function.
 
 \subsubsection{Accessing Array Elements}
 
-If an array is seen as a structured value, its elements are its parts.
-Then all operations for accessing parts of a structured value are nontrivial. Since elements are specified by an index value
-Gencot provides polymorphic functions for all six operations
+All operations for accessing parts of a structured value are nontrivial for the elements of an array. Since elements are 
+specified by an index value a specified element need not exist, this case must be handled by the part access operations.
+
+Gencot provides polymorphic functions for all six operations with alternatives for the case where the element does not 
+exist:
 \begin{verbatim}
-  getArr : all(arr,idx,el). (arr!,idx) -> Option el!
+  getArr : all(arr,idx,el). (arr!,idx) -> el!
+  getArrChk : all(arr,idx,el). (arr!,idx) -> Result el! ()
   setArr : all(arr,idx,el:<D). ModFun arr (idx,el) ()
   exchngArr : all(arr,idx,el). ModFun arr (idx,el) el
-  modifyArr : all(arr,idx,el,arg:<D,out). 
+  modifyArr : all(arr,idx,el,arg). 
+    ModFun arr (idx, ModFun el arg arg, arg) arg
+  modifyArrDflt : all(arr,idx,el,arg:<D,out:<DSE). 
     ModFun arr (idx, ModFun el arg out, arg) out
-  getrefArr : all(arr,idx,pel). (arr!,idx) -> Option pel!
-  modrefArr : all(arr,idx,pel,arg:<D,out). 
+  getrefArr : all(arr,idx,pel). (arr!,idx) -> pel!
+  getrefArrChk : all(arr,idx,pel). (arr!,idx) -> Result pel! ()
+  modrefArr : all(arr,idx,pel,arg). 
+    ModFun arr (idx, ModFun pel arg arg, arg) arg
+  modrefArrDflt : all(arr,idx,pel,arg:<D,out:<DSE). 
     ModFun arr (idx, ModFun pel arg out, arg) out
 \end{verbatim}
 The type variable \code{arr} denotes the array type, \code{idx} denotes the index type,
 \code{el} denotes the array element type, and \code{pel} denotes the type of pointers to elements. 
-The result types of \code{getArr} and \code{getrefArr} use the generic type \code{Option} defined in
-the Cogent standard library.
 
 Instances of these functions are only defined if \code{arr} is a Gencot array type. Type \code{idx}
 must be one of \code{U8, U16, U32} according to the \code{<size>} of the array. Types \code{el} and
-\code{pel} must be as determined by \code{arr}. \code{arg} and \code{out} may be arbitrary types.
+\code{pel} must be as determined by \code{arr}. \code{arg} and \code{out} may be arbitrary types
+only constrained as specified above.
 
-Function \code{getArr} retrieves the indexed element as readonly. If the specified index 
-is not in the range \code{0..<size>-1} the function returns \code{None}.
+Function \code{getArr} retrieves the indexed element as readonly. If theelement does not exist because
+the specified index is not in the range \code{0..<size>-1} the function returns the element with 
+index \code{0} which always exists since Gencot array types must have atleast one element. Note that
+this solution is more general than returning \code{defaultVal} since it works for arbitrary element types.
+As alternative, as described in Section~\ref{design-operations-parts}, the function
+\code{getArrChk} returns a variant value using the value \code{Error()} if the element does not exist.
+This function should be used whenever it cannot be proven that the index is valid.
 
-Function \code{setArr} is only defined for a discardable element type. 
+Function \code{setArr}, as usual, is only defined for a discardable element type. 
 It simply discards the old value of the indexed element and sets it to the specified value.
-If the specified index is not in the range \code{0..<size>-1} the function returns the unmodified array.
 
 Function \code{exchngArr}
 replaces the element at the specified position by the element passed as parameter and returns the old element in the result.
+
 If the specified
-index is not in the range \code{0..<size>-1} the function returns the same element which has been
-passed as input, together with the unmodified array. 
+index is not in the range \code{0..<size>-1} both function work as described in Section~\ref{design-operations-parts}:
+\code{setArr} returns the unmodified array and \code{exchngArr} returns its unmodified input.
 
 Function \code{modifyArr} modifies the element at the specified position by applying the element modification function
 to it. If the specified
-index is not in the range \code{0..<size>-1} the function returns the unmodified array together with the default value
-\code{defaultVal ()} for type \code{out}. Since in this case the 
-additional input to the modification function is discarded, its type \code{arg} must be discardable.
+index is not in the range \code{0..<size>-1} the function returns the unmodified array together with the additional input
+value for the element modification function. This corresponds to the third solution described in Section~\ref{design-operations-parts}
+and requires that the types of additional input and result are the same. Since this may prevent the use of some element
+modification functions an alternative is provided by the function \code{modifyArrDflt} which discards the additional
+input and returns the default value \code{defaultVal[out] ()}. This allows different types for input and result, however,
+the required constraints apply to these types.
 
 Function \code{getrefArr} returns a pointer to the element in the array without copying the element. This is safe since 
-both the array and the result
-type are readonly. If the specified index is not in the range \code{0..<size>-1} the function returns \code{None}. 
+both the array and the result type are readonly. If the element does not exist it behaves like \code{getArr}, returning 
+a pointer to the element with index \code{0}. The alternative function \code{getrefArrChk} is provided to returns the 
+corresponding variant value.
 
-Function \code{modrefArr} works like \code{modifyArr} but passes a pointer to the element to the element modification function.
+Functions \code{modrefArr} and \code{modrefArrDflt} work like \code{modifyArr} and \code{modifyArrDflt} but pass a pointer 
+to the element to the element modification function.
 
-The types of \code{modifyArr} and \code{modrefArr} are similar to a \code{ModPartFun}, but differ because in addition to the 
+The types of \code{modifyArr}, \code{modifyArrDflt}, \code{modrefArr}, and \code{modrefArrDflt} are similar to a 
+\code{ModPartFun}, but differ because in addition to the 
 element modification function and its argument the element index must be passed as argument.
 
 Note that it is not possible
-to pass the array or parts of it as additional information in the parameter of type \code{arg}, since that would always be
+to pass the array or parts of it as additional information in the parameter of type \code{arg} of the element modification
+functions, since that would always be
 a second use of the array of linear type. If several elements must be modified together, a specific modification function
 must be defined and used instead of \code{modifyArr} or \code{modrefArr}.
 
-Gencot does not provide instances of these functions for multidimensional array types of the form \code{A'<size>'UA'<size>'...\_El}.
+For multidimensional array types of the form \code{An1An2...} the element type is again an array type and the access 
+functions work accordingly.
 

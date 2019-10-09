@@ -109,8 +109,9 @@ a struct or an array. The C declaration can be rewritten as
 \end{verbatim}
 with a separate statement for initializing the variable. In the first case this is valid C code. In the other cases 
 the statement is not, but we will translate it according to the intended semantics. For a struct type Cogent provides
-corresponding expressions for unboxed records, for an array type Gencot provides the function \code{initArr} for
-simple cases or the initialization can be done by several applications of \code{setArr} (see Section~\ref{design-operations-array}).
+corresponding expressions for unboxed records. For other types Gencot provides its initialization functions 
+described in Section~\ref{design-operations-init} and~\code{design-operations-array},
+or the initialization can be done by several applications of operation \code{set} (see Section~\ref{design-operations-parts}).
 
 A declaration without an initializer should always be followed by an assignment to it before it is accessed. If not
 we insert an assignment of a default value before the first access.
@@ -235,7 +236,7 @@ If \code{lhs} is a logical chain of \code{n} member access, index, and dereferen
 \end{verbatim}
 where \code{expr} is the translation of \code{e} and the sequence of \code{modifyi} functions is determined by the chain of access
 expressions and \code{set} is an 
-instance of the operation \code{set} (see Section~\ref{design-operations-concept}). Again, the result of \code{expr} is used twice,
+instance of the operation \code{set} (see Section~\ref{design-operations-parts}). Again, the result of \code{expr} is used twice,
 the same considerations as above apply if it has a linear type.
 
 For example the C assignment expression
@@ -245,10 +246,11 @@ For example the C assignment expression
 is translated according to this rule to the Cogent binding
 \begin{verbatim}
   (v,s) = let v = 5
-    in (v,fst(modrefAInS(s,(modifyArr,(i,setXInEl,v)))))
+    in (v,fst(modrefFldA(s,(modifyArr,(i,exchngFldX,v)))))
 \end{verbatim}
-where \code{modrefAInS} and \code{setXInEl} are abstract modification functions for the fields \code{a} and \code{x},
-respectively, as described in Section~\ref{design-operations-record}.
+where \code{modrefFldA} and \code{exchngFldX} are abstract modification functions for the fields \code{a} and \code{x},
+respectively, as described in Section~\ref{design-operations-record}. \code{exchngFldX} is used instead of \code{setFldX}
+because \code{modifyArr} expects a modification function where the additional input and result have the same type.
 
 No other cases for \code{lhs} are valid in a C assignment.
 
@@ -268,7 +270,7 @@ For example, a corresponding translation of \code{*(s->m1->m2) = 5} is
     and (v,m2) = let v = 5 in (v,setPtr(m2,v))
     in (v,s{m1=m1{m2=m2}})
 \end{verbatim}
-This approach avoids the need to manually define and implement the functions \code{modifyMiIn...}.
+This approach avoids the need to manually define and implement the functions \code{modifyFldM...}.
 
 An application of an increment/decrement postfix operator \code{ss} where \code{s} is \code{+} or \code{-} has the form
 \code{lhs ss}. If \code{lhs} is a single identifier \code{v1} this identifier must have a numerical type and the expression 
@@ -370,9 +372,12 @@ For example, the function call \code{f(5,s->a[i]->x,z)} can be translated by fir
 for the function call is
 \begin{verbatim}
   (v,s) = let (s,v) = 
-    modrefAInS(s,(modifyArr,(i,modifyXInEl,(f,(5,z)))))
+    modrefFldA(s,(modifyArrDflt,(i,modifyFldX,(f,(5,z)))))
     in (v,s)
 \end{verbatim}
+Here function \code{modifyArrDflt} must be used since the additional input and output of \code{f} have different types.
+If index \code{i} is invalid \code{f} is never applied and a default value is used instead of its result.
+
 Again, if the chain logically starts with member accesses, that part of the chain can be translated using take and put operations.
 
 In all other cases the function \code{f} must be modified so that it takes the starting identifiers of the chains as
@@ -614,7 +619,7 @@ Then the binding for the statement \code{e;} is
     in (dummy,False,v1,...,vn)
 \end{verbatim}
 where \code{dummy} is the dummy expression \code{gencotDummy[Res]()} for the function result type \code{Res}, as 
-described in Section~\ref{design-operations-concept}. If the C code is correct, it can always be eliminated by 
+described in Section~\ref{design-operations-dummy}. If the C code is correct, it can always be eliminated by 
 simplifying the generated Cogent code for the function body.
 
 The result \code{v} of \code{e} is discarded, the same considerations apply here as described for expressions using
@@ -888,16 +893,11 @@ A translation to Cogent is
 where the reference to the modified structure is bound to \code{p'}. Note that in the None-case the result cannot be specified as 
 \code{p} since this would be a second use of the linear value \code{p} which is prevented by Cogent.
 
-Alternatively this can be translated using the function \code{modifyNull}:
+Alternatively this can be translated using the function \code{modifyNullDflt}:
 \begin{verbatim}
-  let p' = fst (modifyNull (p, (setMInP, v)))
+  let p' = fst (modifyNullDflt (p, (setFldM, v)))
 \end{verbatim}
-where the function used for modifying the structure is defined as
-\begin{verbatim}
-  setMInP: ModFun P M ()
-  setMInP (s,v) = (s{m = v}, ())
-\end{verbatim}
-and \code{M} is the type of field \code{m}.
+using function \code{setFldM} for modifying the structure.
 
 \subsection{The Address Operator \code{\&}}
 \label{app-transfunction-addrop}
@@ -950,14 +950,20 @@ All these problems can be solved by allocating the variable on the heap instead.
 must be replaced by a call to the polymorphic function \code{create} (see Section~\ref{design-operations-pointer}) and 
 at the end of its scope a call to the polymorphic function \code{dispose} must be added. Then the address
 operator need not be translated, since \code{create} already returns the linear value which can be 
-used for the same purposes. The resulting Cogent code would be
+used for the same purposes. The resulting Cogent code for a variable of type \code{int} initialized to \code{5}
+would be
 \begin{verbatim}
-  let ptr = initPtr[PTRINIINST(U32,)] (create(), 5)
-  and ... use ptr ...
-  in dispose (fst clearPtr[PTRCLRINST(U32,,,)](ptr,()))
+  create[P_U32] heap
+  | Success (ptr,heap) ->
+    fst INIT(Full,P_U32) (ptr,#{cont=5})
+    | Success ptr ->
+      let  ... use ptr ...
+      in dispose (fst CLEAR(Simp,P_U32) (ptr,()),heap)
+    | Error eptr -> dispose (eptr,heap)
+  | Error heap -> heap
 \end{verbatim}
-where \code{initPtr} is used to initialize the referenced value. \code{clearPtr} is only used for consistency
-with the general framework, it does nothing here since values of type U32 can be discarded.
+where \code{INIT(Full,P\_U32)} is used to initialize the referenced value. Here, the result of the expression is
+only the heap, in realistic cases it would be a tuple with additional result values.
 
 \subsubsection{Address of Struct Member}
 
@@ -971,34 +977,26 @@ by the linear Cogent type
   type Struct_Cogent_ii = { i1: U32, i2: U32 }
 \end{verbatim}
 
-If the overall structure in Cogent is readonly an abstract function of the form
-\begin{verbatim}
-  accessI2InCogent_ii : Struct_Cogent_ii! -> P_U32!
-\end{verbatim}
-can be used to access the Cogent field through a pointer. This is an instance of the general \code{access} operation
+If the overall structure in Cogent is readonly the abstract polymorphic function \code{getrefFldI2}
+can be used to access the Cogent field through a pointer. This is an instance of the general \code{getref} operation
 for records as described in Section~\ref{design-operations-record}.
 
 If the overall structure is modifyable, determining a pointer to the field would introduce sharing for the
-field, since it can be modified through the pointer or by modifying the structure. A safe solution is an 
-abstract function of the form
-\begin{verbatim}
-  modifyI2InCogent_ii : all(arg,out). 
-    ModPartFun Struct_Cogent_ii P_U32 arg out
-\end{verbatim}
-which is an instance of the general \code{modify} operation
+field, since it can be modified through the pointer or by modifying the structure. A safe solution is to use 
+the abstract polymorphic function \code{modrefFldI2} which is an instance of the general \code{modref} operation
 for records as described in Section~\ref{design-operations-record}.
 
 \subsubsection{Address of Array Element}
 
 The third use case is similar to the second. It often occurs if the array itself is represented by a pointer to its first
-element (see Section~\ref{app-transtype-arrpoint}). This case can simply be replaced by using the element index instead of a 
+element (see Section~\ref{app-transtype-arrpoint}). This case could simply be replaced by using the element index instead of a 
 pointer to the element. The array index is nonlinear and thus easier to work with. However, this solution is not binary
 compatible, if the element pointer is also accessed outside the Cogent compilation unit.
 
 A binary compatible solution can be achieved in a similar way as for struct members. The first prerequisite for it is
 to allocate the array on the heap.
 
-Then the polymorphic functions \code{accessArr} and \code{modifyArr} (see Section~\ref{design-operations-array}) can be used
+Then the polymorphic functions \code{getrefArr} and \code{modrefArr} (see Section~\ref{design-operations-array}) can be used
 for working with pointers to elements.
 
 \subsubsection{Address of Function}

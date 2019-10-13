@@ -168,7 +168,7 @@ genDerivedTypeNames tdn tc = do
 genDerivedTypeDefs :: String -> (String,LCA.Type) -> FTrav [GenToplv]
 genDerivedTypeDefs nam (fid,(LCA.PtrType t _ _)) | not $ isFunction t = do
     gt <- transType "" t
-    return [tdef nam, tdef ("T"++nam)]
+    return [tdef nam]
     --return $ [GenToplv (CS.TypeDec nam [] $ genType $ CS.TRecord [(pfieldnam, (gt, False))] markBox) noOrigin{-,f_create,f_dispose-}]
     where tdef nam = GenToplv (CS.AbsTypeDec nam [] []) noOrigin
           --pfieldnam = "cont"
@@ -189,7 +189,7 @@ genDerivedTypeDefs nam (fid,(LCA.PtrType ftyp@(LCA.FunctionType (LCA.FunTypeInco
 -- Pointer to aggregate and pointer to named function are suppressed in genDerivedTypeNames
 genDerivedTypeDefs nam (fid,atyp@(LCA.ArrayType etyp as _ _)) = do
     t <- transType fid etyp
-    return [tdef nam, tdef ("U"++nam), tdef ("T"++nam)]
+    return [tdef nam, tdef ("U"++nam)]
     where tdef nam = GenToplv (CS.AbsTypeDec nam [] []) noOrigin
 genDerivedTypeDefs nam (fid,t) = 
     return $ [GenToplv (CS.AbsTypeDec nam [] []) noOrigin]

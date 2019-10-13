@@ -261,10 +261,11 @@ as described in Section~\ref{design-names}.
 Together we have the following mapping rule for C arrays with element type \code{el} and size 
 specification \code{<size>}, depending on the context of the C array type:
 \begin{verbatim}
-  el[<size>] -> A<size>_El , #A<size>_El
-  el[<complex size>] -> A_El, #A_El
-  el[] -> A_El , #A_El
-  el[*] -> A_El , #A_El
+  el[<literal size>] -> A<literal size>_El , #A<literal size>_El
+  el[<size id>] -> AX<size id>X_El, #AX<size id>X_El
+  el[<complex size>] -> AXX_El, #AXX_El
+  el[] -> AXX_El , #AXX_El
+  el[*] -> AXX_El , #AXX_El
 \end{verbatim}
 where El is the result of mapping the element type \code{el} to a Cogent type name. If the size specification
 is too complex (not a literal or single identifier) it is omitted and the type must be handled manually. If the

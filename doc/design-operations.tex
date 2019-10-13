@@ -144,6 +144,15 @@ The put operation can now be represented as a function of type \code{ModTypeFun 
 The take operation can be represented as a function of type \code{ModTypeFun R (R take f) () V}, it returns 
 a pair of the remaining record and the taken field value.
 
+In case of an error a \code{ModTypeFun} may not be able to produce a result value of type \code{res}. For this case Gencot defines 
+a function type for ``transactional'' modification functions which either succeed or ``roll back'' the modification and return 
+the original input value:
+\begin{verbatim}
+  type TModTypeFun obj res arg out = (obj,arg) -> (Result res obj,out)
+\end{verbatim}
+using the variant type \code{Result} from the Cogent standard library. Note that a \code{ModFun} can be transactional, if it
+returns the information that an error occurred as part of the additional result of type \code{out}.
+
 A typical pattern for modifying a record field \code{f} is a combination of a take and a put operation of the form
 \begin{verbatim}
   let r' { f = h } = r 
@@ -285,7 +294,7 @@ Initialization and clearing functions are modification functions in the sense of
 Translated to C they always return the same pointer they received as input.
 Gencot defines the following function types in \code{Memory.cogent}:
 \begin{verbatim}
-  type IniFun evt vvt arg out = ModTypeFun evt (Result vvt evt) arg out
+  type IniFun evt vvt arg out = TModTypeFun evt vvt arg out
   type ClrFun vvt evt arg out = ModTypeFun vvt evt arg out
 \end{verbatim}
 They can be used by the developer to mark functions as initialization or clearing functions. This is purely 
@@ -317,10 +326,10 @@ some of these cases:
 \begin{verbatim}
   initFull : all(evt,vvt). IniFun evt vvt #vvt ()
   clearFull : all(vvt,evt). ClrFun vvt evt () #vvt
-  initHeap : all(evt,vvt:<E). IniFun evt vvt Heap Heap
-  clearHeap : all(vvt:<E,evt). ClrFun vvt evt Heap Heap
-  initSimp : all(evt,vvt:<DSE). IniFun evt vvt () ()
-  clearSimp : all(vvt:<DSE,evt). ClrFun vvt evt () ()
+  initHeap : all(evt,vvt). IniFun evt vvt Heap Heap
+  clearHeap : all(vvt,evt). ClrFun vvt evt Heap Heap
+  initSimp : all(evt,vvt:<DS). IniFun evt vvt () ()
+  clearSimp : all(vvt:<D,evt). ClrFun vvt evt () ()
 \end{verbatim}
 Generally, these functions are only defined if \code{evt} is the empty-value type corresponding to the valid-value
 type \code{vvt}. Since this cannot be expressed by constraints in Cogent, Gencot defines the preprocessor macros:
@@ -332,23 +341,32 @@ They can be used to specify valid instances of the functions with the correct ty
 between them are fulfilled and the Cogent typechecker can be used to test for correct application.
 For example, \code{INIT(Full,vvt)} expands to \code{initFull[EVTYPE(vvt),vvt]}.
 
+Gencot also defines the macros
+\begin{verbatim}
+  INITTYPE(<k>,vvt)
+  CLEARTYPE(<k>,vvt)
+\end{verbatim}
+which expand to the corresponding function types.
+
 The first two functions pass the full content as argument: the additional input type for initialization and the additional
 result type for clearing is the
 unboxed type \code{\#vvt}. It is used to pass all content for the referenced memory region to \code{initFull} which
 copies it there. For \code{clearFull} it is used to return all content, in particular, all content of linear type, so that 
 it is not discarded.
 
-The second pair passes the heap as additional input and result. Additionally, \code{vvt}
-must be escapeable (no readonly parts), because these cannot be initialized internally. Function \code{initHeap}
-allocates all parts of linear type on the heap and \code{clearHeap} disposes them. Parts of type \code{MayNull a} (see 
-Section~\ref{design-operations-null}) are initialzed to \code{null} and are disposed only if they are not \code{null}.
+The second pair passes the heap as additional input and result. Additionally, for initialization \code{vvt}
+may not contain any readonly parts of type other than \code{(MayNull a)!} (see Section~\ref{design-operations-null}), 
+because these cannot be initialized internally. Function \code{initHeap} allocates all parts of linear type on the heap 
+and \code{clearHeap} disposes them. Parts of type \code{MayNull a} are initialzed to \code{null} and are disposed only 
+if they are not \code{null}. Parts of type \code{(MayNull a)!} are initialized to \code{roNull}.
 All parts of nonprimitive type are
 initialized or cleared using function \code{initHeap} or \code{clearHeap}, respectively.
 All parts of primitive type are initialized to their default value \code{defaultVal ()} and are cleared by
-doing nothing. 
+doing nothing. \code{clearHeap} also clears parts of readonly type by doing nothing. Whenever an allocation fails for 
+\code{initHeap}, all other allocations are rolled back using \code{clearHeap}.
 
-The third pair passes no additional information. Moreover, \code{vvt} must be regular
-(no linear or readonly parts). Functions \code{initSimp} and \code{clearSimp} work as \code{initHeap} or \code{clearHeap},
+The third pair passes no additional information. Moreover, \code{vvt} must not be linear (no linear parts). 
+Functions \code{initSimp} and \code{clearSimp} work as \code{initHeap} or \code{clearHeap},
 but the heap is not required since there are no linear parts which must be allocated or disposed.
 
 The first pair is the most general, it is applicable to all kinds of valid-value types \code{vvt}. However, it bears the
@@ -661,7 +679,7 @@ by providing polymorphic abstract functions in \code{inlude/gencot/CPointer.coge
 
 The latter operation is supported by the polymorphic abstract function
 \begin{verbatim}
-  toFunPtr: all(fun, fptr). fun -> fptr
+  toFunPtr: all(fun, fptr). fun -> #fptr
 \end{verbatim}
 where \code{code} is a Cogent function type and \code{fptr} is the corresponding function pointer type.
 Although \code{fptr} is uniquely determined by \code{fun} Gencot does not provide support for this constraint.
@@ -669,17 +687,18 @@ However, Gencot provides implementations of instances only for valid pairs of fu
 
 Invoking a function is supported by the polymorphic abstract function
 \begin{verbatim}
-  fromFunPtr: all(fptr, fun). fptr -> fun
+  fromFunPtr: all(fptr, fun). #fptr -> fun
 \end{verbatim}
 which translates the function pointer to the Cogent function (equivalent to the enumeration value) which
 then can be invoked in the usual way in Cogent. 
 
 The Cogent compiler cannot derive the type \code{fptr} when instances of these functions are used. It
-must me xplicitly specified such as in 
+must be explicitly specified such as in 
 \begin{verbatim}
-  toFunPtr[_,#F_...]
-  fromFunPtr[#F_...,_]
+  toFunPtr[_,F_...]
+  fromFunPtr[F_...,_]
 \end{verbatim}
+Here the unbox operator \code{\#} may be omitted since it is already specified in the function definitions.
 
 All functions for which a function pointer is accepted or returned by these functions must be known to
 Cogent so that there is an enumeration constant for it. It is not possible to pass a pointer to an arbitrary 
@@ -769,7 +788,7 @@ Therefore Gencot does not automatically define the functions for linear types \c
 
 \subsubsection{The abstract data type \code{MayNull}}
 
-A safer approach replaces type \code{T} by an abstract type and uses type \code{T} only in places where a value has been checked
+A safer approach replaces type \code{T} by an abstract type \code{MayNull T} and uses type \code{T} only in places where a value has been checked
 for not being null. The abstract type must be specific for \code{T} and it must be complemented with abstract functions for
 generating and testing the null pointer. Gencot provides the following generic abstract data type in \code{include/gencot/MayNull.cogent}.
 It is available for all linear Cogent types, not only for types generated by Gencot by mapping a C pointer type.
@@ -805,16 +824,16 @@ is defined for a specific instance of \code{MayNull}, mappings of derived types 
 Based on the abstract functions the function
 \begin{verbatim}
   isNull: all(a). (MayNull a)! -> Bool
-  isNull mn = roNotNull mn | None -> True | Some x -> False
 \end{verbatim}
-is defined in Cogent for an explicit test for the null pointer.
+is defined for an explicit test for the null pointer. It could be implemented in Cogent based on function \code{roNotNull} but
+is implemented in C for efficiency reasons, avoiding the intermediate use of a value of type \code{Option a}.
 
 \subsubsection{General Operations}
 
 Values of type \code{MayNull a} cannot be created, disposed, initialized, or cleared. Either they are null, or they are pointers of
 a valid-value pointer type, for which the type-specific functions for creating, initializing, cearing, and disposing are available.
 
-The type constructors \code{ModFun}, \code{ModTypeFun}, \code{ChgPartFun}, and \code{ModPartFun} can be applied to \code{MayNull a} 
+The type constructors for modification function (see Section~\ref{design-operations-modify}) can be applied to \code{MayNull a} 
 with the usual intended semantics.
 
 \subsubsection{Part Access Operations}
@@ -834,7 +853,8 @@ by the polymorphic functions
   modifyNullDflt: all(a,arg:<D,out:<DSE).
      ModPartFun (MayNull a) a arg out
 \end{verbatim}
-Again, instances of the functions are only defined if \code{a} is a linear type. 
+Again, instances of the functions are only defined if \code{a} is a linear type. Like \code{isNull} the functions could be 
+implemented in Cogent but are implemented in C for efficiency.
 
 The function \code{exchngNull (mn, p)} takes as input two pointers, the first of which may be null. If \code{mn} is not null 
 the result is the pair of \code{mayNull p} and the non-null pointer corresponding to \code{mn}.
@@ -1094,7 +1114,7 @@ If an array is seen as a structured value, its elements are its parts.
 
 Since the actual array type is always abstract, all accesses to array elements must be performed using abstract functions.
 
-The type constructors \code{ModFun}, \code{ModTypeFun}, \code{ChgPartFun}, and \code{ModPartFun} can be applied to 
+The type constructors for modification functions (see Section~\ref{design-operations-modify}) can be applied to 
 Gencot array types with the usual intended semantics. 
 
 Gencot provides no equivalent for single Cogent take and put operations for array elements. It would be
@@ -1144,7 +1164,7 @@ can be applied to a pointer to the element. Gencot defines the corresponding pol
   initArrSeq: all(evt,vvt,epe,vpe,arg). 
      IniFun evt vvt (IniFun epe vpe arg arg, arg) arg
   clearArrSeq: all(evt,vvt,epe,vpe,arg). 
-     IniFun evt vvt (IniFun epe vpe arg arg, arg) arg
+     ClrFun vvt evt (ClrFun vpe epe arg arg, arg) arg
 \end{verbatim}
 where \code{epe} is the empty-value type for a pointer to an element and \code{vpe} is the corresponding valid-value type.
 The first pair of functions passes the additional input of type \code{arg} to every invocation of the element function, 
@@ -1158,23 +1178,28 @@ the same effect as using \code{initHeap} or \code{clearHeap} for the array as a 
 
 For every array type \code{AnEl} (or \code{An\_El}) Gencot provides the instances
 \begin{verbatim}
-  initArrPar[EVTYPE(AnEl),AnEl,EVTYPE(El),El,A,O]
-  clearArrPar[AnEl,EVTYPE(AnEl),El,EVTYPE(El),A,O]
-  initArrSimp[EVTYPE(AnEl),AnEl,EVTYPE(El),El,A]
-  clearArrSimp[AnEl,EVTYPE(AnEl),El,EVTYPE(El),A]
-  initArrSeq[EVTYPE(AnEl),AnEl,EVTYPE(El),El,A]
-  clearArrSeq[AnEl,EVTYPE(AnEl),El,EVTYPE(El),A]
+  initArrPar[EVTYPE(AnEl),AnEl,EVTYPE(PEl),PEl,A,O]
+  clearArrPar[AnEl,EVTYPE(AnEl),PEl,EVTYPE(PEl),A,O]
+  initArrSimp[EVTYPE(AnEl),AnEl,EVTYPE(PEl),PEl,A]
+  clearArrSimp[AnEl,EVTYPE(AnEl),PEl,EVTYPE(PEl),A]
+  initArrSeq[EVTYPE(AnEl),AnEl,EVTYPE(PEl),PEl,A]
+  clearArrSeq[AnEl,EVTYPE(AnEl),PEl,EVTYPE(PEl),A]
 \end{verbatim}
-for all types \code{A} and \code{O}.
+for all types \code{A} and \code{O}, where \code{PEl} is the type of element pointers.
 
 In these instances all types besides \code{A} and \code{O} are uniquely determined by the array type \code{AnEl}, although
 this cannot be expressed by Cogent type constraints. Therefore Gencot defines in \code{include/gencot/Memory.cogent}
 the preprocessor macros
 \begin{verbatim}
-  INITARR(<k>,n,ek,El,A,O)
-  CLEARARR(<k>,n,ek,El,A,O)
+  INITARR(<k>,ek,n,El,A,O)
+  CLEARARR(<k>,ek,n,El,A,O)
 \end{verbatim}
-which expand to the corresponding instance specifications shown above. Parameter \code{<k>} is either \code{Par}, \code{Simp}
+which expand to the corresponding instance specifications shown above and
+\begin{verbatim}
+  INITARRTYPE(<k>,ek,n,El,A,O)
+  CLEARARRTYPE(<k>,ek,n,El,A,O)
+\end{verbatim}
+which expand to their function types. Parameter \code{<k>} is either \code{Par}, \code{Simp}
 or \code{Seq}. The additional parameter \code{ek} is required for technical reasons and specifies the
 kind of the element type. It may be empty for a primitive type, \code{F} for a function pointer type, \code{R} for
 a boxed record type, \code{U} for an unboxed record type, \code{A} for a Gencot array type, and \code{P} for all Gencot 

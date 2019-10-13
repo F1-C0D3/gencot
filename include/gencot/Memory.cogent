@@ -3,178 +3,89 @@
 #ifndef GENCOT_MEMORY
 #define GENCOT_MEMORY
 
+include <gum/common/common.cogent>
 #include "ModFun.cogent"
+#include "AuxMacros.cogent"
 
--- Creating a value of linear type by allocating memory for it 
+-- Abstract type for modelling the heap
+type Heap
+
+-- Macro for generating the empty-value type for a valid-value linear type vvt.
+-- It is only defined for record types, mapping them to the type where all fields are taken.
+#define EVTYPE(vvt) vvt take (..)
+
+-- Creating an empty value of linear type by allocating memory for it 
 -- and returning a pointer to the allocated space.
---   evt: the linear type of the empty values created.
-create: all(evt). () -> evt
+-- In case of error no pointer is returned.
+-- Provided instances: create[EVTYPE(vvt)] for all record types vvt.
+--   evt: the linear empty-value type of the created values.
+create: all(evt). Heap -> Result (evt,Heap) Heap
 
--- Disposing a value of linear type by deallocating its memory.
+-- Disposing a value of empty-value linear type by deallocating its memory.
+-- Provided instances: dispose[EVTYPE(vvt)] for all record types vvt.
 --   evt: the linear type of the empty values to be disposed.
-dispose: all(evt). evt -> ()
+dispose: all(evt). (evt,Heap) -> Heap
 
 -- Initialization function which modifies an empty value to a valid value
--- without using any additional information
+-- In case of error the unmodified empty input value is returned.
 --   evt: type of empty values
 --   vvt: type of valid values
 --   arg: type of additional input
 --   out: type of the auxiliary output
-type IniFun evt vvt arg out = ModTypeFun evt vvt arg out
+type IniFun evt vvt arg out = TModTypeFun evt vvt arg out
 
 -- Clearing function which modifies a valid value to an empty value
--- without using any additional information
+-- No error may occur.
 --   vvt: type of valid values
 --   evt: type of empty values
 --   arg: type of additional input
 --   out: type of the auxiliary output
 type ClrFun vvt evt arg out = ModTypeFun vvt evt arg out
 
--- helper macros
-#define GENCOT_ID(x) x
-#define GENCOT_MKOPT(optf,opte) optf(opte)
-#define GENCOT_OPT(k,x) GENCOT_MKOPT(GENCOT_ID(k)GENCOT_ISOPT,x)
-#define  GENCOT_ISOPT(x)
-#define FGENCOT_ISOPT(x)
-#define PGENCOT_ISOPT(x) x
-#define RGENCOT_ISOPT(x) x
-#define GENCOT_MKOPTC(optf) optf()
-#define GENCOT_OPTC(k) GENCOT_MKOPTC(GENCOT_ID(k)GENCOT_ISOPTC)
-#define  GENCOT_ISOPTC(dummy)
-#define FGENCOT_ISOPTC(dummy)
-#define PGENCOT_ISOPTC(dummy) ,
-#define RGENCOT_ISOPTC(dummy) ,
-#define GENCOT_PRETAK(dummy) T
-#define GENCOT_ARRBEG(dummy) A'
-#define  GENCOT_ARREND(dummy) '_
-#define FGENCOT_ARREND(dummy) '
-#define PGENCOT_ARREND(dummy) '
-#define RGENCOT_ARREND(dummy) '_
-#define UGENCOT_ARREND(dummy) 'U_
-#define PGENCOT_EMP(tp) GENCOT_PRETAK()tp
-#define RGENCOT_EMP(tp) tp take (..)
-#define UGENCOT_EMP(tp) tp take (..)
-#define  GENCOT_PTR(dummy) P_
-#define UGENCOT_PTR(dummy)
-#define FGENCOT_PTR(dummy) P
-#define PGENCOT_PTR(dummy) P
-#define RGENCOT_PTR(dummy) P_
-#define  GENCOT_EMPPTR(tp) GENCOT_PRETAK()tp
-#define FGENCOT_EMPPTR(tp) GENCOT_PRETAK()tp
-#define PGENCOT_EMPPTR(tp) GENCOT_PRETAK()tp
-#define RGENCOT_EMPPTR(tp) GENCOT_PRETAK()tp
-#define UGENCOT_EMPPTR(tp) tp take (..)
-#define GENCOT_MKPTRCLRFUN(optf) optf()
-#define GENCOT_PTRCLRFUN(k) GENCOT_MKPTRCLRFUN(GENCOT_ID(k)GENCOT_PTRCLR)
-#define  GENCOT_PTRCLR(dummy) PtrClrFun
-#define FGENCOT_PTRCLR(dummy) PtrClrFun
-#define PGENCOT_PTRCLR(dummy) PtrPtrClrFun
-#define RGENCOT_PTRCLR(dummy) PtrPtrClrFun
-#define GENCOT_MKARRTYP(size,arrend,el) GENCOT_ARRBEG()GENCOT_ID(size)arrend()el
-#define GENCOT_ARRTYP(size,k,el) GENCOT_MKARRTYP(size,GENCOT_ID(k)GENCOT_ARREND,el)
-#define GENCOT_MKPTRTYP(arrelp,el) arrelp()el
-#define GENCOT_PTRTYP(k,el) GENCOT_MKPTRTYP(GENCOT_ID(k)GENCOT_PTR,el)
-#define GENCOT_MKEMPPTRTYP(elemp,elp,el) elemp(elp()el)
-#define GENCOT_EMPPTRTYP(k,el) GENCOT_MKEMPPTRTYP(GENCOT_ID(k)GENCOT_EMPPTR,GENCOT_ID(k)GENCOT_PTR,el)
-#define GENCOT_MKEMPTYP(elemp,el) elemp(el)
-#define GENCOT_EMPTYP(k,el) GENCOT_MKEMPTYP(GENCOT_ID(k)GENCOT_EMP,el)
+-- Initialization function which stores an unboxed value.
+-- Always successful.
+--   evt: type of empty values
+--   vvt: type of valid values
+initFull: all(evt,vvt). IniFun evt vvt #vvt ()
 
--- Pointer types
-----------------
+-- Clearing function which returns the content as an unboxed value.
+--   vvt: type of valid values
+--   evt: type of empty values
+clearFull: all(vvt,evt). ClrFun vvt evt () #vvt
 
--- Initialization function type for pointers
--- which uses an initialization function for the referenced value
---   evt: type of empty-value pointers
---   vvt: type of valid-value pointers
---   ref: type of referenced values
-type PtrIniFun evt vvt ref = IniFun evt vvt ref ()
+-- Initialization function which allocates linear content on the heap.
+-- Content of primitive type is set to its default value using defaultVal.
+-- Content of type (MayNull a) is set to null / roNull
+-- May fail if allocation fails.
+--   evt: type of empty values
+--   vvt: type of valid values, may not contain readonly content other than (MayNull a)!
+initHeap: all(evt,vvt). IniFun evt vvt Heap Heap
 
--- Clearing function type for pointers
--- to discardable values
---   evt: type of empty-value pointers
---   vvt: type of valid-value pointers
-type PtrClrFun vvt evt = ClrFun vvt evt () ()
+-- Clearing function which deallocates linear content on the heap.
+-- Content of primitive and readonly type is ignored.
+-- Content of type (MayNull a) is only deallocated if not null.
+--   vvt: type of valid values
+--   evt: type of empty values
+clearHeap: all(vvt,evt). ClrFun vvt evt Heap Heap
 
--- Clearing function type for pointers
--- which uses a clearing function for non-discardable referenced values
---   evt: type of empty-value pointers
---   vvt: type of valid-value pointers
---   vpt: type of valid-value referenced values
---   ept: type of empty-value referenced values
---   arg: type of additional input for the clearing function
---   out: type of the auxiliary output
-type PtrPtrClrFun vvt evt ref eref arg out = ClrFun vvt evt (ClrFun ref eref arg out, arg) out
+-- Initialization function which sets all content to its default value using defaultVal.
+-- and content of type (MayNull a)! to roNull. Always successful.
+--   evt: type of empty values
+--   vvt: type of valid values, may not contain linear or readonly content other than (MayNull a)!
+initSimp: all(evt,vvt:<DS). IniFun evt vvt () ()
 
--- Empty-value type
-#define PTREMPTY(ptrtyp) GENCOT_PRETAK()ptrtyp
+-- Clearing function which ignores all content.
+--   vvt: type of valid values, must be discardable
+--   evt: type of empty values
+clearSimp: all(vvt:<D,evt). ClrFun vvt evt () ()
 
--- Initialization and clearing function types
---   ref: the type of referenced values
---   k: kind of ref (R,F,P,empty)
---   arg: type of additional input to element function
---   out: type of the auxiliary output
-#define PTRINIINST(ref,k) PTREMPTY(GENCOT_PTRTYP(k,ref)), GENCOT_PTRTYP(k,ref), ref
-#define PTRCLRINST(ref,k,arg,out) GENCOT_PTRTYP(k,ref), PTREMPTY(GENCOT_PTRTYP(k,ref))GENCOT_OPTC(k)\
- GENCOT_OPT(k,ref)GENCOT_OPTC(k) GENCOT_OPT(k,GENCOT_EMPTYP(k,ref))GENCOT_OPTC(k) GENCOT_OPT(k,arg)GENCOT_OPTC(k) GENCOT_OPT(k,out)
-#define PTRINIFUN(ref,k) PtrIniFun PTREMPTY(GENCOT_PTRTYP(k,ref)) GENCOT_PTRTYP(k,ref) ref
-#define PTRCLRFUN(ref,k,arg,out) GENCOT_PTRCLRFUN(k) GENCOT_PTRTYP(k,ref) PTREMPTY(GENCOT_PTRTYP(k,ref))\
- GENCOT_OPT(k,ref) GENCOT_OPT(k,(GENCOT_EMPTYP(k,ref))) GENCOT_OPT(k,arg) GENCOT_OPT(k,out)
-
--- Initialization and clearing functions
-initPtr: all(evt,vvt,ref). PtrIniFun evt vvt ref
-clearPtr: all(vvt,evt). PtrClrFun evt vvt
-clearPtrPtr: all(vvt,evt,ref,eref,arg,out). PtrPtrClrFun vvt evt ref eref arg out
-
--- Record types
----------------
-
--- Empty-value type
-#define RECEMPTY(rectyp) rectyp take (..)
-
--- Initialization and clearing function types
-#define RECINIFUN(rectyp,arg,out) IniFun (RECEMPTY(rectyp)) rectyp arg out
-#define RECCLRFUN(rectyp,arg,out) ClrFun rectyp (RECEMPTY(rectyp)) arg out
-
--- Array types
---------------
-
--- Initialization function type for arrays 
--- which uses an initialization function for the elements 
---   evt: type of empty-value arrays
---   vvt: type of valid-value arrays
---   ept: type of empty-value element pointers
---   vpt: type of valid-value element pointers
---   arg: type of additional input
---   out: type of the auxiliary output
-type ArrIniFun evt vvt epe vpe arg out = IniFun evt vvt (IniFun epe vpe arg out, arg) out
-
--- Clearing function type for arrays 
--- which uses an initialization function for the elements 
---   vvt: type of valid-value arrays
---   evt: type of empty-value arrays
---   vpt: type of valid-value element pointers
---   ept: type of empty-value element pointers
---   arg: type of additional input
---   out: type of the auxiliary output
-type ArrClrFun vvt evt vpe epe arg out = ClrFun vvt evt (ClrFun vpe epe arg out, arg) out
-
--- Empty-value type
-#define ARREMPTY(arrtyp) GENCOT_PRETAK()arrtyp
-
--- Initialization and clearing function types
---   size: the number of array elements
---   k: kind of element type (R,U,F,P,empty)
---   el: element type
---   arg: type of additional input to element function
---   out: type of the auxiliary output
-#define ARRINIINST(size,k,el,arg,out) ARREMPTY(GENCOT_ARRTYP(size,k,el)), GENCOT_ARRTYP(size,k,el), GENCOT_EMPPTRTYP(k,el), GENCOT_PTRTYP(k,el), arg, out
-#define ARRCLRINST(size,k,el,arg,out) GENCOT_ARRTYP(size,k,el), ARREMPTY(GENCOT_ARRTYP(size,k,el)), GENCOT_PTRTYP(k,el), GENCOT_EMPPTRTYP(k,el), arg, out
-#define ARRINIFUN(size,k,el,arg,out) ArrIniFun ARREMPTY(GENCOT_ARRTYP(size,k,el)) GENCOT_ARRTYP(size,k,el) (GENCOT_EMPPTRTYP(k,el)) GENCOT_PTRTYP(k,el) arg out
-#define ARRCLRFUN(size,k,el,arg,out) ArrClrFun GENCOT_ARRTYP(size,k,el) ARREMPTY(GENCOT_ARRTYP(size,k,el)) GENCOT_PTRTYP(k,el) (GENCOT_EMPPTRTYP(k,el)) arg out
-
--- Initialization and clearing functions
-initArr: all(evt,vvt,epe,vpe,arg:<S,out). ArrIniFun evt vvt epe vpe arg out
-clearArr: all(vvt,evt,vpe,epe,arg:<S,out). ArrClrFun evt vvt epe vpe arg out
-
+-- Macros for specifying typed instances of the initialization and clearing functions
+-- and their types
+--   func: one of Full, Heap, Simp
+--   vvt: type of valid values
+#define INIT(func,vvt) Gencot_MKFUNNAME(init,func)[EVTYPE(vvt),vvt]
+#define CLEAR(func,vvt) Gencot_MKFUNNAME(clear,func)[vvt,EVTYPE(vvt)]
+#define INITTYPE(func,vvt) IniFun (EVTYPE(vvt)) vvt Gencot_IELARGOUT(func,vvt)
+#define CLEARTYPE(func,vvt) ClrFun vvt (EVTYPE(vvt)) Gencot_CELARGOUT(func,vvt)
 
 #endif {- GENCOT_MEMORY -}

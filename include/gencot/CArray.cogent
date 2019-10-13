@@ -1,48 +1,137 @@
-{- Access functions for C array elements -}
+{- Functions for Gencot array types -}
 
 #ifndef GENCOT_CARRAY
 #define GENCOT_CARRAY
 
+#include "Memory.cogent"
+#include "AuxMacros.cogent"
+
+{- Initialization and Clearing Arrays -}
+
+-- Initialize or clear an array by applying an initialization
+-- or clearing function to all elements, passing a pointer to the element.
+--   evt: the empty-value array type
+--   vvt: the valid-value array type
+--   epe: the empty-value element pointer type
+--   vpe: the valid-value element pointer type
+--   arg: type of additional input to the element function
+--   out: type of additional output from the element function
+
+-- Pass additional input in parallel to all element function invocations.
+-- Combine additional output of element function invocations using a combination function.
+initArrPar: all(evt,vvt,epe,vpe,arg:<S,out). IniFun evt vvt (IniFun epe vpe arg out, arg, (out,out)->out) out
+clearArrPar: all(vvt,evt,vpe,epe,arg:<S,out). ClrFun vvt evt (ClrFun vpe epe arg out, arg, (out,out)->out) out
+
+-- Pass additional input in parallel to all element function invocations.
+-- Element function has no additional output.
+initArrSimp: all(evt,vvt,epe,vpe,arg:<S). IniFun evt vvt (IniFun epe vpe arg (), arg) ()
+clearArrSimp: all(vvt,evt,vpe,epe,arg:<S). ClrFun vvt evt (ClrFun vpe epe arg (), arg) ()
+
+-- Chain additional input / output through all element function invocations
+-- in ascending element order.
+initArrSeq: all(evt,vvt,epe,vpe,arg). IniFun evt vvt (IniFun epe vpe arg arg, arg) arg
+clearArrSeq: all(evt,vvt,epe,vpe,arg). ClrFun vvt evt (ClrFun vpe epe arg arg, arg) arg
+
+-- Macros for specifying typed instances of the initialization and clearing functions
+-- and their function types.
+--   func: one of Par, Simp, Seq
+--   eknd: kind of element type, one of F (function pointer), R (boxed record), U (unboxed record)
+--         A (array), P (pointer), or empty (primitive type).
+--   size: number of array elements
+--   el: element type
+--   arg: type of additional input to the element function
+--   out: type of additional output from the element function (ignored for func = Simp,Seq)
+#define INITARR(func,eknd,size,el,arg,out) \
+  Gencot_MKFUNNAME(initArr,func)[EVTYPE(Gencot_ARRTYP(size,eknd,el)),Gencot_ARRTYP(size,eknd,el),\
+                                 EVTYPE(Gencot_PTRTYP(eknd,el)),Gencot_PTRTYP(eknd,el),Gencot_OPTOUT(func,arg,out)]
+#define CLEARARR(func,eknd,size,el,arg,out) \
+  Gencot_MKFUNNAME(clearArr,func)[Gencot_ARRTYP(size,eknd,el),EVTYPE(Gencot_ARRTYP(size,eknd,el)),\
+                                  Gencot_PTRTYP(eknd,el),EVTYPE(Gencot_PTRTYP(eknd,el)),Gencot_OPTOUT(func,arg,out)]
+#define INITARRTYPE(func,eknd,size,el,arg,out) \
+  IniFun (EVTYPE(Gencot_ARRTYP(size,eknd,el))) Gencot_ARRTYP(size,eknd,el) \
+         (IniFun (EVTYPE(Gencot_PTRTYP(eknd,el))) Gencot_PTRTYP(eknd,el) arg Gencot_ARRELOUT(func,arg,out), \
+         arg Gencot_OPTARRCMB(func,out)) Gencot_ARRELOUT(func,arg,out)
+#define CLEARARRTYPE(func,eknd,size,el,arg,out) \
+  ClrFun Gencot_ARRTYP(size,eknd,el) (EVTYPE(Gencot_ARRTYP(size,eknd,el))) \
+         (ClrFun Gencot_PTRTYP(eknd,el) (EVTYPE(Gencot_PTRTYP(eknd,el))) arg Gencot_ARRELOUT(func,arg,out), \
+         arg Gencot_OPTARRCMB(func,out)) Gencot_ARRELOUT(func,arg,out)
+
+{- Accessing Single Array Elements -}
+
 -- Get element at index in readonly array
+-- For invalid index returns element at index 0
 --   arr: the array type
 --   idx: the array index type
 --   el: the array element type
-getArr : all(arr,idx,el). (arr!,idx) -> Option el!
+getArr : all(arr,idx,el). (arr!,idx) -> el!
+
+-- Get element at index in readonly array
+-- For invalid index returns Error()
+--   arr: the array type
+--   idx: the array index type
+--   el: the array element type
+getArrChk : all(arr,idx,el). (arr!,idx) -> Result el! ()
 
 -- Set element at index in array with nonlinear element type
+-- For invalid index return unmodified array and discard new element value
 --   arr: the array type
 --   idx: the array index type
 --   el: the array element type
-setArr : all(arr,idx,el:<D). (arr,idx,el) -> (arr,())
+setArr : all(arr,idx,el:<D). ModFun arr (idx,el) ()
 
 -- Exchange element at index in array
+-- For invalid index return unmodified array and new element value
 --   arr: the array type
 --   idx: the array index type
 --   el: the array element type
-exchngArr : all(arr,idx,el). (arr,idx,el) -> (arr,el)
+exchngArr : all(arr,idx,el). ModFun arr (idx,el) el
 
--- Modify element at index in array
--- using a modification function
+-- Change element at index in array using a change function for elements
+-- For invalid index do nothing and return element function input
 --   arr: the array type
 --   idx: the array index type
 --   el: the array element type
---   arg: additional argument type for modification function
---   out: type of the auxiliary output of modification function
-modifyArr : all(arr,idx,el,arg:<D,out). ModFun arr (idx,ModFun el arg out,arg) out
+--   arg: type of additional input and output for element change function
+modifyArr : all(arr,idx,el,arg). ModFun arr (idx,ChgFun el arg arg, arg) arg
+
+-- Change element at index in array using a change function for elements
+-- For invalid index do nothing and return default result for element function
+--   arr: the array type
+--   idx: the array index type
+--   el: the array element type
+--   arg: type of additional input for element function
+--   out: type of additional output of element function
+modifyArrDflt : all(arr,idx,el,arg:<D,out:<DSE). ModFun arr (idx, ChgFun el arg out, arg) out
 
 -- Return pointer to element at index in readonly array
+-- For invalid index return pointer to element with index 0.
 --   arr: the array type
 --   idx: the array index type
 --   pel: the type of pointer to array elements
-getrefArr : all(arr,idx,pel). (arr!,idx) -> Option pel!
+getrefArr : all(arr,idx,pel). (arr!,idx) -> pel!
 
--- Modify element at index in array in-place
--- using a modification function
+-- Return pointer to element at index in readonly array
+-- For invalid index return Error()
 --   arr: the array type
 --   idx: the array index type
 --   pel: the type of pointer to array elements
---   arg: additional argument type for modification function
---   out: type of the auxiliary output of modification function
-modrefArr : all(arr,idx,pel,arg:<D,out). ModFun arr (idx,ModFun pel arg out,arg) out
+getrefArrChk : all(arr,idx,pel). (arr!,idx) -> Result pel! ()
+
+-- Modify element at index in array using a modification function for element pointers
+-- For invalid index do nothing and return element function input
+--   arr: the array type
+--   idx: the array index type
+--   pel: the type of pointer to array elements
+--   arg: type of additional input and output for element change function
+modrefArr : all(arr,idx,pel,arg). ModFun arr (idx, ModFun pel arg arg, arg) arg
+
+-- Modify element at index in array using a modification function for element pointers
+-- For invalid index do nothing and return default result for element function
+--   arr: the array type
+--   idx: the array index type
+--   pel: the type of pointer to array elements
+--   arg: type of additional input for element function
+--   out: type of additional output of element function
+modrefArrDflt : all(arr,idx,pel,arg:<D,out:<DSE). ModFun arr (idx, ModFun pel arg out, arg) out
 
 #endif {- GENCOT_CARRAY -}

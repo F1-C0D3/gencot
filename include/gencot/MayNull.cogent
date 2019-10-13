@@ -3,7 +3,8 @@
 #ifndef GENCOT_MAYNULL
 #define GENCOT_MAYNULL
 
-#include "Memory.cogent"
+include <gum/common/common.cogent>
+#include "ModFun.cogent"
 #include "Default.cogent"
 
 -- Linear type with the additional value NULL
@@ -34,17 +35,27 @@ isNull mn = roNotNull[a] mn
 
 -- exchange values if not NULL
 exchngNull: all(a). (MayNull a,a) -> (MayNull a,a)
-exchngNull (mn, nn) = notNull mn
+exchngNull (mn, nn) = notNull[a] mn
    | None -> (null(),nn)
    | Some x -> (mayNull nn, x)
 
 -- apply modification function if not NULL
+-- if NULL the modification functions's input is returned as additional result
 --   arg: the type of additional input for the modification function
-modifyNull: all(a,arg:<DS,out). ModPartFun (MayNull a) a arg out
-  {- DS is used instead of D to avoid an internal Cogent error -}
-modifyNull (mn, (modfun,addinput)) = notNull mn
-   | None -> (null (), defaultVal ())
-   | Some x -> let (r,y) = modfun (x,addinput) in (mayNull r,y)
+modifyNull: all(a,arg). ModPartFun (MayNull a) a arg arg
+modifyNull (mn, (modfun,addinput)) = notNull[a] mn
+   | None -> (null[a] (), addinput)
+   | Some x -> let (r,y) = modfun (x,addinput) in (mayNull[a] r,y)
 
+-- apply modification function if not NULL
+-- if NULL the default value is returned as additional result
+--   arg: the type of additional input for the modification function
+--     must be discardable in case the modification function is not applied
+--   out: the type of additional result of the modification function
+--     must be regular to have a default value
+modifyNullDflt: all(a,arg:<D,out:<DSE). ModPartFun (MayNull a) a arg out
+modifyNullDflt (mn, (modfun,addinput)) = notNull[a] mn
+   | None -> (null[a] (), defaultVal ())
+   | Some x -> let (r,y) = modfun (x,addinput) in (mayNull[a] r,y)
 
 #endif {- GENCOT_MAYNULL -}

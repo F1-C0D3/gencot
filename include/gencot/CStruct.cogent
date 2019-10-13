@@ -1,0 +1,42 @@
+#ifndef GENCOT_CSTRUCT
+#define GENCOT_CSTRUCT
+
+{- Macros for generating types for take and put functions -}
+
+#define TAKEFUN(bastyp,takfield,arg,out) ModTypeFun (bastyp) (bastyp take takfield) (arg) (out)
+#define PUTFUN(bastyp,putfield,arg,out) ModTypeFun (bastyp take putfield) (bastyp) (arg) (out)
+
+#define STRIPPAR1(a1) a1)
+#define STRIPPAR2(a1,a2) a1,a2)
+#define STRIPPAR3(a1,a2,a3) a1,a2,a3)
+#define STRIPPAR4(a1,a2,a3,a4) a1,a2,a3,a4)
+#define STRIPPAR5(a1,a2,a3,a4,a5) a1,a2,a3,a4,a5)
+#define STRIPPAR6(a1,a2,a3,a4,a5,a6) a1,a2,a3,a4,a5,a6)
+#define STRIPPAR7(a1,a2,a3,a4,a5,a6,a7) a1,a2,a3,a4,a5,a6,a7)
+#define STRIPPAR8(a1,a2,a3,a4,a5,a6,a7,a8) a1,a2,a3,a4,a5,a6,a7,a8)
+#define STRIPPAR9(a1,a2,a3,a4,a5,a6,a7,a8,a9) a1,a2,a3,a4,a5,a6,a7,a8,a9)
+#define STRIPPAR10(a1,a2,a3,a4,a5,a6,a7,a8,a9,a10) a1,a2,a3,a4,a5,a6,a7,a8,a9,a10)
+
+#define TAKEFUN1(bastyp,fields,takfield,arg,out) ModTypeFun (bastyp take fields) (bastyp take (takfield,STRIPPAR1 fields) (arg) (out)
+#define TAKEFUN2(bastyp,fields,takfield,arg,out) ModTypeFun (bastyp take fields) (bastyp take (takfield,STRIPPAR2 fields) (arg) (out)
+#define TAKEFUN3(bastyp,fields,takfield,arg,out) ModTypeFun (bastyp take fields) (bastyp take (takfield,STRIPPAR3 fields) (arg) (out)
+#define TAKEFUN4(bastyp,fields,takfield,arg,out) ModTypeFun (bastyp take fields) (bastyp take (takfield,STRIPPAR4 fields) (arg) (out)
+#define TAKEFUN5(bastyp,fields,takfield,arg,out) ModTypeFun (bastyp take fields) (bastyp take (takfield,STRIPPAR5 fields) (arg) (out)
+#define TAKEFUN6(bastyp,fields,takfield,arg,out) ModTypeFun (bastyp take fields) (bastyp take (takfield,STRIPPAR6 fields) (arg) (out)
+#define TAKEFUN7(bastyp,fields,takfield,arg,out) ModTypeFun (bastyp take fields) (bastyp take (takfield,STRIPPAR7 fields) (arg) (out)
+#define TAKEFUN8(bastyp,fields,takfield,arg,out) ModTypeFun (bastyp take fields) (bastyp take (takfield,STRIPPAR8 fields) (arg) (out)
+#define TAKEFUN9(bastyp,fields,takfield,arg,out) ModTypeFun (bastyp take fields) (bastyp take (takfield,STRIPPAR9 fields) (arg) (out)
+#define TAKEFUN10(bastyp,fields,takfield,arg,out) ModTypeFun (bastyp take fields) (bastyp take (takfield,STRIPPAR10 fields) (arg) (out)
+
+#define PUTFUN1(bastyp,fields,putfield,arg,out) ModTypeFun (bastyp take (putfield,STRIPPAR1 fields) (bastyp take fields) (arg) (out)
+#define PUTFUN2(bastyp,fields,putfield,arg,out) ModTypeFun (bastyp take (putfield,STRIPPAR2 fields) (bastyp take fields) (arg) (out)
+#define PUTFUN3(bastyp,fields,putfield,arg,out) ModTypeFun (bastyp take (putfield,STRIPPAR3 fields) (bastyp take fields) (arg) (out)
+#define PUTFUN4(bastyp,fields,putfield,arg,out) ModTypeFun (bastyp take (putfield,STRIPPAR4 fields) (bastyp take fields) (arg) (out)
+#define PUTFUN5(bastyp,fields,putfield,arg,out) ModTypeFun (bastyp take (putfield,STRIPPAR5 fields) (bastyp take fields) (arg) (out)
+#define PUTFUN6(bastyp,fields,putfield,arg,out) ModTypeFun (bastyp take (putfield,STRIPPAR6 fields) (bastyp take fields) (arg) (out)
+#define PUTFUN7(bastyp,fields,putfield,arg,out) ModTypeFun (bastyp take (putfield,STRIPPAR7 fields) (bastyp take fields) (arg) (out)
+#define PUTFUN8(bastyp,fields,putfield,arg,out) ModTypeFun (bastyp take (putfield,STRIPPAR8 fields) (bastyp take fields) (arg) (out)
+#define PUTFUN9(bastyp,fields,putfield,arg,out) ModTypeFun (bastyp take (putfield,STRIPPAR9 fields) (bastyp take fields) (arg) (out)
+#define PUTFUN10(bastyp,fields,putfield,arg,out) ModTypeFun (bastyp take (putfield,STRIPPAR10 fields) (bastyp take fields) (arg) (out)
+
+#endif {- GENCOT_CSTRUCT -}

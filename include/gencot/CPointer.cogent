@@ -1,11 +1,11 @@
 {- Functions for dereferencing C pointers -}
 
-#ifndef GENCOT_CARRAY
-#define GENCOT_CARRAY
+#ifndef GENCOT_CPOINTER
+#define GENCOT_CPOINTER
 
 #include "ModFun.cogent"
 
--- Get referenced value of readonly non-function pointer
+-- Get the referenced value of readonly non-function pointer
 --   ptr: the pointer type
 --   ref: the type of referenced value
 getPtr : all(ptr,ref). ptr! -> ref!
@@ -20,13 +20,12 @@ setPtr : all(ptr,ref:<D). ModFun ptr ref ()
 --   ref: the type of referenced value
 exchngPtr : all(ptr,ref). (ptr,ref) -> (ptr,ref)
 
--- Modify referenced value
--- using a modification function
+-- Change referenced value for non-function pointer
 --   ptr: the pointer type
 --   ref: the type of referenced value
---   arg: additional argument type for modification function
---   out: type of the auxiliary output of modification function
-modifyPtr: all(ptr,ref,arg,out). ModPartFun ptr ref arg out
+--   arg: additional argument type for change function
+--   out: type of the auxiliary output of change function
+modifyPtr: all(ptr,ref,arg,out). ChgPartFun ptr ref arg out
 
 -- Convert from function to function pointer
 --   fun: function type
@@ -38,4 +37,4 @@ toFunPtr : all(fun,fptr). fun -> #fptr
 --   fun: function type
 fromFunPtr : all(fptr,fun). #fptr -> fun
 
-#endif {- GENCOT_CARRAY -}
+#endif {- GENCOT_CPOINTER -}

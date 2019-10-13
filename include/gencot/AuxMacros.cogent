@@ -1,0 +1,63 @@
+{- Auxiliary Macros for Internal Use -} 
+
+#ifndef GENCOT_AUXMACROS
+#define GENCOT_AUXMACROS
+
+#define Gencot_ID(x) x
+
+#define Gencot_MKFUNNAME(base,ext) Gencot_ID(base)Gencot_ID(ext)
+
+#define Gencot_ARRTYP(size,k,el) Gencot_MKARRTYP(size,Gencot_ID(k)Gencot_ARREND,el)
+#define Gencot_MKARRTYP(size,arrend,el) Gencot_ARRBEG()Gencot_ID(size)arrend()el
+#define Gencot_ARRBEG(dummy) A
+#define  Gencot_ARREND(dummy) _
+#define FGencot_ARREND(dummy) 
+#define PGencot_ARREND(dummy) 
+#define AGencot_ARREND(dummy) 
+#define RGencot_ARREND(dummy) _
+#define UGencot_ARREND(dummy) U_
+
+#define Gencot_PTRTYP(k,el) Gencot_MKPTRTYP(Gencot_ID(k)Gencot_PTR,el)
+#define Gencot_MKPTRTYP(ptrf,el) ptrf()el
+#define  Gencot_PTR(dummy) P_
+#define UGencot_PTR(dummy)
+#define FGencot_PTR(dummy) P
+#define PGencot_PTR(dummy) P
+#define AGencot_PTR(dummy) P
+#define RGencot_PTR(dummy) P_
+
+#define Gencot_IELARGOUT(func,vvt) Gencot_MKIELARGOUT(Gencot_ID(func)Gencot_ISIELARGOUT,vvt)
+#define Gencot_MKIELARGOUT(optf,vvt) optf(vvt)
+#define FullGencot_ISIELARGOUT(vvt) #vvt ()
+#define HeapGencot_ISIELARGOUT(vvt) Heap Heap
+#define SimpGencot_ISIELARGOUT(vvt) () ()
+
+#define Gencot_CELARGOUT(func,vvt) Gencot_MKCELARGOUT(Gencot_ID(func)Gencot_ISCELARGOUT,vvt)
+#define Gencot_MKCELARGOUT(optf,vvt) optf(vvt)
+#define FullGencot_ISCELARGOUT(vvt) () #vvt
+#define HeapGencot_ISCELARGOUT(vvt) Heap Heap
+#define SimpGencot_ISCELARGOUT(vvt) () ()
+
+#define Gencot_OPTOUT(func,arg,out) Gencot_ID(arg)Gencot_OPTC(func) Gencot_OPT(func,out)
+#define Gencot_OPTARRCMB(func,out) Gencot_OPTC(func) Gencot_OPT(func,(out,out)->out)
+
+#define Gencot_OPT(func,x) Gencot_MKOPT(Gencot_ID(func)Gencot_ISOPT,x)
+#define Gencot_MKOPT(optf,opte) optf(opte)
+#define ParGencot_ISOPT(x) x
+#define SimpGencot_ISOPT(x)
+#define SeqGencot_ISOPT(x)
+
+#define Gencot_OPTC(func) Gencot_MKOPTC(Gencot_ID(func)Gencot_ISOPTC)
+#define Gencot_MKOPTC(optf) optf()
+#define ParGencot_ISOPTC(dummy) ,
+#define SimpGencot_ISOPTC(dummy)
+#define SeqGencot_ISOPTC(dummy)
+
+#define Gencot_ARRELOUT(func,arg,out) Gencot_MKARRELOUT(Gencot_ID(func)Gencot_ISARRELOUT,arg,out)
+#define Gencot_MKARRELOUT(optf,arg,out) optf(arg,out)
+#define ParGencot_ISARRELOUT(arg,out) out
+#define SimpGencot_ISARRELOUT(arg,out) ()
+#define SeqGencot_ISARRELOUT(arg,out) arg
+
+
+#endif {- GENCOT_AUXMACROS -}

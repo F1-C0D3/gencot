@@ -88,6 +88,8 @@ A C structure type of the form \code{struct \{ ... \}} is equivalent to a Cogent
 The Cogent compiler translates the unboxed record type to the C struct and maps all fields in the same order.
 If every C field type is mapped to a binary compatible Cogent field type both types are binary compatible as a whole.
 
+*** This is not true! Record fields are reordered by the Cogent compiler. Dargent must be used to get binary compatible types.
+
 \subsubsection{Mapping Struct and Union Types}
 A C structure may contain bit-fields where the number of bits used for storing the field is explicitly specified.
 Gencot maps every consecutive sequence of bit-fields to a single Cogent field with a primitive Cogent type.
@@ -493,7 +495,7 @@ mapping the type to a Cogent record with a single field of the type referenced b
 In C, a pointer-to-array type is not the type of pointers to the array address, instead its values are array addresses.
 The difference from the array type is only that when applying the index operator \code{[]}, the whole array is
 selected instead of only the first element. In Cogent the corresponding type is a Cogent record with a single
-field of the mapped array type. Note, that this is equivalent to the mapping of the array type itself, as defined
+field of the unboxed mapped array type. Note, that this is equivalent to the mapping of the array type itself, as defined
 in Section~\ref{design-types-array}.
 
 \subsubsection{Mapping Pointer Types}
@@ -506,7 +508,7 @@ that means, it is mapped like the struct type \code{t}, but the unbox operator i
 A pointer type \code{t*} where \code{t} is a union type is mapped in the same way to the corresponding
 boxed type, omitting the unbox operator from the mapped type \code{t}. Thus no support for accessing
 the referenced union is provided. The reason is, that access to the union as a whole is mostly useless
-and furthe access to the union mebers cannot be provided. For consistency, Gencot treats union types
+and further access to the union mebers cannot be provided. For consistency, Gencot treats union types
 in the same way as struct types.
 
 A pointer type \code{t*} where \code{t} is a primitive type, an enum type, 
@@ -565,29 +567,35 @@ typedef name often bears information for the programmer, hence the goal for Genc
 and map the typedef name to the corresponding Cogent type name which is defined by translating the typedef
 to a Cogent type definition.
 
-A typedef name can be used in C to derive a pointer type from it. The mapping of pointer types depends on 
-the kind of base type, as described above. If the base type is a struct, union, or array type, 
-the pointer type is mapped to the mapped typedef name omitting the unbox operator. If the base type is a function type,
-the pointer type is mapped to the mapped typedef name with the unbox 
-operator applied (as for all function pointer types). Otherwise, a type name of the form 
-\code{P\_T} is used where \code{T} is the mapped typedef name.
+Moreover, when a C type is derived from a typedef name, Gencot also maps the derived type using a name constructed 
+from the mapped typedef name by prepending the encoded derivation steps (see Section~\ref{design-names}) to it.
+For every such name a type definition is generated which defines the name to be a synonym 
+for the mapped type which results from fully resolving the typedef name and then applying the derivation steps to it.
+The type definition has the form
+\begin{verbatim}
+  <derivation steps>_TN = <derivation steps><resolved type for TN>
+\end{verbatim}
+If the \code{<resolved type for TN>} is again a derived type the derivation steps may be concatenated on the righthand side.
+Note that for a derived function type only the result type is resolved in this way, typedef names in parameter types are not resolved.
 
-Always mapping pointer types derived from typedef names with the help of \code{P\_T} would result in
-the following situation for the case where a typedef name is defined for a struct:
+An exception from this rule are typedef names for struct and union types. Mapping pointer types derived from such typedef names
+with the help of \code{P\_T} would result in the following situation:
 \begin{verbatim}
   typedef struct s snam
   mapping: struct s -> #Struct_s
   mapping: struct s * -> Struct_s
-  mapping: snam -> Cogent_snam
-  mapping: snam * -> P_Cogent_snam
+  mapping: snam -> Cogent_snam = #Struct_s
+  mapping: snam * -> P_Cogent_snam = Struct_s
 \end{verbatim}
 where \code{Struct\_s} is the name of the Cogent record type corresponding to \code{struct s}. The problem here
-is that \code{snam *} is mapped using \code{P\_T}, resolving to the Cogent type \code{P\_\#Struct\_s}
-instead of \code{Struct\_s}, preventing access to the record in Cogent.
+is that for the mapped typedef name an explicit derivation step is prepended whereas for the resolved type it is not.
 
-Therefore Gencot treats every typedef name resolving to a struct, union, or array type as if 
+Therefore Gencot treats every typedef name resolving to a struct or union type as if 
 it would resolve to the corresponding pointer type. The plain name is mapped with the unbox operator 
 applied, the pointer type derived from it is mapped without unbox operator applied. 
+
+For an array or function type derived from a typedef name for a struct or union, as usual a letter \code{"U"} is appended
+to the derivation steps if the element type is the unboxed type.
 
 A typedef name resolving to a function type is also treated as if it would resolve to the corresponding 
 function pointer type. The pointer type derived from it is mapped to the mapped typedef name with the
@@ -596,6 +604,8 @@ be mapped. However, that is no restriction, since a C typedef name for a functio
 for constructing the corresponding C function pointer type, either explicitly or implicitly by adjustment.
 In particular, it cannot be used for defining a function of that type, since a definition must always 
 include the parameter names.
+
+For array types derived from a typedef name for a function type no special rules apply. 
 
 The resulting mapping rules are for function type names:
 \begin{verbatim}

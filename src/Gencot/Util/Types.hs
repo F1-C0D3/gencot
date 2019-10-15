@@ -331,6 +331,10 @@ isAggPointer :: TypePred
 isAggPointer (LCA.PtrType t _ _) = isAggregate t
 isAggPointer _ = False
 
+isCompPointer :: TypePred
+isCompPointer (LCA.PtrType t _ _) = isComposite t
+isCompPointer _ = False
+
 isNamedFunPointer :: TypePred
 isNamedFunPointer (LCA.PtrType t _ _) = isTypeDefRef t && isFunction t
 isNamedFunPointer _ = False
@@ -371,6 +375,11 @@ isArray td@(LCA.TypeDefType _ _ _) = isArray $ resolveTypedef td
 isArray (LCA.ArrayType _ _ _ _) = True
 isArray _ = False
 
+isComposite :: TypePred
+isComposite td@(LCA.TypeDefType _ _ _) = isComposite $ resolveTypedef td
+isComposite (LCA.DirectType (LCA.TyComp _) _ _) = True
+isComposite _ = False
+
 isAggregate :: TypePred
 isAggregate td@(LCA.TypeDefType _ _ _) = isAggregate $ resolveTypedef td
 isAggregate (LCA.DirectType (LCA.TyComp _) _ _) = True
@@ -395,6 +404,15 @@ isTagRef _ = False
 isTypeDefRef :: TypePred
 isTypeDefRef (LCA.TypeDefType _ _ _) = True
 isTypeDefRef _ = False
+
+containsTypedefs :: TypePred
+containsTypedefs (LCA.TypeDefType _ _ _) = True
+containsTypedefs (LCA.DirectType _ _ _) = False
+containsTypedefs (LCA.PtrType t _ _) = containsTypedefs t
+containsTypedefs (LCA.ArrayType t _ _ _) = containsTypedefs t
+containsTypedefs (LCA.FunctionType (LCA.FunTypeIncomplete t) _) = containsTypedefs t
+containsTypedefs (LCA.FunctionType (LCA.FunType rt pars _) _) = 
+    (containsTypedefs rt) || any (\pd -> containsTypedefs $ LCA.declType pd) pars
 
 resolveTypedef :: LCA.Type -> LCA.Type
 resolveTypedef (LCA.TypeDefType (LCA.TypeDefRef _ t _) _ _) = resolveTypedef t

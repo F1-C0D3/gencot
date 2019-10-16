@@ -24,6 +24,17 @@ toExplicitSize: all(arr,esa). arr -> esa
 --   arr: the fixed size array type
 toFixedSize: all(esa,arr). esa -> Result arr esa
 
+-- Convert from readonly fixed size array type to explicitly sized array type.
+--   arr: the fixed size array type
+--   esa: then explicitly sized array type
+rotoExplicitSize: all(arr,esa). arr! -> esa!
+
+-- Convert from readonly explicitly sized array type to fixed size array type.
+-- If the size does not fit return the original input.
+--   esa: then explicitly sized array type
+--   arr: the fixed size array type
+rotoFixedSize: all(esa,arr). esa! -> Result arr! esa!
+
 -- Macro for specifying typed instances of the conversion functions
 --   trg: one of Explicit or Fixed
 --   eknd: kind of element type, one of F (function pointer), R (boxed record), U (unboxed record)
@@ -31,6 +42,7 @@ toFixedSize: all(esa,arr). esa -> Result arr esa
 --   size: number of elements in the fixed size array type
 --   el: element type
 #define AEETO(trg,eknd,size,el) Gencot_MKFUNNAME(to,trg)Size[Gencot_ARRTYP(size,eknd,el),Gencot_AEETYP(eknd,el)]
+#define AEEROTO(trg,eknd,size,el) Gencot_MKFUNNAME(roto,trg)Size[Gencot_ARRTYP(size,eknd,el),Gencot_AEETYP(eknd,el)]
 
 {- Creating and disposing -}
 

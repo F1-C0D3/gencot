@@ -1352,21 +1352,24 @@ Gencot provides support for converting array values between explicitly sized arr
 \begin{verbatim}
   toExplicitSize: all(arr,esa). arr -> esa
   toFixedSize: all(esa,arr). esa -> Result arr esa
+  rotoExplicitSize: all(arr,esa). arr! -> esa!
+  rotoFixedSize: all(esa,arr). esa! -> Result arr! esa!
 \end{verbatim}
 where \code{arr} is the fixed size array type and \code{esa} is the explicitly sized array type. Gencot provides instances
 for all cases where \code{arr} and \code{esa} have the same element type. Since this contraint cannot be represented in
 Cogent, Gencot provides the following preprocessor macros in \code{include/gencot/ESArray.cogent}:
 \begin{verbatim}
   AEETO(Trg,ek,n,El)
+  AEEROTO(Trg,ek,n,El)
 \end{verbatim}
 where \code{Trg} is either \code{Explicit} or \code{Fixed}, \code{ek} is the kind of element type as above, \code{n} is the 
 number of elements, and \code{El} is the element type. As example, the macro call \code{AEETO(Explicit,,8,U32)} expands to
 \begin{verbatim}
   toExplicitSize[A8_U32,AEE_U32]
 \end{verbatim}
-and the macro call \code{AEETO(Fixed,P,5,P\_U16} expands to
+and the macro call \code{AEEROTO(Fixed,P,5,P\_U16} expands to
 \begin{verbatim}
-  toFixedSize[AEEP_U16,A5P_U16]
+  rotoFixedSize[AEEP_U16,A5P_U16]
 \end{verbatim}
 
 Function \code{toExplicitSize} returns the pair of the pointer to the first array element and the constant known size, this

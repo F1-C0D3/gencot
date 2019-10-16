@@ -1260,7 +1260,7 @@ The type variable \code{arr} denotes the array type, \code{idx} denotes the inde
 \code{el} denotes the array element type, and \code{pel} denotes the type of pointers to elements. 
 
 Instances of these functions are only defined if \code{arr} is a Gencot array type. Type \code{idx}
-must be one of \code{U8, U16, U32} according to the \code{<size>} of the array. Types \code{el} and
+must be one of \code{U8, U16, U32, U64} according to the \code{<size>} of the array. Types \code{el} and
 \code{pel} must be as determined by \code{arr}. \code{arg} and \code{out} may be arbitrary types
 only constrained as specified above.
 
@@ -1331,7 +1331,7 @@ an ``explicitly sized array'' type. Gencot uses a pseudo derivation step (see Se
 to construct type names for explicitly sized arrays, such as \code{AEE\_El} for an explicitly sized array with elements
 of type \code{El}. The corresponding type definition is
 \begin{verbatim}
-  type AEE_El = (PEl, U32)
+  type AEE_El = (PEl, U64)
 \end{verbatim}
 where \code{PEl} is the type of pointers to \code{El}.
 
@@ -1378,7 +1378,7 @@ element size, the corresponding explicitly sized array value can be constructed 
 
 \subsubsection{Creating and Disposing Explicitly Sized Arrays}
 
-The empty-value type corresponding to an explicitly sized array type \code{(PEl,U32)} is the type \code{(EVTYPE(PEl),U32)}.
+The empty-value type corresponding to an explicitly sized array type \code{(PEl,U64)} is the type \code{(EVTYPE(PEl),U64)}.
 For specifying this type Gencot provides the preprocessor macro
 \begin{verbatim}
   EVAEETYPE(ek,El)
@@ -1388,7 +1388,7 @@ where the parameters are as for \code{DEFAEETYPE} described above.
 For allocating an explicitly sized array the size must be specified, since it is not known as part of the type.
 Gencot provides the polymorphic abstract functions
 \begin{verbatim}
-  createAEE: all(evt). (U32,Heap) -> Result (evt,Heap) Heap
+  createAEE: all(evt). (U64,Heap) -> Result (evt,Heap) Heap
   disposeAEE: all(evt). (evt,Heap) -> Heap
 \end{verbatim}
 for all cases where \code{evt} is a type of the form \code{EVAEETYPE(ek,El)}.
@@ -1435,4 +1435,4 @@ additional input and output of the element function. \code{O} is ignored if \cod
 
 All element access functions defined for fixed size arrays in Section~\ref{design-operations-array} are also supported for 
 explicitly sized arrays, i.e., their type variable \code{arr} can be an explicitly sized array type. The index type \code{idx}
-can be as described (one of U8, U16, U32).
+can be as described (one of U8, U16, U32, U64).

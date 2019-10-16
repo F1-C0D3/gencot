@@ -9,7 +9,7 @@
 --   eknd: kind of element type, one of F (function pointer), R (boxed record), U (unboxed record)
 --         A (array), P (pointer), or empty (primitive type).
 --   el: element type
-#define DEFAEETYPE(eknd,el) type Gencot_AEETYP(eknd,el) = (Gencot_PTRTYP(eknd,el), U32)
+#define DEFAEETYPE(eknd,el) type Gencot_AEETYP(eknd,el) = (Gencot_PTRTYP(eknd,el), U64)
 
 {- Conversions -}
 
@@ -38,14 +38,14 @@ toFixedSize: all(esa,arr). esa -> Result arr esa
 --   eknd: kind of element type, one of F (function pointer), R (boxed record), U (unboxed record)
 --         A (array), P (pointer), or empty (primitive type).
 --   el: element type
-#define EVAEETYPE(eknd,el) (EVTYPE(Gencot_PTRTYP(eknd,el)), U32)
+#define EVAEETYPE(eknd,el) (EVTYPE(Gencot_PTRTYP(eknd,el)), U64)
 
 -- Creating an empty value of an explicitly sized empty-value array type by allocating memory for 
 -- a specified number of elements for it and returning a pointer to the allocated space 
 -- together with the number of elements.
 -- In case of error only the heap is returned
 --   evt: the empty-value type of the created values.
-createAEE: all(evt). (U32, Heap) -> Result (evt,Heap) Heap
+createAEE: all(evt). (U64, Heap) -> Result (evt,Heap) Heap
 
 -- Disposing a value of an explicitly sized empty-value array type by deallocating its memory.
 --   evt: the empty-value type of the disposed values.

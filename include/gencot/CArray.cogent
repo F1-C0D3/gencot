@@ -4,7 +4,6 @@
 #define GENCOT_CARRAY
 
 #include "Memory.cogent"
-#include "AuxMacros.cogent"
 
 {- Initialization and Clearing Arrays -}
 
@@ -19,39 +18,39 @@
 
 -- Pass additional input in parallel to all element function invocations.
 -- Combine additional output of element function invocations using a combination function.
-initArrPar: all(evt,vvt,epe,vpe,arg:<S,out). IniFun evt vvt (IniFun epe vpe arg out, arg, (out,out)->out) out
-clearArrPar: all(vvt,evt,vpe,epe,arg:<S,out). ClrFun vvt evt (ClrFun vpe epe arg out, arg, (out,out)->out) out
+initEltsParCmb: all(evt,vvt,epe,vpe,arg:<S,out). IniFun evt vvt (IniFun epe vpe arg out, arg, (out,out)->out) out
+clearEltsParCmb: all(vvt,evt,vpe,epe,arg:<S,out). ClrFun vvt evt (ClrFun vpe epe arg out, arg, (out,out)->out) out
 
 -- Pass additional input in parallel to all element function invocations.
 -- Element function has no additional output.
-initArrSimp: all(evt,vvt,epe,vpe,arg:<S). IniFun evt vvt (IniFun epe vpe arg (), arg) ()
-clearArrSimp: all(vvt,evt,vpe,epe,arg:<S). ClrFun vvt evt (ClrFun vpe epe arg (), arg) ()
+initEltsPar: all(evt,vvt,epe,vpe,arg:<S). IniFun evt vvt (IniFun epe vpe arg (), arg) ()
+clearEltsPar: all(vvt,evt,vpe,epe,arg:<S). ClrFun vvt evt (ClrFun vpe epe arg (), arg) ()
 
 -- Chain additional input / output through all element function invocations
 -- in ascending element order.
-initArrSeq: all(evt,vvt,epe,vpe,arg). IniFun evt vvt (IniFun epe vpe arg arg, arg) arg
-clearArrSeq: all(evt,vvt,epe,vpe,arg). ClrFun vvt evt (ClrFun vpe epe arg arg, arg) arg
+initEltsSeq: all(evt,vvt,epe,vpe,arg). IniFun evt vvt (IniFun epe vpe arg arg, arg) arg
+clearEltsSeq: all(evt,vvt,epe,vpe,arg). ClrFun vvt evt (ClrFun vpe epe arg arg, arg) arg
 
 -- Macros for specifying typed instances of the initialization and clearing functions
 -- and their function types.
---   func: one of Par, Simp, Seq
+--   func: one of ParCmb, Par, Seq
 --   eknd: kind of element type, one of F (function pointer), R (boxed record), U (unboxed record)
 --         A (array), P (pointer), or empty (primitive type).
 --   size: number of array elements
 --   el: element type
 --   arg: type of additional input to the element function
 --   out: type of additional output from the element function (ignored for func = Simp,Seq)
-#define INITARR(func,eknd,size,el,arg,out) \
-  Gencot_MKFUNNAME(initArr,func)[EVTYPE(Gencot_ARRTYP(size,eknd,el)),Gencot_ARRTYP(size,eknd,el),\
+#define INITELTS(func,eknd,size,el,arg,out) \
+  Gencot_MKFUNNAME(initElts,func)[EVTYPE(Gencot_ARRTYP(size,eknd,el)),Gencot_ARRTYP(size,eknd,el),\
                                  EVTYPE(Gencot_PTRTYP(eknd,el)),Gencot_PTRTYP(eknd,el),Gencot_OPTOUT(func,arg,out)]
-#define CLEARARR(func,eknd,size,el,arg,out) \
-  Gencot_MKFUNNAME(clearArr,func)[Gencot_ARRTYP(size,eknd,el),EVTYPE(Gencot_ARRTYP(size,eknd,el)),\
+#define CLEARELTS(func,eknd,size,el,arg,out) \
+  Gencot_MKFUNNAME(clearElts,func)[Gencot_ARRTYP(size,eknd,el),EVTYPE(Gencot_ARRTYP(size,eknd,el)),\
                                   Gencot_PTRTYP(eknd,el),EVTYPE(Gencot_PTRTYP(eknd,el)),Gencot_OPTOUT(func,arg,out)]
-#define INITARRTYPE(func,eknd,size,el,arg,out) \
+#define INITELTSTYPE(func,eknd,size,el,arg,out) \
   IniFun (EVTYPE(Gencot_ARRTYP(size,eknd,el))) Gencot_ARRTYP(size,eknd,el) \
          (IniFun (EVTYPE(Gencot_PTRTYP(eknd,el))) Gencot_PTRTYP(eknd,el) arg Gencot_ARRELOUT(func,arg,out), \
          arg Gencot_OPTARRCMB(func,out)) Gencot_ARRELOUT(func,arg,out)
-#define CLEARARRTYPE(func,eknd,size,el,arg,out) \
+#define CLEARELTSTYPE(func,eknd,size,el,arg,out) \
   ClrFun Gencot_ARRTYP(size,eknd,el) (EVTYPE(Gencot_ARRTYP(size,eknd,el))) \
          (ClrFun Gencot_PTRTYP(eknd,el) (EVTYPE(Gencot_PTRTYP(eknd,el))) arg Gencot_ARRELOUT(func,arg,out), \
          arg Gencot_OPTARRCMB(func,out)) Gencot_ARRELOUT(func,arg,out)

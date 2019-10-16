@@ -1,0 +1,90 @@
+{- Functions for explicitly sized array types -}
+
+#ifndef GENCOT_ESARRAY
+#define GENCOT_ESARRAY
+
+#include "CArray.cogent"
+
+-- Define an explicitly sized array type
+--   eknd: kind of element type, one of F (function pointer), R (boxed record), U (unboxed record)
+--         A (array), P (pointer), or empty (primitive type).
+--   el: element type
+#define DEFAEETYPE(eknd,el) type Gencot_AEETYP(eknd,el) = (Gencot_PTRTYP(eknd,el), U32)
+
+{- Conversions -}
+
+-- Convert from fixed size array type to explicitly sized array type.
+--   arr: the fixed size array type
+--   esa: then explicitly sized array type
+toExplicitSize: all(arr,esa). arr -> esa
+
+-- Convert from explicitly sized array type to fixed size array type.
+-- If the size does not fit return the original input.
+--   esa: then explicitly sized array type
+--   arr: the fixed size array type
+toFixedSize: all(esa,arr). esa -> Result arr esa
+
+-- Macro for specifying typed instances of the conversion functions
+--   trg: one of Explicit or Fixed
+--   eknd: kind of element type, one of F (function pointer), R (boxed record), U (unboxed record)
+--         A (array), P (pointer), or empty (primitive type).
+--   size: number of elements in the fixed size array type
+--   el: element type
+#define AEETO(trg,eknd,size,el) Gencot_MKFUNNAME(to,trg)Size[Gencot_ARRTYP(size,eknd,el),Gencot_AEETYP(eknd,el)]
+
+{- Creating and disposing -}
+
+-- Macro for generating the empty-value type for a valid-value explicitly sized array type vvt.
+--   eknd: kind of element type, one of F (function pointer), R (boxed record), U (unboxed record)
+--         A (array), P (pointer), or empty (primitive type).
+--   el: element type
+#define EVAEETYPE(eknd,el) (EVTYPE(Gencot_PTRTYP(eknd,el)), U32)
+
+-- Creating an empty value of an explicitly sized empty-value array type by allocating memory for 
+-- a specified number of elements for it and returning a pointer to the allocated space 
+-- together with the number of elements.
+-- In case of error only the heap is returned
+--   evt: the empty-value type of the created values.
+createAEE: all(evt). (U32, Heap) -> Result (evt,Heap) Heap
+
+-- Disposing a value of an explicitly sized empty-value array type by deallocating its memory.
+--   evt: the empty-value type of the disposed values.
+disposeAEE: all(evt). (evt,Heap) -> Heap
+
+{- Initialization and Clearing -}
+
+-- Macros for specifying typed instances of the general initialization and clearing functions
+-- and their types
+--   func: one of Heap, Simp
+--   eknd: kind of element type, one of F (function pointer), R (boxed record), U (unboxed record)
+--         A (array), P (pointer), or empty (primitive type).
+--   el: element type
+#define INITAEE(func,eknd,el) Gencot_MKFUNNAME(init,func)[EVAEETYPE(eknd,el),Gencot_AEETYP(eknd,el)]
+#define CLEARAEE(func,eknd,el) Gencot_MKFUNNAME(clear,func)[Gencot_AEETYP(eknd,el),EVAEETYPE(eknd,el)]
+#define INITAEETYPE(func,eknd,el) Gencot_OPTTRNS(func)IniFun EVAEETYPE(eknd,el) Gencot_AEETYP(eknd,el) Gencot_IELARGOUT(func,)
+#define CLEARAEETYPE(func,eknd,el) ClrFun Gencot_AEETYP(eknd,el) EVAEETYPE(eknd,el) Gencot_CELARGOUT(func,)
+
+-- Macros for specifying typed instances of the per-element initialization and clearing functions
+-- and their function types.
+--   func: one of ParCmb, Par, Seq
+--   eknd: kind of element type, one of F (function pointer), R (boxed record), U (unboxed record)
+--         A (array), P (pointer), or empty (primitive type).
+--   el: element type
+--   arg: type of additional input to the element function
+--   out: type of additional output from the element function (ignored for func = Simp,Seq)
+#define INITAEEELTS(func,eknd,el,arg,out) \
+  Gencot_MKFUNNAME(initElts,func)[EVAEETYPE(eknd,el),Gencot_AEETYP(eknd,el),\
+                                 EVTYPE(Gencot_PTRTYP(eknd,el)),Gencot_PTRTYP(eknd,el),Gencot_OPTOUT(func,arg,out)]
+#define CLEARAEEELTS(func,eknd,el,arg,out) \
+  Gencot_MKFUNNAME(clearElts,func)[Gencot_AEETYP(eknd,el),EVAEETYPE(eknd,el),\
+                                  Gencot_PTRTYP(eknd,el),EVTYPE(Gencot_PTRTYP(eknd,el)),Gencot_OPTOUT(func,arg,out)]
+#define INITAEEELTSTYPE(func,eknd,el,arg,out) \
+  IniFun EVAEETYPE(eknd,el) Gencot_AEETYP(eknd,el) \
+         (IniFun (EVTYPE(Gencot_PTRTYP(eknd,el))) Gencot_PTRTYP(eknd,el) arg Gencot_ARRELOUT(func,arg,out), \
+         arg Gencot_OPTARRCMB(func,out)) Gencot_ARRELOUT(func,arg,out)
+#define CLEARAEEELTSTYPE(func,eknd,el,arg,out) \
+  ClrFun Gencot_AEETYP(eknd,el) EVAEETYPE(eknd,el) \
+         (ClrFun Gencot_PTRTYP(eknd,el) (EVTYPE(Gencot_PTRTYP(eknd,el))) arg Gencot_ARRELOUT(func,arg,out), \
+         arg Gencot_OPTARRCMB(func,out)) Gencot_ARRELOUT(func,arg,out)
+
+#endif {- GENCOT_ESARRAY -}

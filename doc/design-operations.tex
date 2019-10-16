@@ -1165,23 +1165,23 @@ Additionally, Gencot provides operations where the user can specify how to initi
 applied to all elements. The specification for a single element is done by passing an initialization or clearing function which
 can be applied to a pointer to the element. Gencot defines the corresponding polymorphic abstract functions
 \begin{verbatim}
-  initArrPar: all(evt,vvt,epe,vpe,arg:<S,out). 
+  initEltsParCmb: all(evt,vvt,epe,vpe,arg:<S,out). 
      IniFun evt vvt (IniFun epe vpe arg out, arg, (out,out)->out) out
-  clearArrPar: all(vvt,evt,vpe,epe,arg:<S,out). 
+  clearEltsParCmb: all(vvt,evt,vpe,epe,arg:<S,out). 
      ClrFun vvt evt (ClrFun vpe epe arg out, arg, (out,out)->out) out
-  initArrSimp: all(evt,vvt,epe,vpe,arg:<S). 
+  initEltsPar: all(evt,vvt,epe,vpe,arg:<S). 
      IniFun evt vvt (IniFun epe vpe arg (), arg) ()
-  clearArrSimp: all(vvt,evt,vpe,epe,arg:<S). 
+  clearEltsPar: all(vvt,evt,vpe,epe,arg:<S). 
      ClrFun vvt evt (ClrFun vpe epe arg (), arg) ()
-  initArrSeq: all(evt,vvt,epe,vpe,arg). 
+  initEltsSeq: all(evt,vvt,epe,vpe,arg). 
      IniFun evt vvt (IniFun epe vpe arg arg, arg) arg
-  clearArrSeq: all(evt,vvt,epe,vpe,arg). 
+  clearEltsSeq: all(evt,vvt,epe,vpe,arg). 
      ClrFun vvt evt (ClrFun vpe epe arg arg, arg) arg
 \end{verbatim}
 where \code{epe} is the empty-value type for a pointer to an element and \code{vpe} is the corresponding valid-value type.
-The first pair of functions passes the additional input of type \code{arg} to every invocation of the element function, 
+The first pair of functions passes the additional input of type \code{arg} in parallel to every invocation of the element function, 
 therefore it must be sharable. The outputs of type \code{out} are combined using the function passed as third part of
-the additional input to \code{initArrPar} or \code{clearArrPar}. It is applied by ``folding'', starting at the first element.
+the additional input to \code{initEltsParCmb} or \code{clearEltsParCmb}. It is applied by ``folding'', starting at the first element.
 The second pair uses an element function which does not return a result and needs no combination function.
 The third pair of functions passes the additional result of every invocation of the element function as additional input 
 to the invocation for the next element. Thus it must have a common type, which may be linear, since it is neither shared nor
@@ -1193,12 +1193,12 @@ function must be implemented manually.
 
 For every array type \code{AnEl} (or \code{An\_El}) Gencot provides the instances
 \begin{verbatim}
-  initArrPar[EVTYPE(AnEl),AnEl,EVTYPE(PEl),PEl,A,O]
-  clearArrPar[AnEl,EVTYPE(AnEl),PEl,EVTYPE(PEl),A,O]
-  initArrSimp[EVTYPE(AnEl),AnEl,EVTYPE(PEl),PEl,A]
-  clearArrSimp[AnEl,EVTYPE(AnEl),PEl,EVTYPE(PEl),A]
-  initArrSeq[EVTYPE(AnEl),AnEl,EVTYPE(PEl),PEl,A]
-  clearArrSeq[AnEl,EVTYPE(AnEl),PEl,EVTYPE(PEl),A]
+  initEltsParCmb[EVTYPE(AnEl),AnEl,EVTYPE(PEl),PEl,A,O]
+  clearEltsParCmb[AnEl,EVTYPE(AnEl),PEl,EVTYPE(PEl),A,O]
+  initEltsPar[EVTYPE(AnEl),AnEl,EVTYPE(PEl),PEl,A]
+  clearEltsPar[AnEl,EVTYPE(AnEl),PEl,EVTYPE(PEl),A]
+  initEltsSeq[EVTYPE(AnEl),AnEl,EVTYPE(PEl),PEl,A]
+  clearEltsSeq[AnEl,EVTYPE(AnEl),PEl,EVTYPE(PEl),A]
 \end{verbatim}
 for all types \code{A} and \code{O}, where \code{PEl} is the type of element pointers.
 
@@ -1206,31 +1206,31 @@ In these instances all types besides \code{A} and \code{O} are uniquely determin
 this cannot be expressed by Cogent type constraints. Therefore Gencot defines in \code{include/gencot/Memory.cogent}
 the preprocessor macros
 \begin{verbatim}
-  INITARR(<k>,ek,n,El,A,O)
-  CLEARARR(<k>,ek,n,El,A,O)
+  INITELTS(<k>,ek,n,El,A,O)
+  CLEARELTS(<k>,ek,n,El,A,O)
 \end{verbatim}
 which expand to the corresponding instance specifications shown above and
 \begin{verbatim}
-  INITARRTYPE(<k>,ek,n,El,A,O)
-  CLEARARRTYPE(<k>,ek,n,El,A,O)
+  INITELTSTYPE(<k>,ek,n,El,A,O)
+  CLEARELTSTYPE(<k>,ek,n,El,A,O)
 \end{verbatim}
-which expand to their function types. Parameter \code{<k>} is either \code{Par}, \code{Simp}
+which expand to their function types. Parameter \code{<k>} is either \code{ParCmb}, \code{Par}, 
 or \code{Seq}. The additional parameter \code{ek} is required for technical reasons and specifies the
 kind of the element type. It may be empty for a primitive type, \code{F} for a function pointer type, \code{R} for
 a boxed record type, \code{U} for an unboxed record type, \code{A} for a Gencot array type, and \code{P} for all Gencot 
-pointer types. If \code{<k>} is not \code{Par} the last parameter \code{O} is ignored and may be empty.
+pointer types. If \code{<k>} is not \code{ParCmb} the last parameter \code{O} is ignored and may be empty.
 
 For example an array \code{a} of type \code{EVTYPE(A16\_U32)} can be initialized by setting all elements to \code{5} 
 with typechecks by the Cogent expression
 \begin{verbatim}
-  INITARR(Simp,16,,U32,U32,) (a,(INIT(Full,P\_U32),5))
+  INITELTS(Par,16,,U32,U32,) (a,(INIT(Full,P_U32),5))
 \end{verbatim}
 
 It could be useful to also know the element index in the element function. This could be supported by passing the index
 as additional input to the element functions. However, this implies that the normal initialization and clearing functions
 for the element type cannot be used as element functions here, since they do not expect the index as additional input.
 Therefore the functions automatically supported by Gencot for initializing and clearing arrays do not pass the index 
-to the element functions. However, using \code{initArrSeq} or \code{clearArrSeq}, the index can be calculated by
+to the element functions. However, using \code{initEltsSeq} or \code{clearEltsSeq}, the index can be calculated by
 passing it from one invocation of the element function to the next, counting it up in the element function.
 
 \subsubsection{Accessing Array Elements}
@@ -1312,3 +1312,127 @@ must be defined and used instead of \code{modifyArr} or \code{modrefArr}.
 For multidimensional array types of the form \code{An1An2...} the element type is again an array type and the access 
 functions work accordingly.
 
+\subsection{Explicitly Sized Arrays}
+\label{design-operations-eearray}
+
+A common pattern in C programs is to explicitly use a pointer type instead of an array type for referencing an array,
+in particular if the array is allocated on the heap. This is typically done if the number of elements in the
+array is not statically known at compile time. The C concept of variable length array types can sometimes be
+used for a similar purpose, but is restricted to function parameters and local variables and cannot be used for
+structure members.
+
+In C the array subscription operator can be applied to terms of pointer type \code{p} in the form \code{p[i]}. 
+The semantics is to access an element in memory at the specified offset after the element referenced by the pointer. 
+To use this in a safe way, the number of array elements must be known. 
+
+Gencot provides support for this kind of working with arrays, if the number of elements is specified explicitly as
+an integer value. The element pointer and the element size are combined to a pair. The corresponding type is called
+an ``explicitly sized array'' type. Gencot uses a pseudo derivation step (see Section~\ref{design-names}) \code{AEE} 
+to construct type names for explicitly sized arrays, such as \code{AEE\_El} for an explicitly sized array with elements
+of type \code{El}. The corresponding type definition is
+\begin{verbatim}
+  type AEE_El = (PEl, U32)
+\end{verbatim}
+where \code{PEl} is the type of pointers to \code{El}.
+
+Gencot does not map any C types automatically to explicitly sized array types, nor does it automatically define such
+types. However, to manually define an explicitly sized array type Gencot provides the preprocessor macro
+\begin{verbatim}
+  DEFAEETYPE(ek,El)
+\end{verbatim}
+where \code{ek} is the kind of element type as for \code{INITARR} (see Section~\ref{design-operations-array}). The 
+macro expands to a type definition as shown above.
+
+For every type defined according to this naming schema Gencot provides operations as described in the following sections.
+
+\subsubsection{Converting Arrays}
+
+Gencot provides support for converting array values between explicitly sized arrays and the fixed size arrays of types
+\code{AnEl}. It supports the polymorphic abstract functions
+\begin{verbatim}
+  toExplicitSize: all(arr,esa). arr -> esa
+  toFixedSize: all(esa,arr). esa -> Result arr esa
+\end{verbatim}
+where \code{arr} is the fixed size array type and \code{esa} is the explicitly sized array type. Gencot provides instances
+for all cases where \code{arr} and \code{esa} have the same element type. Since this contraint cannot be represented in
+Cogent, Gencot provides the following preprocessor macros in \code{include/gencot/ESArray.cogent}:
+\begin{verbatim}
+  AEETO(Trg,ek,n,El)
+\end{verbatim}
+where \code{Trg} is either \code{Explicit} or \code{Fixed}, \code{ek} is the kind of element type as above, \code{n} is the 
+number of elements, and \code{El} is the element type. As example, the macro call \code{AEETO(Explicit,,8,U32)} expands to
+\begin{verbatim}
+  toExplicitSize[A8_U32,AEE_U32]
+\end{verbatim}
+and the macro call \code{AEETO(Fixed,P,5,P\_U16} expands to
+\begin{verbatim}
+  toFixedSize[AEEP_U16,A5P_U16]
+\end{verbatim}
+
+Function \code{toExplicitSize} returns the pair of the pointer to the first array element and the constant known size, this
+always succeeds. Function \code{toFixedSize} compares the explicit size in the argument to the known fixed size of the result.
+If they are equal it returns the element pointer, otherwise it returns an error vale with the original input.
+
+Whenever a pointer \code{p} to an element is given in a program and an expression \code{s} is known which specifies the corresponding
+element size, the corresponding explicitly sized array value can be constructed manually as \code{(p,s)} in Cogent.
+
+\subsubsection{Creating and Disposing Explicitly Sized Arrays}
+
+The empty-value type corresponding to an explicitly sized array type \code{(PEl,U32)} is the type \code{(EVTYPE(PEl),U32)}.
+For specifying this type Gencot provides the preprocessor macro
+\begin{verbatim}
+  EVAEETYPE(ek,El)
+\end{verbatim}
+where the parameters are as for \code{DEFAEETYPE} described above. 
+
+For allocating an explicitly sized array the size must be specified, since it is not known as part of the type.
+Gencot provides the polymorphic abstract functions
+\begin{verbatim}
+  createAEE: all(evt). (U32,Heap) -> Result (evt,Heap) Heap
+  disposeAEE: all(evt). (evt,Heap) -> Heap
+\end{verbatim}
+for all cases where \code{evt} is a type of the form \code{EVAEETYPE(ek,El)}.
+
+\subsubsection{Modifying Explicitly Sized Arrays}
+
+Explicitly sized arrays can be modified in the same way as fixed size arrays. In particular, 
+all type constructors for modification functions (see Section~\ref{design-operations-modify}) can be applied to 
+explicitly sized array types with the usual intended semantics. 
+
+\subsubsection{Initializing and Clearing Explicitly Sized Arrays}
+
+Since the array size is known at runtime, all conceptual initialization and clearing operations defined for fixed
+size arrays can also be provided for explicitly sized arrays. These are the general operations defined in 
+Section~\ref{design-operations-init} and the array-specific operations defined in Section~\ref{design-operations-array}.
+
+The functions \code{initFull} and \code{clearFull} are not supported, since they are defined using the unboxed type \code{\#vvt}
+to represent the content. For an explicitly sized array type the unboxed type is identical, then \code{initFull} has not the
+intended semantics of moving data from the stack to the heap. The other functions work as described.
+
+Since the way how the empty-value type is constructed is different for explicitly sized arrays, the macros defined in
+Section~\ref{design-operations-init} cannot be used. Gencot instead provides the macros
+\begin{verbatim}
+  INITAEE(<k>,ek,El)
+  CLEARAEE(<k>,ek,El)
+  INITAEETYPE(<k>,ek,El)
+  CLEARAEETYPE(<k>,ek,El)
+\end{verbatim}
+where \code{<k>} is one of \code{Heap} or \code{Simp}, and \code{ek} and \code{El} are as for \code{DEFAEETYPE} above.
+
+The functions \code{initEltsParCmb}, \code{clearEltsParCmb}, \code{initEltsPar}, \code{clearEltsPar}, \code{initEltsSeq}, 
+\code{clearEltsSeq} are all supported for explicitly sized array types \code{vvt}. Gencot provides the macros
+\begin{verbatim}
+  INITAEEELTS(<k>,ek,El,A,O)
+  CLEARAEEELTS(<k>,ek,El,A,O)
+  INITAEEELTSTYPE(<k>,ek,El,A,O)
+  CLEARAEEELTSTYPE(<k>,ek,El,A,O)
+\end{verbatim}
+corresponding to \code{INITELTS}, \code{CLEARELTS}, \code{INITELTSTYPE}, and \code{CLEARELTSTYPE}. As for them
+\code{<k>} is one of \code{ParCmb}, \code{Par}, or \code{Seq} and \code{A} and \code{O} are arbitrary types for the 
+additional input and output of the element function. \code{O} is ignored if \code{<k>} is not \code{ParCmb}.
+
+\subsubsection{Accessing Array Elements}
+
+All element access functions defined for fixed size arrays in Section~\ref{design-operations-array} are also supported for 
+explicitly sized arrays, i.e., their type variable \code{arr} can be an explicitly sized array type. The index type \code{idx}
+can be as described (one of U8, U16, U32).

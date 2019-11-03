@@ -19,22 +19,31 @@ import Cogent.Common.Syntax as CCS
 import Cogent.Common.Types as CCT
 import Cogent.Util (ffmap)
 
-import Gencot.Origin (Origin,noOrigin,origin,mkOrigin,noComOrigin,mkBegOrigin,mkEndOrigin,prepOrigin,appdOrigin,isNested)
-import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapNameToLower,mapPtrDeriv,mapArrDeriv,mkNonLin,mapFunDeriv,mapParmodDeriv,mkDerivedName,mkParTypeName,srcFileName)
+import Gencot.Origin (Origin,noOrigin,origin,mkOrigin,noComOrigin,mkBegOrigin,mkEndOrigin,prepOrigin,appdOrigin,isNested,toNoComOrigin)
+import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapNameToLower,mapPtrDeriv,mapPtrVoid,mapArrDeriv,mapFunDeriv,arrDerivHasSize,arrDerivToUbox,srcFileName)
 import Gencot.Cogent.Ast
 import Gencot.C.Translate (transStat,transExpr)
 import Gencot.Traversal (FTrav,getParmods,markTagAsNested,isMarkedAsNested)
-import Gencot.Util.Types (getDerivedParts,usedTypeNames,resolveFully,isExtern,isCompOrFunc,isCompPointer,isNamedFunPointer,isFunPointer,isFunction,isComplete,isArray,isTagRef,containsTypedefs,resolveTypedef,isComposite,isLinearType,isLinearParType,isReadOnlyType,isReadOnlyParType,wrapFunAsPointer,getTagDef)
-import Gencot.Json.Identifier (getFunId,getFunMemberId,getFunTypeId,getLocalFunId,carriedWithFunIds)
+import Gencot.Util.Types (carriedTypes,getDerivedParts,usedTypeNames,resolveFully,isExtern,isCompOrFunc,isCompPointer,isNamedFunPointer,isFunPointer,isFunction,isComplete,isArray,isVoid,isTagRef,containsTypedefs,resolveTypedef,isComposite,isLinearType,isLinearParType,isReadOnlyType,isReadOnlyParType,wrapFunAsPointer,getTagDef)
+import Gencot.Json.Identifier (getFunId,getFunMemberId,getFunTypeId,getLocalFunId)
 
 genType t = GenType t noOrigin
 
+-- | Translate a sequence of C "external" (global) declarations to a sequence of Cogent toplevel definitions.
 transGlobals :: [LCA.DeclEvent] -> FTrav [GenToplv]
 transGlobals tcs = liftM concat $ mapM transGlobal tcs
 
+-- | Translate a C "external" (global) declaration to a sequence of Cogent toplevel definitions.
+-- A single C declaration with nested declarations may be translated to a sequence of Cogent definitions.
 transGlobal :: LCA.DeclEvent -> FTrav [GenToplv]
+-- Translate a C struct definition -> see transStruct
 transGlobal (LCA.TagEvent (LCA.CompDef ct@(LCA.CompType _ LCA.StructTag _ _ _))) =
     transStruct ct transMember
+-- If not yet translated as nested, translate a C union definition of the form
+-- > union tagname { ... }
+-- to an abstract Cogent type definition of the form
+-- > type Union_tagname
+-- (if tagname is not present use a synthetic tagname constructed from the source position).
 transGlobal (LCA.TagEvent (LCA.CompDef (LCA.CompType sueref LCA.UnionTag _ _ n))) = do
     nst <- isMarkedAsNested sueref
     if nst 
@@ -42,6 +51,11 @@ transGlobal (LCA.TagEvent (LCA.CompDef (LCA.CompType sueref LCA.UnionTag _ _ n))
        else do
            tn <- transTagName $ LCA.TyComp $ LCA.CompTypeRef sueref LCA.UnionTag n
            return $ [GenToplv (CS.AbsTypeDec tn [] []) $ mkOrigin n]
+-- If not yet translated as nested, translate a C enum definition of the form
+-- > enum tagname { ... }
+-- to a Cogent type definition of the form
+-- > type Enum_tagname = U32
+-- (only if the tagname is present).
 transGlobal (LCA.TagEvent (LCA.EnumDef (LCA.EnumType sueref es _ n))) = do
     nst <- isMarkedAsNested sueref
     if nst || LCI.isAnonymousRef sueref
@@ -49,19 +63,30 @@ transGlobal (LCA.TagEvent (LCA.EnumDef (LCA.EnumType sueref es _ n))) = do
        else do
            tn <- transTagName $ LCA.TyEnum $ LCA.EnumTypeRef sueref n
            return $ [GenToplv (CS.TypeDec tn [] $ genType $ CS.TCon "U32" [] markUnbox) $ mkOrigin n]
+-- Translate an object or complete function declaration of the form
+-- > typ name;
+-- (where type may be a derived type syntactically integrated in the name)
+-- to a Cogent abstract function definition of the form
+-- > name :: funtyp
+-- If the C object is not a function, the Cogent function is a parameterless
+-- access function of type () -> typ
 transGlobal (LCA.DeclEvent (LCA.Declaration decl@(LCA.Decl _ n))) | isComplete typ = do
     f <- transObjName $ LCA.declIdent decl
     fid <- parmodFunId decl
     t <- transType fid typ
-    t <- applyParmods typ fid t
     return $ [GenToplv (CS.AbsDec f (CS.PT [] $ mkFunType t)) $ mkOrigin n]
     where typ = LCA.declType decl
-          (LCA.FunctionType (LCA.FunType res vpars isVar) _) = typ
+-- Translate a C function definition of the form
+-- > rt name(parlist) { stmt }
+-- to a Cogent function definition of the form
+-- > name :: (partypes) -> rt
+-- > name (parnames) = dummy {- stmt -}
+-- where @partypes@, @rt@, and @dummy@ are modified according to a parameter modification description
+-- and stmt is translated by mapping all non-local names.
 transGlobal (LCA.DeclEvent (LCA.FunctionDef fdef@(LCA.FunDef decl stat n))) = do
     f <- transObjName $ LCA.declIdent decl
     fid <- parmodFunId fdef
     t <- transType fid typ
-    t <- applyParmods typ fid t
     ps <- transParamNames isVar pars
     LCA.enterFunctionScope
     LCA.defineParams LCN.undefNode decl
@@ -72,23 +97,33 @@ transGlobal (LCA.DeclEvent (LCA.FunctionDef fdef@(LCA.FunDef decl stat n))) = do
     return $ [GenToplv (CS.FunDef f (CS.PT [] t) [CS.Alt ps CCS.Regular $ FunBody d s]) $ mkOrigin n]
     where typ = LCA.declType decl
           (LCA.FunctionType (LCA.FunType res pars isVar) _) = typ
+-- Translate a C object definition of the form
+-- > typ name = expr;
+-- (where type may be a derived type syntactically integrated in the name)
+-- to a Cogent abstract function definition of the form
+-- > name :: () -> typ
+-- for a parameterless access function
 transGlobal (LCA.DeclEvent odef@(LCA.ObjectDef (LCA.ObjDef decl@(LCA.VarDecl (LCA.VarName idnam _) _ typ) _ n))) = do
     f <- transObjName idnam
     fid <- parmodFunId odef
     t <- transType fid typ
     return $ [GenToplv (CS.AbsDec f (CS.PT [] $ mkFunType t)) $ mkOrigin n]
+-- Translate a C enumerator definition of the form
+-- > name = expr;
+-- to a Cogent constant definition of the form
+-- > name :: U32
+-- > name = expr
+-- where @expr@ is the orginal C expression with mapped names.
 transGlobal (LCA.DeclEvent (LCA.EnumeratorDef (LCA.Enumerator idnam expr _ n))) = do
     e <- transExpr expr
     return $ [GenToplv (CS.ConstDef en (genType $ CS.TCon "U32" [] markUnbox) $ ConstExpr e) $ mkOrigin n]
     where en = mapNameToLower idnam
-
--- | Translate a typedef of the form
+-- Translate a typedef of the form
 -- > typedef type-specifier declarator;
 -- where @declarator@ denotes a (derived type for an) identifier @idnam@.
 -- If the @type-specifier@ denotes a function, struct or union type the typedef is first adjusted
 -- by replacing @idnam@ by @*idnam@, i.e. the typedef name is defined for a pointer to
--- function, struct, or union type.
--- 
+-- function, struct, or union type. Array types need no adjusting, they are always adjusted by @transType@.
 -- The translation result has the form
 -- > type idnam = type
 -- where @type@ is constructed by translating @type-specifier@ and applying all derivations from the adjusted @declarator@.
@@ -118,6 +153,14 @@ transExtGlobal tds (LCA.TagEvent (LCA.CompDef ct@(LCA.CompType _ LCA.StructTag _
     transStruct ct (transExtMember tds)
 transExtGlobal _ e = transGlobal e
 
+-- | If not yet translated as nested, translate a C struct definition of the form
+-- > struct tagname { ... }
+-- to a Cogent record definition of the form
+-- > type Struct_tagname = { ... }
+-- The second parameter is a monadic action which translates a single member declaration
+-- to a pair of Cogent field name and type. As additional first parameter it expects the reference
+-- to the C struct type definition.
+-- All nested tag definitions are translated and appended as separate toplevel type definitions.
 transStruct :: LCA.CompType -> (LCI.SUERef -> LCA.MemberDecl -> FTrav (CCS.FieldName, (GenType, CS.Taken))) -> FTrav [GenToplv]
 transStruct (LCA.CompType sueref LCA.StructTag mems _ n) trMember = do
     nst <- isMarkedAsNested sueref
@@ -127,17 +170,20 @@ transStruct (LCA.CompType sueref LCA.StructTag mems _ n) trMember = do
            tn <- transTagName $ LCA.TyComp $ LCA.CompTypeRef sueref LCA.StructTag n
            ms <- mapM (trMember sueref) aggmems
            nts <- liftM concat $ mapM transMemTagIfNested aggmems
-           --let ttyp = genType $ CS.TTake Nothing $ genType $ CS.TCon tn [] markBox
-           --let f_create = GenToplv (CS.AbsDec ("create_" ++ tn) (CS.PT [] $ genType $ CS.TFun utyp ttyp)) noOrigin
-           --let f_dispose = GenToplv (CS.AbsDec ("dispose_" ++ tn) (CS.PT [] $ genType $ CS.TFun ttyp utyp)) noOrigin
-           return $ wrapOrigin n ([GenToplv (CS.TypeDec tn [] $ genType $ CS.TRecord ms markBox) noOrigin{-,f_create,f_dispose-}] ++ nts)
+           return $ wrapOrigin n ([GenToplv (CS.TypeDec tn [] $ genType $ CS.TRecord ms markBox) noOrigin] ++ nts)
     where utyp = genType CS.TUnit
           aggmems = aggBitfields mems
 
+-- | Translate nested tag definitions in a member definition.
 transMemTagIfNested :: LCA.MemberDecl -> FTrav [GenToplv]
 transMemTagIfNested mdecl = transTagIfNested (LCA.declType mdecl) $ LCN.nodeInfo mdecl
 
-transTagIfNested :: LCA.Type -> NodeInfo -> FTrav [GenToplv]
+-- | Translate a C type as nested tag definition.
+-- Additional second parameter is the position where the type is used.
+-- If the type is a reference to a struct,union, or enum, lookup its definition.
+-- If the definition is at the same position where the type is used, then
+-- it is nested at that position. Translate it and mark it as nested in the user state.
+transTagIfNested :: LCA.Type -> LCN.NodeInfo -> FTrav [GenToplv]
 transTagIfNested typ@(LCA.DirectType tn _ _) n | isTagRef typ = do
     dt <- getDefTable
     let mtd = getTagDef dt $ getSUERef tn
@@ -161,112 +207,44 @@ wrapOrigin n gts = (GenToplv t1 $ prepOrigin n o1):((init $ tail gts)++[GenToplv
     where (GenToplv t1 o1) = head gts
           (GenToplv t2 o2) = last gts
 
-genTypeDefs :: [String] -> [LCA.DeclEvent] -> FTrav [GenToplv]
-genTypeDefs tds tcs = do
-    derivedTypes <- liftM (unions . concat) $ mapM (genDerivedTypeNames tds) tcs
-    liftM concat $ mapM (uncurry genDerivedTypeDefs) $ toList derivedTypes
+-- | Generate type definitions for all derived array types used by a sequence of C declarations.
+genTypeDefs :: [LCA.DeclEvent] -> FTrav [GenToplv]
+genTypeDefs tcs = do
+    derivedTypes <- liftM (nub . concat) $ mapM genDerivedTypeNames tcs
+    return $ concat $ map genDerivedTypeDefs derivedTypes
 
--- | Construct all names of derived types occurring in a type carrier @tc@.
--- The result maps every name to a pair @(fid,typ)@ of function id and C type specification.
--- The String list @tdn@ contains typedef names where to stop resolving external typedef names.
+-- | Construct all names of derived array types occurring in a type carrier @tc@.
+-- The result is a list of names of generic types used for mapped array types.
 --
--- Retrieve the types carried by @tc@, get all derived part types, add fully resolved forms
--- (without stopping at @tdn@), convert function types to function pointer types,
--- omit all pointer to struct or union types (because they do not use a separate name) and all named function
--- pointer types (why?), translate the types to Cogent, and retrieve their names.
-genDerivedTypeNames :: [String] -> LCA.DeclEvent -> FTrav [Map String (String,LCA.Type)]
-genDerivedTypeNames tdn tc = do
-    sfn <- srcFileName tc
-    liftM (map (\(gt,fid,t) -> singleton (getName gt) (fid,t))) $ 
-        mapM (\(fid,t) -> do gt <- transType fid t; return (gt,fid,t)) $ 
-        filter (\(_,t) -> not $ (isCompPointer t || isNamedFunPointer t)) $ 
-        nub $ map (\(fid,t) -> (fid,wrapFunAsPointer t)) $ 
-        concat $ map (\(fid,t) -> nub [(fid,t), (fid,resolveFully [] t)]) $
-        concat $ map (uncurry getDerivedParts) $ carriedWithFunIds sfn tdn tc
-    where getName (GenType (CS.TCon nam [] _) _) = nam
+-- Retrieve the types carried by @tc@, get all derived part types, add fully resolved forms,
+-- reduce to derived array types, translate the types to Cogent, and retrieve their names.
+genDerivedTypeNames :: LCA.DeclEvent -> FTrav [String]
+genDerivedTypeNames tc = do
+    liftM (map (\gt -> (getName gt))) $ 
+        mapM (\t -> do gt <- transType "" t; return gt) $ 
+        filter (\t -> isArray t) $ 
+        concat $ map (\t -> nub [t, resolveFully [] t]) $
+        concat $ map getDerivedParts $ carriedTypes tc
+    where getName (GenType (CS.TCon nam _ _) _) = nam
 
--- | Generate a type definition for a Cogent name @nam@ of a derived type.
--- Additionall argument is a pair @(fid,typ)@ of function id and C type specification.
-genDerivedTypeDefs :: String -> (String,LCA.Type) -> FTrav [GenToplv]
-
--- Note: Pointer to named function types are suppressed in genDerivedTypeNames
--- Derived type which contains typedef names:
--- Generate definition of the form
--- > type nam = resnam
--- where @resnam@ denotes the translation of the fully resolved derived type.
--- Here resolving does not stop at defined external typedef names, since we want to eliminate 
--- typedef names completely.
-genDerivedTypeDefs nam (fid,t) | containsTypedefs t = do
-    t <- transType fid $ resolveFully [] t
-    return $ [GenToplv (CS.TypeDec nam [] t) noOrigin]
--- Pointer to void:
--- Generate abstract type definition.
-genDerivedTypeDefs "P_Void" (_,_) = 
-    return $ [GenToplv (CS.AbsTypeDec "P_Void" [] []) noOrigin]
--- Pointer to array type containing no typedef names:
--- @nam@ has the form @PA<size>El@. Generate definition of the form
--- > type PA<size>El = { cont: #A<size>El }
-genDerivedTypeDefs nam (fid,(LCA.PtrType atyp@(LCA.ArrayType etyp as _ _) _ _)) = do
-    t <- transType fid atyp
-    let rectype = genType $ CS.TRecord [(pfieldnam, ((GenType (CS.TUnbox t) noOrigin), False))] markBox
-    return $ [GenToplv (CS.TypeDec nam [] rectype) noOrigin]
-    where pfieldnam = "cont"
--- Pointer to function type containing no typedef names:
--- @nam@ has the form @F_ARGS_RES@. Generate abstract definition.
-genDerivedTypeDefs nam (fid,(LCA.PtrType ftyp@(LCA.FunctionType _ _) _ _)) = do
-    return $ [GenToplv (CS.AbsTypeDec nam [] []) noOrigin]
--- Pointer to other type containing no typedef names:
--- @nam@ has the form @PRef@. Generate definition of the form
--- > type PRef = { cont: Ref }
-genDerivedTypeDefs nam (fid,(LCA.PtrType t _ _)) | not $ (isFunction t || nam == "P_VOID") = do
-    t <- transType "" t
-    let rectype = genType $ CS.TRecord [(pfieldnam, (t, False))] markBox
-    return $ [GenToplv (CS.TypeDec nam [] rectype) noOrigin]
-    where pfieldnam = "cont"
--- Note: Pointer to composite types are suppressed in genDerivedTypeNames
--- Array type containing no typedef names:
--- @nam@ has the form @A<size>El@. Generate definitions of the form
--- > type UA<size>El
--- > type A<size>El = { arr: #UA<size>El }
-genDerivedTypeDefs nam (fid,atyp@(LCA.ArrayType etyp as _ _)) = do
-    return $ [tdef ("U"++nam),GenToplv (CS.TypeDec nam [] rectype) noOrigin]
-    where pfieldnam = "arr"
-          tdef nam = GenToplv (CS.AbsTypeDec nam [] []) noOrigin
-          rectype = genType $ CS.TRecord [(pfieldnam, (genType (CS.TCon ("U"++nam) [] markUnbox), False))]  markBox
--- Note: function types are converted to function pointer type by genDerivedTypeNames
+-- | Generate type definitions for a Cogent generic type name @nam@ of a derived array type.
+-- The name has the form @CArr<size>@, @CArrX<size>X@ or @CArrXX@.
+-- The last case is ignored.
+-- For the other cases two generic type defintions are generated of the form
+-- > type CArr... el = { arr: #(UArr... el) }
+-- > type UArr... el
+genDerivedTypeDefs :: String -> [GenToplv]
+genDerivedTypeDefs nam | arrDerivHasSize nam =
+    [tdef nam,adef $ arrDerivToUbox nam]
+    where tdef nam = GenToplv (CS.TypeDec nam ["el"] $ genType $ CS.TRecord [("arr", (ftyp nam, False))] markBox) noOrigin
+          ftyp nam = genType $ CS.TCon (arrDerivToUbox nam) [genType $ CS.TVar "el" False] markUnbox
+          adef nam = GenToplv (CS.AbsTypeDec nam ["el"] []) noOrigin
+genDerivedTypeDefs _ = []
 
 parmodFunId :: (LCA.Declaration d, LCN.CNode d) => d -> FTrav String
 parmodFunId fdef = do
     sfn <- srcFileName $ LCA.declIdent fdef
     return $ getFunId fdef sfn
-
-applyParmods :: LCA.Type -> String -> GenType -> FTrav GenType
-applyParmods (LCA.FunctionType (LCA.FunType _ pars variadic) _) fid (GenType (CS.TFun pt rt) o) = do
-    pms <- getParmods fid
-    let vpms = if variadic then pms ++ ["no"] else pms
-    dpms <- mapM mkDefaultParmod $ map LCA.declType pars
-    let vdpms = if variadic then dpms ++ ["no"] else dpms
-    let hpms = if (length vpms) < (length ptl) then vdpms else vpms
-    let pts = zip hpms ptl
-    return $ GenType (CS.TFun (applyToPars pts) (applyToRes pts rt)) o
-    where ptl = ptlist pt
-          ptlist (GenType CS.TUnit _) = []
-          ptlist (GenType (CS.TTuple ts) _) = ts
-          ptlist gt = [gt]
-applyParmods _ _ t = return t
-
-applyToPars :: [(String,GenType)] -> GenType
-applyToPars pts = mkGenType $ map applyToPar pts
-
-applyToPar :: (String,GenType) -> GenType
-applyToPar (s,gt) | s == "readonly" || s == "no" = genType $ CS.TBang gt
-applyToPar (_,gt) = gt
-
-applyToRes :: [(String,GenType)] -> GenType -> GenType
-applyToRes pts rt = mkGenType $ addrps rt
-    where rps = map snd $ filter (((==) "yes") . fst) pts
-          addrps (GenType CS.TUnit _) = rps
-          addrps t = t : rps
 
 extendExpr :: LCA.FunDef -> RawExpr -> [LCA.ParamDecl] -> FTrav RawExpr
 extendExpr fdef e pars = do
@@ -284,7 +262,7 @@ aggBitfields ms = foldl accu [] ms
           accu ms m@(LCA.MemberDecl _ Nothing _) = ms ++ [m]
           accu ms (LCA.MemberDecl _ (Just e) n) = procBitfield e ms n
           accu ms (LCA.AnonBitField _ e n) = procBitfield e ms n
-          procBitfield :: LCS.CExpr -> [LCA.MemberDecl] -> LC.NodeInfo -> [LCA.MemberDecl]
+          procBitfield :: LCS.CExpr -> [LCA.MemberDecl] -> LCN.NodeInfo -> [LCA.MemberDecl]
           procBitfield e ms n =
               let lm = last ms in
                   if canAddTo lm e
@@ -299,7 +277,7 @@ aggBitfields ms = foldl accu [] ms
           addTo (LCA.MemberDecl v (Just (LCS.CConst (LCS.CIntConst (LC.CInteger i1 r f) nn))) n)
             ((LCS.CConst (LCS.CIntConst (LC.CInteger i2 _ _) _))) = 
                 (LCA.MemberDecl v (Just (LCS.CConst (LCS.CIntConst (LC.CInteger (i1+i2) r f) nn))) n)
-          bitfieldgrp :: CExpr -> [LCA.MemberDecl] -> LC.NodeInfo -> LCA.MemberDecl
+          bitfieldgrp :: CExpr -> [LCA.MemberDecl] -> LCN.NodeInfo -> LCA.MemberDecl
           bitfieldgrp e ms n = 
               LCA.MemberDecl 
                 (LCA.VarDecl 
@@ -311,20 +289,27 @@ aggBitfields ms = foldl accu [] ms
           isBitfield (LCA.MemberDecl _ Nothing _) = False
           isBitfield _ = True
 
+-- | Translate struct member definition to pair of Cogent record field name and type.
+-- First parameter is the reference to the enclosing struct type, it is used to construct a function id for the member.
 transMember :: LCI.SUERef -> LCA.MemberDecl -> FTrav (CCS.FieldName, (GenType, CS.Taken))
-transMember sueref mdecl@(LCA.MemberDecl (LCA.VarDecl (LCA.VarName idnam _) att typ) _ n) | isArray typ = do
-    t <- transType (getFunMemberId sueref mdecl) $ resolveTypedef typ
-    let (GenType (CS.TCon nam [] b) _) = t
-    return (mapIfUpper idnam, ((GenType (CS.TCon nam [] markUnbox) $ mkOrigin n), False))
-transMember sueref mdecl@(LCA.MemberDecl (LCA.VarDecl (LCA.VarName idnam _) att typ) _ n) = do
-    t <- transType (getFunMemberId sueref mdecl) typ
-    return (mapIfUpper idnam, ((GenType (typeOfGT t) $ mkOrigin n), False))
+transMember sueref mdecl@(LCA.MemberDecl (LCA.VarDecl (LCA.VarName idnam _) _ typ) _ n) =
+    transMemberDef (getFunMemberId sueref mdecl) idnam typ n
 {- LCA.AnonBitField cannot occur since it is always replaced by aggBitfields -}
 
+-- | Translate external struct member definition to pair of Cogent record field name and type.
+-- The member type is fully resolved.
+-- The additional first parameter is a list of type names where to stop resolving.
 transExtMember :: [String] -> LCI.SUERef -> LCA.MemberDecl -> FTrav (CCS.FieldName, (GenType, CS.Taken))
-transExtMember tds sueref mdecl@(LCA.MemberDecl (LCA.VarDecl (LCA.VarName idnam _) att typ) _ n) = do
-    t <- transType (getFunMemberId sueref mdecl) (resolveFully tds typ)
-    return (mapIfUpper idnam, ((GenType (typeOfGT t) $ mkOrigin n), False))
+transExtMember tds sueref mdecl@(LCA.MemberDecl (LCA.VarDecl (LCA.VarName idnam _) _ typ) _ n) = 
+    transMemberDef (getFunMemberId sueref mdecl) idnam (resolveFully tds typ) n
+
+-- | Translate struct member definition to pair of Cogent record field name and type.
+-- Translate member type, if array set unboxed. Map member name if it starts with uppercase.
+transMemberDef :: String -> LCI.Ident -> LCA.Type -> LCN.NodeInfo -> FTrav (CCS.FieldName, (GenType, CS.Taken))
+transMemberDef fid idnam typ n = do
+    t <- transType fid typ
+    let ut = if isArray typ then setUnboxed t else t
+    return (mapIfUpper idnam, (setOrigin n ut, False))
 
 transParamNames :: Bool -> [LCA.ParamDecl] -> FTrav GenIrrefPatn
 transParamNames variadic [] = 
@@ -350,42 +335,18 @@ transType :: String -> LCA.Type -> FTrav GenType
 
 -- Type void:
 -- Translate to: ()
-transType _ (LCA.DirectType TyVoid _ _) = 
+transType _ (LCA.DirectType LCA.TyVoid _ _) = 
     return $ genType CS.TUnit
--- Complete function type: ret (p1,..,pn)
--- Translate to: Cogent function type (p1,..,pn) -> ret
-transType fid (LCA.FunctionType (LCA.FunType ret pars variadic) _) = do
-    r <- transType "" ret
-    ps <- transParamTypes variadic fid pars
-    return $ genType $ CS.TFun ps r
--- Other: direct type, typedef name, or derived type
--- Translate to: Cogent type name, possibly unboxed.
-transType fid t = do
-    (u,d,b) <- transDerivedType fid t
-    return $ genType $ CS.TCon (mkDerivedName d b) [] $
-        if u || isFunPointer t then markUnbox
-                               else markBox
-
--- | Translate a C direct or derived type to a Cogent type name.
--- For first parameter see transType.
--- The result is a triple (u,d,b) where
---   u is whether the unbox operator must be applied,
---   d is the encoding of all derivation steps
---   b String is the name for the base type
-transDerivedType :: String -> LCA.Type -> FTrav (Bool,String,String)
-
--- Type void (as base of a derived type):
--- Translate to: Void
-transDerivedType _ (LCA.DirectType LCA.TyVoid _ _) = 
-    return (False,"","Void")
 -- Direct type:
--- Translate to primitive type name, Struct_... or Enum_...
-transDerivedType _ (LCA.DirectType tnam quals _) = do
-    t <- transTNam tnam
-    return (u,"",t)
-    where u = case tnam of
-                (LCA.TyComp _) -> True
-                _ -> False
+-- Translate to: Name of primitive type (boxed) or composite type (unboxed).
+-- Remark: Semantically, primitive types are unboxed. 
+-- However, if marked as unboxed the Cogent prettyprinter adds a (redundant) unbox operator.
+transType _ (LCA.DirectType tnam _ _) = do
+    tn <- transTNam tnam
+    return $ genType $ CS.TCon tn [] ub 
+    where ub = case tnam of
+                (LCA.TyComp _) -> markUnbox
+                _ -> markBox
           transTNam (LCA.TyComp _) = transTagName tnam
           transTNam (LCA.TyEnum (LCA.EnumTypeRef (AnonymousRef _) _)) = return "U32"
           transTNam (LCA.TyEnum _) = transTagName tnam
@@ -406,46 +367,95 @@ transDerivedType _ (LCA.DirectType tnam quals _) = do
           transTNam (LCA.TyFloating _) =         return "err-float"
           transTNam (LCA.TyComplex _) =          return "err-complex"
           transTNam (LCA.TyBuiltin _) =          return "err-builtin" 
--- Derived pointer type for type t:
--- Translate t. If unboxed make boxed, otherwise prepend P step. Always boxed.
-transDerivedType fid (LCA.PtrType t quals _) = do
-    (u,d,b) <- transDerivedType fid t
-    if u then return (False,d,b)
-         else return (False,mapPtrDeriv ++ d,b)
--- Derived array type for element type t:
--- Translate t. If struct or union type prepend U step. Then prepend A step. Always boxed.
-transDerivedType fid (LCA.ArrayType t as quals _) = do
-    (u,d,b) <- transDerivedType fid t
-    return (False,(mapArrDeriv as) ++ (if isComposite t then mkNonLin d else d),b)
--- Derived complete function type for parameter types pars and result type rt:
--- Translate rt. If struct or union type prepend U step.
--- Adjust pars, translate, apply parmods. Prepend F step. Always unboxed.
--- Note parmods are not applied to result type in function pointer type names!
-transDerivedType fid (LCA.FunctionType ft@(FunType rt pars variadic) _) = do
-    (u,d,b) <- transDerivedType "" rt
-    pts <- mapM (transDerivedType "") $ map adjustParamType parTypes
-    defaultParmods <- mapM mkDefaultParmod parTypes
-    pts <- applyParmodsDerived defaultParmods fid pts
-    let vpts = if variadic then pts ++ [(False,mapParmodDeriv "no",variadicTypeName)] else pts
-    return (True,(mapFunDeriv ft vpts) ++ (if isComposite rt then mkNonLin d else d),b)
-    where parTypes = map LCA.declType pars
--- Derived incomplete function type for result type rt:
--- Translate rt. If struct or union type prepend U step. Then prepend F step. Always unboxed.
-transDerivedType fid (LCA.FunctionType ft@(FunTypeIncomplete rt) _) = do
-    (u,d,b) <- transDerivedType "" rt
-    return (True,(mapFunDeriv ft []) ++ (if isComposite rt then mkNonLin d else d),b)
 -- Typedef name:
 -- Translate to mapped name. Unboxed for struct, union, or function, otherwise boxed.
-transDerivedType _ (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) quals _) =
-    return (isCompOrFunc typ,"",tn)
+transType _ (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _) =
+    return $ genType $ CS.TCon tn [] ub
     where tn = mapNameToUpper idnam
+          ub = if isCompOrFunc typ then markUnbox else markBox
+-- Pointer to void:
+-- Translate to: CVoidPtr
+transType _ (LCA.PtrType t _ _) | isVoid t = 
+    return $ genType $ CS.TCon mapPtrVoid [] markBox
+-- Derived pointer type for function type t:
+-- Translate t, apply CFunPtr or CFunInc and make unboxed.
+transType fid (LCA.PtrType t _ _) | isFunction t = do
+    typ <- transType fid t
+    return $ genType $ CS.TCon (mapFunDeriv $ isComplete t) [typ] markUnbox
+-- Derived pointer type for array type t:
+-- Translate t and use as result. Always boxed.
+transType _ (LCA.PtrType t _ _) | isArray t =
+    transType "" t
+-- Derived pointer type for other type t:
+-- Translate t. If unboxed make boxed, otherwise apply CPtr. Always boxed.
+transType _ (LCA.PtrType t _ _) = do
+    typ <- transType "" t
+    if isUnboxed typ then return $ setBoxed typ
+                     else return $ genType $ CS.TCon mapPtrDeriv [typ] markBox
+-- Complete derived function type: ret (p1,..,pn)
+-- Translate to: Cogent function type (p1,..,pn) -> ret, then apply parmod description.
+transType fid t@(LCA.FunctionType (LCA.FunType ret pars variadic) _) = do
+    r <- transType "" ret
+    ps <- transParamTypes variadic fid pars
+    applyParmods t fid $ genType $ CS.TFun ps r
+-- Derived array type for array type t (multidimensional array):
+-- Translate t, apply unbox operator, then apply generic array type. Always boxed.
+transType _ (LCA.ArrayType t as _ _) | isArray t = do
+    typ <- transType "" t
+    return $ genType $ CS.TCon (mapArrDeriv as) [setUnboxed typ] markBox 
+-- Derived array type for non-array type t:
+-- Translate t, apply generic array type. Always boxed.
+transType fid (LCA.ArrayType t as _ _) = do
+    typ <- transType fid t
+    return $ genType $ CS.TCon (mapArrDeriv as) [typ] markBox 
 
-applyParmodsDerived :: [String] -> String -> [(Bool,String,String)] -> FTrav [(Bool,String,String)]
-applyParmodsDerived dpms fid pts = do
+-- | Apply parameter modification description to a mapped function type.
+-- The first parameter is the original C function type.
+-- The second parameter is the function id of the associated parameter modification description.
+-- If the parameter modification description has fewer parameters than the function type,
+-- apply the default parameter modification description instead.
+applyParmods :: LCA.Type -> String -> GenType -> FTrav GenType
+applyParmods (LCA.FunctionType (LCA.FunType _ pars variadic) _) fid (GenType (CS.TFun pt rt) o) = do
     pms <- getParmods fid
-    let hpms = if (length pms) < (length pts) then dpms else pms
-    return $ map (\(pm, (u,d,b)) -> (u, (mapParmodDeriv pm) ++ d, b)) $ zip hpms pts
+    let vpms = if variadic then pms ++ ["no"] else pms
+    dpms <- mapM mkDefaultParmod $ map LCA.declType pars
+    let vdpms = if variadic then dpms ++ ["no"] else dpms
+    let hpms = if (length vpms) < (length ptl) then vdpms else vpms
+    let pts = zip hpms ptl
+    return $ GenType (CS.TFun (applyToPars pts) (applyToRes pts rt)) o
+    where ptl = ptlist pt
+          ptlist (GenType CS.TUnit _) = []
+          ptlist (GenType (CS.TTuple ts) _) = ts
+          ptlist gt = [gt]
+applyParmods _ _ t = return t
 
+-- | Apply parameter modification description to parameters of a mapped function type.
+-- Input is a list of parameter types with associated modification description (as a String).
+-- Output is the type for the parameter list (unit, singleton, or tuple).
+applyToPars :: [(String,GenType)] -> GenType
+applyToPars pts = mkGenType $ map applyToPar pts
+
+-- | Apply parameter modification description to a single parameter type.
+-- The description is a string.
+-- If the C type is readonly or the parameter is not modified, the Cogent type is changed to readonly.
+applyToPar :: (String,GenType) -> GenType
+applyToPar (s,gt) | s == "readonly" || s == "no" = genType $ CS.TBang gt
+applyToPar (_,gt) = gt
+
+-- | Apply parameter modification to a function result type.
+-- Additional input is a list of parameter types with associated modification description (as a String).
+-- For every parameter which is modified, its type is appended to the result type.
+-- Comment markers are removed from these types to avoid duplication of comments.
+-- Output is the type for the result list (unit, singleton, or tuple).
+applyToRes :: [(String,GenType)] -> GenType -> GenType
+applyToRes pts rt = mkGenType $ addrps rt
+    where rps = map remComment $ map snd $ filter (((==) "yes") . fst) pts
+          addrps (GenType CS.TUnit _) = rps
+          addrps t = t : rps
+
+-- | Create default parameter modification description for a single C parameter type.
+-- If the C type is not linear or readonly, specify this property.
+-- Otherwise assume that it is modified.
 mkDefaultParmod :: LCA.Type -> FTrav String
 mkDefaultParmod t = do
     lin <- isLinearParType t
@@ -529,14 +539,28 @@ mkRawExpr res = CS.RE $ CS.Tuple res
 
 setBoxed :: GenType -> GenType
 setBoxed (GenType (CS.TCon nam p _) o) = (GenType (CS.TCon nam p markBox) o)
+setBoxed (GenType (CS.TRecord fields _) o) = (GenType (CS.TRecord fields markBox) o)
 setBoxed (GenType (CS.TUnbox (GenType t _)) o) = (GenType t o)
 
-boxIf :: Bool -> GenType -> GenType
-boxIf True t = setBoxed t
-boxIf False t = t
+setUnboxed :: GenType -> GenType
+setUnboxed (GenType (CS.TCon nam p _) o) = (GenType (CS.TCon nam p markUnbox) o)
+setUnboxed (GenType (CS.TRecord fields _) o) = (GenType (CS.TRecord fields markUnbox) o)
+setUnboxed (GenType t o) = (GenType (CS.TUnbox (GenType t noOrigin)) o)
+
+isUnboxed :: GenType -> Bool
+isUnboxed (GenType (CS.TCon _ _ CCT.Unboxed) _) = True
+isUnboxed (GenType (CS.TRecord _ CCT.Unboxed) _) = True
+isUnboxed (GenType (CS.TUnbox _) _) = True
+isUnboxed _ = False
 
 markBox = CCT.Boxed False CS.noRepE
 markUnbox = CCT.Unboxed
+
+setOrigin :: LCN.NodeInfo -> GenType -> GenType
+setOrigin n t = (GenType (typeOfGT t) $ mkOrigin n)
+
+remComment :: GenType -> GenType
+remComment (GenType t o) = GenType t $ toNoComOrigin o
 
 errType :: String -> FTrav GenType
 errType s = return $ genType $ CS.TCon ("err-" ++ s) [] markUnbox

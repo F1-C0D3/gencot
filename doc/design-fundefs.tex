@@ -40,7 +40,7 @@ local declaration may have the form
   Struct_s1 a, *b, c[5];
 \end{verbatim}
 although the Cogent types for \code{a, b, c} would be \code{\#Struct\_s1}, \code{Struct\_s1}, and 
-\code{\#A5\_Struct\_s1}, respectively. This translation for the derived types must be done manually.
+\code{\#(CArr5 Struct\_s1)}, respectively. This translation for the derived types must be done manually.
 
 Additionally, the function parameter names usually occur free in the function body. To make them apparent to
 the programmer, Gencot generates a Cogent pattern for the (single) parameter of the Cogent function which 
@@ -57,7 +57,7 @@ Cogent compiler. Therefore it is wrapped as a Cogent comment by adding a \code{-
 opening brace and before the closing brace.
 
 To yield a correct Cogent function, a dummy result expression is generated. Gencot generates the expression
-depending on the result type, as described in Section~\ref{design-types}. 
+depending on the result type, as described in Section~\ref{design-operations-dummy}. 
 
 The generated Cogent function definition has the form
 \begin{verbatim}

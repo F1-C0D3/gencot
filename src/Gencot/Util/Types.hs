@@ -240,14 +240,13 @@ selNonDerived p (LCA.FunctionType (LCA.FunTypeIncomplete rt) _) = selNonDerived 
 selNonDerived p t = considerType p t
 
 -- | Get derived types occurring syntactically in a type, including the type itself.
--- All result types are paired with a function id. The first argument is a function id for the type itself.
-getDerivedParts :: String -> LCA.Type -> [(String,LCA.Type)]
-getDerivedParts fid t@(LCA.PtrType bt _ _) = (fid,t) : getDerivedParts "" bt
-getDerivedParts fid t@(LCA.ArrayType bt _ _ _) = (fid,t) : getDerivedParts "" bt
-getDerivedParts fid t@(LCA.FunctionType (LCA.FunType rt pars _) _) = 
-    (fid,t) : union (getDerivedParts "" rt) (nub $ concat $ map ((getDerivedParts "") . LCA.declType) pars)
-getDerivedParts fid t@(LCA.FunctionType (LCA.FunTypeIncomplete rt) _) = (fid,t) : getDerivedParts "" rt
-getDerivedParts _ _ = []
+getDerivedParts :: LCA.Type -> TypeSet
+getDerivedParts t@(LCA.PtrType bt _ _) = t : getDerivedParts bt
+getDerivedParts t@(LCA.ArrayType bt _ _ _) = t : getDerivedParts bt
+getDerivedParts t@(LCA.FunctionType (LCA.FunType rt pars _) _) = 
+    t : union (getDerivedParts rt) (nub $ concat $ map (getDerivedParts . LCA.declType) pars)
+getDerivedParts t@(LCA.FunctionType (LCA.FunTypeIncomplete rt) _) = t : getDerivedParts rt
+getDerivedParts _ = []
 
 isLinearType :: MonadSymtab m => LCA.Type -> m Bool
 isLinearType td@(LCA.TypeDefType _ _ _) = isLinearType $ resolveTypedef td
@@ -385,6 +384,11 @@ isAggregate td@(LCA.TypeDefType _ _ _) = isAggregate $ resolveTypedef td
 isAggregate (LCA.DirectType (LCA.TyComp _) _ _) = True
 isAggregate (LCA.ArrayType _ _ _ _) = True
 isAggregate _ = False
+
+isVoid :: TypePred
+isVoid td@(LCA.TypeDefType _ _ _) = isVoid $ resolveTypedef td
+isVoid (LCA.DirectType LCA.TyVoid _ _) = True
+isVoid _ = False
 
 -- | Type which does not refer to other types
 isLeafType :: TypePred

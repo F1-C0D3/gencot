@@ -10,19 +10,20 @@ include <gum/common/common.cogent>
 -- Abstract type for modelling the heap
 type Heap
 
--- Macro for generating the empty-value type for a valid-value linear type vvt.
--- It is only defined for record types, mapping them to the type where all fields are taken.
-#define EVTYPE(vvt) vvt take (..)
+-- Macro for generating the empty-value type for a valid-value boxed record type vvt.
+-- The result is the type where all fields are taken.
+--   vvt: the valid-value type
+#define EVT(vvt) (vvt) take (..)
 
 -- Creating an empty value of linear type by allocating memory for it 
 -- and returning a pointer to the allocated space.
 -- In case of error no pointer is returned.
--- Provided instances: create[EVTYPE(vvt)] for all record types vvt.
+-- Provided instances: create[EVT(vvt)] for all record types vvt.
 --   evt: the linear empty-value type of the created values.
 create: all(evt). Heap -> Result (evt,Heap) Heap
 
 -- Disposing a value of empty-value linear type by deallocating its memory.
--- Provided instances: dispose[EVTYPE(vvt)] for all record types vvt.
+-- Provided instances: dispose[EVT(vvt)] for all record types vvt.
 --   evt: the linear type of the empty values to be disposed.
 dispose: all(evt). (evt,Heap) -> Heap
 
@@ -54,12 +55,14 @@ type ClrFun vvt evt arg out = ModTypeFun vvt evt arg out
 -- Always successful.
 --   evt: type of empty values
 --   vvt: type of valid values
-initFull: all(evt,vvt). IniFun evt vvt #vvt ()
+--   (uvvt: unboxed vvt, needed to avoid Cogent bug 9 (see cogent-bugs.txt))
+initFull: all(evt,vvt,uvvt). IniFun evt vvt uvvt ()
 
 -- Clearing function which returns the content as an unboxed value.
 --   vvt: type of valid values
 --   evt: type of empty values
-clearFull: all(vvt,evt). ClrFun vvt evt () #vvt
+--   (uvvt: unboxed vvt, needed to avoid Cogent bug 9 (see cogent-bugs.txt))
+clearFull: all(evt,vvt,uvvt). ClrFun vvt evt () uvvt
 
 -- Initialization function which allocates linear content on the heap.
 -- Content of primitive type is set to its default value using defaultVal.
@@ -80,20 +83,20 @@ clearHeap: all(vvt,evt). ClrFun vvt evt Heap Heap
 -- and content of type (MayNull a)! to roNull. Always successful.
 --   evt: type of empty values
 --   vvt: type of valid values, may not contain linear or readonly content other than (MayNull a)!
-initSimp: all(evt,vvt:<DS). IniFun evt vvt () ()
+initSimp: all(evt,vvt). IniFun evt vvt () ()
 
 -- Clearing function which ignores all content.
---   vvt: type of valid values, must be discardable
+--   vvt: type of valid values, all content must be discardable
 --   evt: type of empty values
-clearSimp: all(vvt:<D,evt). ClrFun vvt evt () ()
+clearSimp: all(vvt,evt). ClrFun vvt evt () ()
 
--- Macros for specifying typed instances of the initialization and clearing functions
--- and their types
+-- Macros for specifying typed instances and types of the initialization and clearing functions
+-- for valid-value record types.
 --   func: one of Full, Heap, Simp
 --   vvt: type of valid values
-#define INIT(func,vvt) Gencot_MKFUNNAME(init,func)[EVTYPE(vvt),vvt]
-#define CLEAR(func,vvt) Gencot_MKFUNNAME(clear,func)[vvt,EVTYPE(vvt)]
-#define INITTYPE(func,vvt) Gencot_OPTTRNS(func)IniFun (EVTYPE(vvt)) vvt Gencot_IELARGOUT(func,vvt)
-#define CLEARTYPE(func,vvt) ClrFun vvt (EVTYPE(vvt)) Gencot_CELARGOUT(func,vvt)
+#define INIT(func,vvt) Gencot_MKFUNNAME(init,func)[EVT(vvt),vvt Gencot_UVVT(func,vvt)]
+#define CLEAR(func,vvt) Gencot_MKFUNNAME(clear,func)[vvt,EVT(vvt) Gencot_UVVT(func,vvt)]
+#define INITTYPE(func,vvt) Gencot_OPTTRNS(func)IniFun (EVT(vvt)) vvt Gencot_IELARGOUT(func,vvt)
+#define CLEARTYPE(func,vvt) ClrFun vvt (EVT(vvt)) Gencot_CELARGOUT(func,vvt)
 
 #endif {- GENCOT_MEMORY -}

@@ -1,9 +1,24 @@
-{- Functions for Gencot array types -}
+{- Gencot array types -}
 
 #ifndef GENCOT_CARRAY
 #define GENCOT_CARRAY
 
 #include "Memory.cogent"
+#include "CPointer.cogent"
+
+-- Type for mapping C array types with too complex size or no size
+--   el: element type
+type CArrXX el = { arr: #(UArr el) }
+type UArrXX el
+
+-- Macro for constructing the array type for a given size and element type.
+--   size: number of array elements
+--   knd: kind of element type.
+--     Must be U for an unboxed type representing a C struct, union, or array type, otherwise empty.
+--   el: element type
+#define CARR(size,knd,el) Gencot_ID(CArr)size Gencot_APPFUN(Gencot_ID(knd)altUBOX,el)
+#define altUBOX(el) (el)
+#define UaltUBOX(el) #(el)
 
 {- Initialization and Clearing Arrays -}
 
@@ -31,28 +46,28 @@ clearEltsPar: all(vvt,evt,vpe,epe,arg:<S). ClrFun vvt evt (ClrFun vpe epe arg ()
 initEltsSeq: all(evt,vvt,epe,vpe,arg). IniFun evt vvt (IniFun epe vpe arg arg, arg) arg
 clearEltsSeq: all(evt,vvt,epe,vpe,arg). ClrFun vvt evt (ClrFun vpe epe arg arg, arg) arg
 
--- Macros for specifying typed instances of the initialization and clearing functions
+-- Macros for specifying typed instances of the element initialization and clearing functions
 -- and their function types.
 --   func: one of ParCmb, Par, Seq
---   eknd: kind of element type, one of F (function pointer), R (boxed record), U (unboxed record)
---         A (array), P (pointer), or empty (primitive type).
 --   size: number of array elements
+--   knd: kind of element type.
+--     Must be U for an unboxed type representing a C struct, union, or array type, otherwise empty.
 --   el: element type
 --   arg: type of additional input to the element function
 --   out: type of additional output from the element function (ignored for func = Simp,Seq)
-#define INITELTS(func,eknd,size,el,arg,out) \
-  Gencot_MKFUNNAME(initElts,func)[EVTYPE(Gencot_ARRTYP(size,eknd,el)),Gencot_ARRTYP(size,eknd,el),\
-                                 EVTYPE(Gencot_PTRTYP(eknd,el)),Gencot_PTRTYP(eknd,el),Gencot_OPTOUT(func,arg,out)]
-#define CLEARELTS(func,eknd,size,el,arg,out) \
-  Gencot_MKFUNNAME(clearElts,func)[Gencot_ARRTYP(size,eknd,el),EVTYPE(Gencot_ARRTYP(size,eknd,el)),\
-                                  Gencot_PTRTYP(eknd,el),EVTYPE(Gencot_PTRTYP(eknd,el)),Gencot_OPTOUT(func,arg,out)]
-#define INITELTSTYPE(func,eknd,size,el,arg,out) \
-  IniFun (EVTYPE(Gencot_ARRTYP(size,eknd,el))) Gencot_ARRTYP(size,eknd,el) \
-         (IniFun (EVTYPE(Gencot_PTRTYP(eknd,el))) Gencot_PTRTYP(eknd,el) arg Gencot_ARRELOUT(func,arg,out), \
+#define INITelts(func,size,knd,el,arg,out) \
+  Gencot_MKFUNNAME(initElts,func)[EVT(CARR(size,knd,el)),CARR(size,knd,el),\
+                                 EVT(CPTR(knd,el)),CPTR(knd,el),Gencot_OPTOUT(func,arg,out)]
+#define CLEARelts(func,size,knd,el,arg,out) \
+  Gencot_MKFUNNAME(clearElts,func)[CARR(size,knd,el),EVT(CARR(size,knd,el)),\
+                                  CPTR(knd,el),EVT(CPTR(knd,el)),Gencot_OPTOUT(func,arg,out)]
+#define INITTYPEelts(func,size,knd,el,arg,out) \
+  IniFun (EVT(CARR(size,knd,el))) (CARR(size,knd,el)) \
+         (IniFun (EVT(CPTR(knd,el))) (CPTR(knd,el)) arg Gencot_ARRELOUT(func,arg,out), \
          arg Gencot_OPTARRCMB(func,out)) Gencot_ARRELOUT(func,arg,out)
-#define CLEARELTSTYPE(func,eknd,size,el,arg,out) \
-  ClrFun Gencot_ARRTYP(size,eknd,el) (EVTYPE(Gencot_ARRTYP(size,eknd,el))) \
-         (ClrFun Gencot_PTRTYP(eknd,el) (EVTYPE(Gencot_PTRTYP(eknd,el))) arg Gencot_ARRELOUT(func,arg,out), \
+#define CLEARTYPEelts(func,size,knd,el,arg,out) \
+  ClrFun (CARR(size,knd,el)) (EVT(CARR(size,knd,el))) \
+         (ClrFun (CPTR(knd,el)) (EVT(CPTR(knd,el))) arg Gencot_ARRELOUT(func,arg,out), \
          arg Gencot_OPTARRCMB(func,out)) Gencot_ARRELOUT(func,arg,out)
 
 {- Accessing Single Array Elements -}
@@ -83,7 +98,7 @@ setArr : all(arr,idx,el:<D). ModFun arr (idx,el) ()
 --   arr: the array type
 --   idx: the array index type
 --   el: the array element type
-exchngArr : all(arr,idx,el). ModFun arr (idx,el) el
+exchngArr : all(arr,idx,el). ModFun arr (idx,el) (idx,el)
 
 -- Change element at index in array using a change function for elements
 -- For invalid index do nothing and return element function input

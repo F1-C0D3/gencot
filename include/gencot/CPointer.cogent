@@ -1,9 +1,26 @@
-{- Functions for dereferencing C pointers -}
+{- C pointer type -}
 
 #ifndef GENCOT_CPOINTER
 #define GENCOT_CPOINTER
 
+include <gum/common/common.cogent>
 #include "ModFun.cogent"
+#include "AuxMacros.cogent"
+
+-- Type for mapping the C void pointer type
+type CVoidPtr
+
+-- Type for mapping other C pointers
+--   ref: the type of referenced value
+type CPtr ref = { cont: ref }
+
+-- Macro for constructing the pointer type for a give Cogent type.
+-- The result is (CPtr type) if knd is empty and it is type if knd is U.
+-- Technically, the result is always a boxed record type.
+--   knd: one of U or empty. Specifies the kind of Cogent type. 
+--     Must be U for an unboxed type representing a C struct, union, or array type, otherwise empty.
+--   type: the type for which to construct the pointer type.
+#define CPTR(knd,type) Gencot_MKPTRTYP(Gencot_ID(knd)Gencot_PTR,type)
 
 -- Get the referenced value of readonly non-function pointer
 --   ptr: the pointer type
@@ -27,14 +44,22 @@ exchngPtr : all(ptr,ref). (ptr,ref) -> (ptr,ref)
 --   out: type of the auxiliary output of change function
 modifyPtr: all(ptr,ref,arg,out). ChgPartFun ptr ref arg out
 
+{- C function pointers -}
+
+-- Type for mapping C pointers to complete function types
+--   funtype: the type of referenced function
+type CFunPtr funtype
+
+-- Type for mapping C pointers to incomplete function types
+--   restype: the result type of referenced function
+type CFunInc restype
+
 -- Convert from function to function pointer
 --   fun: function type
---   fptr: function pointer type
-toFunPtr : all(fun,fptr). fun -> #fptr
+toFunPtr : all(fun). fun -> #(CFunPtr fun)
 
 -- Convert from function pointer to function
---   fptr: function pointer type
 --   fun: function type
-fromFunPtr : all(fptr,fun). #fptr -> fun
+fromFunPtr : all(fun). #(CFunPtr fun) -> Result fun ()
 
 #endif {- GENCOT_CPOINTER -}

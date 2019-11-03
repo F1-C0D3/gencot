@@ -7,36 +7,35 @@
 
 #define Gencot_MKFUNNAME(base,ext) Gencot_ID(base)Gencot_ID(ext)
 
-#define Gencot_ARRTYP(size,k,el) Gencot_MKARRTYP(size,Gencot_ID(k)Gencot_ARREND,el)
-#define Gencot_MKARRTYP(size,arrend,el) Gencot_ARRBEG()Gencot_ID(size)arrend()el
-#define Gencot_ARRBEG(dummy) A
-#define  Gencot_ARREND(dummy) _
-#define FGencot_ARREND(dummy) 
-#define PGencot_ARREND(dummy) 
-#define AGencot_ARREND(dummy) 
-#define RGencot_ARREND(dummy) _
-#define UGencot_ARREND(dummy) U_
+#define Gencot_APPFUN(f,vvt) f(vvt)
 
 #define Gencot_AEETYP(k,el) Gencot_ARRTYP(EE,k,el)
 
-#define Gencot_PTRTYP(k,el) Gencot_MKPTRTYP(Gencot_ID(k)Gencot_PTR,el)
-#define Gencot_MKPTRTYP(ptrf,el) ptrf()el
-#define  Gencot_PTR(dummy) P_
-#define UGencot_PTR(dummy)
-#define FGencot_PTR(dummy) P
-#define PGencot_PTR(dummy) P
-#define AGencot_PTR(dummy) P
-#define RGencot_PTR(dummy) P_
+#define Gencot_PTRTYP(k,ref) Gencot_MKPTRTYP(Gencot_ID(k)Gencot_PTR,ref)
+#define Gencot_MKPTRTYP(ptrf,ref) ptrf(ref)
+#define  Gencot_PTR(ref) CPtr (ref)
+#define UGencot_PTR(ref) ref
+#define FGencot_PTR(ref) CFunPtr (ref)
+#define PGencot_PTR(ref) CPtr (ref)
+#define AGencot_PTR(ref) CPtr (#(ref)) 
+#define RGencot_PTR(ref) CPtr ref
+
+
+#define Gencot_UVVT(func,vvt) Gencot_MKUVVT(Gencot_ID(func)Gencot_ISUVVT,vvt)
+#define Gencot_MKUVVT(optf,vvt) optf(vvt)
+#define FullGencot_ISUVVT(vvt) , #(vvt)
+#define HeapGencot_ISUVVT(vvt)
+#define SimpGencot_ISUVVT(vvt)
 
 #define Gencot_IELARGOUT(func,vvt) Gencot_MKIELARGOUT(Gencot_ID(func)Gencot_ISIELARGOUT,vvt)
 #define Gencot_MKIELARGOUT(optf,vvt) optf(vvt)
-#define FullGencot_ISIELARGOUT(vvt) #vvt ()
+#define FullGencot_ISIELARGOUT(vvt) #(vvt) ()
 #define HeapGencot_ISIELARGOUT(vvt) Heap Heap
 #define SimpGencot_ISIELARGOUT(vvt) () ()
 
 #define Gencot_CELARGOUT(func,vvt) Gencot_MKCELARGOUT(Gencot_ID(func)Gencot_ISCELARGOUT,vvt)
 #define Gencot_MKCELARGOUT(optf,vvt) optf(vvt)
-#define FullGencot_ISCELARGOUT(vvt) () #vvt
+#define FullGencot_ISCELARGOUT(vvt) () #(vvt)
 #define HeapGencot_ISCELARGOUT(vvt) Heap Heap
 #define SimpGencot_ISCELARGOUT(vvt) () ()
 

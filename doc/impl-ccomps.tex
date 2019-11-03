@@ -13,12 +13,8 @@ target file.
 \item[\code{gencot-translate}] translates a single file \code{x.c} or \code{x.h} to the Cogent code to be put in file
 \code{x.cogent} or \code{x-incl.cogent}. It processes typedefs, struct/union/enum definitions, and function
 definitions. 
-\item[\code{gencot-globals}] translates a single file \code{x.c} to the Cogent code to be put in file \code{x-globals.cogent}.
-It processes all global variable definitions.
 \item[\code{gencot-entries}] translates a single file \code{x.c} to the antiquoted C entry wrappers to be put in
 file \code{x-entry.ac}. It processes all function definitions with external linkage.
-\item[\code{gencot-abstypes}] translates a single file \code{x.c} or \code{x.h} to the C typedefs to be put in
-file \code{x-abstypes.c} or \code{x-abstypes.h}. It processes typedefs and struct/union/enum definitions.
 \item[\code{gencot-remfundef}] processes a single file \code{x.c} by removing all function definitions. The output
 is intended to be put in file \code{x-globals.c}
 \item[\code{gencot-deccomments}] processes a single file \code{x.c} or \code{x.h} to generate the list of
@@ -47,11 +43,9 @@ Gencot uses the following processors of this kind:
 \item[\code{gencot-exttypes}] generates the content to be put in the file \code{<package>-exttypes.cogent}. It 
 processes externally referenced typedefs, tag definitions and enum constant definitions.
 \item[\code{gencot-dvdtypes}] generates the content to be put in the file \code{<package>-dvdtypes.cogent}. It 
-processes all used derived types.
-\item[\code{gencot-dvdtypesh}] generates the content to be put in the file \code{<package>-dvdtypes.h}. It 
-processes all used derived types.
-\item[\code{gencot-dvdtypesac}] generates the content to be put in the file \code{<package>-dvdtypes.ac}. It 
-processes all used derived types.
+processes all used derived array types.
+\item[\code{gencot-dvdtypesah}] generates the content to be put in the file \code{<package>-dvdtypes.ah}. It 
+processes all used derived array types.
 \item[\code{gencot-externs}] generates the abstract function definitions of the exit wrappers to be put in the file 
 \code{<package>-externs.cogent}. It processes the declarations of externally referenced functions and variables.
 \item[\code{gencot-externsac}] generates the exit wrappers to be put in the file \code{<package>-externs.ac}. It processes
@@ -70,10 +64,11 @@ of the following kinds:
 \item enum definitions with a tag
 \item enum constant definitions
 \item function definitions
+\item object definitions
 \item type definitions
 \end{itemize}
 The remaining global items are removed by the predicate passed to \code{Gencot.Input.getDeclEvents}: all declarations, 
-all object definitions, and all tagless enum definitions. No Cogent type name is generated for a tagless enum definition,
+and all tagless enum definitions. No Cogent type name is generated for a tagless enum definition,
 references to it are always directly replaced by type \code{U32}.
 
 The translation does not use the callback handler to collect information during analysis. It only uses the semantics map
@@ -84,6 +79,7 @@ The translation of the \code{DeclEvent} sequence is implemented by the function
 \begin{verbatim}
   transGlobals :: [DeclEvent] -> FTrav [GenToplv]
 \end{verbatim}
+in module \code{Gencot.Cogent.Translate}.
 It performs the monadic traversal as described in Section~\ref{impl-ccode-trav} and returns the list of toplevel
 Cogent definitions of type \code{GenToplv}.
 
@@ -275,7 +271,7 @@ and is used for translating the types of functions and function pointers. If it 
 parameters are assumed to be modifyable by the function. The second file contains a list of newline-separated 
 names of external variables to be processed in addition to the invoked function pointer (array)s. This file can
 only be specified if the parameter modification description file is also specified. If no parameter modifications
-shall be used, a file containing the empty list \code{[]} can be used.
+shall be used, a file containing the empty list \code{[]} can be used instead.
 
 \subsubsection{Processor \code{gencot-externsac}}
 
@@ -339,12 +335,8 @@ This is the case for struct types and for functions. Union types are translated 
 (see Section~\ref{design-types-struct}). To support a manual translation \code{gencot-exttypes} treats them in 
 the same way as struct types.
 
-Gencot always translates a derived type to a type name of a Cogent abstract type. Hence the syntactic part types are 
-not referenced in the translated Cogent code directly. However, for complementing the abstract type by abstract
-functions for working with it, the syntactic part types may be needed. For derived function pointer types Gencot automatically
-provides the abstract from/to/invk conversion functions (see Section~\ref{design-types-function}), for derived array
-types it provides functions as described in Section~\ref{design-types-array}, for other derived 
-types functions may be defined manually. Therefore \code{gencot-exttypes} also handles all syntactic
+Gencot translates derived types to a parameterized Cogent type with the base type as type argument. Hence the syntactic 
+part types are always required as type arguments. Therefore \code{gencot-exttypes} also handles all syntactic
 part types associated with a type carrier.
 
 For functions, the associated syntactic type is either a typedef name (resolving to a derived function type) 
@@ -433,23 +425,23 @@ The translation of external types is implemented by the monadic action
 \begin{verbatim}
   transExtGlobals :: [String] -> [DeclEvent] -> FTrav [GenToplv]
 \end{verbatim}
-where the string list contains the referenced type names.
+in module \code{Gencot.Cogent.Translate} where the string list contains the referenced type names.
 
 \subsection{Derived Types}
 \label{impl-ccomps-dvdtypes}
 
-The processor \code{gencot-dvdtypes} generates all Cogent type and function definitions for the derived types
+The processor \code{gencot-dvdtypes} generates all Cogent type definitions required for the derived types
 used in the C program. It is invoked as
 \begin{verbatim}
-  gencot-dvdtypes [<parmod file> [<varlist file>]]
+  gencot-dvdtypes [<varlist file>]
 \end{verbatim}
-where the optional arguments are a file with parameter modification descriptions and with the names of external
-variables to be processed.
+where the optional argument is a file with the names of external variables to be processed.
 
 A C derived type, is a pointer type, array type or function type. As described in 
-Section~\ref{design-types}, Gencot generates type names for all derived types. For these names type definitions
-must be provided in Cogent. Additionally, Gencot generates abstract function definitions for function pointer 
-and for array types.
+Section~\ref{design-types}, Gencot maps all these types to parameterized Gencot types. The generic types \code{CPtr},
+\code{CFunPtr} and \code{CFunInc} used for pointer and function types are predefined by Gencot. However, the generic 
+types of the form \code{CArr<size>} used for array types syntactically contain the array size, they 
+depend on the translated C program. For these generic types Cogent definitions must be provided.
 
 Derived types are used in C in the form of type expressions, i.e., base types, result and parameter types are 
 syntactically included in the type specification. With some exceptions, derived types may occur wherever a type
@@ -461,46 +453,29 @@ include files.
 For the same reason as for \code{gencot-exttypes} Gencot also processes the syntactic part types of derived types,
 if they are again derived types.
 
-Derived function types which are directly used for defining or declaring a function are not processed, since for them
-Gencot does not generate a type name, it translates them to a Cogent function type expression. If, however,
-a typedef name is defined for a function type, it could also be used to construct the derived pointer type. Therefore
-Gencot processes the corresponding pointer type.
-
 Together, \code{gencot-dvdtypes} processes
-\textit{all} type carriers for all associated syntactic part types which are a derived type,
-with the exception of syntactic types associated with a function.
+\textit{all} type carriers for all associated syntactic part types which are a derived array type.
 
 \subsubsection{Generating Type Definitions}
 
-For all derived types associated as syntactic part type with a type carrier in the used set, an abstract type
-definition must be generated (with the exception of the syntactic types of functions). Only one definition
-may be generated, although a derived type may be associated with several different type carriers.
+For all derived array types associated as syntactic part type with a type carrier in the used set, two abstract 
+generic type definitions must be generated: one for the array type, and one for the corresponding empty-value type 
+(see Section~\ref{design-types-array}). However, only one such pair may be generated for every array \code{<size>}, 
+although array types with a specific size may be associated with several different type carriers.
 
-Derived function types are translated by Gencot with respect to a parameter modification description
-(see Section~\ref{impl-parmod}). This implies, that the same derived type may be translated to different
-Cogent type names, depending on which parameters of nonlinear type are readonly. To take this into account,
-Gencot first generates the translated Cogent type names for all derived types associated 
-as syntactic part type with a type carrier, respecting the available parameter modification descriptions.
-Then it generates a single abstract definition for every resulting type name.
+Gencot first generates the translated Cogent type names for all derived array types associated 
+as syntactic part type with a type carrier. Then it generates a pair of abstract definitions for every generic type name
+used in all these array types. If the translated array type uses the generic name \code{CArrXX} no definition
+is generated since this type name is predefined by Gencot.
 
-As described in Section~\ref{design-types-pointer}, pointer types to composite types and array types are translated
-to the name of the pointed type. Therefore no separate abstract type definition is required for them, these
-derived types are omitted by \code{gencot-dvdtypes}.
-
-Generating the type definitions for derived types is implemented by the monadic action
+Generating the type definitions for derived array types is implemented by the monadic action
 \begin{verbatim}
-  genTypeDefs :: [String] -> [DeclEvent] -> FTrav [GenToplv]
+  genTypeDefs :: [DeclEvent] -> FTrav [GenToplv]
 \end{verbatim}
 in module \code{Gencot.Cogent.Translate}, where the list of \code{DeclEvent}s corresponds to the type carriers
-to be processed. The string list contains the type names referenced in the Cogent compilation unit, it is
-used to fully resolve all types in external type carriers.
+to be processed.
 
-Together with every definition for an array type or a function pointer type Gencot generates the abstract
-function definitions as described in Sections~\ref{design-types-array} and~\ref{design-types-function}.
-
-\subsubsection{Processor \code{gencot-dvdtypesh}}
-
-\subsubsection{Processor \code{gencot-dvdtypesac}}
+\subsubsection{Processor \code{gencot-dvdtypesah}}
 
 \subsection{Declarations}
 \label{impl-ccomps-decls}
@@ -520,7 +495,7 @@ objects.
 If a function or object with external linkage is declared and defined in the same file, the language-c analysis step
 replaces the declaration by the corresponding definitions in the semantic map, hence it will not be found and processed
 by \code{gencot-deccomments}. However, it is assumed that in this case the documentation is assocatied with the definition
-and needs not be moved from the declaration to the definition.
+and need not be moved from the declaration to the definition.
 
 For processing the declarations we do not need a monad since every declaration can be processed on its own. This is implemented
 by the function

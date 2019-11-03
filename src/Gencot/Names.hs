@@ -72,44 +72,33 @@ mapObjectName idnam lnk fnam =
          LCA.NoLinkage -> mapIfUpper idnam
 
 mapPtrDeriv :: String
-mapPtrDeriv = "P"
+mapPtrDeriv = "CPtr"
+
+mapPtrVoid :: String
+mapPtrVoid = "CVoidPtr"
 
 mapArrDeriv :: LCA.ArraySize -> String
-mapArrDeriv (LCA.ArraySize _ (LCS.CConst (LCS.CIntConst i _))) = "A" ++ show i
+mapArrDeriv (LCA.ArraySize _ (LCS.CConst (LCS.CIntConst i _))) = "CArr" ++ show i
 mapArrDeriv (LCA.ArraySize _ (LCS.CVar (LCI.Ident s _ _) _)) = 
     let sep = findSepCharFor s
-    in "A" ++ [sep] ++ s ++ [sep] 
-mapArrDeriv _ = "AXX"
+    in "CArr" ++ [sep] ++ s ++ [sep] 
+mapArrDeriv _ = "CArrXX"
 
-mapFunDeriv :: LCA.FunType -> [(Bool,String,String)] -> String
-mapFunDeriv (LCA.FunTypeIncomplete _) _ = "F_UnknownCogentParameters_"
-mapFunDeriv (LCA.FunType _ _ _) ps = 
-    let sep = findSepCharFor $ concat $ map (\(_,x,y) -> x ++ y) ps
-    in "F_" ++ (concat $ map (mkParTypeName sep) ps) ++ (if null ps then "" else [sep]) ++ "_"
+arrDerivHasSize :: String -> Bool
+arrDerivHasSize nam = nam /= "CArrXX"
 
-mapParmodDeriv :: String -> String
-mapParmodDeriv "yes" = "L"
-mapParmodDeriv "readonly" = "R"
-mapParmodDeriv "no" = "R"
-mapParmodDeriv _ = ""
+arrDerivToUbox :: String -> String
+arrDerivToUbox ('C' : rest) = "U" ++ rest
+
+mapFunDeriv :: Bool -> String
+mapFunDeriv False = "CFunInc"
+mapFunDeriv True = "CFunPtr"
 
 findSepCharFor :: String -> Char
 findSepCharFor s = 
-    findSepCharIn "XYZxyzABCDEFGHIJKMNOPQSTVWabcdefghijklmnopqrstuvw"
-    -- omit L and R which are used for mapParmodDeriv and U which is used for mkParTypeName
+    findSepCharIn "XYZxyzABCDEFGHIJKLMNOPQRSTUVWabcdefghijklmnopqrstuvw"
     where findSepCharIn (c : r) = if elem c s then findSepCharIn r else c
           findSepCharIn [] = error ("No separation char found for: " ++ s)
-
-mkNonLin :: String -> String
-mkNonLin d = 'U' : d
-
-mkDerivedName :: String -> String -> String
-mkDerivedName deriv base = deriv ++ sep ++ base
-    where sep = if null deriv || last deriv == '_' then "" else "_"
-
-mkParTypeName :: Char -> (Bool,String,String) -> String
-mkParTypeName sep (ubx,deriv,base) = 
-    [sep] ++ (mkDerivedName (if ubx then "U"++deriv else deriv) base)
 
 mapFileChar :: Char -> Char
 mapFileChar '.' = '_'

@@ -3,6 +3,7 @@ module Main where
 
 import System.Environment (getArgs)
 import Control.Monad (liftM)
+import Data.Map (empty)
 
 import Language.C.Pretty (pretty)
 import Language.C.Data.Ident (identToString)
@@ -10,10 +11,8 @@ import qualified Language.C.Analysis as LCA
 import Language.C.Analysis.DefTable (globalDefs)
 
 import Gencot.Input (getDeclEvents)
-import Gencot.Json.Parmod (readParmodsFromFile)
-import Gencot.Json.Process (convertParmods)
 import Gencot.Package (readPackageFromInput,getIdentInvocations,getOwnCallGraphs,foldTables,foldTypeCarrierSets)
-import Gencot.Util.Types (collectTypeCarriers,transCloseUsedCarriers,usedTypeNames,carriesNonPrimitive)
+import Gencot.Util.Types (collectTypeCarriers,transCloseUsedCarriers,carriesNonPrimitive)
 import Gencot.Traversal (runFTrav)
 import Gencot.Cogent.Translate (genTypeDefs)
 import Gencot.Cogent.Output (prettyTopLevels)
@@ -22,10 +21,8 @@ main :: IO ()
 main = do
     {- get arguments -}
     args <- getArgs
-    {- get parameter modification descriptions and convert -}
-    parmods <- (liftM convertParmods) (if null args then return [] else readParmodsFromFile $ head args)
     {- get list of external variables to process -}
-    varnams <- (liftM ((filter (not . null)) . lines)) (if 2 > length args then return "" else readFile $ head $ tail args)
+    varnams <- (liftM ((filter (not . null)) . lines)) (if null args then return "" else readFile $ head args)
     {- parse and analyse C sources and get global definitions and used types -}
     (tables,initialTypeCarrierSets) <- (liftM unzip) $ readPackageFromInput [] collectTypeCarriers
     {- Determine all call graphs -}
@@ -40,12 +37,10 @@ main = do
     let extDecls = filter carriesNonPrimitive $ getDeclEvents (globalDefs table) (constructFilter invks varnams)
     {- build type carriers in the Cogent compilation unit by adding initial and external -}
     let unitTypeCarriers = initialTypeCarriers ++ extDecls
-    {- Determine type names used directly in the Cogent compilation unit -}
-    let unitTypeNames = usedTypeNames unitTypeCarriers
     {- construct transitive closure of used type carriers -}
     let typeCarriers = transCloseUsedCarriers table unitTypeCarriers
-    {- generate abstract definitions for derived types in all type carriers -}
-    toplvs <- runFTrav table ("", parmods) $ genTypeDefs unitTypeNames $ typeCarriers
+    {- generate abstract definitions for derived array types in all type carriers -}
+    toplvs <- runFTrav table ("", empty) $ genTypeDefs typeCarriers
     {- Output -}
     print $ prettyTopLevels toplvs
 

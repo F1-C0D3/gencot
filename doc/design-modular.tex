@@ -46,9 +46,9 @@ Note that if the C function has only one parameter, a wrapper is not required. F
 the wrappers also for these functions.
 
 Cogent translates all function definitions to C definitions with internal linkage. To make them accessible the entry wrappers
-must have external linkage. They are defined in an antiquoted Cogent (.ac) file which includes the complete code generated from 
+must have external linkage. They are defined in an antiquoted C (.ac) file which includes the complete code generated from 
 Cogent, there all functions translated from Cogent are accessible from the entry wrappers. The exit wrappers are only invoked 
-from code generated from Cogent. They are defined with internal linkage in an included antiquoted Cogent file.
+from code generated from Cogent. They are defined with internal linkage in an included antiquoted C file.
 
 \subsubsection{Interfacing to Global Variables}
 
@@ -116,18 +116,20 @@ of the set. For a name without linkage (mainly type names and struct/union/enum 
 reference, i.e. contained in the included origin file. Thus a reference to such a name is external, if its origin file does 
 not belong to the set. For a name with linkage (mainly names of functions and variables) it depends on the kind of linkage.
 If it has internal linkage, its definition must also be present for every reference. Then the origin file is that containing the
-(single) definition, not a file containing a declaration. 
+(single) definition, not a file containing a declaration. An external reference of a name with internal linkage occurs if
+the definition is contained in an include file which does not belong to the <packge>.
 
-If it has external linkage, however, the definition need not be present. In this case the origin file only contains a declaration
+If the name has external linkage, however, the definition need not be present. In this case the origin file only contains a declaration
 of the name and even needs not be unique. Then it is not possible to decide whether a non-local reference is external by simply 
 looking at the content of all included files. Instead, all the files in the given set must be inspected, whether they contain
 the name's definition. Note that this is only necessary for deciding whether a reference is external. The information necessary
 for processing it is always present as part of the declaration in the included origin file.
 
-On the C level the information for external name references with internal or no linkage must always be provided manually,
-since they are not defined in the <package>. The information for variable references with external linkage must also be provided
-manually. The information for function references with external linkage is generated automatically by Gencot in the 
-form of the exit wrapper functions defined in antiquoted C. 
+On the C level the information for external name references with internal linkage must always be provided manually,
+since they are not defined in the <package>. The information for external references with no linkage (type and tag names) is
+not required since Gencot fully translates the corresponding definitions to Cogent as usual. The information for variable references 
+with external linkage must also be provided manually. The information for function references with external linkage is 
+generated automatically by Gencot in the form of the exit wrapper functions defined in antiquoted C. 
 
 On the Cogent level the information is provided as follows.
 \begin{itemize}

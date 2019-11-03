@@ -694,7 +694,7 @@ where the first argument specifies whether the name must be uppercase.
 \subsubsection{Cogent Type Names}
 
 A Cogent type name (including the names of primitive types) may be generated as translation of a C 
-primitive type, a C typedef name, a C struct/union/enum type reference, or a C derived type. 
+primitive type, a C typedef name, or a C struct/union/enum type reference. 
 
 A C primitive type is translated according to the description in Section~\ref{design-types}. Only the
 type specifiers for the C type are required for that.
@@ -712,26 +712,18 @@ If the reference is untagged, Gencot nevertheless generates a type name, as moti
 in Section~\ref{design-names}. As input it needs the kind and the position of the struct/union/enum 
 definition. The latter is not contained in the \code{TypeName}, it contains the position of the reference
 itself. To access the position of the definition, the definition must be retrieved from the symbol table
-in the monadic state. Hence, the mapping function is defined as a monadic action.
+in the monadic state. To access the real name of the input file it must be retrieved from the user
+state (see Section~\ref{impl-ccode-trav}). Hence, the mapping function is defined as a monadic action. 
 
 Together the function for translating struct/union/enum type references is
 \begin{verbatim}
-  transTagName :: TypeName -> FTrav String
+  transTagName :: TypeName -> f String
 \end{verbatim}
-
-Since an untagged struct/union/enum can be contained in any type specification and type specifications
-may occur in all other C constructs, the \code{GlobalDecls} map must be passed as argument to all translation
-functions from C constructs to Cogent constructs.
+where \code{f} is a \code{FileNameTrav} and \code{MonadTrav} (see Section~\ref{impl-ccode-trav}).
 
 If the definition itself is translated, it is already available and need not be retrieved from the map. 
-However, as described in Section~\ref{impl-ccode-gencog}, the map may be needed to map the generic name
-\code{<stdin>} to the true source file name. Therefore Gencot uses function \code{transTagName} also when
-translating the definition.
-
-A C derived type is translated to a Cogent type name by translating the name of the basic type as described
-above, and then prepending the encoded sequence of derivation steps, as
-described in Section~\ref{design-names}. The information about the derivation steps is contained in the 
-type construct, no information in addition to that required for translating the basic type name is needed.
+However, the user state is still needed to map the generic name \code{<stdin>} to the true source file 
+name. Therefore Gencot uses function \code{transTagName} also when translating the definition.
 
 \subsubsection{Cogent Function Names}
 
@@ -749,15 +741,17 @@ a lowercase Cogent name. No additional information is required for that.
 For generating a file specific function name, the file name of the definition is required. Note that 
 this is only done for a function with internal linkage, where the definitions must be present in
 the input whenever the function is referenced. The definition contains the position information
-which includes the file name. Hence, the symbol table is sufficient for translating the name,
-to make it available the translation function is defined as a monadic action.
+which includes the file name. Hence, the symbol table together with the real name of the input file 
+is sufficient for translating the name. To make both available the translation function is defined as 
+a monadic action.
 
 In C bodies function names cannot be syntactically distinguished from variable names. Therefore, Gencot
 uses a common function for translating function and variable names. For a description how variable
 names are translated see Section~\ref{impl-ccode-expr}.
 \begin{verbatim}
-  transObjName :: Ident -> FTrav String
+  transObjName :: Ident -> f String
 \end{verbatim}
+where \code{f} is a \code{FileNameTrav} and \code{MonadTrav} (see Section~\ref{impl-ccode-trav}).
 
 Similar as for tags, the function is also used when translating a function definition, although the 
 definition is already available.

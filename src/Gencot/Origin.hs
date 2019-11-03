@@ -46,6 +46,12 @@ appdSignedOrigin sgn n (Origin s e) = Origin s (e++[(n,sgn)])
 prepOrigin = prepSignedOrigin True
 appdOrigin = appdSignedOrigin True
 
+toNoComOrigin :: Origin -> Origin
+toNoComOrigin (Origin s e) = Origin (map toNoCom s) (map toNoCom e)
+
+toNoCom :: (NodeInfo,Bool) -> (NodeInfo, Bool)
+toNoCom (n,_) = (n,False)
+
 origin :: CNode a => a -> Origin
 origin = mkOrigin . nodeInfo
 

@@ -2,7 +2,7 @@
 module Gencot.Names where
 
 import Data.Char (isUpper)
-import Data.List (isPrefixOf)
+import Data.List (isPrefixOf,intercalate)
 import System.FilePath (takeFileName, dropExtension)
 
 import Language.C.Data.Ident as LCI
@@ -93,6 +93,30 @@ arrDerivToUbox ('C' : rest) = "U" ++ rest
 mapFunDeriv :: Bool -> String
 mapFunDeriv False = "CFunInc"
 mapFunDeriv True = "CFunPtr"
+
+mapUboxStep = "U_"
+rmUboxStep ('U' : '_' : rest) = rest
+rmUboxStep nam = nam
+
+mapModStep = "M_"
+mapRoStep = "R_"
+
+mapPtrStep = "P_"
+
+mapArrStep :: LCA.ArraySize -> String
+mapArrStep (LCA.ArraySize _ (LCS.CConst (LCS.CIntConst i _))) = "A" ++ (show i) ++ "_"
+mapArrStep (LCA.ArraySize _ (LCS.CVar (LCI.Ident s _ _) _)) = 
+    ['A',sep] ++ s ++ [sep,'_'] 
+    where sep = findSepCharFor s
+mapArrStep _ = "AXX_"
+
+mapIncFunStep = "F_"
+mapNamFunStep = "FNN_"
+
+mapFunStep :: [String] -> String
+mapFunStep ps =
+    "F" ++ [sep] ++ (intercalate [sep] ps) ++ [sep,'_'] 
+    where sep = findSepCharFor $ concat ps
 
 findSepCharFor :: String -> Char
 findSepCharFor s = 

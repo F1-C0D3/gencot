@@ -537,22 +537,37 @@ need to be known by Cogent to position their definitions before the first use of
 However, for the developer the information about the parameter and result types are useful. Moreover, if different
 Cogent types are used for different C function pointer types, the Cogent type checker can be used to find
 mistakes. Since the full information about the parameter and result types is contained in the Cogent function types
-Gencot uses generic abstract types with a function type as single type argument. This can be thought of as an 
-``annotated'' or ``wrapped'' function type. 
+the easiest way would be to use a generic abstract type with a function type as single type argument. 
+This could be thought of as an ``annotated'' or ``wrapped'' function type. 
+
+However, if a function pointer type occurs as type of a struct member, any direct or indirect reference of a
+parameter or result type to the struct type will be detected by Cogent as a cyclic type dependency. Since 
+these dependencies seem to be no problem for the validation, Gencot hides the parameter and result types from
+Gencot by encoding the function type as an abstract type name (see Section~\ref{design-names}). 
+
+The type name contains names for all parameter types and the result type. The goal is to use the same name 
+for every occurrence of a C function pointer type. Thus it is infeasible to generate the name from 
+the occurrence position (file name and line number). If an arbitrarily generated name would be used, 
+Gencot could not separately compile different C files. Since every mapped C type may occur as parameter or
+result type of a function pointer type, Gencot implements the encoding for all mapped C types.
+
+If the base type of a function pointer type is specified as a typename in C, its encoding is the mapping of 
+this typename, which is a non-abstract type in Cogent. To also hide the function type in this case a pseudo 
+derivation step of the form \code{FNN\_} is prepended to the mapped funtion type name.
 
 Gencot uses the following two generic abstract types for representing binary compatible C function pointers:
 \begin{verbatim}
-  type CFunPtr funtype
-  type CFunInc restype
+  type CFunPtr encfuntype
+  type CFunInc encrestype
 \end{verbatim}
 defined in \code{include/gencot/CPointer.cogent}.
 
 The first type is used for complete function pointer types where the parameter types are specified or it is specified that
-the function has no parameters using the keyword \code{void}. The type argument must be a Cogent function type, 
+the function has no parameters using the keyword \code{void}. The type argument must be the encoding of a Cogent function type, 
 although this constraint cannot be specified or checked in Cogent. The second type is used for incomplete C function 
 pointer types, where only the result type
-is specified but no parameter types. Here only the result type is used as type argument, it may be an arbitrary 
-Cogent type, only restricted by the C rules that it may not be a function or array type. Since however C array types
+is specified but no parameter types. Here only the result type is used as type argument, it may be the encoding of an arbitrary 
+mapped C type, only restricted by the C rules that it may not be a function or array type. Since however C array types
 are mapped by wrapping them in a record, the corresponding unboxed types of the form \code{\#(CArr<size> El)}
 \textit{can} be used as function result types, although Gencot will never do so when translating a valid C program.
 

@@ -439,9 +439,10 @@ where the optional argument is a file with the names of external variables to be
 
 A C derived type, is a pointer type, array type or function type. As described in 
 Section~\ref{design-types}, Gencot maps all these types to parameterized Gencot types. The generic types \code{CPtr},
-\code{CFunPtr} and \code{CFunInc} used for pointer and function types are predefined by Gencot. However, the generic 
-types of the form \code{CArr<size>} used for array types syntactically contain the array size, they 
-depend on the translated C program. For these generic types Cogent definitions must be provided.
+\code{CFunPtr} and \code{CFunInc} used for pointer and function types are predefined by Gencot. However, function
+pointer types use abstract types for encoding the base function type and the generic 
+types of the form \code{CArr<size>} used for array types syntactically contain the array size, both
+depend on the translated C program. For these types Cogent definitions must be provided.
 
 Derived types are used in C in the form of type expressions, i.e., base types, result and parameter types are 
 syntactically included in the type specification. With some exceptions, derived types may occur wherever a type
@@ -454,21 +455,24 @@ For the same reason as for \code{gencot-exttypes} Gencot also processes the synt
 if they are again derived types.
 
 Together, \code{gencot-dvdtypes} processes
-\textit{all} type carriers for all associated syntactic part types which are a derived array type.
+\textit{all} type carriers for all associated syntactic part types which are a derived array or function pointer type.
 
 \subsubsection{Generating Type Definitions}
 
 For all derived array types associated as syntactic part type with a type carrier in the used set, two abstract 
-generic type definitions must be generated: one for the array type, and one for the corresponding empty-value type 
+generic type definitions must be generated
 (see Section~\ref{design-types-array}). However, only one such pair may be generated for every array \code{<size>}, 
 although array types with a specific size may be associated with several different type carriers.
 
-Gencot first generates the translated Cogent type names for all derived array types associated 
-as syntactic part type with a type carrier. Then it generates a pair of abstract definitions for every generic type name
-used in all these array types. If the translated array type uses the generic name \code{CArrXX} no definition
+For all derived function pointer types an abstract type definition must be generated for encoding the function
+type used as its base type.
+
+Gencot first generates the translated Cogent type names for all derived array and function pointer types associated 
+as syntactic part type with a type carrier. Then it generates the corresponding definitions for every type name
+used in all these derived types. If a translated array type uses the generic name \code{CArrXX} no definition
 is generated since this type name is predefined by Gencot.
 
-Generating the type definitions for derived array types is implemented by the monadic action
+Generating the type definitions for derived array and function pointer types is implemented by the monadic action
 \begin{verbatim}
   genTypeDefs :: [DeclEvent] -> FTrav [GenToplv]
 \end{verbatim}

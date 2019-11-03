@@ -47,19 +47,19 @@ modifyPtr: all(ptr,ref,arg,out). ChgPartFun ptr ref arg out
 {- C function pointers -}
 
 -- Type for mapping C pointers to complete function types
---   funtype: the type of referenced function
-type CFunPtr funtype
+--   encfuntype: the encoded type of referenced function
+type CFunPtr encfuntype
 
 -- Type for mapping C pointers to incomplete function types
---   restype: the result type of referenced function
-type CFunInc restype
+--   encrestype: the encoded result type of referenced function
+type CFunInc encrestype
 
 -- Convert from function to function pointer
 --   fun: function type
-toFunPtr : all(fun). fun -> #(CFunPtr fun)
+toFunPtr : all(fun,enc). fun -> #(CFunPtr enc)
 
 -- Convert from function pointer to function
 --   fun: function type
-fromFunPtr : all(fun). #(CFunPtr fun) -> Result fun ()
+fromFunPtr : all(fun,enc). #(CFunPtr enc) -> Result fun ()
 
 #endif {- GENCOT_CPOINTER -}

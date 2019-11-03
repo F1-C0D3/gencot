@@ -681,14 +681,14 @@ by providing polymorphic abstract functions in \code{inlude/gencot/CPointer.coge
 
 The latter operation is supported by the polymorphic abstract function
 \begin{verbatim}
-  toFunPtr: all(fun). fun -> #(CFunPtr fun)
+  toFunPtr: all(fun,encfun). fun -> #(CFunPtr encfun)
 \end{verbatim}
-where \code{fun} is a Cogent function type.
+where \code{fun} is a Cogent function type and \code{encfun} is its encoding as a Cogent abstract type.
 
 Invoking a function is supported by translating the function pointer to the Cogent function (equivalent to the enumeration value) which
 then can be invoked in the usual way in Cogent. The translation is done by the polymorphic abstract function
 \begin{verbatim}
-  fromFunPtr: all(fun). #(CFunPtr fun) -> Result fun ()
+  fromFunPtr: all(fun,encfun). #(CFunPtr encfun) -> Result fun ()
 \end{verbatim}
 
 All functions for which a function pointer is accepted or returned by these functions must be known to
@@ -727,8 +727,8 @@ Hence for example for the C type
 \end{verbatim}
 the following function instances are provided
 \begin{verbatim}
-  toFunPtr[(U32,U16) -> (CPtr U32)]
-  fromFunPtr[(U32,U16) -> (CPtr U32)]
+  toFunPtr[(U32,U16) -> (CPtr U32),FXU32XU16X_P_U32]
+  fromFunPtr[(U32,U16) -> (CPtr U32),FXU32XU16X_P_U32]
 \end{verbatim}
 
 For incomplete function pointer types of the form \code{\#(CFunInc Restyp)} Gencot cannot provide instances of

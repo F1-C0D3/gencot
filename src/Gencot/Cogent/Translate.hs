@@ -234,9 +234,10 @@ genDerivedTypeNames tdn tc = do
         nub $ map (\(fid,t) -> (fid,wrapFunAsPointer t)) $ 
         concat $ map (\(fid,t) -> nub [(fid,t), (fid,resolveFully [] t)]) $
         concat $ map (uncurry getDerivedParts) $ carriedWithFunIds sfn tdn tc
-    where getName (GenType (CS.TCon nam [t] _) _) =
-            if nam == (mapFunDeriv False) || nam == (mapFunDeriv True) then argName t else nam
-          argName (GenType (CS.TCon nam _ _) _) = nam
+    where --getName (GenType (CS.TCon nam [t] _) _) =
+            --if nam == (mapFunDeriv False) || nam == (mapFunDeriv True) then argName t else nam
+          --argName (GenType (CS.TCon nam _ _) _) = nam
+          getName (GenType (CS.TCon nam _ _) _) = nam
 
 -- | Generate type definitions for a Cogent type name @nam@ used by a derived array or function pointer type.
 -- Additional argument is a pair @(fid,typ)@ of function id and C type specification.
@@ -380,8 +381,9 @@ transType _ (LCA.PtrType t _ _) | isVoid t =
 -- apply CFunPtr or CFunInc and make unboxed.
 transType fid (LCA.PtrType t _ _) | isFunction t = do
     enctyp <- encodeType fid t
-    let etyp = if isTypeDefRef t then (mapNamFunStep ++ enctyp) else enctyp
-    return $ genType $ CS.TCon (mapFunDeriv $ isComplete t) [genType $ CS.TCon etyp [] markBox] markUnbox
+    --let etyp = if isTypeDefRef t then (mapNamFunStep ++ enctyp) else enctyp
+    --return $ genType $ CS.TCon (mapFunDeriv $ isComplete t) [genType $ CS.TCon etyp [] markBox] markUnbox
+    return $ genType $ CS.TCon ((mapFunDeriv $ isComplete t) ++ "_" ++ enctyp) [] markUnbox
 -- Derived pointer type for array type t:
 -- Translate t and use as result. Always boxed.
 transType _ (LCA.PtrType t _ _) | isArray t =

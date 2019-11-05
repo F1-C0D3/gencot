@@ -540,22 +540,25 @@ mistakes. Since the full information about the parameter and result types is con
 the easiest way would be to use a generic abstract type with a function type as single type argument. 
 This could be thought of as an ``annotated'' or ``wrapped'' function type. 
 
+For a complete C function pointer type its base type is translated to a Cogent function type as described in
+Section~\ref{design-types-function}. This includes the cases for variadic function types and the cases where
+parameter types are converted to readonly types or cause additional components in the result type for returning 
+modified parameters.
+
 However, if a function pointer type occurs as type of a struct member, any direct or indirect reference of a
 parameter or result type to the struct type will be detected by Cogent as a cyclic type dependency. Since 
 these dependencies seem to be no problem for the validation, Gencot hides the parameter and result types from
-Gencot by encoding the function type as an abstract type name (see Section~\ref{design-names}). 
+Cogent by encoding the function type as an abstract type name (see Section~\ref{design-names}). 
 
 The type name contains names for all parameter types and the result type. The goal is to use the same name 
 for every occurrence of a C function pointer type. Thus it is infeasible to generate the name from 
 the occurrence position (file name and line number). If an arbitrarily generated name would be used, 
 Gencot could not separately compile different C files. Since every mapped C type may occur as parameter or
-result type of a function pointer type, Gencot implements the encoding for all mapped C types.
+result type of a function pointer type, Gencot implements the encoding for all mapped C types. As described
+in Section~\ref{design-names} the encoding also supports the type operators for unboxed and readonly types.
+Modified function parameters are not added to the result type, they are marked as parameter type instead.
 
-If the base type of a function pointer type is specified as a typename in C, its encoding is the mapping of 
-this typename, which is a non-abstract type in Cogent. To also hide the function type in this case a pseudo 
-derivation step of the form \code{FNN\_} is prepended to the mapped funtion type name.
-
-Gencot uses the following two generic abstract types for representing binary compatible C function pointers:
+Gencot conceptually uses the following two generic abstract types for representing binary compatible C function pointers:
 \begin{verbatim}
   type CFunPtr encfuntype
   type CFunInc encrestype
@@ -577,22 +580,40 @@ in Cogent, it could be represented by a readonly type or by an unboxed type. Gen
 since values of readonly types cannot escape from banged contexts. Gencot automatically applies the 
 unbox operator in the form \code{\#(CFunPtr (X->Y))} whenever it uses one of the two generic function pointer types.
 
-For a complete C function pointer type its base type is translated to a Cogent function type as described in
-Section~\ref{design-types-function}. This includes the cases for variadic function types and the cases where
-parameter types are converted to readonly types or cause additional components in the result type for returning 
-modified parameters.
+Due to an error in the Cogent compiler which does not treat types of the form \code{\#(A B)} as unboxed, if \code{A}
+and \code{B} are abstract, the current Gencot version uses non-generic abstract types instead. They have the form
+\begin{verbatim}
+  type CFunPtr_...
+  type CFunInc_...
+\end{verbatim}
+where the \code{...} is the encoding of the function or result type as defined above. 
+
+Note, that if the base type of a function pointer type is specified as a typename in C, its encoding is the mapping of 
+this typename, which is a non-abstract type in Cogent. To also hide the function type in this case a pseudo 
+derivation step of the form \code{FNN\_} must be prepended to the mapped funtion type name. In the current Gencot
+version this is not used since the construction of the non-generic type name already hides the function type name.
 
 Together the rules for mapping a function pointer type are
 \begin{verbatim}
-  t (*)( ... ) -> #(CFunPtr (( ... ) -> T))
-  t (*)() -> #(CFunInc T)
+  t (*)( ... ) -> #CFunPtr_ENCFT
+  t (*)() -> #CFunInc_ENCT
 \end{verbatim}
-where \code{( ... ) -> T} is the mapping of type \code{t( ... )} according to Section~\ref{design-types-function}
-and \code{T} is the mapping of \code{t}, extended by the types of returned modified parameters.
+where \code{ENCFT} is the encoding of the function type \code{t( ... )} 
+and \code{ENCT} is the encoding of the result type \code{t}.
+
+As additional convenience, for every complete function pointer type a Cogent type name of the form \code{CFun\_ENCFT}
+is introduced for the base function type. This makes it easy to generate both types from \code{ENCFT} in a preprocessor
+macro.
 
 For example, the C function pointer type \code{int (*)(int, int[10])} is mapped to the abstract type
 \begin{verbatim}
-  #(CFunPtr ((U32,CArr10 U32) -> U32))
+  #CFunPtr_FXU32XA10_U32X_U32
+\end{verbatim}
+with generated type definitions
+\begin{verbatim}
+  type CFunPtr_FXU32XA10_U32X_U32
+  type CFun_FXU32XA10_U32X_U32 =
+    (U32,CArr10 U32) -> U32
 \end{verbatim}
 
 Note that the macro call \code{CPTR(,T)} expands to \code{(CPtr T)} also if \code{T} is a Cogent function type.

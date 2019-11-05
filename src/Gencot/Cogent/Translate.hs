@@ -2,7 +2,7 @@
 module Gencot.Cogent.Translate where
 
 import Control.Monad (liftM,when)
-import Data.List (nub)
+import Data.List (nub,isPrefixOf)
 import Data.Map (Map,singleton,unions,toList)
 import Data.Maybe (catMaybes)
 
@@ -212,7 +212,7 @@ wrapOrigin n gts = (GenToplv t1 $ prepOrigin n o1):((init $ tail gts)++[GenToplv
 genTypeDefs :: [String] -> [LCA.DeclEvent] -> FTrav [GenToplv]
 genTypeDefs tdn tcs = do
     derivedTypes <- liftM (unions . concat) $ mapM (genDerivedTypeNames tdn) tcs
-    return $ concat $ map (uncurry genDerivedTypeDefs) $ toList derivedTypes
+    (liftM concat) $ mapM (uncurry genDerivedTypeDefs) $ toList derivedTypes
 
 -- | Construct all names of derived array and function pointer types occurring in a type carrier @tc@.
 -- The result is a list of names of generic types used for mapped array types and names of
@@ -241,24 +241,31 @@ genDerivedTypeNames tdn tc = do
 
 -- | Generate type definitions for a Cogent type name @nam@ used by a derived array or function pointer type.
 -- Additional argument is a pair @(fid,typ)@ of function id and C type specification.
+genDerivedTypeDefs :: String -> (String,LCA.Type) -> FTrav [GenToplv]
 -- For a derived array type the name has the form @CArr<size>@, @CArrX<size>X@ or @CArrXX@.
 -- The last case is ignored.
 -- For the other cases two generic type defintions are generated of the form
 -- > type CArr... el = { arr: #(UArr... el) }
 -- > type UArr... el
--- For a derived function pointer type the name is the encoding @enc@ of a C type.
--- One abstract type definition is generated of the form
--- > type enc
-genDerivedTypeDefs :: String -> (String,LCA.Type) -> [GenToplv]
 genDerivedTypeDefs nam (fid,(LCA.ArrayType _ _ _ _)) | arrDerivHasSize nam =
-    [tdef nam,adef $ arrDerivToUbox nam]
+    return [tdef nam,adef $ arrDerivToUbox nam]
     where tdef nam = GenToplv (CS.TypeDec nam ["el"] $ genType $ CS.TRecord [("arr", (ftyp nam, False))] markBox) noOrigin
           ftyp nam = genType $ CS.TCon (arrDerivToUbox nam) [genType $ CS.TVar "el" False] markUnbox
           adef nam = GenToplv (CS.AbsTypeDec nam ["el"] []) noOrigin
-genDerivedTypeDefs nam (fid,(LCA.PtrType _ _ _)) =
-    [tdef nam]
-    where tdef nam = GenToplv (CS.AbsTypeDec nam [] []) noOrigin
-genDerivedTypeDefs _ _ = []
+-- For a derived function pointer type the name has the form @CFunPtr_enc@ or @CFunInc_enc@ where
+-- @enc@ is an encoded C type. For every such name an abstract type definition is generated of the form
+-- > type nam
+-- In the first case (complete function type) additionally a name is introduced for the corresponding
+-- function type. The C function type must be resolved because a typedef name for it is defined to
+-- be a type synonym for the function pointer type in Cogent.
+-- > type CFun_enc = <Cogent mapping of C function type>
+genDerivedTypeDefs nam (fid,(LCA.PtrType t _ _)) = do
+    typ <- transType fid $ resolveTypedef t
+    let fdef = GenToplv (CS.TypeDec fnam [] typ ) noOrigin
+    return $ tdef : if (mapFunDeriv True) `isPrefixOf` nam then [fdef] else []
+    where tdef = GenToplv (CS.AbsTypeDec nam [] []) noOrigin
+          fnam = "CFun" ++ (drop (length (mapFunDeriv True)) nam) ++ fid
+genDerivedTypeDefs _ _ = return []
 
 parmodFunId :: (LCA.Declaration d, LCN.CNode d) => d -> FTrav String
 parmodFunId fdef = do

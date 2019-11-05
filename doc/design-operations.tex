@@ -650,8 +650,8 @@ pointer safely exists and the functions need not handle the case where it does n
 \label{design-operations-function}
 
 As described in Section~\ref{design-types-function}, function pointer types are mapped by Gencot to abstract types of the form 
-\code{CFunPtr Funtyp} where \code{Funtyp} is an arbitrary Cogent function type, or \code{CFunInc Restyp} where \code{Restyp}
-is not a function type. They are not covered by Gencot pointer types since they behave differently.
+\code{CFunPtr\_EncFuntyp} where \code{EncFuntyp} encodes a C function type, or \code{CFunInc\_EncRestyp} where \code{EncRestyp}
+encodes the C result type. They are not covered by Gencot pointer types since they behave differently.
 
 \subsubsection{Creating and Disposing Function Pointers}
 
@@ -681,14 +681,14 @@ by providing polymorphic abstract functions in \code{inlude/gencot/CPointer.coge
 
 The latter operation is supported by the polymorphic abstract function
 \begin{verbatim}
-  toFunPtr: all(fun,encfun). fun -> #(CFunPtr encfun)
+  toFunPtr: all(fun,funptr). fun -> #funptr
 \end{verbatim}
-where \code{fun} is a Cogent function type and \code{encfun} is its encoding as a Cogent abstract type.
+where \code{fun} is a Cogent function type and \code{funptr} is the Cogent abstract type representing the function pointer.
 
 Invoking a function is supported by translating the function pointer to the Cogent function (equivalent to the enumeration value) which
 then can be invoked in the usual way in Cogent. The translation is done by the polymorphic abstract function
 \begin{verbatim}
-  fromFunPtr: all(fun,encfun). #(CFunPtr encfun) -> Result fun ()
+  fromFunPtr: all(fun,funptr). #funptr -> Result fun ()
 \end{verbatim}
 
 All functions for which a function pointer is accepted or returned by these functions must be known to
@@ -708,6 +708,32 @@ was successful.
 Note that \code{toFunPtr} is always successful, since it gets a known Cogent function as input and returns 
 the corresponding function pointer.
 
+Gencot defines in \code{inlude/gencot/CPointer.cogent} the preprocessor macros 
+\begin{verbatim}
+  TOFUNPTR(ENCFT)
+  FROMFUNPTR(ENCFT)
+\end{verbatim}
+which expand to typed instances of both functions, where \code{ENCFT} is the encoding of the C function type.
+
+Hence for example for the C type
+\begin{verbatim}
+  int *()(int, short)
+\end{verbatim}
+the following function instances are provided
+\begin{verbatim}
+  toFunPtr[(U32,U16) -> (CPtr U32),CFunPtr_FXU32XU16X_P_U32]
+  fromFunPtr[(U32,U16) -> (CPtr U32),CFunPtr_FXU32XU16X_P_U32]
+\end{verbatim}
+which can be specified using the macros as
+\begin{verbatim}
+  TOFUNPTR(FXU32XU16X_P_U32)
+  FROMFUNPTR(FXU32XU16X_P_U32)
+\end{verbatim}
+
+For incomplete function pointer types of the form \code{\#CFunInc\_ENCT} Gencot cannot provide instances of
+\code{fromFunPtr} and \code{toFunPtr}, since it cannot determine the corresponding Cogent function type. Therefore
+such function pointers cannot be used in any way in Cogent, they can only be passed through.
+
 An alternative approach for invoking a function pointer would be a polymorphic abstract function 
 \begin{verbatim}
   invkFunPtr: all(args,res). (#(CFunPtr (args->res)), args) -> res
@@ -720,20 +746,6 @@ C parser does not support function pointer invocations, no refinement proof can 
 C program.
 
 Therefore Gencot does not support this alternative approach.
-
-Hence for example for the C type
-\begin{verbatim}
-  int *()(int, short)
-\end{verbatim}
-the following function instances are provided
-\begin{verbatim}
-  toFunPtr[(U32,U16) -> (CPtr U32),FXU32XU16X_P_U32]
-  fromFunPtr[(U32,U16) -> (CPtr U32),FXU32XU16X_P_U32]
-\end{verbatim}
-
-For incomplete function pointer types of the form \code{\#(CFunInc Restyp)} Gencot cannot provide instances of
-\code{fromFunPtr} and \code{toFunPtr}, since it cannot determine the corresponding Cogent function type. Therefore
-such function pointers cannot be used in any way in Cogent, they can only be passed through.
 
 \subsection{The NULL Pointer}
 \label{design-operations-null}

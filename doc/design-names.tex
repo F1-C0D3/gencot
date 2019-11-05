@@ -134,7 +134,7 @@ or the strings \code{"CArr"}, \code{"UArr"} used for mapping C array types, or a
 \subsubsection{Encoding C Function Types}
 
 Gencot represents C function pointer types with the help of abstract Cogent types which encode C function types. These
-function type names are constructed from encoding of all parameter types and the result type. Hence Gencot implements
+function type names are constructed from encodings of all parameter types and the result type. Hence Gencot implements
 a schema for encoding all C types as Cogent abstract type names.
 
 A C type is either a primitive type, a derived type, a typedef name, or a struct/union/enum type. Gencot maps all
@@ -203,3 +203,12 @@ the encoding is
   A5_P_FXU32XR_P_U16X_U32
 \end{verbatim}
 
+These encodings are used for representing C function pointer types by prepending \code{CFunPtr\_} or \code{CFunInc\_}
+to construct abstract Cogent type names. For example, the C function pointer type
+\begin{verbatim}
+  int (*)(int[16], struct str)
+\end{verbatim}
+is mapped to the abstract Cogent type defined as
+\begin{verbatim}
+  type CFunPtr_FXA16_U32XU_Struct_Cogent_strX_U32
+\end{verbatim}

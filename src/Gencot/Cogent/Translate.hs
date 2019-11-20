@@ -567,7 +567,11 @@ mkFunType :: GenType -> GenType
 mkFunType t@(GenType (CS.TFun _ _) _) = t
 mkFunType t = genType $ CS.TFun (mkGenType []) t
 
+-- | Translate a sequence of C parameter declarations to the corresponding Cogent parameter type.
+-- The result is either the unit type, a single type, or a tuple type (for more than 1 parameter).
+-- The first argument specifies whether the function is variadic, in this case a pseudo parameter is added.
 -- The second argument is the parmod function identifier of the parameters' function.
+-- First the parameter types are translated to Cogent, the the parameter modification description is determined and applied.
 transParamTypes :: Bool -> String -> [LCA.ParamDecl] -> FTrav GenType
 transParamTypes variadic fid pars = do
     ps <- mapM (transParamType fid) pars
@@ -576,12 +580,16 @@ transParamTypes variadic fid pars = do
 variadicType = genType (CS.TCon variadicTypeName [] markBox)
 variadicTypeName = "VariadicCogentParameters"
 
+-- | Translate a C parameter declaration to the adjusted Cogent parameter type.
 transParamType :: String -> LCA.ParamDecl -> FTrav GenType
 transParamType fid pd = do
     t <- transType (getLocalFunId fid pd) $ adjustParamType ptyp
     return $ GenType (typeOfGT t) $ origin pd
     where (LCA.VarDecl _ _ ptyp) = getVarDecl pd
 
+-- | Adjust a C type used as parameter type.
+-- Parameters of function type are adjusted to function pointer type.
+-- Parameters of array type need not be adjusted because they are always translated as pointer to array.
 adjustParamType :: LCA.Type -> LCA.Type
 --adjustParamType t | isArray t = (LCA.PtrType elt quals attrs)
 --    where (LCA.ArrayType elt _ quals attrs) = resolveTypedef t

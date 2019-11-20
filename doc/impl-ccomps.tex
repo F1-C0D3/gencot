@@ -43,9 +43,9 @@ Gencot uses the following processors of this kind:
 \item[\code{gencot-exttypes}] generates the content to be put in the file \code{<package>-exttypes.cogent}. It 
 processes externally referenced typedefs, tag definitions and enum constant definitions.
 \item[\code{gencot-dvdtypes}] generates the content to be put in the file \code{<package>-dvdtypes.cogent}. It 
-processes all used derived array types.
+processes derived types.
 \item[\code{gencot-dvdtypesah}] generates the content to be put in the file \code{<package>-dvdtypes.ah}. It 
-processes all used derived array types.
+processes derived types.
 \item[\code{gencot-externs}] generates the abstract function definitions of the exit wrappers to be put in the file 
 \code{<package>-externs.cogent}. It processes the declarations of externally referenced functions and variables.
 \item[\code{gencot-externsac}] generates the exit wrappers to be put in the file \code{<package>-externs.ac}. It processes
@@ -81,12 +81,34 @@ The translation of the \code{DeclEvent} sequence is implemented by the function
 \end{verbatim}
 in module \code{Gencot.Cogent.Translate}.
 It performs the monadic traversal as described in Section~\ref{impl-ccode-trav} and returns the list of toplevel
-Cogent definitions of type \code{GenToplv}.
+Cogent definitions of type \code{GenToplv}. It is implemented by mapping the function \code{transGlobal} to the 
+\code{DeclEvent} sequence.
 
 A struct/union/enum definition corresponds to a full specifier, as described in Section~\ref{design-decls-tags}.
-The language-c analyser already implements moving all full specifiers to separate global definitions and the
-sorting step done by \code{Gencot.Input.getDeclEvents} creates the desired ordering. Therefore, only the translation
-of the single struct/union/enum definitions has to be implemented by \code{gencot-translate}.
+The language-c analyser already implements moving all nested full specifiers to separate global definitions and the
+sorting step done by \code{Gencot.Input.getDeclEvents} creates the desired ordering. Therefore, basically the 
+\code{DeclEvent}s in the list could be processed by \code{transGlobal} independently from each other.
+
+However, this approach would create inappropriate origin markers which could result in duplicated conditional preprocessor
+directives and comments. If a struct definition in lines $b1 < e1$ contains a nested struct definition in lines $b2 < e2$
+independent translation would wrap the translated nested struct always in origin markers for $b2$ and $e2$. If $e1 = e2$
+the corresponding origin marker would occur twice. A better approach is to use origin markers for $b1, e1$ to wrap the 
+whole sequence consisting of the translated struct together with the translations of all nested structs. Then, the translated
+nested struct would be followed by the two origin markers for $e2$ and $e1$ which can be reduced to a single marker if
+$e2 = e1$.
+
+Therefore function \code{transGlobal} is defined as
+\begin{verbatim}
+  transGlobal :: DeclEvent -> FTrav [GenToplv]
+\end{verbatim}
+It translates every struct definition together with all nested struct/union/enum definitions and returns the sequence of 
+the corresponding Cogent toplevel definitions, wrapped by the origin markers as described.
+
+Since the nested definitions still occur seperately in the list of \code{DeclEvent}s processed by \code{transGlobals}, their processing
+must be suppressed. This is implemented by sorting the list according to the position of the first character in the source file
+(which will put all nested definitions after their surrounding definitions), marking processed nested definitions in the 
+monadic user state, and testing every struct/union/enum definition found by \code{transGlobal} in the \code{DeclEvent} list 
+whether it is marked as already processed.
 
 A struct/union definition is translated to a Cogent type definition where the type name is constructed as described 
 in Section~\ref{design-names}. A struct is translated to a corresponding record type, a union is translated to an 
@@ -103,86 +125,77 @@ A function definition is translated to a Cogent function definition, as describe
 
 A type definition is translated to a Cogent type definition as described in Section~\ref{design-decls-typedefs}.
 
-All these single translations are implemented by the function
-\begin{verbatim}
-  transGlobal :: DeclEvent -> FTrav GenToplv
-\end{verbatim}
-
 A type reference is translated by the function
 \begin{verbatim}
-  transType :: Type -> FTrav GenType
+  transType :: Bool -> String -> Type -> FTrav GenType
 \end{verbatim}
 
+The first parameter specifies whether typedef names should be resolved when translating the type. The second parameter 
+specifies  the parameter modification function identifer (see Section~\ref{impl-parmod-ids}) for the type. It is used to
+access the corresponding parameter modification description for translating derived function types. They are only available
+for function types, function pointer types, and function pointer array types, for all other types the empty string is 
+specified. For function pointer types and function pointer array types the identifier is passed without change to the 
+base type translation, since in both cases the associated function type is uniquely determined. The identifier is 
+actually processed only for the derived function types.
+
+The reason why typedef names are resolved as part of the type translation function is that typedef names may have
+an associated parameter modification function identifier which is based on the typedef name. If typedef names would
+be resolved in a separate function the parameter modification function identifier could not be associated anymore
+afterwards. This would cause the parameter modification specifications for typedef names to be ignored.
+
 A type reference may be a direct type, a derived type, or a typedef name. For every typedef name a Cogent type
-name is defined, as described in Sections~\ref{design-names} and~\ref{design-modular}. A direct type is either
+name is defined, as described in Sections~\ref{design-names} and~\ref{design-types-typedef}. A direct type is either
 the type \code{void}, a primitive C type, which is mapped to the name of a primitive Cogent type, or it is a 
 struct/union/enum type reference for which Gencot also introduces a Cogent type name or maps it to the 
 primitive Cogent type \code{U32} (tagless enums). Hence, both direct types and typedef names can always be mapped
 to Cogent type names, with the exception of type \code{void}, which is mapped to the Cogent unit type \code{()}.
-
--------- todo: rest of subsection must be revised ---------
+For struct and union types the unbox operator must be applied to the Cogent type name.
 If a typedef name references (directly or indirectly) a struct or union type, the corresponding Cogent
-type name references the boxed type. Therefore, it must be modified by applying the unbox operator. If a typedef
-name references a primitive type, this is not necessary, since the corresponding Cogent type is always regular.
-However, the abstract Cogent surface syntax always associates a ``sigil'' with a type name. Unnecessary
-unbox operators are automatically suppressed by the Cogent prettyprint function. Therefore Gencot always 
-associates an unbox sigil with the Cogent type name if it corresponds to a direct type or a typedef name
-referencing a direct type.
+type name references the boxed type. Therefore, it must also be modified by applying the unbox operator. 
+
+Primitive types or typedef names referencing a primitive type are semantically unboxed. However, if marked as unboxed, 
+the Cogent prettyprint function will add an explicit unbox operator. For better readability Gencot specifies these types
+as boxed, to suppress the redundant unbox operator.
 
 A derived type is either a pointer type, an array type, or a function type. It is derived from a base type
 which in case of a function type is the type of the function result. The base type may again be a derived
 type, ultimately it is a direct type or a typedef name.
 
-For a pointer type the translation depends on the base type. If it is a struct or union type or a typedef
-name referencing a struct or union type, the pointer type is translated to the Cogent type name corresponding
-to the base type. If it is a function type or a typedef name referencing a function type, the pointer type 
-is translated to the translation of the base type. In all other cases, as described in Section~\ref{design-types}, 
-the pointer type is translated to the name of an abstract type, which is introduced as described in 
-Section~\ref{design-names}, using a name for the base type. 
+For a pointer type the translation depends on the base type. If it is a struct, union, or array type or a typedef
+name referencing such a type, the pointer type is translated to the translation of the base type in its
+boxed form. If it is a function type (possibly after resolving type names), the function type
+is encoded as described in Section~\ref{design-names} using the function \code{encode-type}, then the function
+pointer type is constructed from the encoding as described in Section~\ref{design-types-pointer}. The monadic operation
+\begin{verbatim}
+  encodeType :: Bool -> String -> Type -> FTrav String
+\end{verbatim}
+works similar to \code{transType} but returns the encoding as a string instead of the translated 
+Cogent type. In particular, it optionally resolves typedef names and respects parameter modification specifications.
+If the base type is \code{void} the special type name \code{CVoidPtr} is used.
 
-For an array type, the translation also depends on the base type. If it is type \code{char}, the array 
-type is translated to the primitive Cogent type \code{String}. In all other cases it is translated 
-to the name of an abstract type, which is introduced as described in Section~\ref{design-names}, 
-using a name for the base type. This is even done if the base type is a typedef name which references
-type char, since Gencot assumes that in this case it is intended as a ``real'' array type and not
-as a string type.
+In all other cases, as described in Section~\ref{design-types}, 
+the pointer type is translated to the parametric type \code{CPtr} with the translated base type as type argument.
 
-If an array type occurs as type of a function parameter, it is ``adjusted'' by C to a pointer type with
-the same base type. This is also done by Gencot. 
+For an array type, the translation is the parameterized type for an array according to the number of elements. 
+The translated base type is used as type argument. In case that the base type is again an array type (multidimensional
+array), an explicit unbox operator is applied to the type argument to differentiate the multidimensional array 
+from an array of array pointers, as described in Section~\ref{design-types-array}.
 
 A function type is always translated to the corresponding Cogent function type, where a tuple type is
-used as parameter type if there is more than one parameter, and the unit type is used if there is
-no parameter. 
-
-If a pointer type or array type is translated to the name of an abstract type, a name is required for
-the base type. If the base type is a direct type or a typedef name, a Cogent type name always exists 
-and is used. The only exception is type \code{void}, here the name \code{Void} is used.
-If the base type is a derived type, a name is constructed for it as described in Section~\ref{design-names},
-even if the base type would normally be mapped to a type expression (which is the case for a function type)
-or to its own base type (which is the case for pointer types to struct/union and function types). If the
-base type is array of char, the name \code{String} is used for it. 
-
-Note that for most cases where a typedef name occurs as reference or base type, it must be resolved to
-the ultimate direct type or derived type referenced by it. This is implemented by the function
-\begin{verbatim}
-  resolveTypeDef :: TypeDefRef -> Type 
-\end{verbatim}
-The \code{GlobalDecls} map is not required here, since the language-c analyser puts the (directly) 
-referenced type in the \code{TypeDefRef}. 
+used as parameter type if there is more than one parameter), and the unit type is used if there is
+no parameter. If a parameter modification specification is available, it is used to determine whether a parameter type
+should be translated as readonly, or whether it should be returned as part of a result tuple. Otherwise
+a default parameter modification specification is used which is constructed from the parameter type.
+It assumes that a parameter is modified if its type is not qualified as \code{const} and all directly or indirectly 
+contained pointers are also qualified as \code{const}.
 
 For a qualified C type Gencot only respects the \code{const} qualifier. For a direct type the \code{const}
 qualifier is ignored, since in Cogent values of unboxed and regular types are always immutable. For
-a function type the qualifier is also ignored since function types are regular in Cogent. For an array
-of char it is ignored since it is translated to type \code{String} which is regular.
-
-All other array types and all pointer types are translated to linear types which can be mutable in
-Cogent. Whenever the C type contains no mutable pointer types, it is translated to a readonly Cogent type by 
-applying a bang operator to it.
-
-An array type contains mutable pointers if its base type does so. A function type never contains mutable pointers.
-A pointer type contains mutable pointers if its base type is not \code{const} qualified or contains mutable pointers.
-A primitive type and an enum type does not contain mutable pointers. A struct or union type contains mutable 
-pointers, if the type of a member contains mutable pointers.
+a function type the qualifier is also ignored since function types are regular in Cogent. All other array types 
+and all pointer types are translated to linear types which can be mutable in
+Cogent. Whenever the C type is intrinsically immutable, it is translated to a readonly Cogent type by 
+applying a bang operator to it. The immutability is determined by function\code{isReadOnlyType}. It is implemented
+by a monadic action since it must access the symbol table to resolve references to tagged C structs.
 
 \subsection{External Functions and Variables}
 \label{impl-ccomps-externs}

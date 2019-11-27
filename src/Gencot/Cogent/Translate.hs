@@ -250,7 +250,7 @@ genDerivedTypeDefs :: String -> (String,LCA.Type) -> FTrav [GenToplv]
 genDerivedTypeDefs nam (fid,(LCA.ArrayType _ _ _ _)) | arrDerivHasSize nam =
     return [tdef nam,adef $ arrDerivToUbox nam]
     where tdef nam = GenToplv (CS.TypeDec nam ["el"] $ genType $ CS.TRecord [("arr", (ftyp nam, False))] markBox) noOrigin
-          ftyp nam = genType $ CS.TCon (arrDerivToUbox nam) [genType $ CS.TVar "el" False] markUnbox
+          ftyp nam = genType $ CS.TCon (arrDerivToUbox nam) [genType $ CS.TVar "el" False False] markUnbox
           adef nam = GenToplv (CS.AbsTypeDec nam ["el"] []) noOrigin
 -- For a derived function pointer type the name has the form @CFunPtr_enc@ or @CFunInc_enc@ where
 -- @enc@ is an encoded C type. For every such name an abstract type definition is generated of the form

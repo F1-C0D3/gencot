@@ -164,7 +164,7 @@ type, ultimately it is a direct type or a typedef name.
 For a pointer type the translation depends on the base type. If it is a struct, union, or array type or a typedef
 name referencing such a type, the pointer type is translated to the translation of the base type in its
 boxed form. If it is a function type (possibly after resolving type names), the function type
-is encoded as described in Section~\ref{design-names} using the function \code{encode-type}, then the function
+is encoded as described in Section~\ref{design-names} using the function \code{encodeType}, then the function
 pointer type is constructed from the encoding as described in Section~\ref{design-types-pointer}. The monadic operation
 \begin{verbatim}
   encodeType :: Bool -> String -> Type -> FTrav String
@@ -182,7 +182,7 @@ array), an explicit unbox operator is applied to the type argument to differenti
 from an array of array pointers, as described in Section~\ref{design-types-array}.
 
 A function type is always translated to the corresponding Cogent function type, where a tuple type is
-used as parameter type if there is more than one parameter), and the unit type is used if there is
+used as parameter type if there is more than one parameter, and the unit type is used if there is
 no parameter. If a parameter modification specification is available, it is used to determine whether a parameter type
 should be translated as readonly, or whether it should be returned as part of a result tuple. Otherwise
 a default parameter modification specification is used which is constructed from the parameter type.

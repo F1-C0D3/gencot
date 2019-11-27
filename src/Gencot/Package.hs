@@ -70,7 +70,7 @@ foldTypeCarrierSets tcss dt =
 
 isLocalOrInternal :: TypeCarrier -> Bool
 isLocalOrInternal (LocalEvent _) = True
-isLocalOrInternal (DeclEvent decl) = declLinkage decl == InternalLinkage
+isLocalOrInternal (DeclEvent decl) = safeDeclLinkage decl == InternalLinkage
 isLocalOrInternal _ = False
 
 foldTables :: [DefTable] -> IO DefTable
@@ -90,7 +90,13 @@ combineIdentDecls m1 m2 = do
     where gm1 = M.filter notInternal $ globalNames m1
           gm2 = M.filter notInternal $ globalNames m2
           notInternal (Left _) = True
-          notInternal (Right decl) = declLinkage decl /= InternalLinkage
+          notInternal (Right decl) = safeDeclLinkage decl /= InternalLinkage
+
+safeDeclLinkage :: (Declaration d) => d -> Linkage
+safeDeclLinkage decl = 
+    case declStorage decl of
+        NoStorage -> NoLinkage
+        _ -> declLinkage decl
 
 selIdentEntry :: Ident -> IdentEntry -> Maybe IdentEntry -> IO IdentEntry
 selIdentEntry k res Nothing = return res

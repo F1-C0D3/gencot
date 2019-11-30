@@ -1,7 +1,7 @@
 {-# LANGUAGE PackageImports #-}
 module Gencot.Package where
 
-import System.IO (hPutStrLn, stderr)
+import System.IO (hPutStrLn, stderr, hPrint)
 import qualified Data.Map as M (toList,Map,filter,elems,keys,filterWithKey)
 import qualified Data.IntMap as IntMap (empty)
 import Data.Map.Merge.Strict (merge,mapMissing,zipWithMatched)
@@ -101,16 +101,16 @@ safeDeclLinkage decl =
 selIdentEntry :: Ident -> IdentEntry -> Maybe IdentEntry -> IO IdentEntry
 selIdentEntry k res Nothing = return res
 selIdentEntry k res@(Left t1) (Just (Left t2)) = do
-    when (not $ samePos t1 t2) $ putStrLn $ "Warning: different definitions for " ++ identToString k
+    when (not $ samePos t1 t2) $ hPutStrLn stderr $ "Warning: different definitions for " ++ identToString k
     return res
 selIdentEntry k res@(Right dec1) (Just (Right dec2)) | isDef dec1 && isDef dec2 = do
-    putStrLn $ "Warning: different definitions for: " ++ identToString k
+    hPutStrLn stderr $ "Warning: different definitions for: " ++ identToString k
     return res
 selIdentEntry _ res@(Right dec1) (Just (Right dec2)) | isDef dec1 = return res
 selIdentEntry _ (Right dec1) (Just res@(Right dec2)) | isDef dec2 = return res
 selIdentEntry _ res@(Right dec1) (Just (Right dec2)) = return res
 selIdentEntry k res _ = do
-    putStrLn $ "Warning: Defined as type and object: " ++ identToString k
+    hPutStrLn stderr $ "Warning: Defined as type and object: " ++ identToString k
     return res
 
 isDef (Declaration _) = False
@@ -145,10 +145,10 @@ combineTagDecls m1 m2 = do
 
 selTagEntry :: SUERef -> TagEntry -> Maybe TagEntry -> IO TagEntry
 selTagEntry (AnonymousRef _) res@(Right t1) (Just other@(Right t2)) = do
-    when (not $ samePos t1 t2) $ putStrLn $ "Warning: collision of internal identifier for tagless types:"
-    print $ pretty res
-    print $ pretty other
-    putStrLn $ "To solve this, specify a tag for at least one of them."
+    when (not $ samePos t1 t2) $ hPutStrLn stderr $ "Warning: collision of internal identifier for tagless types:"
+    hPrint stderr $ pretty res
+    hPrint stderr $ pretty other
+    hPutStrLn stderr $ "To solve this, specify a tag for at least one of them."
     return res
 selTagEntry _ res _ = return res
 

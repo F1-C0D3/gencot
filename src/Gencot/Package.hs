@@ -101,10 +101,10 @@ safeDeclLinkage decl =
 selIdentEntry :: Ident -> IdentEntry -> Maybe IdentEntry -> IO IdentEntry
 selIdentEntry k res Nothing = return res
 selIdentEntry k res@(Left t1) (Just (Left t2)) = do
-    when (not $ samePos t1 t2) $ hPutStrLn stderr $ "Warning: different definitions for " ++ identToString k
+    when (not $ samePos t1 t2) $ hPutStrLn stderr $ "Warning: different type definitions for " ++ identToString k
     return res
 selIdentEntry k res@(Right dec1) (Just (Right dec2)) | isDef dec1 && isDef dec2 = do
-    hPutStrLn stderr $ "Warning: different definitions for: " ++ identToString k
+    when (not $ samePos dec1 dec2) $ hPutStrLn stderr $ "Warning: different object/function/enumerator definitions for: " ++ identToString k
     return res
 selIdentEntry _ res@(Right dec1) (Just (Right dec2)) | isDef dec1 = return res
 selIdentEntry _ (Right dec1) (Just res@(Right dec2)) | isDef dec2 = return res

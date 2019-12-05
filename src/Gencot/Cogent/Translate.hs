@@ -132,8 +132,8 @@ transGlobal (LCA.TypeDefEvent td@(LCA.TypeDef idnam typ _ n)) = do
     nt <- transTagIfNested typ n
     return $ wrapOrigin n (nt ++ [GenToplv (CS.TypeDec tn [] t) noOrigin])
     where tn = mapNameToUpper idnam
-          modiftyp = if isCompOrFunc typ then (LCA.PtrType typ LCA.noTypeQuals [])
-                                         else typ
+          modiftyp = if isComposite typ then (LCA.PtrType typ LCA.noTypeQuals [])
+                                        else typ
 transGlobal _ = return $ [GenToplv (CS.Include "err-unexpected toplevel") noOrigin]
 
 transExtGlobals :: [String] -> [LCA.DeclEvent] -> FTrav [GenToplv]
@@ -264,7 +264,7 @@ genDerivedTypeDefs nam (fid,(LCA.PtrType t _ _)) = do
     let fdef = GenToplv (CS.TypeDec fnam [] typ ) noOrigin
     return $ tdef : if (mapFunDeriv True) `isPrefixOf` nam then [fdef] else []
     where tdef = GenToplv (CS.AbsTypeDec nam [] []) noOrigin
-          fnam = "CFun" ++ (drop (length (mapFunDeriv True)) nam) ++ fid
+          fnam = "CFun" ++ (drop (length (mapFunDeriv True)) nam) {- ++ fid -}
 genDerivedTypeDefs _ _ = return []
 
 parmodFunId :: (LCA.Declaration d, LCN.CNode d) => d -> FTrav String
@@ -374,33 +374,31 @@ transType _ (LCA.DirectType tnam _ _) = do
                 (LCA.TyComp _) -> markUnbox
                 _ -> markBox
 -- Typedef name:
--- Translate to mapped name. Unboxed for struct, union, or function, otherwise boxed.
+-- Translate to mapped name. Unboxed for struct, union, function, or function pointer, otherwise boxed.
 transType _ (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _) =
     return $ genType $ CS.TCon tn [] ub
     where tn = mapNameToUpper idnam
-          ub = if isCompOrFunc typ then markUnbox else markBox
+          ub = if (isCompOrFunc typ) || (isFunPointer typ) then markUnbox else markBox
 -- Pointer to void:
 -- Translate to: CVoidPtr
 transType _ (LCA.PtrType t _ _) | isVoid t = 
     return $ genType $ CS.TCon mapPtrVoid [] markBox
--- Derived pointer type for function type t:
--- Encode t, prepend named function type step if t is a typedef ref for a complete function type, 
--- apply CFunPtr or CFunInc and make unboxed.
+-- Derived pointer type for unnamed function type t:
+-- Encode t, apply CFunPtr or CFunInc and make unboxed.
 transType fid (LCA.PtrType t _ _) | isFunction t = do
     enctyp <- encodeType fid t
-    --let etyp = if isTypeDefRef t then (mapNamFunStep ++ enctyp) else enctyp
-    --return $ genType $ CS.TCon (mapFunDeriv $ isComplete t) [genType $ CS.TCon etyp [] markBox] markUnbox
     return $ genType $ CS.TCon ((mapFunDeriv $ isComplete t) ++ "_" ++ enctyp) [] markUnbox
 -- Derived pointer type for array type t:
 -- Translate t and use as result. Always boxed.
 transType _ (LCA.PtrType t _ _) | isArray t =
     transType "" t
 -- Derived pointer type for other type t:
--- Translate t. If unboxed make boxed, otherwise apply CPtr. Always boxed.
+-- Translate t. If unboxed and no function pointer make boxed, otherwise apply CPtr. Always boxed.
 transType _ (LCA.PtrType t _ _) = do
     typ <- transType "" t
-    if isUnboxed typ then return $ setBoxed typ
-                     else return $ genType $ CS.TCon mapPtrDeriv [typ] markBox
+    if (isUnboxed typ) && not (isFunPointer t) 
+       then return $ setBoxed typ
+       else return $ genType $ CS.TCon mapPtrDeriv [typ] markBox
 -- Complete derived function type: ret (p1,..,pn)
 -- Translate to: Cogent function type (p1,..,pn) -> ret, then apply parmod description.
 transType fid t@(LCA.FunctionType (LCA.FunType ret pars variadic) _) = do
@@ -570,8 +568,8 @@ mkFunType t = genType $ CS.TFun (mkGenType []) t
 -- | Translate a sequence of C parameter declarations to the corresponding Cogent parameter type.
 -- The result is either the unit type, a single type, or a tuple type (for more than 1 parameter).
 -- The first argument specifies whether the function is variadic, in this case a pseudo parameter is added.
--- The second argument is the parmod function identifier of the parameters' function.
--- First the parameter types are translated to Cogent, the the parameter modification description is determined and applied.
+-- The second argument is the parmod function identifier of the parameters' function. It is used to 
+-- construct the parmod function identifiers for parameters of function (pointer (array)) type.
 transParamTypes :: Bool -> String -> [LCA.ParamDecl] -> FTrav GenType
 transParamTypes variadic fid pars = do
     ps <- mapM (transParamType fid) pars

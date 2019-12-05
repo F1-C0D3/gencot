@@ -34,7 +34,7 @@ long long int, unsigned/signed long long int -> U64
 \end{verbatim}
 
 The only mapping not determined by the Cogent compiler mapping is that for \code{long int}. For the gcc C version 
-it depends on the architecture and is either the same as \code{int} (on 32 bit systems) or \code{lon long int}
+it depends on the architecture and is either the same as \code{int} (on 32 bit systems) or \code{long long int}
 (on 64 bit systems). Gencot assumes a 64 bit system and maps it like \code{long long int}.
 
 \subsection{Enumeration Types}
@@ -620,11 +620,11 @@ Together the rules for mapping a function pointer type are
   t (*)( ... ) -> #CFunPtr_encfuntype
   t (*)() -> #CFunInc_encrestype
 \end{verbatim}
-where \code{ENCFT} is the encoding of the function type \code{t( ... )} 
-and \code{ENCT} is the encoding of the result type \code{t}.
+where \code{encfuntype} is the encoding of the function type \code{t( ... )} 
+and \code{encrestype} is the encoding of the result type \code{t}.
 
-As additional convenience, for every complete function pointer type a Cogent type name of the form \code{CFun\_ENCFT}
-is introduced for the base function type. This makes it easy to generate both types from \code{ENCFT} in a preprocessor
+As additional convenience, for every complete function pointer type a Cogent type name of the form \code{CFun\_encfuntype}
+is introduced for the base function type. This makes it easy to generate both types from \code{encfuntype} in a preprocessor
 macro.
 
 For example, the C function pointer type \code{int (*)(int, int[10])} is mapped to the abstract type
@@ -688,25 +688,31 @@ as type argument, only one synonym definition of the form
 \begin{verbatim}
   type Enctype = Encresolvtype
 \end{verbatim}
-is required for every occuring type encoding \code{EncType} with embedded mapped typedef names. If monomorphic types are
+is required for every occuring type encoding \code{Enctype} with embedded mapped typedef names. 
+
+In particular, if the base type of a function pointer type is a typedef name for a function type, this makes the mapped
+typedef name \code{Enctype} a synonym for the fully resolved function type \textit{encoding} instead of the function type itself.
+However, this is not a problem: in C a typedef name for a function type cannot be used for defining a function of that type, 
+since a definition must always include the parameter names. A C typedef name for a function type can only be used
+for declaring functions and for constructing the corresponding C function pointer type, either explicitly or implicitly 
+by adjustment. So for every use of the second kind it must be mapped to a (synonym for an) encoding anyways, and a synonym 
+for the Cogent function type is never required. Function declarations are only translated to Cogent for external functions,
+resulting in abstract function definitions for exit wrappers. Here the function type name is resolved to the function type.
+
+If monomorphic types are
 used, a synonym definition is required for every type constructed from such a type encoding:
 \begin{verbatim}
   type CFunPtr_Encfuntype = CFunPtr_Encresolvfuntype
   type CFunInc_Encrestype = CFunInc_Encresolvrestype
 \end{verbatim}
-
-In particular, if the base type of a function pointer type is a typedef name for a function type, this makes the mapped
-typedef name a synonym for the fully resolved function type \textit{encoding} instead of the function type itself.
-However, this is no problem: in C a typedef name for a function type cannot be used for defining a function of that type, 
-since a definition must always include the parameter names. A C typedef name for a function type can only be used
-for constructing the corresponding C function pointer type, either explicitly or implicitly by adjustment. So for
-every use it must be mapped to a (synonym for an) encoding anyways, and a synonym for the Cogent function type is never 
-required.
+Here, if \code{Encfuntype} is a mapped function type name, no synonym is defined for it in isolation. Therefore it can 
+be used as synonym for the corresponding Cogent function type. Like function pointer type names it is always used with
+the unbox operator applied, to make apparent that it is no linear type.
 
 The resulting mapping rules are for function type names:
 \begin{verbatim}
   tn -> #TN
-  tn* -> #TN
+  tn* -> #CFunPtr_TN
 \end{verbatim}
 for names of function pointer types:
 \begin{verbatim}
@@ -765,7 +771,7 @@ restricted in their use in the same way as linear types.
 Note, however, that Cogent does not separate between pointers and their referenced values: the referenced value
 is treated as part of the linear value. If the referenced value itself contains references, the values referenced
 by them are also treated as part of the overall value. This implies, that a readonly type in Cogent corresponds to
-a C pointer type with \code{const} qualified base type where all components with a pointer type recursively have
+a C pointer type with \code{const} qualified base type where all components with a pointer type transitively have
 the same property.
 
 It further implies, that a C type also corresponds to a linear type in Cogent, if it directly or indirectly 

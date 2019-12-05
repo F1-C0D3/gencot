@@ -1,0 +1,79 @@
+type Struct1_types_names_c = { m11 : U32, m12 : U32 }
+type Cogent_snam1 =
+   Struct1_types_names_c
+type Struct_Cogent_str2 = { m11 : U32, m12 : U32 }
+type Cogent_snam2 =
+   Struct_Cogent_str2
+cogent_var_snam1 : () -> #Cogent_snam1
+cogent_var_snam2 : () -> #Cogent_snam2
+cogent_var_psnam1 : () -> Cogent_snam1
+cogent_var_psnam2 : () -> Cogent_snam2
+type Struct_Cogent_snam = { m_snam1 : #Cogent_snam1, m_psnam1 : Cogent_snam1, m_snam2 : #Cogent_snam2, m_psnam2 : Cogent_snam2 }
+cogent_f_snam : ( #Cogent_snam1, Cogent_snam1, #Cogent_snam2, Cogent_snam2 ) -> ( Cogent_snam1, Cogent_snam2 )
+cogent_f_snam (p_snam1
+              , p_psnam1
+              , p_snam2
+              , p_psnam2) =
+   ()
+   {- -}
+cogent_var_asnam1 : () -> CArr5 #Cogent_snam1
+cogent_var_asnam2 : () -> CArr5 #Cogent_snam2
+cogent_var_apsnam1 : () -> CArr5 Cogent_snam1
+cogent_var_apsnam2 : () -> CArr5 Cogent_snam2
+
+type Cogent_fnam1 = U32 -> U32
+cogent_var_pfnam1 : () -> #CFunPtr_Cogent_fnam1
+type Struct_Cogent_fnam = { m_pfnam1 : #CFunPtr_Cogent_fnam1 }
+cogent_f_fnam : ( #CFunPtr_Cogent_fnam1, #CFunPtr_Cogent_fnam1 ) -> ()
+cogent_f_fnam (p_fnam1
+              , p_pfnam1) =
+   ()
+   {- -}
+cogent_var_apfnam1 : () -> CArr5 #CFunPtr_Cogent_fnam1
+
+type Cogent_fpnam1 =
+   #CFunPtr_FXU32X_U32
+cogent_var_fpnam1 : () -> #Cogent_fpnam1
+cogent_var_pfpnam1 : () -> CPtr #Cogent_fpnam1
+type Struct_Cogent_fpnam = { m_fpnam1 : #Cogent_fpnam1, m_pfpnam1 : CPtr #Cogent_fpnam1 }
+cogent_f_fpnam : ( #Cogent_fpnam1, CPtr #Cogent_fpnam1 ) -> CPtr #Cogent_fpnam1
+cogent_f_fpnam (p_fpnam1
+               , p_pfpnam1) =
+   ()
+   {- -}
+cogent_var_afpnam1 : () -> CArr5 #Cogent_fpnam1
+
+type Cogent_anam1 = CArr5 U32
+cogent_var_anam1 : () -> Cogent_anam1
+cogent_var_panam1 : () -> Cogent_anam1
+type Struct_Cogent_anam = { m_anam1 : #Cogent_anam1, m_panam1 : Cogent_anam1 }
+cogent_f_anam : ( Cogent_anam1, Cogent_anam1 ) -> ( Cogent_anam1, Cogent_anam1 )
+cogent_f_anam (p_anam1
+              , p_panam1) =
+   ()
+   {- -}
+cogent_var_aanam1 : () -> CArr5 #Cogent_anam1
+
+type Cogent_inam1 = U32
+cogent_var_inam1 : () -> Cogent_inam1
+cogent_var_pinam1 : () -> CPtr Cogent_inam1
+type Struct_Cogent_inam = { m_inam1 : Cogent_inam1, m_pinam1 : CPtr Cogent_inam1 }
+cogent_f_inam : ( Cogent_inam1, CPtr Cogent_inam1 ) -> CPtr Cogent_inam1
+cogent_f_inam (p_inam1
+              , p_pinam1) =
+   ()
+   {- -}
+cogent_var_ainam1 : () -> CArr5 Cogent_inam1
+
+type Cogent_fnam2 = Cogent_inam1 -> U32 -- should be equivalent with fnam1
+type Cogent_fpnam2 =
+   #CFunPtr_FXCogent_inam1X_U32 -- should be equivalent with fpnam1
+type Cogent_fnam3 = ( #Cogent_snam2, #CFunPtr_Cogent_fnam1, Cogent_anam1 ) -> ( U32, Cogent_anam1 )
+type Cogent_fnam4 = ( #Cogent_snam2, #CFunPtr_Cogent_fnam2, CArr5 U32 ) -> ( U32, CArr5 U32 ) -- should be equivalent with fnam3
+type Cogent_fnam5 = ( #Struct_Cogent_str2, #CFunPtr_FXU32X_U32, Cogent_anam1 ) -> ( U32, Cogent_anam1 ) -- should be equivalent with fnam3
+type Cogent_fpnam3 =
+   #CFunPtr_FXU_Cogent_snam2XCogent_fnam1XM_Cogent_anam1X_U32
+type Cogent_fpnam4 =
+   #CFunPtr_FXU_Cogent_snam2XCogent_fnam2XM_A5_U32X_U32 -- should be equivalent with fpnam3
+type Cogent_fpnam5 =
+   #CFunPtr_FYU_Struct_Cogent_str2YFXU32X_U32YM_Cogent_anam1Y_U32 -- should be equivalent with fpnam3

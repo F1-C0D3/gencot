@@ -273,7 +273,10 @@ isReadOnlyType (LCA.PtrType t _ _) =
        else if isConstQualified t 
             then isReadOnlyType t
             else return False
-isReadOnlyType (LCA.ArrayType t _ _ _) = isReadOnlyType t
+isReadOnlyType (LCA.ArrayType t _ _ _) =
+    if isConstQualified t 
+       then isReadOnlyType t
+       else return False
 isReadOnlyType (LCA.FunctionType _ _) = return True
 isReadOnlyType (LCA.DirectType (LCA.TyComp (LCA.CompTypeRef sueref _ _)) _ _) = do
     table <- LCA.getDefTable
@@ -285,12 +288,10 @@ isReadOnlyType (LCA.DirectType (LCA.TyComp (LCA.CompTypeRef sueref _ _)) _ _) = 
 isReadOnlyType (LCA.DirectType _ _ _) = return True
 
 isReadOnlyParType :: MonadSymtab m => LCA.Type -> m Bool
-isReadOnlyParType (LCA.ArrayType t _ _ _) = 
+isReadOnlyParType arr@(LCA.ArrayType t _ _ _) = 
     if isFunction t 
        then return True
-       else if isConstQualified t 
-            then isReadOnlyType t
-            else return False
+       else isReadOnlyType arr
 isReadOnlyParType t = isReadOnlyType t
 
 isConstQualified :: TypePred

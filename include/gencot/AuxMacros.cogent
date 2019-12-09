@@ -3,6 +3,8 @@
 #ifndef GENCOT_AUXMACROS
 #define GENCOT_AUXMACROS
 
+{- Beware: Gencot_ID is used to concatenate strings which are then read as macro names. -}
+{- This works for (the current version of) cpphs, but not for cpp! -}
 #define Gencot_ID(x) x
 
 #define Gencot_MKFUNNAME(base,ext) Gencot_ID(base)Gencot_ID(ext)
@@ -19,13 +21,6 @@
 #define PGencot_PTR(ref) CPtr (ref)
 #define AGencot_PTR(ref) CPtr (#(ref)) 
 #define RGencot_PTR(ref) CPtr ref
-
-
-#define Gencot_UVVT(func,vvt) Gencot_MKUVVT(Gencot_ID(func)Gencot_ISUVVT,vvt)
-#define Gencot_MKUVVT(optf,vvt) optf(vvt)
-#define FullGencot_ISUVVT(vvt) , #(vvt)
-#define HeapGencot_ISUVVT(vvt)
-#define SimpGencot_ISUVVT(vvt)
 
 #define Gencot_IELARGOUT(func,vvt) Gencot_MKIELARGOUT(Gencot_ID(func)Gencot_ISIELARGOUT,vvt)
 #define Gencot_MKIELARGOUT(optf,vvt) optf(vvt)

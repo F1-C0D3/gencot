@@ -1,0 +1,84 @@
+#!/bin/bash
+
+# Select macro definitions from a Cogent source.
+# This script takes as argument -I options for specifying include directories as for cpp
+# and a single file name of a Cogent source file.
+# The selected macro definitions are written to standard output.
+
+OPTS=$(getopt -o I: -n "$0" -- "$@")
+eval set -- "$OPTS"
+INCLOPTS=''
+
+while true; do
+    case "$1" in
+        -I) shift; INCLOPTS="${INCLOPTS} -I$1"; shift;;
+        --) shift; break;;
+    esac
+done
+cpp -P -dD $INCLOPTS -imacros $1 /dev/null 2> /dev/null | \
+awk \
+'{ if (($1 == "#define") && (!($2 ~ /^__STDC/))) {
+     rest = $0
+     pos = match(rest, /{-|-}|--/)
+     cur = ""
+     comdepth = 0
+     while (pos > 0) {
+       delim = substr(rest,pos,2)
+       if ((comdepth == 0) && (delim == "{-" || delim == "--")) cur = cur substr(rest,1,pos-1)
+       if (delim == "--") {
+         if (comdepth == 0) {
+           rest = ""
+           pos = 0
+         } else {
+           rest = substr(rest,pos+1)
+           pos = match(rest, /{-|-}|--/)
+         }
+       } else {
+         if (delim == "{-") comdepth++
+         else if (delim == "-}") comdepth--
+         rest = substr(rest,pos+2)
+         pos = match(rest, /{-|-}|--/)
+       }
+     }
+     cur = cur rest
+     print(cur)
+   }
+}'
+
+# documentation:
+
+# The macro definitions are extracted from the Cogent source by cpp.
+# The option -dD has the effect that cpp outputs definitions for all macros it has read in its input
+# in addition to the processed input. The option -dM would only output the macro definitions, however, they
+# appear in an arbitrary order. If a definition references another macro in its body this will not be interpreted 
+# as intended, if the definition of the referenced macro is moved after the definition of the referencing macro.
+# To omit the normal processed input with option -dD we read the Cogent source with the option -imacros which only retains
+# the information about the defined macros, as actual input /dev/null is used. Since -dD generates line directives
+# we use option -P to supress them.
+# All uses of the unbox operator # in the Cogent code are signaled as an error by cpp because # is expected to only mark
+# preprocessor directives. The output is not affected by these errors, so they are ignored. The error messages are suppressed 
+# by redirecting the error output to /dev/null.
+
+# The result is postprocessed by an awk script for two reasons:
+# - since the macro definitions origin from a Cogent source they may contain Cogent style comments, which are
+#   not recognized and removed by cpp. The awk script removes these comments. Note that commented macro definitions
+#   of the form
+#     --#define ...
+#   are not selected by cpp because it only detects directives where the # sign is the first non-whitespace character in the line.
+# - cpp also adds definitions for internally defined macros. If the output is again processed by cpp it signals 
+#   redefinition warnings for all macros with names starting with __STDC. The awk script removes definitions of
+#   such macros.
+# Additionally, the awk script removes all empty lines (lines which do not begin with #define).
+
+# Since Cogent comments of the form {- ... -} may be nested, the variable comdepth is used to store the 
+# nesting depth. Line comments starting with -- are ignored in {- ... -} and vice versa.
+
+# Implementation in awk:
+# - the variable rest is used to store the part of a line which remains to be processed.
+# - the next occurrence of a comment delimiter in rest is determined with a regular expression by match(rest,/{-|-}|--/)
+# - if a delimiter is found it is processed and rest is set to the remaining line after the delimiter calculated
+#   by substr(rest,pos+2). In the case that a -- delimiter is found in a comment of the form {- ... -} the remaining
+#   line to be processed is calculated by substr(rest,pos+1), i.e. only the first - sign is removed. This is necessary
+#   to detect the closing delimiter if it is written in the form --}.
+# - It is assumed that {- ... -} comments do not span multiple lines, because the macro definitions have been selected 
+#   by cpp on a line-by-line basis. Therefore comdepth is initialized to 0 at the beginning of every line.

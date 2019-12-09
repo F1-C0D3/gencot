@@ -199,7 +199,7 @@ Together, this way the C array type is mapped for literal size specifications us
 whith an antiquoted C type definition 
 \begin{verbatim}
 typedef struct $id:(UArr<size> el) {
-	$ty:el arr[<size>];
+  $ty:el arr[<size>];
 } $id:(UArr<size> el);
 \end{verbatim}
 
@@ -268,12 +268,6 @@ the nonlinear case. It is a usual Cogent unboxed record and can be used freely.
 If another Cogent record has a field of an unboxed array type, the take and put operations can be applied
 in the usual way, assigning the array content as a whole.
 
-As described in Section~\ref{design-names} the form \code{CArrX<size>X}
-is used if the size is specified by an identifier and the single predefined generic type \code{CArrXX} is used for all other
-size specifications and for array types without size specification. In the latter case no antiquoted C type definition
-for the corresponding type \code{UArrXX} is provided by Gencot, C type definitions for instances must be provided 
-manually. The types \code{CArrXX} and \code{UArrXX} are defined in \code{include/gencot/CArray.cogent}.
-
 If the element type \code{El} is again an array type, the meaning in C is a multidimensional array.
 This case is mapped to Cogent in the straightforward way, using an unboxed inner array type as element type
 for the outer array type. For example, the C type \code{int[2][7]} is mapped to the Cogent type
@@ -282,6 +276,29 @@ for the outer array type. For example, the C type \code{int[2][7]} is mapped to 
 \end{verbatim}
 which in C is a doubly wrapped array of doubly wrapped elements which should nevertheless be binary compatible 
 to \code{int[2][7]}. Using the macro \code{CARR} it can be specified as \code{CARR(2,U,CARR(7,,U32))}.
+
+As described in Section~\ref{design-names} the form \code{CArrX<size>X}
+is used if the size is specified by an identifier and the single predefined generic type \code{CArrXX} is used for all other
+size specifications and for array types without size specification. In the latter case no antiquoted C type definition
+for the corresponding type \code{UArrXX} is provided by Gencot, C type definitions for instances must be provided 
+manually. The types \code{CArrXX} and \code{UArrXX} are defined in \code{include/gencot/CArray.cogent}.
+
+To specify the \code{<size>} of an array type by an identifier, the identifier must be a preprocessor constant
+defined in the Cogent source code. The expansion of the identifier must be a valid C expression. In simple cases,
+where the expansion is a single integer literal or an expression built from literals and the operators \code{+ - * /}
+the expansion is both valid C and Cogent code, then the identifier can also be used at other places in the Cogent
+source code. An example usage is
+\begin{verbatim}
+  #ifdef LARGE
+  #define SECT 20
+  #else 
+  #define SECT 5
+  #endif
+  #define SIZE 3*SECT
+  type UArrXSIZEX el
+\end{verbatim}
+It defines the generic type \code{UArrXSIZEX} to have either 60 or 15 elements, depending on the preprocessor flag \code{LARGE}.
+For additional information on possibilities how to specify the identifier see Section~\ref{impl-ocomps-cogent}.
 
 Whether a C array type is mapped to the boxed or unboxed form depends on its usage context.
 A C array type cannot be used as result type of a function. Thus, the remaining possible uses of a C array type are

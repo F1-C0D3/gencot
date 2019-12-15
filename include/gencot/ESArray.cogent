@@ -61,12 +61,12 @@ rotoFixedSize: all(arr,esa). esa! -> Result arr! esa!
 -- a specified number of elements for it and returning a pointer to the allocated space 
 -- together with the number of elements.
 -- In case of error only the heap is returned
---   evt: the empty-value type of the created values.
-createCAES: all(evt). (U64, Heap) -> Result (evt,Heap) Heap
+--   evp: the empty-value pointer type for the array elements.
+createCAES: all(evp). (U64, Heap) -> Result ((evp,U64),Heap) Heap
 
 -- Disposing a value of an explicitly sized empty-value array type by deallocating its memory.
---   evt: the empty-value type of the disposed values.
-disposeCAES: all(evt). (evt,Heap) -> Heap
+--   evp: the empty-value pointer type for the array elements.
+disposeCAES: all(evp). ((evp,U64),Heap) -> Heap
 
 {- Initialization and Clearing -}
 

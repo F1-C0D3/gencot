@@ -21,7 +21,7 @@ type ModTypeFun obj res arg out = (obj,arg) -> (res,out)
 --   res: type of the modified value
 --   arg: type of the auxiliary input
 --   out: type of the auxiliary output
-type TModTypeFun obj res arg out = ModTypeFun obj (Result res obj) arg out
+type TModTypeFun obj res arg out = (obj,arg) -> Result (res,out) (obj,out)
 
 -- Transactional modification function where the modified value has the same type as the unmodified value:
 -- Information about an error must be given as part of out.

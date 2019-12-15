@@ -64,29 +64,32 @@ clearFull: all(evt,vvt). ClrFun vvt evt () #vvt
 
 -- Initialization function which allocates linear content on the heap.
 -- Content of primitive type is set to its default value using defaultVal.
--- Content of type (MayNull a) is set to null / roNull
+-- Content of type (MayNull a) is set to null
+-- Content of readonly type is not allowed.
 -- May fail if allocation fails.
 --   evt: type of empty values
---   vvt: type of valid values, may not contain readonly content other than (MayNull a)!
-initHeap: all(evt,vvt). TIniFun evt vvt Heap Heap
+--   vvt: type of valid values
+initHeap: all(evt,vvt:<E). TIniFun evt vvt Heap Heap
 
 -- Clearing function which deallocates linear content on the heap.
--- Content of primitive and readonly type is ignored.
+-- Content of primitive type is ignored.
 -- Content of type (MayNull a) is only deallocated if not null.
+-- Content of readonly type is not allowed.
 --   vvt: type of valid values
 --   evt: type of empty values
-clearHeap: all(vvt,evt). ClrFun vvt evt Heap Heap
+clearHeap: all(vvt:<E,evt). ClrFun vvt evt Heap Heap
 
 -- Initialization function which sets all content to its default value using defaultVal.
--- and content of type (MayNull a)! to roNull. Always successful.
+-- Content of readonly or linear type is not allowed.
+-- Always successful.
 --   evt: type of empty values
---   vvt: type of valid values, may not contain linear or readonly content other than (MayNull a)!
-initSimp: all(evt,vvt). IniFun evt vvt () ()
+--   vvt: type of valid values
+initSimp: all(evt,vvt:<E). IniFun evt vvt () ()
 
 -- Clearing function which ignores all content.
 --   vvt: type of valid values, all content must be discardable
 --   evt: type of empty values
-clearSimp: all(vvt,evt). ClrFun vvt evt () ()
+clearSimp: all(vvt:<E,evt). ClrFun vvt evt () ()
 
 -- Macros for specifying typed instances and types of the initialization and clearing functions
 -- for valid-value record types.

@@ -35,9 +35,13 @@ and the unmodified parameters as the remaining components.
 Conceptually, Gencot provides a default value for every regular non-function Cogent type. For the primitive numeric types it is 
 \code{0}, for type \code{String} it is \code{""}, and for type \code{()} it is the unit value \code{()}.
 
+For all Gencot function pointer types (see Section~\ref{design-operations-function}) the default value is the \code{NULL}
+pointer (which cannot be denoted directly in Cogent).
+
 For a regular tuple (which has no component of linear or readonly type) it is the tuple of default values. For a
 regular unboxed record it is the record where all fields have their default value. For a regular variant type it is
-the default value of the first variant.
+the default value of the first (in the C implementation) variant. If Dargent is not used, the first variant in C is
+that with the lexicographically smallest constructor name.
 
 Gencot defines the polymorphic abstract function
 \begin{verbatim}
@@ -45,10 +49,7 @@ Gencot defines the polymorphic abstract function
 \end{verbatim}
 in \code{include/gencot/Default.cogent}. 
 
-Gencot provides instances for the numeric types \code{U8,U16,U32,U64} which return 0, for the unit type \code{()} which returns 
-\code{()}, and for type \code{String} which returns \code{""}. 
-
-Other instances must currently be defined manually, Gencot could be extended to provide automatic support for them as well.
+Gencot provides instances for all regular types which contain no Cogent functions.
 
 \subsection{Creating and Disposing Boxed Values}
 \label{design-operations-create}
@@ -149,9 +150,14 @@ In case of an error a \code{ModTypeFun} may not be able to produce a result valu
 a function type for ``transactional'' modification functions which either succeed or ``roll back'' the modification and return 
 the original input value:
 \begin{verbatim}
-  type TModTypeFun obj res arg out = (obj,arg) -> (Result res obj,out)
+  type TModTypeFun obj res arg out = (obj,arg) -> Result (res,out) (obj,out)
 \end{verbatim}
-using the variant type \code{Result} from the Cogent standard library. Note that a \code{ModFun} can be transactional, if it
+using the variant type \code{Result} from the Cogent standard library. The result type is not defined in the form 
+\code{(Result res obj,out)} because then it must always be bound explicitly before it can be used in a match expression.
+With the definition used here the modification function call can be directly used in a match expression where the 
+additional output is bound by the patterns in the alternatives.
+
+Note that a \code{ModFun} can be transactional, if it
 returns the information that an error occurred as part of the additional result of type \code{out}.
 
 A typical pattern for modifying a record field \code{f} is a combination of a take and a put operation of the form
@@ -328,10 +334,10 @@ some of these cases:
 \begin{verbatim}
   initFull : all(evt,vvt). IniFun evt vvt #vvt ()
   clearFull : all(vvt,evt). ClrFun vvt evt () #vvt
-  initHeap : all(evt,vvt). TIniFun evt vvt Heap Heap
-  clearHeap : all(vvt,evt). ClrFun vvt evt Heap Heap
-  initSimp : all(evt,vvt). IniFun evt vvt () ()
-  clearSimp : all(vvt,evt). ClrFun vvt evt () ()
+  initHeap : all(evt,vvt:<E). TIniFun evt vvt Heap Heap
+  clearHeap : all(vvt:<E,evt). ClrFun vvt evt Heap Heap
+  initSimp : all(evt,vvt:<E). IniFun evt vvt () ()
+  clearSimp : all(vvt:<E,evt). ClrFun vvt evt () ()
 \end{verbatim}
 Generally, these functions are only defined if \code{evt} is the empty-value type corresponding to the valid-value
 type \code{vvt}. Since this cannot be expressed by constraints in Cogent, Gencot defines the preprocessor macros:
@@ -357,19 +363,25 @@ unboxed type \code{\#vvt}. It is used to pass all content for the referenced mem
 copies it there. For \code{clearFull} it is used to return all content, in particular, all content of linear type, so that 
 it is not discarded.
 
-The second pair passes the heap as additional input and result. Additionally, for initialization \code{vvt}
-may not contain any readonly parts of type other than \code{(MayNull a)!} (see Section~\ref{design-operations-null}), 
-because these cannot be initialized internally. Function \code{initHeap} allocates all parts of linear type on the heap 
+The second pair passes the heap as additional input and result. Additionally, \code{vvt}
+may not contain any readonly parts. One reason is that readonly values are a copy of a pointer, so they 
+cannot be initialized internally. Another reason is that the current Gencot implementation cannot distinguish which 
+parts are readonly and which parts are not, therefore it cannot treat them differently, which is necessary for 
+clearing them: copies of a pointer must not be disposed. The restriction not to contain readonly parts can be expressed
+in Cogent by the type constraint \code{E}, this is specified for type \code{vvt} for both functions.
+
+Function \code{initHeap} allocates all parts of linear type on the heap 
 and \code{clearHeap} disposes them. Parts of type \code{MayNull a} are initialzed to \code{null} and are disposed only 
-if they are not \code{null}. Parts of type \code{(MayNull a)!} are initialized to \code{roNull}.
-All parts of nonprimitive type are
-initialized or cleared using function \code{initHeap} or \code{clearHeap}, respectively.
-All parts of primitive type are initialized to their default value \code{defaultVal ()} and are cleared by
-doing nothing. \code{clearHeap} also clears parts of readonly type by doing nothing. Whenever an allocation fails for 
+if they are not \code{null}. 
+All parts of nonprimitive type are initialized or cleared using function \code{initHeap} or \code{clearHeap}, respectively.
+All parts of primitive or Gencot function pointer type are initialized to their default value \code{defaultVal ()} and are cleared by
+doing nothing. Whenever an allocation fails for 
 \code{initHeap}, all other allocations are rolled back using \code{clearHeap}. The initialization function returns a variant
 value which signals success or error.
 
-The third pair passes no additional information. Moreover, \code{vvt} must have no linear parts. 
+The third pair passes no additional information. Moreover, \code{vvt} must have no readonly or linear parts.
+Since \code{vvt} itself must be linear, the additional constraint cannot be expressed in Cogent, 
+only readonly parts are excluded by specifying type constraint \code{E} for it.
 Functions \code{initSimp} and \code{clearSimp} work as \code{initHeap} or \code{clearHeap},
 but the heap is not required since there are no linear parts which must be allocated or disposed.
 
@@ -694,7 +706,10 @@ then can be invoked in the usual way in Cogent. The translation is done by the p
 All functions for which a function pointer is accepted or returned by these functions must be known to
 Cogent so that there is an enumeration constant for it. It is not possible to pass a pointer to an arbitrary 
 C function to Cogent as a parameter or as a field in a record. The function must either be defined in Cogent 
-or it must be defined as an abstract function in Cogent. Moreover, if no function of type \code{fun} is 
+or it must be defined as an abstract function in Cogent. In both cases, the function may also be an instance of
+a polymorphic Cogent function. 
+
+Note, that if no function of type \code{fun} is 
 defined in the Cogent program, the generated C code from an invocation of the result of \code{fromFunPtr} 
 in Cogent is incomplete, since it invokes the dispatcher function which does not exist.
 
@@ -1388,7 +1403,7 @@ element size, the corresponding explicitly sized array value can be constructed 
 
 \subsubsection{Creating and Disposing Explicitly Sized Arrays}
 
-The empty-value type corresponding to an explicitly sized array type \code{(PEl,U64)} is the type \code{(EVTYPE(PEl),U64)}.
+The empty-value type corresponding to an explicitly sized array type \code{(PEl,U64)} is the type \code{(EVT(PEl),U64)}.
 For specifying this type Gencot provides the preprocessor macro
 \begin{verbatim}
   EVT_CAES(<ek>,El)
@@ -1398,10 +1413,11 @@ where parameter \code{<ek>} is as described for \code{CAES} above.
 For allocating an explicitly sized array the size must be specified, since it is not known as part of the type.
 Gencot provides the polymorphic abstract functions
 \begin{verbatim}
-  createESA: all(evt). (U64,Heap) -> Result (evt,Heap) Heap
-  disposeESA: all(evt). (evt,Heap) -> Heap
+  createESA: all(evp). (U64,Heap) -> Result ((evp,U64),Heap) Heap
+  disposeESA: all(evp). ((evp,U64),Heap) -> Heap
 \end{verbatim}
-for all cases where \code{evt} is a type of the form \code{EVT\_CAES(ek,El)}.
+for all cases where \code{evp} is a type of the form \code{EVT(PEl)}, i.e., an empty-value type for pointers to the 
+array elements.
 
 \subsubsection{Modifying Explicitly Sized Arrays}
 

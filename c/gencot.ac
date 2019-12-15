@@ -1,0 +1,446 @@
+#define UNITVAL ($ty:(())){.dummy=0}
+#define NULL (void*)0
+
+extern void *malloc(u64);
+extern void *calloc(u64, u64);
+extern void free(void*);
+
+static $ty:a $id:defaultVal($ty:(()) arg) {
+  $ty:a res = gencotDefaultVal(sizeof($ty:a));  // sizeof is only used to embed a type name in a syntactically valid way
+  // $ty:a res = <defaultwert>;
+  return res;
+}
+
+static $ty:(Result (evt,Heap) Heap) $id:create($ty:(Heap) arg) {
+    $ty:(Result (evt,Heap) Heap) res={.Success={.p2=arg},.Error=arg};
+    $ty:evt p = malloc(sizeof($ty:(#evt)));
+    if (p == 0) res.tag = TAG_ENUM_Error;
+    else {
+        res.tag = TAG_ENUM_Success;
+        res.Success.p1 = p;
+    }
+    return res;
+}
+
+static $ty:(Heap) $id:dispose($ty:((evt,Heap)) arg) {
+    free(arg.p1);
+    return arg.p2;
+}
+
+static $ty:((vvt,())) $id:initFull($ty:((evt,#vvt)) arg) {
+    *(arg.p1) = arg.p2;
+    $ty:((vvt,())) res = {.p1=($ty:vvt)arg.p1,.p2=UNITVAL};
+    return res;
+}
+
+static $ty:((evt,#vvt)) $id:clearFull($ty:((vvt,())) arg) {
+    $ty:((evt,#vvt)) res = {.p1=($ty:evt)arg.p1,.p2=($ty:(#vvt)) (*(arg.p1))};
+    return res;
+}
+
+static $ty:(Result (vvt,Heap) (evt,Heap)) $id:initHeap($ty:((evt,Heap)) arg) {
+    $ty:(Result (vvt,Heap) (evt,Heap)) res = {.tag=TAG_ENUM_Error,.Success=arg,.Error=arg};
+    if (gencotInitStruct(($ty:evt) arg.p1)) res.tag = TAG_ENUM_Success;
+    // gencotInitStruct_$ty:evt(arg.p1)
+    return res;
+}
+
+// for all used (also transitively) functions gencotInitStruct_* / gencotClearStruct_* they must be generated:
+
+// static int gencotInitStruct_tNN(tNN *p) {
+//   int alloc = 0, init = 1;
+//   for (int i = 0; i == 0; i++) { // only for using break in the body
+//     // for all members ptri of pointer type typi*:
+//     p->ptr1 = malloc(sizeof(typ1)); if (p->ptr1 == 0) break;
+//     ...
+//     alloc=1;
+//   }
+//   if (alloc) {
+//     // for all members mbri of non-primitive and non-function-pointer type typi (including abstract types typi):
+//     // PMBRi is p->mbri if typi is a pointer type and &(p->mbri) otherwise
+//     init = gencotInitStruct_typ1(PMBR1);
+//     if (init) {
+//       ...
+//         init = gencotInitStruct_typn(PMBRn);
+//         if (!init) gencotClearStruct_typn-1(PMBRn-1);
+//       ...
+//       if (!init) gencotClearStruct_typ1(PMBR1);
+//     }
+//     if (init) {
+//       // for all members mbri of primitive (incl. String) or function pointer type typi:
+//       p->mbr1 = <default value for typ1>
+//       ...
+//     }
+//   } else {
+//     // for all members ptri of pointer type typi*:
+//     free(p->ptr1);
+//     ...
+//   }
+//   return alloc && init;
+// }
+
+// static void gencotClearStruct_tNN(tNN *p) {
+//   // for all members mbri of non-primitive and non-function-pointer type typi:
+//   // PMBRi is p->mbri if typi is a pointer type and &(p->mbri) otherwise
+//   gencotClearStruct_typ1(PMBR1);
+//   ...
+//   // for all members ptri of pointer type typi*:
+//   free(p->ptr1);
+//   ...
+// }
+
+// static int gencotInitStruct_UArr<size>_tNN(UArr<size>_tNN *p) {
+//   u64 i;
+//   for (i = 0; i < <size>; i++) {
+//     // if element type tNN is non-primitive and non-function-pointer type (including abstract types):
+//     // PEL is p[i] if tNN is a pointer type and &p[i] otherwise
+//     if (!gencotInitStruct_tNN(PEL)) break;
+//     // if element type tNN is primitive (incl. String) or function pointer type:
+//     p[i] = <default value for tNN>;
+//   }
+//   if (i < <size>) for (i--; i>=0; i--) {
+//     gencotClearStruct_tNN(PEL);
+//   }
+//   return i>=0;
+// }
+
+// static void gencotClearStruct_UArr<size>_tNN(UArr<size>_tNN *p) {
+//   // if element type tNN is primitive (incl. String) or function pointer type:
+//   return;
+//   // if element type tNN is non-primitive and non-function-pointer type (including abstract types):
+//   // PEL is p[i] if tNN is a pointer type and &p[i] otherwise
+//   for (i = 0; i < <size>; i++) {
+//     gencotClearStruct_tNN(PEL);
+//     // if tNN is a pointer type:
+//     free(p[i]);
+//   }
+// }
+
+static $ty:((evt,Heap)) $id:clearHeap($ty:((vvt,Heap)) arg) {
+    $ty:((evt,Heap)) res = arg;
+    gencotClearStruct(($ty:vvt) arg.p1);
+    // gencotClearStruct_$ty:vvt(arg.p1);
+    return res;
+}
+
+static $ty:((vvt,())) $id:initSimp($ty:((evt,())) arg) {
+    $ty:((vvt,())) res = arg;
+    gencotInitStruct(($ty:evt) arg.p1);
+    return res;
+}
+  
+static $ty:((evt,())) $id:clearSimp($ty:((vvt,())) arg) {
+    $ty:((evt,())) res = arg;
+    return res;
+}
+  
+static $ty:(MayNull a) $id:null($ty:(()) arg) {
+    return ($ty:(MayNull a))0;
+}
+
+static $ty:((MayNull a)!) $id:roNull($ty:(()) arg) {
+    return ($ty:((MayNull a)!))0;
+}
+
+static $ty:(MayNull a) $id:mayNull($ty:a arg) {
+    return ($ty:(MayNull a))arg;
+}
+
+static $ty:((MayNull a)!) $id:roMayNull($ty:(a!) arg) {
+    return ($ty:((MayNull a)!))arg;
+}
+
+static $ty:(Option a) $id:notNull($ty:(MayNull a) arg) {
+    $ty:(Option a) res = {.None=UNITVAL};
+    if (arg == 0) res.tag = TAG_ENUM_None;
+    else {
+        res.tag = TAG_ENUM_Some;
+        res.Some = ($ty:a) arg;
+    }
+    return res;
+}
+
+static $ty:((Option a)!) $id:roNotNull($ty:((MayNull a)!) arg) {
+    $ty:((Option a)!) res = {.None=UNITVAL};
+    if (arg == 0) res.tag = TAG_ENUM_None;
+    else {
+        res.tag = TAG_ENUM_Some;
+        res.Some = ($ty:(a!)) arg;
+    }
+    return res;
+}
+
+static $ty:((vvt,out)) $id:initEltsParCmb($ty:((evt,(IniFun epe vpe arg out, arg, (out,out)->out))) arg) {
+    $ty:((vvt,out)) res = {.p1=($ty:vvt)arg.p1};
+    $ty:epe a = gencotArrayPointer(($ty:evt) arg.p1);
+    $ty:((epe,arg)) elarg = {.p2=arg.p2.p2};
+    $ty:((out,out)) acc;
+    for (int i = 0; i < gencotArraySize(($ty:vvt) arg.p1); i++) {
+      elarg.p1 = ($ty:epe) &(a[i]);
+      $ty:((vpe,out)) h = (($spec:(IniFun epe vpe arg out)) arg.p2.p1) (elarg);
+      if (i == 0) acc.p1 = h.p2; else {
+        acc.p2 = h.p2;
+        acc.p1 = (($spec:((out,out)->out)) arg.p2.p3) (acc);
+      }
+    }
+    res.p2 = acc.p1;
+    return res;
+}
+
+static $ty:((evt,out)) $id:clearEltsParCmb($ty:((vvt,(ClrFun vpe epe arg out, arg, (out,out)->out))) arg) {
+    $ty:((evt,out)) res = {.p1=($ty:evt)arg.p1};
+    $ty:vpe a = gencotArrayPointer(($ty:vvt) arg.p1);
+    $ty:((vpe,arg)) elarg = {.p2=arg.p2.p2};
+    $ty:((out,out)) acc;
+    for (int i = 0; i < gencotArraySize(($ty:vvt) arg.p1); i++) {
+      elarg.p1 = ($ty:vpe) &(a[i]);
+      $ty:((epe,out)) h = (($spec:(ClrFun vpe epe arg out)) arg.p2.p1) (elarg);
+      if (i == 0) acc.p1 = h.p2; else {
+        acc.p2 = h.p2;
+        acc.p1 = (($spec:((out,out)->out)) arg.p2.p3) (acc);
+      }
+    }
+    res.p2 = acc.p1;
+    return res;
+}
+
+static $ty:((vvt,())) $id:initEltsPar($ty:((evt,(IniFun epe vpe arg (), arg))) arg) {
+    $ty:((vvt,())) res = {.p1=($ty:vvt)arg.p1,.p2=UNITVAL};
+    $ty:epe a = gencotArrayPointer(($ty:evt) arg.p1);
+    $ty:((epe,arg)) elarg = {.p2=arg.p2.p2};
+    for (int i = 0; i < gencotArraySize(($ty:vvt) arg.p1); i++) {
+      elarg.p1 = ($ty:epe) &(a[i]);
+      $ty:((vpe,())) h = (($spec:(IniFun epe vpe arg ())) arg.p2.p1) (elarg);
+    }
+    return res;
+}
+
+static $ty:((evt,())) $id:clearEltsPar($ty:((vvt,(ClrFun vpe epe arg (), arg))) arg) {
+    $ty:((evt,())) res = {.p1=($ty:evt)arg.p1,.p2=UNITVAL};
+    $ty:vpe a = gencotArrayPointer(($ty:vvt) arg.p1);
+    $ty:((vpe,arg)) elarg = {.p2=arg.p2.p2};
+    for (int i = 0; i < gencotArraySize(($ty:vvt) arg.p1); i++) {
+      elarg.p1 = ($ty:vpe) &(a[i]);
+      $ty:((epe,())) h = (($spec:(ClrFun vpe epe arg ())) arg.p2.p1) (elarg);
+    }
+    return res;
+}
+
+static $ty:((vvt,arg)) $id:initEltsSeq($ty:((evt,(IniFun epe vpe arg arg, arg))) arg) {
+    $ty:((vvt,arg)) res = {.p1=($ty:vvt)arg.p1};
+    $ty:epe a = gencotArrayPointer(($ty:evt) arg.p1);
+    $ty:((epe,arg)) elarg = {.p2=arg.p2.p2};
+    for (int i = 0; i < gencotArraySize(($ty:vvt) arg.p1); i++) {
+      elarg.p1 = ($ty:epe) &(a[i]);
+      $ty:((vpe,arg)) h = (($spec:(IniFun epe vpe arg arg)) arg.p2.p1) (elarg);
+      elarg.p2 = h.p2;
+    }
+    res.p2 = elarg.p2;
+    return res;
+}
+
+static $ty:((evt,arg)) $id:clearEltsSeq($ty:((vvt,(ClrFun vpe epe arg arg, arg))) arg) {
+    $ty:((evt,arg)) res = {.p1=($ty:evt)arg.p1};
+    $ty:vpe a = gencotArrayPointer(($ty:vvt) arg.p1);
+    $ty:((vpe,arg)) elarg = {.p2=arg.p2.p2};
+    for (int i = 0; i < gencotArraySize(($ty:vvt) arg.p1); i++) {
+      elarg.p1 = ($ty:vpe) &(a[i]);
+      $ty:((epe,arg)) h = (($spec:(ClrFun vpe epe arg arg)) arg.p2.p1) (elarg);
+      elarg.p2 = h.p2;
+    }
+    res.p2 = elarg.p2;
+    return res;
+}
+
+static $ty:(el!) $id:getArr($ty:((arr!,idx)) arg) {
+    $ty:el * a = gencotArrayPointer(($ty:arr) arg.p1);
+    if (arg.p2 < gencotArraySize(($ty:arr) arg.p1)) return a[arg.p2];
+    else return a[0];
+}
+
+static $ty:(Result el! ()) $id:getArrChk($ty:((arr!,idx)) arg) {
+    $ty:(Result el! ()) res = {.Error=UNITVAL};
+    $ty:el * a = gencotArrayPointer(($ty:arr) arg.p1);
+    if (arg.p2 < gencotArraySize(($ty:arr) arg.p1)) {
+      res.tag = TAG_ENUM_Success;
+      res.Success = a[arg.p2];
+    }
+    else res.tag = TAG_ENUM_Error;
+    return res;
+}
+
+static $ty:((arr,())) $id:setArr($ty:((arr,(idx,el))) arg) {
+    $ty:((arr,())) res = {.p1=arg.p1,.p2=UNITVAL};
+    $ty:el * a = gencotArrayPointer(($ty:arr) arg.p1);
+    if (arg.p2.p1 < gencotArraySize(($ty:arr) arg.p1)) a[arg.p2.p1] = arg.p2.p2;
+    return res;
+}
+
+static $ty:((arr,(idx,el))) $id:exchngArr($ty:((arr,(idx,el))) arg) {
+    $ty:((arr,(idx,el))) res = {.p1=arg.p1,.p2=arg.p2};
+    $ty:el * a = gencotArrayPointer(($ty:arr) arg.p1);
+    if (arg.p2.p1 < gencotArraySize(($ty:arr) arg.p1)) {
+      res.p2.p2 = a[arg.p2.p1];
+      a[arg.p2.p1] = arg.p2.p2;
+    }
+    return res;
+}
+
+static $ty:((arr,arg)) $id:modifyArr($ty:((arr, (idx,ChgFun el arg arg, arg))) arg) {
+    $ty:((arr,arg)) res = {.p1=arg.p1,.p2=arg.p2.p3};
+    $ty:el * a = gencotArrayPointer(($ty:arr) arg.p1);
+    if (arg.p2.p1 < gencotArraySize(($ty:arr) arg.p1)) {
+      $ty:((el,arg)) elarg = {.p1=a[arg.p2.p1],.p2=arg.p2.p3};
+      elarg = (($spec:(ChgFun el arg arg)) arg.p2.p2) (elarg);
+      a[arg.p2.p1] = elarg.p1;
+      res.p2 = elarg.p2;
+    }
+    return res;
+}
+
+static $ty:((arr,out)) $id:modifyArrDflt($ty:((arr, (idx,ChgFun el arg out, arg))) arg) {
+    $ty:((arr,out)) res = {.p1=arg.p1};
+    $ty:el * a = gencotArrayPointer(($ty:arr) arg.p1);
+    if (arg.p2.p1 < gencotArraySize(($ty:arr) arg.p1)) {
+      $ty:((el,arg)) elarg = {.p1=a[arg.p2.p1],.p2=arg.p2.p3};
+      $ty:((el,out)) h = (($spec:(ChgFun el arg out)) arg.p2.p2) (elarg);
+      a[arg.p2.p1] = h.p1;
+      res.p2 = h.p2;
+    }
+    else res.p2 = gencotDefaultVal(($ty:out) 0);
+    return res;
+}
+
+static $ty:(pel!) $id:getrefArr($ty:((arr!,idx)) arg) {
+    $ty:pel a = gencotArrayPointer(($ty:arr) arg.p1);
+    if (arg.p2 < gencotArraySize(($ty:arr) arg.p1)) return &a[arg.p2];
+    else return &a[0];
+}
+
+static $ty:(Result pel! ()) $id:getrefArrChk($ty:((arr!,idx)) arg) {
+    $ty:(Result pel! ()) res = {.Error=UNITVAL};
+    $ty:pel a = gencotArrayPointer(($ty:arr) arg.p1);
+    if (arg.p2 < gencotArraySize(($ty:arr) arg.p1)) {
+      res.tag = TAG_ENUM_Success;
+      res.Success = &a[arg.p2];
+    }
+    else res.tag = TAG_ENUM_Error;
+    return res;
+}
+
+static $ty:((arr,arg)) $id:modrefArr($ty:((arr, (idx,ModFun pel arg arg, arg))) arg) {
+    $ty:((arr,arg)) res = {.p1=arg.p1,.p2=arg.p2.p3};
+    $ty:pel a = gencotArrayPointer(($ty:arr) arg.p1);
+    if (arg.p2.p1 < gencotArraySize(($ty:arr) arg.p1)) {
+      $ty:((pel,arg)) elarg = {.p1=&a[arg.p2.p1],.p2=arg.p2.p3};
+      elarg = (($spec:(ModFun pel arg arg)) arg.p2.p2) (elarg);
+      res.p2 = elarg.p2;
+    }
+    return res;
+}
+
+static $ty:((arr,out)) $id:modrefArrDflt($ty:((arr, (idx,ModFun pel arg out, arg))) arg) {
+    $ty:((arr,out)) res = {.p1=arg.p1};
+    $ty:pel a = gencotArrayPointer(($ty:arr) arg.p1);
+    if (arg.p2.p1 < gencotArraySize(($ty:arr) arg.p1)) {
+      $ty:((pel,arg)) elarg = {.p1=&a[arg.p2.p1],.p2=arg.p2.p3};
+      $ty:((pel,out)) h = (($spec:(ModFun pel arg out)) arg.p2.p2) (elarg);
+      res.p2 = h.p2;
+    }
+    else res.p2 = gencotDefaultVal(($ty:out) 0);
+    return res;
+}
+
+static $ty:(ref!) $id:getPtr($ty:(ptr!) arg) {
+    return arg->cont;
+}
+
+static $ty:((ptr,())) $id:setPtr($ty:((ptr,ref)) arg) {
+    $ty:((ptr,())) res = {.p1=arg.p1,.p2=UNITVAL};
+    arg.p1->cont = arg.p2;
+    return res;
+}
+
+static $ty:((ptr,ref)) $id:exchngPtr($ty:((ptr,ref)) arg) {
+    $ty:((ptr,ref)) res = {.p1=arg.p1,.p2=arg.p1->cont};
+    arg.p1->cont = arg.p2;
+    return res;
+}
+
+static $ty:((ptr,out)) $id:modifyPtr($ty:((ptr,(ChgFun ref arg out, arg))) arg) {
+    $ty:((ptr,out)) res = {.p1=arg.p1};
+    $ty:((ref,arg)) chgarg = {.p1=arg.p1->cont,.p2=arg.p2.p2};
+    $ty:((ref,out)) h = (($spec:(ChgFun ref arg out)) arg.p2.p1) (chgarg);
+    arg.p1->cont = h.p1;
+    res.p2 = h.p2;
+    return res;
+}
+
+static $ty:(#funptr) $id:toFunPtr($ty:fun arg) {
+    $ty:(#funptr) res = NULL;
+    gencotToFunptr(($ty:fun) arg, ($ty:(#funptr)) res);
+    // switch (arg) {
+    //   case FUN_ENUM_f1: res = &f1; break;
+    //   ...
+    // }
+    return res;
+}
+
+static $ty:(Result fun ()) $id:fromFunPtr($ty:(#funptr) arg) {
+    $ty:(Result fun ()) res = {.Success=-1,.Error=UNITVAL};
+    gencotFromFunptr(($ty:(#funptr)) arg, ($ty:fun) res.Success);
+    // if (arg == &f1) res.Success = FUN_ENUM_f1;
+    // else if (arg == &f2) res.Success = FUN_ENUM_f2;
+    // ...
+    if (res.Success == -1) res.tag = TAG_ENUM_Error;
+    else res.tag = TAG_ENUM_Success;
+    return res;
+}
+
+static $ty:esa $id:toExplicitSize($ty:arr arg) {
+    $ty:esa res = {.p1= gencotArrayPointer(($ty:arr) arg),.p2= gencotArraySize(($ty:arr) arg)};
+    return res;
+}
+
+static $ty:(Result arr esa) $id:toFixedSize($ty:esa arg) {
+    $ty:(Result arr esa) res = {.Success=NULL,.Error=arg};
+    if (arg.p2 == gencotArraySize(($ty:arr) res.Success)) {
+      res.tag = TAG_ENUM_Success;
+      res.Success = ($ty:arr) arg.p1;
+    }
+    else res.tag = TAG_ENUM_Error;
+    return res;
+}
+
+static $ty:(esa!) $id:rotoExplicitSize($ty:(arr!) arg) {
+    $ty:(esa!) res = {.p1= gencotArrayPointer(($ty:(arr!)) arg),.p2= gencotArraySize(($ty:(arr!)) arg)};
+    return res;
+}
+
+static $ty:(Result arr! esa!) $id:rotoFixedSize($ty:(esa!) arg) {
+    $ty:(Result arr! esa!) res = {.Success=NULL,.Error=arg};
+    if (arg.p2 == gencotArraySize(($ty:(arr!)) res.Success)) {
+      res.tag = TAG_ENUM_Success;
+      res.Success = ($ty:arr) arg.p1;
+    }
+    else res.tag = TAG_ENUM_Error;
+    return res;
+}
+
+static $ty:(Result ((evp,U64),Heap) Heap) $id:createCAES($ty:((U64, Heap)) arg) {
+    $ty:(Result ((evp,U64),Heap) Heap) res={.Success={.p1={.p2=arg.p1},.p2=arg.p2},.Error=arg.p2};
+    $ty:evp p = calloc(arg.p1,sizeof($ty:(#evp)));
+    if (p == 0) res.tag = TAG_ENUM_Error;
+    else {
+        res.tag = TAG_ENUM_Success;
+        res.Success.p1.p1 = p;
+    }
+    return res;
+
+}
+
+static $ty:(Heap) $id:disposeCAES($ty:(((evp,U64),Heap)) arg) {
+    free(arg.p1.p1);
+    return arg.p2;
+}
+

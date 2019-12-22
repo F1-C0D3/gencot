@@ -8,46 +8,47 @@
 -- Explicitly sized array type.
 -- Implemented by a pair of an element pointer and the size.
 --   pel: element pointer type
-type CArrEE pel = (pel, U64)
+type CArrES pel = (pel, U64)
 
 -- Macro for constructing an explicitly sized array type.
 --   knd: one of U or empty. Specifies the kind of element type. 
 --     Must be U for an unboxed type representing a C struct, union, or array type, otherwise empty.
 --   el: the element type for which to construct the explicitly sized array type.
-#define CAES(knd,el) CArrEE (CPTR(knd,el))
+#define CAES(knd,el) CArrES (CPTR(knd,el))
 
 {- Conversions -}
 
 -- Convert from fixed size array type to explicitly sized array type.
 --   arr: the fixed size array type
---   esa: the explicitly sized array type
-toExplicitSize: all(arr,esa). arr -> esa
+--   aes: the explicitly sized array type
+toCAES: all(arr,aes). arr -> aes
 
 -- Convert from explicitly sized array type to fixed size array type.
 -- If the size does not fit return the original input.
 --   arr: the fixed size array type
---   esa: the explicitly sized array type
-toFixedSize: all(arr,esa). esa -> Result arr esa
+--   aes: the explicitly sized array type
+fromCAES: all(arr,aes). aes -> Result arr aes
 
 -- Convert from readonly fixed size array type to explicitly sized array type.
 --   arr: the fixed size array type
---   esa: the explicitly sized array type
-rotoExplicitSize: all(arr,esa). arr! -> esa!
+--   aes: the explicitly sized array type
+rotoCAES: all(arr,aes). arr! -> aes!
 
 -- Convert from readonly explicitly sized array type to fixed size array type.
 -- If the size does not fit return the original input.
 --   arr: the fixed size array type
---   esa: the explicitly sized array type
-rotoFixedSize: all(arr,esa). esa! -> Result arr! esa!
+--   aes: the explicitly sized array type
+rofromCAES: all(arr,aes). aes! -> Result arr! aes!
 
 -- Macro for specifying typed instances of the conversion functions
---   trg: target type, one of Explicit or Fixed
 --   size: number of elements in the fixed size array type
 --   knd: one of U or empty. Specifies the kind of element type. 
 --     Must be U for an unboxed type representing a C struct, union, or array type, otherwise empty.
 --   el: element type
-#define CAESTO(trg,size,knd,el) Gencot_MKFUNNAME(to,trg)Size[CARR(size,knd,el),CAES(knd,el)]
-#define CAESROTO(trg,size,knd,el) Gencot_MKFUNNAME(roto,trg)Size[CARR(size,knd,el),CAES(knd,el)]
+#define TOCAES(size,knd,el) toCAES[CARR(size,knd,el),CAES(knd,el)]
+#define FROMCAES(size,knd,el) fromCAES[CARR(size,knd,el),CAES(knd,el)]
+#define ROTOCAES(size,knd,el) rotoCAES[CARR(size,knd,el),CAES(knd,el)]
+#define ROFROMCAES(size,knd,el) rofromCAES[CARR(size,knd,el),CAES(knd,el)]
 
 {- Creating and disposing -}
 
@@ -55,7 +56,7 @@ rotoFixedSize: all(arr,esa). esa! -> Result arr! esa!
 --   knd: one of U or empty. Specifies the kind of element type. 
 --     Must be U for an unboxed type representing a C struct, union, or array type, otherwise empty.
 --   el: element type
-#define EVT_CAES(knd,el) CArrEE (EVT(CPTR(knd,el)))
+#define EVT_CAES(knd,el) CArrES (EVT(CPTR(knd,el)))
 
 -- Creating an empty value of an explicitly sized empty-value array type by allocating memory for 
 -- a specified number of elements for it and returning a pointer to the allocated space 

@@ -1351,11 +1351,11 @@ To use this in a safe way, the number of array elements must be known.
 
 Gencot provides support for this kind of working with arrays, if the number of elements is specified explicitly as
 an integer value. The element pointer and the element size are combined to a pair. The corresponding type is called
-an ``explicitly sized array'' type. Gencot uses the generic type \code{CArrEE}
-to construct types for explicitly sized arrays, such as \code{CArrEE PEl} for an explicitly sized array with elements
+an ``explicitly sized array'' type. Gencot uses the generic type \code{CArrES}
+to construct types for explicitly sized arrays, such as \code{CArrES PEl} for an explicitly sized array with elements
 of type \code{El}, where \code{PEl} is the type of pointers to the elements. The corresponding type definition is
 \begin{verbatim}
-  type CArrEE pel = (pel, U64)
+  type CArrES pel = (pel, U64)
 \end{verbatim}
 
 Since the type argument must be the pointer-to-element type Gencot provides in \code{include/gencot/ESArray.cogent}
@@ -1365,37 +1365,39 @@ the preprocessor macro
 \end{verbatim}
 where \code{<ek>} describes the kind of element type as for the macro \code{CPTR} (see Section~\ref{design-types-pointer}).
 
-For every instance of type \code{CArrEE} Gencot provides operations as described in the following sections.
+For every instance of type \code{CArrES} Gencot provides operations as described in the following sections.
 
 \subsubsection{Converting Arrays}
 
 Gencot provides support for converting array values between explicitly sized arrays and the fixed size arrays of types
 \code{CArr<size> El}. It supports the polymorphic abstract functions
 \begin{verbatim}
-  toExplicitSize: all(arr,esa). arr -> esa
-  toFixedSize: all(esa,arr). esa -> Result arr esa
-  rotoExplicitSize: all(arr,esa). arr! -> esa!
-  rotoFixedSize: all(esa,arr). esa! -> Result arr! esa!
+  toCAES: all(arr,aes). arr -> aes
+  fromCAES: all(aes,arr). aes -> Result arr aes
+  rotoCAES: all(arr,aes). arr! -> aes!
+  rofromCAES: all(aes,arr). aes! -> Result arr! aes!
 \end{verbatim}
-where \code{arr} is the fixed size array type and \code{esa} is the explicitly sized array type. Gencot provides instances
-for all cases where \code{arr} and \code{esa} have the same element type. Since this contraint cannot be represented in
+where \code{arr} is the fixed size array type and \code{aes} is the explicitly sized array type. Gencot provides instances
+for all cases where \code{arr} and \code{aes} have the same element type. Since this contraint cannot be represented in
 Cogent, Gencot provides the following preprocessor macros in \code{include/gencot/ESArray.cogent}:
 \begin{verbatim}
-  CAESTO(Trg,<ek>,<size>,El)
-  CAESROTO(Trg,<ek>,<size>,El)
+  TOCAES(<size>,<ek>,El)
+  FROMCAES(<size>,<ek>,El)
+  ROTOCAES(<size>,<ek>,El)
+  ROFROMCAES(<size>,<ek>,El)
 \end{verbatim}
-where \code{Trg} is either \code{Explicit} or \code{Fixed}, \code{<ek>} is the kind of element type as above, \code{<size>} is the 
-number of elements, and \code{El} is the element type. As example, the macro call \code{CAESTO(Explicit,,8,U32)} expands to
+where \code{<size>} is the number of elements in the fixed size array type, \code{<ek>} is the kind of element type as above, 
+and \code{El} is the element type. As example, the macro call \code{TOCAES(8,,U32)} expands to
 \begin{verbatim}
-  toExplicitSize[CArr8 U32,CArrEE (CPtr U32)]
+  toCAES[CArr8 U32,CArrES (CPtr U32)]
 \end{verbatim}
-and the macro call \code{CAESROTO(Fixed,P,5,CPtr U16)} expands to
+and the macro call \code{ROFROMCAES(5,,CPtr U16)} expands to
 \begin{verbatim}
-  rotoFixedSize[CArrEE (CPtr (CPtr U16)),CArr5 (CPtr U16)]
+  rofromCAES[CArrES (CPtr (CPtr U16)),CArr5 (CPtr U16)]
 \end{verbatim}
 
-Function \code{toExplicitSize} returns the pair of the pointer to the first array element and the constant known size, this
-always succeeds. Function \code{toFixedSize} compares the explicit size in the argument to the known fixed size of the result.
+Function \code{toCAES} returns the pair of the pointer to the first array element and the constant known size, this
+always succeeds. Function \code{fromCAES} compares the explicit size in the argument to the known fixed size of the result.
 If they are equal it returns the element pointer, otherwise it returns an error value with the original input.
 
 Whenever a pointer \code{p} to an element is given in a program and an expression \code{s} is known which specifies the corresponding
@@ -1413,8 +1415,8 @@ where parameter \code{<ek>} is as described for \code{CAES} above.
 For allocating an explicitly sized array the size must be specified, since it is not known as part of the type.
 Gencot provides the polymorphic abstract functions
 \begin{verbatim}
-  createESA: all(evp). (U64,Heap) -> Result ((evp,U64),Heap) Heap
-  disposeESA: all(evp). ((evp,U64),Heap) -> Heap
+  createCAES: all(evp). (U64,Heap) -> Result ((evp,U64),Heap) Heap
+  disposeCAES: all(evp). ((evp,U64),Heap) -> Heap
 \end{verbatim}
 for all cases where \code{evp} is a type of the form \code{EVT(PEl)}, i.e., an empty-value type for pointers to the 
 array elements.
@@ -1432,7 +1434,7 @@ size arrays can also be provided for explicitly sized arrays. These are the gene
 Section~\ref{design-operations-init} and the array-specific operations defined in Section~\ref{design-operations-array}.
 
 The functions \code{initFull} and \code{clearFull} are not supported, since they are defined using the unboxed type \code{\#vvt}
-to represent the content. For an explicitly sized array type the unboxed type is identical, then \code{initFull} has not the
+to represent the content. For an explicitly sized array type the unboxed type is the same tuple type. Thus \code{initFull} has not the
 intended semantics of moving data from the stack to the heap. The other functions work as described.
 
 Since the way how the empty-value type is constructed is different for explicitly sized arrays, the macros defined in

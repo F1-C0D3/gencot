@@ -107,10 +107,11 @@ a struct or an array. The C declaration can be rewritten as
   t v;
   v = init;
 \end{verbatim}
-with a separate statement for initializing the variable. In the first case this is valid C code. In the other cases 
-the statement is not, but we will translate it according to the intended semantics. For a struct type Cogent provides
+with a separate statement for initializing the variable. If \code{init} is an expression this is valid C code. Otherwise,
+if \code{init} is an initializer for a struct or array, the statement is not valid in C, but we will translate it 
+according to the intended semantics. For a struct type Cogent provides
 corresponding expressions for unboxed records. For other types Gencot provides its initialization functions 
-described in Section~\ref{design-operations-init} and~\code{design-operations-array},
+described in Section~\ref{design-operations-init} and~\ref{design-operations-array},
 or the initialization can be done by several applications of operation \code{set} (see Section~\ref{design-operations-parts}).
 
 A declaration without an initializer should always be followed by an assignment to it before it is accessed. If not
@@ -194,7 +195,7 @@ such variable.
 The \code{expr} is a Cogent expression for a corresponding tuple consisting of the result value of the C expression and the new values
 of the identifiers modified by the C expression.
 
-Expressions with side effects are applications of the increment and decrement operators \code{++,--}, assignments,
+Expressions with side effects are applications of the increment and decrement operators \code{++,-{}-}, assignments,
 and invocations of functions which modify one or more parameter values.
 
 Applications of increment and decrement prefix operators must be rewritten in C using assignments. Assignments using assignment
@@ -270,7 +271,7 @@ For example, a corresponding translation of \code{*(s->m1->m2) = 5} is
     and (v,m2) = let v = 5 in (v,setPtr(m2,v))
     in (v,s{m1=m1{m2=m2}})
 \end{verbatim}
-This approach avoids the need to manually define and implement the functions \code{modifyFldM...}.
+This approach avoids the need to manually define and implement the functions \code{modifyFldM}.
 
 An application of an increment/decrement postfix operator \code{ss} where \code{s} is \code{+} or \code{-} has the form
 \code{lhs ss}. If \code{lhs} is a single identifier \code{v1} this identifier must have a numerical type and the expression 
@@ -513,12 +514,12 @@ where \code{u1,...,uk} is the union of \code{v1,...,vn} and \code{w1,...,wm}.
 A conditional expression \code{e0 ? e1 : e2} is translated as follows. Let \code{(x,x1,...,xn) = expr0}, 
 \code{(y,y1,...,ym) = expr1}, \code{(z,z1,...,zp) = expr2} be the translations of 
 \code{e0}, \code{e1}, \code{e2}, respectively.
-Then the translation of the conditional expression is 
+If \code{e0} evaluates to a value of numerical type the translation of the conditional expression is 
 \begin{verbatim}
   (v,v1,...,vk) = 
     let (x,x1,...,xn) = expr0
     and (v,u1,...,uq) =
-      if x then 
+      if x /= 0 then 
         let (y,y1,...,ym) = expr1 
         in (y,u1,...,uq)
       else
@@ -529,20 +530,42 @@ Then the translation of the conditional expression is
 where \code{u1,...,uq} is the union of \code{y1,...,ym} and \code{z1,...,zp} in some order, and 
 \code{v1,...,vk} is the union of \code{y1,...,ym} and \code{x1,...,xn} in some order.
 
+If the outermost operator of \code{e0} is a ``logical'' operator (one of \code{<, <=, >, >=, ==, !=, \&\&, ||})
+it can be translated in a way that the first component in the result of \code{expr0} is of type Bool.
+Then, instead of \code{if x /= 0 then} the condition is written as \code{if x then}.
+
+In C the value used for testing the condition may be of any scalar type, i.e., a numerical or pointer type.
+In case of a pointer type the condition corresponds to testing the pointer for being not \code{NULL}.
+The translated expression \code{expr0} will return a value of linear type as first component. Since it
+may be null (otherwise the conditional expression could be replaced by \code{e1}) it must be translated
+so that \code{expr0} returns a value of type \code{MayNull a} (see Section~\ref{design-operations-null})
+as its first component. Since the use as condition in Cogent would discard the value, it must be readonly,
+i.e., of type \code{(MayNull a)!}. Then, instead of \code{if x /= 0 then} the condition must be written as
+\begin{verbatim}
+      if not isNull(x) then 
+\end{verbatim}
+using function \code{isNull} as described in Section~\ref{design-operations-null}. If the first component
+of the result of \code{expr0} is not already of readonly type it must be made readonly in the condition:
+\begin{verbatim}
+      if not isNull(x) !x then 
+\end{verbatim}
+In the following patterns we only show the form \code{if x /= 0 then}, it must be replaced as needed.
+
 Usually, the condition \code{e0} has no side effects, the the translation can be simplified to
 \begin{verbatim}
   (v,u1,...,uq) = 
-    if expr0 then 
+    if expr0 /= 0 then 
       let (y,y1,...,ym) = expr1 
       in (y,u1,...,uq)
     else
       let (z,z1,...,zp) = expr2
       in (z,u1,...,uq)
 \end{verbatim}
+
 If also \code{e1} and \code{e2} have no side effects the translation can be further simplified to
 the Cogent expression
 \begin{verbatim}
-  if expr0 then expr1 else expr2
+  if expr0 /= 0 then expr1 else expr2
 \end{verbatim}
 
 As an example the C expression \code{i == 0? a = 5 : b++} is translated to
@@ -556,33 +579,38 @@ As an example the C expression \code{i == 0? a = 5 : b++} is translated to
       in (v,a,b)
 \end{verbatim}
 
-However, these translations have a drawback. When Cogent translates the Cogent code back to C it translates
-an expression of the form
+For these translations the way how the Cogent compiler is used is relevant. When it translates the Cogent code back to 
+C it translates an expression of the form
 \begin{verbatim}
   let v = if a then b else c
   in rest
 \end{verbatim}
 to a C statement of the form
 \begin{verbatim}
-  if a then { v = b; rest}
+  if a { v = b; rest}
   else { v = c; rest}
 \end{verbatim}
-duplicating the translated code for \code{rest}. The same happens for all bindings and expressions after
+duplicating the translated code for \code{rest} (which is called ``a-normal form'' in Cogent). 
+The same happens for all bindings and expressions after
 the binding of \code{v} in the context of the \code{let} expression. If several such bindings to a 
 conditional expressions are used this leads to an exponential growth in size of the C code.
 
-To prevent this the conditional expression can be wrapped in a lambda expression in the form
+To prevent this the Cogent compiler must be used with the flag \code{--fnormalisation=knf}
+which translates to ``k-normal form''
+\begin{verbatim}
+  if a { v = b}
+  else { v = c}
+  rest
+\end{verbatim}
+
+Alternatively, the conditional expression can be wrapped in a lambda expression in the form
 \begin{verbatim}
   let v = (\(x1,...,xn) => if a then b else c) 
     (x1,...,xn)
   in rest
 \end{verbatim}
 where \code{x1,...,xn} are all Cogent variables used in the expressions \code{a, b, c}.
-Cogent translates this code to C without duplicating \code{rest}.
-
-Therefore the conditional Cogent expressions in the translation of a conditional C expression
-should be wrapped in a lambda term whenever they are not the last binding in the translated 
-function body or \code{rest} is only very small.
+Cogent translates this code to C without duplicating \code{rest}, even if a-normal form is used.
 
 \subsection{Statements}
 \label{app-transfunction-stat}
@@ -592,61 +620,73 @@ statement to a Cogent binding of the form \code{pattern = expr} where pattern is
 modified by the statement.
 
 However, a C statement can also alter the control flow in its environment, which is the case for 
-\code{return} statements, \code{goto} statements etc. We treat this for \code{return} statements by adding two 
-components to the \code{pattern}, so that the translation becomes
+\code{return} statements, \code{goto} statements etc. We treat this by adding a 
+component to the \code{pattern}, so that the translation becomes
 \begin{verbatim}
-  (v,c,v1,...,vn) = expr
+  (c,v1,...,vn) = expr
 \end{verbatim}
-As for expressions, the variable \code{v} is a
-new variable which is not already bound in the context of the expression, it is used to bind the result value of the
-surrounding function. Similarly, \code{c} is a new variable for the condition when to return immediately after the 
-statement. The other variables are the identifiers of all parameters and local 
+The variable \code{c} is a
+new variable which is not already bound in the context of the expression, it is used to bind the information about 
+control flow modification by the statement. The other variables are the identifiers of all parameters and local 
 variables modified by the statement. Since a statement need not modify variables, the pattern may also be
-a pair \code{(v,c)}. 
+a single variable \code{c}. In the following descriptions we always use a pattern of the form \code{(c,v1,...,vn)}
+with the meaning that for \code{n=0} it is the single variable \code{c}.
+
+The value bound to \code{c} is a tuple of type 
+\begin{verbatim}
+  (Bool, Bool, Option T)
+\end{verbatim}
+where \code{T} is the original result type of the surrounding function. In a value \code{(cc,cb,res)} the component
+\code{cc} is true if the statement contains a \code{return}, \code{break}, or \code{continue} statement outside
+of a \code{switch} or loop statement. The component \code{cb} is true if the statement contains a \code{return}
+or \code{break} statement outside of a \code{switch} or loop statement. The component \code{res} is the value 
+\code{None} if the statement contains no \code{return} statement, otherwise it is the value \code{Some v} where
+\code{v} is the value to be returned by the function.
+
+The translation of \code{goto} statement and labels is not supported, this must be done manually.
 
 \subsubsection{Simple Statements}
 
 A simple C statement consists of a C expression, where the result is discarded. Therefore it makes only sense
-if the C expression has side effects.
+if the C expression has side effects. Simple statements cannot modify the control flow, they always bind the 
+variable \code{c} to the value \code{(False,False,None)} which we abbreviate as \code{ffn} in the following.
 
 The binding in the translation of a simple C statement \code{e;} is mainly the binding resulting from the translation 
 of the expression \code{e}, as described in Section~\ref{app-transfunction-expr}. Let its translation
 be \code{(v,v1,...,vn) = expr}.
 Then the binding for the statement \code{e;} is
 \begin{verbatim}
-  (v,c,v1,...,vn) = 
+  (c,v1,...,vn) = 
     let (v,v1,...,vn) = expr
-    in (dummy,False,v1,...,vn)
+    in (ffn,v1,...,vn)
 \end{verbatim}
-where \code{dummy} is the dummy expression \code{gencotDummy[Res]()} for the function result type \code{Res}, as 
-described in Section~\ref{design-operations-dummy}. If the C code is correct, it can always be eliminated by 
-simplifying the generated Cogent code for the function body.
 
 The result \code{v} of \code{e} is discarded, the same considerations apply here as described for expressions using
-the comma operator in Section~\ref{app-transfunction-expr}. Since no function result is provided by the simple statement,
-the outer variable \code{v} is bound to \code{()} as a placeholder.
+the comma operator in Section~\ref{app-transfunction-expr}. 
 
 If \code{expr} is a tuple 
 \code{(e0,e1,...,en)} the binding can further be simplified to
 \begin{verbatim}
-  (v,c,v1,...,vn) = (dummy,False,e1,...,en)
+  (c,v1,...,vn) = (ffn,e1,...,en)
 \end{verbatim}
 
 As an example, the translation of the simple statement \code{i++;} is
 \begin{verbatim}
-  (v,c,i) = let (v,i) = (i,i+1) in (dummy,False,i)
+  (c,i) = let (v,i) = (i,i+1) in (ffn,i)
 \end{verbatim}
 which can be simplified to
 \begin{verbatim}
-  (v,c,i) = (dummy,False,i+1)
+  (c,i) = (ffn,i+1)
 \end{verbatim}
 
 The empty C statement \code{;} is translated as
 \begin{verbatim}
-  (v,c) = (dummy,False)
+  c = ffn
 \end{verbatim}
 
-\subsubsection{Return Statements}
+\subsubsection{Jump Statements}
+
+A jump statement is a \code{return} statement, \code{break} statement, or \code{continue} statement.
 
 A C return statement has the form \code{return;} or \code{return e;}. It always ends the control flow in the surrounding
 function body. The first form can only be used in functions returning \code{void}, these are translated to Cogent as returning 
@@ -654,12 +694,12 @@ function body. The first form can only be used in functions returning \code{void
 
 The translation of a return statement of the form \code{return;} is the binding
 \begin{verbatim}
-  (v,c) = ((), True)
+  c = (True,True,Some ())
 \end{verbatim}
 If \code{e} has no
 side effects, the translation of statement \code{return e;} is
 \begin{verbatim}
-  (v,c) = (expr, True)
+  c = (True,True,Some expr)
 \end{verbatim}
 where \code{expr} is
 the translation of \code{e}. 
@@ -667,62 +707,72 @@ the translation of \code{e}.
 Otherwise, let \code{(v,v1,...,vn) = expr} be the translation of \code{e}. Then 
 the translation of \code{return e;} is
 \begin{verbatim}
-  (v,c,v1,...,vn) = 
+  (c,v1,...,vn) = 
     let (v,v1,...,vn) = expr
-    in (v, True, v1,...,vn)
+    in ((True,True,Some v), v1,...,vn)
 \end{verbatim}
 which can be simplified if \code{expr} is the tuple \code{(e0,e1,...,en)} to
 \begin{verbatim}
-  (v,c,v1,...,vn) = (e0,True,e1,...,en)
+  (c,v1,...,vn) = ((True,True,Some e0),e1,...,en)
+\end{verbatim}
+
+A C \code{break} statement has the form \code{break;}. It ends the next surrounding \code{switch} or loop statement,
+otherwise it may not be used. It is translated to
+\begin{verbatim}
+  c = (True,True,None)
+\end{verbatim}
+
+A C \code{continue} statement has the form \code{continue;}. It ends the body of the next surrounding loop statement,
+otherwise it may not be used. It is translated to
+\begin{verbatim}
+  c = (True,False,None)
 \end{verbatim}
 
 \subsubsection{Conditional Statements}
 
 A conditional C statement has the form \code{if (e) s1} or \code{if (e) s1 else s2} where \code{e} is an expression
-and \code{s1} and \code{s2} are statements. Let \code{(v,c,v1,...,vn) = expr1} be the translation 
-of \code{s1} and \code{(w,d,w1,...,wm) = expr2} be the translation of \code{s2}.
+and \code{s1} and \code{s2} are statements. Let \code{(c1,v1,...,vn) = expr1} be the translation 
+of \code{s1} and \code{(c2,w1,...,wm) = expr2} be the translation of \code{s2}.
 If \code{e} has no side effects and translates to the Cogent expression \code{expr} we translate
 the second form of the conditional statement to the binding
 \begin{verbatim}
-  (v,c,u1,...,uk) =
-    if expr then 
-      let (v,c,v1,...,vn) = expr1
-      in (v,c,u1,...,uk)
+  (c,u1,...,uk) =
+    if expr /= 0 then 
+      let (c1,v1,...,vn) = expr1
+      in (c1,u1,...,uk)
     else
-      let (w,d,w1,...,wm) = expr2
-      in (w,d,u1,...,uk)
+      let (c2,w1,...,wm) = expr2
+      in (c2,u1,...,uk)
 \end{verbatim}
 where \code{u1,...,uk} is the union of \code{v1,...,vn} and \code{w1,...,wm} in some order. 
 Note that this closely corresponds to the translation 
-of the conditional expression in Section~\ref{app-transfunction-expr}.
+of the conditional expression in Section~\ref{app-transfunction-expr}. In particular, the condition test 
+\code{if expr /= 0 then} must be replaced by \code{if expr then} or \code{if not isNull(expr) then} as needed.
 
 The first form of the conditional statement is translated as
 \begin{verbatim}
-  (v,c,v1,...vn) =
-    if expr then expr1
-    else ((),False,v1,...vn)
+  (c,v1,...vn) =
+    if expr /= 0 then expr1
+    else ((False,False,None),v1,...vn)
 \end{verbatim}
 
 If expression \code{e} has side effects the translation is extended as for the conditional expression.
 
-As described for the conditional expression, the conditional Cogent expression on the right hand side of the binding
-can cause exponential growth of the generated C code. This can be prevented by wrapping it in a lambda expression.
-
 As an example the translation of the conditional statement \code{if (i==0) return a; else a++;} is the binding
 \begin{verbatim}
-  (v,c,a) =
+  (c,a) =
     if i==0 then 
-      let (v,c) = (a,True)
-      in (v,c,a)
+      let c = (True,True,Some a)
+      in (c,a)
     else
-      let (w,d,a) = (dummy,False,a+1)
-      in (w,d,a)
+      let (c,a) = ((False,False,None),a+1)
+      in (c,a)
 \end{verbatim}
 which can be simplified to
 \begin{verbatim}
-  (v,c,a) =
-    if i==0 then (a,True,a)
-    else (dummy,False,a+1)
+  (c,a) =
+    if i==0 then ((True,True,Some a),a)
+    else ((False,False,None),a+1)
 \end{verbatim}
 
 \subsubsection{Compound Statements}
@@ -736,71 +786,70 @@ We provide the translation for the simplest case \code{\{ s1 s2 \}} where \code{
 The general case can be translated by rewriting the compound statement as a sequence of nested blocks, associating
 from the right.
 
-Let \code{(v,c,v1,...,vn) = expr1} be the translation of statement \code{s1} and \code{(w,d,w1,...,wm) = expr2} 
+Let \code{(c,v1,...,vn) = expr1} be the translation of statement \code{s1} and \code{(c,w1,...,wm) = expr2} 
 be the translation of statement \code{s2}. Then the translation of
 \code{\{ s1 s2 \}} is
 \begin{verbatim}
-  (v,c,u1,...,uk) =
-    let (v,c,v1,...,vn) = expr1
-    in if c then (v,c,u1,...,uk)
-    else let (w,d,w1,...,wm) = expr2
-    in (w,d,u1,...,uk)
+  (c,u1,...,uk) =
+    let ((cc,cb,res),v1,...,vn) = expr1
+    in if cc then ((cc,cb,res),u1,...,uk)
+    else let (c,w1,...,wm) = expr2
+    in (c,u1,...,uk)
 \end{verbatim}
-where \code{u1,...,uk} is the union of \code{v1,...,vn} and \code{w1,...,wm} without the local variables 
-declared in the block in some order.
+where \code{u1,...,uk} is the union of \code{v1,...,vn} and \code{w1,...,wm} in some order without the local variables 
+declared in the block.
 
 The values of local variables declared in the block are discarded. If such variables have linear type, they must
 be allocated on the heap and disposed at the end of the block, as described in Section~\ref{app-transfunction-addrop}.
 
 As an example, the compound statement \code{\{ if (i==0) return a; else a++; b = a; \}} is translated to the binding
 \begin{verbatim}
-  (v,c,a,b) =
-    let (v,c,a) = 
-      if i==0 then (a,True,a) 
-      else (dummy,False,a+1)
-    in if c then (v,c,a,b)
-    else let (w,d,b) = (dummy,False,a)
-    in (w,d,a,b)
+  (c,a,b) =
+    let ((cc,cb,res),a) = 
+      if i==0 then ((True,True,Some a),a)
+      else ((False,False,None),a+1)
+    in if cc then ((cc,cb,res),a,b)
+    else let (c,b) = ((False,False,None),a)
+    in (c,a,b)
 \end{verbatim}
 
-If \code{s1} contains no return statement the inner variable \code{c} is bound to \code{False} and the translation
+If \code{s1} contains no jump statement the variable \code{cc} is bound to \code{False} and the translation
 can be simplified to the binding
 \begin{verbatim}
-  (v,c,u1,...,uk) =
-    let (v,c,v1,...,vn) = expr1
-    and (w,d,w1,...,wm) = expr2
-    in (w,d,u1,...,uk)
+  (c,u1,...,uk) =
+    let (c,v1,...,vn) = expr1
+    and (c,w1,...,wm) = expr2
+    in (c,u1,...,uk)
 \end{verbatim}
 
 As an example, the compound statement \code{\{ int i = 0; a[i++] = 5; b = i + 3; \}} is translated to the 
 simplified binding
 \begin{verbatim}
-  (v,c,a,b) =
-    let (v,c,i) = (dummy,False,0)
-    and (w,c,i,a) = (dummy,False,i+1,setArr(a,i,5))
-    and (x,c,b) = (dummy,False,i+3)
-    in (v,c,a,b)
+  (c,a,b) =
+    let (c,i) = (ffn,0)
+    and (c,i,a) = (ffn,i+1,setArr(a,i,5))
+    and (c,b) = (ffn,i+3)
+    in (c,a,b)
 \end{verbatim}
 which can be further simplified to
 \begin{verbatim}
-  (v,c,a,b) =
+  (c,a,b) =
     let i = 0
     and (i,a) = (i+1,setArr(a,i,5))
     and b = i+3
-    in (dummy,False,a,b)
+    in (ffn,a,b)
 \end{verbatim}
-eliminating all occurrencies of \code{dummy} in the inner bindings.
 
 A compound statement used as the body of a C function is translated to a Cogent expression instead of a Cogent binding.
 If the C function has result type \code{void} and modifies its parameters \code{pm1,...,pmn}, its translation is 
 a Cogent function returning the tuple \code{(pm1,...,pmk)}. If the translation of the compound statement 
-used as function body is the binding \code{(v,c,v1,...,vn) = expr}, the body is translated to the expression
+used as function body is the binding \code{(c,v1,...,vn) = expr}, the body is translated to the expression
 \begin{verbatim}
-  let (v,c,v1,...,vn) = expr
+  let (c,v1,...,vn) = expr
   in (pm1,...,pmn)
 \end{verbatim}
 If the function modifies no parameters
-it returns the unit value \code{()}. Note that if the C function is correct, \code{v} is bound to \code{()}.
+it returns the unit value \code{()}. Note that if the C function is correct, \code{c} contains the value \code{Some ()}.
 
 Here all local variables and the unmodified parameters are discarded. If local variables have linear type, they must
 be allocated on the heap and disposed at the end of the function, as described in Section~\ref{app-transfunction-addrop}.
@@ -809,14 +858,220 @@ If an unmodified parameter has linear type, it must be disposed at the end of th
 If the C function returns a value its translation is a Cogent function returning the tuple \code{(v,pm1,...,pmk)}
 where \code{v} is the original result value of the C function. Then the body is translated to the expression
 \begin{verbatim}
-  let (v,c,v1,...,vn) = expr
-  in (v,pm1,...,pmn)
+  let ((_,_,res),v1,...,vn) = expr
+  in res | None -> (defaultVal(),pm1,...,pmn)
+         | Some v -> (v,pm1,...,pmn)
 \end{verbatim}
+where \code{defaultVal()} is as defined in Section~\ref{design-operations-default}. If the type of the original function
+result \code{v} is not regular (in C: contains a pointer) \code{defaultVal} cannot be used, in this case a different
+expression for the \code{None} alternative must be specified manually. Note that in this case the \code{None} alternative
+is never used, if the C program is correct. Nevertheless, for Cogent to be correct some result value must be specified 
+also for this case, it is irrelevant which value is used.
+
+\subsubsection{Switch Statements}
 
 \subsubsection{For Loops}
 
+A \code{for} loop has the form \code{for (ee1; ee2; ee3) s} with optional expressions \code{eei} and a statement \code{s}. 
+The first expression \code{ee1} can also be a declaration. The \code{for} loop can always be transformed to a \code{while}
+loop of the form
+\begin{verbatim}
+  ee1;
+  while (ee2) { s ee3; }
+\end{verbatim}
+therefore \code{e2} must evaluate to a scalar value, as for the condition in a conditional expression or statement.
+
+Since \code{while} loops are not directly supported by Cogent and need additional work for proofs when translated by using
+an abstract function, we do not use this transformation in general, instead, for certain forms of \code{for} loops we
+translate them using functions from the Cogent standard library. This is possible, whenever a \code{for} loop is a 
+``counted'' loop of the form
+\begin{verbatim}must either
+  for ( w=e1; w<e2; w=e3) s
+\end{verbatim}
+with a counting variable \code{w} of an unsigned integer type. The only free variable in \code{e3} must be \code{w} and
+\code{w} must not occur free in \code{e2}. The \code{e1, e2, e3} must not have side effects.
+
+If a \code{for} loop is not of this form it may be possible to rewrite it in C to that form. Specifically, this can be done 
+if it is possible to rewrite the expressions \code{eei} as follows:
+\begin{verbatim}
+  ee1: ee1', w=e1
+  ee2: w<e2 && ee2'
+  ee3: ee3', w=e3
+\end{verbatim}
+Then the loop \code{for (ee1; ee2; ee3) s} can be rewritten as the counted loop
+\begin{verbatim}
+  ee1';
+  for (w=e1; w<e2; w=e3) {
+    if (!ee2') break;
+    s ee3'
+  }
+\end{verbatim}
+In other cases, especially if some of the \code{eei} are empty, it may still be possible to rewrite the loop as counted by
+moving parts from before the loop or from the loop body into the \code{ei}.
+
+Let \code{expri} be the translation of the \code{ei} and let \code{(c,v1,...,vn) = expr} be the translation of 
+statement \code{s}. Let \code{w1,...,wm} be the variables occurring free in \code{expr} other than \code{w} and the \code{vi}.
+Then the translation of the counted loop 
+\begin{verbatim}
+  for (w=e1; w<e2; w=e3) s
+\end{verbatim}
+is
+\begin{verbatim}
+  (c, v1,...,vn) = 
+  let ((v1,...,vn),lr) = 
+    seq32_stepf #{
+      frm = expr1, to = expr2, 
+      stepf = \w => expr3, 
+      acc = (v1,...,vn), obsv = (w1,...,wm), 
+      f = \#{acc = (v1,...,vn), obsv = (w1,...,wm), 
+             idx = w} => 
+        let ((cc,cb,res),v1,...,vn) = expr
+        in ((v1,...,vn),
+            if cb then Break (res) else Iterate ())
+      }
+  in lr | Iterate () -> ((False,False,None), v1,...,vn)
+        | Break (None) -> ((False,False,None), v1,...,vn)
+        | Break (res) -> ((True,True,res), v1,...,vn)
+\end{verbatim}
+
+The function \code{seq32\_stepf} is defined in the Cogent standard library in \code{gum/common/common.cogent}.
+
+The variables \code{w,w1,...,wm,v1,...,vn} either occur free in the loop body or are modified in the loop body.
+In both cases they must be declared in C before the counted loop, so they are defined in Cogent and can be used
+when \code{acc} and \code{obsv} are set. The \code{w1,...,wm} must not be of linear type. Since they are used
+in the loop body, depending on how often the body is executed they could either be used several times or not at all.
+If a \code{wi} is of linear type the loop cannot be translated in this way and must be handled manually.
+
+Since all \code{w1,...,wm} have a regular or readonly type the tuple \code{(w1,...,wm)} is a valid value for 
+both \code{obsv} fields which have the readonly type \code{obsv!}.
+
+The translation correctly handles all \code{return}, \code{break}, and \code{continue} statements which may occur 
+in the body. 
+
+Note that the translation is only possible if the type of the counting variable \code{w} can be represented in 
+Cogent by the type \code{U32}.
+
+If the expression \code{w=e3} can be rewritten as \code{w+=e3'} where \code{w} does not occur free in \code{e3'}
+the counted loop can be translated using 
+function \code{seq32} instead of \code{seq32\_stepf}. The translation has the same form as above, with the line 
+setting \code{stepf} replaced by
+\begin{verbatim}
+      step = expr3', 
+\end{verbatim}
+where \code{expr3'} is the translation of \code{e3'}. Here, arbitrary other variables may occur free in \code{expr3'}.
+
+In this case the counting variable \code{w} may also have a type which can be represented in Cogent by the type \code{U64}.
+Then the translation has the same form but uses the function \code{seq64} instead of \code{seq32}.
+
+If the expression \code{w=e3} can be rewritten as \code{w-=e3'} where \code{w} does not occur free in \code{e3'}
+the counted loop can be translated as for \code{w+=e3'} using the function \code{seq32\_rev} instead of \code{seq32}.
+
+If the translation can be done using \code{seq32} and the body does not contain any \code{break} or \code{return} statement 
+the translation can be simplified using the function \code{seq32\_simpl} in the form
+\begin{verbatim}
+  (c, v1,...,vn) = 
+  let w = expr1
+  and (v1,...,vn,w1,...,wm,w) = 
+    seq32_simple #{
+      frm = w, to = expr2, step = expr3', 
+      acc = (v1,...,vn,w1,...,wm,w), 
+      f = \(v1,...,vn,w1,...,wm,w) => 
+        let (_,v1,...,vn) = expr
+        in (v1,...,vn,w1,...,wm,w)
+      }
+  in ((False,False,None), v1,...,vn)
+\end{verbatim}
+If the counting variable \code{w} is not used in the body (does not occur free in \code{expr}) this can further be simplified to
+\begin{verbatim}
+  (c, v1,...,vn) = 
+  let (v1,...,vn,w1,...,wm) = 
+    seq32_simple #{
+      frm = expr1, to = expr2, step = expr3', 
+      acc = (v1,...,vn,w1,...,wm), 
+      f = \(v1,...,vn,w1,...,wm) => 
+        let (_,v1,...,vn) = expr
+        in (v1,...,vn,w1,...,wm)
+      }
+  in ((False,False,None), v1,...,vn)
+\end{verbatim}
+
+As an example, the counted loop
+\begin{verbatim}
+  for (i=0; i<size; i++) { 
+    sum += a[i];
+  }
+\end{verbatim}
+is translated to
+\begin{verbatim}
+  (c, sum) = 
+  let i = 0
+  and (sum,a,i) = 
+    seq32_simple #{
+      frm = i, to = size, step = 1, 
+      acc = (sum,a,i), 
+      f = \(sum,a,i) => 
+        let sum = sum + getArr(a,i)
+        in (sum,a,i)
+      }
+  in ((False,False,None), sum)
+\end{verbatim}
+where \code{a} must have a readonly Gencot array type. 
+
+For the counted loop
+\begin{verbatim}
+  for (i=0; i<size; i++) { 
+    if (a[i] == trg) return i;
+  }
+\end{verbatim}
+the body translates to 
+\begin{verbatim}
+  c = if getArr(a,i) == trg 
+      then (True,True,Some i)
+      else (False,False,None)
+\end{verbatim}
+where again \code{a} must be of a readonly Gencot array type. The translation of the loop is
+\begin{verbatim}
+  c = 
+  let ((),lr) = 
+    seq32 #{
+      frm = 0, to = size, step = 1, 
+      acc = (), obsv = (a,trg), 
+      f = \#{acc = (), obsv = (a,trg), idx = i} => 
+        let (cc,cb,res) =
+          if getArr(a,i) == trg 
+          then (True,True,Some i)
+          else (False,False,None)
+        in ((),if cb then Break (res) else Iterate ())
+      }
+  in lr | Iterate () -> (False,False,None)
+        | Break (None) -> (False,False,None)
+        | Break (res) -> (True,True,res)
+\end{verbatim}
+which can be simplified to
+\begin{verbatim}
+  c = 
+  let ((),lr) = 
+    seq32 #{
+      frm = 0, to = size, step = 1, 
+      acc = (), obsv = (a,trg), 
+      f = \#{obsv = (a,trg), idx = i} => 
+        ((),if getArr(a,i) == trg 
+            then Break (Some i) 
+            else Iterate ())
+      }
+  in lr | Iterate () -> (False,False,None)
+        | Break (None) -> (False,False,None)
+        | Break (res) -> (True,True,res)
+\end{verbatim}
+
 \subsubsection{While Loops}
 
+A \code{while} loop has the form \code{while (e) s} or \code{do s while (e);}. Since Cogent does not support recursive 
+function definitions these loops cannot be translated in a natural way to Cogent.
+
+To translate a \code{while} loop it may be rewritten in C as a counted \code{for} loop which can then be translated 
+as described in the previous section. If that is not possible the loop must be put in an abstract function which is 
+defined in C using the original \code{while} loop.
 
 \subsection{Function Pointer Invocation}
 \label{app-transfunction-pointer}
@@ -831,7 +1086,7 @@ referenced function is invoked, such as in
   if( fptr == NULL ) ...
   else fptr( params );
 \end{verbatim}
-Th conversion function \code{fromFunPtr} returns a result of the variant type \code{Result fun ()} where \code{fun} is the 
+The conversion function \code{fromFunPtr} returns a result of the variant type \code{Result fun ()} where \code{fun} is the 
 Cogent function type. So the corresponding invocation in Cogent has the form
 \begin{verbatim}
   FROMFUNPTR(<enc>)(fptr)
@@ -851,7 +1106,7 @@ the Cogent compilation unit. So there are two application cases:
 described in Section~\ref{design-modular}, this invocation requires an exit wrapper. The function \code{fromFunPtr}
 converts the function pointer to the exit wrapper function. If there is no exit wrapper, \code{fromFunPtr}
 returns an error. To be consistent, function \code{toFunPtr} converts every exit wrapper to a pointer to the
-wrapped external  function.
+wrapped external function.
 \item A function which is defined in Cogent and is passed as a function pointer to C for invocation there. As
 described in Section~\ref{design-modular}, this invocation requires an entry wrapper. Entry wrappers are automatically
 generated for all translated functions which had external linkage in C. For all these functions \code{toFunPtr}
@@ -921,18 +1176,19 @@ Another typical pattern in C is a guarded modification of the referenced structu
 \end{verbatim}
 A translation to Cogent is
 \begin{verbatim}
-  let p' = notNull p 
-           | None -> null ()
-           | Some s -> mayNull s{m = v}
+  let p = notNull p 
+          | None -> null ()
+          | Some s -> mayNull s{m = v}
 \end{verbatim}
-where the reference to the modified structure is bound to \code{p'}. Note that in the None-case the result cannot be specified as 
+where the reference to the modified structure is bound to a new variable with the same name \code{p}. 
+Note that in the None-case the result cannot be specified as 
 \code{p} since this would be a second use of the linear value \code{p} which is prevented by Cogent.
 
 Alternatively this can be translated using the function \code{modifyNullDflt}:
 \begin{verbatim}
-  let p' = fst (modifyNullDflt (p, (setFldM, v)))
+  let p = fst (modifyNullDflt (p, (setFldM, v)))
 \end{verbatim}
-using function \code{setFldM} for modifying the structure.
+using a function \code{setFldM} for modifying the structure.
 
 \subsection{The Address Operator \code{\&}}
 \label{app-transfunction-addrop}
@@ -988,17 +1244,20 @@ operator need not be translated, since \code{create} already returns the linear 
 used for the same purposes. The resulting Cogent code for a variable of type \code{int} initialized to \code{5}
 would be
 \begin{verbatim}
-  create[P_U32] heap
+  create[EVT(CPtr U32)] heap
   | Success (ptr,heap) ->
-    fst INIT(Full,P_U32) (ptr,#{cont=5})
+    fst INIT(Full,CPtr U32) (ptr,#{cont=5})
     | Success ptr ->
       let  ... use ptr ...
-      in dispose (fst CLEAR(Simp,P_U32) (ptr,()),heap)
+      in dispose (fst CLEAR(Simp,CPtr U32) (ptr,()),heap)
     | Error eptr -> dispose (eptr,heap)
   | Error heap -> heap
 \end{verbatim}
-where \code{INIT(Full,P\_U32)} is used to initialize the referenced value. Here, the result of the expression is
-only the heap, in realistic cases it would be a tuple with additional result values.
+where \code{INIT(Full,CPtr U32)} is used to initialize the referenced value. Here, the result of the expression is
+only the heap, in more realistic cases it would be a tuple with additional result values.
+
+The drawback of this solution is that it is less efficient to allocate the variable on the heap, than to use a 
+stack allocated variable. If it is only used for a short time, a better solution should be created manually.
 
 \subsubsection{Address of Struct Member}
 
@@ -1012,13 +1271,13 @@ by the linear Cogent type
   type Struct_Cogent_ii = { i1: U32, i2: U32 }
 \end{verbatim}
 
-If the overall structure in Cogent is readonly the abstract polymorphic function \code{getrefFldI2}
+If the overall structure in Cogent is readonly an abstract polymorphic function \code{getrefFldI2}
 can be used to access the Cogent field through a pointer. This is an instance of the general \code{getref} operation
 for records as described in Section~\ref{design-operations-record}.
 
 If the overall structure is modifyable, determining a pointer to the field would introduce sharing for the
 field, since it can be modified through the pointer or by modifying the structure. A safe solution is to use 
-the abstract polymorphic function \code{modrefFldI2} which is an instance of the general \code{modref} operation
+an abstract polymorphic function \code{modrefFldI2} which is an instance of the general \code{modref} operation
 for records as described in Section~\ref{design-operations-record}.
 
 \subsubsection{Address of Array Element}
@@ -1031,8 +1290,8 @@ compatible, if the element pointer is also accessed outside the Cogent compilati
 A binary compatible solution can be achieved in a similar way as for struct members. The first prerequisite for it is
 to allocate the array on the heap.
 
-Then the polymorphic functions \code{getrefArr} and \code{modrefArr} (see Section~\ref{design-operations-array}) can be used
-for working with pointers to elements.
+Then the polymorphic functions \code{getrefArr}, \code{getrefArrChk}, \code{modrefArr}, and \code{modrefArrDflt}
+(see Section~\ref{design-operations-array}) can be used for working with pointers to elements.
 
 \subsubsection{Address of Function}
 
@@ -1043,9 +1302,9 @@ pointer types. The resulting Cogent code has the form
   Cogent_f : U32 -> U32
   Cogent_f p = p+1
   ...
-  let ptr = toFunPtr[_,#F_XU32X_U32] Cogent_f
+  let ptr = TOFUNPTR(FXU32X_U32) Cogent_f
   in ...
 \end{verbatim}
-In this case \code{ptr} has the nonlinear type \code{\#F\_XU32X\_U32} in Cogent and may freely be copied and
+In this case \code{ptr} has the nonlinear type \code{\#CFunPtr\_FXU32X\_U32} in Cogent and may freely be copied and
 discarded in its scope.
 

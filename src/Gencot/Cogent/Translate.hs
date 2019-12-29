@@ -121,9 +121,9 @@ transGlobal (LCA.DeclEvent (LCA.EnumeratorDef (LCA.Enumerator idnam expr _ n))) 
 -- Translate a typedef of the form
 -- > typedef type-specifier declarator;
 -- where @declarator@ denotes a (derived type for an) identifier @idnam@.
--- If the @type-specifier@ denotes a function, struct or union type the typedef is first adjusted
+-- If the @type-specifier@ denotes a struct or union type the typedef is first adjusted
 -- by replacing @idnam@ by @*idnam@, i.e. the typedef name is defined for a pointer to
--- function, struct, or union type. Array types need no adjusting, they are always adjusted by @transType@.
+-- struct, or union type. Array types need no adjusting, they are always adjusted by @transType@.
 -- The translation result has the form
 -- > type idnam = type
 -- where @type@ is constructed by translating @type-specifier@ and applying all derivations from the adjusted @declarator@.

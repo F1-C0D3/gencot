@@ -38,7 +38,12 @@ Conceptually, Gencot provides a default value for every regular non-function Cog
 For all Gencot function pointer types (see Section~\ref{design-operations-function}) the default value is the \code{NULL}
 pointer (which cannot be denoted directly in Cogent).
 
-For a regular tuple (which has no component of linear or readonly type) it is the tuple of default values. For a
+For types of the form \code{MayNull P} (see Section~\ref{design-types-pointer} a useful default value would be the 
+\code{NULL} pointer. However, since these types are the only linear types with a default value, and the \code{NULL} value
+can be denoted by the function \code{null} defined in Section~\ref{design-operations-null}, Gencot does not support
+a default value for such types.
+
+For a regular tuple (which has no component of linear or readonly type) the default value is the tuple of default values. For a
 regular unboxed record it is the record where all fields have their default value. For a regular variant type it is
 the default value of the first (in the C implementation) variant. If Dargent is not used, the first variant in C is
 that with the lexicographically smallest constructor name.
@@ -274,8 +279,8 @@ of unboxed record and abstract types are made valid by passing a pointer to the 
 function for the corresponding boxed part value (as described for function \code{modref} in 
 Section~\ref{design-operations-modify}).
 
-For parts of linear type there are two possible approaches: they can be created during initialization 
-or they can be passed as arguments. If they are created, the initialization function needs the heap as additional 
+For parts of linear type there are two possible approaches: they can be created (allocated) during initialization 
+or they can be passed as arguments to the initialization function. If they are created, the initialization function needs the heap as additional 
 in- and output. Otherwise it takes all parts of linear type as additional input. Of course, if several parts
 of linear type exist, some of them can be created and some passed as arguments.
 
@@ -367,7 +372,9 @@ The second pair passes the heap as additional input and result. Additionally, \c
 may not contain any readonly parts. One reason is that readonly values are a copy of a pointer, so they 
 cannot be initialized internally. Another reason is that the current Gencot implementation cannot distinguish which 
 parts are readonly and which parts are not, therefore it cannot treat them differently, which is necessary for 
-clearing them: copies of a pointer must not be disposed. The restriction not to contain readonly parts can be expressed
+clearing them: copies of a pointer must not be disposed. For this reason even parts of type \code{MayNull P} are
+not allowed, although they could be initialized by setting them to \code{NULL}. 
+The restriction not to contain readonly parts can be expressed
 in Cogent by the type constraint \code{E}, this is specified for type \code{vvt} for both functions.
 
 Function \code{initHeap} allocates all parts of linear type on the heap 
@@ -379,9 +386,10 @@ doing nothing. Whenever an allocation fails for
 \code{initHeap}, all other allocations are rolled back using \code{clearHeap}. The initialization function returns a variant
 value which signals success or error.
 
-The third pair passes no additional information. Moreover, \code{vvt} must have no readonly or linear parts.
+The third pair passes no additional information. Moreover, \code{vvt} must have no readonly or linear parts other than 
+parts of a type \code{MayNull P}.
 Since \code{vvt} itself must be linear, the additional constraint cannot be expressed in Cogent, 
-only readonly parts are excluded by specifying type constraint \code{E} for it.
+only readonly parts are excluded by specifying type constraint \code{E} for it. 
 Functions \code{initSimp} and \code{clearSimp} work as \code{initHeap} or \code{clearHeap},
 but the heap is not required since there are no linear parts which must be allocated or disposed.
 
@@ -762,11 +770,12 @@ C program.
 
 Therefore Gencot does not support this alternative approach.
 
-\subsection{The NULL Pointer}
+\subsection{\code{MayNull} Pointer Types}
 \label{design-operations-null}
 
 The type safety of Cogent relies on the fact that the pointers representing values of linear types are never \code{NULL}.
-If null pointers are used in the C source, there is no immediate translation. The way how to translate C code which uses 
+If null pointers are used in the C source, Gencot reflects this in Cogent by marking the type with \code{MayNull} (see 
+Section~\ref{design-types-pointer}. The way how to work with
 null pointers in a binary compatible way depends on the way how the null pointers are used.
 
 A null pointer can be used as struct member \code{f} to mark the corresponding part as ``uninitialized''. 
@@ -775,65 +784,34 @@ replaced by a valid pointer. It remains valid until the struct is disposed. If a
 during the ``uninitialized state'' which are different from those afterwards, the ``uninitialized state'' can be represented
 by marking the part \code{f} as not present in the type used for the struct. Setting the pointer to a non-null value 
 changes the struct type to the normal type used for it in Cogent. In a similar way NULL pointers can be used in array
-elements and in referenced values while the array or pointer has its empty-value type.
+elements and in referenced values while the array or pointer has its empty-value type. In all these cases the pointer needs
+no \code{MayNull} wrapper type, since the surrounding type already distinguishes between \code{NULL} values and valid values.
 
 If the field \code{f} is initialized ``on demand'', i.e., not at a statical point in the program, or if not all elements
 of an array are initialized together, this solution is not possible.
-A null pointer can also be used as an ``error'' or ``escape'' value for function parameters or results. 
+A null pointer can also be used as an ``error'' or ``escape'' value for function parameters or results. In all these cases
+the \code{MayNull} marker type is required.
 
-The main problem in both cases is that it must be possible to determine at runtime whether a value is null or not. So simply
-allocating a ``dummy'' to get a valid non-null pointer is not sufficient, it must also be possible to recognize the dummy pointer.
-
-One possibility for this is if there is a value referenced by the pointer which never occurs in normal execution,
-it can be used to mark the pointer as dummy. 
-
-Another possibility is to use a single dummy pointer for all values of a specific linear type which can be null and store it 
-in a seperate place for comparing it. However, this cannot be done in Cogent since the dummy pointer would be a shared linear 
-value. Even if implemened in C through abstract functions, to prove memory safety every access to such a value must 
-be guarded with a test for the dummy pointer. Thus it is easier to actually use the null pointer instead of the dummy pointer,
-in combination with a guard testing for the null pointer
-
-Moreover using a dummy pointer is not binary compatible if the pointer is 
-also accessed in external existing C code where it is set to \code{NULL} or tested for being \code{NULL}.
-
-A straightforward approach for working with the null pointer uses polymorphic abstract functions
-\begin{verbatim}
-  null: all(a). () -> a
-  ronull: all(a). () -> a!
-  isNull: all(a). a! -> Bool
-\end{verbatim}
-To dispose the null pointer the function \code{dispose} must also check for the null pointer and ignore
-invocations for it. The function \code{ronull} is required to create null values of readonly types. This cannot be done 
-by applying the bang operator to the result of \code{null} since then the readonly null value
-cannot escape the banged context. 
-
-However, the polymorphic functions cannot be restricted to specific types \code{T} by Cogent, therefore all values of all
-types must be assumed to be null and their use must be guarded by \code{isNull}.
-
-If Gencot generates monomorphic functions \code{null\_T}, \code{ronull\_T}, \code{isNull\_T} only for linear types or a
-specific subset of them, this approach is also not safe. The existence of the function \code{null\_T} makes it necessary to guard all accesses to values of type
-\code{T} and \code{T!} with the help of \code{isNull\_T}. The existence of the function \code{ronull\_T} makes it necessary to guard
-all accesses to values of type \code{T!}, the values of type \code{T} need not be guarded since a readonly value can never be 
-made modifyable again. Cogent cannot detect cases where values which may be null are accessed without guard.
-Therefore Gencot does not automatically define the functions for linear types \code{T}.
-
-\subsubsection{The abstract data type \code{MayNull}}
-
-A safer approach replaces type \code{T} by an abstract type \code{MayNull T} and uses type \code{T} only in places where a value has been checked
-for not being null. The abstract type must be specific for \code{T} and it must be complemented with abstract functions for
+Since \code{MayNull} is an abstract type no predefined operations can be applied to its values. Gencot only defines abstract 
+functions for
 generating and testing the null pointer. Gencot provides the following generic abstract data type in \code{include/gencot/MayNull.cogent}.
 It is available for all linear Cogent types, not only for types generated by Gencot by mapping a C pointer type.
 \begin{verbatim}
   type MayNull a 
-  null:      all(a). () -> MayNull a
+  null:      all(a:<E). () -> MayNull a
   roNull:    all(a). () -> (MayNull a)!
-  mayNull:   all(a). a -> MayNull a
+  mayNull:   all(a:<E). a -> MayNull a
   roMayNull: all(a). a! -> (MayNull a)!
   notNull:   all(a). MayNull a -> Option a
   roNotNull: all(a). (MayNull a)! -> (Option a)!
 \end{verbatim}
 The function \code{null} returns the null pointer, the function \code{mayNull} casts a non-null pointer of type \code{a}
-to type \code{MayNull a}. The operations \code{roNull} and \code{roMayNull} do the same for readonly pointers. 
+to type \code{MayNull a}. For both the type \code{a} must be escapeable, otherwise it would be possible to wrap a value
+of type \code{P!} which cannot escape from a banged context as a value of type \code{MayNull (P!)} which can escape.
+The operations \code{roNull} and \code{roMayNull} must be used for readonly pointers, they return a result which is again 
+readonly. This cannot be done 
+by applying the bang operator to the result of \code{null} or \code{mayNull} since then the readonly result value
+cannot escape the banged context. 
 
 The type \code{Option} is used from the Cogent standard library. It is preferred over type \code{Result} because being null
 is not interpreted as an error here.
@@ -846,11 +824,6 @@ it is guaranteed by the Cogent type constraints that all accesses to the value a
 As usual,
 the type parameter \code{a} cannot be restricted by Cogent to linear types. However, Gencot provides instances of the functions only for
 linear types \code{a}.
-
-Note that since the type \code{MayNull a} is not denoted by a single type name it is not possible to construct Cogent mappings of 
-derived types for it, such
-as a function type with a parameter of type \code{MayNull a}. This is correct, since the function would be polymorphic. If a Cogent type name 
-is defined for a specific instance of \code{MayNull}, mappings of derived types for the instance can be constructed using this type name.
 
 Based on the abstract functions the function
 \begin{verbatim}
@@ -877,14 +850,17 @@ the ``part'' is identical to the container and need not be stored somewhere on t
 All four operations are not provided by Gencot. The other two operations are provided
 by the polymorphic functions
 \begin{verbatim}
-  exchngNull: all(a).
+  exchngNull: all(a:<E).
      ModFun (MayNull a) a a
-  modifyNull: all(a,arg).
+  modifyNull: all(a:<E,arg).
      ModPartFun (MayNull a) a arg arg
-  modifyNullDflt: all(a,arg:<D,out:<DSE).
+  modifyNullDflt: all(a:<E,arg:<D,out:<DSE).
      ModPartFun (MayNull a) a arg out
 \end{verbatim}
-Again, instances of the functions are only defined if \code{a} is a linear type. Like \code{isNull} the functions could be 
+Again, instances of the functions are only defined if \code{a} is a linear type. Additionally it must be escapeable, since
+otherwise no values of type \code{Maynull a} can be constructed. The operations are not supported if \code{a} is not 
+escapeable, since then the wrapped type would be \code{(MayNull a)!} and modifying its values would contradict the 
+meaning of the bang operator. Like \code{isNull} the functions could be 
 implemented in Cogent but are implemented in C for efficiency.
 
 The function \code{exchngNull (mn, p)} takes as input two pointers, the first of which may be null. If \code{mn} is not null 

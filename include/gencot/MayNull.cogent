@@ -9,7 +9,9 @@ include <gum/common/common.cogent>
 
 -- Linear type with the additional value NULL
 --   a: linear type of all non-null values
-type MayNull a 
+-- abstract due to a bug in the Cogent compiler
+-- if abstract will hide non-escapeability of type a
+type MayNull a -- = { no_access: #a }
 
 -- Construct the NULL value
 null: all(a). () -> MayNull a
@@ -26,26 +28,28 @@ roNotNull: all(a). (MayNull a)! -> (Option a)!
 -- Utility functions
 
 -- test for being NULL
+-- Implemented in C for efficiency
 isNull: all(a). (MayNull a)! -> Bool
-isNull mn = roNotNull[a] mn 
-   | None -> True 
-   | Some _ -> False
+-- isNull mn = roNotNull[a] mn 
+--   | None -> True 
+--   | Some _ -> False
 
 -- Part access functions
+-- Implemented in C for efficiency
 
 -- exchange values if not NULL
 exchngNull: all(a). (MayNull a,a) -> (MayNull a,a)
-exchngNull (mn, nn) = notNull[a] mn
-   | None -> (null(),nn)
-   | Some x -> (mayNull nn, x)
+-- exchngNull (mn, nn) = notNull[a] mn
+--   | None -> (null[a](),nn)
+--   | Some x -> (mayNull[a] nn, x)
 
 -- apply modification function if not NULL
 -- if NULL the modification functions's input is returned as additional result
 --   arg: the type of additional input for the modification function
 modifyNull: all(a,arg). ModPartFun (MayNull a) a arg arg
-modifyNull (mn, (modfun,addinput)) = notNull[a] mn
-   | None -> (null[a] (), addinput)
-   | Some x -> let (r,y) = modfun (x,addinput) in (mayNull[a] r,y)
+-- modifyNull (mn, (modfun,addinput)) = notNull[a] mn
+--   | None -> (null[a] (), addinput)
+--   | Some x -> let (r,y) = modfun (x,addinput) in (mayNull[a] r,y)
 
 -- apply modification function if not NULL
 -- if NULL the default value is returned as additional result
@@ -54,8 +58,8 @@ modifyNull (mn, (modfun,addinput)) = notNull[a] mn
 --   out: the type of additional result of the modification function
 --     must be regular to have a default value
 modifyNullDflt: all(a,arg:<D,out:<DSE). ModPartFun (MayNull a) a arg out
-modifyNullDflt (mn, (modfun,addinput)) = notNull[a] mn
-   | None -> (null[a] (), defaultVal ())
-   | Some x -> let (r,y) = modfun (x,addinput) in (mayNull[a] r,y)
+-- modifyNullDflt (mn, (modfun,addinput)) = notNull[a] mn
+--   | None -> (null[a] (), defaultVal ())
+--   | Some x -> let (r,y) = modfun (x,addinput) in (mayNull[a] r,y)
 
 #endif {- GENCOT_MAYNULL -}

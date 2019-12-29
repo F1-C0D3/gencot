@@ -54,6 +54,52 @@ the declarations of externally referenced functions.
 function pointer (array)s.
 \end{description}
 
+\subsection{Safe Pointer List}
+\label{impl-ccomps-pointer}
+
+As default Gencot maps every C pointer type to a Cogent type of the form \code{MayNull P}, indicating that the value
+\code{NULL} may occur for the typed entity (see Section~\ref{design-types-pointer}). The ``Gencot safe pointer list''
+can be used to manually define exceptions from this behavior, when it is known that an entity is never \code{NULL}.
+
+The Gencot safe pointer list is a list of textually specified C entities or types stored in a file. This file is read by 
+all Gencot components which read C code for translation to Cogent.
+
+The following kinds of entities of a non-function pointer type may be specified in the Gencot safe pointer list:
+\begin{itemize}
+\item global and local variables
+\item function parameters
+\item members of struct and union types
+\end{itemize}
+Additionally, functions returning a non-function pointer type may be specified. In this case the function result
+value is specified to be not null. It is not possible to specify a function pointer, because that may have a type
+name as its type, so that the result type cannot be modified individually.
+
+Entities are specified in a similar way as the function identifiers used for parameter modification descriptions
+(see Section~\ref{impl-parmod-ids}): Functions and global variables of external linkage are specified by their name.
+For internal linkage \code{<filename>:} is prepended. Function parameters and local variables are specified by 
+their name with \code{<funid>/} prepended where \code{<funid>} is a function identifier for the containing function 
+as described in \ref{impl-parmod-ids}. Function parameters can also be specified by their position (starting with 1)
+in the case that \code{<funid>} specifies a function type where only the parameter types are given.
+Struct and union members are specified by their name with \code{<tag>.} prepended. Specifying members of untagged
+structs and unions is not supported. 
+
+It is also possible to specify non-function pointer types in the list. The meaning is that all entities having this
+type are never \code{NULL}. Pointer types can be specified in the form 
+\begin{verbatim}
+  typedef | <typedef name>
+\end{verbatim}
+if they are named by \code{<typedef name>}. In this case only entities declared using this typedef name are specified 
+to be not \code{NULL}, not entities declared to have the type to which the type name resolves. Pointer types can also be 
+specified in the forms
+\begin{verbatim}
+  * typedef | <typedef name>
+  * <tag>
+\end{verbatim}
+where \code{<typedef name>} is a name for a non-function type and \code{<tag>} is the tag name of a tagged struct or
+union type. The first form applies only to entities declared to have type \code{*<typedef name>}, not entities declared
+to be a pointer to the type to which the typedef name resolves. The second form applies to all entities declared to
+be a pointer to the struct or union, possibly after fully resolving all typedef names used in the declaration. 
+
 \subsection{Main Translation to Cogent}
 \label{impl-ccomps-main}
 
@@ -164,7 +210,7 @@ type, ultimately it is a direct type or a typedef name.
 For a pointer type the translation depends on the base type. If it is a struct, union, or array type or a typedef
 name referencing such a type, the pointer type is translated to the translation of the base type in its
 boxed form. If it is a function type (possibly after resolving type names), the function type
-is encoded as described in Section~\ref{design-names} using the function \code{encodeType}, then the function
+is encoded as described in Section~\ref{design-types-pointer} using the function \code{encodeType}, then the function
 pointer type is constructed from the encoding as described in Section~\ref{design-types-pointer}. The monadic operation
 \begin{verbatim}
   encodeType :: Bool -> String -> Type -> FTrav String

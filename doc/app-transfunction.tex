@@ -247,10 +247,10 @@ For example the C assignment expression
 is translated according to this rule to the Cogent binding
 \begin{verbatim}
   (v,s) = let v = 5
-    in (v,fst(modrefFldA(s,(modifyArr,(i,exchngFldX,v)))))
+    in (v,fst(modrefFld_a(s,(modifyArr,(i,exchngFld_x,v)))))
 \end{verbatim}
-where \code{modrefFldA} and \code{exchngFldX} are abstract modification functions for the fields \code{a} and \code{x},
-respectively, as described in Section~\ref{design-operations-record}. \code{exchngFldX} is used instead of \code{setFldX}
+where \code{modrefFld\_a} and \code{exchngFld\_x} are abstract modification functions for the fields \code{a} and \code{x},
+respectively, as described in Section~\ref{design-operations-record}. \code{exchngFld\_x} is used instead of \code{setFld\_x}
 because \code{modifyArr} expects a modification function where the additional input and result have the same type.
 
 No other cases for \code{lhs} are valid in a C assignment.
@@ -271,7 +271,7 @@ For example, a corresponding translation of \code{*(s->m1->m2) = 5} is
     and (v,m2) = let v = 5 in (v,setPtr(m2,v))
     in (v,s{m1=m1{m2=m2}})
 \end{verbatim}
-This approach avoids the need to manually define and implement the functions \code{modifyFldM}.
+This approach avoids the need to manually define and implement the functions \code{modifyFld\_mi}.
 
 An application of an increment/decrement postfix operator \code{ss} where \code{s} is \code{+} or \code{-} has the form
 \code{lhs ss}. If \code{lhs} is a single identifier \code{v1} this identifier must have a numerical type and the expression 
@@ -373,7 +373,7 @@ For example, the function call \code{f(5,s->a[i]->x,z)} can be translated by fir
 for the function call is
 \begin{verbatim}
   (v,s) = let (s,v) = 
-    modrefFldA(s,(modifyArrDflt,(i,modifyFldX,(f,(5,z)))))
+    modrefFld_a(s,(modifyArrDflt,(i,modifyFld_x,(f,(5,z)))))
     in (v,s)
 \end{verbatim}
 Here function \code{modifyArrDflt} must be used since the additional input and output of \code{f} have different types.
@@ -1186,9 +1186,9 @@ Note that in the None-case the result cannot be specified as
 
 Alternatively this can be translated using the function \code{modifyNullDflt}:
 \begin{verbatim}
-  let p = fst (modifyNullDflt (p, (setFldM, v)))
+  let p = fst (modifyNullDflt (p, (setFld_m, v)))
 \end{verbatim}
-using a function \code{setFldM} for modifying the structure.
+using a function \code{setFld\_m} for modifying the structure.
 
 \subsection{The Address Operator \code{\&}}
 \label{app-transfunction-addrop}
@@ -1271,13 +1271,13 @@ by the linear Cogent type
   type Struct_Cogent_ii = { i1: U32, i2: U32 }
 \end{verbatim}
 
-If the overall structure in Cogent is readonly an abstract polymorphic function \code{getrefFldI2}
+If the overall structure in Cogent is readonly an abstract polymorphic function \code{getrefFld\_i2}
 can be used to access the Cogent field through a pointer. This is an instance of the general \code{getref} operation
 for records as described in Section~\ref{design-operations-record}.
 
 If the overall structure is modifyable, determining a pointer to the field would introduce sharing for the
 field, since it can be modified through the pointer or by modifying the structure. A safe solution is to use 
-an abstract polymorphic function \code{modrefFldI2} which is an instance of the general \code{modref} operation
+an abstract polymorphic function \code{modrefFld\_i2} which is an instance of the general \code{modref} operation
 for records as described in Section~\ref{design-operations-record}.
 
 \subsubsection{Address of Array Element}

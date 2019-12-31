@@ -1034,24 +1034,24 @@ The access functions can be defined as polymorphic functions in respect to the r
 function must be polymorphic in the field type, so that it supports fields of different type. The resulting 
 functions have the following forms
 \begin{verbatim}
-  getFldF : all(rec,fld). rec! -> fld!
-  setFldF : all(rec,fld:<D). ModFun rec fld ()
-  exchngFldF : all(rec,fld). ModFun rec fld fld
-  modifyFldF : all(rec,fld,arg,out). ChgPartFun rec fld arg out
+  getFld_f : all(rec,fld). rec! -> fld!
+  setFld_f : all(rec,fld:<D). ModFun rec fld ()
+  exchngFld_f : all(rec,fld). ModFun rec fld fld
+  modifyFld_f : all(rec,fld,arg,out). ChgPartFun rec fld arg out
 \end{verbatim}
 where \code{rec} is the type of the record and \code{fld} is the type of the field.
 
-The operation \code{getFldF} for a field \code{f} corresponds to the Cogent member access operation \code{r.f}.
+The operation \code{getFld\_f} for a field \code{f} corresponds to the Cogent member access operation \code{r.f}.
 Since the \code{get} operation is not passed as argument to other functions, it need not be defined for record fields, it is always possible
 to use the Cogent member access operation instead.
 
-The operation \code{setFldF} for a field \code{f} and a value \code{v} corresponds to the Cogent put operation r{f = v}, if
+The operation \code{setFld\_f} for a field \code{f} and a value \code{v} corresponds to the Cogent put operation r{f = v}, if
 the field has a discardable type. Otherwise it is not supported.
 
-The operation \code{exchngFldF} for a field \code{f} and a value \code{v} can be implemented in Cogent by first taking the 
+The operation \code{exchngFld\_f} for a field \code{f} and a value \code{v} can be implemented in Cogent by first taking the 
 old value of \code{f}, then putting \code{v} and finally returning the record together with the old value.
 
-The operation \code{modifyFldF} for a field \code{f} and a field change function can be implemented in Cogent 
+The operation \code{modifyFld\_f} for a field \code{f} and a field change function can be implemented in Cogent 
 by first taking the value of \code{f}, then applying the change function to it, and finally putting the result back into
 the field. 
 
@@ -1060,20 +1060,20 @@ by a direct inline implementation in Cogent.
 
 Defining the access functions as polymorphic in the record type has the drawback that they cannot be implemented in Cogent, 
 although every single instance for a specific record type can be implemented in Cogent. So, an alternative approach is to
-define the access functions for every record type \code{Rec} and every field \code{f} of \code{Rec} with type \code{Fld} as
+define the access functions for every record type \code{Rec} and every field \code{f} of \code{Rec} with type \code{Ftp} as
 \begin{verbatim}
-  getFInRec : Rec! -> Fld!
-  setFInRec : ModFun Rec Fld ()
-  exchngFInRec : ModFun Rec Fld Fld
-  modifyFInRec : all(arg,out). ChgPartFun Rec Fld arg out
+  getFld_F_InRec : Rec! -> Ftp!
+  setFld_f_InRec : ModFun Rec Ftp ()
+  exchngFld_f_InRec : ModFun Rec Ftp Ftp
+  modifyFld_f_InRec : all(arg,out). ChgPartFun Rec Ftp arg out
 \end{verbatim}
-where setFInRec is only defined if \code{Fld} is discardable.
+where \code{setFld\_f\_InRec} is only defined if \code{Ftp} is discardable.
 
 The operations \code{getref} and \code{modref} cannot be implemented in Cogent, they must be defined as abstract function which are implemented in 
 C with the help of the address operator \code{\&}. For a field \code{f} the corresponding function definitions have the form
 \begin{verbatim}
-  getrefFldF : all(rec,pfld). rec! -> pfld!
-  modrefFldF : all(rec,pfld,arg,out). ModPartFun rec pfld arg out
+  getrefFld_f : all(rec,pfld). rec! -> pfld!
+  modrefFld_f : all(rec,pfld,arg,out). ModPartFun rec pfld arg out
 \end{verbatim}
 where \code{pfld} is the Gencot mapping of the type of pointer to the field type. 
 
@@ -1081,9 +1081,9 @@ Since whenever an instance of these functions is defined, the field is safely ex
 part needs not be respected.
 
 Remember that according to the definition of 
-\code{ModPartFun} the function \code{modrefFldF} is invoked in the form
+\code{ModPartFun} the function \code{modrefFld\_f} is invoked in the form
 \begin{verbatim}
-  (r',o) = modrefFldF(r, (m,a))
+  (r',o) = modrefFld_f(r, (m,a))
 \end{verbatim}
 where \code{r} is a boxed record value which is not readonly, \code{m} is a modification function of type \code{ModFun pfld arg out} which
 has the form \code{(pfld,arg) -> (pfld,out)}, \code{a} is the argument of type \code{arg} passed to \code{m}, \code{r'} is

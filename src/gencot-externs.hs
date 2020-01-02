@@ -2,7 +2,8 @@
 module Main where
 
 import System.Environment (getArgs)
-import Control.Monad (liftM)
+import Control.Monad (when,liftM)
+import Data.List (nub)
 
 import qualified Language.C.Analysis as LCA
 import Language.C.Analysis.DefTable (globalDefs)
@@ -21,10 +22,14 @@ main :: IO ()
 main = do
     {- get arguments -}
     args <- getArgs
-    {- get parameter modification descriptions and convert -}
-    parmods <- (liftM convertParmods) (if null args then return [] else readParmodsFromFile $ head args)
+    when (length args < 2 || length args > 3) 
+        $ error "expected arguments: <safe pointer list file name> <external variables list file name> <parmod description file name>?"
+    {- get list of safe pointers -}
+    spl <- (liftM ((filter (not . null)) . lines)) $ readFile $ head args
     {- get list of external variables to process -}
-    varnams <- (liftM ((filter (not . null)) . lines)) (if 2 > length args then return "" else readFile $ head $ tail args)
+    varnams <- (liftM ((filter (not . null)) . lines)) $ readFile $ head $ tail args
+    {- get parameter modification descriptions and convert -}
+    parmods <- (liftM convertParmods) (if 3 > length args then return [] else readParmodsFromFile $ head $ tail $ tail args)
     {- parse and analyse C sources and get global definitions -}
     tables <- readPackageFromInput_
     {- Determine all call graphs -}
@@ -36,7 +41,7 @@ main = do
     {- Get declarations of external invoked functions and invoked or listed variables -}    
     let extDecls = getDeclEvents (globalDefs table) (constructFilter invks varnams)
     {- translate external function declarations to Cogent abstract function definitions -}
-    absdefs <- runFTrav table ("", parmods) $ transGlobals extDecls
+    absdefs <- runFTrav table ("", parmods,nub spl) $ transGlobals extDecls
     {- Output -}
     print $ prettyTopLevels absdefs
 

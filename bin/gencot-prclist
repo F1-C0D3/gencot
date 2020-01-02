@@ -1,0 +1,13 @@
+#! /bin/csh -f
+
+# Remove empty lines and lines starting with #
+# This is a filter from stdin to stdout.
+
+awk \
+'{ if (!(($0 ~ /^#/)||($0 ~ /^[[:space:]]*$/))) print }'
+
+# documentation:
+#
+# Implementation in awk:
+# - The regular expression /^#/ matches lines beginning with #
+# - The regular expression /^[[:space:]]*$/ matches lines containing only whitespace characters

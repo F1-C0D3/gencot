@@ -20,10 +20,10 @@ import Cogent.Common.Types as CCT
 import Cogent.Util (ffmap)
 
 import Gencot.Origin (Origin,noOrigin,origin,mkOrigin,noComOrigin,mkBegOrigin,mkEndOrigin,prepOrigin,appdOrigin,isNested,toNoComOrigin)
-import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapNameToLower,mapPtrDeriv,mapPtrVoid,mapArrDeriv,mapFunDeriv,arrDerivHasSize,arrDerivToUbox,mapUboxStep,rmUboxStep,mapPtrStep,mapFunStep,mapIncFunStep,mapArrStep,mapModStep,mapRoStep,mapNamFunStep,srcFileName)
+import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapNameToLower,mapPtrDeriv,mapPtrVoid,mapMayNull,mapArrDeriv,mapFunDeriv,arrDerivHasSize,arrDerivToUbox,mapUboxStep,rmUboxStep,mapMayNullStep,rmMayNullStep,mapPtrStep,mapFunStep,mapIncFunStep,mapArrStep,mapModStep,mapRoStep,mapNamFunStep,srcFileName)
 import Gencot.Cogent.Ast
 import Gencot.C.Translate (transStat,transExpr)
-import Gencot.Traversal (FTrav,getParmods,markTagAsNested,isMarkedAsNested)
+import Gencot.Traversal (FTrav,getParmods,markTagAsNested,isMarkedAsNested,isSafePointer)
 import Gencot.Util.Types (carriedTypes,getDerivedParts,usedTypeNames,resolveFully,isExtern,isCompOrFunc,isCompPointer,isNamedFunPointer,isFunPointer,isPointer,isAggregate,isFunction,isTypeDefRef,isComplete,isArray,isVoid,isTagRef,containsTypedefs,resolveTypedef,isComposite,isLinearType,isLinearParType,isReadOnlyType,isReadOnlyParType,wrapFunAsPointer,getTagDef)
 import Gencot.Json.Identifier (getFunId,getFunMemberId,getFunTypeId,getLocalFunId,carriedWithFunIds)
 
@@ -127,10 +127,11 @@ transGlobal (LCA.DeclEvent (LCA.EnumeratorDef (LCA.Enumerator idnam expr _ n))) 
 -- The translation result has the form
 -- > type idnam = type
 -- where @type@ is constructed by translating @type-specifier@ and applying all derivations from the adjusted @declarator@.
+-- A MayNull application to type is removed.
 transGlobal (LCA.TypeDefEvent td@(LCA.TypeDef idnam typ _ n)) = do
     t <- transType False (getFunTypeId td) modiftyp
     nt <- transTagIfNested typ n
-    return $ wrapOrigin n (nt ++ [GenToplv (CS.TypeDec tn [] t) noOrigin])
+    return $ wrapOrigin n (nt ++ [GenToplv (CS.TypeDec tn [] (rmMayNull t)) noOrigin])
     where tn = mapNameToUpper idnam
           modiftyp = if isComposite typ then (LCA.PtrType typ LCA.noTypeQuals [])
                                         else typ
@@ -384,15 +385,23 @@ transType _ _ (LCA.DirectType tnam _ _) = do
 -- Typedef name:
 -- If resolving, translate the referenced type.
 -- Otherwise translate to mapped name. Unboxed for struct, union, function, or function pointer, otherwise boxed.
-transType True fid (LCA.TypeDefType (LCA.TypeDefRef _ typ _) _ _) = transType True fid typ
-transType False _ (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _) =
-    return $ genType $ CS.TCon tn [] ub
+-- If the typedef name is a safe pointer, omit or remove MayNull
+-- otherwise move a MayNull from the resolved type to the mapped name.
+transType rslv fid (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _) = do
+    safe <- isSafePointer ("typedef|" ++ (identToString idnam))
+    rslvtyp <- transType True fid typ
+    if rslv
+       then return $ rmMayNullIf safe rslvtyp
+       else return $ addMayNullIfNot (safe || (not $ hasMayNull rslvtyp)) rtyp
     where tn = mapNameToUpper idnam
           ub = if (isCompOrFunc typ) || (isFunPointer typ) then markUnbox else markBox
+          rtyp = genType $ CS.TCon tn [] ub
 -- Pointer to void:
 -- Translate to: CVoidPtr
-transType _ _ (LCA.PtrType t _ _) | isVoid t = 
-    return $ genType $ CS.TCon mapPtrVoid [] markBox
+-- If not safe pointer: MayNull CVoidPtr
+transType _ fid (LCA.PtrType t _ _) | isVoid t = do
+    safe <- isSafePointerType fid t 
+    return $ addMayNullIfNot safe $ genType $ CS.TCon mapPtrVoid [] markBox
 -- Derived pointer type for unnamed function type t:
 -- Encode t, apply CFunPtr or CFunInc and make unboxed.
 transType rslv fid (LCA.PtrType t _ _) | isFunction t = do
@@ -400,21 +409,29 @@ transType rslv fid (LCA.PtrType t _ _) | isFunction t = do
     return $ genType $ CS.TCon ((mapFunDeriv $ isComplete t) ++ "_" ++ enctyp) [] markUnbox
 -- Derived pointer type for array type t:
 -- Translate t and use as result. Always boxed.
-transType rslv _ (LCA.PtrType t _ _) | isArray t =
-    transType rslv "" t
+-- If not safe pointer: apply MayNull
+transType rslv fid (LCA.PtrType t _ _) | isArray t = do
+    safe <- isSafePointerType fid t
+    typ <- transType rslv "" t
+    return $ addMayNullIfNot safe typ
 -- Derived pointer type for other type t:
 -- Translate t. If unboxed and no function pointer make boxed, otherwise apply CPtr. Always boxed.
-transType rslv _ (LCA.PtrType t _ _) = do
+-- If not safe pointer apply MayNull.
+transType rslv fid (LCA.PtrType t _ _) = do
+    safe <- isSafePointerType fid t 
     typ <- transType rslv "" t
-    if (isUnboxed typ) && not (isFunPointer t) 
-       then return $ setBoxed typ
-       else return $ genType $ CS.TCon mapPtrDeriv [typ] markBox
+    let rtyp = if (isUnboxed typ) && not (isFunPointer t) 
+                then setBoxed typ
+                else genType $ CS.TCon mapPtrDeriv [typ] markBox
+    return $ addMayNullIfNot safe rtyp
 -- Complete derived function type: ret (p1,..,pn)
 -- Translate to: Cogent function type (p1,..,pn) -> ret, then apply parmod description.
+-- If @fid@ is in safe pointer list remove MayNull from result type if present.
 transType rslv fid t@(LCA.FunctionType (LCA.FunType ret pars variadic) _) = do
+    safe <- isSafePointer fid
     r <- transType rslv "" ret
     ps <- transParamTypes variadic rslv fid pars
-    applyParmods t fid $ genType $ CS.TFun ps r
+    applyParmods t fid $ genType $ CS.TFun ps $ rmMayNullIf safe r
 -- Derived array type for array type t (multidimensional array):
 -- Translate t, apply unbox operator, then apply generic array type. Always boxed.
 transType rslv _ (LCA.ArrayType t as _ _) | isArray t = do
@@ -448,33 +465,40 @@ encodeType _ _ (LCA.DirectType tnam _ _) = do
 -- Typedef name:
 -- If resolving, encode the referenced type.
 -- Otherwise, encode as mapped name. For struct, union, or array prepend unbox step.
-encodeType True fid (LCA.TypeDefType (LCA.TypeDefRef _ typ _) _ _) = encodeType True fid typ
-encodeType False _ (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _) =
-    return (ustep ++ tn)
+-- If the typedef name is a safe pointer, omit or remove MayNull step
+-- otherwise move a MayNull step from the resolved type to the mapped name.
+encodeType rslv fid (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _) = do
+    safe <- isSafePointer ("typedef|" ++ (identToString idnam))
+    rslvtyp <- encodeType True fid typ
+    if rslv
+       then return $ rmMayNullStepIf safe rslvtyp
+       else return $ addMayNullStepIfNot (safe || (not $ hasMayNullStep rslvtyp)) rtyp
     where tn = mapNameToUpper idnam
           ustep = if isAggregate typ then mapUboxStep else ""
+          rtyp = (ustep ++ tn)
 -- Derived pointer type for aggregate type t:
--- Encode t and remove unbox step.
-encodeType rslv _ (LCA.PtrType t _ _) | isAggregate t = do
+-- Encode t, for aggregate type remove unbox step, otherwise prepend pointer derivation step.
+-- If not a safe pointer, add MayNull step.
+encodeType rslv fid (LCA.PtrType t _ _) = do
+    safe <- isSafePointerType fid t
     tn <- encodeType rslv "" t
-    return $ rmUboxStep tn
--- Derived pointer type for other type t:
--- Encode t, prepend pointer derivation step.
-encodeType rslv _ (LCA.PtrType t _ _) = do
-    tn <- encodeType rslv "" t
-    return (mapPtrStep ++ tn)
+    let htn = if isAggregate t then (rmUboxStep tn) else (mapPtrStep ++ tn)
+    return $ addMayNullStepIfNot safe htn
 -- Complete derived function type: ret (p1,..,pn)
 -- Encode ret, prepend function derivation step using encoded pi.
+-- If @fid@ is in safe pointer list remove MayNull step from result type if present.
 encodeType rslv fid t@(LCA.FunctionType (LCA.FunType ret pars variadic) _) = do
+    safe <- isSafePointer fid
     tn <- encodeType rslv "" ret
     ps <- encodeParamTypes variadic rslv fid pars
-    return ((mapFunStep ps) ++ tn)
-    --applyParmods t fid $ genType $ CS.TFun ps r
+    return ((mapFunStep ps) ++ (rmMayNullStepIf safe tn))
 -- Incomplete derived function type: ret ()
 -- Encode ret, prepend incomplete function derivation step.
+-- If @fid@ is in safe pointer list remove MayNull step from result type if present.
 encodeType rslv fid t@(LCA.FunctionType (LCA.FunTypeIncomplete ret) _) = do
+    safe <- isSafePointer fid
     tn <- encodeType rslv "" ret
-    return (mapIncFunStep ++ tn)
+    return (mapIncFunStep ++ (rmMayNullStepIf safe tn))
 -- Derived array type for element type t:
 -- Encode t using function id only if pointer type, prepend array derivation step and unbox step.
 encodeType rslv fid (LCA.ArrayType t as _ _) = do
@@ -504,6 +528,51 @@ transTNam (LCA.TyIntegral TyULLong) =  return "U64"
 transTNam (LCA.TyFloating _) =         return "err-float"
 transTNam (LCA.TyComplex _) =          return "err-complex"
 transTNam (LCA.TyBuiltin _) =          return "err-builtin" 
+
+isSafePointerType :: String -> LCA.Type -> FTrav Bool
+isSafePointerType fid t = do
+    safe1 <- isSafePointer fid 
+    safe2 <- if null tag then return False else isSafePointer (tag ++ "*")
+    safe3 <- if null tnam then return False else isSafePointer ("typedef|" ++ tnam ++ "*")
+    return (safe1 || safe2 || safe3)
+    where tag = getTag t
+          tnam = getTypedefName t
+
+rmMayNullIf :: Bool -> GenType -> GenType
+rmMayNullIf s t = if s then rmMayNull t else t
+
+addMayNullIfNot :: Bool -> GenType -> GenType
+addMayNullIfNot s t =
+    if s then t
+         else genType $ CS.TCon mapMayNull [t] markBox
+
+rmMayNullStepIf :: Bool -> String -> String
+rmMayNullStepIf s t = if s then rmMayNullStep t else t
+    
+addMayNullStepIfNot :: Bool -> String -> String
+addMayNullStepIfNot s t =
+    if s then t
+         else (mapMayNullStep ++ t)
+
+rmMayNull :: GenType -> GenType
+rmMayNull (GenType (CS.TCon tn [t] _) _) | tn == mapMayNull = t
+rmMayNull t = t
+
+hasMayNull :: GenType -> Bool
+hasMayNull (GenType (CS.TCon tn _ _) _) | tn == mapMayNull = True
+hasMayNull _ = False
+
+hasMayNullStep :: String -> Bool
+hasMayNullStep t = mapMayNullStep `isPrefixOf` t
+
+getTag :: LCA.Type -> String
+getTag (LCA.DirectType (LCA.TyComp (LCA.CompTypeRef sueref _ _)) _ _) = sueRefToString sueref
+getTag (LCA.TypeDefType (LCA.TypeDefRef _ typ _) _ _) = getTag typ
+getTag _ = ""
+
+getTypedefName :: LCA.Type -> String
+getTypedefName (LCA.TypeDefType (LCA.TypeDefRef nam _ _) _ _) = identToString nam
+getTypedefName t = ""
 
 -- | Apply parameter modification description to a mapped function type.
 -- The first parameter is the original C function type.
@@ -617,17 +686,20 @@ adjustParamType t = t
 -- Encode the parameter types, append variadic pseudo parameter, apply parameter modification descriptions.
 encodeParamTypes :: Bool -> Bool -> String -> [LCA.ParamDecl] -> FTrav [String]
 encodeParamTypes variadic rslv fid pars = do
-    encpars <- mapM ((encodeParamType rslv) . LCA.declType) pars
+    encpars <- mapM (encodeParamType rslv fid) pars
     pms <- getParamMods fid pars variadic
     let vencpars = if variadic then encpars ++ [variadicTypeName] else encpars
     return $ map applyEncodeParmod $ zip pms vencpars
 
 -- | Encode a type as parameter type.
-encodeParamType :: Bool -> LCA.Type -> FTrav String
--- Encode an array type: adjust by removing unbox step.
-encodeParamType rslv t | isArray t = (liftM rmUboxStep) $ encodeType rslv "" t
--- Encode other type: no adjustment.
-encodeParamType rslv t = encodeType rslv "" t
+-- For an array type: adjust by removing unbox step.
+encodeParamType :: Bool -> String -> LCA.ParamDecl -> FTrav String
+encodeParamType rslv fid pd = do
+    typ <- encodeType rslv (getLocalFunId fid pd) ptyp
+    if isArray ptyp 
+       then return $ rmUboxStep typ
+       else return typ
+    where ptyp = LCA.declType pd
 
 -- | Apply parameter modification to an encoded parameter type.
 -- For "yes" prepend modification pseudo step.

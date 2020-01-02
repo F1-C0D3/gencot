@@ -1,7 +1,7 @@
 cogent_var_cint : () -> U32 -- nonlinear
-cogent_var_pcint : () -> CPtr U32 -- readonly
-cogent_var_cpint : () -> CPtr U32 -- not readonly
-cogent_var_cpcint : () -> CPtr U32 -- readonly
+cogent_var_pcint : () -> MayNull (CPtr U32) -- readonly
+cogent_var_cpint : () -> MayNull (CPtr U32) -- not readonly
+cogent_var_cpcint : () -> MayNull (CPtr U32) -- readonly
 
 type Cogent_ciname = U32 -- nonlinear
 type Cogent_pciname = CPtr U32 -- readonly
@@ -10,61 +10,61 @@ type Cogent_pcpiname = CPtr U32 -- readonly
 type Cogent_pfname =
    #CFunPtr_FXU32X_U32 -- nonlinear
 cogent_var_ciname : () -> Cogent_ciname -- nonlinear
-cogent_var_pciname : () -> Cogent_pciname -- readonly
-cogent_var_cpiname : () -> Cogent_cpiname -- not readonly
-cogent_var_pcpiname : () -> Cogent_pcpiname -- readonly
+cogent_var_pciname : () -> MayNull Cogent_pciname -- readonly
+cogent_var_cpiname : () -> MayNull Cogent_cpiname -- not readonly
+cogent_var_pcpiname : () -> MayNull Cogent_pcpiname -- readonly
 
-type Struct_Cogent_cspint = { m11 : U32, m12 : CPtr U32 }
+type Struct_Cogent_cspint = { m11 : U32, m12 : MayNull (CPtr U32) }
 cogent_var_cspint : () -> #Struct_Cogent_cspint
-cogent_var_pcspint : () -> Struct_Cogent_cspint -- nonlinear, not readonly
-type Struct_Cogent_cspcint = { m21 : U32, m22 : CPtr U32 }
+cogent_var_pcspint : () -> MayNull Struct_Cogent_cspint -- nonlinear, not readonly
+type Struct_Cogent_cspcint = { m21 : U32, m22 : MayNull (CPtr U32) }
 cogent_var_cspcint : () -> #Struct_Cogent_cspcint
-cogent_var_pcspcint : () -> Struct_Cogent_cspcint -- nonlinear, readonly
+cogent_var_pcspcint : () -> MayNull Struct_Cogent_cspcint -- nonlinear, readonly
 type Struct_Cogent_cspintpcint =
-   { m31 : U32, m32 : CPtr U32, m33 : CPtr U32 }
+   { m31 : U32, m32 : MayNull (CPtr U32), m33 : MayNull (CPtr U32) }
 cogent_var_cspintpcint : () -> #Struct_Cogent_cspintpcint
-cogent_var_pcspintpcint : () -> Struct_Cogent_cspintpcint -- nonlinear, not readonly
+cogent_var_pcspintpcint : () -> MayNull Struct_Cogent_cspintpcint -- nonlinear, not readonly
 type Struct_Cogent_cspfun = { m41 : U32, m42 : #CFunPtr_FXU32X_U32 }
 cogent_var_cspfun : () -> #Struct_Cogent_cspfun
-cogent_var_pcspfun : () -> Struct_Cogent_cspfun -- nonlinear, readonly
+cogent_var_pcspfun : () -> MayNull Struct_Cogent_cspfun -- nonlinear, readonly
 type Struct_Cogent_cscpiname =
-   { m11 : U32, m12 : Cogent_cpiname }
+   { m11 : U32, m12 : MayNull Cogent_cpiname }
 cogent_var_cscpiname : () -> #Struct_Cogent_cscpiname
-cogent_var_pcscpiname : () -> Struct_Cogent_cscpiname -- nonlinear, not readonly
+cogent_var_pcscpiname : () -> MayNull Struct_Cogent_cscpiname -- nonlinear, not readonly
 type Struct_Cogent_cspciname =
-   { m21 : U32, m22 : Cogent_pciname }
+   { m21 : U32, m22 : MayNull Cogent_pciname }
 cogent_var_cspciname : () -> #Struct_Cogent_cspciname
-cogent_var_pcspciname : () -> Struct_Cogent_cspciname -- nonlinear, readonly
+cogent_var_pcspciname : () -> MayNull Struct_Cogent_cspciname -- nonlinear, readonly
 type Struct_Cogent_cspinamepciname =
-   { m31 : U32, m32 : Cogent_pciname, m33 : Cogent_cpiname }
+   { m31 : U32, m32 : MayNull Cogent_pciname, m33 : MayNull Cogent_cpiname }
 cogent_var_cspinamepciname : () -> #Struct_Cogent_cspinamepciname
-cogent_var_pcspinamepciname : () -> Struct_Cogent_cspinamepciname -- nonlinear, not readonly
+cogent_var_pcspinamepciname : () -> MayNull Struct_Cogent_cspinamepciname -- nonlinear, not readonly
 type Struct_Cogent_cspfname = { m41 : U32, m42 : #Cogent_pfname }
 cogent_var_cspfname : () -> #Struct_Cogent_cspfname
-cogent_var_pcspfname : () -> Struct_Cogent_cspfname -- nonlinear, readonly
+cogent_var_pcspfname : () -> MayNull Struct_Cogent_cspfname -- nonlinear, readonly
 
-cogent_fc_int : ( U32, (CPtr U32)!, CPtr U32, (CPtr U32)! ) -> CPtr U32
+cogent_fc_int : ( U32, (MayNull (CPtr U32))!, MayNull (CPtr U32), (MayNull (CPtr U32))! ) -> MayNull (CPtr U32)
 cogent_fc_int (p_cint
               , p_pcint
               , p_cpint
               , p_pcpint) =
    ()
    {- -} -- nonlinear, readonly, not readonly, readonly
-cogent_fc_iname : ( Cogent_ciname, Cogent_pciname!, Cogent_cpiname, Cogent_pcpiname! ) -> Cogent_cpiname
+cogent_fc_iname : ( Cogent_ciname, (MayNull Cogent_pciname)!, MayNull Cogent_cpiname, (MayNull Cogent_pcpiname)! ) -> MayNull Cogent_cpiname
 cogent_fc_iname (p_cint
                 , p_pcint
                 , p_cpint
                 , p_pcpint) =
    ()
    {- -} -- nonlinear, readonly, not readonly, readonly
-cogent_fcs_int : ( Struct_Cogent_cspint, Struct_Cogent_cspcint!, Struct_Cogent_cspintpcint, Struct_Cogent_cspfun! ) -> ( Struct_Cogent_cspint, Struct_Cogent_cspintpcint )
+cogent_fcs_int : ( MayNull Struct_Cogent_cspint, (MayNull Struct_Cogent_cspcint)!, MayNull Struct_Cogent_cspintpcint, (MayNull Struct_Cogent_cspfun)! ) -> ( MayNull Struct_Cogent_cspint, MayNull Struct_Cogent_cspintpcint )
 cogent_fcs_int (p1
                , p2
                , p3
                , p4) =
    ()
    {- -} -- not readonly, readonly, not readonly, readonly
-cogent_fcs_iname : ( Struct_Cogent_cscpiname, Struct_Cogent_cspciname!, Struct_Cogent_cspinamepciname, Struct_Cogent_cspfname! ) -> ( Struct_Cogent_cscpiname, Struct_Cogent_cspinamepciname )
+cogent_fcs_iname : ( MayNull Struct_Cogent_cscpiname, (MayNull Struct_Cogent_cspciname)!, MayNull Struct_Cogent_cspinamepciname, (MayNull Struct_Cogent_cspfname)! ) -> ( MayNull Struct_Cogent_cscpiname, MayNull Struct_Cogent_cspinamepciname )
 cogent_fcs_iname (p1
                  , p2
                  , p3
@@ -73,41 +73,41 @@ cogent_fcs_iname (p1
    {- -} -- not readonly, readonly, not readonly, readonly
 
 type Struct_Cogent_cstr = { m_cint : U32 -- nonlinear
-   , m_pcint : CPtr U32 -- readonly
-   , m_cpint : CPtr U32 -- not readonly
-   , m_cpcint : CPtr U32 -- readonly
+   , m_pcint : MayNull (CPtr U32) -- readonly
+   , m_cpint : MayNull (CPtr U32) -- not readonly
+   , m_cpcint : MayNull (CPtr U32) -- readonly
    , m_ciname : Cogent_ciname -- nonlinear
-   , m_pciname : Cogent_pciname -- readonly
-   , m_cpiname : Cogent_cpiname -- not readonly
-   , m_pcpiname : Cogent_pcpiname -- readonly
+   , m_pciname : MayNull Cogent_pciname -- readonly
+   , m_cpiname : MayNull Cogent_cpiname -- not readonly
+   , m_pcpiname : MayNull Cogent_pcpiname -- readonly
     }
 
 cogent_var_acint : () -> CArr5 U32 -- readonly
-cogent_var_apcint : () -> CArr5 (CPtr U32) -- array of pointers to const int; not readonly: array elements can be assigned
-cogent_var_acpint : () -> CArr5 (CPtr U32) -- array of constant pointers to int; not readonly: pointer targets can be assigned
-cogent_var_acpcint : () -> CArr5 (CPtr U32) -- readonly: neither array elements nor pointer targets can be assigned
+cogent_var_apcint : () -> CArr5 (MayNull (CPtr U32)) -- array of pointers to const int; not readonly: array elements can be assigned
+cogent_var_acpint : () -> CArr5 (MayNull (CPtr U32)) -- array of constant pointers to int; not readonly: pointer targets can be assigned
+cogent_var_acpcint : () -> CArr5 (MayNull (CPtr U32)) -- readonly: neither array elements nor pointer targets can be assigned
 cogent_var_aciname : () -> CArr5 Cogent_ciname -- readonly
-cogent_var_apciname : () -> CArr5 Cogent_pciname -- not readonly
-cogent_var_acpiname : () -> CArr5 Cogent_cpiname -- not readonly
-cogent_var_apcpiname : () -> CArr5 Cogent_pcpiname -- readonly
+cogent_var_apciname : () -> CArr5 (MayNull Cogent_pciname) -- not readonly
+cogent_var_acpiname : () -> CArr5 (MayNull Cogent_cpiname) -- not readonly
+cogent_var_apcpiname : () -> CArr5 (MayNull Cogent_pcpiname) -- readonly
 cogent_var_acspint : () -> CArr5 #Struct_Cogent_cspint -- not readonly: *m12 in cspint can be assigned
-cogent_var_apcspint : () -> CArr5 Struct_Cogent_cspint -- not readonly: array elements can be assigned
-cogent_var_acpcspint : () -> CArr5 Struct_Cogent_cspint -- not readonly: *m12 in cspint can be assigned
+cogent_var_apcspint : () -> CArr5 (MayNull Struct_Cogent_cspint) -- not readonly: array elements can be assigned
+cogent_var_acpcspint : () -> CArr5 (MayNull Struct_Cogent_cspint) -- not readonly: *m12 in cspint can be assigned
 cogent_var_acspcint : () -> CArr5 #Struct_Cogent_cspcint -- readonly
-cogent_var_apcspcint : () -> CArr5 Struct_Cogent_cspcint -- not readonly: array elements can be assigned
-cogent_var_acpcspcint : () -> CArr5 Struct_Cogent_cspcint -- readonly
+cogent_var_apcspcint : () -> CArr5 (MayNull Struct_Cogent_cspcint) -- not readonly: array elements can be assigned
+cogent_var_acpcspcint : () -> CArr5 (MayNull Struct_Cogent_cspcint) -- readonly
 cogent_var_acspintpcint : () -> CArr5 #Struct_Cogent_cspintpcint
-cogent_var_apcspintpcint : () -> CArr5 Struct_Cogent_cspintpcint -- not readonly, not readonly
+cogent_var_apcspintpcint : () -> CArr5 (MayNull Struct_Cogent_cspintpcint) -- not readonly, not readonly
 cogent_var_acspfun : () -> CArr5 #Struct_Cogent_cspfun -- readonly
-cogent_var_apcspfun : () -> CArr5 Struct_Cogent_cspfun -- not readonly: array elements can be assigned
-cogent_var_acpcspfun : () -> CArr5 Struct_Cogent_cspfun -- readonly
+cogent_var_apcspfun : () -> CArr5 (MayNull Struct_Cogent_cspfun) -- not readonly: array elements can be assigned
+cogent_var_acpcspfun : () -> CArr5 (MayNull Struct_Cogent_cspfun) -- readonly
 cogent_var_acscpiname : () -> CArr5 #Struct_Cogent_cscpiname
-cogent_var_apcscpiname : () -> CArr5 Struct_Cogent_cscpiname -- not readonly, not readonly
+cogent_var_apcscpiname : () -> CArr5 (MayNull Struct_Cogent_cscpiname) -- not readonly, not readonly
 cogent_var_acspciname : () -> CArr5 #Struct_Cogent_cspciname -- readonly
-cogent_var_apcspciname : () -> CArr5 Struct_Cogent_cspciname -- not readonly: array elements can be assigned
-cogent_var_acpcspciname : () -> CArr5 Struct_Cogent_cspciname -- readonly
+cogent_var_apcspciname : () -> CArr5 (MayNull Struct_Cogent_cspciname) -- not readonly: array elements can be assigned
+cogent_var_acpcspciname : () -> CArr5 (MayNull Struct_Cogent_cspciname) -- readonly
 cogent_var_acspinamepciname : () -> CArr5 #Struct_Cogent_cspinamepciname
-cogent_var_apcspinamepciname : () -> CArr5 Struct_Cogent_cspinamepciname -- not readonly, not readonly
+cogent_var_apcspinamepciname : () -> CArr5 (MayNull Struct_Cogent_cspinamepciname) -- not readonly, not readonly
 cogent_var_acspfname : () -> CArr5 #Struct_Cogent_cspfname -- readonly
-cogent_var_apcspfname : () -> CArr5 Struct_Cogent_cspfname -- not readonly: array elements can be assigned
-cogent_var_acpcspfname : () -> CArr5 Struct_Cogent_cspfname -- readonly
+cogent_var_apcspfname : () -> CArr5 (MayNull Struct_Cogent_cspfname) -- not readonly: array elements can be assigned
+cogent_var_acpcspfname : () -> CArr5 (MayNull Struct_Cogent_cspfname) -- readonly

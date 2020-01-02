@@ -94,6 +94,9 @@ mapFunDeriv :: Bool -> String
 mapFunDeriv False = "CFunInc"
 mapFunDeriv True = "CFunPtr"
 
+mapMayNull :: String
+mapMayNull = "MayNull"
+
 mapUboxStep = "U_"
 rmUboxStep ('U' : '_' : rest) = rest
 rmUboxStep nam = nam
@@ -102,6 +105,10 @@ mapModStep = "M_"
 mapRoStep = "R_"
 
 mapPtrStep = "P_"
+
+mapMayNullStep = "N_"
+rmMayNullStep ('N' : '_' : rest) = rest
+rmMayNullStep nam = nam
 
 mapArrStep :: LCA.ArraySize -> String
 mapArrStep (LCA.ArraySize _ (LCS.CConst (LCS.CIntConst i _))) = "A" ++ (show i) ++ "_"

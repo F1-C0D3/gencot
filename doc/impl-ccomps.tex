@@ -75,28 +75,28 @@ value is specified to be not null. It is not possible to specify a function poin
 name as its type, so that the result type cannot be modified individually.
 
 Entities are specified in a similar way as the function identifiers used for parameter modification descriptions
-(see Section~\ref{impl-parmod-ids}): Functions and global variables of external linkage are specified by their name.
+(see Section~\ref{impl-parmod-ids}): Functions and global variables of external linkage are specified by \code{*<name>}.
 For internal linkage \code{<filename>:} is prepended. Function parameters and local variables are specified by 
-their name with \code{<funid>/} prepended where \code{<funid>} is a function identifier for the containing function 
-as described in \ref{impl-parmod-ids}. Function parameters can also be specified by their position (starting with 1)
-in the case that \code{<funid>} specifies a function type where only the parameter types are given.
-Struct and union members are specified by their name with \code{<tag>.} prepended. Specifying members of untagged
-structs and unions is not supported. 
+\code{<funid>/*<name>} where \code{<funid>} is a function identifier for the containing function 
+as described in \ref{impl-parmod-ids}. 
+Struct and union members are specified by \code{<tag>.*<name>}. Specifying members of untagged
+structs and unions is not supported. The \code{"*"} before the \code{<name>} corresponds to the type hint 
+described in \ref{impl-parmod-ids}, here it is always \code{"*"} because every list entry must be of a pointer type.
 
 It is also possible to specify non-function pointer types in the list. The meaning is that all entities having this
 type are never \code{NULL}. Pointer types can be specified in the form 
 \begin{verbatim}
-  typedef | <typedef name>
+  typedef|<typedef name>
 \end{verbatim}
 if they are named by \code{<typedef name>}. In this case only entities declared using this typedef name are specified 
 to be not \code{NULL}, not entities declared to have the type to which the type name resolves. Pointer types can also be 
 specified in the forms
 \begin{verbatim}
-  * typedef | <typedef name>
-  * <tag>
+  typedef|<typedef name>*
+  <tag>*
 \end{verbatim}
 where \code{<typedef name>} is a name for a non-function type and \code{<tag>} is the tag name of a tagged struct or
-union type. The first form applies only to entities declared to have type \code{*<typedef name>}, not entities declared
+union type. The first form applies only to entities declared to have type \code{<typedef name>*}, not entities declared
 to be a pointer to the type to which the typedef name resolves. The second form applies to all entities declared to
 be a pointer to the struct or union, possibly after fully resolving all typedef names used in the declaration. 
 
@@ -120,6 +120,8 @@ references to it are always directly replaced by type \code{U32}.
 The translation does not use the callback handler to collect information during analysis. It only uses the semantics map
 created by the analysis and processes the \code{DeclEvent} sequence created by preprocessing as described in 
 Section~\ref{impl-ccode-read}.
+
+\subsubsection{Translating Toplevel Definitions}
 
 The translation of the \code{DeclEvent} sequence is implemented by the function
 \begin{verbatim}
@@ -170,6 +172,8 @@ in Section~\ref{design-names} and the type is always \code{U32}, as described in
 A function definition is translated to a Cogent function definition, as described in Section~\ref{design-fundefs}.
 
 A type definition is translated to a Cogent type definition as described in Section~\ref{design-decls-typedefs}.
+
+\subsubsection{Translating Type References}
 
 A type reference is translated by the function
 \begin{verbatim}
@@ -243,6 +247,15 @@ Cogent. Whenever the C type is intrinsically immutable, it is translated to a re
 applying a bang operator to it. The immutability is determined by function\code{isReadOnlyType}. It is implemented
 by a monadic action since it must access the symbol table to resolve references to tagged C structs.
 
+\subsubsection{Filter \code{gencot-translate}}
+
+The filter \code{gencot-translate} is invoked as
+\begin{verbatim}
+  gencot-translate <source name> <safepointers file> [<parmod file>]
+\end{verbatim}
+where the arguments are the name of the original C source file, a file with the safe pointer list (see 
+Section~\ref{impl-ccomps-pointer}), and the optional parameter modification descriptions.
+
 \subsection{External Functions and Variables}
 \label{impl-ccomps-externs}
 
@@ -298,10 +311,10 @@ The external variables are specified in the same list as the additional external
 
 The processor \code{gencot-externs} generates the Cogent abstract function definitions. It is invoked as
 \begin{verbatim}
-  gencot-externs [<parmod file> [<varlist file>]]
+  gencot-externs <safepointers file> <varlist file> [<parmod file>]
 \end{verbatim}
-where the optional arguments are a file with parameter modification descriptions and with the names of external
-variables to be processed.
+where the arguments are a file with the safe pointer list (see Section~\ref{impl-ccomps-pointer}), a file with the 
+names of external variables to be processed, and the optional parameter modification descriptions.
 
 The processor parses and analyses
 all C source files specified in the input file name list, resulting in the list of corresponding symbol tables, as
@@ -339,10 +352,10 @@ The processor \code{gencot-externsac} generates the wrapper implementations in a
 The processor \code{gencot-exttypes} generates all Cogent type definitions which origin from a C system include file.
 It is invoked as
 \begin{verbatim}
-  gencot-exttypes [<parmod file> [<varlist file>]]
+  gencot-exttypes <safepointers file> <varlist file> [<parmod file>]
 \end{verbatim}
-where the optional arguments are a file with parameter modification descriptions and with the names of external
-variables to be processed.
+where the arguments are a file with the safe pointer list (see Section~\ref{impl-ccomps-pointer}), a file with the 
+names of external variables to be processed, and the optional parameter modification descriptions.
 
 Since often only a small selection of the types defined by a system include file is used by a program, Gencot performs 
 an analysis to reduce the type definitions to be translated. It determines all types actually \textit{used} by
@@ -489,9 +502,10 @@ in module \code{Gencot.Cogent.Translate} where the string list contains the refe
 The processor \code{gencot-dvdtypes} generates all Cogent type definitions required for the derived types
 used in the C program. It is invoked as
 \begin{verbatim}
-  gencot-dvdtypes [<varlist file>]
+  gencot-dvdtypes <safepointers file> <varlist file> [<parmod file>]
 \end{verbatim}
-where the optional argument is a file with the names of external variables to be processed.
+where the arguments are a file with the safe pointer list (see Section~\ref{impl-ccomps-pointer}), a file with the 
+names of external variables to be processed, and the optional parameter modification descriptions.
 
 A C derived type, is a pointer type, array type or function type. As described in 
 Section~\ref{design-types}, Gencot maps all these types to parameterized Gencot types. The generic types \code{CPtr},

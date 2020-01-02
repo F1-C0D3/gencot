@@ -2,8 +2,8 @@
 module Main where
 
 import System.Environment (getArgs)
-import Control.Monad (liftM)
-import Data.List (sort)
+import Control.Monad (when,liftM)
+import Data.List (nub,sort)
 
 import Language.C.Pretty (pretty)
 import Language.C.Data.Ident (identToString)
@@ -23,10 +23,14 @@ main :: IO ()
 main = do
     {- get arguments -}
     args <- getArgs
-    {- get parameter modification descriptions and convert -}
-    parmods <- (liftM convertParmods) (if null args then return [] else readParmodsFromFile $ head args)
+    when (length args < 2 || length args > 3) 
+        $ error "expected arguments: <safe pointer list file name> <external variables list file name> <parmod description file name>?"
+    {- get list of safe pointers -}
+    spl <- (liftM ((filter (not . null)) . lines)) $ readFile $ head args
     {- get list of external variables to process -}
-    varnams <- (liftM ((filter (not . null)) . lines)) (if 2 > length args then return "" else readFile $ head $ tail args)
+    varnams <- (liftM ((filter (not . null)) . lines)) $ readFile $ head $ tail args
+    {- get parameter modification descriptions and convert -}
+    parmods <- (liftM convertParmods) (if 3 > length args then return [] else readParmodsFromFile $ head $ tail $ tail args)
     {- parse and analyse C sources and get global definitions and used types -}
     (tables,initialTypeCarrierSets) <- (liftM unzip) $ readPackageFromInput [] collectTypeCarriers
     {- Determine all call graphs -}
@@ -46,7 +50,7 @@ main = do
     {- construct transitive closure of used type carriers -}
     let typeCarriers = transCloseUsedCarriers table unitTypeCarriers
     {- translate type definitions in system include files -}
-    toplvs <- runFTrav table ("", parmods) $ transExtGlobals unitTypeNames $ sort $ filter isExternDef typeCarriers
+    toplvs <- runFTrav table ("", parmods,nub spl) $ transExtGlobals unitTypeNames $ sort $ filter isExternDef typeCarriers
     {- Output -}
     print $ prettyTopLevels toplvs
 

@@ -3,6 +3,7 @@ The following auxiliary Gencot components exist which do not process C source co
 \item[\code{parmod-proc}] processes parameter modification descriptions in JSON format (see Section~\ref{impl-parmod}).
 \item[\code{auxcog-macros}] processes Cogent source code to select macro definitions.
 \item[\code{auxcog-mapback}] processes Cogent source code to map Cogent constants back to preprocessor constants.
+\item[\code{gencot-prclist}] processes list files to remove comments.
 \end{description}
 
 \subsection{Parameter Modification Descriptions}
@@ -134,3 +135,19 @@ Gencot to the Cogent constant name \code{cogent\_VAL1}, the generated macro defi
 
 The component \code{auxcog-mapback} is implemented in Haskell and uses the Cogent parser to read the Cogent code.
 It then processes every Cogent constant definition.
+
+\subsection{Processing List Files}
+\label{impl-ocomps-prclist}
+
+Gencot uses some files containing simple lists of text strings, one in each line: the safe pointer list (see 
+Section~\ref{impl-ccomps-pointer}), and the list of external variables to be processed by \code{gencot-externs}, 
+\code{gencot-exttypes}, and \code{gencot-dvdtypes}.
+
+To be able to specify these lists in a more flexible way, Gencot allows comments of the form
+\begin{verbatim}
+  # ...
+\end{verbatim}
+where the hash sign must be at the beginning of the line.
+
+The filter \code{gencot-prclist} is used to remove these comment lines (and also all empty lines). It is implemented
+as an awk script.

@@ -1,13 +1,16 @@
-struct { int m11; int m12; } *var_pstruct;
-struct str { int m11; int m12; } *var_pstr;
-union  { int m11; int m12; } *var_punion;
-union uni { int m11; int m12; } *var_puni;
-int *var_pint;
-enum { CP11, CP12, } *var_penum;
-enum enm { CP21, CP22, } *var_penm;
-int **var_ppint;
-int (*var_p2arr5)[5];
-void *var_pvoid;
+struct { int m11; int m12; } *var_pstruct1,*var_pstruct2;
+struct str1 { int m11; int m12; } *var_pstr1;
+struct str2 { int m11; int m12; } *var_pstr2;
+union  { int m11; int m12; } *var_punion1,*var_punion2;
+union uni1 { int m11; int m12; } *var_puni1;
+union uni2 { int m11; int m12; } *var_puni2;
+int *var_pint1,*var_pint2;
+enum { CP01, CP02, } *var_penum1,*var_penum2;
+enum enm1 { CP11, CP12, } *var_penm1;
+enum enm2 { CP21, CP22, } *var_penm2;
+int **var_ppint1,**var_ppint2;
+int (*var_p2arr51)[5],(*var_p2arr52)[5];
+void *var_pvoid1,*var_pvoid2;
 
 int (*pf1)(int p1);
 int (*pf2)(int p1, short p2);
@@ -25,3 +28,22 @@ int (*pfl1)(char *p1);
 int (*pfl2)(char *p1, char *p2);
 int (*pfl3)(int p1, char *p2);
 int (*pfl4)(char *p1, char *p2, int p3);
+
+void fpp1(char *p1) { }
+void *fpp2(void) {}
+void *fpp3(void) {}
+void *(*pfvr3)(void);
+void *(*pfvr4)(void);
+
+struct str3 { int *m21; int *m22; } var_struct1;
+struct { int *m; } var_struct2;
+
+typedef int *pt1;
+pt1 pt1vr;
+
+typedef int *pt2;
+pt2 pt2vr;
+
+typedef int t1;
+t1 *t1vr1;
+int *t1vr2;

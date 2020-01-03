@@ -1,6 +1,18 @@
 #ifndef GENCOT_CSTRUCT
 #define GENCOT_CSTRUCT
 
+#include "AuxMacros.cogent"
+#include "ModFun.cogent"
+
+{- Macros for generating field access function definitions -}
+
+#define DEFgetFld(f) Gencot_ID(getFld_)Gencot_ID(f) : all(rec,fld). rec! -> fld!
+#define DEFsetFld(f) Gencot_ID(setFld_)Gencot_ID(f) : all(rec,fld:<D). ModFun rec fld ()
+#define DEFexchngFld(f) Gencot_ID(exchngFld_)Gencot_ID(f) : all(rec,fld). ModFun rec fld fld
+#define DEFmodifyFld(f) Gencot_ID(modifyFld_)Gencot_ID(f) : all(rec,fld,arg,out). ChgPartFun rec fld arg out
+#define DEFgetrefFld(f) Gencot_ID(getrefFld_)Gencot_ID(f) : all(rec,pfld). rec! -> pfld!
+#define DEFmodrefFld(f) Gencot_ID(modrefFld_)Gencot_ID(f) : all(rec,pfld,arg,out). ModPartFun rec pfld arg out
+
 {- Macros for generating types for take and put functions -}
 
 #define TAKEFUN(bastyp,takfield,arg,out) ModTypeFun (bastyp) (bastyp take takfield) (arg) (out)

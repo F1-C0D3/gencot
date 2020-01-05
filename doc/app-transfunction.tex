@@ -549,6 +549,34 @@ of the result of \code{expr0} is not already of readonly type it must be made re
 \begin{verbatim}
       if not isNull(x) !x then 
 \end{verbatim}
+
+Often in C, after testing x successfully for not being \code{NULL}, the pointer \code{x} is used in 
+\code{e1} by dereferencing it. In Cogent this is not possible, since a value of type \code{MayNull a} cannot
+be dereferenced. Instead, a value of type \code{a} is required. This is made accessible by the functions
+\code{notNull} and \code{roNotNull} (see Section~\ref{design-operations-null}). Then the translation of the
+conditional expression has the form
+\begin{verbatim}
+  (v,v1,...,vk) = 
+    let (x,x1,...,xn) = expr0
+    and (v,u1,...,uq) =
+      notNull(x)
+      | Some x -> 
+        let (y,y1,...,ym) = expr1 
+        in (y,u1,...,uq)
+      | None ->
+        let (z,z1,...,zp) = expr2
+        in (z,u1,...,uq)
+    in (v,v1,...,vk) 
+\end{verbatim}
+Here the \code{x} introduced by matching \code{Some x} is of type \code{a} and can be used in \code{expr1}
+to access and modify it. If \code{expr1} only reads \code{x} and should not consume it, it must be introduced
+as readonly by replacing the line \code{notNull(x)} by
+\begin{verbatim}
+      roNotNull(x) !x
+\end{verbatim}
+Then the \code{x} introduced by matching \code{Some x} is of type \code{a!}. Function \code{roNotNull} must also
+be used when the outer \code{x} is already of the readonly type \code{(MayNull a)!}.
+
 In the following patterns we only show the form \code{if x /= 0 then}, it must be replaced as needed.
 
 Usually, the condition \code{e0} has no side effects, the the translation can be simplified to
@@ -747,7 +775,8 @@ the second form of the conditional statement to the binding
 where \code{u1,...,uk} is the union of \code{v1,...,vn} and \code{w1,...,wm} in some order. 
 Note that this closely corresponds to the translation 
 of the conditional expression in Section~\ref{app-transfunction-expr}. In particular, the condition test 
-\code{if expr /= 0 then} must be replaced by \code{if expr then} or \code{if not isNull(expr) then} as needed.
+\code{if expr /= 0 then} must be replaced by \code{if expr then} or \code{if not isNull(expr) then} or 
+the forms with \code{notNull} or \code{roNotNull} as needed.
 
 The first form of the conditional statement is translated as
 \begin{verbatim}
@@ -885,7 +914,7 @@ Since \code{while} loops are not directly supported by Cogent and need additiona
 an abstract function, we do not use this transformation in general, instead, for certain forms of \code{for} loops we
 translate them using functions from the Cogent standard library. This is possible, whenever a \code{for} loop is a 
 ``counted'' loop of the form
-\begin{verbatim}must either
+\begin{verbatim}
   for ( w=e1; w<e2; w=e3) s
 \end{verbatim}
 with a counting variable \code{w} of an unsigned integer type. The only free variable in \code{e3} must be \code{w} and

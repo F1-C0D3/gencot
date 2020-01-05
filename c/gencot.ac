@@ -1,4 +1,5 @@
 #define UNITVAL ($ty:(())){.dummy=0}
+#define BOOLVAL(EXPR) ($ty:(Bool)){.boolean=(EXPR)}
 #define NULL (void*)0
 
 extern void *malloc(u64);
@@ -126,6 +127,7 @@ static $ty:((evt,Heap)) $id:clearHeap($ty:((vvt,Heap)) arg) {
 static $ty:((vvt,())) $id:initSimp($ty:((evt,())) arg) {
     $ty:((vvt,())) res = arg;
     gencotInitStruct(($ty:evt) arg.p1);
+    // gencotInitStruct_$ty:evt(arg.p1)
     return res;
 }
   
@@ -166,6 +168,42 @@ static $ty:((Option a)!) $id:roNotNull($ty:((MayNull a)!) arg) {
     else {
         res.tag = TAG_ENUM_Some;
         res.Some = ($ty:(a!)) arg;
+    }
+    return res;
+}
+
+static $ty:(Bool) $id:isNull($ty:((MayNull a)!) arg) {
+    $ty:(Bool) res = BOOLVAL(arg == NULL);
+    return res;
+}
+
+static $ty:((MayNull a,a)) $id:exchngNull($ty:((MayNull a,a)) arg) {
+    $ty:((MayNull a,a)) res = arg;
+    if (arg.p1 != NULL) { 
+        res.p1 = arg.p2;
+        res.p2 = arg.p1;
+    }
+    return res;
+}
+
+static $ty:((MayNull a,arg)) $id:modifyNull($ty:((MayNull a, (ModFun a arg arg, arg))) arg) {
+    $ty:((MayNull a,arg)) res = {.p1 = arg.p1, .p2 = arg.p2.p2};
+    if (arg.p1 != NULL) {
+        $ty:((a,arg)) h = {.p1 = arg.p1, .p2 = arg.p2.p2};
+        h = (($spec:(ModFun a arg arg)) arg.p2.p1) (h);
+        res.p1 = h.p1;
+        res.p2 = h.p2;
+    }
+    return res;
+}
+
+static $ty:((MayNull a,out)) $id:modifyNullDflt($ty:((MayNull a, (ModFun a arg out, arg))) arg) {
+    $ty:((MayNull a,out)) res = {.p1 = arg.p1, .p2 = gencotDefaultVal(($ty:out) 0)};
+    if (arg.p1 != NULL) {
+        $ty:((a,arg)) h = {.p1 = arg.p1, .p2 = arg.p2.p2};
+        $ty:((a,out)) h2 = (($spec:(ModFun a arg out)) arg.p2.p1) (h);
+        res.p1 = h2.p1; 
+        res.p2 = h2.p2;
     }
     return res;
 }

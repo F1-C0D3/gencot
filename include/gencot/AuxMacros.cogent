@@ -41,11 +41,11 @@
 #define SimpGencot_ISOPTTRNS(dummy)
 
 #define Gencot_OPTOUT(func,arg,out) Gencot_ID(arg)Gencot_OPTC(func) Gencot_OPT(func,out)
-#define Gencot_OPTARRCMB(func,out) Gencot_OPTC(func) Gencot_OPT(func,(out,out)->out)
+#define Gencot_OPTARRCMB(func,out) Gencot_OPTC(func) Gencot_OPT(func,(out,out)->(out))
 
 #define Gencot_OPT(func,x) Gencot_MKOPT(Gencot_ID(func)Gencot_ISOPT,x)
 #define Gencot_MKOPT(optf,opte) optf(opte)
-#define ParCmbGencot_ISOPT(x) x
+#define ParCmbGencot_ISOPT(x) (x)
 #define ParGencot_ISOPT(x)
 #define SeqGencot_ISOPT(x)
 
@@ -57,9 +57,9 @@
 
 #define Gencot_ARRELOUT(func,arg,out) Gencot_MKARRELOUT(Gencot_ID(func)Gencot_ISARRELOUT,arg,out)
 #define Gencot_MKARRELOUT(optf,arg,out) optf(arg,out)
-#define ParCmbGencot_ISARRELOUT(arg,out) out
+#define ParCmbGencot_ISARRELOUT(arg,out) (out)
 #define ParGencot_ISARRELOUT(arg,out) ()
-#define SeqGencot_ISARRELOUT(arg,out) arg
+#define SeqGencot_ISARRELOUT(arg,out) (arg)
 
 
 #endif {- GENCOT_AUXMACROS -}

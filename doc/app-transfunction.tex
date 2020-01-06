@@ -1006,10 +1006,12 @@ the translation can be simplified using the function \code{seq32\_simpl} in the 
       acc = (v1,...,vn,w1,...,wm,w), 
       f = \(v1,...,vn,w1,...,wm,w) => 
         let (_,v1,...,vn) = expr
-        in (v1,...,vn,w1,...,wm,w)
+        in (v1,...,vn,w1,...,wm,w+expr3')
       }
   in ((False,False,None), v1,...,vn)
 \end{verbatim}
+Note that \code{seq32\_simple} does not pass the counting variable \code{w} to the body, so we must add it to \code{acc}
+and count it explicitly in \code{f}.
 If the counting variable \code{w} is not used in the body (does not occur free in \code{expr}) this can further be simplified to
 \begin{verbatim}
   (c, v1,...,vn) = 
@@ -1040,7 +1042,7 @@ is translated to
       acc = (sum,a,i), 
       f = \(sum,a,i) => 
         let sum = sum + getArr(a,i)
-        in (sum,a,i)
+        in (sum,a,i+1)
       }
   in ((False,False,None), sum)
 \end{verbatim}

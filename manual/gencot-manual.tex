@@ -1,0 +1,160 @@
+\documentclass[a4paper]{report}
+\usepackage[bookmarks]{hyperref}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc} % needed for italic curly braces
+
+\newcommand{\code}[1]{\textnormal{\texttt{#1}}}
+
+\begin{document}
+
+\title{Gencot User Manual}
+\author{Gunnar Teege}
+
+\maketitle
+
+\chapter{Introduction}
+
+Gencot (GENerating COgent Toolset) is a set of tools for generating Cogent code from C code. 
+
+Gencot is used for parsing the C sources and generating Cogent sources, 
+antiquoted C sources, and auxiliary C code. It does not perform a fully automatic translation, it is
+intended to be used in combination with several manual steps of pre- and post-processing. These
+steps are described in this manual.
+
+The manual assumes that you are familiar with C and Cogent and know how to work with both.
+
+\section{Distribution}
+\label{intro-dist}
+
+The Gencot distribution consists of the following folders:
+\begin{description}
+\item[manual] this manual,
+\item[bin] the main command scripts \code{gencot} and \code{parmod} and many auxiliary commands used by them,
+\item[include] Cogent include files used by the generated code,
+\item[c] C code implementing abstract types and functions used by the generated code,
+\item[examples] example C programs used in this manual for introducing Gencot,
+\item[src] the Haskell source code of Gencot components,
+\item[doc] a comprehensive documentation of Gencot design and implementation.
+\end{description}
+
+Gencot is a command line tool. To use it make sure that you can invoke the commands \code{gencot} and
+\code{parmod} (e.g., by linking them in a folder in your command path or by adding the \code{bin} folder
+of the Gencot distribution to your command path.
+
+Additionally you have to set the environment variable \code{\$GENCOT\_HOME} to the root folder of the Gencot
+distribution.
+
+We also assume that you have a working distribution of Cogent and can invoke the cogent compiler using the
+command \code{cogent}.
+
+All example folders contain a UNIX Makefile. You can either run the examples by manually typing the commands
+to process them or by using \code{make} with a separate target for each step.
+
+\section{First Encounter}
+\label{intro-first}
+
+As usual we will start with a ``Hello World'' example. Go to \code{examples/helloworld}. Ignoring the other files,
+look at \code{hello.c}. It contains the C program
+\begin{verbatim}
+  #include <stdio.h>
+
+  int main() {
+    puts("Hello World");
+  }
+\end{verbatim}
+
+\begin{description}
+\item[Step 1:] (make run)
+
+Try it: compile the program with a C compiler, name it \code{hello} and run it. It should do what you expect.
+
+\item[Step 2:] (make cogent)
+
+Now use Gencot to translate the program to Cogent. Enter the command
+\begin{verbatim}
+  gencot cfile hello.c
+\end{verbatim}
+It creates the file \code{hello.cogent}. Look at it. It contains
+\begin{verbatim}
+  cogent_main : () -> U32
+  cogent_main () =
+     0
+     {-
+         cogent_puts("Hello World");
+     -}
+\end{verbatim}
+This is a Cogent function corresponding to the C function \code{main}. However, the function body is still C code
+and put in comment. Instead, the dummy result \code{0} is used, so the file is already valid Cogent code.
+
+The command also creates the file \code{hello-entry.ac} (Not yet implemented! Provided with the example).
+
+Next enter the command
+\begin{verbatim}
+  gencot unit hello.unit
+\end{verbatim}
+It creates three files \code{hello-externs.cogent}, \code{hello-exttypes.cogent}, and \code{hello-dvdtypes.cogent}
+where the latter two are empty and can be ignored for this example. The first file contains
+\begin{verbatim}
+  cogent_puts : (CPtr U8)! -> U32
+\end{verbatim}
+which is also valid Cogent code, but uses the non-standard generic type \code{CPtr}. 
+
+The command also creates the file \code{hello-externs.ac} (Not yet implemented! Provided with the example).
+
+\item[Step 3:] (make edit)
+
+Now comes the part where your manual work is demanded. You have to translate the function bodies and you have to adapt
+some types. Open \code{hello.cogent} in a text editor, replace its content by
+\begin{verbatim}
+  cogent_main : () -> U32
+  cogent_main () =
+         cogent_puts("Hello World"); 0
+\end{verbatim}
+and save as \code{ed-hello.cogent}. In \code{hello-externs.cogent} replace the argument type by \code{String}:
+\begin{verbatim}
+  cogent_puts : String -> U32
+\end{verbatim}
+and save as \code{ed-hello-externs.cogent}.
+
+Now you have a Cogent program which is equivalent to the original C program. It consists of several files,
+which are all included by the provided file \code{unit.cogent}.
+
+\item[Step 4:] (make cogent-c)
+
+To see that it works, process \code{unit.cogent} by the Cogent compiler. Enter the command
+\begin{verbatim}
+  cogent -g unit.cogent --infer-c-funcs="ed-hello-externs.ac hello-entry.ac"
+\end{verbatim}
+It creates the files \code{unit.c} and \code{unit.h} and two \code{\_pp\_inferred.c} files. All these files
+are included by the provided file \code{cogent-hello.c}, so this file wraps together the C program generated
+from the Cogent program.
+
+\item[Step 5:] (make cogent-run)
+
+Try whether it still works. Compile \code{cogent-hello.c} with a C compiler and run it. The result should be the same
+as in Step 1.
+
+Note that for the compilation you need to set the include path to the standard library folder of the Cogent 
+distribution (\code{STDGUM} in the Makefile).
+
+\item[Step 6:] (make clean)
+
+Clean up all generated files. If you like you can perform the steps again.
+\end{description}
+
+\chapter{Simple C Programs}
+
+\section{Single Source File}
+\label{simple-single}
+
+\section{Single Source File with Include Files}
+\label{simple-include}
+
+\section{Multiple Source Files}
+\label{simple-multi}
+
+\section{Partial Translation}
+\label{simple-partial}
+
+\end{document}
+ 

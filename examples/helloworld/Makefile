@@ -1,10 +1,18 @@
+UNITFILES = unit-externs.cogent unit-exttypes.cogent unit-dvdtypes.cogent
+EDUNITFILES = ed-unit-externs.cogent unit-exttypes.cogent unit-dvdtypes.cogent unit-externs.ac
+ACFILES = unit-externs.ac hello-entry.ac
+ACFILESPP = $(ACFILES:.ac=_pp.ac)
+ACFILESINF = $(ACFILES:.ac=_pp_inferred.c)
+
 binary: hello
 run: run-hello
-cogent: hello.cogent
-edit: ed-hello.cogent ed-hello-externs.cogent ed-hello-externs.ac
-cogent-c: unit.c unit.h
+cogent: hello.cogent $(UNITFILES)
+edit: ed-hello.cogent $(EDUNITFILES)
+cogent-c: gen-unit.c gen-unit.h
 cogent-binary: cogent-hello
 cogent-run: run-cogent-hello
+
+.PHONY: clean run-hello run-cogent-hello
 
 STDGUM=$(shell cogent --stdgum-dir)
 
@@ -13,26 +21,28 @@ run-hello: hello
 
 hello.cogent: hello.c
 	gencot cfile hello.c
-	gencot unit hello.unit
+
+$(UNITFILES): unit.files hello.c
+	gencot unit unit.files
 
 ed-hello.cogent: hello.cogent
 	sed -e "4,5d;7d;s/;/; 0/" hello.cogent > ed-hello.cogent
 
-ed-hello-externs.cogent: hello-externs.cogent
-	sed -e "s/(CPtr U8)\!/String/" hello-externs.cogent > ed-hello-externs.cogent
+ed-unit-externs.cogent: unit-externs.cogent
+	sed -e "s/(CPtr U8)\!/String/" unit-externs.cogent > ed-unit-externs.cogent
 
-unit.c: unit.cogent ed-hello.cogent ed-hello-externs.cogent ed-hello-externs.ac hello-entry.ac
-	cogent -g unit.cogent --infer-c-funcs="ed-hello-externs.ac hello-entry.ac"
+gen-unit.c gen-unit.h: unit.cogent ed-hello.cogent hello-entry.ac $(EDUNITFILES)
+	cogent -o gen-unit -g unit.cogent --infer-c-funcs="$(ACFILES)"
 
-cogent-hello: cogent-hello.c unit.c unit.h ed-hello-externs_pp_inferred.c hello-entry_pp_inferred.c
-	cc -o cogent-hello -I$(STDGUM) cogent-hello.c
+cogent-hello: unit.c gen-unit.c gen-unit.h $(ACFILESINF)
+	cc -o cogent-hello -I$(STDGUM) unit.c
 
 run-cogent-hello: cogent-hello
 	./cogent-hello
 
 clean:
 	-rm hello
-	-rm hello.cogent hello-*.cogent
-	-rm ed-hello.cogent ed-hello-*.cogent
-	-rm unit.c unit.h ed-hello-*_pp.ac ed-hello-*_pp_inferred.c hello-entry_pp.ac hello-entry_pp_inferred.c
+	-rm hello.cogent unit-*.cogent
+	-rm ed-hello.cogent ed-unit-*.cogent
+	-rm gen-unit.c gen-unit.h $(ACFILESPP) $(ACFILESINF)
 	-rm cogent-hello

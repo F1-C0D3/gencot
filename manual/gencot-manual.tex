@@ -90,16 +90,16 @@ The command also creates the file \code{hello-entry.ac} (Not yet implemented! Pr
 
 Next enter the command
 \begin{verbatim}
-  gencot unit hello.unit
+  gencot unit unit.files
 \end{verbatim}
-It creates three files \code{hello-externs.cogent}, \code{hello-exttypes.cogent}, and \code{hello-dvdtypes.cogent}
+It creates three files \code{unit-externs.cogent}, \code{unit-exttypes.cogent}, and \code{unit-dvdtypes.cogent}
 where the latter two are empty and can be ignored for this example. The first file contains
 \begin{verbatim}
   cogent_puts : (CPtr U8)! -> U32
 \end{verbatim}
 which is also valid Cogent code, but uses the non-standard generic type \code{CPtr}. 
 
-The command also creates the file \code{hello-externs.ac} (Not yet implemented! Provided with the example).
+The command also creates the file \code{unit-externs.ac} (Not yet implemented! Provided with the example).
 
 \item[Step 3:] (make edit)
 
@@ -110,11 +110,11 @@ some types. Open \code{hello.cogent} in a text editor, replace its content by
   cogent_main () =
          cogent_puts("Hello World"); 0
 \end{verbatim}
-and save as \code{ed-hello.cogent}. In \code{hello-externs.cogent} replace the argument type by \code{String}:
+and save as \code{ed-hello.cogent}. In \code{unit-externs.cogent} replace the argument type by \code{String}:
 \begin{verbatim}
   cogent_puts : String -> U32
 \end{verbatim}
-and save as \code{ed-hello-externs.cogent}.
+and save as \code{ed-unit-externs.cogent}.
 
 Now you have a Cogent program which is equivalent to the original C program. It consists of several files,
 which are all included by the provided file \code{unit.cogent}.
@@ -123,15 +123,15 @@ which are all included by the provided file \code{unit.cogent}.
 
 To see that it works, process \code{unit.cogent} by the Cogent compiler. Enter the command
 \begin{verbatim}
-  cogent -g unit.cogent --infer-c-funcs="ed-hello-externs.ac hello-entry.ac"
+  cogent -o gen-unit -g unit.cogent --infer-c-funcs="unit-externs.ac hello-entry.ac"
 \end{verbatim}
-It creates the files \code{unit.c} and \code{unit.h} and two \code{\_pp\_inferred.c} files. All these files
-are included by the provided file \code{cogent-hello.c}, so this file wraps together the C program generated
+It creates the files \code{gen-unit.c} and \code{gen-unit.h} and two \code{\_pp\_inferred.c} files. All these files
+are included by the provided file \code{unit.c}, so this file wraps together the C program generated
 from the Cogent program.
 
 \item[Step 5:] (make cogent-run)
 
-Try whether it still works. Compile \code{cogent-hello.c} with a C compiler and run it. The result should be the same
+Try whether it still works. Compile \code{unit.c} with a C compiler, name it \code{cogent-hello} and run it. The result should be the same
 as in Step 1.
 
 Note that for the compilation you need to set the include path to the standard library folder of the Cogent 
@@ -147,8 +147,60 @@ Clean up all generated files. If you like you can perform the steps again.
 \section{Single Source File}
 \label{simple-single}
 
+The simplest case is a C program which consists of a single \code{.c} file, such as the ``Hello World'' program
+introduced in Section~\ref{intro-first}. If the C file is named \code{foo.c} the command to process it by Gencot is
+\begin{verbatim}
+  gencot cfile foo.c
+\end{verbatim}
+It creates the following files:
+\begin{description}
+\item[\code{foo.cogent}] The content of \code{foo.c} translated to Cogent, as far as Gencot supports a translation.
+Function bodies are not translated.
+\item[\code{foo-entry.ac}] (*Not yet implemented*) ``Entry wrapper'' functions for all functions defined in \code{foo.c} 
+with external linkage.
+\end{description}
+
+An ``entry wrapper'' converts from the original C function API to the Cogent function API, which is usually different 
+since Cogent functions always take one argument and return one value. Functions in \code{foo.cogent} are automatically
+renamed so that they do not collide with the entry wrappers after translation back to C by Cogent. For a standalone
+C program there is atleast an entry wrapper \code{main} for the translated main program.
+
+Additionally, Gencot must be invoked using the command
+\begin{verbatim}
+  gencot unit unit.files
+\end{verbatim}
+where \code{unit.files} contains the name of the C source file (\code{"foo.c"}) in a single line. It creates the following
+files:
+\begin{description}
+\item[\code{unit-externs.cogent}] Abstract definitions of all external functions used by the C program.
+\item[\code{unit-exttypes.cogent}] Type definitions for all external types used by the C program.
+\item[\code{unit-dvdtypes.cogent}] Type definitions for all derived types used in the C program.
+\item[\code{unit-externs.ac}] (*Not yet implemented*) ``Exit wrapper'' functions for all functions defined in 
+\code{unit-externs.cogent}.
+\end{description}
+An external function is used by the C program if it is actually invoked. Such functions must be declared in C, usually
+the declarations are contained in standard include files. In the ``Hello World'' example the file \code{hello.c} includes
+\code{stdio.h} where function \code{puts} is declared. Here, Gencot reads \code{stdio.h} to generate the abstract definition for
+\code{gencot\_puts} and the corresponding exit wrapper. Although there are many functions declared in \code{stdio.h}, Gencot
+does not generate definitions for them, since they are not invoked by the C program.
+
+An external type is a type defined in a standard include file. Again, Gencot provides a Cogent type definition in 
+\code{unit-exttypes.cogent} for only those 
+types which are actually used by the C program. A derived type is a pointer type, an array type, or a function type in C. For 
+some of them Gencot generates auxiliary type definitions in \code{unit-dvdtypes.cogent}. In the ``Hello World'' example 
+both files are empty.
+
+An ``exit wrapper'' is similar to an ``entry wrapper'', it converts from the Cogent function API back to the C function API.
+Exit wrappers are also renamed so that they do not collide with the originally invoked C function.
+
+All generated files are named according to the name of the file argument to the \code{gencot} command. If the file is named 
+\code{foo.files} you will get \code{foo-externs.cogent}, \code{foo-exttypes.cogent} etc.
+
 \section{Single Source File with Include Files}
 \label{simple-include}
+
+Often, a C program consists of a \code{.c} file with function definitions and an included \code{.h} file for data type 
+definitions.
 
 \section{Multiple Source Files}
 \label{simple-multi}

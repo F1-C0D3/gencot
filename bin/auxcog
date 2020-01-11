@@ -69,7 +69,9 @@ then
     UBASE=$(basename $UFILE)
     UNAME=$(expr match $UBASE '\(.*\)[.][^.]*' '|' $UBASE)
     
-    $BIN/auxcog-macros $INCLS $UNAME.cogent | $BIN/auxcog-remcomments > $UNAME-macros.h
+    $BIN/auxcog-macros $INCLS $UNAME.cogent \
+    | $BIN/auxcog-remcomments \
+    | $BIN/auxcog-numexpr > $UNAME-macros.h
     $BIN/auxcog-mainfile $UNAME < $UFILE > $UNAME.c
 else
 # "$CMD" == "comments"

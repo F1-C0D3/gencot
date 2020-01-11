@@ -1,0 +1,77 @@
+#!/bin/sh
+
+if [ -z "$GENCOT_HOME" ]
+then
+    echo "Cannot find Gencot installation."
+    echo "Please set environment variable GENCOT_HOME to root directory of Gencot installation."
+    exit 1
+fi
+
+BIN=$GENCOT_HOME/bin
+
+USAGE="Usage: $0 [-I<dir>] [unit|comments|help] <file>"
+
+long_usage()
+{
+    echo $USAGE
+    echo 'Auxiliary processing for Cogent programs.'
+    echo 'Commands:'
+    echo '  unit     <ufile>  Generate auxiliary C files for unit described in <ufile>'
+    echo '  comments <file>   Remove comments from Cogent source <file> and print to stdout'
+    echo '  help              Display this help information'
+    echo 'A <ufile> contains a list of C source file names, each on a separate line.'
+    echo 'The base name of a <ufile> must be the name of the corresponding Cogent compilation unit.'
+    echo 'Options for command unit: '
+    echo '  -I<dir>  Directory for searching Cogent include files. Can be repeated, as for cpp. '
+}
+
+short_usage()
+{
+    echo $USAGE
+    echo 'Run with -h for more information.'
+}
+ 
+# Parse options
+OPTS=$(getopt -o hI: -n "$0" -- "$@")
+
+if [ $? != 0 ]
+then
+    short_usage
+    exit 1
+fi
+
+eval set -- "$OPTS"
+
+INCLS=''
+
+while true; do
+    case "$1" in
+        -h) long_usage; exit;;
+        -I) shift; INCLS="$INCLS -I $1"; shift;;
+        --) shift; break;;
+    esac
+done
+
+CMD=$1
+
+case "$CMD" in
+    unit) ;;
+    comments) ;;
+    help) long_usage; exit;;
+    *) echo "unknown auxcog command: $1"; short_usage; exit;;
+esac
+
+shift
+
+if [ "$CMD" == "unit" ]
+then
+    UFILE=$1
+    UBASE=$(basename $UFILE)
+    UNAME=$(expr match $UBASE '\(.*\)[.][^.]*' '|' $UBASE)
+    
+    $BIN/auxcog-macros $INCLS $UNAME.cogent | $BIN/auxcog-remcomments > $UNAME-macros.h
+    $BIN/auxcog-mainfile $UNAME < $UFILE > $UNAME.c
+else
+# "$CMD" == "comments"
+    $BIN/auxcog-remcomments < $1
+fi

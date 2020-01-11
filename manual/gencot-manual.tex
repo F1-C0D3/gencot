@@ -200,10 +200,56 @@ All generated files are named according to the name of the file argument to the 
 \label{simple-include}
 
 Often, a C program consists of a \code{.c} file with function definitions and an included \code{.h} file for data type 
-definitions.
+definitions. In this case Gencot must additionally be invoked for the \code{.h} file in the form
+\begin{verbatim}
+  gencot hfile foo.h
+\end{verbatim}
+It will create the additional file \code{foo-incl.cogent} which contains the translated content of \code{foo.h}. The 
+include directive in \code{foo.c} will automatically be adapted, so that \code{foo.cogent} includes \code{foo-incl.cogent}.
+So the resulting Cogent program has a similar source file structure as the C program.
+
+If there are several \code{.h} files included by the \code{.c} file gencot must be invoked for every \code{.h} file
+separately.
+
+The other files are translated as before, however, the path must be specified where to look for the included files, even
+if they are in the same directory. It is specified with an option \code{-I} as for \code{cpp}. Several such options may 
+be specified if included files are in different directories. Include paths may be specified relative to the current 
+directory. Do not append a slash \code{/} at the end. Paths for system include files cannot be specified, the \code{cpp} 
+default is used for accessing them.
+
+Together, the commands for translating the C program are
+\begin{verbatim}
+  gencot hfile foo.h
+  ... <other .h files> ...
+  gencot -I. cfile foo.c
+  gencot -I. unit unit.files
+\end{verbatim}
+where \code{unit.files} still contains only the name \code{foo.c} and not \code{foo.h} (because that is automatically
+read together with \code{foo.c} which includes it).
+
+\subsection{Example}
+
+The example program in \code{examples/cards} consists of the file \code{cards.c} and the included files \code{cards.h}
+and \code{rank.h}. The tranlation step (\code{make cogent}) corresponds to the commands
+\begin{verbatim}
+  gencot hfile cards.h
+  gencot hfile rank.h
+  gencot -I. cfile cards.c
+  gencot -I. unit unit.files
+\end{verbatim}
+
+Note that the function declarations in the \code{.h} files are not translated to Cogent. However, the comments specified 
+there are moved to the function definitions in the translated \code{.c} file. This feature depends on the order of
+processing the \code{.h} files before the \code{.c} file. Otherwise, the ordering of the commands is irrelevant.
 
 \section{Multiple Source Files}
 \label{simple-multi}
+
+A larger C program often consists of several \code{.c} files. Every \code{.c} file is a separate translation unit and
+must be translated by the C compiler to a seperate \code{.o} file. The \code{.o} files are then linked together to
+yield the executable program binary.
+
+
 
 \section{Partial Translation}
 \label{simple-partial}

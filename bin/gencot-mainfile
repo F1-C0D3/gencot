@@ -20,9 +20,5 @@ for file in $(< /dev/stdin)
 do
     fbase=$(basename $file)
     fnam=$(expr match $fbase '\(.*\)[.][^.]*' '|' $fbase)
-    if [ $fnam != "additional_externs" ]
-    then 
-        echo "#include \"$fnam.cogent\""
-        echo "#include \"$fnam-entry.cogent\""
-    fi
+    if [ $fnam != "additional_externs" ]; then echo "#include \"$fnam.cogent\""; fi
 done

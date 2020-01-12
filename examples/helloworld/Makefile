@@ -1,4 +1,4 @@
-UNITFILES = unit-externs.cogent unit-exttypes.cogent unit-dvdtypes.cogent
+UNITFILES = unit-externs.cogent unit-exttypes.cogent unit-dvdtypes.cogent unit.cogent
 EDUNITFILES = ed-unit-externs.cogent unit-exttypes.cogent unit-dvdtypes.cogent unit-externs.ac
 ACFILES = unit-externs.ac hello-entry.ac
 ACFILESPP = $(ACFILES:.ac=_pp.ac)
@@ -41,8 +41,8 @@ run-cogent-hello: cogent-hello
 	./cogent-hello
 
 clean:
-	-rm hello
-	-rm hello.cogent unit-*.cogent
-	-rm ed-hello.cogent ed-unit-*.cogent
-	-rm gen-unit.c gen-unit.h $(ACFILESPP) $(ACFILESINF)
-	-rm cogent-hello
+	-rm -f hello
+	-rm -f hello.cogent unit-*.cogent
+	-rm -f ed-hello.cogent ed-unit-*.cogent
+	-rm -f gen-unit.c gen-unit.h $(ACFILESPP) $(ACFILESINF)
+	-rm -f cogent-hello

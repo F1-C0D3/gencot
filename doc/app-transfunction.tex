@@ -1173,10 +1173,12 @@ resulting descriptions must be added to the file input to \code{parmod externs}.
 \item Even if explicitly specified, \code{gencot unit} generates exit wrappers only for functions which are declared
 in one of the source files belonging to the Cogent compilation unit (usually the declaration will be in a \code{.h}
 file included by a source file). If \code{f} is only invoked through a function pointer it may be the case that
-the declaration of \code{f} is not present in either Cogent compilation unit source file. In this case a ``pseudo
-source'' must be added to the Cogent compilation unit which only includes the \code{.h} file where \code{f}
-is declared. More generally, it should include all \code{.h} files with declarations of functions for which an
-exit wrapper shall be forced and which are not included by regular sources in the Cogent compilation unit.
+the declaration of \code{f} is not present in either Cogent compilation unit source file. In this case the ``pseudo
+source'' \code{additional\_externs.c} must be added to the Cogent compilation unit which only includes the \code{.h} 
+file where \code{f} is declared. More generally, it should include all \code{.h} files with declarations of functions 
+for which an exit wrapper shall be forced and which are not included by regular sources in the Cogent compilation unit.
+As described in Section~\ref{impl-ocomps-main}, the name \code{additional\_externs.c} is treated in a special
+way by Gencot, it is ignored when the main Cogent and C source files are generated.
 \end{itemize}
 
 \subsection{The Null Pointer}

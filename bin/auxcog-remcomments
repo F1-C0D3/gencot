@@ -1,0 +1,43 @@
+#!/bin/bash
+
+# Remove comments from a Cogent source.
+# This is a filter from stdin to stdout.
+
+awk \
+'{ rest = $0
+   pos = match(rest, /{-|-}|--/)
+   cur = ""
+   while (pos > 0) {
+     delim = substr(rest,pos,2)
+     if ((comdepth == 0) && (delim == "{-" || delim == "--")) cur = cur substr(rest,1,pos-1)
+     if (delim == "--") {
+       if (comdepth == 0) {
+         rest = ""
+         pos = 0
+       } else {
+         rest = substr(rest,pos+1)
+         pos = match(rest, /{-|-}|--/)
+       }
+     } else {
+       if (delim == "{-") comdepth++
+       else if (delim == "-}") comdepth--
+       rest = substr(rest,pos+2)
+       pos = match(rest, /{-|-}|--/)
+     }
+   }
+   if (comdepth == 0) cur = cur rest
+   print(cur)
+}'
+
+# documentation:
+
+# Since Cogent comments of the form {- ... -} may be nested, the variable comdepth is used to store the 
+# nesting depth. Line comments starting with -- are ignored in {- ... -} and vice versa.
+
+# Implementation in awk:
+# - the variable rest is used to store the part of a line which remains to be processed.
+# - the next occurrence of a comment delimiter in rest is determined with a regular expression by match(rest,/{-|-}|--/)
+# - if a delimiter is found it is processed and rest is set to the remaining line after the delimiter calculated
+#   by substr(rest,pos+2). In the case that a -- delimiter is found in a comment of the form {- ... -} the remaining
+#   line to be processed is calculated by substr(rest,pos+1), i.e. only the first - sign is removed. This is necessary
+#   to detect the closing delimiter if it is written in the form --}.

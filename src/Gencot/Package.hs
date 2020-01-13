@@ -145,10 +145,11 @@ combineTagDecls m1 m2 = do
 
 selTagEntry :: SUERef -> TagEntry -> Maybe TagEntry -> IO TagEntry
 selTagEntry (AnonymousRef _) res@(Right t1) (Just other@(Right t2)) = do
-    when (not $ samePos t1 t2) $ hPutStrLn stderr $ "Warning: collision of internal identifier for tagless types:"
-    hPrint stderr $ pretty res
-    hPrint stderr $ pretty other
-    hPutStrLn stderr $ "To solve this, specify a tag for at least one of them."
+    when (not $ samePos t1 t2) $ do
+        hPutStrLn stderr $ "Warning: collision of internal identifier for tagless types:"
+        hPrint stderr $ pretty res
+        hPrint stderr $ pretty other
+        hPutStrLn stderr $ "To solve this, specify a tag for at least one of them."
     return res
 selTagEntry _ res _ = return res
 

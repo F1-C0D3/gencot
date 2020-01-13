@@ -1,15 +1,19 @@
+HFILES = cards.h rank.h
+CFILES = cards.c
 UNITFILES = unit-externs.cogent unit-exttypes.cogent unit-dvdtypes.cogent unit.cogent
 EDITFILES = ed-unit-externs.done ed-cards.done
-ACFILES = unit-externs.ac cards-entry.ac
+ACFILES = unit-externs.ac $(CFILES:.c=-entry.ac)
 ACFILESPP = $(ACFILES:.ac=_pp.ac)
 ACFILESINF = $(ACFILES:.ac=_pp_inferred.c)
 ACFILESC = $(ACFILES:.ac=.c)
-HFILES = cards.h rank.h
+OFILES = $(CFILES:.c=.o)
+COGFILES = $(CFILES:.c=.cogent)
 INCLFILES = $(HFILES:.h=-incl.cogent)
+COGSRC = $(INCLFILES) $(COGFILES) $(UNITFILES)
 
 binary: cards
 run: run-cards
-cogent: $(INCLFILES) cards.cogent $(UNITFILES)
+cogent: $(COGSRC)
 edit: $(EDITFILES)
 cogent-c: unit-gen.c unit-gen.h unit.c
 cogent-binary: cogent-cards
@@ -28,21 +32,22 @@ run-cards: cards
 %-incl.cogent: %.h
 	gencot hfile $*.h
 
-cards.cogent: cards.c
-	gencot -I. cfile cards.c
+%.cogent: %.c
+	gencot -I. cfile $*.c
 
-$(UNITFILES): unit.files cards.c
+$(UNITFILES): unit.files $(CFILES)
 	gencot -I. unit unit.files
 
 ed-cards.done: cards.cogent
 #	*todo*
+	sed -i -e "s/CPtr U8/String/" cards.cogent
 	@touch ed-cards.done
 
 ed-unit-externs.done: unit-externs.cogent
 	sed -i -e "s/(CPtr U8)\!/String/" unit-externs.cogent
 	@touch ed-unit-externs.done
 
-unit-gen.c unit-gen.h $(ACFILESINF): $(ACFILES) $(EDITFILES) $(UNITFILES) $(INCLFILES) cards.cogent
+unit-gen.c unit-gen.h $(ACFILESINF): $(COGSRC) $(EDITFILES) $(ACFILES)
 	cogent -o unit-gen -g unit.cogent $(COGPPARGS) --infer-c-funcs="$(ACFILES)"
 
 unit.c unit-macros.h $(ACFILESC): unit-gen.c unit-gen.h $(ACFILESINF) unit.files
@@ -56,7 +61,7 @@ run-cogent-cards: cogent-cards
 
 clean:
 	-rm -f cards
-	-rm -f cards.cogent $(INCLFILES) $(UNITFILES)
+	-rm -f $(COGSRC)
 	-rm -rf comments
 	-rm -f $(EDITFILES)
 	-rm -f unit-gen.c unit-gen.h $(ACFILESPP) $(ACFILESINF)

@@ -1,0 +1,22 @@
+extern int putchar (int __c);
+static $ty:(U32) cogent_putchar ($ty:(U32) arg) {
+    return putchar(arg);
+}
+extern int puts(const char *__s);
+static $ty:(U32) cogent_puts ($ty:(String) arg) {
+    return puts(arg);
+}
+extern void print_card($ty:(#Cogent_card_t) c);
+static $ty:(()) cogent_print_card($ty:(#Cogent_card_t) arg) {
+    $ty:(()) res = {.dummy=0};
+    print_card(arg);
+    return res;
+}
+extern $ty:(#Cogent_card_t) card_from_letters(char value_let, char suit_let);
+static $ty:(#Cogent_card_t) cogent_card_from_letters($ty:(( U8, U8 )) arg) {
+    return card_from_letters(arg.p1,arg.p2);
+}
+extern $ty:(#Cogent_card_t) card_from_num(unsigned c);
+static $ty:(#Cogent_card_t) cogent_card_from_num($ty:(U32) arg) {
+    return card_from_num(arg);
+}

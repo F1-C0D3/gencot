@@ -1,13 +1,19 @@
+HFILES = 
+CFILES = hello.c
 UNITFILES = unit-externs.cogent unit-exttypes.cogent unit-dvdtypes.cogent unit.cogent
 EDITFILES = ed-unit-externs.done ed-hello.done
-ACFILES = unit-externs.ac hello-entry.ac
+ACFILES = unit-externs.ac $(CFILES:.c=-entry.ac)
 ACFILESPP = $(ACFILES:.ac=_pp.ac)
 ACFILESINF = $(ACFILES:.ac=_pp_inferred.c)
 ACFILESC = $(ACFILES:.ac=.c)
+OFILES = $(CFILES:.c=.o)
+COGFILES = $(CFILES:.c=.cogent)
+INCLFILES = $(HFILES:.h=-incl.cogent)
+COGSRC = $(INCLFILES) $(COGFILES) $(UNITFILES)
 
 binary: hello
 run: run-hello
-cogent: hello.cogent $(UNITFILES)
+cogent: $(COGSRC)
 edit: $(EDITFILES)
 cogent-c: unit-gen.c unit-gen.h unit.c
 cogent-binary: cogent-hello
@@ -17,14 +23,19 @@ cogent-run: run-cogent-hello
 
 STDGUM=$(shell cogent --stdgum-dir)
 GENCOTC=$(GENCOT_HOME)/c
+GENCOTI=$(GENCOT_HOME)/include
+COGPPARGS = --cogent-pp-args="-I$(GENCOTI)"
 
 run-hello: hello
 	./hello
 
-hello.cogent: hello.c
-	gencot cfile hello.c
+%-incl.cogent: %.h
+	gencot hfile $*.h
 
-$(UNITFILES): unit.files hello.c
+%.cogent: %.c
+	gencot cfile $*.c
+
+$(UNITFILES): unit.files $(CFILES)
 	gencot unit unit.files
 
 ed-hello.done: hello.cogent
@@ -35,7 +46,7 @@ ed-unit-externs.done: unit-externs.cogent
 	sed -i -e "s/(CPtr U8)\!/String/" unit-externs.cogent
 	@touch ed-unit-externs.done
 
-unit-gen.c unit-gen.h $(ACFILESINF): $(ACFILES) $(EDITFILES) $(UNITFILES) hello.cogent
+unit-gen.c unit-gen.h $(ACFILESINF): $(COGSRC) $(EDITFILES) $(ACFILES)
 	cogent -o unit-gen -g unit.cogent --infer-c-funcs="$(ACFILES)"
 
 unit.c unit-macros.h $(ACFILESC): unit-gen.c unit-gen.h $(ACFILESINF) unit.files
@@ -49,7 +60,7 @@ run-cogent-hello: cogent-hello
 
 clean:
 	-rm -f hello
-	-rm -f hello.cogent $(UNITFILES)
+	-rm -f $(COGSRC)
 	-rm -f $(EDITFILES)
 	-rm -f unit-gen.c unit-gen.h $(ACFILESPP) $(ACFILESINF)
 	-rm -f unit.c unit-macros.h $(ACFILESC)

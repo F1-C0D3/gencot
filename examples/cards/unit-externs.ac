@@ -1,0 +1,15 @@
+extern int putchar (int __c);
+static $ty:(U32) cogent_putchar ($ty:(U32) arg) {
+    return putchar(arg);
+}
+extern int puts(const char *__s);
+static $ty:(U32) cogent_puts ($ty:(String) arg) {
+    return puts(arg);
+}
+extern void exit (int __status) __attribute__ ((__noreturn__));
+static $ty:(()) cogent_exit($ty:(U32) arg) {
+    $ty:(()) res = ($ty:(())){.dummy=0};
+    exit(arg);
+    return res;
+}
+

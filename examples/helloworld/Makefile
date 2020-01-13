@@ -1,13 +1,14 @@
 UNITFILES = unit-externs.cogent unit-exttypes.cogent unit-dvdtypes.cogent unit.cogent
-EDUNITFILES = ed-unit-externs.cogent unit-exttypes.cogent unit-dvdtypes.cogent unit-externs.ac
+EDITFILES = ed-unit-externs.done ed-hello.done
 ACFILES = unit-externs.ac hello-entry.ac
 ACFILESPP = $(ACFILES:.ac=_pp.ac)
 ACFILESINF = $(ACFILES:.ac=_pp_inferred.c)
+ACFILESC = $(ACFILES:.ac=.c)
 
 binary: hello
 run: run-hello
 cogent: hello.cogent $(UNITFILES)
-edit: ed-hello.cogent $(EDUNITFILES)
+edit: $(EDITFILES)
 cogent-c: unit-gen.c unit-gen.h unit.c
 cogent-binary: cogent-hello
 cogent-run: run-cogent-hello
@@ -15,6 +16,7 @@ cogent-run: run-cogent-hello
 .PHONY: clean run-hello run-cogent-hello ed-hello.cogent ed-unit-externs.cogent
 
 STDGUM=$(shell cogent --stdgum-dir)
+GENCOTC=$(GENCOT_HOME)/c
 
 run-hello: hello
 	./hello
@@ -25,24 +27,22 @@ hello.cogent: hello.c
 $(UNITFILES): unit.files hello.c
 	gencot unit unit.files
 
-ed-hello.cogent: hello.cogent
-	@if grep '{-' hello.cogent; \
-	then sed -i -e "4,5d;7d;s/;/; 0/" hello.cogent; \
-	fi
+ed-hello.done: hello.cogent
+	sed -i -e "4,5d;7d;s/;/; 0/" hello.cogent
+	@touch ed-hello.done
 
-ed-unit-externs.cogent: unit-externs.cogent
-	@if grep 'CPtr' unit-externs.cogent; \
-	then sed -i -e "s/(CPtr U8)\!/String/" unit-externs.cogent; \
-	fi
+ed-unit-externs.done: unit-externs.cogent
+	sed -i -e "s/(CPtr U8)\!/String/" unit-externs.cogent
+	@touch ed-unit-externs.done
 
-unit-gen.c unit-gen.h: unit.cogent ed-hello.cogent hello-entry.ac $(EDUNITFILES)
+unit-gen.c unit-gen.h $(ACFILESINF): $(ACFILES) $(EDITFILES) $(UNITFILES) hello.cogent
 	cogent -o unit-gen -g unit.cogent --infer-c-funcs="$(ACFILES)"
 
-unit.c: unit.files 
+unit.c unit-macros.h $(ACFILESC): unit-gen.c unit-gen.h $(ACFILESINF) unit.files
 	auxcog unit unit.files
 
-cogent-hello: unit.c unit-gen.c unit-gen.h $(ACFILESINF)
-	cc -o cogent-hello -I$(STDGUM) unit.c
+cogent-hello: unit.c unit-gen.c unit-gen.h unit-macros.h $(ACFILESC)
+	cc -o cogent-hello -I$(STDGUM) -I$(GENCOTC) unit.c
 
 run-cogent-hello: cogent-hello
 	./cogent-hello
@@ -50,5 +50,7 @@ run-cogent-hello: cogent-hello
 clean:
 	-rm -f hello
 	-rm -f hello.cogent $(UNITFILES)
+	-rm -f $(EDITFILES)
 	-rm -f unit-gen.c unit-gen.h $(ACFILESPP) $(ACFILESINF)
+	-rm -f unit.c unit-macros.h $(ACFILESC)
 	-rm -f cogent-hello

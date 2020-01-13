@@ -5,6 +5,9 @@ ACFILESPP = $(ACFILES:.ac=_pp.ac)
 ACFILESINF = $(ACFILES:.ac=_pp_inferred.c)
 ACFILESC = $(ACFILES:.ac=.c)
 HFILES = cards.h rank.h
+CFILES = main.c cards.c rank.c
+OFILES = $(CFILES:.c=.o)
+COGFILES = $(CFILES:.c=.cogent)
 INCLFILES = $(HFILES:.h=-incl.cogent)
 
 binary: cards
@@ -25,14 +28,17 @@ COGPPARGS = --cogent-pp-args="-I$(GENCOTI)"
 run-cards: cards
 	./cards
 
+cards: $(OFILES)
+	$(CC) -o cards $(OFILES)
+
 %-incl.cogent: %.h
 	gencot hfile $*.h
 
-cards.cogent: cards.c
-	gencot -I. cfile cards.c
+%.cogent: %.c
+	gencot -I. cfile $*.c
 
-$(UNITFILES): unit.files cards.c
-	gencot -I. unit unit.files
+$(UNITFILES): unit.files $(CFILES)
+	gencot -k -I. unit unit.files
 
 ed-cards.done: cards.cogent
 #	*todo*
@@ -56,7 +62,7 @@ run-cogent-cards: cogent-cards
 
 clean:
 	-rm -f cards
-	-rm -f cards.cogent $(INCLFILES) $(UNITFILES)
+	-rm -f $(COGFILES) $(INCLFILES) $(UNITFILES)
 	-rm -rf comments
 	-rm -f $(EDITFILES)
 	-rm -f unit-gen.c unit-gen.h $(ACFILESPP) $(ACFILESINF)

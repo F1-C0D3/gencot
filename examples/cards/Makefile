@@ -32,7 +32,8 @@ run-cards: cards
 %-incl.cogent: %.h
 	gencot hfile $*.h
 
-%.cogent: %.c
+# depends on $(INCLFILES) for comment transfer from declarations
+%.cogent: %.c $(INCLFILES)
 	gencot -I. cfile $*.c
 
 $(UNITFILES): unit.files $(CFILES)

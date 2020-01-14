@@ -1,7 +1,7 @@
 HFILES = cards.h rank.h
 CFILES = main.c cards.c rank.c
 UNITFILES = unit-externs.cogent unit-exttypes.cogent unit-dvdtypes.cogent unit.cogent
-EDITFILES = ed-unit-externs.done ed-cards.done ed-rank.done
+EDITFILES = ed-unit-externs.done ed-cards.done ed-rank.done ed-main.done
 ACFILES = unit-externs.ac $(CFILES:.c=-entry.ac)
 ACFILESPP = $(ACFILES:.ac=_pp.ac)
 ACFILESINF = $(ACFILES:.ac=_pp_inferred.c)
@@ -13,7 +13,7 @@ COGSRC = $(INCLFILES) $(COGFILES) $(UNITFILES)
 
 PCFILES = main.c rank.c
 PUNITFILES = part-externs.cogent part-exttypes.cogent part-dvdtypes.cogent part.cogent
-PEDITFILES = ed-part-externs.done ed-rank.done
+PEDITFILES = ed-part-externs.done ed-rank.done ed-main.done
 PACFILES = part-externs.ac $(PCFILES:.c=-entry.ac)
 PACFILESPP = $(PACFILES:.ac=_pp.ac)
 PACFILESINF = $(PACFILES:.ac=_pp_inferred.c)
@@ -51,7 +51,8 @@ cards: $(OFILES)
 %-incl.cogent: %.h
 	gencot hfile $*.h
 
-%.cogent: %.c
+# depends on $(INCLFILES) for comment transfer from declarations
+%.cogent: %.c $(INCLFILES)
 	gencot -I. cfile $*.c
 
 $(UNITFILES): unit.files $(CFILES)
@@ -65,8 +66,12 @@ ed-cards.done: cards.cogent
 	@touch ed-cards.done
 
 ed-rank.done: rank.cogent
-	sed -i -e "s/CPtr U8/String/" rank.cogent
+	sed -i -e "s/CPtr U8/String/;6,9d;s/case/if r ==/;10,35s/://;10,35s/return/then/;10,35s/;/ else/;37d;38s/return//;38s/;//;39,41d" rank.cogent
 	@touch ed-rank.done
+
+ed-main.done: main.cogent
+	sed -i -e "6,7d;14d;s/return 0;/0/" main.cogent
+	@touch ed-main.done
 
 ed-unit-externs.done: unit-externs.cogent
 	sed -i -e "s/(CPtr U8)\!/String/" unit-externs.cogent

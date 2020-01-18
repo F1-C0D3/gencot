@@ -518,8 +518,11 @@ in other preprocessor macros), Gencot provides in \code{include/gencot/CPointer.
   CPTR(<knd>,<type>)
 \end{verbatim}
 where \code{<type>} is a Cogent type and \code{<knd>} is \code{U} or empty. \code{CPTR(U,T)} expands to \code{T} and
-must be used if the \code{<type>} is an unboxed type of the form \code{\#Struct\_s}, \code{\#Union\_s}, or
+must be used if the type to be pointed to is an unboxed type of the form \code{\#Struct\_s}, \code{\#Union\_s}, or
 \code{\#(Carr<size> El)}. \code{CPTR(,T)} expands to \code{(CPtr T)} and must be used in all other cases.
+
+For example, the C type \code{struct s*} is mapped to \code{CPTR(U,Struct\_s} and the C type \code{int*} is mapped
+to \code{CPTR(,U32)}.
 
 \subsubsection{\code{NULL} Pointers}
 

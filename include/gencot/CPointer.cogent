@@ -20,7 +20,9 @@ type CPtr ref = { cont: ref }
 --   knd: one of U or empty. Specifies the kind of Cogent type. 
 --     Must be U for an unboxed type representing a C struct, union, or array type, otherwise empty.
 --   type: the type for which to construct the pointer type.
-#define CPTR(knd,type) Gencot_MKPTRTYP(Gencot_ID(knd)Gencot_PTR,type)
+#define CPTR(knd,type) Gencot_APPFUN(Gencot_ID(knd)altCPTR,type)
+#define altCPTR(ref) CPtr (ref)
+#define UaltCPTR(ref) ref
 
 -- Get the referenced value of readonly non-function pointer
 --   ptr: the pointer type

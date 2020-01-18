@@ -3,6 +3,144 @@ Here we define rules how to map common C types to binary compatible Cogent types
 also depends on the way how values of the type are processed in the C program, the resulting types may require manual 
 modification.
 
+\subsection{Item Properties}
+\label{design-types-itemprops}
+
+The Cogent type system reflects more and other data properties than the C type system, e.g., linear types
+and readonly types. Instead of simply determining these properties automatically, Gencot supports declaring 
+them by the developer. Before translating a C program to Cogent, the developer may specify properties
+for several ``items'' in the C program. Gencot reads these declarations in addition to the C source code
+and uses them when determining the Cogent type for the translated item.
+
+\subsubsection{Items}
+
+An item for which properties can be declared for Gencot may be every entity in the C program which has a declared type.
+
+Items may be global, such as global variables and functions, or they may be sub-items of other items, such as a
+struct member or a function parameter. Sub-items are determined by the type of the main item. If that type is
+specified by a common identifier (typedef name or tag name) for several main items together, properties for
+a sub-item may not be declared individually anymore, instead, they must be declared for the corresponding sub-item
+of all main items together. Such sub-items are called ``collective items'' here.
+
+There are two kinds of global items: C variables (also called ``objects'' in the C standard) and C functions, which
+are defined on toplevel (called an ``external definition'' in the C standard), i.e., not locally in a function. Note that
+these two kinds only differ in their types: functions have a derived function type, objects may have all other types.
+
+Global items are always named by a C identifier. Depending on the linkage, the identifier may be unique (external linkage)
+or it may only be unique for the compilation unit (internal linkage). Gencot uses the C identifier to identify global 
+items. In the case of internal linkage the file name of the compilation unit is used for disambiguation.
+
+Gencot supports property declarations for the following kinds of sub-items:
+\begin{itemize}
+\item the members of a struct or union
+\item the elements of an array
+\item the data referenced by a pointer
+\item the parameters and the result of a function
+\end{itemize}
+Members are identified by their name. Parameters are identified by their name or by their position. The other
+sub-items are identified using specific mechanism.
+
+Depending on their type, sub-items may again have sub-items. Gencot supports property declarations for arbitrary
+deep sub-item nesting.
+
+Global items are always individual. A sub-item is individual only if
+\begin{itemize}
+\item the containing item is individual
+\item the containing item's type is not specified by a defined type identifier.
+\end{itemize}
+This means that the containing item's type must be an expression for a derived type or for a tagless struct or union.
+If a struct or union declares a tag, all members can only be used as collective items, since the tag makes it possible
+to assign the type to different items so that a member declaration may be shared by several sub-items. Gencot does
+not check whether a tagged struct or union is only used for a single item, it always treats its members as collective.
+
+For example, if the item \code{s} is declared by
+\begin{verbatim}
+  struct { int m1,m2; } s;
+\end{verbatim}
+then \code{m1} is an individual sub-item of \code{s}. If \code{s} is declared by
+\begin{verbatim}
+  struct str { int m1,m2; } s;
+\end{verbatim}
+then \code{m1} is not an individual sub-item of \code{s} anymore, it is a collective sub-item of all items with
+type \code{struct str}.
+
+Basically, collective items are identified by their type. If a property is declared for a type, it applies to 
+all items which are declared to have this type. Additionally, for a collective item its sub-items can be determined
+in the same way as for an individual item. 
+
+Gencot does not support all kinds of C types to identify collective items. Only the following kinds are supported:
+\begin{itemize}
+\item typedef names,
+\item tag names,
+\item derived pointer types.
+\end{itemize}
+
+For example, if the C program contains the struct declaration
+\begin{verbatim}
+  struct str { int m1,m2; };
+\end{verbatim}
+the collective item identified by \code{struct str} corresponds to all items declared to have the type \code{struct str},
+whereas the collective subitem \code{m1} of \code{str} corresponds to all members \code{m1} of such items. The collective
+item identified by the type \code{struct str*} corresponds to all items declared as pointers to \code{str} structs.
+
+Gencot does not support primitive types for item identification, because (currently) there are no properties supported
+for them and they have no sub-items. Moreover, it seems not useful to declare a property for \textit{all} items of
+a primitive type. Gencot does not support derived array types for item identificationn because (currently) the only 
+property supported for them is Read-only and it does not seem useful to declare this for all items of a certain array 
+type. It could be useful to declare properties for the elements of all such items, but Gencot does not realize that.
+For derived function types or their parameters and results it could be useful to declare properties, but this is not
+implemented by Gencot either. The main reason for not supporting derived array and function types is the difficulty
+for defining a unique syntactical representation which is needed for the current implementation of the item property
+mechanism as described in Section~\ref{impl-itemprops}.
+
+\subsubsection{Properties}
+
+The properties which can be declared for an item are usually specific for the item's type. If a property is declared
+for an item for which its type does not support the property, the property is silently ignored by Gencot.
+
+Gencot supports declaring the following item properties.
+
+\begin{description}
+\item[Read-Only]
+
+The Read-Only property is supported for items of arbitrary type. If declared, the type of the translated item is
+made read-only by applying the Cogent bang operator \code{!} to it.
+
+If the item's type is already translated to a read-only type (see Section~\ref{design-types-readonly}), the property 
+is ignored. Note, that for several types the Cogent bang operator has no effect, these cases are equivalent
+to ignoring the property.
+
+\item[Not-Null]
+
+The Not-Null property is only supported for items of pointer type. If declared, the type of the translated item
+is not wrapped by the generic \code{MayNull} type (see Section~\ref{design-types-pointer}). 
+
+Although Gencot translates array types in the same way as pointer types, it never wraps them by \code{MayNull}.
+This has the same effect as specifying the Not-Null property for all items of array type, therefore it is ignored
+for items of array type.
+
+\item[No-String]
+
+The No-String property is only supported for items of type \code{const char *}. If declared, Gencot uses the  
+type \code{(CPtr U8)!} instead of \code{String} for the translated item (see Section~\ref{design-types-pointer}).
+
+\item[Modification-Function]
+
+The Modification-Function property is only supported for items of function type. If declared, the parameters and
+result of the translated function are rearranged to the form of a modification function (see 
+Section~\ref{design-types-function}).
+
+\item[Heap-Use]
+
+The Heap-Use property is only supported for items of function type. If declared, the parameters and
+result of the translated function are extended by a component of type \code{Heap} (see Section~\ref{design-types-function}).
+
+\item[Discard]
+
+The Discard property is only supported for parameter items of pointer type. If declared, no component corresponding
+to that parameter is added to the function result (see Section~\ref{design-types-function}).
+\end{description}
+
 \subsection{Numerical Types}
 \label{design-types-prim}
 
@@ -252,6 +390,8 @@ Therefore the decision in Gencot is to use the second approach. For every array 
 program the two generic Cogent types \code{CArr<size>} and \code{UArr<size>} are used where the latter is
 abstract and is defined in antiquoted C as described above.
 
+\subsubsection{Specifying Array Types}
+
 For constructing an array type from a given size and element type Gencot provides the preprocessor macro
 \begin{verbatim}
   CARR(<size>,<ek>,el)
@@ -304,21 +444,22 @@ Whether a C array type is mapped to the boxed or unboxed form depends on its usa
 A C array type cannot be used as result type of a function. Thus, the remaining possible uses of a C array type are
 \begin{itemize}
 \item as type of a global variable. This is translated using an access function which returns the variable
-value as a pointer of the boxed type \code{CArr<size> El} which is never \code{NULL}. Since in Cogent boxed types
+value as a pointer of the boxed type \code{CArr<size> El}. Since in Cogent boxed types
 can only be allocated on the heap, this means that the global array variable must be implemented by a global pointer
 for which the array is allocated on the heap.
 \item as type of a function parameter. In C this is ``adjusted'' to the pointer-to-element type. Since this
 is binary compatible with type \code{CArr<size> El}, this type is used as parameter type in Cogent. Alternatively 
 the adjusted type could be mapped, resulting in type \code{CPtr El} or \code{El} (in case of elements of unboxed 
 record or array type). The type \code{CArr<size> El} is preferred here by Gencot since it preserves more information.
-Since \code{NULL} may be passed as parameter value, the type is wrapped as \code{MayNull} (see~\ref{design-types-pointer}).
+Although technically \code{NULL} may be passed as parameter value, the type is not wrapped by \code{MayNull} 
+(see~\ref{design-types-pointer}), thus always requiring a non-null pointer as argument.
 \item as type of a member in a struct type. Here the size of the array is relevant, therefore the unboxed type
 \code{\#(CArr<size> El)} is used as type for the corresponding Cogent record field.
 \item as element type of another array, resulting in a multidimensional array. Again the size of the array 
 is relevant here, the unboxed type \code{\#(CArr<size> El)} is used as element type.
 \item as base type of a derived pointer type. Here the binary compatible type is the boxed type \code{CArr<size> El}
 since it corresponds to a pointer to the array. Since the derived pointer type includes the \code{NULL} value
-it is wrapped as \code{MayNull}.
+it is wrapped by \code{MayNull} (see~\ref{design-types-pointer}).
 \item as defining type for a typedef name. Here the type to be used depends on the context where the typedef
 name is used. As described in Section~\ref{design-types-typedef}, Gencot defines the mapped 
 typedef name always as an alias for the boxed type \code{CArr<size> El}. Then applying the unbox operator to the typedef name 
@@ -326,8 +467,7 @@ is equivalent to applying it to \code{CArr<size> El}.
 \end{itemize}
 
 Together we have the following mapping rules for C arrays with element type \code{el} and size 
-specification \code{<size>}. Depending on the context of the C array type, additionally the unbox operator must be applied
-or it must be wrapped as \code{MayNull}.
+specification \code{<size>}. Depending on the context of the C array type, additionally the unbox operator must be applied.
 \begin{verbatim}
   el[<literal size>] -> CArr<literal size> El
   el[<size id>] -> CArrX<size id>X El
@@ -408,33 +548,29 @@ Together the rules for mapping function types are
 \subsubsection{Linear and Readonly Parameter Types}
 
 Like every other type, the type of a function parameter may be readonly because this property can be derived
-from the C type information, as described in Section~\ref{design-types-readonly}. However, in a C program 
-often a parameter is actually never modified, although this property cannot be derived from the C type information.
-Since this is an important property for working with linear types in Cogent, Gencot tries to capture these
-cases as well and make the parameter type readonly.
+from the C type information, as described in Section~\ref{design-types-readonly}, or because the Read-Only property
+has been declared for the parameter, as described in Section~\ref{design-types-itemprops}.
 
 For a parameter with linear type, the function can only be defined in Cogent if the parameter is not discarded,
 i.e. it must be part of the result. Gencot assumes the most simple handling of this case, where the result
 is a tuple consisting of the original result of the C function together with a component for every parameter
-of linear type. To avoid these extra result components, Gencot tries to make all parameters with linear type
-readonly and add only the remaining parameters to the result type.
+of linear type. 
 
 A parameter of linear type may not be discarded in Cogent, but it may be passed to an abstract function which discards
-it. In this case the parameter must not be returned, although it does not have readonly type.
+it. In this case the parameter must not be returned, although it has linear type. This can be specified by the 
+developer by declaring the Discard property for the parameter (see Section~\ref{design-types-itemprops}).
 
-Gencot determines the information about parameter modification and parameter discarding in a semi-automatic way
-as described in Section~\ref{design-parmod}. It uses this information to make parameter types readonly or
+Gencot uses the parameter types and declared properties to make parameter types readonly or
 add parameters to the function result, according to the following rules:
 \begin{itemize}
 \item If the C type of a parameter is not linear according to Section~\ref{design-types-readonly}, or if it
-is discarded according to Section~\ref{design-parmod}, it is translated as described before.
-\item Otherwise, if the C type of the parameter is readonly according to Section~\ref{design-types-readonly}, or
-is not modified according to Section~\ref{design-parmod} its translated type is made readonly by applying the
+has the Discard property, it is translated as described before.
+\item Otherwise, if the parameter is readonly according to its type or has the Read-Only property
+its translated type is made readonly by applying the
 bang operator \code{!}. For a single such parameter of type \code{r} the translation rule becomes
 \begin{verbatim}
   t(t1, ... r, ... tn) -> (T1, ... R!, ... Tn) -> T
 \end{verbatim}
-\item Otherwise, if the parameter is already returned as result of the function, it is translated as described before.
 \item Otherwise, the function result is changed to a tuple and the parameter is added as component to that tuple.
 For a single such parameter of type \code{l} the translation rule becomes
 \begin{verbatim}
@@ -444,6 +580,29 @@ For a single such parameter of type \code{l} the translation rule becomes
 
 If the result is modified to a tuple, the first component is the original function result and the remaining components
 are the parameters of linear type in their order as they occur in the parameter tuple.
+
+If the Modification-Function property has been declared for a function (see Section~\ref{design-types-itemprops}), its 
+type is translated according to the rule
+\begin{verbatim}
+  t(t1, ... l1, ... tn) -> (L1,(T1, ... ... Tn)) -> (L1,(T,L2,...,Lm))
+\end{verbatim}
+where \code{l1} is the type of the first parameter of linear type which is not read-only or has the Discard property, \code{L1}
+is its translation, and \code{L2,...,Lm} are the translations of all other such parameter types. The parameter type of
+the translated function is a pair where the second component is the tuple of all other parameter types with \code{L1}
+omitted and the result type is a pair where the second component is the tuple of the original result and all non-discarded
+parameters of linear type. If there are no parameters \code{L2,...,Lm} the result type has the form \code{(L1,T)}. If there
+are only two parameters the parameter tuple has the form \code{(L1,T1)}. If \code{l1} is the only parameter the parameter tuple
+has the form \code{(L1,())}.
+
+If the Heap-Use property has been declared for a function, its type is translated according to the rule
+\begin{verbatim}
+  t(t1, ..., tn) -> (T1, ..., Tn,Heap) -> (T,Heap)
+\end{verbatim}
+i.e., the heap is appended to the parameter and result tuple. If the C result type is void the result type is \code{Heap}.
+If \code{n = 0} the parameter type is \code{Heap}.
+
+If both properties are declared together for the same function the heap is added as last components \code{Tn} and
+and \code{Lm} in the additional tuple of the parameter and result pairs.
 
 \subsection{Pointer Types}
 \label{design-types-pointer}
@@ -476,7 +635,7 @@ that means, it is mapped like the struct type \code{t}, but the unbox operator i
 A pointer type \code{t*} where \code{t} is a union type is mapped in the same way to the corresponding
 boxed type, omitting the unbox operator from the mapped type \code{t}. Thus no support for accessing
 the referenced union is provided. The reason is, that access to the union as a whole is mostly useless
-and further access to the union mebers cannot be provided. For consistency, Gencot treats union types
+and further access to the union members cannot be provided. For consistency, Gencot treats union types
 in the same way as struct types.
 
 A pointer type \code{t*} where \code{t} is a primitive type, an enum type, 

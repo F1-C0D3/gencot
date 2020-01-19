@@ -428,7 +428,7 @@ transType rslv fid (LCA.PtrType t _ _) = do
 -- Translate to: Cogent function type (p1,..,pn) -> ret, then apply parmod description.
 -- If @fid@ is in safe pointer list remove MayNull from result type if present.
 transType rslv fid t@(LCA.FunctionType (LCA.FunType ret pars variadic) _) = do
-    safe <- isSafePointer fid
+    safe <- isSafePointer (fid ++ "/()")
     r <- transType rslv "" ret
     ps <- transParamTypes variadic rslv fid pars
     applyParmods t fid $ genType $ CS.TFun ps $ rmMayNullIf safe r
@@ -488,7 +488,7 @@ encodeType rslv fid (LCA.PtrType t _ _) = do
 -- Encode ret, prepend function derivation step using encoded pi.
 -- If @fid@ is in safe pointer list remove MayNull step from result type if present.
 encodeType rslv fid t@(LCA.FunctionType (LCA.FunType ret pars variadic) _) = do
-    safe <- isSafePointer fid
+    safe <- isSafePointer (fid ++ "/()")
     tn <- encodeType rslv "" ret
     ps <- encodeParamTypes variadic rslv fid pars
     return ((mapFunStep ps) ++ (rmMayNullStepIf safe tn))
@@ -496,7 +496,7 @@ encodeType rslv fid t@(LCA.FunctionType (LCA.FunType ret pars variadic) _) = do
 -- Encode ret, prepend incomplete function derivation step.
 -- If @fid@ is in safe pointer list remove MayNull step from result type if present.
 encodeType rslv fid t@(LCA.FunctionType (LCA.FunTypeIncomplete ret) _) = do
-    safe <- isSafePointer fid
+    safe <- isSafePointer (fid ++ "/()")
     tn <- encodeType rslv "" ret
     return (mapIncFunStep ++ (rmMayNullStepIf safe tn))
 -- Derived array type for element type t:
@@ -566,7 +566,13 @@ hasMayNullStep :: String -> Bool
 hasMayNullStep t = mapMayNullStep `isPrefixOf` t
 
 getTag :: LCA.Type -> String
-getTag (LCA.DirectType (LCA.TyComp (LCA.CompTypeRef sueref _ _)) _ _) = sueRefToString sueref
+getTag (LCA.DirectType (LCA.TyComp (LCA.CompTypeRef sueref knd _)) _ _) = 
+    kndstr ++ "|" ++ (sueRefToString sueref)
+    where kndstr = case knd of
+                    LCA.StructTag -> "struct"
+                    LCA.UnionTag -> "union"
+getTag (LCA.DirectType (LCA.TyEnum (LCA.EnumTypeRef sueref _)) _ _) = 
+    "enum|" ++ (sueRefToString sueref)
 getTag (LCA.TypeDefType (LCA.TypeDefRef _ typ _) _ _) = getTag typ
 getTag _ = ""
 

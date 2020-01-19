@@ -12,7 +12,7 @@ regression: $(foreach TST,$(TESTS),$(TST)-regression) unit-regression
 expect-current: $(foreach TST,$(TESTS),$(TST)-expect-current) unit-expect-current
 
 clean:  $(foreach TST,$(TESTS),$(TST)-clean)
-	-rm -f unit.files $(foreach U,$(UNIT),unit-$(U).cogent)
+	-rm -f unit.files unit.cogent $(foreach U,$(UNIT),unit-$(U).cogent)
 
 types-parmod.cogent: types-parmod.c
 	$(GC) cfile types-parmod.c types-parmod.json

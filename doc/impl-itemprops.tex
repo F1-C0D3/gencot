@@ -1,1 +1,118 @@
- 
+As described in Section~\ref{design-types-itemprops} Gencot supports declaring properties for typed 
+items in the C program. The corresponding declarations are specified in textual form as a sequence
+of text lines where each line may declare several properties for a single item. The item is
+named by a unique identifier, every property is encoded by a short identifier.
+
+\subsection{Item Identifiers}
+\label{impl-itemprops-ids}
+
+Item identifiers are text strings which contain no whitespace. 
+
+Global individual items are functions or object.
+They can always be identified by their name. However, for items with internal linkage the name is only unique
+per compilation unit, whereas the item declarations span the whole Cogent compilation unit which may consist of several C 
+compilation units. Therefore, item with 
+external linkage are identified by their plain name (which is an unstructured C identifier), item with
+internal linkage are identified in the form
+\begin{verbatim}
+    <source file name> : <item name>
+\end{verbatim}
+If the source file name has extension \code{".c"} the extension is omitted, otherwise (typically in the case of \code{".h"})
+it is not omitted, resulting in identifiers such as \code{"app.h:myitem"}.
+
+As source file name only the base name is used. C packages with source files of the same name in different directories are
+not supported by the current Gencot version.
+
+Collective items are identified by certain type expressions. For a typedef name the identifier has the form
+\begin{verbatim}
+    typedef | <typedef name>
+\end{verbatim}
+For a tag name it has one of the forms
+\begin{verbatim}
+    struct | <tag name>
+    union  | <tag name>
+\end{verbatim}
+For a derived pointer type where the base type can be used as a collective item it has the form
+\begin{verbatim}
+    <base item identifier> *
+\end{verbatim}
+
+Sub-items of an item are identified by appending a sub-item specification to the item's identifier.
+The members of a struct or union are specified in the form
+\begin{verbatim}
+    <item identifier> . <member name>
+\end{verbatim}
+The elements of an array are collectively specified in the form
+\begin{verbatim}
+    <item identifier> / []
+\end{verbatim}
+The data referenced by a pointer is specified in the form
+\begin{verbatim}
+    <item identifier> / *
+\end{verbatim}
+The result of a function is specified in the form
+\begin{verbatim}
+    <item identifier> / ()
+\end{verbatim}
+The parameters of a function are specified in either of the forms
+\begin{verbatim}
+    <item identifier> / <parameter name>
+    <item identifier> / <position number>
+\end{verbatim}
+where the position number of the first parameter is 1.
+
+As an example, if \code{f\_t} is a typedef name for a function type with a parameter \code{par} 
+which is a pointer to an array of function pointers, the results of the function pointers in the
+array can be identified by 
+\begin{verbatim}
+    typedef|f_t/par/*/[]/*/()
+\end{verbatim}
+
+\subsection{Property Identifiers}
+\label{impl-itemprops-property}
+
+Each property is identified by a two-letter code as follows:
+\begin{description}
+\item[Read-Only:] ro
+\item[Not-Null:] nn
+\item[No-String:] ns
+\item[Modification-Function:] mf
+\item[Heap-Use:] hu
+\item[Discard-Parameter:] dp
+\item[Result-Parameter:] rp
+\end{description}
+
+\subsection{Item Property Declarations}
+\label{impl-itemprops-decl}
+
+An item property declaration consists of a single text line which starts with an item identifier, followed
+by an arbitrary number of property identifiers in arbitrary order, separated by space sequences.
+For better readability a colon may be appended to the item identifier.
+
+As an example, to declare properties for the parameters \code{p1, par2, param3} of a function pointer \code{myfunp}
+and the Heap-Use property for the function itself, four declarations are needed:
+\begin{verbatim}
+    myfunp/*/p1:     nn ro
+    myfunp/*/par2:   rp mf
+    myfunp/*/param3: ns
+    myfunp/*:        hu
+\end{verbatim}
+
+\subsection{Internal Representation}
+\label{impl-itemprops-internal}
+
+When used the textual form is converted to an internal Haskell representation of type 
+\begin{verbatim}
+  type ItemProps = Map String [String]
+\end{verbatim}
+defined in module \code{Gencot.Traversal}. It maps item property identifiers to the list of identifiers of declared properties.
+If several declarations for the same item are present in the textual form they are combined by uniting the 
+declared properties. Repeated property specifications are removed, the order of the properties in the list is
+arbitrary.
+
+The \code{ItemProps} map is added as component to the user state of the \code{FTrav} monad. The monadic actions
+\begin{verbatim}
+  itemProperties :: String -> FTrav [String]
+  hasItemProperty :: String -> String -> FTrav Bool
+\end{verbatim}
+are defined in \code{Gencot.Traversal} for accessing the item properties.

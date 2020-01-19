@@ -1,8 +1,15 @@
-Gencot uses the information, whether a parameter value may be modified by a function, when it translates
-the function, as described in Section~\ref{design-types-function}.
+Normally, function parameters of linear type are be returned as part of the function result, 
+as described in Section~\ref{design-types-function}. The item properties Read-Only or Discard-Parameter
+(see Section~\ref{design-types-itemprops}) can be declared for such parameters to omit them from the function 
+result. Gencot provides specific support to detect when it is semantically possible to declare 
+these properties for a parameter.
 
+The Read-Only property can only be declared, if the parameter value is not modified by the C function implementation.
 A parameter is modified, when a part of it is changed, which is referenced through a pointer. Only then the 
 modification is shared with the caller and persists after the function call.
+
+The Discard-Parameter property can only be declared for the parameter of the external C standard function \code{free}
+or for parameters which are directly or indirectly passed to \code{free}.
 
 \subsection{Detecting Parameter Modifications}
 
@@ -15,12 +22,8 @@ to detect all parameter modifications.
 Gencot uses a simpler semiautomatic approach. It detects all direct parameter modifications which involve the 
 parameter name automatically. It then generates a JSON description which lists all functions with their parameters
 and the information about the detected modification cases. The developer has to check this description and
-manually add additional cases of other parameter modifications. The resulting description is then read by
-Gencot and used during translation.
-
-Gencot also treats the special cases, where a parameter is discarded (by directly or indirectly invoking the C standard
-function \code{free}) or is modified but already returned as the (single) result of the C function. These cases 
-must also be detected by the developer.
+manually add additional cases of other parameter modifications. The resulting description is then used by
+Gencot to declare the Read-Only property for all unmodified parameters.
 
 Parameter modifications are only relevant if the parameter is a pointer or if a pointer can be reached by the parameter
 and if at least one such pointer is not declared to have a \code{const} qualified referenced type. Gencot detects
@@ -77,93 +80,28 @@ of function pointer members in anonymous struct or union types are ignored by th
  
 \subsection{Described Entities}
 
-Gencot uses the information about parameter modifications when it maps a C function type or function pointer type
-to Cogent, as described in Section~\ref{design-types-function}. 
+Gencot uses the information about parameter modifications to declare Read-Only and Discard-Parameter properties
+for the parameters. 
 
 C function types are only used when functions are declared or defined. Function definitions are translated to
 Cogent for all functions defined in the Cogent compilation unit. Function declarations are translated to Cogent
 for all functions invoked but not defined in the Cogent compilation unit. In both cases Gencot automatically 
 determines the corresponding definitions or declarations and generates the JSON descriptions for them, to be
-filled by the developer and read when translating the C code to Cogent.
+filled by the developer and read when declaring item properties for parameters.
 
 C function pointer types can be used as type for several entities: for global and local variables, for members of struct
 and union types, for parameters and the result of declared and defined functions, and as base type or parameter 
 types in derived types.
 
 As described in Section~\ref{design-fundefs-body}, local variable declarations are not translated by Gencot, hence
-their types need not be mapped and no JSON description is provided if it is a function pointer type. In all other 
-cases, however, the declaration is translated to Cogent and the type must be mapped. For every C source file (also 
-\code{.h} files), the current version of Gencot provides JSON descriptions of all function pointer types which are 
-used
-\begin{itemize}
-\item for a global variable defined in the file (including those with internal linkage, see Section~\ref{design-files}),
-\item for a member of a tagged struct type defined in the file,
-\item for a parameter of a function defined in the file,
-\item as element type of an array type used for one of the kinds of entities specified above.
-\end{itemize}
-These are the cases where it is easy to create a unique identifier for the function pointer entities, which can be
-understood by the developer and used to associate the description to the entity when translating it to Cogent. The
-description is provided independent of whether the entity has parameters of linear type or not. If not, it is
-not needed by Gencot for translating the entity definition, however it may be needed as required invocation for
+their types need not be mapped and no JSON description is provided if it is a function pointer type. 
+For all other items (in the sense of Section~\ref{design-types-itemprops}) which have a function pointer type Gencot 
+provides a JSON description. The
+description is provided independent of whether the function has parameters of linear type or not. If not, it is
+not needed by Gencot for translating the item's type, however it may be needed as required invocation for
 calculating information for parameters depending on it.
 
-In all other cases, such as a parameter type of another function pointer type, or a member of a tagless struct,
-Gencot does not provide or use
-JSON descriptions when mapping the type. For parameters of linear type it always assumes that they may be modified
-and are not discarded and maps the type to a corresponding Cogent type name.
-
-\subsection{Function Pointer Type Names}
-\label{design-parmod-typedef}
-
-In C, in the definition of an entity of function pointer type, the type may be specified directly as a derived
-type, or it may be specified by a typedef name. In the latter case, several entities may share a common
-function pointer type which is specified in the type name definition.
-
-The parameter modification descriptions are needed for all single function pointer entities, since these are
-used in invocations and may be required for calculating dependencies for parameters of other functions. If 
-several entities use a common typedef name, they must agree on the parameter modification description and
-the common description must be known to Gencot when translating the type name definition.
-
-The situation can be even more complex if first a typedef name for a function type is defined and then several
-different typedef names for function pointer types or function pointer array types are derived from it. All
-these typedef names and the corresponding entities must agree on the parameter modification description.
-
-However, entities using a common typedef name may be defined in different C source files and even in different
-C compilation units, some of which belong to the Cogent compilation unit and others are external to it, but may
-be added later. This makes it impossible to guarantee that the descriptions for all entities are available
-and agree, if an incremental translation to Cogent shall be supported.
-
-For this reason Gencot does not relate entities with a common typedef name and does not test whether their
-descriptions agree, they are processed completely independently. For translating the type name definition,
-Gencot uses another parameter modification description, which is also independent from those of the entities.
-It is the task of the developer to take care that all these descriptions agree. If they do not, this will 
-cause inconsistent uses of the Cogent type to which the common type name is mapped in the generated Cogent code.
-
-Note that, in contrast to the entities, the defined type may directly be a function type. As described in 
-Section~\ref{design-types-typedef} such a type definition is not translated to a definition for a Cogent function
-type, instead it is translated in the same way as for a function pointer type, mapping to a generated Cogent
-abstract type name. This makes it possible to translate derived pointer types and pointer array types to 
-Cogent using the mapped type name only, the parameter modification description is only needed for translating
-the original function type definition. For example the C type name definitions
-\begin{verbatim}
-  typedef int fun(int,char*);
-  typedef fun *pfun;
-\end{verbatim}
-where the second parameter may be modified, are translated to the Cogent type definitions
-\begin{verbatim}
-  type Cogent_fun = #(CFun ((U32,CPtr U8) -> (U32,CPtr U8)))
-  type Cogent_pfun = #Cogent_fun
-\end{verbatim}
-so that the parameter modification description is only needed for the first type definition translation.
-
-The additional parameter modification descriptions are associated with the common type name of the definition
-which directly contains the derived function type. For every C source file (also 
-\code{.h} files) Gencot provides JSON descriptions for all such type name definition in the file, where the defined
-type is a function type, a function pointer type, or an array type with a function pointer type
-as element type. The
-description is provided independent of whether the function type has parameters of linear type or not. If not,
-the description is not used at all by Gencot, but it may be useful as additional information for the developer.
-
-More complex types involving a derived function type are ignored. As for the corresponding
-entities Gencot assumes for their translation that all parameters of linear type may be modified.
+If a function type is specified by a typedef name in C, the parameters are collective items and properties can only 
+be declared for them collectively. In this case Gencot does not provide a JSON description for the individual
+item to which the function type applies, but instead a JSON description for the typedef name as a collective item.
 

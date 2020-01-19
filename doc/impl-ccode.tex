@@ -1172,7 +1172,8 @@ The starting identifier can be locally declared, such as a parameter of the func
 declaration information of these identifiers would not be available after the traversal which builds the call graph.
 To make the full information about the invoked functions available, Gencot inserts the declarations into the call graph 
 instead of the identifiers. In the case of a member access chain it uses the struct or union type which has the 
-invoked function pointer or the indexed function pointer array as its direct member.
+invoked function pointer or the indexed function pointer array as its direct member. This struct or union type
+must have a declared tag, otherwise the invocation is ignored and not inserted into the call graph.
 
 The information about such an invocation in a function body is represented by the following type:
 \begin{verbatim}

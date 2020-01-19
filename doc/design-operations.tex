@@ -11,7 +11,8 @@ included in a Cogent source.
 \label{design-operations-dummy}
 
 For every mapped type Gencot defines a dummy expression of that type. It is used as a replacement for the actual 
-body when translating C functions (see Section~\ref{design-fundefs}).
+body when translating C functions (see Section~\ref{design-fundefs}), so that the resulting Cogent code is 
+syntactically valid and can be processed and checked by the Cogent compiler.
 
 The dummy expression for all mapped numerical and enumeration types is the literal \code{0}.
 The dummy expression for the unit type (used for functions which have \code{void} as result type) is the 
@@ -107,6 +108,10 @@ instances of \code{create} and \code{dispose} for all types implemented as Cogen
   create[EVT(CPtr U32)]
 \end{verbatim}
 
+Note that although it is syntactically possible to use a type \code{MayNull P} as type argument for \code{create}
+and \code{dispose}, it does not make sense, because a successful result of \code{create} is never \code{NULL} and
+\code{dispose} need not be applied to \code{NULL}.
+
 \subsection{Modifying Boxed Values}
 \label{design-operations-modify}
 
@@ -146,6 +151,11 @@ or other modification functions to its
 first argument. An abstract Cogent function is a modification function
 if the C implementation always returns the same pointer, without deallocating it in between.
 
+When the item property Modification-Function (see Section~\ref{design-types-itemprops}) has been declared for a C function, Gencot
+translates it to the form of a modification function, i.e. it arranges the parameter and result types to be pairs of the type
+of the first parameter of linear type and a tuple of all other relevant types. Gencot then uses a type of the form 
+\code{ModFun Obj (...) (...)} as type of the translated function.
+
 The put operation can now be represented as a function of type \code{ModTypeFun R (R put f) V ()} where \code{R} is the type of
 \code{r} and \code{V} that of field \code{f} and value \code{v}. If the field is not taken in \code{R} the type is \code{ModFun R V ()}.
 The take operation can be represented as a function of type \code{ModTypeFun R (R take f) () V}, it returns 
@@ -155,7 +165,8 @@ In case of an error a \code{ModTypeFun} may not be able to produce a result valu
 a function type for ``transactional'' modification functions which either succeed or ``roll back'' the modification and return 
 the original input value:
 \begin{verbatim}
-  type TModTypeFun obj res arg out = (obj,arg) -> Result (res,out) (obj,out)
+  type TModTypeFun obj res arg out = 
+     (obj,arg) -> Result (res,out) (obj,out)
 \end{verbatim}
 using the variant type \code{Result} from the Cogent standard library. The result type is not defined in the form 
 \code{(Result res obj,out)} because then it must always be bound explicitly before it can be used in a match expression.
@@ -635,7 +646,6 @@ operations. Then the code for the initialization example above is
 and for the clearing example is
 \begin{verbatim}
   let p{cont=h}
-  and h{cont}
   and heap = dispose(h,heap)
   in (p,heap)
 \end{verbatim}

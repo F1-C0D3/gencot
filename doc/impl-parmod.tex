@@ -122,94 +122,9 @@ descriptions.
 \subsection{Identifiers for Functions and Parameters}
 \label{impl-parmod-ids}
 
-\subsubsection{Function Identifiers}
-
 In the JSON description unique identifiers are needed for all described functions, so that they can be referenced by
-invocations.
-
-Functions can always be identified by their name. However, for functions with internal linkage the name is only unique
-per compilation unit, whereas the JSON description may span several compilation units. Therefore, functions with 
-external linkage are identified by their plain name (which is an unstructured C identifier), functions with
-internal linkage are identified in the form
-\begin{verbatim}
-    <source file name> : <function name>
-\end{verbatim}
-If the source file name has extension \code{".c"} the extension is omitted, otherwise (typically in the case of \code{".h"})
-it is not omitted, resulting in identifiers such as \code{"app.h:myfunction"}.
-
-As source file name only the base name is used. C packages with source files of the same name in different directories are
-not supported by the current Gencot version.
-
-Function pointers can be identified by the pointer name. Note that several different functions may be invoked through
-a function pointer at different times. However, for the analysis of parameter modifications \textit{all} functions
-invokable through the pointer must be taken into account and together be described. Therefore a single id for the function
-pointer is sufficient. To inform the developer that it is a function pointer, we prepend a star to the pointer name:
-\begin{verbatim}
-    * <function pointer name>
-\end{verbatim}
-
-Gencot also supports parameter modification descriptions for arrays of function pointers. Here all array elements
-are described together by a single description. To inform the developer that the description is for a function
-pointer array, the identifier has the form
-\begin{verbatim}
-    *[] <function pointer name>
-\end{verbatim}
-No other types derived from a function pointer are supported by parameter modification descriptions.
-
-A function pointer (array) may be globally defined, then it may have external or internal linkage. In the latter case we
-prepend the source file name to make it unique, as described above:
-\begin{verbatim}
-    <source file name> : <function pointer (array)>
-\end{verbatim}
-
-A function pointer (array) may also be locally defined in another function. To get a unique identifier we prepend the 
-identifier of the containing function:
-\begin{verbatim}
-    <function identifier> / <function pointer (array)>
-\end{verbatim}
-The JSON description contains only entries for functions which are defined or invoked. Function invocations can only
-occur in function definitions which have a body. Therefore local function pointers are only relevant in defined
-functions which cannot be function pointers themselves. This implies that a local function pointer id is always 
-one-level consisting of a global function id and a function pointer name.
-
-A function pointer (array) may also be a member of a struct or union type. Here we do not differentiate between different instances 
-of this type, we describe the members of all such instances together using the member name as function pointer name in
-\begin{verbatim}
-    <tag> . <function pointer (array)>
-\end{verbatim}
-where \code{<tag>} is the tag name of the struct or union type. 
-
-Finally, as described in Section~\ref{design-parmod-typedef}, Gencot uses parameter modification descriptions for
-typedef names where the type involves a derived function type. In this case the id has the form
-\begin{verbatim}
-    typedef | <function (pointer (array))>
-\end{verbatim}
-where the defined typedef name is used as function pointer name. Here, the defined type may also be a function type,
-in this case the id has the form \code{typedef|<typedef name>} omitting the star before the \code{<typedef name>}.
-Thus for the type name definition
-\begin{verbatim}
-  typedef int fun(int,char*);
-\end{verbatim}
-a description with id \code{typedef|fun} is used whereas for
-\begin{verbatim}
-  typedef int (*fun)(int,char*);
-\end{verbatim}
-a description with id \code{typedef|*fun} is used.
-
-There are other cases of function pointers, such as function pointer members in anonymous struct
-types which are not named by a tag, or function pointers which are parameters of another function pointer type.
-Gencot does not generate identifiers for them, ignores invocations of such function pointers, and does not use
-parameter modification descriptions for their mapping.
-
-However, if such function pointers are needed as required invocations in other parameter modification descriptions,
-it is possible to add them manually. Then it is the task of the developer to identify such invocations,
-determine whether they are relevant for parameter modification dependencies, create a unique identifier for them and
-add them manually to the JSON description. 
-
-Whenever Gencot reads and processes a JSON parameter modification description it treats all function identifiers as
-opaque unique strings, hence manually created function identifiers need not conform to any schema.
-
-\subsubsection{Parameter Identifiers}
+invocations. Gencot uses the item identifiers as defined in Section~\ref{impl-itemprops-ids} as function identifiers.
+An item identifier is a function identifier, if the item has a derived function type.
 
 In the JSON description unique identifiers are also needed for all described function parameters, so that they can 
 be referenced by argument descriptions. Since these references are always local in a function description, parameter
@@ -260,7 +175,7 @@ invoked by that function.
             , "3-__n" :"nonlinear" 
             } 
         , 
-            { "name" :"app:somefun/*f_sort" 
+            { "name" :"app:somefun/f_sort/*" 
             , "num_params" :3
             , "1-arr" :[ "3-input" ]
             , "2-h" :[]
@@ -269,7 +184,7 @@ invoked by that function.
         ] 
     } 
 , 
-    { "f_name" :"app:somefun/*f_sort"
+    { "f_name" :"app:somefun/f_sort/*"
     , "f_comments" :"" 
     , "f_def_loc" :"app.c" 
     , "f_num_params" :3
@@ -279,10 +194,10 @@ invoked by that function.
     } 
 ]
 \end{verbatim}
-The description is not closed, since it does not contain an entry for the invocation \code{memcopy}. This
+The description is not closed, since it does not contain an entry for the invocation \code{memcpy}. This
 invocation is required, since parameter \code{input} of \code{somefun} depends on its first argument
 which is neither nonlinear nor readonly. If the description of parameter \code{input} is changed
-to \code{"yes"}, the description is closed, since now the invocation \code{memcopy} is not required
+to \code{"yes"}, the description is closed, since now the invocation \code{memcpy} is not required
 anymore.
 
 \subsection{Reading and Writing Json}
@@ -349,7 +264,7 @@ be consistent, Gencot also prefers modifications resulting from dependencies aft
 
 Since in evaluated parameter modification descriptions all parameter descriptions are still confirmed, the only values
 possible for a parameter description are \code{"nonlinear"}, \code{"readonly"}, \code{"yes"}, \code{"discarded"}, and \code{"no"}.
-This information is used by Gencot when translating function parameter and result types, as described in Section~\ref{design-parmod}.
+This information is used for declaring the properties Read-Only and Discard-Parameter for the function parameters.
 
 \subsection{Haskell Modules}
 \label{impl-parmod-modules}
@@ -364,15 +279,6 @@ Module \code{Gencot.Json.Parmod} defines the following types for representing pa
 They are used for constructing and processing the JSON representation. Type \code{Parmod} represents a single
 function description as a JSON object with arbitrary JSON values. Type \code{Parmods} represents a full parameter modification
 description consisting of a sequence of function descriptions.
-
-Module \code{Gencot.Traversal} defines the type \code{ParmodMap} as follows:
-\begin{verbatim}
-  type ParmodMap = Map String [String]
-\end{verbatim}
-It is used to represent the information from an evaluated parameter modification description for 
-applying it. It is a map from function identifiers to the list of parameter description values according to the function's
-parameters. Additionally, if a function description contains an attribute \code{f\_result} and the specified parameter
-has description value \code{"yes"}, its value in the \code{ParmodMap} is changed to \code{"result"}.
 
 Module \code{Gencot.Json.Translate} defines the translation from C source code to parameter modification descriptions
 in JSON format. The monadic action
@@ -397,7 +303,7 @@ The main functions are
   sortParmods :: Parmods -> [String] -> Parmods
   addParsFromInvokes :: Parmods -> Parmods
   evaluateParmods :: Parmods -> Parmods
-  convertParmods :: Parmods -> ParmodMap
+  convertParmods :: Parmods -> ItemProps
 \end{verbatim}
 The first function retrieves the list of all unconfirmed parameters in the form
 \begin{verbatim}
@@ -413,5 +319,10 @@ in a parameter modification description according to the order specified by a li
 modification description is reduced to the functions specified in the list. If a function occurs in the list more than once, 
 the position of its first occurrence is used for the ordering.
 The function \code{evaluateParmods} evaluates a parameter modification description as described in 
-Section~\ref{impl-parmod-eval}. The function \code{convertParmods} converts the JSON representation to the compact
-form \code{ParmodMap} (also interpreting \code{f\_result} attributes) for applying it when generating Cogent code.
+Section~\ref{impl-parmod-eval}. 
+
+The function \code{convertParmods} converts the JSON representation to an item
+property map (see Section~\ref{impl-itemprops-internal} with declarations of the properties Read-Only, Discard-Parameter,
+Result-Parameter for all parameters with a description of \code{"no"} or \code{"discarded"} or referenced by
+an \code{f\_result} attribute. This map can then be merged with a manually defined item property map for being used
+by Gencot when translating C types to Cogent types.

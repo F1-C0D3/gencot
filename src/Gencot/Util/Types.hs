@@ -240,13 +240,14 @@ selNonDerived p (LCA.FunctionType (LCA.FunTypeIncomplete rt) _) = selNonDerived 
 selNonDerived p t = considerType p t
 
 -- | Get derived types occurring syntactically in a type, including the type itself.
--- All result types are paired with a function id. The first argument is a function id for the type itself.
+-- All result types are paired with an item id. The first argument is an item id for the type itself.
 getDerivedParts :: String -> LCA.Type -> [(String,LCA.Type)]
-getDerivedParts fid t@(LCA.PtrType bt _ _) = (fid,t) : getDerivedParts "" bt
-getDerivedParts fid t@(LCA.ArrayType bt _ _ _) = (fid,t) : getDerivedParts "" bt
-getDerivedParts fid t@(LCA.FunctionType (LCA.FunType rt pars _) _) = 
-    (fid,t) : union (getDerivedParts "" rt) (nub $ concat $ map ((getDerivedParts "") . LCA.declType) pars)
-getDerivedParts fid t@(LCA.FunctionType (LCA.FunTypeIncomplete rt) _) = (fid,t) : getDerivedParts "" rt
+getDerivedParts iid t@(LCA.PtrType bt _ _) = (iid,t) : getDerivedParts (getRefSubItemId iid) bt
+getDerivedParts iid t@(LCA.ArrayType bt _ _ _) = (iid,t) : getDerivedParts (getElemSubItemId iid) bt
+getDerivedParts iid t@(LCA.FunctionType (LCA.FunType rt pars _) _) = 
+    (iid,t) : union (getDerivedParts (getResultSubItemId iid) rt) 
+                    (nub $ concat $ map (\p -> getDerivedParts (getParamSubItemId iid p) $ LCA.declType p) pars)
+getDerivedParts iid t@(LCA.FunctionType (LCA.FunTypeIncomplete rt) _) = (iid,t) : getDerivedParts (getResultSubItemId iid) rt
 getDerivedParts _ _ = []
 
 isLinearType :: MonadSymtab m => LCA.Type -> m Bool
@@ -457,8 +458,10 @@ getPointedType t | isArray t = getPointedType rt
     where (LCA.ArrayType rt _ _ _) = resolveTypedef t
 getPointedType _ = error "No pointer (array) type passed to getPointedType"
 
-wrapFunAsPointer :: LCA.Type -> LCA.Type
-wrapFunAsPointer t@(LCA.FunctionType _ _) = (LCA.PtrType t LCA.noTypeQuals [])
+-- | Adjust a function type as function pointer type, together with its item identifier.
+-- The item identifier is adjusted by prepending a "&".
+wrapFunAsPointer :: (String,LCA.Type) -> (String,LCA.Type)
+wrapFunAsPointer (iid,t@(LCA.FunctionType _ _)) = ("&" ++ iid, (LCA.PtrType t LCA.noTypeQuals []))
 wrapFunAsPointer t = t
 
 getFunType :: LCA.Type -> LCA.FunType

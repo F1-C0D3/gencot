@@ -31,7 +31,7 @@ main = do
     {- parse and analyse C source and get global definitions -}
     table <- readFromInput_
     {- translate global declarations and definitions to Cogent -}
-    toplvs <- runFTrav table (fnam,convertParmods parmods,nub spl) $ transGlobals $ getOwnDeclEvents (globalDefs table) constructFilter
+    toplvs <- runFTrav table (fnam,convertParmods parmods,nub spl,[]) $ transGlobals $ getOwnDeclEvents (globalDefs table) constructFilter
     {- Output -}
     print $ prettyTopLevels toplvs
 

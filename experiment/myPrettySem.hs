@@ -1,3 +1,4 @@
+{-# LANGUAGE PackageImports #-}
 module Main where
 import System.Environment
 import System.FilePath
@@ -9,7 +10,7 @@ import Debug.Trace
 import Text.PrettyPrint.HughesPJ
 import Data.List
 
-import Language.C              -- simple API
+import "language-c" Language.C              -- simple API
 import Language.C.Analysis     -- analysis API
 import Language.C.Analysis.Debug -- debugging printer for analysis
 import Language.C.System.GCC   -- preprocessor used

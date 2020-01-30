@@ -41,7 +41,7 @@ main = do
     {- Get declarations of external invoked functions and invoked or listed variables -}    
     let extDecls = getDeclEvents (globalDefs table) (constructFilter invks varnams)
     {- translate external function declarations to Cogent abstract function definitions -}
-    absdefs <- runFTrav table ("", parmods,nub spl) $ transGlobals extDecls
+    absdefs <- runFTrav table ("", parmods,nub spl,[]) $ transGlobals extDecls
     {- Output -}
     print $ prettyTopLevels absdefs
 

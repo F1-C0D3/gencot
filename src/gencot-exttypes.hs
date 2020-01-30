@@ -50,7 +50,7 @@ main = do
     {- construct transitive closure of used type carriers -}
     let typeCarriers = transCloseUsedCarriers table unitTypeCarriers
     {- translate type definitions in system include files -}
-    toplvs <- runFTrav table ("", parmods,nub spl) $ transExtGlobals unitTypeNames $ sort $ filter isExternDef typeCarriers
+    toplvs <- runFTrav table ("", parmods,nub spl,unitTypeNames) $ transExtGlobals unitTypeNames $ sort $ filter isExternDef typeCarriers
     {- Output -}
     print $ prettyTopLevels toplvs
 

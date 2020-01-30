@@ -241,6 +241,7 @@ selNonDerived p t = considerType p t
 
 -- | Get derived types occurring syntactically in a type, including the type itself.
 -- All result types are paired with an item id. The first argument is an item id for the type itself.
+{-
 getDerivedParts :: String -> LCA.Type -> [(String,LCA.Type)]
 getDerivedParts iid t@(LCA.PtrType bt _ _) = (iid,t) : getDerivedParts (getRefSubItemId iid) bt
 getDerivedParts iid t@(LCA.ArrayType bt _ _ _) = (iid,t) : getDerivedParts (getElemSubItemId iid) bt
@@ -249,6 +250,7 @@ getDerivedParts iid t@(LCA.FunctionType (LCA.FunType rt pars _) _) =
                     (nub $ concat $ map (\p -> getDerivedParts (getParamSubItemId iid p) $ LCA.declType p) pars)
 getDerivedParts iid t@(LCA.FunctionType (LCA.FunTypeIncomplete rt) _) = (iid,t) : getDerivedParts (getResultSubItemId iid) rt
 getDerivedParts _ _ = []
+-}
 
 isLinearType :: MonadSymtab m => LCA.Type -> m Bool
 isLinearType td@(LCA.TypeDefType _ _ _) = isLinearType $ resolveTypedef td
@@ -329,14 +331,6 @@ isCompOrFunc (LCA.DirectType (LCA.TyComp _) _ _) = True
 isCompOrFunc (LCA.FunctionType _ _) = True
 isCompOrFunc _ = False
 
-isAggPointer :: TypePred
-isAggPointer (LCA.PtrType t _ _) = isAggregate t
-isAggPointer _ = False
-
-isCompPointer :: TypePred
-isCompPointer (LCA.PtrType t _ _) = isComposite t
-isCompPointer _ = False
-
 isNamedFunPointer :: TypePred
 isNamedFunPointer (LCA.PtrType t _ _) = isTypeDefRef t && isFunction t
 isNamedFunPointer _ = False
@@ -393,6 +387,14 @@ isVoid td@(LCA.TypeDefType _ _ _) = isVoid $ resolveTypedef td
 isVoid (LCA.DirectType LCA.TyVoid _ _) = True
 isVoid _ = False
 
+isAggPointer :: TypePred
+isAggPointer (LCA.PtrType t _ _) = isAggregate t
+isAggPointer _ = False
+
+isCompPointer :: TypePred
+isCompPointer (LCA.PtrType t _ _) = isComposite t
+isCompPointer _ = False
+
 -- | Type which does not refer to other types
 isLeafType :: TypePred
 isLeafType (LCA.DirectType (LCA.TyComp _) _ _) = False
@@ -411,6 +413,12 @@ isTagRef _ = False
 isTypeDefRef :: TypePred
 isTypeDefRef (LCA.TypeDefType _ _ _) = True
 isTypeDefRef _ = False
+
+isDerivedType :: TypePred
+isDerivedType (LCA.PtrType _ _ _) = True
+isDerivedType (LCA.ArrayType _ _ _ _) = True
+isDerivedType (LCA.FunctionType _ _) = True
+isDerivedType _ = False
 
 containsTypedefs :: TypePred
 containsTypedefs (LCA.TypeDefType _ _ _) = True

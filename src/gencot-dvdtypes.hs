@@ -51,7 +51,7 @@ main = do
     {- construct transitive closure of used type carriers -}
     let typeCarriers = transCloseUsedCarriers table unitTypeCarriers
     {- generate abstract definitions for derived types in all type carriers -}
-    toplvs <- runFTrav table ("", parmods,nub spl) $ genTypeDefs unitTypeNames $ typeCarriers
+    toplvs <- runFTrav table ("", parmods,nub spl,unitTypeNames) $ genTypeDefs unitTypeNames $ typeCarriers
     {- Output -}
     print $ prettyTopLevels toplvs
 

@@ -1,10 +1,11 @@
+{-# LANGUAGE PackageImports #-}
 import System.Environment (getArgs)
 import System.Exit (exitWith, ExitCode(ExitFailure))
 import System.IO (hPutStrLn, stderr)
 import Control.Monad (when)
 import Text.PrettyPrint.HughesPJ (render, text, (<+>), hsep)
 
-import Language.C (parseCFile)
+import "language-c" Language.C (parseCFile)
 import Language.C.System.GCC (newGCC)
 
 usageMsg :: String -> String

@@ -74,7 +74,8 @@ transGlobal (LCA.DeclEvent (LCA.Declaration decl@(LCA.Decl _ n))) | isComplete t
     f <- transObjName $ LCA.declIdent decl
     fid <- parmodFunId decl
     t <- transType False fid typ
-    return $ [GenToplv (CS.AbsDec f (CS.PT [] $ mkFunType t)) $ mkOrigin n]
+    nt <- transTagIfNested typ n
+    return $ wrapOrigin n (nt ++ [GenToplv (CS.AbsDec f (CS.PT [] $ mkFunType t)) noOrigin])
     where typ = LCA.declType decl
 -- Translate a C function definition of the form
 -- > rt name(parlist) { stmt }
@@ -87,6 +88,7 @@ transGlobal (LCA.DeclEvent (LCA.FunctionDef fdef@(LCA.FunDef decl stat n))) = do
     f <- transObjName $ LCA.declIdent decl
     fid <- parmodFunId fdef
     t <- transType False fid typ
+    nt <- transTagIfNested typ n -- wirkt erst wenn transTagIfNested auch derived types verarbeitet
     ps <- transParamNames isVar pars
     LCA.enterFunctionScope
     LCA.defineParams LCN.undefNode decl
@@ -94,7 +96,7 @@ transGlobal (LCA.DeclEvent (LCA.FunctionDef fdef@(LCA.FunDef decl stat n))) = do
     d <- extendExpr fdef d pars
     s <- transStat stat
     LCA.leaveFunctionScope
-    return $ [GenToplv (CS.FunDef f (CS.PT [] t) [CS.Alt ps CCS.Regular $ FunBody d s]) $ mkOrigin n]
+    return $ wrapOrigin n (nt ++ [GenToplv (CS.FunDef f (CS.PT [] t) [CS.Alt ps CCS.Regular $ FunBody d s]) noOrigin])
     where typ = LCA.declType decl
           (LCA.FunctionType (LCA.FunType res pars isVar) _) = typ
 -- Translate a C object definition of the form
@@ -107,7 +109,8 @@ transGlobal (LCA.DeclEvent odef@(LCA.ObjectDef (LCA.ObjDef decl@(LCA.VarDecl (LC
     f <- transObjName idnam
     fid <- parmodFunId odef
     t <- transType False fid typ
-    return $ [GenToplv (CS.AbsDec f (CS.PT [] $ mkFunType t)) $ mkOrigin n]
+    nt <- transTagIfNested typ n
+    return $ wrapOrigin n (nt ++ [GenToplv (CS.AbsDec f (CS.PT [] $ mkFunType t)) noOrigin])
 -- Translate a C enumerator definition of the form
 -- > name = expr;
 -- to a Cogent constant definition of the form

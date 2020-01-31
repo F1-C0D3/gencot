@@ -2,7 +2,7 @@
 module Gencot.Cogent.Translate where
 
 import Control.Monad (liftM,when)
-import Data.List (nub,isPrefixOf)
+import Data.List (nub,isPrefixOf,isInfixOf)
 import Data.Map (Map,singleton,unions,toList)
 import Data.Maybe (catMaybes)
 
@@ -411,7 +411,7 @@ transType rslv (iid, t@(LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _)) = do
 transType _ (iid, (LCA.PtrType t _ _)) | isVoid t = do
     safe <- isSafePointer iid
     return $ addMayNullIfNot safe $ genType $ CS.TCon mapPtrVoid [] markBox
--- Derived pointer type for unnamed function type t:
+-- Derived pointer type for function type t:
 -- Encode t, apply CFunPtr or CFunInc and make unboxed.
 transType rslv iat@(_, (LCA.PtrType t _ _)) | isFunction t = do
     enctyp <- encodeType rslv $ getRefSubItemAssoc iat t
@@ -426,9 +426,9 @@ transType rslv iat@(iid, (LCA.PtrType t _ _)) | isArray t = do
 -- Derived pointer type for other type t:
 -- Translate t. If unboxed and no function pointer make boxed, otherwise apply CPtr. Always boxed.
 -- If not safe pointer apply MayNull.
-transType rslv iat@(iid, (LCA.PtrType t _ _)) = do
+transType rslv iat@(iid, pt@(LCA.PtrType t _ _)) = do
     safe1 <- isSafePointer iid
-    safe2 <- isSafePointer $ derivedItemId t
+    safe2 <- isSafePointer $ derivedItemId pt
     let safe = safe1 || safe2
     typ <- transType rslv $ getRefSubItemAssoc iat t
     let rtyp = if (isUnboxed typ) && not (isFunPointer t) 
@@ -481,7 +481,12 @@ encodeType rslv (iid, t@(LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _)) = do
     where tn = mapNameToUpper idnam
           ustep = if isAggregate typ then mapUboxStep else ""
           rtyp = (ustep ++ tn)
--- Derived pointer type for aggregate type t:
+-- Derived pointer type for function type t:
+-- Encode t, prepend pointer derivation step.
+encodeType rslv iat@(_, (LCA.PtrType t _ _)) | isFunction t = do
+    tn <- encodeType rslv $ getRefSubItemAssoc iat t
+    return (mapPtrStep ++ tn)
+-- Derived pointer type for other type t:
 -- Encode t, for aggregate type remove unbox step, otherwise prepend pointer derivation step.
 -- If not a safe pointer, add MayNull step.
 encodeType rslv iat@(iid, (LCA.PtrType t _ _)) = do
@@ -606,6 +611,7 @@ applyParmods _ _ t = return t
 -- Third parameter tells whether the function is variadic.
 getParamMods :: String -> [LCA.ParamDecl] -> Bool -> FTrav [String]
 getParamMods fid pars variadic = do
+    --when ("struct|pmd" `isPrefixOf` fid) $ error ("fid: " ++ fid)
     pms <- getParmods fid
     let vpms = if variadic then pms ++ ["no"] else pms
     dpms <- mapM mkDefaultParmod pts

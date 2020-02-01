@@ -21,10 +21,10 @@ import Cogent.Util (ffmap)
 
 import Gencot.Origin (Origin,noOrigin,origin,mkOrigin,noComOrigin,mkBegOrigin,mkEndOrigin,prepOrigin,appdOrigin,isNested,toNoComOrigin)
 import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapNameToLower,mapPtrDeriv,mapPtrVoid,mapMayNull,mapArrDeriv,mapFunDeriv,arrDerivHasSize,arrDerivToUbox,mapUboxStep,rmUboxStep,mapMayNullStep,rmMayNullStep,mapPtrStep,mapFunStep,mapIncFunStep,mapArrStep,mapModStep,mapRoStep,mapNamFunStep,srcFileName)
-import Gencot.Items (ItemAssocType,getIndividualItemId,getTagItemId,derivedItemId,getIndividualItemAssoc,getTypedefItemAssoc,adjustItemAssocType,getMemberSubItemAssoc,getRefSubItemAssoc,getResultSubItemAssoc,getElemSubItemAssoc,getParamSubItemAssoc,getItemAssocTypes,getSubItemAssocTypes)
+import Gencot.Items (ItemAssocType,isSafePointerItem,getIndividualItemId,getTagItemId,derivedItemIds,getIndividualItemAssoc,getTypedefItemAssoc,adjustItemAssocType,getMemberSubItemAssoc,getRefSubItemAssoc,getResultSubItemAssoc,getElemSubItemAssoc,getParamSubItemAssoc,getItemAssocTypes,getSubItemAssocTypes)
 import Gencot.Cogent.Ast
 import Gencot.C.Translate (transStat,transExpr)
-import Gencot.Traversal (FTrav,getParmods,markTagAsNested,isMarkedAsNested,isSafePointer)
+import Gencot.Traversal (FTrav,getParmods,markTagAsNested,isMarkedAsNested)
 import Gencot.Util.Types (carriedTypes,usedTypeNames,resolveFully,isExtern,isCompOrFunc,isCompPointer,isNamedFunPointer,isFunPointer,isPointer,isAggregate,isFunction,isTypeDefRef,isComplete,isArray,isVoid,isTagRef,containsTypedefs,resolveTypedef,isComposite,isLinearType,isLinearParType,isReadOnlyType,isReadOnlyParType,isDerivedType,wrapFunAsPointer,getTagDef)
 import Gencot.Json.Identifier ()
 
@@ -394,10 +394,8 @@ transType _ (_, (LCA.DirectType tnam _ _)) = do
 -- Otherwise translate to mapped name. Unboxed for struct, union, function, or function pointer, otherwise boxed.
 -- If the typedef name is a safe pointer, omit or remove MayNull
 -- otherwise move a MayNull from the resolved type to the mapped name.
-transType rslv (iid, t@(LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _)) = do
-    safe1 <- isSafePointer iid
-    safe2 <- isSafePointer $ derivedItemId t
-    let safe = safe1 || safe2
+transType rslv iat@(iid, (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _)) = do
+    safe <- isSafePointerItem iat
     rslvtyp <- transType True $ getTypedefItemAssoc idnam typ
     if rslv
        then return $ rmMayNullIf safe rslvtyp
@@ -408,8 +406,8 @@ transType rslv (iid, t@(LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _)) = do
 -- Pointer to void:
 -- Translate to: CVoidPtr
 -- If not safe pointer: MayNull CVoidPtr
-transType _ (iid, (LCA.PtrType t _ _)) | isVoid t = do
-    safe <- isSafePointer iid
+transType _ iat@(iid, (LCA.PtrType t _ _)) | isVoid t = do
+    safe <- isSafePointerItem iat
     return $ addMayNullIfNot safe $ genType $ CS.TCon mapPtrVoid [] markBox
 -- Derived pointer type for function type t:
 -- Encode t, apply CFunPtr or CFunInc and make unboxed.
@@ -420,16 +418,14 @@ transType rslv iat@(_, (LCA.PtrType t _ _)) | isFunction t = do
 -- Translate t and use as result. Always boxed.
 -- If not safe pointer: apply MayNull
 transType rslv iat@(iid, (LCA.PtrType t _ _)) | isArray t = do
-    safe <- isSafePointer iid
+    safe <- isSafePointerItem iat
     typ <- transType rslv $ getRefSubItemAssoc iat t
     return $ addMayNullIfNot safe typ
 -- Derived pointer type for other type t:
 -- Translate t. If unboxed and no function pointer make boxed, otherwise apply CPtr. Always boxed.
 -- If not safe pointer apply MayNull.
 transType rslv iat@(iid, pt@(LCA.PtrType t _ _)) = do
-    safe1 <- isSafePointer iid
-    safe2 <- isSafePointer $ derivedItemId pt
-    let safe = safe1 || safe2
+    safe <- isSafePointerItem iat
     typ <- transType rslv $ getRefSubItemAssoc iat t
     let rtyp = if (isUnboxed typ) && not (isFunPointer t) 
                 then setBoxed typ
@@ -470,10 +466,8 @@ encodeType _ (_, (LCA.DirectType tnam _ _)) = do
 -- Otherwise, encode as mapped name. For struct, union, or array prepend unbox step.
 -- If the typedef name is a safe pointer, omit or remove MayNull step
 -- otherwise move a MayNull step from the resolved type to the mapped name.
-encodeType rslv (iid, t@(LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _)) = do
-    safe1 <- isSafePointer iid
-    safe2 <- isSafePointer $ derivedItemId t
-    let safe = safe1 || safe2
+encodeType rslv iat@(iid, (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _)) = do
+    safe <- isSafePointerItem iat
     rslvtyp <- encodeType True $ getTypedefItemAssoc idnam typ
     if rslv
        then return $ rmMayNullStepIf safe rslvtyp
@@ -489,10 +483,8 @@ encodeType rslv iat@(_, (LCA.PtrType t _ _)) | isFunction t = do
 -- Derived pointer type for other type t:
 -- Encode t, for aggregate type remove unbox step, otherwise prepend pointer derivation step.
 -- If not a safe pointer, add MayNull step.
-encodeType rslv iat@(iid, (LCA.PtrType t _ _)) = do
-    safe1 <- isSafePointer iid
-    safe2 <- isSafePointer $ derivedItemId t
-    let safe = safe1 || safe2
+encodeType rslv iat@(iid, pt@(LCA.PtrType t _ _)) = do
+    safe <- isSafePointerItem iat
     tn <- encodeType rslv $ getRefSubItemAssoc iat t
     let htn = if isAggregate t then (rmUboxStep tn) else (mapPtrStep ++ tn)
     return $ addMayNullStepIfNot safe htn
@@ -538,15 +530,6 @@ transTNam (LCA.TyIntegral TyULLong) =  return "U64"
 transTNam (LCA.TyFloating _) =         return "err-float"
 transTNam (LCA.TyComplex _) =          return "err-complex"
 transTNam (LCA.TyBuiltin _) =          return "err-builtin" 
-
-isSafePointerType :: String -> LCA.Type -> FTrav Bool
-isSafePointerType fid t = do
-    safe1 <- isSafePointer fid 
-    safe2 <- if null tag then return False else isSafePointer (tag ++ "*")
-    safe3 <- if null tnam then return False else isSafePointer ("typedef|" ++ tnam ++ "*")
-    return (safe1 || safe2 || safe3)
-    where tag = getTag t
-          tnam = getTypedefName t
 
 rmMayNullIf :: Bool -> GenType -> GenType
 rmMayNullIf s t = if s then rmMayNull t else t

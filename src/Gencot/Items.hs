@@ -9,7 +9,7 @@ import Language.C.Data.Node as LCN
 import Language.C.Analysis as LCA
 
 import Gencot.Names (srcFileName)
-import Gencot.Traversal (FTrav)
+import Gencot.Traversal (FTrav,isSafePointer)
 import Gencot.Util.Types (getTagDef,isExtern,isFunction,resolveFully,TypeCarrier)
 
 -- | Construct the identifier for an individual toplevel item.
@@ -74,21 +74,26 @@ getParamSubItemId :: String -> LCA.ParamDecl -> String
 getParamSubItemId item pdecl = 
     item ++ "/" ++ (LCI.identToString $ LCA.declIdent pdecl)
 
--- | Construct the identifier for a collective item specified by a derived type.
--- Only supported for pointer types where the ultimate base type is a tag or typedef name.
-derivedItemId :: LCA.Type -> String
-derivedItemId (LCA.DirectType (LCA.TyComp (LCA.CompTypeRef sueref knd _)) _ _) | not $ LCI.isAnonymousRef sueref =
-    getTagItemId sueref knd
-derivedItemId (LCA.DirectType (LCA.TyEnum (LCA.EnumTypeRef sueref _)) _ _) | not $ LCI.isAnonymousRef sueref =
-    getEnumItemId sueref
-derivedItemId (LCA.TypeDefType (LCA.TypeDefRef idnam _ _) _ _) = getTypedefItemId idnam
-derivedItemId (LCA.PtrType bt _ _) = 
-    if null bId then "" else bId ++ "*"
-    where bId = derivedItemId bt
-derivedItemId _ = ""
+-- | Construct all identifiers for a collective item specified by a type.
+-- Only supported for tag and typedef names and for pointer types where the ultimate base type is a tag or typedef name.
+-- Several identifiers may result from resolving typed names or not.
+derivedItemIds :: LCA.Type -> [String]
+derivedItemIds (LCA.DirectType (LCA.TyComp (LCA.CompTypeRef sueref knd _)) _ _) | not $ LCI.isAnonymousRef sueref =
+    [getTagItemId sueref knd]
+derivedItemIds (LCA.DirectType (LCA.TyEnum (LCA.EnumTypeRef sueref _)) _ _) | not $ LCI.isAnonymousRef sueref =
+    [getEnumItemId sueref]
+derivedItemIds (LCA.TypeDefType (LCA.TypeDefRef idnam t _) _ _) = 
+    (getTypedefItemId idnam) : (derivedItemIds t)
+derivedItemIds (LCA.PtrType bt _ _) = 
+    map (\s -> s ++ "*") $ derivedItemIds bt
+derivedItemIds _ = []
 
 -- | A type with an associated item identifier.
 type ItemAssocType = (String,LCA.Type)
+
+isSafePointerItem :: ItemAssocType -> FTrav Bool
+isSafePointerItem (iid,t) = 
+    liftM or $ mapM isSafePointer $ (iid : (derivedItemIds t))
 
 getIndividualItemAssoc :: LCA.IdentDecl -> String -> ItemAssocType
 getIndividualItemAssoc idecl sfn = (getIndividualItemId idecl sfn, LCA.declType idecl)

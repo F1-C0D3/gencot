@@ -47,3 +47,14 @@ pt2 pt2vr;
 typedef int t1;
 t1 *t1vr1;
 int *t1vr2;
+
+typedef struct str4 { int m31; int m32; } str4_t, *pstr4_t;
+struct str1 *var_pstr12;
+struct str4 *var_pstr4;
+str4_t *var_pstr4_t;
+pstr4_t var_pstr42_t;
+
+typedef struct str5 { int m31; int m32; } str5_t, *pstr5_t;
+struct str5 *var_pstr5;
+str5_t *var_pstr5_t;
+pstr5_t var_pstr52_t;

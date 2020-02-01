@@ -1124,12 +1124,15 @@ used, a synonym definition is required for every type constructed from such a ty
   type CFunInc_Encrestype = CFunInc_Encresolvrestype
 \end{verbatim}
 Here, if \code{Encfuntype} is a mapped function type name, no synonym is defined for it in isolation. Therefore it can 
-be used as synonym for the corresponding Cogent function type. Like function pointer type names it is always used with
-the unbox operator applied, to make apparent that it is no linear type.
+be used as synonym for the corresponding Cogent function type. 
+
+Names for function types are translated without unbox operator applied. It could be added to make apparent that it is
+a nonlinear type, however, the current Cogent version detects a function type with unbox operator as not equivalent to
+the function type without unbox operator.
 
 The resulting mapping rules are for function type names:
 \begin{verbatim}
-  tn -> #TN
+  tn -> TN
   tn* -> #CFunPtr_TN
 \end{verbatim}
 for names of function pointer types:

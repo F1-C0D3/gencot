@@ -400,7 +400,7 @@ transType _ (_, (LCA.DirectType tnam _ _)) = do
                 _ -> markBox
 -- Typedef name:
 -- If resolving, translate the referenced type.
--- Otherwise translate to mapped name. Unboxed for struct, union, function, or function pointer, otherwise boxed.
+-- Otherwise translate to mapped name. Unboxed for struct, union, or function pointer, otherwise boxed.
 -- If the typedef name is a safe pointer, omit or remove MayNull
 -- otherwise move a MayNull from the resolved type to the mapped name.
 transType rslv iat@(iid, (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _)) = do
@@ -410,7 +410,7 @@ transType rslv iat@(iid, (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _)) = d
        then return $ rmMayNullIf safe rslvtyp
        else return $ addMayNullIfNot (safe || (not $ hasMayNull rslvtyp)) rtyp
     where tn = mapNameToUpper idnam
-          ub = if (isCompOrFunc typ) || (isFunPointer typ) then markUnbox else markBox
+          ub = if (isComposite typ) || (isFunPointer typ) then markUnbox else markBox
           rtyp = genType $ CS.TCon tn [] ub
 -- Pointer to void:
 -- Translate to: CVoidPtr

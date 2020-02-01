@@ -236,13 +236,15 @@ genTypeDefs tdn tcs = do
 -- The String list @tdn@ contains typedef names where to stop resolving external typedef names.
 --
 -- Retrieve the ItemAssocTypes carried by @tc@, get all sub-ItemAssocTypes,
+-- add all fully resolved forms (without stopping at @tdn@) for function pointer equivalence definitions
 -- reduce to derived array and function pointer types, 
 -- translate the types to Cogent, and retrieve their names.
 genDerivedTypeNames :: [String] -> LCA.DeclEvent -> FTrav [Map String ItemAssocType]
 genDerivedTypeNames tdn tc = do
     iats <- getItemAssocTypes tdn tc
     iats <- (liftM concat) $ mapM getSubItemAssocTypes iats
-    let fiats = filter (\(_,t) -> (isDerivedType t) && (not $ isFunction t) && ((not $ isPointer t) || isFunPointer t)) iats
+    let fiats = filter (\(_,t) -> (isDerivedType t) && (not $ isFunction t) && ((not $ isPointer t) || isFunPointer t)) 
+                $ concat $ map (\(iid,t) -> nub [(iid,t), (iid,resolveFully [] t)]) iats
     mapM (\iat -> do gt <- transType False iat; return $ singleton (getName gt) iat) fiats
 --    sfn <- srcFileName tc
 --    liftM (map (\(gt,iid,t) -> singleton (getName gt) (iid,t))) $ 

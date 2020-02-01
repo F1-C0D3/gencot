@@ -31,6 +31,12 @@ linkagePrefix idec sfn | isInternal idec = prefix ++ ":"
                  _ -> LCA.declLinkage idec == LCA.InternalLinkage
 linkagePrefix _ _ = ""
 
+-- | Construct the identifier for an individual local item.
+-- An individual local item is an object (variable) defined locally in a function body.
+-- It is specified by its declaration. 
+getLocalItemId :: LCA.IdentDecl -> String
+getLocalItemId idec = "?" ++ (LCI.identToString $ LCA.declIdent idec)
+
 -- | Construct the identifier for a collective item specified by a typedef name.
 getTypedefItemId :: LCI.Ident -> String
 getTypedefItemId idnam = "typedef|" ++ (LCI.identToString idnam)
@@ -98,6 +104,9 @@ isSafePointerItem (iid,t) =
 getIndividualItemAssoc :: LCA.IdentDecl -> String -> ItemAssocType
 getIndividualItemAssoc idecl sfn = (getIndividualItemId idecl sfn, LCA.declType idecl)
 
+getLocalItemAssoc :: LCA.IdentDecl -> ItemAssocType
+getLocalItemAssoc idecl = (getLocalItemId idecl, LCA.declType idecl)
+
 getTypedefItemAssoc :: LCI.Ident -> LCA.Type -> ItemAssocType
 getTypedefItemAssoc idnam typ = (getTypedefItemId idnam, typ)
 
@@ -137,7 +146,8 @@ adjustItemAssocType (iid,t) = ("&" ++ iid, (LCA.PtrType t LCA.noTypeQuals LCA.no
 -- | Retrieve ItemAssocTypes from a TypeCarrier.
 -- The additional first parameter is a set of typedef names where to stop resolving external types.
 -- This is a monadic action because the TypeCarrier's @srcFileName@ must be determined.
--- LocalEvent and ParamEvent items are not processed because they correspond to function sub-items.
+-- ParamEvent items are not processed because they correspond to function sub-items.
+-- LocalEvent items are processed but with an empty item identifier 
 -- Tagless compound items are not processed because they are not type carriers themselves.
 -- Tagged compound items are retrieved together with all member items, because they are not sub-items of the tag reference type.
 getItemAssocTypes :: [String] -> TypeCarrier -> FTrav [ItemAssocType]
@@ -152,7 +162,7 @@ getItemAssocTypes _ (LCA.TagEvent def@(LCA.CompDef (LCA.CompType sueref knd _ _ 
 getItemAssocTypes _ (LCA.TagEvent def@(LCA.CompDef (LCA.CompType sueref knd mems _ _))) =
     return (iat : (map (\md -> getMemberSubItemAssoc iat md) mems))
     where iat = (getTagItemId sueref knd,LCA.DirectType (LCA.typeOfTagDef def) LCA.noTypeQuals LCA.noAttributes)
-getItemAssocTypes _ (LCA.LocalEvent decl) = return []
+getItemAssocTypes _ (LCA.LocalEvent decl) = return [getLocalItemAssoc decl]
 getItemAssocTypes _ (LCA.ParamEvent decl) = return []
 getItemAssocTypes _ _ = return []
 

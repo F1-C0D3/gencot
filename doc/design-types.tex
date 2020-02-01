@@ -22,6 +22,11 @@ specified by a common identifier (typedef name or tag name) for several main ite
 a sub-item may not be declared individually anymore, instead, they must be declared for the corresponding sub-item
 of all main items together. Such sub-items are called ``collective items'' here.
 
+Items may also be local variables defined in a function body. Gencot identifies local items by their C identifier.
+The C identifier need not be unique, not even in the same function, due to the block structure of C function bodies
+with the possibility to define variables in every block. Therefore the identifiers of local items are not 
+unique in the current Gencot version and thus it does not make sense to declare properties for local items. 
+
 There are two kinds of global items: C variables (also called ``objects'' in the C standard) and C functions, which
 are defined on toplevel (called an ``external definition'' in the C standard), i.e., not locally in a function. Note that
 these two kinds only differ in their types: functions have a derived function type, objects may have all other types.
@@ -74,24 +79,32 @@ Gencot does not support all kinds of C types to identify collective items. Only 
 \item tag names,
 \item derived pointer types with a supported base type.
 \end{itemize}
+Note that collective items have the form of a generalization hierarchy, where a collective item may include one or 
+more other collective items which are more specific. This hierarchy is built by using typedef names.
 
-For example, if the C program contains the struct declaration
+For example, if the C program contains the type name definition 
 \begin{verbatim}
-  struct str { int m1,m2; };
+  typedef struct str { int m1,m2; } str_t;
 \end{verbatim}
 the collective item identified by \code{struct str} corresponds to all items declared to have the type \code{struct str},
 whereas the collective subitem \code{m1} of \code{str} corresponds to all members \code{m1} of such items. The collective
 item identified by the type \code{struct str*} corresponds to all items declared as pointers to \code{str} structs.
+The collective item identified by the type \code{str\_t} identifies all items declared to have this type. In general 
+this is semantically a subset of all items declared to have the type \code{struct str}, therefore \code{str\_t} corresponds
+to a more specific collective item than \code{struct str}. Properties declared for \code{struct str} also apply to items
+with declared type \code{str\_t} but not vice versa.
 
 Gencot does not support primitive types for item identification, because (currently) there are no properties supported
 for them and they have no sub-items. Moreover, it seems not useful to declare a property for \textit{all} items of
-a primitive type. Gencot does not support derived array types for item identificationn because (currently) the only 
+a primitive type. Gencot does not support derived array types for item identification because (currently) the only 
 property supported for them is Read-only and it does not seem useful to declare this for all items of a certain array 
 type. It could be useful to declare properties for the elements of all such items, but Gencot does not realize that.
 For derived function types or their parameters and results it could be useful to declare properties, but this is not
 implemented by Gencot either. The main reason for not supporting derived array and function types is the difficulty
 for defining a unique syntactical representation which is needed for the current implementation of the item property
 mechanism as described in Section~\ref{impl-itemprops}.
+
+
 
 \subsubsection{Properties}
 

@@ -8,11 +8,11 @@ named by a unique identifier, every property is encoded by a short identifier.
 
 Item identifiers are text strings which contain no whitespace. 
 
-Global individual items are functions or object.
+Global individual items are functions or objects.
 They can always be identified by their name. However, for items with internal linkage the name is only unique
 per compilation unit, whereas the item declarations span the whole Cogent compilation unit which may consist of several C 
-compilation units. Therefore, item with 
-external linkage are identified by their plain name (which is an unstructured C identifier), item with
+compilation units. Therefore, items with 
+external linkage are identified by their plain name (which is an unstructured C identifier), items with
 internal linkage are identified in the form
 \begin{verbatim}
     <source file name> : <item name>
@@ -22,6 +22,15 @@ it is not omitted, resulting in identifiers such as \code{"app.h:myitem"}.
 
 As source file name only the base name is used. C packages with source files of the same name in different directories are
 not supported by the current Gencot version.
+
+Local individual items are variables (``objects'') locally defined in a function body. They are identified in the form
+\begin{verbatim}
+    ? <item name>
+\end{verbatim}
+which is not unique. The current version of Gencot does not try to identify local variables in a unique way, since the 
+language-c parser does not directly provide the name of the surrounding function for them. Even if that name would be
+used for disambiguation, this would not help for the case of different variables with the same name in the same function.
+Therefore in current Gencot version it is not feasible to declare item properties for individual local variables. 
 
 Collective items are identified by certain type expressions. For a typedef name the identifier has the form
 \begin{verbatim}

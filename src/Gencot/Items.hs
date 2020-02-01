@@ -3,6 +3,8 @@ module Gencot.Items where
 
 import Control.Monad (liftM)
 import System.FilePath (takeExtension,takeFileName,takeBaseName)
+import Data.Char (isDigit,isLetter)
+import Data.List (elemIndex,dropWhileEnd)
 
 import Language.C.Data.Ident as LCI
 import Language.C.Data.Node as LCN
@@ -75,10 +77,14 @@ getResultSubItemId :: String -> String
 getResultSubItemId item = item ++ "/()"
 
 -- | Construct the identifier for a parameter subitem of an item of function type.
--- The first parameter is the identifier of the main item.
-getParamSubItemId :: String -> LCA.ParamDecl -> String
-getParamSubItemId item pdecl = 
-    item ++ "/" ++ (LCI.identToString $ LCA.declIdent pdecl)
+-- The parameter is specified by the pair of its position and its declaration.
+-- The first argument is the identifier of the main item.
+getParamSubItemId :: String -> (Int,LCA.ParamDecl) -> String
+getParamSubItemId item (pos,pdecl) = 
+    item ++ "/" ++ (show pos) ++ pnam
+    where pnam = case LCA.declName pdecl of
+                      LCA.VarName idnam _ -> "-" ++ (LCI.identToString idnam)
+                      LCA.NoName -> ""
 
 -- | Construct all identifiers for a collective item specified by a type.
 -- Only supported for tag and typedef names and for pointer types where the ultimate base type is a tag or typedef name.
@@ -94,12 +100,40 @@ derivedItemIds (LCA.PtrType bt _ _) =
     map (\s -> s ++ "*") $ derivedItemIds bt
 derivedItemIds _ = []
 
+-- | Construct all identifiers for an individual item.
+-- In the input parameter ids have the form <pos> or <pos>-<name>.
+-- The second form is split into two separate ids using <pos> and <name>.
+indivItemIds :: String -> [String]
+indivItemIds iid = case elemIndex '-' iid of
+                        Nothing -> [iid]
+                        Just i -> sepIds i iid
+
+sepIds i iid =
+    (map (\r -> pre ++ r) seprest) ++ (map (\r -> prefix ++ name ++ r) seprest)
+    where (pre,pst) = splitAt i iid -- pre is .../<pos>, pst is -<name>...
+          prefix = dropWhileEnd isDigit pre -- .../
+          name = takeWhile isLetter $ tail pst -- <name>
+          rest = dropWhile isLetter $ tail pst -- ...
+          seprest = indivItemIds rest
+
+-- Only temporary, used for old Parmod implementation. Transform .../<pos>-<name>... to .../<name>...
+removePositions :: String -> String
+removePositions iid = case elemIndex '-' iid of
+                        Nothing -> iid
+                        Just i -> remPos i iid
+
+remPos i iid = prefix ++ name ++ (removePositions rest)
+    where (pre,pst) = splitAt i iid -- pre is .../<pos>, pst is -<name>...
+          prefix = dropWhileEnd isDigit pre -- .../
+          name = takeWhile isLetter $ tail pst -- <name>
+          rest = dropWhile isLetter $ tail pst -- ...
+
 -- | A type with an associated item identifier.
 type ItemAssocType = (String,LCA.Type)
 
 isSafePointerItem :: ItemAssocType -> FTrav Bool
 isSafePointerItem (iid,t) = 
-    liftM or $ mapM isSafePointer $ (iid : (derivedItemIds t))
+    liftM or $ mapM isSafePointer $ ((indivItemIds iid) ++ (derivedItemIds t))
 
 getIndividualItemAssoc :: LCA.IdentDecl -> String -> ItemAssocType
 getIndividualItemAssoc idecl sfn = (getIndividualItemId idecl sfn, LCA.declType idecl)
@@ -130,12 +164,13 @@ getResultSubItemAssoc :: ItemAssocType -> LCA.Type -> ItemAssocType
 getResultSubItemAssoc (iid,_) st = (getResultSubItemId iid,st)
 
 -- | Parameter sub-item for ItemAssocType.
+-- The parameter is specified by the pair of its position and its declaration.
 -- Parameters of function type are adjusted to function pointer type.
 -- Parameters of array type are not adjusted, since they are not treated as element pointers by Gencot.
-getParamSubItemAssoc :: ItemAssocType -> LCA.ParamDecl -> ItemAssocType
-getParamSubItemAssoc (iid,_) pdecl =
+getParamSubItemAssoc :: ItemAssocType -> (Int, LCA.ParamDecl) -> ItemAssocType
+getParamSubItemAssoc (iid,_) ipd@(pos,pdecl) =
     if isFunction typ then adjustItemAssocType iat else iat
-    where iat = (getParamSubItemId iid pdecl, typ)
+    where iat = (getParamSubItemId iid ipd, typ)
           typ = LCA.declType pdecl
 
 -- | Adjust a type to a derived pointer type, together with its item identifier.
@@ -188,10 +223,11 @@ getSubItemAssocTypes iat@(iid,(LCA.ArrayType bt _ _ _)) = do
     return (iat : subs)
 getSubItemAssocTypes iat@(iid,(LCA.FunctionType (LCA.FunType rt pars _) _)) = do
     rsubs <- getSubItemAssocTypes $ getResultSubItemAssoc iat rt
-    psubs <- mapM (\pd -> getSubItemAssocTypes $ getParamSubItemAssoc iat pd) pars
+    psubs <- mapM (\ipd -> getSubItemAssocTypes $ getParamSubItemAssoc iat ipd) $ numberList pars
     return (iat : (rsubs ++ (concat psubs)))
 getSubItemAssocTypes iat@(iid,(LCA.FunctionType (LCA.FunTypeIncomplete rt) _)) = do
     subs <- getSubItemAssocTypes $ getResultSubItemAssoc iat rt
     return (iat : subs)
 
-
+numberList :: [a] -> [(Int,a)]
+numberList l = zip (iterate (1 +) 1) l 

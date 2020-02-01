@@ -3,7 +3,7 @@ module Gencot.Cogent.Translate where
 
 import Control.Monad (liftM,when)
 import Data.List (nub,isPrefixOf,isInfixOf)
-import Data.Map (Map,singleton,unions,toList)
+import Data.Map (Map,singleton,unions,toList,union)
 import Data.Maybe (catMaybes)
 
 import "language-c" Language.C as LC hiding (pretty,Pretty)
@@ -21,7 +21,7 @@ import Cogent.Util (ffmap)
 
 import Gencot.Origin (Origin,noOrigin,origin,mkOrigin,noComOrigin,mkBegOrigin,mkEndOrigin,prepOrigin,appdOrigin,isNested,toNoComOrigin)
 import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapNameToLower,mapPtrDeriv,mapPtrVoid,mapMayNull,mapArrDeriv,mapFunDeriv,arrDerivHasSize,arrDerivToUbox,mapUboxStep,rmUboxStep,mapMayNullStep,rmMayNullStep,mapPtrStep,mapFunStep,mapIncFunStep,mapArrStep,mapModStep,mapRoStep,mapNamFunStep,srcFileName)
-import Gencot.Items (ItemAssocType,isSafePointerItem,getIndividualItemId,getTagItemId,derivedItemIds,getIndividualItemAssoc,getTypedefItemAssoc,adjustItemAssocType,getMemberSubItemAssoc,getRefSubItemAssoc,getResultSubItemAssoc,getElemSubItemAssoc,getParamSubItemAssoc,getItemAssocTypes,getSubItemAssocTypes)
+import Gencot.Items (ItemAssocType,isSafePointerItem,removePositions,getIndividualItemId,getTagItemId,derivedItemIds,getIndividualItemAssoc,getTypedefItemAssoc,adjustItemAssocType,getMemberSubItemAssoc,getRefSubItemAssoc,getResultSubItemAssoc,getElemSubItemAssoc,getParamSubItemAssoc,getItemAssocTypes,getSubItemAssocTypes,numberList)
 import Gencot.Cogent.Ast
 import Gencot.C.Translate (transStat,transExpr)
 import Gencot.Traversal (FTrav,getParmods,markTagAsNested,isMarkedAsNested)
@@ -243,9 +243,10 @@ genDerivedTypeNames :: [String] -> LCA.DeclEvent -> FTrav [Map String ItemAssocT
 genDerivedTypeNames tdn tc = do
     iats <- getItemAssocTypes tdn tc
     iats <- (liftM concat) $ mapM getSubItemAssocTypes iats
-    let fiats = filter (\(_,t) -> (isDerivedType t) && (not $ isFunction t) && ((not $ isPointer t) || isFunPointer t)) 
-                $ concat $ map (\(iid,t) -> nub [(iid,t), (iid,resolveFully [] t)]) iats
-    mapM (\iat -> do gt <- transType False iat; return $ singleton (getName gt) iat) fiats
+    let fiats = filter (\(_,t) -> (isDerivedType t) && (not $ isFunction t) && ((not $ isPointer t) || isFunPointer t)) iats
+--                $ concat $ map (\(iid,t) -> nub [(iid,t), (iid,resolveFully [] t)]) iats
+--    mapM (\iat -> do gt <- transType False iat; return $ singleton (getName gt) iat) fiats
+    mapM genMap fiats
 --    sfn <- srcFileName tc
 --    liftM (map (\(gt,iid,t) -> singleton (getName gt) (iid,t))) $ 
 --        mapM (\(iid,t) -> do gt <- transType False iid t; return (gt,iid,t)) $ 
@@ -254,6 +255,11 @@ genDerivedTypeNames tdn tc = do
 --        concat $ map (\(iid,t) -> nub [(iid,t), (iid,resolveFully [] t)]) $
 --        concat $ map (uncurry getDerivedParts) $ carriedWithItemId sfn tdn tc
     where getName (GenType (CS.TCon nam _ _) _) = nam
+          genMap :: ItemAssocType -> FTrav (Map String ItemAssocType)
+          genMap iat = do
+              gt <- transType False iat
+              rgt <- transType True iat
+              return $ union (singleton (getName gt) iat) (singleton (getName rgt) iat)
 
 -- | Generate type definitions for a Cogent type name @nam@ used by a derived array or function pointer type.
 -- Additional argument is the original C type as an ItemAssocType.
@@ -279,10 +285,11 @@ genDerivedTypeDefs nam (_,(LCA.ArrayType _ _ _ _)) | arrDerivHasSize nam =
 -- > type CFun_enc = <Cogent mapping of C function type>
 genDerivedTypeDefs nam iat@(iid,pt@(LCA.PtrType t _ _)) = do
     rslvtyp <- transType True iat
-    let tdef = if getName rslvtyp == nam
+    let isResolved = getName rslvtyp == nam
+    let tdef = if isResolved
                 then CS.AbsTypeDec nam [] []
                 else CS.TypeDec nam [] rslvtyp
-    typ <- transType False $ getRefSubItemAssoc iat t
+    typ <- transType isResolved $ getRefSubItemAssoc iat t
     let fdef = GenToplv (CS.TypeDec fnam [] typ ) noOrigin
     return $ (GenToplv tdef noOrigin): if (mapFunDeriv True) `isPrefixOf` nam then [fdef] else []
     where fnam = "CFun" ++ (drop (length (mapFunDeriv True)) nam)
@@ -437,7 +444,7 @@ transType rslv iat@(iid, pt@(LCA.PtrType t _ _)) = do
 -- Translate to: Cogent function type (p1,..,pn) -> ret, then apply parmod description.
 transType rslv iat@(iid, t@(LCA.FunctionType (LCA.FunType ret pars variadic) _)) = do
     r <- transType rslv $ getResultSubItemAssoc iat ret
-    ps <- mapM (transParamType rslv iat) pars
+    ps <- mapM (transParamType rslv iat) $ numberList pars
     let pt = mkParType (ps ++ if variadic then [variadicType] else [])
     applyParmods t iid $ genType $ CS.TFun pt r
 -- Derived array type for element type t:
@@ -494,7 +501,7 @@ encodeType rslv iat@(iid, pt@(LCA.PtrType t _ _)) = do
 -- Encode ret, prepend function derivation step using encoded pi.
 encodeType rslv iat@(iid, (LCA.FunctionType (LCA.FunType ret pars variadic) _)) = do
     tn <- encodeType rslv $ getResultSubItemAssoc iat ret
-    encpars <- mapM (encodeParamType rslv iat) pars
+    encpars <- mapM (encodeParamType rslv iat) $ numberList pars
     pms <- getParamMods iid pars variadic
     let vencpars = if variadic then encpars ++ [variadicTypeName] else encpars
     let ps = map applyEncodeParmod $ zip pms vencpars
@@ -596,14 +603,14 @@ applyParmods _ _ t = return t
 -- Third parameter tells whether the function is variadic.
 getParamMods :: String -> [LCA.ParamDecl] -> Bool -> FTrav [String]
 getParamMods fid pars variadic = do
-    --when ("struct|pmd" `isPrefixOf` fid) $ error ("fid: " ++ fid)
-    pms <- getParmods fid
+    -- when ("mbedtls_dhm_calc_secret/" `isPrefixOf` fid) $ error ("fid: " ++ fid)
+    pms <- getParmods $ removePositions fid
     let vpms = if variadic then pms ++ ["no"] else pms
     dpms <- mapM mkDefaultParmod pts
     let vdpms = if variadic then dpms ++ ["no"] else dpms
     if (length vpms) < (length vdpms) then return vdpms else return vpms
     where pts = map LCA.declType pars
-    
+
 -- | Apply parameter modification description to parameters of a mapped function type.
 -- Input is a list of parameter types with associated modification description (as a String).
 -- Output is the type for the parameter list (unit, singleton, or tuple).
@@ -655,19 +662,21 @@ variadicType = genType (CS.TCon variadicTypeName [] markBox)
 variadicTypeName = "VariadicCogentParameters"
 
 -- | Translate a C parameter declaration to the adjusted Cogent parameter type.
+-- The parameter declaration is specified together with the parameter position.
 -- The first argument specifies whether typedef names shall be resolved.
 -- The second argument is the function's ItemAssocType.
-transParamType :: Bool -> ItemAssocType -> LCA.ParamDecl -> FTrav GenType
-transParamType rslv iat pd = do
-    t <- transType rslv $ getParamSubItemAssoc iat pd
+transParamType :: Bool -> ItemAssocType -> (Int,LCA.ParamDecl) -> FTrav GenType
+transParamType rslv iat ipd@(_,pd) = do
+    t <- transType rslv $ getParamSubItemAssoc iat ipd
     return $ GenType (typeOfGT t) $ origin pd
 
 -- | Encode a type as parameter type.
+-- The parameter declaration is specified together with the parameter position.
 -- For an array type: adjust by removing unbox step.
 -- For a function type: adjust by adding pointer step.
-encodeParamType :: Bool -> ItemAssocType -> LCA.ParamDecl -> FTrav String
-encodeParamType rslv iat pd = do
-    typ <- encodeType rslv $ getParamSubItemAssoc iat pd
+encodeParamType :: Bool -> ItemAssocType -> (Int,LCA.ParamDecl) -> FTrav String
+encodeParamType rslv iat ipd@(_,pd) = do
+    typ <- encodeType rslv $ getParamSubItemAssoc iat ipd
     if isArray $ LCA.declType pd
        then return $ rmUboxStep typ
        else return typ

@@ -16,23 +16,27 @@ import Gencot.Names (FileNameTrav,getFileName)
 -- For every parameter the description is one of "yes", "discarded", "no", "nonlinear", "result", or "readonly".
 type ParmodMap = Map String [String]
 
+-- | Mapping from item ids to lists of property strings.
+-- Used property strings are: nn, ro, ns, mf, hu, dp, rp
+type ItemProperties = Map String [String]
+
 -- | The traversal state for processing C code.
 -- The first component is the name of the C source file, or "" if several source files are processed
 -- The second component is the parameter modification description.
 -- The third component is the set of translated nested tag definitions
--- The fourth component is the list of safe pointers which are never NULL
+-- The fourth component is the item property map from item ids to property string lists
 -- The fifth component is the list of type names where to stop resolving external types
-type FTrav = Trav (String,ParmodMap,[SUERef],[String],[String])
+type FTrav = Trav (String,ParmodMap,[SUERef],ItemProperties,[String])
 
-runFTrav :: DefTable -> (String,ParmodMap,[String],[String]) -> FTrav a -> IO a
-runFTrav table (f,p,spl,tds) action = do
+runFTrav :: DefTable -> (String,ParmodMap,ItemProperties,[String]) -> FTrav a -> IO a
+runFTrav table (f,p,ipm,tds) action = do
     (res,state) <- errorOnLeft "Error during translation" $ 
-        runTrav (f,p,[],spl,tds) $ (withDefTable $ const ((),table)) >> action
+        runTrav (f,p,[],ipm,tds) $ (withDefTable $ const ((),table)) >> action
     showWarnings $ travErrors state
     return res
     
 runWithTable :: DefTable -> FTrav a -> IO a
-runWithTable table action = runFTrav table ("",empty,[],[]) action
+runWithTable table action = runFTrav table ("",empty,empty,[]) action
 
 instance FileNameTrav FTrav where
     getFileName = do
@@ -52,10 +56,15 @@ isMarkedAsNested ref = do
     (_,_,ntl,_,_) <- getUserState
     return $ elem ref ntl
 
-isSafePointer :: String -> FTrav Bool
-isSafePointer pid = do
-    (_,_,_,spl,_) <- getUserState
-    return $ elem pid spl
+getProperties :: String -> FTrav [String]
+getProperties iid = do
+    (_,_,_,ipm,_) <- getUserState
+    return $ findWithDefault [] iid ipm
+
+hasProperty :: String -> String -> FTrav Bool
+hasProperty prop iid = do
+    (_,_,_,ipm,_) <- getUserState
+    return $ elem prop $ findWithDefault [] iid ipm
     
 stopResolvTypeNames :: Ident -> FTrav Bool
 stopResolvTypeNames idnam = do

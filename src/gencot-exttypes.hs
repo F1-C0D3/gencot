@@ -3,14 +3,14 @@ module Main where
 
 import System.Environment (getArgs)
 import Control.Monad (when,liftM)
-import Data.List (nub,sort)
+import Data.List (sort)
 
-import Language.C.Pretty (pretty)
 import Language.C.Data.Ident (identToString)
 import qualified Language.C.Analysis as LCA
 import Language.C.Analysis.DefTable (globalDefs)
 
 import Gencot.Input (getDeclEvents)
+import Gencot.Util.Properties (readPropertiesFromFile)
 import Gencot.Json.Parmod (readParmodsFromFile)
 import Gencot.Json.Process (convertParmods)
 import Gencot.Package (readPackageFromInput,getIdentInvocations,getOwnCallGraphs,foldTables,foldTypeCarrierSets)
@@ -25,8 +25,8 @@ main = do
     args <- getArgs
     when (length args < 2 || length args > 3) 
         $ error "expected arguments: <safe pointer list file name> <external variables list file name> <parmod description file name>?"
-    {- get list of safe pointers -}
-    spl <- (liftM ((filter (not . null)) . lines)) $ readFile $ head args
+    {- get item property map -}
+    ipm <- readPropertiesFromFile $ head args
     {- get list of external variables to process -}
     varnams <- (liftM ((filter (not . null)) . lines)) $ readFile $ head $ tail args
     {- get parameter modification descriptions and convert -}
@@ -50,7 +50,7 @@ main = do
     {- construct transitive closure of used type carriers -}
     let typeCarriers = transCloseUsedCarriers table unitTypeCarriers
     {- translate type definitions in system include files -}
-    toplvs <- runFTrav table ("", parmods,nub spl,unitTypeNames) $ transExtGlobals unitTypeNames $ sort $ filter isExternDef typeCarriers
+    toplvs <- runFTrav table ("", parmods,ipm,unitTypeNames) $ transExtGlobals unitTypeNames $ sort $ filter isExternDef typeCarriers
     {- Output -}
     print $ prettyTopLevels toplvs
 

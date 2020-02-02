@@ -3,13 +3,13 @@ module Main where
 
 import System.Environment (getArgs)
 import Control.Monad (when,liftM)
-import Data.List (nub)
 
 import qualified Language.C.Analysis as LCA
 import Language.C.Analysis.DefTable (globalDefs)
 import Language.C.Data.Ident (identToString)
 
 import Gencot.Input (getDeclEvents)
+import Gencot.Util.Properties (readPropertiesFromFile)
 import Gencot.Package (readPackageFromInput_,getIdentInvocations,getOwnCallGraphs,foldTables)
 import Gencot.Json.Parmod (readParmodsFromFile)
 import Gencot.Json.Process (convertParmods)
@@ -24,8 +24,8 @@ main = do
     args <- getArgs
     when (length args < 2 || length args > 3) 
         $ error "expected arguments: <safe pointer list file name> <external variables list file name> <parmod description file name>?"
-    {- get list of safe pointers -}
-    spl <- (liftM ((filter (not . null)) . lines)) $ readFile $ head args
+    {- get item property map -}
+    ipm <- readPropertiesFromFile $ head args
     {- get list of external variables to process -}
     varnams <- (liftM ((filter (not . null)) . lines)) $ readFile $ head $ tail args
     {- get parameter modification descriptions and convert -}
@@ -41,7 +41,7 @@ main = do
     {- Get declarations of external invoked functions and invoked or listed variables -}    
     let extDecls = getDeclEvents (globalDefs table) (constructFilter invks varnams)
     {- translate external function declarations to Cogent abstract function definitions -}
-    absdefs <- runFTrav table ("", parmods,nub spl,[]) $ transGlobals extDecls
+    absdefs <- runFTrav table ("", parmods,ipm,[]) $ transGlobals extDecls
     {- Output -}
     print $ prettyTopLevels absdefs
 

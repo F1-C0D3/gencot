@@ -3,13 +3,13 @@ module Main where
 
 import System.Environment (getArgs)
 import Control.Monad (when,liftM)
-import Data.List (nub)
 
 import Language.C.Data.Ident
 import Language.C.Analysis
 import Language.C.Analysis.DefTable (globalDefs)
 
 import Gencot.Input (readFromInput_,getOwnDeclEvents)
+import Gencot.Util.Properties (readPropertiesFromFile)
 import Gencot.Json.Parmod (readParmodsFromFile)
 import Gencot.Json.Process (convertParmods)
 import Gencot.Traversal (runFTrav)
@@ -24,14 +24,14 @@ main = do
         $ error "expected arguments: <original source file name> <safe pointer list file name> <parmod description file name>?"
     {- get own file name -}
     let fnam = head args
-    {- get list of safe pointers -}
-    spl <- (liftM ((filter (not . null)) . lines)) $ readFile $ head $ tail args
+    {- get item property map -}
+    ipm <- readPropertiesFromFile $ head $ tail args
     {- get parameter modification descriptions -}
     parmods <- if 3 > length args then return [] else readParmodsFromFile $ head $ tail $ tail args
     {- parse and analyse C source and get global definitions -}
     table <- readFromInput_
     {- translate global declarations and definitions to Cogent -}
-    toplvs <- runFTrav table (fnam,convertParmods parmods,nub spl,[]) $ transGlobals $ getOwnDeclEvents (globalDefs table) constructFilter
+    toplvs <- runFTrav table (fnam,convertParmods parmods,ipm,[]) $ transGlobals $ getOwnDeclEvents (globalDefs table) constructFilter
     {- Output -}
     print $ prettyTopLevels toplvs
 

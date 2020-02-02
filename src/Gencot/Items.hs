@@ -11,7 +11,7 @@ import Language.C.Data.Node as LCN
 import Language.C.Analysis as LCA
 
 import Gencot.Names (srcFileName)
-import Gencot.Traversal (FTrav,isSafePointer)
+import Gencot.Traversal (FTrav,hasProperty)
 import Gencot.Util.Types (getTagDef,isExtern,isFunction,resolveFully,TypeCarrier)
 
 -- | Construct the identifier for an individual toplevel item.
@@ -133,7 +133,7 @@ type ItemAssocType = (String,LCA.Type)
 
 isSafePointerItem :: ItemAssocType -> FTrav Bool
 isSafePointerItem (iid,t) = 
-    liftM or $ mapM isSafePointer $ ((indivItemIds iid) ++ (derivedItemIds t))
+    liftM or $ mapM (hasProperty "nn") $ ((indivItemIds iid) ++ (derivedItemIds t))
 
 getIndividualItemAssoc :: LCA.IdentDecl -> String -> ItemAssocType
 getIndividualItemAssoc idecl sfn = (getIndividualItemId idecl sfn, LCA.declType idecl)

@@ -157,7 +157,7 @@ prepare_cfile()
     FILE=$1
     BASE=$(basename $FILE)
     NAME=$(expr match $BASE '\(.*\)[.][^.]*' '|' $BASE)
-    for aux in addincl omitincl noincl manmacros macroconv ppretain chsystem safepointers
+    for aux in addincl omitincl noincl manmacros macroconv ppretain chsystem itemprops
     do prepare_aux $NAME $aux
     done
     if [ "$CMD" == "config" ]
@@ -225,22 +225,22 @@ then
     else
         touch $PEVFILE
     fi
-    HSPLFILE=$TMPDIR/unit.gencot-safepointers
-    SPLFILE=$TMPDIR/unit.gencot-prcspl
-    touch $HSPLFILE
+    HIPSFILE=$TMPDIR/unit.gencot-itemprops
+    IPSFILE=$TMPDIR/unit.gencot-prcips
+    touch $HIPSFILE
     for file in $(< $CFILE)
     do 
         base=$(basename $file)
         name=$(expr match $base '\(.*\)[.][^.]*' '|' $base)
-        cat $TMPDIR/$name.gencot-safepointers >> $HSPLFILE
+        cat $TMPDIR/$name.gencot-itemprops >> $HIPSFILE
     done
-    $BIN/gencot-prclist < $HSPLFILE > $SPLFILE
-    $BIN/gencot-externs $SPLFILE $PEVFILE $JFILE < $TMPDIR/infiles | $BIN/gencot-reporigs \
+    $BIN/gencot-prclist < $HIPSFILE > $IPSFILE
+    $BIN/gencot-externs $IPSFILE $PEVFILE $JFILE < $TMPDIR/infiles | $BIN/gencot-reporigs \
         | $BIN/gencot-mrgcomments /dev/null > $TMPDIR/$CNAME-externs.cogent
-    $BIN/gencot-exttypes $SPLFILE $PEVFILE $JFILE < $TMPDIR/infiles | $BIN/gencot-reporigs \
+    $BIN/gencot-exttypes $IPSFILE $PEVFILE $JFILE < $TMPDIR/infiles | $BIN/gencot-reporigs \
         | $BIN/gencot-defcomments $COMMENTDIR \
         | $BIN/gencot-mrgcomments /dev/null > $TMPDIR/$CNAME-exttypes.cogent
-    $BIN/gencot-dvdtypes $SPLFILE $PEVFILE $JFILE < $TMPDIR/infiles | $BIN/gencot-reporigs \
+    $BIN/gencot-dvdtypes $IPSFILE $PEVFILE $JFILE < $TMPDIR/infiles | $BIN/gencot-reporigs \
         | $BIN/gencot-defcomments $COMMENTDIR \
         | $BIN/gencot-mrgcomments /dev/null > $TMPDIR/$CNAME-dvdtypes.cogent
     cp $TMPDIR/$CNAME-externs.cogent $TMPDIR/$CNAME-exttypes.cogent $TMPDIR/$CNAME-dvdtypes.cogent .
@@ -257,9 +257,9 @@ then
     $BIN/gencot-check < $TMPDIR/$CNAME.in
 else
     prepare_cfile $CFILE
-    SPLFILE=$TMPDIR/$CNAME.gencot-prcspl
-    $BIN/gencot-prclist < $TMPDIR/$CNAME.gencot-safepointers > $SPLFILE
-    $BIN/gencot-translate $CBASE $SPLFILE $JFILE < $TMPDIR/$CNAME.in | $BIN/gencot-reporigs > $TMPDIR/$CNAME.out
+    IPSFILE=$TMPDIR/$CNAME.gencot-prcips
+    $BIN/gencot-prclist < $TMPDIR/$CNAME.gencot-itemprops > $IPSFILE
+    $BIN/gencot-translate $CBASE $IPSFILE $JFILE < $TMPDIR/$CNAME.in | $BIN/gencot-reporigs > $TMPDIR/$CNAME.out
     process_directives
     process_comments
     if [ "$CMD" == "cfile" ]

@@ -1,4 +1,6 @@
 GC=../../bin/gencot
+PM=../../bin/parmod
+IT=../../bin/items
 
 TESTS = prim enum struct union array func parmod pointer names const
 UNIT = externs exttypes dvdtypes
@@ -13,6 +15,13 @@ expect-current: $(foreach TST,$(TESTS),$(TST)-expect-current) unit-expect-curren
 
 clean:  $(foreach TST,$(TESTS),$(TST)-clean)
 	-rm -f unit.files unit.cogent $(foreach U,$(UNIT),unit-$(U).cogent)
+	-rm -f types-parmod.gencot-parmodprops common.gencot-itemprops
+
+types-parmod.gencot-parmodprops: types-parmod.json
+	$(PM) out types-parmod.json > types-parmod.gencot-parmodprops
+
+common.gencot-itemprops: types-pointer.gencot-manprops types-parmod.gencot-parmodprops
+	$(IT) merge types-pointer.gencot-manprops types-parmod.gencot-parmodprops > common.gencot-itemprops
 
 types-parmod.cogent: types-parmod.c
 	$(GC) cfile types-parmod.c types-parmod.json
@@ -29,7 +38,7 @@ unit-expect-current: unit
 	  cp unit-$$u.cogent unit-$$u-expected.cogent; \
 	done
 
-%.cogent: %.c
+%.cogent: %.c common.gencot-itemprops
 	$(GC) cfile $*.c
 
 %-regression: types-%.cogent types-%-expected.cogent
@@ -47,5 +56,5 @@ unit.files:
 	done
 	@cat unit.files
 
-unit: unit.files
+unit: unit.files common.gencot-itemprops
 	$(GC) unit unit.files types-parmod.json

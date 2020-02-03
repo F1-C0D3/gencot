@@ -11,7 +11,7 @@ import Language.C.Analysis.DefTable (globalDefs)
 import Gencot.Input (getDeclEvents)
 import Gencot.Util.Properties (readPropertiesFromFile)
 import Gencot.Json.Parmod (readParmodsFromFile)
-import Gencot.Json.Process (convertParmods)
+import Gencot.Json.Process (oldConvertParmods)
 import Gencot.Package (readPackageFromInput,getIdentInvocations,getOwnCallGraphs,foldTables,foldTypeCarrierSets)
 import Gencot.Util.Types (collectTypeCarriers,transCloseUsedCarriers,usedTypeNames,carriesNonPrimitive)
 import Gencot.Traversal (runFTrav)
@@ -29,7 +29,7 @@ main = do
     {- get list of external variables to process -}
     varnams <- (liftM ((filter (not . null)) . lines)) $ readFile $ head $ tail args
     {- get parameter modification descriptions and convert -}
-    parmods <- (liftM convertParmods) (if 3 > length args then return [] else readParmodsFromFile $ head $ tail $ tail args)
+    parmods <- (liftM oldConvertParmods) (if 3 > length args then return [] else readParmodsFromFile $ head $ tail $ tail args)
     {- parse and analyse C sources and get global definitions and used types -}
     (tables,initialTypeCarrierSets) <- (liftM unzip) $ readPackageFromInput [] collectTypeCarriers
     {- Determine all call graphs -}

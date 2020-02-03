@@ -291,3 +291,13 @@ convertParmod jso =
                    _ -> M.empty
           mkparnam fnam pnam =
               fnam ++ "/" ++ (if elem '-' pnam then tail $ snd $ break ('-' ==) pnam else pnam)
+
+oldConvertParmods :: Parmods -> M.Map String [String]
+oldConvertParmods parmods = M.fromList $ map oldConvertParmod parmods
+
+oldConvertParmod :: Parmod -> (String,[String])
+oldConvertParmod jso = (getFunName jso, map mkval $ getFAttrs isParam jso)
+    where respar = getFunResult jso
+          mkval (_,anam,(JSString js)) = 
+              let r = fromJSString js in
+                  if r == "yes" && anam == respar then "result" else r

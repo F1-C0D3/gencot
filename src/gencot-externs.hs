@@ -12,7 +12,7 @@ import Gencot.Input (getDeclEvents)
 import Gencot.Util.Properties (readPropertiesFromFile)
 import Gencot.Package (readPackageFromInput_,getIdentInvocations,getOwnCallGraphs,foldTables)
 import Gencot.Json.Parmod (readParmodsFromFile)
-import Gencot.Json.Process (convertParmods)
+import Gencot.Json.Process (oldConvertParmods)
 import Gencot.Traversal (runFTrav)
 import Gencot.Cogent.Output (prettyTopLevels)
 import Gencot.Cogent.Translate (transGlobals)
@@ -29,7 +29,7 @@ main = do
     {- get list of external variables to process -}
     varnams <- (liftM ((filter (not . null)) . lines)) $ readFile $ head $ tail args
     {- get parameter modification descriptions and convert -}
-    parmods <- (liftM convertParmods) (if 3 > length args then return [] else readParmodsFromFile $ head $ tail $ tail args)
+    parmods <- (liftM oldConvertParmods) (if 3 > length args then return [] else readParmodsFromFile $ head $ tail $ tail args)
     {- parse and analyse C sources and get global definitions -}
     tables <- readPackageFromInput_
     {- Determine all call graphs -}

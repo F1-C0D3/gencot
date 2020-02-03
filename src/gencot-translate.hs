@@ -11,7 +11,7 @@ import Language.C.Analysis.DefTable (globalDefs)
 import Gencot.Input (readFromInput_,getOwnDeclEvents)
 import Gencot.Util.Properties (readPropertiesFromFile)
 import Gencot.Json.Parmod (readParmodsFromFile)
-import Gencot.Json.Process (convertParmods)
+import Gencot.Json.Process (oldConvertParmods)
 import Gencot.Traversal (runFTrav)
 import Gencot.Cogent.Output (prettyTopLevels)
 import Gencot.Cogent.Translate (transGlobals)
@@ -31,7 +31,7 @@ main = do
     {- parse and analyse C source and get global definitions -}
     table <- readFromInput_
     {- translate global declarations and definitions to Cogent -}
-    toplvs <- runFTrav table (fnam,convertParmods parmods,ipm,[]) $ transGlobals $ getOwnDeclEvents (globalDefs table) constructFilter
+    toplvs <- runFTrav table (fnam,oldConvertParmods parmods,ipm,[]) $ transGlobals $ getOwnDeclEvents (globalDefs table) constructFilter
     {- Output -}
     print $ prettyTopLevels toplvs
 

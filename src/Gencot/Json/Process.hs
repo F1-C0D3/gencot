@@ -275,15 +275,19 @@ simplifyPar pm fnam par@(pnam,(JSString val)) | isDigit $ head pnam =
                        else snd $ head $ S.toList $ transVal
 simplifyPar _ _ attr = attr
 
--- | Convert a function description sequence.
--- The result is a map from function identifiers to sequences of parameter description values.
+-- | Convert a function description sequence to an item property map.
+-- The result type is equivalent to ItemProperties, we avoid importing Gencot.Util.Properties here.
 convertParmods :: Parmods -> M.Map String [String]
-convertParmods parmods = M.fromList $ map convertParmod parmods
+convertParmods parmods = M.unions $ map convertParmod parmods
 
-convertParmod :: Parmod -> (String,[String])
-convertParmod jso = (getFunName jso, map mkval $ getFAttrs isParam jso)
-    where respar = getFunResult jso
-          mkval (_,anam,(JSString js)) = 
-              let r = fromJSString js in
-                  if r == "yes" && anam == respar then "result" else r
-
+convertParmod :: Parmod -> M.Map String [String]
+convertParmod jso =
+    M.unions $ map mkmap $ getFAttrs isParam jso
+    where mkmap (fnam,pnam,(JSString js)) = 
+              case fromJSString js of
+                   "yes" -> M.singleton (mkparnam fnam pnam) ["ar"]
+                   "no" -> M.singleton (mkparnam fnam pnam) ["ro"]
+                   "readonly" -> M.singleton (mkparnam fnam pnam) ["ro"]
+                   _ -> M.empty
+          mkparnam fnam pnam =
+              fnam ++ "/" ++ (if elem '-' pnam then tail $ snd $ break ('-' ==) pnam else pnam)

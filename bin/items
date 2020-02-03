@@ -1,0 +1,100 @@
+#!/bin/sh
+
+if [ -z "$GENCOT_HOME" ]
+then
+    echo "Cannot find Gencot installation."
+    echo "Please set environment variable GENCOT_HOME to root directory of Gencot installation."
+    exit
+fi
+
+BIN=$GENCOT_HOME/bin
+PRC=items-proc
+
+USAGE="Usage: $0 [-k] [merge|help] <file> [<file>]"
+
+long_usage()
+{
+    echo $USAGE
+    echo 'Manage Gencot item property declarations in text format.'
+    echo 'Commands:'
+    echo '  merge  <file1>  <file2> Merge two declarations by uniting properties for each item'
+    echo '  help            Display this help information'
+    echo '  (merge writes the resulting property declarations to stdout)'
+    echo 'Options for command merge: '
+    echo '  -k   Keep directory with intermediate files and display it at the end.'
+}
+
+short_usage()
+{
+    echo $USAGE
+    echo 'Run with -h for more information.'
+}
+
+# Parse options
+OPTS=$(getopt -o hk -n "$0" -- "$@")
+
+if [ $? != 0 ]
+then
+    short_usage
+    exit 1
+fi
+
+eval set -- "$OPTS"
+
+KEEP=''
+while true; do
+    case "$1" in
+        -h) long_usage; exit;;
+        -k) KEEP='yes'; shift;;
+        --) shift; break;;
+    esac
+done
+
+# Parse command
+REQARGS=1
+OPTARGS=''
+CMD=$1
+
+case "$CMD" in
+    merge) REQARGS=2;;
+    help) long_usage; exit;;
+    *) echo "unknown items command: $1"; short_usage; exit;;
+esac
+
+shift
+
+if [ $OPTARGS ]
+then
+    if [ $REQARGS -gt $# ]
+    then
+        echo "wrong number of arguments for items command ${CMD}: expected at least $REQARGS"
+        exit
+    fi
+else
+    if [ "$REQARGS" != "$#" ]
+    then
+        echo "wrong number of arguments for items command ${CMD}: expected $REQARGS"
+        exit
+    fi
+fi
+
+if [ 1 ]
+then
+    TMPDIR=$(mktemp -d)
+fi
+
+if [ "$CMD" == "merge" ]
+then
+    $BIN/gencot-prclist < $2 > $TMPDIR/hfile
+    $BIN/gencot-prclist < $1 | $BIN/$PRC merge $TMPDIR/hfile
+fi
+
+if [ 1 ]
+then
+    if [ $KEEP ]
+    then
+        echo "Kept directory with intermediate files: $TMPDIR" >&2
+    else
+        rm -r $TMPDIR
+    fi
+fi

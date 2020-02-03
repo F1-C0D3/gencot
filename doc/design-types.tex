@@ -104,8 +104,6 @@ implemented by Gencot either. The main reason for not supporting derived array a
 for defining a unique syntactical representation which is needed for the current implementation of the item property
 mechanism as described in Section~\ref{impl-itemprops}.
 
-
-
 \subsubsection{Properties}
 
 The properties which can be declared for an item are usually specific for the item's type. If a property is declared
@@ -140,6 +138,21 @@ for items of array type.
 The No-String property is only supported for items of type \code{const char *}. If declared, Gencot uses the  
 type \code{(CPtr U8)!} instead of \code{String} for the translated item (see Section~\ref{design-types-pointer}).
 
+\item[Heap-Use]
+
+The Heap-Use property is only supported for items of function type. If declared, the parameters and
+result of the translated function are extended by a component of type \code{Heap} (see Section~\ref{design-types-function}).
+
+\item[Add-Result]
+
+The Add-Result property is only supported for parameter items. If declared, a component of the same type
+is added to the result, intended for returning a modified value of the parameter (see Section~\ref{design-types-function}). 
+
+If the function has a non-void result and at least one parameter has the Add-Result property the result type is changed
+to a tuple type with the original result as first component followed by components for all parameters with the Add-Result
+property in the parameter order. If the function result is void the result tuple contains only the parameters with 
+Add-Result property. If there is only one such parameter the result consists only of the corresponding component.
+
 \item[Modification-Function]
 
 The Modification-Function property is only supported for parameter items of pointer type. If declared, the parameters and
@@ -148,25 +161,15 @@ Section~\ref{design-types-function}) where the modified parameter is the first o
 property has been declared. Note that, although the property is declared for a parameter, the function is affected
 by it as a whole.
 
+The parameter type of the function is constructed as a pair consisting of the modified parameter and a tuple of all 
+other parameters in the same order as in C. If the modified parameter also has the Add-Result property the result type 
+of the function is constructed as a pair consisting of the modified parameter and a tuple of the original function result
+and all other parameters with the Add-Result property. If the modified parameter does not have the Add-Result property
+it is assumed that the original result returns the modified parameter value and the function result type is constructed 
+as the pair consisting of the original result and the tuple of all parameters with the Add-Result property (which may 
+be the unit type if there are no such parameters).
+
 The Read-Only property is ignored, if it is combined with the Modification-Function property.
-
-\item[Heap-Use]
-
-The Heap-Use property is only supported for items of function type. If declared, the parameters and
-result of the translated function are extended by a component of type \code{Heap} (see Section~\ref{design-types-function}).
-
-\item[Discard-Parameter]
-
-The Discard-Parameter property is only supported for parameter items of pointer type. If declared, no component corresponding
-to that parameter is added to the function result (see Section~\ref{design-types-function}).
-
-This property is ignored, if it is combined with property Modification-Function.
-
-\item[Result-Parameter]
-
-The Result-Parameter property is only supported for parameter items of pointer type. If declared, the C function returns this 
-parameter as its result, so no component corresponding to that parameter needs to be added to the function result 
-(see Section~\ref{design-types-function}).
 
 \end{description}
 

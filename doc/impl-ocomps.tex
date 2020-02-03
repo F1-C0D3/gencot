@@ -1,6 +1,7 @@
 The following auxiliary Gencot components exist which do not process C source code:
 \begin{description}
 \item[\code{parmod-proc}] processes parameter modification descriptions in JSON format (see Section~\ref{impl-parmod}).
+\item[\code{items-proc}] processes item property declarations in text format (see Section~\ref{impl-itemprops}).
 \item[\code{auxcog-macros}] processes Cogent source code to select macro definitions.
 \item[\code{auxcog-mapback}] processes Cogent source code to map Cogent constants back to preprocessor constants.
 \item[\code{gencot-prclist}] processes list files to remove comments.
@@ -52,6 +53,10 @@ unconfirmed parameter descriptions and no required dependencies. Then it is eval
 The resulting parameter modification description contains no parameter dependencies and
 no invocation descriptions. It is intended to be read by the filters which translate C function types and function 
 definitions.
+
+\item[\code{out}]
+Using the function \code{convertParmods} the parameter modification description is converted to an item property 
+map. The map is written to the standard output in the format described in Section~\ref{impl-itemprops-decl}.
 \end{description}
 
 All lists mentioned above are structured as a sequence of text lines.
@@ -63,6 +68,21 @@ The first three commands are intended as a support for the developer when fillin
 for all three the output is empty. If there are unconfirmed parameters they must be inspected and confirmed. This usually 
 modifies the list of required invocations. They can be reduced by generating and merging corresponding descriptions
 from other source files.
+
+\subsection{Item Property Declarations}
+\label{impl-ocomps-parmod}
+
+Processing item property declarations is implemented by the filter \code{items-proc}. It reads a item property declarations
+from standard input as a sequence of text lines in the format described in Section~\ref{impl-itemprops-decl}. The first command line 
+argument acts as a command how to process the item property declarations. The filter implements the following
+commands:
+\begin{description}
+
+\item[\code{merge}]
+Takes an additional file name as command line argument. The file contains additional item property declarations.
+Both declarations are merged. If both contain properties for the same item the union of properties is declared for it.
+
+\end{description}
 
 \subsection{Processing Cogent Code}
 \label{impl-ocomps-cogent}

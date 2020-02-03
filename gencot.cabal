@@ -85,7 +85,7 @@ executable gencot-dvdtypes
 
 executable callgraph-print
   main-is:             callgraph-print.hs
-  other-modules:       Gencot.Package, Gencot.Text.CallGraph, Gencot.Util.CallGraph, Gencot.Json.Identifier, Gencot.Input, Gencot.Util.Types, Gencot.Util.Equality, Gencot.Names, Gencot.Traversal, Gencot.Util.Expr, Gencot.Util.Decl
+  other-modules:       Gencot.Package, Gencot.Text.CallGraph, Gencot.Util.CallGraph, Gencot.Json.Identifier, Gencot.Input, Gencot.Util.Types, Gencot.Util.Equality, Gencot.Names, Gencot.Traversal, Gencot.Util.Expr, Gencot.Util.Decl, Gencot.Util.Properties
   other-extensions:    PackageImports
   build-depends:       base ^>=4.12.0.0, language-c ^>=0.8.2, bytestring ^>=0.10.8.2, containers ^>=0.6.0.1, filepath ^>=1.4.2.1
   hs-source-dirs:      src
@@ -93,7 +93,7 @@ executable callgraph-print
 
 executable parmod-externs
   main-is:             parmod-externs.hs
-  other-modules:       Gencot.Traversal, Gencot.Input, Gencot.Names, Gencot.Traversal, Gencot.Package, Gencot.Util.CallGraph, Gencot.Util.Equality, Gencot.Util.Expr, Gencot.Util.Types, Gencot.Util.Decl, Gencot.Util.Functions, Gencot.Json.Identifier
+  other-modules:       Gencot.Traversal, Gencot.Input, Gencot.Names, Gencot.Traversal, Gencot.Package, Gencot.Util.CallGraph, Gencot.Util.Equality, Gencot.Util.Expr, Gencot.Util.Types, Gencot.Util.Decl, Gencot.Util.Functions, Gencot.Util.Properties, Gencot.Json.Identifier
   other-extensions:    PackageImports
   build-depends:       ansi-wl-pprint ^>=0.6.8.2
                        , base ^>=4.12.0.0, language-c ^>=0.8.2, bytestring ^>=0.10.8.2, containers ^>=0.6.0.1, filepath ^>=1.4.2.1
@@ -102,7 +102,7 @@ executable parmod-externs
 
 executable parmod-gen
   main-is:             parmod-gen.hs
-  other-modules:       Gencot.Traversal, Gencot.Input, Gencot.Util.CallGraph, Gencot.Util.Equality, Gencot.Util.Types, Gencot.Util.Expr,  Gencot.Json.Translate, Gencot.Json.Process, Gencot.Json.Parmod, Gencot.Json.Identifier, Gencot.Names, Gencot.Util.Decl
+  other-modules:       Gencot.Traversal, Gencot.Input, Gencot.Util.CallGraph, Gencot.Util.Equality, Gencot.Util.Types, Gencot.Util.Expr,  Gencot.Json.Translate, Gencot.Json.Process, Gencot.Json.Parmod, Gencot.Json.Identifier, Gencot.Names, Gencot.Util.Decl, Gencot.Util.Properties
   other-extensions:    PackageImports, DeriveDataTypeable, MultiWayIf, CPP, FlexibleInstances
   build-depends:       json ^>=0.9.3
                        , pretty-simple ^>=2.2.0
@@ -113,12 +113,20 @@ executable parmod-gen
 
 executable parmod-proc
   main-is:             parmod-proc.hs
-  other-modules:       Gencot.Json.Process, Gencot.Json.Parmod
+  other-modules:       Gencot.Json.Process, Gencot.Json.Parmod, Gencot.Util.Properties
   other-extensions:    PackageImports, DeriveDataTypeable, MultiWayIf, CPP, FlexibleInstances
   build-depends:       json ^>=0.9.3
                        , pretty-simple ^>=2.2.0
                        , text ^>=1.2.3
                        , base ^>=4.12.0.0, containers ^>=0.6.0.1
+  hs-source-dirs:      src
+  default-language:    Haskell2010
+
+executable items-proc
+  main-is:             items-proc.hs
+  other-modules:       Gencot.Util.Properties
+  other-extensions:    PackageImports
+  build-depends:       base ^>=4.12.0.0, containers ^>=0.6.0.1
   hs-source-dirs:      src
   default-language:    Haskell2010
 

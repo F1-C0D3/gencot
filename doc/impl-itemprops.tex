@@ -85,10 +85,9 @@ Each property is identified by a two-letter code as follows:
 \item[Read-Only:] ro
 \item[Not-Null:] nn
 \item[No-String:] ns
-\item[Modification-Function:] mf
 \item[Heap-Use:] hu
-\item[Discard-Parameter:] dp
-\item[Result-Parameter:] rp
+\item[Add-Result:] ar
+\item[Modification-Function:] mf
 \end{description}
 
 \subsection{Item Property Declarations}
@@ -102,7 +101,7 @@ As an example, to declare properties for the parameters \code{p1, par2, param3} 
 and the Heap-Use property for the function itself, four declarations are needed:
 \begin{verbatim}
     myfunp/*/p1:     nn ro
-    myfunp/*/par2:   rp mf
+    myfunp/*/par2:   ar mf
     myfunp/*/param3: ns
     myfunp/*:        hu
 \end{verbatim}
@@ -112,16 +111,16 @@ and the Heap-Use property for the function itself, four declarations are needed:
 
 When used the textual form is converted to an internal Haskell representation of type 
 \begin{verbatim}
-  type ItemProps = Map String [String]
+  type ItemProperties = Map String [String]
 \end{verbatim}
-defined in module \code{Gencot.Traversal}. It maps item property identifiers to the list of identifiers of declared properties.
+defined in module \code{Gencot.Util.Properties}. It maps item property identifiers to the list of identifiers of declared properties.
 If several declarations for the same item are present in the textual form they are combined by uniting the 
 declared properties. Repeated property specifications are removed, the order of the properties in the list is
 arbitrary.
 
-The \code{ItemProps} map is added as component to the user state of the \code{FTrav} monad. The monadic actions
+The \code{ItemProperties} map is added as component to the user state of the \code{FTrav} monad. The monadic actions
 \begin{verbatim}
-  itemProperties :: String -> FTrav [String]
-  hasItemProperty :: String -> String -> FTrav Bool
+  getProperties :: String -> FTrav [String]
+  hasProperty :: String -> String -> FTrav Bool
 \end{verbatim}
 are defined in \code{Gencot.Traversal} for accessing the item properties.

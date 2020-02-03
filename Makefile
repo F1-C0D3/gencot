@@ -1,6 +1,6 @@
 all: build links
 
-build: check deccm pmext pmgen pmprc trans extns exttp dvdtp cgrph
+build: check deccm pmext pmgen pmprc trans extns exttp dvdtp cgrph itprc
 
 CHECK = gencot-check
 TRANS = gencot-translate
@@ -12,6 +12,7 @@ PMEXT = parmod-externs
 PMGEN = parmod-gen
 PMPRC = parmod-proc
 CGRPH = callgraph-print
+ITPRC = items-proc
 
 check: 
 	cabal new-build $(CHECK)
@@ -43,7 +44,10 @@ pmprc:
 cgrph: 
 	cabal new-build $(CGRPH)
 
-links: bin/$(CHECK) bin/$(DECCM) bin/$(PMEXT) bin/$(PMGEN) bin/$(PMPRC) bin/$(TRANS) bin/$(EXTNS) bin/$(EXTTP) bin/$(DVDTP) bin/$(CGRPH)
+itprc: 
+	cabal new-build $(ITPRC)
+
+links: bin/$(CHECK) bin/$(DECCM) bin/$(PMEXT) bin/$(PMGEN) bin/$(PMPRC) bin/$(TRANS) bin/$(EXTNS) bin/$(EXTTP) bin/$(DVDTP) bin/$(CGRPH) bin/$(ITPRC)
 
 bin/$(CHECK):
 	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(CHECK)/build/$(CHECK)/$(CHECK) .)
@@ -74,3 +78,6 @@ bin/$(PMPRC):
 
 bin/$(CGRPH):
 	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(CGRPH)/build/$(CGRPH)/$(CGRPH) .)
+
+bin/$(ITPRC):
+	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(ITPRC)/build/$(ITPRC)/$(ITPRC) .)

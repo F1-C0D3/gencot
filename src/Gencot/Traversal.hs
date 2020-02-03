@@ -10,15 +10,13 @@ import Language.C.Analysis.TravMonad (Trav,runTrav,travErrors,withDefTable,getUs
 
 import Gencot.Input (showWarnings,errorOnLeft)
 import Gencot.Names (FileNameTrav,getFileName)
+import Gencot.Util.Properties (ItemProperties)
+
 
 -- | Simplified form of evaluated function description sequence.
 -- A mapping from function identifiers to sequences of parameter description values.
 -- For every parameter the description is one of "yes", "discarded", "no", "nonlinear", "result", or "readonly".
 type ParmodMap = Map String [String]
-
--- | Mapping from item ids to lists of property strings.
--- Used property strings are: nn, ro, ns, mf, hu, dp, rp
-type ItemProperties = Map String [String]
 
 -- | The traversal state for processing C code.
 -- The first component is the name of the C source file, or "" if several source files are processed

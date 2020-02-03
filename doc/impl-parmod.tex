@@ -264,7 +264,7 @@ be consistent, Gencot also prefers modifications resulting from dependencies aft
 
 Since in evaluated parameter modification descriptions all parameter descriptions are still confirmed, the only values
 possible for a parameter description are \code{"nonlinear"}, \code{"readonly"}, \code{"yes"}, \code{"discarded"}, and \code{"no"}.
-This information is used for declaring the properties Read-Only and Discard-Parameter for the function parameters.
+This information is used for declaring the properties Read-Only and Add-Result for the function parameters.
 
 \subsection{Haskell Modules}
 \label{impl-parmod-modules}
@@ -303,7 +303,7 @@ The main functions are
   sortParmods :: Parmods -> [String] -> Parmods
   addParsFromInvokes :: Parmods -> Parmods
   evaluateParmods :: Parmods -> Parmods
-  convertParmods :: Parmods -> ItemProps
+  convertParmods :: Parmods -> ItemProperties
 \end{verbatim}
 The first function retrieves the list of all unconfirmed parameters in the form
 \begin{verbatim}
@@ -322,7 +322,9 @@ The function \code{evaluateParmods} evaluates a parameter modification descripti
 Section~\ref{impl-parmod-eval}. 
 
 The function \code{convertParmods} converts the JSON representation to an item
-property map (see Section~\ref{impl-itemprops-internal} with declarations of the properties Read-Only, Discard-Parameter,
-Result-Parameter for all parameters with a description of \code{"no"} or \code{"discarded"} or referenced by
-an \code{f\_result} attribute. This map can then be merged with a manually defined item property map for being used
-by Gencot when translating C types to Cogent types.
+property map (see Section~\ref{impl-itemprops-internal} with declarations of the properties Read-Only and Add-Result.
+The parameter modification description must have been evaluated as described in Section~\ref{impl-parmod-eval}. The 
+resulting single parameter description values are translated to properties as follows: the description \code{"yes"}
+is translated to the Add-Result property, the descriptions \code{"readonly"} and \code{"no"} are translated to the 
+Read-Only Property. For the remaining descriptions \code{"nonlinear"} and \code{"discarded"} and the \code{f\_result}
+attribute no property is declared.

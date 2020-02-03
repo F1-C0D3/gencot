@@ -10,7 +10,7 @@ fi
 BIN=$GENCOT_HOME/bin
 PRC=parmod-proc
 
-USAGE="Usage: $0 [-I<dir>] [-G<dir>] [-k] [init|close|extern|show|idlist|diff|iddiff|addto|mergin|replin|eval|help] <file> [<file>]"
+USAGE="Usage: $0 [-I<dir>] [-G<dir>] [-k] [init|close|extern|show|idlist|diff|iddiff|addto|mergin|replin|eval|out|help] <file> [<file>]"
 
 long_usage()
 {
@@ -28,6 +28,7 @@ long_usage()
     echo '  mergin <json1> <json2>  Union, selecting entries with more confirmed parameters'
     echo '  replin <json1> <json2>  Replace in <json1> entries with not less confirmed parameters in <json2>'
     echo '  eval   <json>   Evaluate finished parmod description'
+    echo '  out    <json>   Convert evaluated parmod description to item properties'
     echo '  help            Display this help information'
     echo '  (init|close|eval write the resulting parmod description to stdout)'
     echo '  (addto, mergin and replin modify the first argument)'
@@ -102,6 +103,7 @@ case "$CMD" in
     mergin) REQARGS=2;;
     replin) REQARGS=2;;
     eval) ;;
+    out) ;;
     help) long_usage; exit;;
     *) echo "unknown parmod command: $1"; short_usage; exit;;
 esac
@@ -163,7 +165,7 @@ prepare_cfile()
     echo $TMPDIR/$CNAME.in >> $TMPDIR/infiles
 }
 
-if [ "$CMD" != "idlist" ]
+if [ "$CMD" != "idlist" -a "$CMD" != "out" ]
 then
     TMPDIR=$(mktemp -d)
 fi
@@ -262,9 +264,12 @@ then
         exit 1
     fi
     $BIN/$PRC eval < $1
+elif [ "$CMD" == "out" ]
+then
+    $BIN/$PRC out < $1
 fi
 
-if [ "$CMD" != "idlist" ]
+if [ "$CMD" != "idlist" -a "$CMD" != "out" ]
 then
     if [ $KEEP ]
     then

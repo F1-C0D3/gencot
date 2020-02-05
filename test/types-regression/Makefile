@@ -14,31 +14,34 @@ regression: $(foreach TST,$(TESTS),$(TST)-regression) unit-regression
 expect-current: $(foreach TST,$(TESTS),$(TST)-expect-current) unit-expect-current
 
 clean:  $(foreach TST,$(TESTS),$(TST)-clean)
-	-rm -f unit.files unit.cogent $(foreach U,$(UNIT),unit-$(U).cogent)
-	-rm -f types-parmod.gencot-parmodprops common.gencot-itemprops
+	-rm -f test.unit test.cogent $(foreach U,$(UNIT),test-$(U).cogent)
+	-rm -f types-parmod.json-itemprops  # types-pointer.c-itemprops test.unit-itemprops
 
-types-parmod.gencot-parmodprops: types-parmod.json
-	$(PM) out types-parmod.json > types-parmod.gencot-parmodprops
+types-parmod.json-itemprops: types-parmod.json
+	$(PM) out types-parmod.json > types-parmod.json-itemprops
 
-common.gencot-itemprops: types-pointer.gencot-manprops types-parmod.gencot-parmodprops
-	$(IT) merge types-pointer.gencot-manprops types-parmod.gencot-parmodprops > common.gencot-itemprops
+#%-itemprops: %-manprops types-parmod.json-itemprops
+#	$(IT) mergeto $*-manprops types-parmod.json-itemprops > $*-itemprops
 
 types-parmod.cogent: types-parmod.c
 	$(GC) cfile types-parmod.c types-parmod.json
 
-unit-regression: unit $(foreach U,$(UNI),unit-$(U)-expected.cogent)
+types-pointer.cogent: types-pointer.c types-pointer.c-itemprops
+	$(GC) cfile types-pointer.c
+
+unit-regression: unit $(foreach U,$(UNI),test-$(U)-expected.cogent)
 	-@for u in $(UNIT); do \
-	  echo "diff unit-$$u.cogent unit-$$u-expected.cogent"; \
-	  diff unit-$$u.cogent unit-$$u-expected.cogent; \
+	  echo "diff test-$$u.cogent test-$$u-expected.cogent"; \
+	  diff test-$$u.cogent test-$$u-expected.cogent; \
 	done
 
 unit-expect-current: unit
 	@for u in $(UNIT); do \
-	  echo "cp unit-$$u.cogent unit-$$u-expected.cogent"; \
-	  cp unit-$$u.cogent unit-$$u-expected.cogent; \
+	  echo "cp test-$$u.cogent test-$$u-expected.cogent"; \
+	  cp test-$$u.cogent test-$$u-expected.cogent; \
 	done
 
-%.cogent: %.c common.gencot-itemprops
+%.cogent: %.c
 	$(GC) cfile $*.c
 
 %-regression: types-%.cogent types-%-expected.cogent
@@ -50,11 +53,11 @@ unit-expect-current: unit
 %-clean:
 	-rm -f types-$*.cogent types-$*.o
 
-unit.files: 
+test.unit: 
 	@for f in $(foreach TST,$(TESTS),types-$(TST).c); do \
-	  echo $$f >> unit.files; \
+	  echo $$f >> test.unit; \
 	done
-	@cat unit.files
+	@cat test.unit
 
-unit: unit.files common.gencot-itemprops
-	$(GC) unit unit.files types-parmod.json
+unit: test.unit test.unit-itemprops
+	$(GC) unit test.unit types-parmod.json

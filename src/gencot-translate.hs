@@ -9,7 +9,7 @@ import Language.C.Analysis
 import Language.C.Analysis.DefTable (globalDefs)
 
 import Gencot.Input (readFromInput_,getOwnDeclEvents)
-import Gencot.Util.Properties (readPropertiesFromFile)
+import Gencot.Items.Properties (readPropertiesFromFile)
 import Gencot.Json.Parmod (readParmodsFromFile)
 import Gencot.Json.Process (oldConvertParmods)
 import Gencot.Traversal (runFTrav)

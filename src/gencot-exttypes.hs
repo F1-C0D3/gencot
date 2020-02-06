@@ -10,7 +10,7 @@ import qualified Language.C.Analysis as LCA
 import Language.C.Analysis.DefTable (globalDefs)
 
 import Gencot.Input (getDeclEvents)
-import Gencot.Util.Properties (readPropertiesFromFile)
+import Gencot.Items.Properties (readPropertiesFromFile)
 import Gencot.Json.Parmod (readParmodsFromFile)
 import Gencot.Json.Process (oldConvertParmods)
 import Gencot.Package (readPackageFromInput,getIdentInvocations,getOwnCallGraphs,foldTables,foldTypeCarrierSets)

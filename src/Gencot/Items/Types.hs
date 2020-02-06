@@ -1,5 +1,5 @@
 {-# LANGUAGE PackageImports #-}
-module Gencot.Items where
+module Gencot.Items.Types where
 
 import Control.Monad (liftM)
 import System.FilePath (takeExtension,takeFileName,takeBaseName)
@@ -10,6 +10,7 @@ import Language.C.Data.Ident as LCI
 import Language.C.Data.Node as LCN
 import Language.C.Analysis as LCA
 
+import Gencot.Items.Identifier (individualItemId,localItemId,typedefItemId,tagItemId,memberSubItemId,paramSubItemId,elemSubItemId,refSubItemId,resultSubItemId)
 import Gencot.Names (srcFileName)
 import Gencot.Traversal (FTrav,hasProperty)
 import Gencot.Util.Types (getTagDef,isExtern,isFunction,resolveFully,TypeCarrier)
@@ -17,15 +18,15 @@ import Gencot.Util.Types (getTagDef,isExtern,isFunction,resolveFully,TypeCarrier
 -- | Construct the identifier for an individual toplevel item.
 -- An individual toplevel item is a function or a global object (variable).
 -- It is specified by its declaration. 
--- The second parameter is the source file name of @idec@.
+-- The second argument is the source file name of @idec@.
 getIndividualItemId :: LCA.IdentDecl -> String -> String
-getIndividualItemId idec sfn = (linkagePrefix idec sfn) ++ (LCI.identToString $ LCA.declIdent idec)
+getIndividualItemId idec sfn = individualItemId (linkagePrefix idec sfn) (LCI.identToString $ LCA.declIdent idec)
 
 -- | The prefix to be prepended to an item identifier if the item has internal linkage.
 -- The item is specified by its declaration. 
 -- The second parameter is the source file name of @idec@.
 linkagePrefix :: (LCA.Declaration d, LCN.CNode d) => d -> String -> String
-linkagePrefix idec sfn | isInternal idec = prefix ++ ":"
+linkagePrefix idec sfn | isInternal idec = prefix
     where prefix = if (takeExtension sfn) == ".c" then (takeBaseName sfn) else (takeFileName sfn)
           isInternal idec = 
             case LCA.declStorage idec of
@@ -37,53 +38,37 @@ linkagePrefix _ _ = ""
 -- An individual local item is an object (variable) defined locally in a function body.
 -- It is specified by its declaration. 
 getLocalItemId :: LCA.IdentDecl -> String
-getLocalItemId idec = "?" ++ (LCI.identToString $ LCA.declIdent idec)
+getLocalItemId idec = localItemId (LCI.identToString $ LCA.declIdent idec)
 
 -- | Construct the identifier for a collective item specified by a typedef name.
 getTypedefItemId :: LCI.Ident -> String
-getTypedefItemId idnam = "typedef|" ++ (LCI.identToString idnam)
+getTypedefItemId idnam = typedefItemId (LCI.identToString idnam)
 
 -- | Construct the identifier for a collective item specified by a compound tag name.
 getTagItemId :: LCI.SUERef -> LCA.CompTyKind -> String
-getTagItemId (LCI.AnonymousRef _) knd = (kndstr knd) ++ "|<anonymous>"
-getTagItemId (LCI.NamedRef idnam) knd = (kndstr knd) ++ "|" ++ (LCI.identToString idnam)
+getTagItemId (LCI.AnonymousRef _) knd = tagItemId (kndstr knd) ""
+getTagItemId (LCI.NamedRef idnam) knd = tagItemId (kndstr knd) (LCI.identToString idnam)
 
 kndstr LCA.StructTag = "struct"
 kndstr LCA.UnionTag = "union"
 
 -- | Construct the identifier for a collective item specified by an enum tag name.
 getEnumItemId :: LCI.SUERef -> String
-getEnumItemId (LCI.AnonymousRef _) = "enum|<anonymous>"
-getEnumItemId (LCI.NamedRef idnam) = "enum|" ++ (LCI.identToString idnam)
+getEnumItemId (LCI.AnonymousRef _) = tagItemId "enum" ""
+getEnumItemId (LCI.NamedRef idnam) = tagItemId "enum" (LCI.identToString idnam)
 
 -- | Construct the identifier for a member subitem of an item of struct or union type.
 -- The first parameter is the identifier of the main item.
 getMemberSubItemId :: String -> LCA.MemberDecl -> String
-getMemberSubItemId item mdecl = 
-    item ++ "." ++ (LCI.identToString $ LCA.declIdent mdecl)
-
--- | Construct the identifier for the element subitem of an item of array type.
-getElemSubItemId :: String -> String
-getElemSubItemId item = item ++ "/[]"
-
--- | Construct the identifier for the referenced data subitem of an item of pointer type.
--- The '&' case handles the internal form used for adjusted funtion types (see @adjustItemAssocType@).
-getRefSubItemId :: String -> String
-getRefSubItemId ('&' : item) = item
-getRefSubItemId item = item ++ "/*"
-
--- | Construct the identifier for the result subitem of an item of function type.
-getResultSubItemId :: String -> String
-getResultSubItemId item = item ++ "/()"
+getMemberSubItemId item mdecl = memberSubItemId item (LCI.identToString $ LCA.declIdent mdecl)
 
 -- | Construct the identifier for a parameter subitem of an item of function type.
 -- The parameter is specified by the pair of its position and its declaration.
 -- The first argument is the identifier of the main item.
 getParamSubItemId :: String -> (Int,LCA.ParamDecl) -> String
-getParamSubItemId item (pos,pdecl) = 
-    item ++ "/" ++ (show pos) ++ pnam
+getParamSubItemId item (pos,pdecl) = paramSubItemId item pos pnam
     where pnam = case LCA.declName pdecl of
-                      LCA.VarName idnam _ -> "-" ++ (LCI.identToString idnam)
+                      LCA.VarName idnam _ -> (LCI.identToString idnam)
                       LCA.NoName -> ""
 
 -- | Construct all identifiers for a collective item specified by a type.
@@ -151,17 +136,17 @@ getMemberSubItemAssoc (iid,_) mdecl =
 -- | Element sub-item  for ItemAssocType
 -- The sub-ietm type must be explicitly provided as second argument as a hint to avoid resolving a typedef name.
 getElemSubItemAssoc :: ItemAssocType -> LCA.Type -> ItemAssocType
-getElemSubItemAssoc (iid,_) st = (getElemSubItemId iid,st)
+getElemSubItemAssoc (iid,_) st = (elemSubItemId iid,st)
 
 -- | Referenced data sub-item  for ItemAssocType
 -- The sub-ietm type must be explicitly provided as second argument as a hint to avoid resolving a typedef name.
 getRefSubItemAssoc :: ItemAssocType -> LCA.Type -> ItemAssocType
-getRefSubItemAssoc (iid,_) st = (getRefSubItemId iid,st)
+getRefSubItemAssoc (iid,_) st = (refSubItemId iid,st)
 
 -- | Referenced data sub-item  for ItemAssocType
 -- The sub-ietm type must be explicitly provided as second argument as a hint to avoid resolving a typedef name.
 getResultSubItemAssoc :: ItemAssocType -> LCA.Type -> ItemAssocType
-getResultSubItemAssoc (iid,_) st = (getResultSubItemId iid,st)
+getResultSubItemAssoc (iid,_) st = (resultSubItemId iid,st)
 
 -- | Parameter sub-item for ItemAssocType.
 -- The parameter is specified by the pair of its position and its declaration.

@@ -10,7 +10,7 @@ import Language.C.Analysis.TravMonad (Trav,runTrav,travErrors,withDefTable,getUs
 
 import Gencot.Input (showWarnings,errorOnLeft)
 import Gencot.Names (FileNameTrav,getFileName)
-import Gencot.Util.Properties (ItemProperties)
+import Gencot.Items.Properties (ItemProperties)
 
 
 -- | Simplified form of evaluated function description sequence.

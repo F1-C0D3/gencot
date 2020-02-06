@@ -9,7 +9,7 @@ import Language.C.Analysis.DefTable (globalDefs)
 import Language.C.Data.Ident (identToString)
 
 import Gencot.Input (getDeclEvents)
-import Gencot.Util.Properties (readPropertiesFromFile)
+import Gencot.Items.Properties (readPropertiesFromFile)
 import Gencot.Package (readPackageFromInput_,getIdentInvocations,getOwnCallGraphs,foldTables)
 import Gencot.Json.Parmod (readParmodsFromFile)
 import Gencot.Json.Process (oldConvertParmods)

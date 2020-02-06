@@ -1,8 +1,10 @@
-module Gencot.Util.Properties where
+module Gencot.Items.Properties where
 
-import Data.List (break,lines,words,union,intercalate)
-import Data.Map (Map,singleton,unions,unionWith,toAscList)
+import Data.List (break,lines,words,union,intercalate,nub)
+import Data.Map (Map,singleton,unions,unionWith,toAscList,keys,filterWithKey)
 import Data.Char (isSpace)
+
+import Gencot.Items.Identifier (toplevelItemId)
 
 -- | Mapping from item ids to lists of property strings.
 -- Used property strings are: nn, ro, ns, mf, hu, dp, rp
@@ -50,3 +52,12 @@ showPropertyLine (iid,props) =
 -- If an item occurs in both maps its declared properties are united.
 combineProperties :: ItemProperties -> ItemProperties -> ItemProperties
 combineProperties ipm1 ipm2 = unionWith union ipm1 ipm2
+
+-- | List of all toplevel item ids used in a property map.
+getToplevelItemIds :: ItemProperties -> [String]
+getToplevelItemIds ipm = nub $ map toplevelItemId $ keys ipm
+
+-- | Filter an item property map according to item identifier prefixes.
+filterItemsPrefixes :: [String] -> ItemProperties -> ItemProperties
+filterItemsPrefixes prefs ipm = filterWithKey (keyHasPrefix prefs) ipm
+    where keyHasPrefix prefs k _ = elem k prefs

@@ -9,7 +9,7 @@ import Data.Text.Lazy (unpack)
 
 import Gencot.Json.Process (showRemainingPars,getRequired,filterParmods,addParsFromInvokes,evaluateParmods,getFunName,mergeParmods,sortParmods,convertParmods)
 import Gencot.Json.Parmod (readParmodsFromFile,readParmodsFromInput)
-import Gencot.Util.Properties (showProperties)
+import Gencot.Items.Properties (showProperties)
 
 main :: IO ()
 main = do

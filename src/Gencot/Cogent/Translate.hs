@@ -21,12 +21,11 @@ import Cogent.Util (ffmap)
 
 import Gencot.Origin (Origin,noOrigin,origin,mkOrigin,noComOrigin,mkBegOrigin,mkEndOrigin,prepOrigin,appdOrigin,isNested,toNoComOrigin)
 import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapNameToLower,mapPtrDeriv,mapPtrVoid,mapMayNull,mapArrDeriv,mapFunDeriv,arrDerivHasSize,arrDerivToUbox,mapUboxStep,rmUboxStep,mapMayNullStep,rmMayNullStep,mapPtrStep,mapFunStep,mapIncFunStep,mapArrStep,mapModStep,mapRoStep,mapNamFunStep,srcFileName)
-import Gencot.Items (ItemAssocType,isSafePointerItem,removePositions,getIndividualItemId,getTagItemId,derivedItemIds,getIndividualItemAssoc,getTypedefItemAssoc,adjustItemAssocType,getMemberSubItemAssoc,getRefSubItemAssoc,getResultSubItemAssoc,getElemSubItemAssoc,getParamSubItemAssoc,getItemAssocTypes,getSubItemAssocTypes,numberList)
+import Gencot.Items.Types (ItemAssocType,isSafePointerItem,removePositions,getIndividualItemId,getTagItemId,derivedItemIds,getIndividualItemAssoc,getTypedefItemAssoc,adjustItemAssocType,getMemberSubItemAssoc,getRefSubItemAssoc,getResultSubItemAssoc,getElemSubItemAssoc,getParamSubItemAssoc,getItemAssocTypes,getSubItemAssocTypes,numberList)
 import Gencot.Cogent.Ast
 import Gencot.C.Translate (transStat,transExpr)
 import Gencot.Traversal (FTrav,getParmods,markTagAsNested,isMarkedAsNested)
 import Gencot.Util.Types (carriedTypes,usedTypeNames,resolveFully,isExtern,isCompOrFunc,isCompPointer,isNamedFunPointer,isFunPointer,isPointer,isAggregate,isFunction,isTypeDefRef,isComplete,isArray,isVoid,isTagRef,containsTypedefs,resolveTypedef,isComposite,isLinearType,isLinearParType,isReadOnlyType,isReadOnlyParType,isDerivedType,wrapFunAsPointer,getTagDef)
-import Gencot.Json.Identifier ()
 
 genType t = GenType t noOrigin
 

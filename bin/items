@@ -8,18 +8,19 @@ then
 fi
 
 BIN=$GENCOT_HOME/bin
-PRC=items-proc
+PRC=$BIN/items-proc
 
-USAGE="Usage: $0 [-k] [merge|help] <file> [<file>]"
+USAGE="Usage: $0 [-k] [merge|mergeto|help] <file> [<file>]"
 
 long_usage()
 {
     echo $USAGE
     echo 'Manage Gencot item property declarations in text format.'
     echo 'Commands:'
-    echo '  merge  <file1>  <file2> Merge two declarations by uniting properties for each item'
+    echo '  merge   <file1> <file2> Merge two declarations by uniting properties for each item'
+    echo '  mergeto <file1> <file2> Merge properties from <file2> to items in <file1>'
     echo '  help            Display this help information'
-    echo '  (merge writes the resulting property declarations to stdout)'
+    echo '  (merge|mergeto write the resulting property declarations to stdout)'
     echo 'Options for command merge: '
     echo '  -k   Keep directory with intermediate files and display it at the end.'
 }
@@ -57,6 +58,7 @@ CMD=$1
 
 case "$CMD" in
     merge) REQARGS=2;;
+    mergeto) REQARGS=2;;
     help) long_usage; exit;;
     *) echo "unknown items command: $1"; short_usage; exit;;
 esac
@@ -86,7 +88,11 @@ fi
 if [ "$CMD" == "merge" ]
 then
     $BIN/gencot-prclist < $2 > $TMPDIR/hfile
-    $BIN/gencot-prclist < $1 | $BIN/$PRC merge $TMPDIR/hfile
+    $BIN/gencot-prclist < $1 | $PRC merge $TMPDIR/hfile
+elif [ "$CMD" == "mergeto" ]
+then
+    $BIN/gencot-prclist < $1 | tee $TMPDIR/target | $PRC idlist > $TMPDIR/idlist
+    $BIN/gencot-prclist < $2 | $PRC filter $TMPDIR/idlist | $PRC merge $TMPDIR/target
 fi
 
 if [ 1 ]

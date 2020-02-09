@@ -1,7 +1,8 @@
 {-# LANGUAGE PackageImports #-}
 module Gencot.Items.Identifier where
 
-import Data.List (break)
+import Data.Char (isDigit,isLetter)
+import Data.List (break,elemIndex,dropWhileEnd)
 
 -- | For an item identifier get the identifier of the toplevel item.
 -- This is always a prefix of the item identifier.
@@ -60,4 +61,48 @@ paramSubItemId item pos cid =
     where pnam = case cid of
                       "" -> ""
                       _ -> '-' : cid
+
+-- | Construct all identifiers for an individual item.
+-- In the input parameter ids have the form <pos> or <pos>-<name>.
+-- The second form is split into two separate ids using <pos> and <name>.
+indivItemIds :: String -> [String]
+indivItemIds iid = case elemIndex '-' iid of
+                        Nothing -> [iid]
+                        Just i -> sepIds i iid
+
+sepIds i iid =
+    (map (\r -> pre ++ r) seprest) ++ (map (\r -> prefix ++ name ++ r) seprest)
+    where (pre,pst) = splitAt i iid -- pre is .../<pos>, pst is -<name>...
+          prefix = dropWhileEnd isDigit pre -- .../
+          name = takeWhile isLetter $ tail pst -- <name>
+          rest = dropWhile isLetter $ tail pst -- ...
+          seprest = indivItemIds rest
+
+-- | Construct the default item identifier.
+-- In the input parameter ids have the form <pos> or <pos>-<name>.
+-- The default item identifier uses <name> when available, otherwise <pos>.
+defaultItemId :: String -> String
+defaultItemId iid = case elemIndex '-' iid of
+                        Nothing -> iid
+                        Just i -> defId i iid
+
+defId i iid =
+    prefix ++ name ++ defrest
+    where (pre,pst) = splitAt i iid -- pre is .../<pos>, pst is -<name>...
+          prefix = dropWhileEnd isDigit pre -- .../
+          name = takeWhile isLetter $ tail pst -- <name>
+          rest = dropWhile isLetter $ tail pst -- ...
+          defrest = defaultItemId rest
+
+-- Only temporary, used for old Parmod implementation. Transform .../<pos>-<name>... to .../<name>...
+removePositions :: String -> String
+removePositions iid = case elemIndex '-' iid of
+                        Nothing -> iid
+                        Just i -> remPos i iid
+
+remPos i iid = prefix ++ name ++ (removePositions rest)
+    where (pre,pst) = splitAt i iid -- pre is .../<pos>, pst is -<name>...
+          prefix = dropWhileEnd isDigit pre -- .../
+          name = takeWhile isLetter $ tail pst -- <name>
+          rest = dropWhile isLetter $ tail pst -- ...
 

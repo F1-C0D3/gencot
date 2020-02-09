@@ -9,6 +9,7 @@ fi
 
 BIN=$GENCOT_HOME/bin
 PRC=$BIN/items-proc
+GEN=$BIN/items-gen
 
 USAGE="Usage: $0 [-k] [merge|mergeto|help] <file> [<file>]"
 
@@ -17,11 +18,16 @@ long_usage()
     echo $USAGE
     echo 'Manage Gencot item property declarations in text format.'
     echo 'Commands:'
+    echo '  file    <cfile>   Create default property declarations for all items defined in C sourcefile <cfile>'
+    echo '  unit    <ufile>   Create default property declarations for all external items in unit described in <ufile>'
     echo '  merge   <file1> <file2> Merge two declarations by uniting properties for each item'
     echo '  mergeto <file1> <file2> Merge properties from <file2> to items in <file1>'
     echo '  help            Display this help information'
-    echo '  (merge|mergeto write the resulting property declarations to stdout)'
-    echo 'Options for command merge: '
+    echo '  (all commands write the resulting property declarations to stdout)'
+    echo 'A <ufile> contains a list of <cfile> names, each on a separate line.'
+    echo 'Options: '
+    echo '  -I<dir>  Directory for searching C include files. Can be repeated, as for cpp. '
+    echo '  -G<dir>  Directory for searching Gencot auxiliary files. Only one can be given, default is "."'
     echo '  -k   Keep directory with intermediate files and display it at the end.'
 }
 
@@ -32,7 +38,7 @@ short_usage()
 }
 
 # Parse options
-OPTS=$(getopt -o hk -n "$0" -- "$@")
+OPTS=$(getopt -o hkI:G: -n "$0" -- "$@")
 
 if [ $? != 0 ]
 then
@@ -42,11 +48,29 @@ fi
 
 eval set -- "$OPTS"
 
+INCLPATH=''
+GENCOTDIR='.'
 KEEP=''
+add_incl()
+{
+    if [ "$1" == "." ] 
+    then INCL=""
+    else INCL="$1"
+    fi
+    if [ -z "$INCLPATH" ]
+    then INCLPATH=$1
+    elif [ "$INCLPATH" == "." ]
+    then INCLPATH=":$INCL"
+    else INCLPATH="${INCLPATH}:$INCL"
+    fi
+}
+
 while true; do
     case "$1" in
         -h) long_usage; exit;;
         -k) KEEP='yes'; shift;;
+        -I) shift; add_incl "$1"; shift;;
+        -G) shift; GENCOTDIR="$1"; shift;;
         --) shift; break;;
     esac
 done
@@ -57,6 +81,8 @@ OPTARGS=''
 CMD=$1
 
 case "$CMD" in
+    file) ;;
+    unit) ;;
     merge) REQARGS=2;;
     mergeto) REQARGS=2;;
     help) long_usage; exit;;
@@ -80,6 +106,46 @@ else
     fi
 fi
 
+prepare_aux()
+{
+    if [ -e $GENCOTDIR/$CNAME.gencot-$1 ] 
+    then
+        if [ -e $GENCOTDIR/common.gencot-$1 ]
+        then
+            cat $GENCOTDIR/common.gencot-$1 $GENCOTDIR/$CNAME.gencot-$1 > $TMPDIR/$CNAME.gencot-$1
+        else
+            cp $GENCOTDIR/$CNAME.gencot-$1 $TMPDIR/$CNAME.gencot-$1
+        fi
+    else
+        if [ -e $GENCOTDIR/common.gencot-$1 ]
+        then
+            cp $GENCOTDIR/common.gencot-$1 $TMPDIR/$CNAME.gencot-$1
+        else
+            touch $TMPDIR/$CNAME.gencot-$1
+        fi
+    fi
+}
+
+prepare_cfile()
+{
+    CFILE=$1
+    CBASE=$(basename $CFILE)
+    CNAME=$(expr match $CBASE '\(.*\)[.][^.]*' '|' $CBASE)
+    for aux in addincl omitincl noincl manmacros macroconv ppretain chsystem
+    do prepare_aux $aux
+    done
+    cat $TMPDIR/$CNAME.gencot-addincl $CFILE | $BIN/gencot-include $INCLPATH $TMPDIR/$CNAME.gencot-noincl \
+        | $BIN/gencot-remcomments | tee $TMPDIR/$CNAME.remc \
+        | $BIN/gencot-selpp \
+        | $BIN/gencot-selppconst $TMPDIR/$CNAME.gencot-manmacros \
+        | $BIN/gencot-gendummydecls > $TMPDIR/$CNAME.dummydecls
+    $BIN/gencot-rempp $TMPDIR/$CNAME.gencot-ppretain < $TMPDIR/$CNAME.remc \
+        | $BIN/gencot-chsystem $TMPDIR/$CNAME.gencot-chsystem \
+        | $BIN/gencot-cpp $TMPDIR/$CNAME.gencot-macroconv $TMPDIR/$CNAME.dummydecls \
+        > $TMPDIR/$CNAME.in
+    echo $TMPDIR/$CNAME.in >> $TMPDIR/infiles
+}
+
 if [ 1 ]
 then
     TMPDIR=$(mktemp -d)
@@ -93,6 +159,24 @@ elif [ "$CMD" == "mergeto" ]
 then
     $BIN/gencot-prclist < $1 | tee $TMPDIR/target | $PRC idlist > $TMPDIR/idlist
     $BIN/gencot-prclist < $2 | $PRC filter $TMPDIR/idlist | $PRC merge $TMPDIR/target
+elif [ "$CMD" == "file" ]
+then
+    prepare_cfile $1
+    $GEN $CBASE < $TMPDIR/$CNAME.in
+elif [ "$CMD" == "unit" ]
+then
+    RESFILE=$TMPDIR/res
+    touch $RESFILE
+    for file in $(< $1)
+    do 
+        prepare_cfile $file
+        BASE=$(basename $file)
+        NAME=$(expr match $BASE '\(.*\)[.][^.]*' '|' $BASE)
+        $GEN $BASE close < $TMPDIR/$NAME.in | $PRC merge $RESFILE > $TMPDIR/hres
+        mv $TMPDIR/hres $RESFILE
+    done
+    # $BIN/items-used < $TMPDIR/infiles > $TMPDIR/used
+    # $PRC filter $TMPDIR/used < $RESFILE
 fi
 
 if [ 1 ]

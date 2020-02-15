@@ -11,7 +11,7 @@ import Language.C.Analysis as LCA
 import Gencot.Items.Identifier (individualItemId,localItemId,paramItemId,typedefItemId,tagItemId,memberSubItemId,paramSubItemId,elemSubItemId,refSubItemId,resultSubItemId,indivItemIds,removePositions)
 import Gencot.Names (srcFileName)
 import Gencot.Traversal (FTrav,hasProperty)
-import Gencot.Util.Types (getTagDef,isExtern,isFunction,resolveFully,TypeCarrier)
+import Gencot.Util.Types (getTagDef,isExtern,isFunction,resolveFully,TypeCarrier,TypeCarrierSet)
 
 -- | Construct the identifier for an individual toplevel item.
 -- An individual toplevel item is a function or a global object (variable).
@@ -19,6 +19,12 @@ import Gencot.Util.Types (getTagDef,isExtern,isFunction,resolveFully,TypeCarrier
 -- The second argument is the source file name of @idec@.
 getIndividualItemId :: LCA.IdentDecl -> String -> String
 getIndividualItemId idec sfn = individualItemId (linkagePrefix idec sfn) (LCI.identToString $ LCA.declIdent idec)
+
+-- | Construct the identifier for a individual non-internal toplevel item.
+-- An individual non-internal toplevel item is a function or a global object (variable) with external linkage.
+-- It is specified by its declaration. 
+getExternalItemId :: LCA.IdentDecl -> String
+getExternalItemId idec = individualItemId "" (LCI.identToString $ LCA.declIdent idec)
 
 -- | The prefix to be prepended to an item identifier if the item has internal linkage.
 -- The item is specified by its declaration. 
@@ -61,6 +67,16 @@ kndstr LCA.UnionTag = "union"
 getEnumItemId :: LCI.SUERef -> String
 getEnumItemId (LCI.AnonymousRef _) = tagItemId "enum" ""
 getEnumItemId (LCI.NamedRef idnam) = tagItemId "enum" (LCI.identToString idnam)
+
+-- | Get the identifier for a toplevel item which has not internal linkage
+getToplevelItemId :: TypeCarrier -> String
+getToplevelItemId (LCA.DeclEvent idecl) = getExternalItemId idecl
+getToplevelItemId (LCA.TypeDefEvent (LCA.TypeDef idnam _ _ _)) = getTypedefItemId idnam
+getToplevelItemId (LCA.TagEvent (LCA.CompDef (LCA.CompType sueref knd _ _ _))) = getTagItemId sueref knd
+getToplevelItemId (LCA.TagEvent (LCA.EnumDef (LCA.EnumType sueref _ _ _))) = getEnumItemId sueref
+getToplevelItemId (LCA.LocalEvent decl) = getLocalItemId decl
+getToplevelItemId (LCA.ParamEvent decl) = getParamItemId decl
+getToplevelItemId (LCA.AsmEvent _) = "<ASM block>"
 
 -- | Construct the identifier for a member subitem of an item of struct or union type.
 -- The first parameter is the identifier of the main item.

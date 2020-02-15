@@ -48,7 +48,7 @@ usedTypeNames tcs = map (LCI.identToString . typeIdent) $ nub $ concat $ map ((f
     
 -- | Transitive closure of a function on type carriers, applied to a set of type carriers
 transCloseCarriers :: (TypeCarrier -> TypeCarrierSet) -> TypeCarrierSet -> TypeCarrierSet
-transCloseCarriers f tcs =
+transCloseCarriers f tcs = 
     if null ct then tcs else transCloseCarriers f (ct ++ tcs)
     where ct = (nub $ concat $ map f tcs) \\ tcs
 
@@ -60,7 +60,8 @@ usedCarriers tds dt tc = nub $ concat $ map (usedCarriersInType (isExtern tc) td
 -- The second parameter is a list of type defs names where resolving stops
 usedCarriersInType :: Bool -> [String] -> LCD.DefTable -> LCA.Type -> TypeCarrierSet
 usedCarriersInType rslv tds dt t = 
-    catMaybes $ map (typeToCarrier dt) $ (resolveSetFully rslv tds) $ selNonDerived isTypeCarrier t
+    catMaybes $ map (typeToCarrier dt) $ selNonDerived isTypeCarrier rt
+    where rt = if rslv then resolveFully tds t else t
 
 isTypeCarrier :: LCA.Type -> Bool
 isTypeCarrier (LCA.DirectType (LCA.TyComp _) _ _) = True

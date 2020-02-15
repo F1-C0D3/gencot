@@ -8,7 +8,7 @@ import Language.C.Data.Ident as LCI
 import Language.C.Data.Node as LCN
 import Language.C.Analysis as LCA
 
-import Gencot.Items.Identifier (individualItemId,localItemId,typedefItemId,tagItemId,memberSubItemId,paramSubItemId,elemSubItemId,refSubItemId,resultSubItemId,indivItemIds,removePositions)
+import Gencot.Items.Identifier (individualItemId,localItemId,paramItemId,typedefItemId,tagItemId,memberSubItemId,paramSubItemId,elemSubItemId,refSubItemId,resultSubItemId,indivItemIds,removePositions)
 import Gencot.Names (srcFileName)
 import Gencot.Traversal (FTrav,hasProperty)
 import Gencot.Util.Types (getTagDef,isExtern,isFunction,resolveFully,TypeCarrier)
@@ -37,6 +37,13 @@ linkagePrefix _ _ = ""
 -- It is specified by its declaration. 
 getLocalItemId :: LCA.IdentDecl -> String
 getLocalItemId idec = localItemId (LCI.identToString $ LCA.declIdent idec)
+
+-- | Construct the identifier for an individual parameter item.
+-- An individual parameter item is a parameter defined locally in a function.
+-- This is only intended as a dummy when directly translating a parameter declaration.
+-- For production use @getParamSubItemId@ because that includes the function id.
+getParamItemId :: LCA.ParamDecl -> String
+getParamItemId idec = paramItemId (LCI.identToString $ LCA.declIdent idec)
 
 -- | Construct the identifier for a collective item specified by a typedef name.
 getTypedefItemId :: LCI.Ident -> String
@@ -96,6 +103,9 @@ getIndividualItemAssoc idecl sfn = (getIndividualItemId idecl sfn, LCA.declType 
 getLocalItemAssoc :: LCA.IdentDecl -> ItemAssocType
 getLocalItemAssoc idecl = (getLocalItemId idecl, LCA.declType idecl)
 
+getParamItemAssoc :: LCA.ParamDecl -> ItemAssocType
+getParamItemAssoc idecl = (getParamItemId idecl, LCA.declType idecl)
+
 getTypedefItemAssoc :: LCI.Ident -> LCA.Type -> ItemAssocType
 getTypedefItemAssoc idnam typ = (getTypedefItemId idnam, typ)
 
@@ -133,28 +143,34 @@ getParamSubItemAssoc (iid,_) ipd@(pos,pdecl) =
 adjustItemAssocType :: ItemAssocType -> ItemAssocType
 adjustItemAssocType (iid,t) = ("&" ++ iid, (LCA.PtrType t LCA.noTypeQuals LCA.noAttributes))
 
--- | Retrieve ItemAssocTypes from a TypeCarrier.
+-- | Retrieve ItemAssocType from a TypeCarrier.
 -- The additional first parameter is a set of typedef names where to stop resolving external types.
 -- This is a monadic action because the TypeCarrier's @srcFileName@ must be determined.
--- ParamEvent items are not processed because they correspond to function sub-items.
--- LocalEvent items are processed but with an empty item identifier 
--- Tagless compound items are not processed because they are not type carriers themselves.
--- Tagged compound items are retrieved together with all member items, because they are not sub-items of the tag reference type.
-getItemAssocTypes :: [String] -> TypeCarrier -> FTrav [ItemAssocType]
-getItemAssocTypes _ (LCA.DeclEvent idecl) = do
+-- To avoid standalone parameters, local variables, and tagless compound items they must be filtered before.
+-- AsmEvents must always be filtered.
+getItemAssocType :: [String] -> TypeCarrier -> FTrav ItemAssocType
+getItemAssocType _ (LCA.DeclEvent idecl) = do
     sfn <- srcFileName idecl
-    return [getIndividualItemAssoc idecl sfn]
-getItemAssocTypes tdn (LCA.TypeDefEvent td@(LCA.TypeDef idnam t _ _)) | isExtern td = 
-    return [getTypedefItemAssoc idnam $ resolveFully tdn t]
-getItemAssocTypes _ (LCA.TypeDefEvent (LCA.TypeDef idnam t _ _)) = 
-    return [getTypedefItemAssoc idnam t]
-getItemAssocTypes _ (LCA.TagEvent def@(LCA.CompDef (LCA.CompType sueref knd _ _ _))) | LCI.isAnonymousRef sueref = return []
-getItemAssocTypes _ (LCA.TagEvent def@(LCA.CompDef (LCA.CompType sueref knd mems _ _))) =
-    return (iat : (map (\md -> getMemberSubItemAssoc iat md) mems))
-    where iat = (getTagItemId sueref knd,LCA.DirectType (LCA.typeOfTagDef def) LCA.noTypeQuals LCA.noAttributes)
-getItemAssocTypes _ (LCA.LocalEvent decl) = return [getLocalItemAssoc decl]
-getItemAssocTypes _ (LCA.ParamEvent decl) = return []
-getItemAssocTypes _ _ = return []
+    return $ getIndividualItemAssoc idecl sfn
+getItemAssocType tdn (LCA.TypeDefEvent td@(LCA.TypeDef idnam t _ _)) | isExtern td = 
+    return $ getTypedefItemAssoc idnam $ resolveFully tdn t
+getItemAssocType _ (LCA.TypeDefEvent (LCA.TypeDef idnam t _ _)) = 
+    return $ getTypedefItemAssoc idnam t
+getItemAssocType _ (LCA.TagEvent def@(LCA.CompDef (LCA.CompType sueref knd mems _ _))) =
+    return (getTagItemId sueref knd,LCA.DirectType (LCA.typeOfTagDef def) LCA.noTypeQuals LCA.noAttributes)
+getItemAssocType _ (LCA.TagEvent def@(LCA.EnumDef (LCA.EnumType sueref enms _ _))) =
+    return (getEnumItemId sueref,LCA.DirectType (LCA.typeOfTagDef def) LCA.noTypeQuals LCA.noAttributes)
+getItemAssocType _ (LCA.LocalEvent decl) = return $ getLocalItemAssoc decl
+getItemAssocType _ (LCA.ParamEvent decl) = return $ getParamItemAssoc decl
+getItemAssocType _ (LCA.AsmEvent _) = error "Cannot translate an ASM block as an item."
+
+-- | Retrieve the ItemAssocTypes for the members of a compound tag definition.
+-- This is a monadic action because it uses @getItemAssocType@.
+getMemberItemAssocTypes :: TypeCarrier -> FTrav [ItemAssocType]
+getMemberItemAssocTypes tc@(LCA.TagEvent def@(LCA.CompDef (LCA.CompType sueref knd mems _ _))) = do
+    iat <- getItemAssocType [] tc
+    return (map (\md -> getMemberSubItemAssoc iat md) mems)
+getMemberItemAssocTypes _ = return []
 
 -- | Get all sub-ItemAssocTypes of an ItemAssocType, including itself.
 -- This is a monadic action because for an anonymous compound type the definition must be retrieved.

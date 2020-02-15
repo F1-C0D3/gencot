@@ -20,6 +20,11 @@ individualItemId pref cid = if null pref then cid else pref ++ ":" ++ cid
 localItemId :: String -> String
 localItemId cid = '?' : cid
 
+-- | Construct the identifier for an individual parameter item.
+-- The argument is the C identifier of the item.
+paramItemId :: String -> String
+paramItemId cid = "param|" ++ cid
+
 -- | Construct the identifier for a collective item specified by a typedef name.
 typedefItemId :: String -> String
 typedefItemId cid = "typedef|" ++ cid

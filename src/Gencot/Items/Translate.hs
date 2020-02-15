@@ -6,7 +6,7 @@ import Data.Map (unions,fromList)
 import Language.C.Analysis as LCA
 
 import Gencot.Items.Properties (ItemProperties)
-import Gencot.Items.Types (ItemAssocType,getItemAssocTypes,getSubItemAssocTypes)
+import Gencot.Items.Types (ItemAssocType,getItemAssocType,getMemberItemAssocTypes,getSubItemAssocTypes)
 import Gencot.Items.Identifier (defaultItemId)
 import Gencot.Traversal (FTrav)
 import Gencot.Util.Types (isReadOnlyType,isFunction,isPointer,isFunPointer)
@@ -25,8 +25,9 @@ transGlobals tcs = liftM unions $ mapM transGlobal tcs
 -- and return them as an item property map.
 transGlobal :: LCA.DeclEvent -> FTrav ItemProperties
 transGlobal tc = do
-    iats <- getItemAssocTypes [] tc
-    iats <- liftM concat $ mapM getSubItemAssocTypes iats
+    iat <- getItemAssocType [] tc
+    miats <- getMemberItemAssocTypes tc
+    iats <- liftM concat $ mapM getSubItemAssocTypes (iat : miats)
     let fiats = filter (\(_,t) -> (isFunction t) || ((isPointer t) && (not $ isFunPointer t))) iats
     dip <- mapM getDefaultProperies fiats
     return $ fromList dip

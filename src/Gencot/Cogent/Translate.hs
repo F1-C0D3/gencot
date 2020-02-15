@@ -21,7 +21,7 @@ import Cogent.Util (ffmap)
 
 import Gencot.Origin (Origin,noOrigin,origin,mkOrigin,noComOrigin,mkBegOrigin,mkEndOrigin,prepOrigin,appdOrigin,isNested,toNoComOrigin)
 import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapNameToLower,mapPtrDeriv,mapPtrVoid,mapMayNull,mapArrDeriv,mapFunDeriv,arrDerivHasSize,arrDerivToUbox,mapUboxStep,rmUboxStep,mapMayNullStep,rmMayNullStep,mapPtrStep,mapFunStep,mapIncFunStep,mapArrStep,mapModStep,mapRoStep,mapNamFunStep,srcFileName)
-import Gencot.Items.Types (ItemAssocType,isSafePointerItem,getIndividualItemId,getTagItemId,derivedItemIds,getIndividualItemAssoc,getTypedefItemAssoc,adjustItemAssocType,getMemberSubItemAssoc,getRefSubItemAssoc,getResultSubItemAssoc,getElemSubItemAssoc,getParamSubItemAssoc,getItemAssocTypes,getSubItemAssocTypes,numberList)
+import Gencot.Items.Types (ItemAssocType,isSafePointerItem,getIndividualItemId,getTagItemId,derivedItemIds,getIndividualItemAssoc,getTypedefItemAssoc,adjustItemAssocType,getMemberSubItemAssoc,getRefSubItemAssoc,getResultSubItemAssoc,getElemSubItemAssoc,getParamSubItemAssoc,getItemAssocType,getMemberItemAssocTypes,getSubItemAssocTypes,numberList)
 import Gencot.Items.Identifier (removePositions)
 import Gencot.Cogent.Ast
 import Gencot.C.Translate (transStat,transExpr)
@@ -241,8 +241,9 @@ genTypeDefs tdn tcs = do
 -- translate the types to Cogent, and retrieve their names.
 genDerivedTypeNames :: [String] -> LCA.DeclEvent -> FTrav [Map String ItemAssocType]
 genDerivedTypeNames tdn tc = do
-    iats <- getItemAssocTypes tdn tc
-    iats <- (liftM concat) $ mapM getSubItemAssocTypes iats
+    iat <- getItemAssocType tdn tc
+    miats <- getMemberItemAssocTypes tc
+    iats <- (liftM concat) $ mapM getSubItemAssocTypes (iat : miats)
     let fiats = filter (\(_,t) -> (isDerivedType t) && (not $ isFunction t) && ((not $ isPointer t) || isFunPointer t)) iats
 --                $ concat $ map (\(iid,t) -> nub [(iid,t), (iid,resolveFully [] t)]) iats
 --    mapM (\iat -> do gt <- transType False iat; return $ singleton (getName gt) iat) fiats

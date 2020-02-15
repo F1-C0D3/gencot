@@ -244,6 +244,7 @@ getCGInvoke (LC.CMember expr mid pointer _) alen = do
                                    then return Nothing
                                    else return $ Just (MemberInvoke ctyp mdecl alen)
 getCGInvoke (LC.CIndex expr _ _) alen = getCGInvoke expr alen
+getCGInvoke (LC.CUnary LC.CIndOp expr _) alen = getCGInvoke expr alen
 getCGInvoke _ _ = return Nothing
 
 type CTrav = Trav (String,CallGraph)

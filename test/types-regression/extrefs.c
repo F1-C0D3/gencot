@@ -18,12 +18,12 @@ extern int extvar3;  // external, not used
 
 int defvar1 = 1; // internal, used
 
-struct extstr1 extfun4(exttyp1);
-struct extstr6 extfun5(exttyp6);
-typedef struct extstr2 *pextstr2;
-typedef exttyp2 *pexttyp2;
-void deffun2(struct extstr3 *p,exttyp3 q,exttypc3 r) { p->m1 = q; }
-struct defstr1 { struct extstr4 *m1; exttyp4 *m2; };
+struct extstr1 extfun4(exttyp1);  // external, invoked
+struct extstr6 extfun5(exttyp6);  // external, not used
+typedef struct extstr2 *pextstr2;  // typedef references extstr2
+typedef exttyp2 *pexttyp2;         // typedef references exttyp2
+void deffun2(struct extstr3 *p,exttyp3 q,exttypc3 r) { p->m1 = q; }  // function definition references extstr3, exttyp3, exttypc3
+struct defstr1 { struct extstr4 *m1; exttyp4 *m2; };  // member declarations reference extstr4, exttyp4
 
 void invoker(void) {
     deffun1(5);

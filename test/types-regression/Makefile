@@ -17,7 +17,7 @@ expect-current: $(foreach TST,$(TESTS),$(TST)-expect-current) unit-expect-curren
 clean:  $(foreach TST,$(TESTS),$(TST)-clean)
 	-rm -f test.unit test.cogent $(foreach U,$(UNIT),test-$(U).cogent)
 	-rm -f types-parmod.json-itemprops  # types-pointer.c-itemprops test.unit-itemprops
-	-rm -f test.gencot-extitems
+	-rm -f test.gencot-extitems test.ext-dfltprops
 
 types-parmod.json-itemprops: types-parmod.json
 	$(PM) out types-parmod.json > types-parmod.json-itemprops
@@ -37,6 +37,7 @@ unit-regression: unit $(foreach U,$(UNI),test-$(U)-expected.cogent)
 	  diff test-$$u.cogent test-$$u-expected.cogent; \
 	done
 	-diff test.gencot-extitems test-expected.gencot-extitems
+	-diff test.ext-dfltprops test-expected.ext-dfltprops
 
 unit-expect-current: unit
 	@for u in $(UNIT); do \
@@ -44,6 +45,7 @@ unit-expect-current: unit
 	  cp test-$$u.cogent test-$$u-expected.cogent; \
 	done
 	@cp test.gencot-extitems test-expected.gencot-extitems
+	@cp test.ext-dfltprops test-expected.ext-dfltprops
 
 %.cogent: %.c
 	$(GC) cfile $*.c
@@ -66,4 +68,5 @@ test.unit:
 
 unit: test.unit test.unit-itemprops test.gencot-manitems
 	$(IT) $(ABSINCL) used test.unit > test.gencot-extitems
+	$(IT) $(ABSINCL) unit test.unit > test.ext-dfltprops
 	$(GC) $(ABSINCL) unit test.unit types-parmod.json

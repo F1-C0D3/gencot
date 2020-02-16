@@ -178,21 +178,7 @@ then
     CNAME=$(expr match $CBASE '\(.*\)[.][^.]*' '|' $CBASE)
     prepare_cfile $CFILE
     $GEN $CBASE < $TMPDIR/$CNAME.in
-elif [ "$CMD" == "unit" ]
-then
-    RESFILE=$TMPDIR/res
-    touch $RESFILE
-    for file in $(< $1)
-    do 
-        prepare_cfile $file
-        BASE=$(basename $file)
-        NAME=$(expr match $BASE '\(.*\)[.][^.]*' '|' $BASE)
-        $GEN $BASE close < $TMPDIR/$NAME.in | $PRC merge $RESFILE > $TMPDIR/hres
-        mv $TMPDIR/hres $RESFILE
-    done
-    # $BIN/items-used < $TMPDIR/infiles > $TMPDIR/used
-    # $PRC filter $TMPDIR/used < $RESFILE
-elif [ "$CMD" == "used" ]
+elif [ "$CMD" == "unit" -o "$CMD" == "used" ]
 then
     UFILE=$1
     UBASE=$(basename $UFILE)
@@ -203,7 +189,13 @@ then
     for file in $(< $1)
     do prepare_cfile $file
     done
-    $BIN/items-used $PMIFILE < $TMPDIR/infiles
+    if [ "$CMD" == "unit" ]
+    then
+        $BIN/items-used $PMIFILE < $TMPDIR/infiles > $TMPDIR/useditems
+        $BIN/items-externs $TMPDIR/useditems < $TMPDIR/infiles
+    else
+        $BIN/items-used $PMIFILE < $TMPDIR/infiles
+    fi
 fi
 
 if [ 1 ]

@@ -23,7 +23,7 @@ typedef struct { exttypt3 m; } exttypt4; // used transitively by exttypt5
 typedef exttypt4 *exttypt5; //  used transitively by exttypt6
 typedef exttypt5 exttypt6[2]; //  listed
 
-typedef int exttypc1;  // chain end
+typedef const char *exttypc1;  // chain end
 typedef exttypc1 exttypc2;
 typedef exttypc2 exttypc3;  // referenced by function definition
 typedef exttypc3 exttypc4;

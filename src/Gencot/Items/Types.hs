@@ -164,6 +164,8 @@ adjustItemAssocType (iid,t) = ("&" ++ iid, (LCA.PtrType t LCA.noTypeQuals LCA.no
 -- This is a monadic action because the TypeCarrier's @srcFileName@ must be determined.
 -- To avoid standalone parameters, local variables, and tagless compound items they must be filtered before.
 -- AsmEvents must always be filtered.
+-- External types are not resolved through anonymous composite types because that would require to 
+-- modify the definition of the anonymous composite type in the symbol table.
 getItemAssocType :: [String] -> TypeCarrier -> FTrav ItemAssocType
 getItemAssocType _ (LCA.DeclEvent idecl) = do
     sfn <- srcFileName idecl

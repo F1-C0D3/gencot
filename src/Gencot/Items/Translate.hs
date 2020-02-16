@@ -12,20 +12,19 @@ import Gencot.Traversal (FTrav)
 import Gencot.Util.Types (isReadOnlyType,isFunction,isPointer,isFunPointer)
 
 -- | Translate a sequence of C "external" (global) declarations to an item property map.
-transGlobals :: [LCA.DeclEvent] -> FTrav ItemProperties
-transGlobals tcs = liftM unions $ mapM transGlobal tcs
+-- First argument is stop-resolve typenames, this will be removed when they are retrieved from the user state.
+transGlobals :: [String] -> [LCA.DeclEvent] -> FTrav ItemProperties
+transGlobals tds tcs = liftM unions $ mapM (transGlobal tds) tcs
 
 -- | Translate a C "external" (global) declaration to an item property map
 -- Retrieve the item associated type(s) of the declaration,
--- (resolving the types of external items without stopping at used type names
--- since we do not know them here and they do not matter for the default properties),
 -- retrieve all sub-items with their types,
 -- filter function types and non-function pointer types,
 -- determine the default properties for them 
 -- and return them as an item property map.
-transGlobal :: LCA.DeclEvent -> FTrav ItemProperties
-transGlobal tc = do
-    iat <- getItemAssocType [] tc
+transGlobal :: [String] -> LCA.DeclEvent -> FTrav ItemProperties
+transGlobal tds tc = do
+    iat <- getItemAssocType tds tc
     miats <- getMemberItemAssocTypes tc
     iats <- liftM concat $ mapM getSubItemAssocTypes (iat : miats)
     let fiats = filter (\(_,t) -> (isFunction t) || ((isPointer t) && (not $ isFunPointer t))) iats

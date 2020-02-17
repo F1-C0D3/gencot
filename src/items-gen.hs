@@ -6,6 +6,7 @@ import Control.Monad (when)
 import Data.Map (empty)
 
 import Language.C.Analysis
+import Language.C.Data.Ident (isAnonymousRef)
 import Language.C.Analysis.DefTable (globalDefs)
 
 import Gencot.Input (readFromInput_,getOwnDeclEvents)
@@ -23,7 +24,7 @@ main = do
     {- get input file name -}
     let fnam = head args
     {- determine default properties for all items in globals -}
-    ipm <- runFTrav table (fnam,empty,empty,[]) $ transGlobals $ getOwnDeclEvents (globalDefs table) defFilter
+    ipm <- runFTrav table (fnam,empty,empty,[]) $ transGlobals [] $ getOwnDeclEvents (globalDefs table) defFilter
     {- Output -}
     putStrLn $ showProperties ipm
 
@@ -31,7 +32,7 @@ main = do
 defFilter :: DeclEvent -> Bool
 defFilter (DeclEvent (FunctionDef _)) = True
 defFilter (DeclEvent (ObjectDef _)) = True
-defFilter (TagEvent (CompDef _)) = True
+defFilter (TagEvent cd@(CompDef _)) = not $ isAnonymousRef $ sueRef cd
 defFilter (TypeDefEvent _) = True
 defFilter _ = False
 

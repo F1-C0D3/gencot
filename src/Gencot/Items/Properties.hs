@@ -2,7 +2,7 @@ module Gencot.Items.Properties where
 
 import Data.List (break,lines,words,union,intercalate,nub)
 import Data.Map (Map,singleton,unions,unionWith,toAscList,keys,filterWithKey)
-import Data.Char (isSpace)
+import Data.Char (isSpace,isLetter)
 
 import Gencot.Items.Identifier (toplevelItemId)
 
@@ -26,7 +26,7 @@ readPropertiesFromFile file = do
 -- It consists of a sequence of lines where each line specifies properties for a single item.
 parseProperties :: String -> ItemProperties
 parseProperties inp = 
-    unions $ map parsePropertyLine $ lines inp
+    unions $ map parsePropertyLine $ ((filter (any isLetter)) . lines) inp
 
 -- | Parse a property specification for a single item.
 -- It has the form <item id>[:] <whitespace> <property> <whitespace> ...
@@ -60,4 +60,4 @@ getToplevelItemIds ipm = nub $ map toplevelItemId $ keys ipm
 -- | Filter an item property map according to item identifier prefixes.
 filterItemsPrefixes :: [String] -> ItemProperties -> ItemProperties
 filterItemsPrefixes prefs ipm = filterWithKey (keyHasPrefix prefs) ipm
-    where keyHasPrefix prefs k _ = elem k prefs
+    where keyHasPrefix prefs k _ = elem (toplevelItemId k) prefs

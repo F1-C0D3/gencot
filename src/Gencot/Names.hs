@@ -107,8 +107,13 @@ mapRoStep = "R_"
 mapPtrStep = "P_"
 
 mapMayNullStep = "N_"
-rmMayNullStep ('N' : '_' : rest) = rest
-rmMayNullStep nam = nam
+
+rmMayNullStepThroughRo ('R' : '_' : 'N' : '_' : rest) = mapRoStep ++ rest
+rmMayNullStepThroughRo ('N' : '_' : rest) = rest
+rmMayNullStepThroughRo nam = nam
+
+addMayNullStep ('R' : '_' : rest) = mapRoStep ++ mapMayNullStep ++ rest
+addMayNullStep s = mapMayNullStep ++ s
 
 mapArrStep :: LCA.ArraySize -> String
 mapArrStep (LCA.ArraySize _ (LCS.CConst (LCS.CIntConst i _))) = "A" ++ (show i) ++ "_"

@@ -109,9 +109,13 @@ derivedItemIds _ = []
 -- | A type with an associated item identifier.
 type ItemAssocType = (String,LCA.Type)
 
-isSafePointerItem :: ItemAssocType -> FTrav Bool
-isSafePointerItem (iid,t) = 
+isNotNullItem :: ItemAssocType -> FTrav Bool
+isNotNullItem (iid,t) = 
     liftM or $ mapM (hasProperty "nn") $ ((indivItemIds iid) ++ (derivedItemIds t))
+
+isReadOnlyItem :: ItemAssocType -> FTrav Bool
+isReadOnlyItem (iid,t) = 
+    liftM or $ mapM (hasProperty "ro") $ ((indivItemIds iid) ++ (derivedItemIds t))
 
 getIndividualItemAssoc :: LCA.IdentDecl -> String -> ItemAssocType
 getIndividualItemAssoc idecl sfn = (getIndividualItemId idecl sfn, LCA.declType idecl)

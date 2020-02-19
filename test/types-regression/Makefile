@@ -38,7 +38,7 @@ types-pointer.c-itemprops: types-pointer.c-manprops types-pointer.c-dfltprops ty
 	@$(IT) merge common.types-manprops $*-hprops > $*-itemprops
 	@rm $*-hprops
 
-types-parmod.cogent: types-parmod.c
+types-parmod.cogent: types-parmod.c types-parmod.c-itemprops
 	@$(GC) cfile types-parmod.c types-parmod.json
 
 types-pointer.cogent: types-pointer.c types-pointer.c-itemprops
@@ -73,7 +73,7 @@ test.unit-extitems: test.unit test.unit-manitems
 %-dfltprops: %
 	@$(IT) file $* > $*-dfltprops
 
-%.cogent: %.c
+%.cogent: %.c %.c-itemprops
 	@$(GC) cfile $*.c
 
 %-regression: types-%.cogent types-%-expected.cogent types-%.c-dfltprops types-%-expected.c-dfltprops

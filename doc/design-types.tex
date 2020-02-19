@@ -117,11 +117,10 @@ Gencot supports declaring the following item properties.
 The Read-Only property is supported for items of arbitrary type. If declared, the type of the translated item is
 made read-only by applying the Cogent bang operator \code{!} to it.
 
-If the item's type is already translated to a read-only type (see Section~\ref{design-types-readonly}), the property 
-is ignored. Note, that for several types the Cogent bang operator has no effect, these cases are equivalent
+Note, that for several types the Cogent bang operator has no effect, these cases are equivalent
 to ignoring the property.
 
-Note that semantically the Read-Only property does not apply to the item iteself, but to the item's possible values.
+Note also that semantically the Read-Only property does not apply to the item iteself, but to the item's possible values.
 The item's value can still be replaced although the item has been declared as Read-Only.
 
 \item[Not-Null]
@@ -1027,10 +1026,10 @@ C pointer types can be mapped as a linear type \code{P}, if the values are never
 as the specific type \code{MayNull P}. In a type encoding the application of \code{MayNull} is represented by
 a pseudo derivation step of the form \code{"N"}.
 
-Function parameters of linear type may be mapped by Gencot as readonly or not (see Section~\ref{design-types-function}). 
+Linear types may be mapped by Gencot as readonly or not (see Section~\ref{design-types-readonly}). 
 This is encoded by pseudo derivation steps of the form \code{"R"} for readonly and \code{"M"} (``modifyable'')
-otherwise. Parameters of nonlinear type are not marked by either of these steps. Parameters of linear typ for 
-which the item property Discard-Parameter or Result-Parameter has been declared are also not
+otherwise. Nonlinear types are not marked by either of these steps. Parameters of linear type for 
+which the item property Add-Result has not been declared are also not
 marked by either of these steps.
 
 For all derivation steps which are applied to a base type, their encodings are concatenated, beginning with the 
@@ -1207,7 +1206,8 @@ to function is treated like a primitive type in Cogent.
 
 Gencot tests every C type for being a pointer or containing a pointer. If this is the case, the translated Cogent 
 type is known to be linear. The C type is then further tested whether all pointers have a \code{const} qualified
-base type. If this is the case, the type is translated to a Cogent readonly type,
+base type. If this is the case, the Read-Only property is set for the corresponding item (see Section~\ref{design-types-itemprops}). 
+If the property is not removed by the developer the item's type is translated to a Cogent readonly type
 by applying the bang operator \code{!} to the type after translating it as described in Section~\ref{design-types-pointer}.
 
 In particular, the readonly property is valid for all pointer types where the base type is \code{const} qualified 
@@ -1215,5 +1215,12 @@ and contains no pointers, such as \code{const char*}.
 
 Values of a C type where not all pointer base types are const qualified may still be used in an immutable way in the 
 C program, if the C programmer forgot to specify the const qualifier or did not care about it. In such cases the item
-property Read-Only (see Section~\ref{design-types-itemprops}) can be used to tell Gencot to apply the bang operator
-when it maps the type to Cogent.
+property Read-Only can be set manually to tell Gencot to apply the bang operator when it maps the type to Cogent.
+
+If a C type is translated to a type of the form \code{MayNull t} (see Section~\ref{design-types-pointer}) the bang operator
+is applied after \code{MayNull} resulting in \code{(MayNull t)!}. If a typedef name is defined for such a type the
+\code{MayNull} is removed as described in Section~\ref{design-types-typedef} and applied together with the bang operator
+to every occurrence of the translated typedef name. Since the defined type can only be banged if it or the typedef name
+has the Read-Only property the bang operator is still preserved for the defined type, other than the \code{MayNull}. 
+The difference is that the bang operator is caused by the presence of the Read-Only property whereas the \code{MayNull}
+is caused by the absence of the Not-Null property.

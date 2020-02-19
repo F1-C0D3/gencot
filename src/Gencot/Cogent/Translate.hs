@@ -2,7 +2,7 @@
 module Gencot.Cogent.Translate where
 
 import Control.Monad (liftM,when)
-import Data.List (nub,isPrefixOf,isInfixOf)
+import Data.List (nub,isPrefixOf,isInfixOf,intercalate)
 import Data.Map (Map,singleton,unions,toList,union)
 import Data.Maybe (catMaybes)
 
@@ -20,12 +20,12 @@ import Cogent.Common.Types as CCT
 import Cogent.Util (ffmap)
 
 import Gencot.Origin (Origin,noOrigin,origin,mkOrigin,noComOrigin,mkBegOrigin,mkEndOrigin,prepOrigin,appdOrigin,isNested,toNoComOrigin)
-import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapNameToLower,mapPtrDeriv,mapPtrVoid,mapMayNull,mapArrDeriv,mapFunDeriv,arrDerivHasSize,arrDerivToUbox,mapUboxStep,rmUboxStep,mapMayNullStep,rmMayNullStep,mapPtrStep,mapFunStep,mapIncFunStep,mapArrStep,mapModStep,mapRoStep,mapNamFunStep,srcFileName)
-import Gencot.Items.Types (ItemAssocType,isSafePointerItem,getIndividualItemId,getTagItemId,derivedItemIds,getIndividualItemAssoc,getTypedefItemAssoc,adjustItemAssocType,getMemberSubItemAssoc,getRefSubItemAssoc,getResultSubItemAssoc,getElemSubItemAssoc,getParamSubItemAssoc,getItemAssocType,getMemberItemAssocTypes,getSubItemAssocTypes,numberList)
-import Gencot.Items.Identifier (removePositions)
+import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapNameToLower,mapPtrDeriv,mapPtrVoid,mapMayNull,mapArrDeriv,mapFunDeriv,arrDerivHasSize,arrDerivToUbox,mapUboxStep,rmUboxStep,mapMayNullStep,rmMayNullStepThroughRo,addMayNullStep,mapPtrStep,mapFunStep,mapIncFunStep,mapArrStep,mapModStep,mapRoStep,mapNamFunStep,srcFileName)
+import Gencot.Items.Types (ItemAssocType,isNotNullItem,isReadOnlyItem,getIndividualItemId,getTagItemId,derivedItemIds,getIndividualItemAssoc,getTypedefItemAssoc,adjustItemAssocType,getMemberSubItemAssoc,getRefSubItemAssoc,getResultSubItemAssoc,getElemSubItemAssoc,getParamSubItemAssoc,getItemAssocType,getMemberItemAssocTypes,getSubItemAssocTypes,numberList)
+import Gencot.Items.Identifier (removePositions,indivItemIds)
 import Gencot.Cogent.Ast
 import Gencot.C.Translate (transStat,transExpr)
-import Gencot.Traversal (FTrav,getParmods,markTagAsNested,isMarkedAsNested)
+import Gencot.Traversal (FTrav,getParmods,markTagAsNested,isMarkedAsNested,hasProperty)
 import Gencot.Util.Types (carriedTypes,usedTypeNames,resolveFully,isExtern,isCompOrFunc,isCompPointer,isNamedFunPointer,isFunPointer,isPointer,isAggregate,isFunction,isTypeDefRef,isComplete,isArray,isVoid,isTagRef,containsTypedefs,resolveTypedef,isComposite,isLinearType,isLinearParType,isReadOnlyType,isReadOnlyParType,isDerivedType,wrapFunAsPointer,getTagDef)
 
 genType t = GenType t noOrigin
@@ -131,11 +131,11 @@ transGlobal (LCA.DeclEvent (LCA.EnumeratorDef (LCA.Enumerator idnam expr _ n))) 
 -- The translation result has the form
 -- > type idnam = type
 -- where @type@ is constructed by translating @type-specifier@ and applying all derivations from the adjusted @declarator@.
--- A MayNull application to type is removed.
+-- A Bang and/or MayNull application to type is removed.
 transGlobal (LCA.TypeDefEvent (LCA.TypeDef idnam typ _ n)) = do
     t <- transType False modifiat
     nt <- transTagIfNested iat n
-    return $ wrapOrigin n (nt ++ [GenToplv (CS.TypeDec tn [] (rmMayNull t)) noOrigin])
+    return $ wrapOrigin n (nt ++ [GenToplv (CS.TypeDec tn [] (rmMayNullThroughBang t)) noOrigin])
     where tn = mapNameToUpper idnam
           iat = getTypedefItemAssoc idnam typ
           modifiat = if isComposite typ then adjustItemAssocType iat else iat
@@ -153,7 +153,7 @@ transExtGlobal :: [String] -> LCA.DeclEvent -> FTrav [GenToplv]
 transExtGlobal tds (LCA.TypeDefEvent (LCA.TypeDef idnam typ _ n)) = do
     t <- transType False modifiat
     nt <- transTagIfNested resiat n
-    return $ wrapOrigin n (nt ++ [GenToplv (CS.TypeDec tn [] (rmMayNull t)) noOrigin])
+    return $ wrapOrigin n (nt ++ [GenToplv (CS.TypeDec tn [] (rmMayNullThroughBang t)) noOrigin])
     where tn = mapNameToUpper idnam
           resiat = getTypedefItemAssoc idnam $ resolveFully tds typ
           modifiat = if isComposite typ then adjustItemAssocType resiat else resiat
@@ -256,6 +256,7 @@ genDerivedTypeNames tdn tc = do
 --        concat $ map (\(iid,t) -> nub [(iid,t), (iid,resolveFully [] t)]) $
 --        concat $ map (uncurry getDerivedParts) $ carriedWithItemId sfn tdn tc
     where getName (GenType (CS.TCon nam _ _) _) = nam
+          getName (GenType (CS.TBang (GenType (CS.TCon nam _ _) _)) _) = nam
           genMap :: ItemAssocType -> FTrav (Map String ItemAssocType)
           genMap iat = do
               gt <- transType False iat
@@ -402,23 +403,28 @@ transType _ (_, (LCA.DirectType tnam _ _)) = do
 -- Typedef name:
 -- If resolving, translate the referenced type.
 -- Otherwise translate to mapped name. Unboxed for struct, union, or function pointer, otherwise boxed.
--- If the typedef name is a safe pointer, omit or remove MayNull
+-- If the typedef name has the Not-Null property, omit or remove MayNull
 -- otherwise move a MayNull from the resolved type to the mapped name.
+-- If the typedef name has the Read-Only property make the result banged.
 transType rslv iat@(iid, (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _)) = do
-    safe <- isSafePointerItem iat
+    safe <- isNotNullItem iat
+    ro <- isReadOnlyItem iat
     rslvtyp <- transType True $ getTypedefItemAssoc idnam typ
-    if rslv
-       then return $ rmMayNullIf safe rslvtyp
-       else return $ addMayNullIfNot (safe || (not $ hasMayNull rslvtyp)) rtyp
+    let nntyp = if rslv
+                  then rmMayNullIf safe rslvtyp
+                  else addMayNullIfNot (safe || (not $ hasMayNull rslvtyp)) rtyp
+    return $ makeReadOnlyIf ro nntyp
     where tn = mapNameToUpper idnam
           ub = if (isComposite typ) || (isFunPointer typ) then markUnbox else markBox
           rtyp = genType $ CS.TCon tn [] ub
 -- Pointer to void:
 -- Translate to: CVoidPtr
--- If not safe pointer: MayNull CVoidPtr
+-- If no Not-Null property: MayNull CVoidPtr
+-- If Read-OnlyProperty: banged
 transType _ iat@(iid, (LCA.PtrType t _ _)) | isVoid t = do
-    safe <- isSafePointerItem iat
-    return $ addMayNullIfNot safe $ genType $ CS.TCon mapPtrVoid [] markBox
+    safe <- isNotNullItem iat
+    ro <- isReadOnlyItem iat
+    return $ makeReadOnlyIf ro $ addMayNullIfNot safe $ genType $ CS.TCon mapPtrVoid [] markBox
 -- Derived pointer type for function type t:
 -- Encode t, apply CFunPtr or CFunInc and make unboxed.
 transType rslv iat@(_, (LCA.PtrType t _ _)) | isFunction t = do
@@ -426,21 +432,25 @@ transType rslv iat@(_, (LCA.PtrType t _ _)) | isFunction t = do
     return $ genType $ CS.TCon ((mapFunDeriv $ isComplete t) ++ "_" ++ enctyp) [] markUnbox
 -- Derived pointer type for array type t:
 -- Translate t and use as result. Always boxed.
--- If not safe pointer: apply MayNull
+-- If no Not-Null property: apply MayNull
+-- If Read-OnlyProperty: banged
 transType rslv iat@(iid, (LCA.PtrType t _ _)) | isArray t = do
-    safe <- isSafePointerItem iat
+    safe <- isNotNullItem iat
+    ro <- isReadOnlyItem iat
     typ <- transType rslv $ getRefSubItemAssoc iat t
-    return $ addMayNullIfNot safe typ
+    return $ makeReadOnlyIf ro $ addMayNullIfNot safe typ
 -- Derived pointer type for other type t:
 -- Translate t. If unboxed and no function pointer make boxed, otherwise apply CPtr. Always boxed.
--- If not safe pointer apply MayNull.
+-- If no Not-Null property: apply MayNull
+-- If Read-OnlyProperty: banged
 transType rslv iat@(iid, pt@(LCA.PtrType t _ _)) = do
-    safe <- isSafePointerItem iat
+    safe <- isNotNullItem iat
+    ro <- isReadOnlyItem iat
     typ <- transType rslv $ getRefSubItemAssoc iat t
     let rtyp = if (isUnboxed typ) && not (isFunPointer t) 
                 then setBoxed typ
                 else genType $ CS.TCon mapPtrDeriv [typ] markBox
-    return $ addMayNullIfNot safe rtyp
+    return $ makeReadOnlyIf ro $ addMayNullIfNot safe rtyp
 -- Complete derived function type: ret (p1,..,pn)
 -- Translate to: Cogent function type (p1,..,pn) -> ret, then apply parmod description.
 transType rslv iat@(iid, t@(LCA.FunctionType (LCA.FunType ret pars variadic) _)) = do
@@ -450,9 +460,11 @@ transType rslv iat@(iid, t@(LCA.FunctionType (LCA.FunType ret pars variadic) _))
     applyParmods t iid $ genType $ CS.TFun pt r
 -- Derived array type for element type t:
 -- Translate t, if again array type apply unbox operator, then apply generic array type. Always boxed.
+-- If Read-OnlyProperty: banged
 transType rslv iat@(_, (LCA.ArrayType t as _ _)) = do
+    ro <- isReadOnlyItem iat
     typ <- transType rslv $ getElemSubItemAssoc iat t
-    return $ genType $ CS.TCon (mapArrDeriv as) [if isArray t then setUnboxed typ else typ] markBox 
+    return $ makeReadOnlyIf ro $ genType $ CS.TCon (mapArrDeriv as) [if isArray t then setUnboxed typ else typ] markBox 
 
 -- | Encode a C type specification as a Cogent type name.
 -- The C type is specified as an ItemAssocType, so that its item properties can be respected.
@@ -474,14 +486,17 @@ encodeType _ (_, (LCA.DirectType tnam _ _)) = do
 -- Typedef name:
 -- If resolving, encode the referenced type.
 -- Otherwise, encode as mapped name. For struct, union, or array prepend unbox step.
--- If the typedef name is a safe pointer, omit or remove MayNull step
+-- If the typedef name has the Not-Null property, omit or remove MayNull step
 -- otherwise move a MayNull step from the resolved type to the mapped name.
+-- If the typedef name has the Read-Only property add readonly step.
 encodeType rslv iat@(iid, (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _)) = do
-    safe <- isSafePointerItem iat
+    safe <- isNotNullItem iat
+    ro <- isReadOnlyItem iat
     rslvtyp <- encodeType True $ getTypedefItemAssoc idnam typ
-    if rslv
-       then return $ rmMayNullStepIf safe rslvtyp
-       else return $ addMayNullStepIfNot (safe || (not $ hasMayNullStep rslvtyp)) rtyp
+    let nntyp = if rslv
+                then rmMayNullStepIf safe rslvtyp
+                else addMayNullStepIfNot (safe || (not $ hasMayNullStep rslvtyp)) rtyp
+    return $ addReadOnlyStepIf ro nntyp
     where tn = mapNameToUpper idnam
           ustep = if isAggregate typ then mapUboxStep else ""
           rtyp = (ustep ++ tn)
@@ -492,19 +507,21 @@ encodeType rslv iat@(_, (LCA.PtrType t _ _)) | isFunction t = do
     return (mapPtrStep ++ tn)
 -- Derived pointer type for other type t:
 -- Encode t, for aggregate type remove unbox step, otherwise prepend pointer derivation step.
--- If not a safe pointer, add MayNull step.
+-- If no Not-Null property, add MayNull step.
+-- If Read-Only property make banged.
 encodeType rslv iat@(iid, pt@(LCA.PtrType t _ _)) = do
-    safe <- isSafePointerItem iat
+    safe <- isNotNullItem iat
+    ro <- isReadOnlyItem iat
     tn <- encodeType rslv $ getRefSubItemAssoc iat t
     let htn = if isAggregate t then (rmUboxStep tn) else (mapPtrStep ++ tn)
-    return $ addMayNullStepIfNot safe htn
+    return $ addReadOnlyStepIf ro $ addMayNullStepIfNot safe htn
 -- Complete derived function type: ret (p1,..,pn)
 -- Encode ret, prepend function derivation step using encoded pi.
 encodeType rslv iat@(iid, (LCA.FunctionType (LCA.FunType ret pars variadic) _)) = do
     tn <- encodeType rslv $ getResultSubItemAssoc iat ret
     encpars <- mapM (encodeParamType rslv iat) $ numberList pars
     pms <- getParamMods iid pars variadic
-    let vencpars = if variadic then encpars ++ [variadicTypeName] else encpars
+    let vencpars = if variadic then encpars ++ [mapRoStep ++ variadicTypeName] else encpars
     let ps = map applyEncodeParmod $ zip pms vencpars
     return ((mapFunStep ps) ++ tn)
 -- Incomplete derived function type: ret ()
@@ -513,10 +530,12 @@ encodeType rslv iat@(_, (LCA.FunctionType (LCA.FunTypeIncomplete ret) _)) = do
     tn <- encodeType rslv $ getResultSubItemAssoc iat ret
     return (mapIncFunStep ++ tn)
 -- Derived array type for element type t:
--- Encode t using function id only if pointer type, prepend array derivation step and unbox step.
+-- Encode t, prepend array derivation step and unbox step.
+-- If Read-Only property make banged.
 encodeType rslv iat@(iid, (LCA.ArrayType t as _ _)) = do
+    ro <- isReadOnlyItem iat
     tn <- encodeType rslv $ getElemSubItemAssoc iat t
-    return (mapUboxStep ++ (mapArrStep as) ++ tn)
+    return $ addReadOnlyStepIf ro (mapUboxStep ++ (mapArrStep as) ++ tn)
 
 -- | Translate a C type name to a Cogent type name.
 transTNam :: LCA.TypeName -> FTrav String
@@ -542,31 +561,42 @@ transTNam (LCA.TyComplex _) =          return "err-complex"
 transTNam (LCA.TyBuiltin _) =          return "err-builtin" 
 
 rmMayNullIf :: Bool -> GenType -> GenType
-rmMayNullIf s t = if s then rmMayNull t else t
+rmMayNullIf True t = rmMayNullThroughBang t
+rmMayNullIf False t = t
 
 addMayNullIfNot :: Bool -> GenType -> GenType
-addMayNullIfNot s t =
-    if s then t
-         else genType $ CS.TCon mapMayNull [t] markBox
+addMayNullIfNot False (GenType (CS.TBang t) o) = (GenType (CS.TBang $ addMayNullIfNot False t) o)
+addMayNullIfNot False t = genType $ CS.TCon mapMayNull [t] markBox
+addMayNullIfNot True t = t
 
 rmMayNullStepIf :: Bool -> String -> String
-rmMayNullStepIf s t = if s then rmMayNullStep t else t
+rmMayNullStepIf True t = rmMayNullStepThroughRo t
+rmMayNullStepIf False t = t
     
 addMayNullStepIfNot :: Bool -> String -> String
-addMayNullStepIfNot s t =
-    if s then t
-         else (mapMayNullStep ++ t)
+addMayNullStepIfNot False t = addMayNullStep t
+addMayNullStepIfNot True t = t
 
-rmMayNull :: GenType -> GenType
-rmMayNull (GenType (CS.TCon tn [t] _) _) | tn == mapMayNull = t
-rmMayNull t = t
+rmMayNullThroughBang :: GenType -> GenType
+rmMayNullThroughBang (GenType (CS.TBang (GenType (CS.TCon tn [t] _) _)) o) | tn == mapMayNull = GenType (CS.TBang t) o
+rmMayNullThroughBang (GenType (CS.TCon tn [t] _) _) | tn == mapMayNull = t
+rmMayNullThroughBang t = t
 
 hasMayNull :: GenType -> Bool
+hasMayNull (GenType (CS.TBang t) _) = hasMayNull t
 hasMayNull (GenType (CS.TCon tn _ _) _) | tn == mapMayNull = True
 hasMayNull _ = False
 
 hasMayNullStep :: String -> Bool
-hasMayNullStep t = mapMayNullStep `isPrefixOf` t
+hasMayNullStep t = (mapMayNullStep `isPrefixOf` t) || ((mapRoStep ++ mapMayNullStep) `isPrefixOf` t)
+
+makeReadOnlyIf :: Bool -> GenType -> GenType
+makeReadOnlyIf True t = genType $ CS.TBang t
+makeReadOnlyIf False t = t
+
+addReadOnlyStepIf :: Bool -> String -> String
+addReadOnlyStepIf True t = mapRoStep ++ t
+addReadOnlyStepIf False t = t
 
 getTag :: LCA.Type -> String
 getTag (LCA.DirectType (LCA.TyComp (LCA.CompTypeRef sueref knd _)) _ _) = 
@@ -622,7 +652,7 @@ applyToPars pts = mkParType $ map applyToPar pts
 -- The description is a string.
 -- If the C type is readonly or the parameter is not modified, the Cogent type is changed to readonly.
 applyToPar :: (String,GenType) -> GenType
-applyToPar (s,gt) | s == "readonly" || s == "no" = genType $ CS.TBang gt
+--applyToPar (s,gt) | s == "readonly" || s == "no" = genType $ CS.TBang gt
 applyToPar (_,gt) = gt
 
 -- | Apply parameter modification to a function result type.
@@ -659,7 +689,7 @@ mkFunType :: GenType -> GenType
 mkFunType t@(GenType (CS.TFun _ _) _) = t
 mkFunType t = genType $ CS.TFun (mkParType []) t
 
-variadicType = genType (CS.TCon variadicTypeName [] markBox)
+variadicType = makeReadOnlyIf True $ genType (CS.TCon variadicTypeName [] markBox)
 variadicTypeName = "VariadicCogentParameters"
 
 -- | Translate a C parameter declaration to the adjusted Cogent parameter type.
@@ -688,8 +718,8 @@ encodeParamType rslv iat ipd@(_,pd) = do
 -- For "nonlinear" and "discarded" do nothing.
 applyEncodeParmod :: (String,String) -> String
 applyEncodeParmod ("yes",s) = mapModStep ++ s
-applyEncodeParmod ("readonly",s) = mapRoStep ++ s
-applyEncodeParmod ("no",s) = mapRoStep ++ s
+--applyEncodeParmod ("readonly",s) = mapRoStep ++ s
+--applyEncodeParmod ("no",s) = mapRoStep ++ s
 applyEncodeParmod (_,s) = s
 
 arraySizeType :: LCA.ArraySize -> GenType

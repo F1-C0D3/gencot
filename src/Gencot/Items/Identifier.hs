@@ -2,7 +2,7 @@
 module Gencot.Items.Identifier where
 
 import Data.Char (isDigit,isLetter,isAlphaNum)
-import Data.List (break,elemIndex,dropWhileEnd)
+import Data.List (break,elemIndex,dropWhileEnd,findIndices,isSuffixOf)
 
 -- | For an item identifier get the identifier of the toplevel item.
 -- This is always a prefix of the item identifier.
@@ -66,6 +66,33 @@ paramSubItemId item pos cid =
     where pnam = case cid of
                       "" -> ""
                       _ -> '-' : cid
+
+-- | Test an item id whether it is a parameter id built using @paramSubItemId@.
+-- It is tested whether the last slash is followed by a digit.
+isParameterId :: String -> Bool
+isParameterId item = 
+    if null sis 
+       then False
+       else let li = last sis
+            in if (li + 1) == length item 
+                  then False
+                  else isDigit $ item !! (li + 1)
+    where sis = findIndices (== '/') item
+
+-- | Test an item id whether it is embedded in a composite type or array.
+-- It is tested whether it contains a dot with no slash after it (composite type member)
+-- or it ends with "/[]" (array element)
+isEmbeddedId :: String -> Bool
+isEmbeddedId item =
+    if "/[]" `isSuffixOf` item 
+       then True
+       else if null dis 
+                then False
+                else if null sis
+                        then True
+                        else (last dis) > (last sis)
+    where sis = findIndices (== '/') item
+          dis = findIndices (== '.') item
 
 -- | Construct all identifiers for an individual item.
 -- In the input parameter ids have the form <pos> or <pos>-<name>.

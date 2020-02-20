@@ -7,9 +7,9 @@ import Language.C.Analysis as LCA
 
 import Gencot.Items.Properties (ItemProperties)
 import Gencot.Items.Types (ItemAssocType,getItemAssocType,getMemberItemAssocTypes,getSubItemAssocTypes)
-import Gencot.Items.Identifier (defaultItemId)
+import Gencot.Items.Identifier (defaultItemId,isParameterId,isEmbeddedId)
 import Gencot.Traversal (FTrav)
-import Gencot.Util.Types (isReadOnlyType,isFunction,isPointer,isFunPointer,isArray)
+import Gencot.Util.Types (isReadOnlyType,isLinearParType,isFunction,isPointer,isArray,isFunPointer,isComposite,isLeafType,resolveTypedef)
 
 -- | Translate a sequence of C "external" (global) declarations to an item property map.
 -- First argument is stop-resolve typenames, this will be removed when they are retrieved from the user state.
@@ -27,15 +27,20 @@ transGlobal tds tc = do
     iat <- getItemAssocType tds tc
     miats <- getMemberItemAssocTypes tc
     iats <- liftM concat $ mapM getSubItemAssocTypes (iat : miats)
-    let fiats = filter (\(_,t) -> (isFunction t) || (isArray t) || ((isPointer t) && (not $ isFunPointer t))) iats
+    let fiats = filter (\(iid,t) -> (not $ isLeafType $ resolveTypedef t) 
+                                    && (not $ isFunPointer t) 
+                                    && ((isParameterId iid) || (not $ isComposite t))) iats
     dip <- mapM getDefaultProperies fiats
     return $ fromList dip
 
 -- | Get the default properties for an item associated type.
 -- If the type is a pointer type with all contained pointers qualified as const the ro property is used,
+-- if the identifier is for a parameter and the type is linear and no ro property the ar property is used,
 -- otherwise no property is used.
 getDefaultProperies :: ItemAssocType -> FTrav (String,[String])
 getDefaultProperies (iid,t) = do
     ro <- isReadOnlyType t
-    if ro && (not $ isFunction t) then return (diid,["ro"]) else return (diid,[])
-    where diid = defaultItemId iid
+    lt <- isLinearParType t
+    let roProp = if ro && ((isPointer t) || ((isArray t) && (not $ isEmbeddedId iid))) then ["ro"] else []
+    let arProp = if lt && (isParameterId iid) then ["ar"] else []
+    return (defaultItemId iid,roProp ++ arProp)

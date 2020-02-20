@@ -117,6 +117,10 @@ isReadOnlyItem :: ItemAssocType -> FTrav Bool
 isReadOnlyItem (iid,t) = 
     liftM or $ mapM (hasProperty "ro") $ ((indivItemIds iid) ++ (derivedItemIds t))
 
+isAddResultItem :: ItemAssocType -> FTrav Bool
+isAddResultItem (iid,t) = 
+    liftM or $ mapM (hasProperty "ar") $ ((indivItemIds iid) ++ (derivedItemIds t))
+
 getIndividualItemAssoc :: LCA.IdentDecl -> String -> ItemAssocType
 getIndividualItemAssoc idecl sfn = (getIndividualItemId idecl sfn, LCA.declType idecl)
 

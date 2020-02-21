@@ -1,7 +1,7 @@
 module Gencot.Items.Properties where
 
-import Data.List (break,lines,words,union,intercalate,nub)
-import Data.Map (Map,singleton,unions,unionWith,toAscList,keys,filterWithKey)
+import Data.List (break,lines,words,union,intercalate,nub,(\\))
+import Data.Map (Map,singleton,unions,unionWith,differenceWith,toAscList,keys,filterWithKey)
 import Data.Char (isSpace,isLetter)
 
 import Gencot.Items.Identifier (toplevelItemId)
@@ -35,7 +35,7 @@ parsePropertyLine line =
     singleton iid props
     where (ciid,rest) = break isSpace line -- ciid = <item id>[:], rest = <whitespace> <property> <whitespace> ...
           iid = if last ciid == ':' then init ciid else ciid -- iid = <item id>
-          props = words rest -- [<property>,...]
+          props = nub $ words rest -- [<property>,...]
 
 -- | Output an item property map as a sequence of lines.
 -- Reverse of @parseProperties@
@@ -52,6 +52,11 @@ showPropertyLine (iid,props) =
 -- If an item occurs in both maps its declared properties are united.
 combineProperties :: ItemProperties -> ItemProperties -> ItemProperties
 combineProperties ipm1 ipm2 = unionWith union ipm1 ipm2
+
+-- | Subtract a property map.
+-- If an item occurs in both maps the properties in @ipm2@ are omitted from those in @ipm1@
+omitProperties :: ItemProperties -> ItemProperties -> ItemProperties
+omitProperties ipm1 ipm2 = differenceWith (\ps1 ps2 -> Just (ps1 \\ ps2)) ipm1 ipm2
 
 -- | List of all toplevel item ids used in a property map.
 getToplevelItemIds :: ItemProperties -> [String]

@@ -31,7 +31,8 @@ long_usage()
     echo '  out    <json>   Convert evaluated parmod description to item properties'
     echo '  help            Display this help information'
     echo '  (init|close|eval write the resulting parmod description to stdout)'
-    echo '  (addto, mergin and replin modify the first argument)'
+    echo '  (addto|mergin|replin modify the first argument)'
+    echo '  (out writes two files <json>-itemprops and <json>-omitprops)'
     echo 'A <pckfile> contains a list of <cfile> names, each on a separate line.'
     echo 'Options for commands check|init|close|extern: '
     echo '  -I<dir>  Directory for searching C include files. Can be repeated, as for cpp. '
@@ -266,7 +267,8 @@ then
     $BIN/$PRC eval < $1
 elif [ "$CMD" == "out" ]
 then
-    $BIN/$PRC out < $1
+    $BIN/$PRC out < $1 > $1-itemprops
+    $BIN/$PRC omit < $1 > $1-omitprops
 fi
 
 if [ "$CMD" != "idlist" -a "$CMD" != "out" ]

@@ -11,19 +11,20 @@ BIN=$GENCOT_HOME/bin
 PRC=$BIN/items-proc
 GEN=$BIN/items-gen
 
-USAGE="Usage: $0 [-k] [file|unit|used|merge|mergeto|help] <file> [<file>]"
+USAGE="Usage: $0 [-k] [file|unit|used|merge|mergeto|omitfrom|help] <file> [<file>]"
 
 long_usage()
 {
     echo $USAGE
     echo 'Manage Gencot item property declarations in text format.'
     echo 'Commands:'
-    echo '  file    <cfile>   Create default property declarations for all items defined in C sourcefile <cfile>'
-    echo '  unit    <ufile>   Create default property declarations for all external items in unit described in <ufile>'
-    echo '  used    <ufile>   List external toplevel items used by unit described in <ufile>'
-    echo '  merge   <file1> <file2> Merge two declarations by uniting properties for each item'
-    echo '  mergeto <file1> <file2> Merge properties from <file2> to items in <file1>'
-    echo '  help            Display this help information'
+    echo '  file     <cfile>   Create default property declarations for all items defined in C sourcefile <cfile>'
+    echo '  unit     <ufile>   Create default property declarations for all external items in unit described in <ufile>'
+    echo '  used     <ufile>   List external toplevel items used by unit described in <ufile>'
+    echo '  merge    <file1> <file2> Merge two declarations by uniting properties for each item'
+    echo '  mergeto  <file1> <file2> Merge properties from <file2> to items in <file1>'
+    echo '  omitfrom <file1> <file2> Omit properties in <file2> from items in <file1>'
+    echo '  help             Display this help information'
     echo '  (all commands write the resulting property declarations or item list to stdout)'
     echo 'A <ufile> contains a list of <cfile> names, each on a separate line.'
     echo 'Options: '
@@ -87,6 +88,7 @@ case "$CMD" in
     used) ;;
     merge) REQARGS=2;;
     mergeto) REQARGS=2;;
+    omitfrom) REQARGS=2;;
     help) long_usage; exit;;
     *) echo "unknown items command: $1"; short_usage; exit;;
 esac
@@ -171,6 +173,10 @@ elif [ "$CMD" == "mergeto" ]
 then
     $BIN/gencot-prclist < $1 | tee $TMPDIR/target | $PRC idlist > $TMPDIR/idlist
     $BIN/gencot-prclist < $2 | $PRC filter $TMPDIR/idlist | $PRC merge $TMPDIR/target
+elif [ "$CMD" == "omitfrom" ]
+then
+    $BIN/gencot-prclist < $2 > $TMPDIR/hfile
+    $BIN/gencot-prclist < $1 | $PRC omit $TMPDIR/hfile
 elif [ "$CMD" == "file" ]
 then
     CFILE=$1

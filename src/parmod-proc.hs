@@ -7,7 +7,7 @@ import Text.JSON (encode)
 import Text.Pretty.Simple (pStringNoColor)
 import Data.Text.Lazy (unpack)
 
-import Gencot.Json.Process (showRemainingPars,getRequired,filterParmods,addParsFromInvokes,evaluateParmods,getFunName,mergeParmods,sortParmods,convertParmods)
+import Gencot.Json.Process (showRemainingPars,getRequired,filterParmods,addParsFromInvokes,evaluateParmods,getFunName,mergeParmods,sortParmods,parmodsToProps,parmodsToOmitProps)
 import Gencot.Json.Parmod (readParmodsFromFile,readParmodsFromInput)
 import Gencot.Items.Properties (showProperties)
 
@@ -37,7 +37,8 @@ main = do
              parmods2 <- readParmodsFromFile $ head $ tail args
              outputJson $ addParsFromInvokes $ mergeParmods parmods parmods2
          "eval" -> outputJson $ evaluateParmods parmods
-         "out" -> putStrLn $ showProperties $ convertParmods parmods
+         "out" -> putStrLn $ showProperties $ parmodsToProps parmods
+         "omit" -> putStrLn $ showProperties $ parmodsToOmitProps parmods
          _ -> error $ "Unknown command: " ++ head args
 
 outputJson parmods = putStr $ unpack $ pStringNoColor $ encode parmods

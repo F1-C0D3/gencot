@@ -21,11 +21,11 @@ expect-current: $(foreach TST,$(TESTS),$(TST)-expect-current) unit-expect-curren
 
 clean:  $(foreach TST,$(TESTS),$(TST)-clean)
 	-rm -f test.unit test.cogent $(foreach U,$(UNIT),test-$(U).cogent)
-	-rm -f types-parmod.json-itemprops
+	-rm -f types-parmod.json-itemprops types-parmod.json-omitprops
 	-rm -f test.unit-extitems test.ext-dfltprops test.ext-itemprops test.unit-itemprops
 
-types-parmod.json-itemprops: types-parmod.json
-	@$(PM) out types-parmod.json > types-parmod.json-itemprops
+types-parmod.json-itemprops types-parmod.json-omitprops: types-parmod.json
+	@$(PM) out types-parmod.json
 
 types-pointer.c-itemprops: types-pointer.c-manprops types-pointer.c-dfltprops types-parmod.json-itemprops
 	@$(IT) mergeto types-pointer.c-dfltprops types-parmod.json-itemprops > types-pointer.c-hprops
@@ -33,10 +33,11 @@ types-pointer.c-itemprops: types-pointer.c-manprops types-pointer.c-dfltprops ty
 	@$(IT) merge types-pointer.c-h2props types-pointer.c-manprops > types-pointer.c-itemprops
 	@rm types-pointer.c-hprops types-pointer.c-h2props
 
-%-itemprops: %-dfltprops types-parmod.json-itemprops common.types-manprops
+%-itemprops: %-dfltprops types-parmod.json-itemprops types-parmod.json-omitprops common.types-manprops
 	@$(IT) mergeto $*-dfltprops types-parmod.json-itemprops > $*-hprops
-	@$(IT) merge common.types-manprops $*-hprops > $*-itemprops
-	@rm $*-hprops
+	@$(IT) omitfrom $*-hprops types-parmod.json-omitprops > $*-h2props
+	@$(IT) merge common.types-manprops $*-h2props > $*-itemprops
+	@rm $*-hprops $*-h2props
 
 types-parmod.cogent: types-parmod.c types-parmod.c-itemprops
 	@$(GC) cfile types-parmod.c types-parmod.json

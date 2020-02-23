@@ -10,7 +10,7 @@ import Language.C.Data.Ident (identToString)
 
 import Gencot.Input (getDeclEvents)
 import Gencot.Items.Properties (readPropertiesFromFile)
-import Gencot.Package (readPackageFromInput_,getIdentInvocations,getOwnCallGraphs,foldTables)
+import Gencot.Package (readPackageFromInput_,foldTables)
 import Gencot.Traversal (runFTrav)
 import Gencot.Cogent.Output (prettyTopLevels)
 import Gencot.Cogent.Translate (transGlobals)
@@ -28,26 +28,24 @@ main = do
     iids <- (liftM ((filter (not . null)) . lines)) $ readFile $ head $ tail args
     {- parse and analyse C sources and get global definitions -}
     tables <- readPackageFromInput_
-    {- Determine all call graphs -}
-    cgs <- getOwnCallGraphs tables
     {- combine symbol tables -}
     table <- foldTables tables
-    {- Retrieve all invocations of named functions -}
-    invks <- getIdentInvocations cgs
-    {- Get declarations of external invoked functions and invoked or listed variables -}    
-    let extDecls = getDeclEvents (globalDefs table) (constructFilter invks iids)
+    {- Get declarations of functions and objects listed in iids -}    
+    let extDecls = getDeclEvents (globalDefs table) (constructFilter iids)
     {- translate external function declarations to Cogent abstract function definitions -}
     absdefs <- runFTrav table ("",ipm,[]) $ transGlobals extDecls
     {- Output -}
     print $ prettyTopLevels absdefs
 
--- | Predicate for all functions completely declared but not defined
--- which are either invoked or listed in iids
-constructFilter :: [LCA.IdentDecl] -> [String] -> LCA.DeclEvent -> Bool
-constructFilter invks iids (LCA.DeclEvent decl@(LCA.Declaration _)) = 
+-- | Predicate for all functions completely declared and all declared objects 
+-- which are listed in iids.
+-- Since for functions and objects with external linkage the item identifiers are the C names, 
+-- we can directly match the C names to the identifiers in iids.
+constructFilter :: [String] -> LCA.DeclEvent -> Bool
+constructFilter iids (LCA.DeclEvent decl@(LCA.Declaration _)) = 
     case resolveTypedef $ LCA.declType decl of
-         LCA.FunctionType (LCA.FunType _ _ _) _ -> invokedOrListed decl
+         LCA.FunctionType (LCA.FunType _ _ _) _ -> listed decl
          LCA.FunctionType _ _ -> False
-         _ -> invokedOrListed decl
-    where invokedOrListed decl = elem decl invks || elem (identToString $ LCA.declIdent decl) iids
-constructFilter _ _ _ = False
+         _ -> listed decl
+    where listed decl = elem (identToString $ LCA.declIdent decl) iids
+constructFilter _ _ = False

@@ -54,6 +54,8 @@ processes derived types.
 the declarations of externally referenced functions.
 \item[\code{parmod-externs}] generates the list of function identifiers of all externally referenced functions and
 function pointer (array)s.
+\item[\code{items-used}] determines a list of all declared external items which are actually used by the Cogent
+compilation unit.
 \item[\code{items-externs}] generates a list of all items with external or no linkage 
 for which properties may be declared.
 \end{description}
@@ -91,7 +93,7 @@ Cogent definitions of type \code{GenToplv}. It is implemented by mapping the fun
 \code{DeclEvent} sequence.
 
 A struct/union/enum definition corresponds to a full specifier, as described in Section~\ref{design-decls-tags}.
-The language-c analyser already implements moving all nested full specifiers to separate global definitions and the
+The language-c analysis already implements moving all nested full specifiers to separate global definitions and the
 sorting step done by \code{Gencot.Input.getDeclEvents} creates the desired ordering. Therefore, basically the 
 \code{DeclEvent}s in the list could be processed by \code{transGlobal} independently from each other.
 
@@ -135,21 +137,18 @@ A type definition is translated to a Cogent type definition as described in Sect
 
 A type reference is translated by the function
 \begin{verbatim}
-  transType :: Bool -> String -> Type -> FTrav GenType
+  transType :: Bool -> ItemAssocType -> FTrav GenType
 \end{verbatim}
+It must be paired with the associated item identifier as an \code{ItemAssocType} as described in 
+Section~\ref{impl-itemprops-types}. The identifier is used to retrieve the declared item properties required for
+the translation.
 
-The first parameter specifies whether typedef names should be resolved when translating the type. The second parameter 
-specifies  the parameter modification function identifer (see Section~\ref{impl-parmod-ids}) for the type. It is used to
-access the corresponding parameter modification description for translating derived function types. They are only available
-for function types, function pointer types, and function pointer array types, for all other types the empty string is 
-specified. For function pointer types and function pointer array types the identifier is passed without change to the 
-base type translation, since in both cases the associated function type is uniquely determined. The identifier is 
-actually processed only for the derived function types.
-
-The reason why typedef names are resolved as part of the type translation function is that typedef names may have
-an associated parameter modification function identifier which is based on the typedef name. If typedef names would
-be resolved in a separate function the parameter modification function identifier could not be associated anymore
-afterwards. This would cause the parameter modification specifications for typedef names to be ignored.
+The first parameter specifies whether typedef names should be resolved when translating the type. 
+The reason why typedef names are resolved as part of the type translation function is that item properties may be 
+associated with typedef names or their sub-items. If typedef names would
+be resolved in a separate function the item identifier could not be associated anymore
+afterwards. This would cause the declared item properties for typedef names to be ignored when translating the 
+resolved type.
 
 A type reference may be a direct type, a derived type, or a typedef name. For every typedef name a Cogent type
 name is defined, as described in Sections~\ref{design-names} and~\ref{design-types-typedef}. A direct type is either
@@ -175,10 +174,10 @@ boxed form. If it is a function type (possibly after resolving type names), the 
 is encoded as described in Section~\ref{design-types-pointer} using the function \code{encodeType}, then the function
 pointer type is constructed from the encoding as described in Section~\ref{design-types-pointer}. The monadic operation
 \begin{verbatim}
-  encodeType :: Bool -> String -> Type -> FTrav String
+  encodeType :: Bool -> ItemAssocType -> FTrav String
 \end{verbatim}
 works similar to \code{transType} but returns the encoding as a string instead of the translated 
-Cogent type. In particular, it optionally resolves typedef names and respects parameter modification specifications.
+Cogent type. In particular, it optionally resolves typedef names and respects item properties.
 If the base type is \code{void} the special type name \code{CVoidPtr} is used.
 
 In all other cases, as described in Section~\ref{design-types}, 
@@ -191,19 +190,12 @@ from an array of array pointers, as described in Section~\ref{design-types-array
 
 A function type is always translated to the corresponding Cogent function type, where a tuple type is
 used as parameter type if there is more than one parameter, and the unit type is used if there is
-no parameter. If a parameter modification specification is available, it is used to determine whether a parameter type
-should be translated as readonly, or whether it should be returned as part of a result tuple. Otherwise
-a default parameter modification specification is used which is constructed from the parameter type.
-It assumes that a parameter is modified if its type is not qualified as \code{const} and all directly or indirectly 
-contained pointers are also qualified as \code{const}.
+no parameter. Declared Read-Only and Add-Result properties are used to determine whether a parameter type
+should be translated as readonly, or whether it should be returned as part of a result tuple. 
 
-For a qualified C type Gencot only respects the \code{const} qualifier. For a direct type the \code{const}
-qualifier is ignored, since in Cogent values of unboxed and regular types are always immutable. For
-a function type the qualifier is also ignored since function types are regular in Cogent. All other array types 
-and all pointer types are translated to linear types which can be mutable in
-Cogent. Whenever the C type is intrinsically immutable, it is translated to a readonly Cogent type by 
-applying a bang operator to it. The immutability is determined by function\code{isReadOnlyType}. It is implemented
-by a monadic action since it must access the symbol table to resolve references to tagged C structs.
+The translation functions do not respect the \code{const} qualifiers in C type specifications, they only use the 
+Read-Only property to determine whether a type should be translated as readonly. The \code{const} qualifiers are 
+used by \code{items-gen} to generate the default properties as described in Section~\ref{impl-ccomps-itemprops}. 
 
 \subsubsection{Filter \code{gencot-translate}}
 
@@ -214,84 +206,204 @@ The filter \code{gencot-translate} is invoked as
 where the arguments are the name of the original C source file and a file with the item property declarations (see 
 Section~\ref{impl-itemprops}).
 
-\subsection{External Functions and Variables}
-\label{impl-ccomps-externs}
+\subsection{Used External Items}
+\label{impl-ccomps-items}
 
-For the exit wrapper functions Gencot generates the Cogent abstract function definitions and the implementations
-in antiquoted C. Exit wrappers are generated for all functions which are invoked but not defined in the Cogent code. 
-The information required for each of these functions is contained in the C function declaration.
+External items are those C items (functions, objects, types) which are known in the sources of the Cogent compilation
+unit but not defined there. 
 
-Additionally, Gencot generates Cogent abstract function definitions for access functions to selected external
-variables without providing an implementation in antiquoted C.
+Functions and objects are external, if they are declared in the 
+Cogent compilation unit but are not defined there. They may be defined in files of the package which do not belong to
+the Cogent compilation unit (then they are declared in \code{.h} files of the package), or they may be defined in 
+standard runtime libraries (then they are declared in system include files). In both cases they must have external linkage.
 
-\subsubsection{Determining External Functions}
+Gencot always assumes that all package include files used by the Cogent compilation unit are translated to Cogent and
+are thus a part of the Cogent compilation unit. Thus a type can only be external if it is defined in a system include
+file.
 
-The easiest approach would be to generate an exit wrapper for every function which is declared but 
-not defined in the C program. However, often an
-included C source file contains many function declaration where only some of them are invoked. Therefore, Gencot
-determines the declarations of all actually invoked external functions with the help of the call graph as described in 
-Section~\ref{impl-ccode-callgraph}. Only for them declarations are translated.
+If an external item is actually used (by invoking a function, accessing an object, or referencing a type) in the Cogent
+compilation unit, it must also be translated to Cogent so that it is known in the Cogent propgram. Functions are translated
+in the form of exit wrappers, objects are translated in the form of abstract access functions, and types are translated
+as usual.
 
-The external invoked functions are further filtered as follows:
-\begin{itemize}
-\item If the type is a function pointer, invocations are translated to Cogent in a different way as 
-described in Section~\ref{design-types-function}. Therefore we omit all function pointer invocations.
-\item A function which is only declared may be incomplete, i.e., its parameters (number and types) are not known. 
-We could translate such function declarations to Cogent abstract functions with Unit as argument type, however,
-that would not be related to the invocations and thus be useless. Therefore we omit invocations
-of incompletely declared functions.
-\end{itemize}
+Usually, C programs know many external items without actually using them. To keep the resulting Cogent code as small 
+as possible, Gencot performs an automatic analysis to determine the external toplevel items which are actually used
+by the Cogent compilation unit.
 
-An identifier seen by Gencot in a function invocation may also be a macro call which shall be translated by Gencot. 
-In this case a dummy function declaration must be manually provided for it as part of the Gencot macro call conversion
-(see Section~\ref{design-preprocessor-macros}), so that the language-c parser can parse the invocations. By 
-using either an incomplete declaration or a complete declaration it can be controlled whether a Cogent abstract 
-function definition is generated for it. If the macro is translated to a macro in Cogent, no abstract function
-definition shall be generated and an incomplete dummy declaration must be used.
+\subsubsection{The processor \code{items-used}}
 
-There are cases where an external function is used without being seen by the call graph. This is the case when
-the function is assigned to a function pointer or when the function invocation is created by a macro call and
-is thus not visible for the call graph. For these cases Gencot supports a list where additional functions
-to be processed can be specified in an auxiliary input file by their names, each in a seperate line. Only
-functions with external linkage can be specified, for them the name is unique in the <package>.
+The processor \code{items-used} generates a list of the external toplevel items used by the Cogent compilation unit.
+It is intended as a filter for the processors \code{gencot-externs}, \code{gencot-exttypes}, \code{gencot-dvdtypes},
+\code{items-externs} and \code{parmod-gen} which process external items, to reduce them to the relevant ones.
 
-\subsubsection{Determining External Variables}
-
-As for functions, Gencot also restricts the processed external variables to a subset of the declared variables.
-It would be possible to determine the accessed variables in a similar way as the functions are determined with
-the help of the call graph. Gencot does this for all variables of function pointer (array) type, using the 
-call graph. Variables accessed in other ways or of other types may be specified explicitly as a list. This
-provides more control about the processed external variables for the developer.
-
-The external variables are specified in the same list as the additional external functions.
-
-\subsubsection{Processor \code{gencot-externs}}
-
-The processor \code{gencot-externs} generates the Cogent abstract function definitions. It is invoked as
+The processor is invoked as
 \begin{verbatim}
-  gencot-externs <item properties file> <used item file>
+  items-used <additional items file>
 \end{verbatim}
-where the arguments are a file with the item property declarations (see 
-Section~\ref{impl-itemprops}) and a file with the identifiers of the used external items as created 
-by \code{items-used} (see Section~\ref{impl-ccomps-itemprops}).
+where the argument is a list of additional external toplevel items specified manually.
+
+A toplevel item is a tagged struct, union, or enum, a typedef name, a function or a global variable. 
+
+The processor writes a textual list of the used external items to its standard output. Each item is output in a separate line 
+identified by its item identifer as described in Section~\ref{impl-itemprops-ids}. The argument file content must have the 
+same form, it is added to the output. These additional items cannot be added afterwards, since they may use other items
+which can only be detected by \code{items-used} if the additional items are known to it.
+
+As conveniency for the developer, the argument file may contain empty lines and may contain comment lines which
+start with a hash sign \code{\#}.
+
+\subsubsection{Determining Used Functions}
+
+A function is used by the Cogent compilation unit if it is invoked by a function which is part of the Cogent compilation unit. 
+Gencot determines the invoked external functions with the help of the call graph as described in 
+Section~\ref{impl-ccode-callgraph}. 
 
 The processor parses and analyses
 all C source files specified in the input file name list, resulting in the list of corresponding symbol tables, as
 described in Section~\ref{impl-ccode-package}. Then
-it determines for every table the invoked functions and function pointer (array)s as described in 
-Section~\ref{impl-ccode-callgraph}. This must
+it determines for every table the invoked functions using the call graph. This must
 be done before combining the tables, since invocations may also occur in the bodies of functions with internal
 linkage. These functions are removed during table combination.
 
 After determining the invoked functions, the tables are combined as described in Section~\ref{impl-ccode-package}
 and the invocations are reduced to those for
-which a declarations is present in the combined table. These are the invocations of functions and function
-pointer (array) variables external to all
-read C sources. The processor translates their declarations using the function \code{transGlobals} of
+which a declarations is present in the combined table. These are the invocations of functions (including function pointers)
+external to all read C sources. 
+
+An identifier seen by Gencot in a function invocation may also be a macro call which shall be translated by Gencot. 
+In this case a dummy function declaration must be manually provided for it as part of the Gencot macro call conversion
+(see Section~\ref{design-preprocessor-macros}), so that the language-c parser can parse the invocations. 
+Therefore \code{items-used} will detect the macro as a used external item.
+
+There are cases where an external function is used without being seen by the call graph. This is the case when
+the function is assigned to a function pointer or when the function invocation is created by a macro call and
+is thus not visible for the call graph. For these cases the function item id must be provided manually in the argument file.
+
+\subsubsection{Determining Used Variables}
+
+Gencot determines usage of an external variable if it or a sub-item of it is invoked as a function, using the 
+call graph. Invocations of sub-items which are the result of another function are currently not detected. 
+Variables accessed in other ways (e.g., read access, assignment) must be added manually in the argument file. This
+provides more control about the processed external variables for the developer.
+
+\subsubsection{Collecting Used Types}
+
+A type can be used by code in a translated C soure file or by a declaration of an external function or variable.
+Therefore, \code{items-used} first determines the external invoked functions and variables as described above, including
+the additional items in the argument file.
+
+Tags and typedef names are reduced by an analysis of type usage by reference. Every item can be
+associated with the tags and typedef names referenced in the types of all sub-items. For tags of 
+composite types and typedef names this usage relation is transitive. To determine the relevant tags 
+and typedef names defined in system include files, \code{items-used} starts with all initial items belonging
+to the Cogent compilation unit, together with all external invoked functions and the processed external variables. 
+It then determines all transitively used tags and typedef names (which all must be defined in system include files).
+
+To further reduce external items, the types of external items are ``fully resolved'', i.e.~all
+typedef names occurring in them are transitively resolved and replaced by their definition. The exception are
+typedef names which are referenced by the initial items, they are preserved since they are needed anyways.
+
+For the resulting set of tags and typedefs the item identifiers are added to the output list. 
+
+The initial toplevel items are collected with the help of the callback handler during analysis, as described in 
+Section~\ref{impl-ccode-read}. All toplevel items can be wrapped as a \code{DeclEvent}. The callback handler 
+is automatically invoked for all toplevel items in the parsed
+C source files, including local variables (which are not present anymore in the symbol table after the analysis phase).
+
+Gencot uses the callback handler
+\begin{verbatim}
+  collectTypeCarriers :: DeclEvent -> Trav [DeclEvent] ()
+\end{verbatim}
+in module \code{Gencot.Util.Types}. It adds all \code{DeclEvent}s with relevant toplevel items to the list in the 
+user state of the \code{Trav} monad. The handler is used for every \code{.c} file separately, the collected
+items must be combined afterwards to get all items in the Cogent compilation unit. This is
+done by first combining the symbol tables as described in Section~\ref{impl-ccode-package}, and then using the union of all 
+items which are local, have internal linkage, or are still contained in the resulting combined table. 
+This will avoid duplicate occurrences of items.
+
+All parameter declarations are ignored by the callback handler, since for every parameter declaration there must be 
+a \code{DeclEvent} for the containing function, which is processed by the handler. Function and global variable declarations 
+are also ignored, since they represent external functions and variables which are determined separately. Also,
+a function or variable declared in one source file may be defined in another source file of the Cogent compilation unit and thus 
+be not external. 
+
+Tags and typedef names defined in system include files are omitted, since they will be determined 
+using the type usage relation. To determine whether
+an item is defined in a system include file, the simple heuristics is used that the source file name is specified
+as an absolute pathname in the \code{nodeinfo}. System includes are typically accessed using absolute pathnames of the 
+form \code{/usr/include/...} (after being searched by cpp). If include paths are specified explicitly for Gencot, 
+system include paths must be 
+specified as absolute paths whereas include paths belonging to the <package> must be specified as relative paths
+to make the heuristics work.
+
+After the language-c analysis phase the declarations of all invoked external functions are determined 
+as described above and added to the combined items determined by the callback handler. No duplicate items
+will result here since the combined symbol table contains every external declaration only once.
+External invoked composite type members are not included, since they will be added through the used types below. To invoke 
+a composite type member an object must exist which is an item with the composite type. The item
+identifier for the member will be listed when this item or a typedef referenced by it
+is processed.
+
+The resulting set of items is transitively completed by adding all items used by referencing them,
+as described above. This will add all required tags and typedef names defined in system include files.
+Duplicates could occur if an item is referenced
+by several different types, they must be detected and avoided. Since all toplevel items correspond to 
+syntactic entities in a source file, they can be identified and compared by their position and source file.
+
+Finally, the tags and typedef names are reduced to those defined in a system include file using the same
+heuristics as above. Together with the names of the external invoked functions and variables their items
+identifiers are written to the output.
+
+\subsection{External Functions and Variables}
+\label{impl-ccomps-externs}
+
+Used external functions and variables (``objects'') are translated so that they are known and usable
+in the Cogent program.
+
+\subsubsection{Translating External Functions and Variables}
+
+Normally, a used external function is translated as an exit wrapper.
+For the exit wrapper functions Gencot generates the Cogent abstract function definitions and the implementations
+in antiquoted C. 
+The information required for each of these functions is contained in the C function declaration.
+
+A C function which is only declared may be incomplete, i.e., its parameters (number and types) are not known. 
+We could translate such function declarations to Cogent abstract functions with Unit as argument type, however,
+that would not be related to the invocations and thus be useless. Therefore Gencot does not generate exit 
+wrappers for incompletely declared functions.
+
+As described in Section~\ref{impl-ccomps-items} a used external function seen by Gencot may also be a macro call 
+which shall be translated to Cogent. In this case a dummy function declaration must have been manually provided 
+for it. By using an incomplete declaration the generation of an exit wrapper can be suppressed for macros 
+which shall be translated to a macro in Cogent.
+
+If an external function is accessed through a function pointer no exit wrapper is generated for it.
+Function pointers are invoked as described in Section~\ref{design-operations-function}. Since in C all functions
+which are sub-items of other items must be function pointers, exit wrappers are only generated for toplevel
+items, sub-items are not considered here.
+
+For a used external object (including invoked function pointers) Gencot generates a Cogent abstract function 
+definition for an access function without providing an implementation in antiquoted C. Again, this is only 
+done for toplevel items, sub-items are not considered.
+
+\subsubsection{Processor \code{gencot-externs}}
+
+The processor \code{gencot-externs} generates the Cogent abstract function definitions. It is invoked as
+\begin{verbatim}
+  gencot-externs <item properties file> <used external items file>
+\end{verbatim}
+where the arguments are a file with the item property declarations (see 
+Section~\ref{impl-itemprops}) and a file with the identifiers of the used external items as created 
+by \code{items-used} (see Section~\ref{impl-ccomps-items}).
+
+The processor parses and analyses
+all C source files specified in the input file name list, resulting in the list of corresponding symbol tables, as
+described in Section~\ref{impl-ccode-package}. The tables are combined and from the resulting table all 
+declarations of toplevel items are retrieved which are listed in the file of used items.
+
+The processor translates these declarations using the function \code{transGlobals} of
 module \code{Gencot.Cogent.Translate}. It translates C function and variable declarations to abstract function 
-definitions
-in Cogent. It reads and uses parameter modification descriptions to determine readonly parameter types, the
-descriptions are generated by \code{parmod-externs} as described in Section~\ref{impl-ccomps-parmod}.
+definitions in Cogent. It uses the item properties to fine tune the translation.
 The result is output using \code{prettyTopLevels} from module \code{Gencot.Cogent.Output}.
 
 \subsubsection{Processor \code{gencot-externsac}}
@@ -304,141 +416,24 @@ The processor \code{gencot-externsac} generates the wrapper implementations in a
 The processor \code{gencot-exttypes} generates all Cogent type definitions which origin from a C system include file.
 It is invoked as
 \begin{verbatim}
-  gencot-exttypes <item properties file> <used item file>
+  gencot-exttypes <item properties file> <used external items file>
 \end{verbatim}
 where the arguments are a file with the item property declarations (see 
 Section~\ref{impl-itemprops}) and a file with the identifiers of the used external items as created 
 by \code{items-used} (see Section~\ref{impl-ccomps-itemprops}).
 
-Since often only a small selection of the types defined by a system include file is used by a program, Gencot performs 
-an analysis to reduce the type definitions to be translated. It determines all types actually \textit{used} by
-referencing them somewhere in the program.
-
-C Types are used in a C source in the following cases:
-\begin{itemize}
-\item As type of a global or local variable.
-\item As result or parameter type of a derived function type.
-\item As base type of a derived pointer or array type.
-\item As type of a field in a composite type (struct or union).
-\item As defining type for a typedef name.
-\end{itemize}
-There are other uses of types in C, such as in \code{sizeof} expressions, these cases are ignored by Gencot and 
-must be handled manually.
-
-We call the items which may have a separate syntactically
-specified C type a ``type carrier''. These are variables, functions, fields, and typedef names. Since the language-c
-parser constructs for every defined or declared function the derived function type, variables and functions
-can be treated in the same way, they only differ in their type: functions have a derived function type, whereas
-variables may have all other types, including types derived from function types such as function pointer types. Fields 
-always belong to a composite type, therefore we use as type carrier the composite type instead of the single fields.
-Together we have three kinds of type carriers: variable/functions, composite types, and typedef names.
-
-Every type carrier has one or (in the case of a composite type) several associated ``syntactic types''
-which are the type expressions as specified in the C source. If a syntactic type is a derived type it contains
-``syntactic part types'' (base types, parameter and result types). 
-
-We also include enum types as type carriers. They have no associated types, since they always correspond to a name 
-for a primitve (numeric) type. However, \code{gencot-exttypes} must determine and translate enum types which 
-are defined in system include files similar to a composite type.
-
-Generally, Gencot translates type carriers to Cogent. It translates functions as described in Section~\ref{design-fundefs}
-and it translates enum types, composite types and type definitions as described in Section~\ref{design-types}.
-Gencot translates global variables to an abstract access function, using the translated type of the variable.
-Gencot does not translate local variables, this must be done manually. To support the manual translation, 
-however, Gencot treats local variables as if it would translate them to Cogent code referencing the translated 
-declared type.
-
-The task of \code{gencot-exttypes} is to translate all type carriers referenced in the translated code for which
-no definition has been generated by translating the C sources of the Cogent translation unit, i.e., which have
-been defined in a system include file.
-
-When Gencot translates a type carrier, it references at most the associated syntactic types in the resulting Cogent code.
-This is the case for struct types and for functions. Union types are translated without referencing the field types
-(see Section~\ref{design-types-struct}). To support a manual translation \code{gencot-exttypes} treats them in 
-the same way as struct types.
-
-Gencot translates derived types to a parameterized Cogent type with the base type as type argument. Hence the syntactic 
-part types are always required as type arguments. Therefore \code{gencot-exttypes} also handles all syntactic
-part types associated with a type carrier.
-
-For functions, the associated syntactic type is either a typedef name (resolving to a derived function type) 
-or a syntactic derived function type. In the latter case no Cogent type definition is needed for it, since Gencot
-directly translates it to a Cogent type expression (Section~\ref{design-fundefs}). 
-
-\subsubsection{Collecting Used Types}
-
-A type can be used by code in a translated C soure file or by a declaration of an external function or variable.
-As described in Section~\ref{impl-ccomps-externs}, Gencot only translates external functions and variables if they are 
-actually invoked or explicitly listed by the developer.
-Therefore, \code{gencot-exttypes} determines the external invoked functions and variables in the same way. Note that
-the external invoked functions include those defined in the <package> outside the Cogent compilation unit, as well
-as those declared in a system include file.
-
-Enum types, composite types and typedef names are reduced by an analysis of type usage by reference. Every type carrier can be
-associated with the enum types, composite types and typedef names referenced in all associated syntactic part types. For 
-composite types and typedef names this usage relation is transitive. To determine the relevant enum types, composite types 
-and typedef names defined in system include files, \code{gencot-exttypes} starts with all initial type carriers belonging
-to the Cogent compilation unit, together with all external invoked functions and the processed external variables. 
-It then determines all transitively
-used enum types, composite types and typedef names (which all must be defined in system include files).
-
-To further reduce type carriers, the types associated with external type carriers are ``fully resolved'', i.e.~all
-typedef names occurring in them are transitively resolved and replaced by their definition. The exception are
-typedef names which are referenced by the initial type carriers, they are preserved since they are needed anyways.
-
-For the resulting set of type carriers the required type definitions are generated.
-
-The initial type carriers are collected with the help of the callback handler during analysis, as described in 
-Section~\ref{impl-ccode-read}. All type carriers can be wrapped as a \code{DeclEvent}. The callback handler 
-is automatically invoked for all type carriers in the parsed
-C source files, including local variables (which are not present anymore in the symbol table after the analysis phase).
-
-Gencot uses the callback handler
-\begin{verbatim}
-  collectTypeCarriers :: DeclEvent -> Trav [DeclEvent] ()
-\end{verbatim}
-in module \code{Gencot.Util.Types}. It adds all \code{DeclEvent}s with relevant type carriers to the list in the 
-user state of the \code{Trav} monad. The handler is used for every \code{.c} file separately, the collected
-type carriers must be combined afterwards to get all type carriers in the Cogent compilation unit. This can be
-done by first combining the symbol tables as described in Section~\ref{impl-ccode-package}, and then using the union of all 
-type carriers which are local, have internal linkage, or are still contained in the resulting combined table. 
-This will avoid duplicate occurrences of type carriers.
-
-All parameter declarations are ignored by the callback handler, since for every parameter declaration there must be 
-a \code{DeclEvent} for the containing function, which is processed by the handler. Function and global variable declarations 
-are also ignored, since they represent external functions and variables which are separately determined. Also,
-a function or variable declared in one source file may be defined in another source file of the Cogent compilation unit and thus 
-be not external. Type carriers where all associated types are primitive (including enum types) are also ignored, 
-since they may neither contain derived types nor reference other type carriers.
-
-Enum types, composite types and typedef names declared in system include files are omitted, since they will be determined 
-using the type usage relation. To determine whether
-a type carrier is defined in a system include file, the simple heuristics is used that the source file name is specified
-as an absolute pathname in the \code{nodeinfo}. System includes are typically accessed using absolute pathnames of the 
-form \code{/usr/include/...} (after being searched by cpp). If include paths are specified explicitly for Gencot, 
-system include paths must be 
-specified as absolute paths whereas include paths belonging to the <package> must be specified as relative paths
-to make the heuristics work.
-
-After the language-c analysis phase the declarations of all invoked external functions are determined 
-as described in Section~\ref{impl-ccomps-externs}. If the associated syntactic type is a typedef name, it is resolved
-to a derived function type. Afterwards, all invoked external functions where not all associated syntactic types
-are primitive are added to the combined type carriers determined by the callback handler. No duplicate type carriers
-will result here since the combined symbol table contains every external declaration only once.
-
-The resulting set of type carriers is transitively completed by adding all type carriers used by referencing them,
-as described above. This will add all required enum types, composite types and typedef names defined in system include files.
-Here, type carriers where all associated types are primitive are not omitted, since 
-\code{gencot-exttypes} must translate all added type carriers. The same holds for enum types. 
-Duplicates could occur if a type carrier is referenced
-in several different types, they must be detected and avoided. Since all type carriers correspond to 
-syntactic entities in a source file, they can be identified and compared by their position and source file.
+The task of \code{gencot-exttypes} is to translate all tag and typedef name definitions listed in the 
+file of used external items. 
+it parses and analyses
+all C source files specified in the input file name list and combines the resulting symbol tables as
+described in Section~\ref{impl-ccode-package}. The tag and typedef name definitions in the resulting
+table listed in the argument file are then translated.
 
 \subsubsection{Translating Type Definitions}
 
 For all external enum types, composite types and typedef names in the resulting set \code{gencot-exttypes} translates the
 definition to Cogent as described in Sections~\ref{design-types}.
-All types used in these definitions are fully resolved, as described above.
+All types used in these definitions are fully resolved, as described in Section~\ref{impl-ccomps-items}.
 
 To support the full resolving of types, the normal monadic action \code{transGlobals} used by the main translation 
 to Cogent described in Section~\ref{impl-ccomps-main} cannot be used. The resolving needs access to all
@@ -447,7 +442,7 @@ The translation of external types is implemented by the monadic action
 \begin{verbatim}
   transExtGlobals :: [String] -> [DeclEvent] -> FTrav [GenToplv]
 \end{verbatim}
-in module \code{Gencot.Cogent.Translate} where the string list contains the referenced type names.
+in module \code{Gencot.Cogent.Translate} where the string list contains the directly referenced type names.
 
 \subsection{Derived Types}
 \label{impl-ccomps-dvdtypes}
@@ -455,14 +450,14 @@ in module \code{Gencot.Cogent.Translate} where the string list contains the refe
 The processor \code{gencot-dvdtypes} generates all Cogent type definitions required for the derived types
 used in the C program. It is invoked as
 \begin{verbatim}
-  gencot-dvdtypes <item properties file> <used item file>
+  gencot-dvdtypes <item properties file> <used external items file>
 \end{verbatim}
 where the arguments are a file with the item property declarations (see 
 Section~\ref{impl-itemprops}) and a file with the identifiers of the used external items as created 
 by \code{items-used} (see Section~\ref{impl-ccomps-itemprops}).
 
 A C derived type, is a pointer type, array type or function type. As described in 
-Section~\ref{design-types}, Gencot maps all these types to parameterized Gencot types. The generic types \code{CPtr},
+Section~\ref{design-types}, Gencot usually maps these types to parameterized Gencot types. The generic types \code{CPtr},
 \code{CFunPtr} and \code{CFunInc} used for pointer and function types are predefined by Gencot. However, function
 pointer types use abstract types for encoding the base function type and the generic 
 types of the form \code{CArr<size>} used for array types syntactically contain the array size, both
@@ -470,29 +465,26 @@ depend on the translated C program. For these types Cogent definitions must be p
 
 Derived types are used in C in the form of type expressions, i.e., base types, result and parameter types are 
 syntactically included in the type specification. With some exceptions, derived types may occur wherever a type
-may be used. Therefore, to determine all used derived types, Gencot determines all used type carriers as
-described for \code{gencot-exttypes} in Section~\ref{impl-ccomps-exttypes}. These include all type carriers used 
-in translated C sources, in declarations of external functions and variables and those defined in system
+may be used. Therefore, to determine all used derived types, Gencot determines all item associated types as
+described in Section~\ref{impl-itemprops-types}. These include all types used 
+in translated C sources, in declarations of external used functions and variables and those defined in system
 include files.
 
-For the same reason as for \code{gencot-exttypes} Gencot also processes the syntactic part types of derived types,
-if they are again derived types.
-
 Together, \code{gencot-dvdtypes} processes
-\textit{all} type carriers for all associated syntactic part types which are a derived array or function pointer type.
+\textit{all} item associated types for all sub-item types which are a derived array or function pointer type.
 
 \subsubsection{Generating Type Definitions}
 
-For all derived array types associated as syntactic part type with a type carrier in the used set, two abstract 
-generic type definitions must be generated
+For all derived array types two abstract generic type definitions must be generated
 (see Section~\ref{design-types-array}). However, only one such pair may be generated for every array \code{<size>}, 
-although array types with a specific size may be associated with several different type carriers.
+although array types with a specific size may be associated with several different items.
 
-For all derived function pointer types an abstract type definition must be generated for encoding the function
-type used as its base type.
+For all derived function pointer types an abstract type definition or a type synonym for the fully resolved type 
+must be generated for encoding the function type used as its base type (see Section~\ref{design-types-pointer}).
+For fully resolved function types an additional type synonym definition must generated for the translated function type.
 
 Gencot first generates the translated Cogent type names for all derived array and function pointer types associated 
-as syntactic part type with a type carrier. Then it generates the corresponding definitions for every type name
+with an item. Then it generates the corresponding definitions for every type name
 used in all these derived types. If a translated array type uses the generic name \code{CArrXX} no definition
 is generated since this type name is predefined by Gencot.
 
@@ -500,7 +492,7 @@ Generating the type definitions for derived array and function pointer types is 
 \begin{verbatim}
   genTypeDefs :: [DeclEvent] -> FTrav [GenToplv]
 \end{verbatim}
-in module \code{Gencot.Cogent.Translate}, where the list of \code{DeclEvent}s corresponds to the type carriers
+in module \code{Gencot.Cogent.Translate}, where the list of \code{DeclEvent}s corresponds to the items
 to be processed.
 
 \subsubsection{Processor \code{gencot-dvdtypesah}}
@@ -537,8 +529,8 @@ is output one string per line.
 \label{impl-ccomps-itemprops}
 
 To support an easy manual declaration of item properties Gencot generates default declarations from the C sources for all 
-items with an identifier. The declarations are either empty or declare the property Read-Only, if it can be derived
-from the \code{const} qualifiers in the item's type. 
+items with an identifier. The declarations are either empty or declare the properties Read-Only and/or Add-Result, if they
+can be derived from the item's type. 
 
 \subsubsection{The filter \code{items-gen}}
 
@@ -573,13 +565,26 @@ the Add-Result property is declared for it. Otherwise the declaration is empty.
 
 All generated declarations are written in textual form to the standard output.
 
+Whether a type is intrinsically readonly depends on its \code{const} qualifiers. For a direct type the \code{const}
+qualifier is ignored, since in Cogent values of unboxed and regular types are always immutable. For
+a function type the qualifier is also ignored since function types are regular in Cogent. All other array types 
+and all pointer types are translated to linear types which can be mutable in
+Cogent. To be intrinsically immutable, the base types of these types and all transitively contained array and pointer 
+types must be const qualified. The immutability is determined by function\code{isReadOnlyType}. It is implemented
+by a monadic action since it must access the symbol table to resolve references to tagged C structs.
+
+Default Add-Result properties are generated whenever the parameter type is linear. In cases where the parameter 
+shall be discarded because it is deallocated in the function or it is already returned as the function's result
+the default property must be removed manually or with the help of the parameter modification descriptions before
+using the properties for translating the function.
+
 \subsubsection{The processor \code{items-externs}}
 
 The processor \code{items-externs} is used to generate the default property declarations for items intended
 to be used by \code{gencot-externs} (see Section~\ref{impl-ccomps-externs}) and \code{gencot-exttypes} 
 (see Section~\ref{impl-ccomps-exttypes}). It is invoked as
 \begin{verbatim}
-  items-externs <used items file>
+  items-externs <used external items file>
 \end{verbatim}
 where the argument is the list of external toplevel items used by the Cogent compilation unit, as it is created 
 by \code{items-used}.
@@ -587,115 +592,6 @@ by \code{items-used}.
 The processor reads the source files of the Cogent compilation unit as described in Section~\ref{impl-ccode-package}
 and processes all external toplevel items specified in the list of used items in the same way as \code{items-gen}
 to generate default property declarations for them on standard output.
-
-\subsubsection{The processor \code{items-used}}
-
-The processor \code{items-used} generates a list of the external toplevel items used by the Cogent compilation unit.
-It is intended as a filter for the processors \code{gencot-externs}, \code{items-externs} and \code{parmod-externs} 
-which process external items, to reduce them to the relevant ones.
-
-The processor is invoked as
-\begin{verbatim}
-  items-used <used items file>
-\end{verbatim}
-where the argument is a list of additional external toplevel items specified manually.
-
-A toplevel item is a taggged struct, union, or enum, a typedef name, a function or a global variable. It is external, 
-if it is not defined in the Cogent compilation unit. Since all \code{.h} files used by the Cogent compilation unit 
-must be translated to Cogent, a tag or typedef name is only external if it is defined in a system include file.
-A function or variable is external if it is only declared but not defined in the sources of the Cogent compilation unit,
-it may be defined in other \code{.c} files of the package or in C libraries external to the package.
-
-The processor writes a textual list of the used items to its standard output. Each item is output in a separate line 
-identified by its item identifer as described in Section~\ref{impl-itemprops-ids}. The argument file content must have the 
-same form, it is added to the output. These additional items cannot be added afterwards, since they may use other items
-which can only be detected by \code{items-used} if the additional items are known to it.
-
-\subsubsection{Determining Used Functions}
-
-A function is used by the Cogent compilation unit if it is invoked by a function which is part of the Cogent compilation unit. 
-Gencot determines the invoked external functions with the help of the call graph as described in 
-Section~\ref{impl-ccode-callgraph}. 
-
-An identifier seen by Gencot in a function invocation may also be a macro call which shall be translated by Gencot. 
-In this case a dummy function declaration must be manually provided for it as part of the Gencot macro call conversion
-(see Section~\ref{design-preprocessor-macros}), so that the language-c parser can parse the invocations. 
-Therefore \code{items-used} will detect the macro as a used external item.
-
-There are cases where an external function is used without being seen by the call graph. This is the case when
-the function is assigned to a function pointer or when the function invocation is created by a macro call and
-is thus not visible for the call graph. For these cases the function item id must be added manually in the argument file.
-
-\subsubsection{Determining Used Variables}
-
-Gencot determines usage of an external variable if it or a sub-item of it is invoked as a function, using the 
-call graph. Invocations of sub-items which are the result of another fuction are currently not detected. 
-Variables accessed in other ways (e.g., read access, assignment) must be added manually in the argument file. This
-provides more control about the processed external variables for the developer.
-
-\subsubsection{Collecting Used Types}
-
-A type can be used by code in a translated C soure file or by a declaration of an external function or variable.
-Therefore, \code{items-used} first determines the external invoked functions and variables as described above, including
-the additional items in the argument file.
-
-Tags and typedef names are reduced by an analysis of type usage by reference. Every item can be
-associated with the tags and typedef names referenced in the types of all sub-items. For tags of 
-composite types and typedef names this usage relation is transitive. To determine the relevant tags 
-and typedef names defined in system include files, \code{items-used} starts with all initial items belonging
-to the Cogent compilation unit, together with all external invoked functions and the processed external variables. 
-It then determines all transitively used tags and typedef names (which all must be defined in system include files).
-
-To further reduce external items, the types of external items are ``fully resolved'', i.e.~all
-typedef names occurring in them are transitively resolved and replaced by their definition. The exception are
-typedef names which are referenced by the initial items, they are preserved since they are needed anyways.
-
-For the resulting set of tags and typedefs the item identifiers are added to the output list. 
-
-The initial toplevel items are collected with the help of the callback handler during analysis, as described in 
-Section~\ref{impl-ccode-read}. All toplevel items can be wrapped as a \code{DeclEvent}. The callback handler 
-is automatically invoked for all toplevel items in the parsed
-C source files, including local variables (which are not present anymore in the symbol table after the analysis phase).
-
-Gencot uses the callback handler
-\begin{verbatim}
-  collectTypeCarriers :: DeclEvent -> Trav [DeclEvent] ()
-\end{verbatim}
-in module \code{Gencot.Util.Types}. It adds all \code{DeclEvent}s with relevant toplevel items to the list in the 
-user state of the \code{Trav} monad. The handler is used for every \code{.c} file separately, the collected
-items must be combined afterwards to get all items in the Cogent compilation unit. This can be
-done by first combining the symbol tables as described in Section~\ref{impl-ccode-package}, and then using the union of all 
-items which are local, have internal linkage, or are still contained in the resulting combined table. 
-This will avoid duplicate occurrences of items.
-
-All parameter declarations are ignored by the callback handler, since for every parameter declaration there must be 
-a \code{DeclEvent} for the containing function, which is processed by the handler. Function and global variable declarations 
-are also ignored, since they represent external functions and variables which are separately determined. Also,
-a function or variable declared in one source file may be defined in another source file of the Cogent compilation unit and thus 
-be not external. 
-
-Tags and typedef names defined in system include files are omitted, since they will be determined 
-using the type usage relation. To determine whether
-an item is defined in a system include file, the simple heuristics is used that the source file name is specified
-as an absolute pathname in the \code{nodeinfo}. System includes are typically accessed using absolute pathnames of the 
-form \code{/usr/include/...} (after being searched by cpp). If include paths are specified explicitly for Gencot, 
-system include paths must be 
-specified as absolute paths whereas include paths belonging to the <package> must be specified as relative paths
-to make the heuristics work.
-
-After the language-c analysis phase the declarations of all invoked external functions are determined 
-as described above and added to the combined items determined by the callback handler. No duplicate items
-will result here since the combined symbol table contains every external declaration only once.
-External invoked composite type members are not included, since they will be added through the used types below. To invoke 
-a composite type member an object must exist which is an item with the composite type. The item
-identifier for the member will be listed when this item or a typedef referenced by it
-is processed.
-
-The resulting set of items is transitively completed by adding all items used by referencing them,
-as described above. This will add all required tags and typedef names defined in system include files.
-Duplicates could occur if an item is referenced
-by several different types, they must be detected and avoided. Since all toplevel items correspond to 
-syntactic entities in a source file, they can be identified and compared by their position and source file.
 
 \subsection{Parameter Modification}
 \label{impl-ccomps-parmod}
@@ -718,12 +614,12 @@ the type is a function or function pointer (array) directly including the derive
 
 The filter processes every definition of a composite type in the source file and translates all
 its members with function pointer (array) type directly including the derived function type to the corresponding
-description. The filter processes every type name definition in the source file where the definig type
+description. The filter processes every type name definition in the source file where the defining type
 is a function (pointer (array)) type directly including the derived function type, and translates it to
 the corresponding description.
 
 The descriptions of functions, their function parameters, composite type members, and typedef names are 
-intended to be used by \code{gencot-translate}
+intended to be converted to property declarations for being used by \code{gencot-translate}
 when it translates the function and type definitions. The descriptions of invoked local function pointer (array)s
 are intended for evaluating dependencies as described in Section~\ref{impl-parmod}.
 
@@ -742,13 +638,16 @@ in Section~\ref{impl-parmod-json}.
 
 \subsubsection{Processor \code{parmod-externs}}
 
+\textbf{deprecated, the generated list is now produced by \code{items-used}}.
+
 The processor \code{parmod-externs} is used to generate the parameter modification descriptions intended
-to be used by \code{gencot-externs} (see Section~\ref{impl-ccomps-externs}) and \code{gencot-exttypes} 
-(see Section~\ref{impl-ccomps-exttypes}). It is invoked as
+to be converted to item property declarations used by \code{gencot-externs} (see Section~\ref{impl-ccomps-externs}) 
+and \code{gencot-exttypes} (see Section~\ref{impl-ccomps-exttypes}). It is invoked as
 \begin{verbatim}
-  parmod-externs [<varlist file>]
+  parmod-externs <used external items file>
 \end{verbatim}
-where the optional argument is a list of names of external variables to be processed.
+where the argument is the list of external toplevel items used by the Cogent compilation unit, as it is created 
+by \code{items-used}.
 
 Since all these parameter modification descriptions are already
 generated by \code{parmod-gen}, the processor only generates a list of function identifiers, as described in 

@@ -2,7 +2,7 @@
 module Gencot.Items.Identifier where
 
 import Data.Char (isDigit,isLetter,isAlphaNum)
-import Data.List (break,elemIndex,dropWhileEnd,findIndices,isSuffixOf)
+import Data.List (break,elemIndex,dropWhileEnd,findIndices,isSuffixOf,isPrefixOf)
 
 -- | For an item identifier get the identifier of the toplevel item.
 -- This is always a prefix of the item identifier.
@@ -126,15 +126,10 @@ defId i iid =
           rest = dropWhile isAlphaNum $ tail pst -- ...
           defrest = defaultItemId rest
 
--- Only temporary, used for old Parmod implementation. Transform .../<pos>-<name>... to .../<name>...
-removePositions :: String -> String
-removePositions iid = case elemIndex '-' iid of
-                        Nothing -> iid
-                        Just i -> remPos i iid
-
-remPos i iid = prefix ++ name ++ (removePositions rest)
-    where (pre,pst) = splitAt i iid -- pre is .../<pos>, pst is -<name>...
-          prefix = dropWhileEnd isDigit pre -- .../
-          name = takeWhile isAlphaNum $ tail pst -- <name>
-          rest = dropWhile isAlphaNum $ tail pst -- ...
-
+-- | Retrieve all typedef names from a list of toplevel item identifiers.
+getTypedefNames :: [String] -> [String]
+getTypedefNames [] = []
+getTypedefNames (iid : rest) = 
+    if "typedef|" `isPrefixOf` iid 
+       then (drop 8 iid) : (getTypedefNames rest)
+       else getTypedefNames rest

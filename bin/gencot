@@ -226,21 +226,23 @@ then
     for file in $(< $CFILE)
     do prepare_cfile $file
     done
-    EVFILE=$GENCOTDIR/$CNAME.unit-manitems
-    PEVFILE=$TMPDIR/$CNAME.unit-prcmanitems
-    if [ -e $EVFILE ]
+    MIFILE=$GENCOTDIR/$CNAME.unit-manitems
+    PMIFILE=$TMPDIR/$CNAME.unit-prcmanitems
+    EIFILE=$TMPDIR/$CNAME.unit-extitems
+    if [ -e $MIFILE ]
     then
-        $BIN/gencot-prclist < $EVFILE > $PEVFILE
+        $BIN/gencot-prclist < $MIFILE > $PMIFILE
     else
-        touch $PEVFILE
+        touch $PMIFILE
     fi
+    $BIN/items-used $PMIFILE < $TMPDIR/infiles > $EIFILE
     prepare_itemprops
-    $BIN/gencot-externs $TMPDIR/$IPMFILE $PEVFILE < $TMPDIR/infiles | $BIN/gencot-reporigs \
+    $BIN/gencot-externs $TMPDIR/$IPMFILE $EIFILE < $TMPDIR/infiles | $BIN/gencot-reporigs \
         | $BIN/gencot-mrgcomments /dev/null > $TMPDIR/$CNAME-externs.cogent
-    $BIN/gencot-exttypes $TMPDIR/$IPMFILE $PEVFILE < $TMPDIR/infiles | $BIN/gencot-reporigs \
+    $BIN/gencot-exttypes $TMPDIR/$IPMFILE $EIFILE < $TMPDIR/infiles | $BIN/gencot-reporigs \
         | $BIN/gencot-defcomments $COMMENTDIR \
         | $BIN/gencot-mrgcomments /dev/null > $TMPDIR/$CNAME-exttypes.cogent
-    $BIN/gencot-dvdtypes $TMPDIR/$IPMFILE $PEVFILE < $TMPDIR/infiles | $BIN/gencot-reporigs \
+    $BIN/gencot-dvdtypes $TMPDIR/$IPMFILE $EIFILE < $TMPDIR/infiles | $BIN/gencot-reporigs \
         | $BIN/gencot-defcomments $COMMENTDIR \
         | $BIN/gencot-mrgcomments /dev/null > $TMPDIR/$CNAME-dvdtypes.cogent
     cp $TMPDIR/$CNAME-externs.cogent $TMPDIR/$CNAME-exttypes.cogent $TMPDIR/$CNAME-dvdtypes.cogent .

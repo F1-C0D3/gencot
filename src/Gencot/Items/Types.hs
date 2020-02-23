@@ -8,7 +8,7 @@ import Language.C.Data.Ident as LCI
 import Language.C.Data.Node as LCN
 import Language.C.Analysis as LCA
 
-import Gencot.Items.Identifier (individualItemId,localItemId,paramItemId,typedefItemId,tagItemId,memberSubItemId,paramSubItemId,elemSubItemId,refSubItemId,resultSubItemId,indivItemIds,removePositions)
+import Gencot.Items.Identifier (individualItemId,localItemId,paramItemId,typedefItemId,tagItemId,memberSubItemId,paramSubItemId,elemSubItemId,refSubItemId,resultSubItemId,indivItemIds)
 import Gencot.Names (srcFileName)
 import Gencot.Traversal (FTrav,hasProperty)
 import Gencot.Util.Types (getTagDef,isExtern,isFunction,resolveFully,TypeCarrier,TypeCarrierSet)

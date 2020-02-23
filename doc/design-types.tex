@@ -69,6 +69,15 @@ then \code{m1} is an individual sub-item of \code{s}. If \code{s} is declared by
 then \code{m1} is not an individual sub-item of \code{s} anymore, it is a collective sub-item of all items with
 type \code{struct str}.
 
+A tagless struct can be used to declare several items by using several declarators in the same declaration, such as
+\begin{verbatim}
+  struct { int m1,m2; } s1, s2, *s3;
+\end{verbatim}
+In this case Gencot treats \code{m1} as a collective sub-item of all declared items, however, its identifier is
+only constructed from the first declarator. This implies that properties declared for \code{m1} as sub-item
+of \code{s1} apply to the field of all three items whereas properties declared for \code{m1} as sub-item of 
+\code{s2} or \code{s3} are ignored. 
+
 Basically, collective items are identified by their type. If a property is declared for a type, it applies to 
 all items which are declared to have this type. Additionally, for a collective item its sub-items can be determined
 in the same way as for an individual item. 

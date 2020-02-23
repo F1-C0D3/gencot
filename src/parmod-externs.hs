@@ -2,7 +2,7 @@
 module Main where
 
 import System.Environment (getArgs)
-import Control.Monad (liftM)
+import Control.Monad (liftM,when)
 
 import Language.C.Analysis as LCA
 import Language.C.Data.Ident (identToString)
@@ -18,8 +18,9 @@ main :: IO ()
 main = do
     {- get arguments -}
     args <- getArgs
+    when (length args /= 1) $ error "expected arguments: <external items file name>"
     {- get list of external variables to process -}
-    varnams <- (liftM ((filter (not . null)) . lines)) (if null args then return "" else readFile $ head args)
+    varnams <- (liftM ((filter (not . null)) . lines)) (readFile $ head args)
     {- parse and analyse C sources and get global definitions and used types -}
     (tables,initialTypeCarrierSets) <- (liftM unzip) $ readPackageFromInput [] collectTypeCarriers
     {- Determine all call graphs -}

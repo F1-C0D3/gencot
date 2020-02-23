@@ -18,12 +18,11 @@ long_usage()
     echo 'Commands:'
     echo '  check  <cfile>  Test C sourcefile <cfile> for parsability by Gencot'
     echo '  config <hfile>  Translate a C configuration include file to Cogent'
-    echo '  hfile  <hfile> [<json>] Translate a C include file to Cogent'
-    echo '  cfile  <cfile> [<json>] Translate a C source file to Cogent'
-    echo '  unit   <ufile> [<json>] Generate auxiliary Cogent files for unit described in <ufile>'
+    echo '  hfile  <hfile>  Translate a C include file to Cogent'
+    echo '  cfile  <cfile>  Translate a C source file to Cogent'
+    echo '  unit   <ufile>  Generate auxiliary Cogent files for unit described in <ufile>'
     echo '  cgraph <ufile>  Print call graph for unit described in <ufile>'
     echo '  help            Display this help information'
-    echo '  (the optional <json> file contains parameter modification descriptions for translated functions)'
     echo 'A <ufile> contains a list of <cfile> names, each on a separate line.'
     echo 'Options for commands check|config|hfile|cfile|unit: '
     echo '  -I<dir>  Directory for searching C include files. Can be repeated, as for cpp. '
@@ -116,7 +115,6 @@ CBASE=$(basename $CFILE)
 CNAME=$(expr match $CBASE '\(.*\)[.][^.]*' '|' $CBASE)
 
 IPMFILE=$CBASE-itemprops
-JFILE=$2
 
 TMPDIR=$(mktemp -d)
 
@@ -228,8 +226,8 @@ then
     for file in $(< $CFILE)
     do prepare_cfile $file
     done
-    EVFILE=$GENCOTDIR/$CNAME.gencot-externs
-    PEVFILE=$TMPDIR/$CNAME.gencot-prcext
+    EVFILE=$GENCOTDIR/$CNAME.unit-manitems
+    PEVFILE=$TMPDIR/$CNAME.unit-prcmanitems
     if [ -e $EVFILE ]
     then
         $BIN/gencot-prclist < $EVFILE > $PEVFILE
@@ -237,12 +235,12 @@ then
         touch $PEVFILE
     fi
     prepare_itemprops
-    $BIN/gencot-externs $TMPDIR/$IPMFILE $PEVFILE $JFILE < $TMPDIR/infiles | $BIN/gencot-reporigs \
+    $BIN/gencot-externs $TMPDIR/$IPMFILE $PEVFILE < $TMPDIR/infiles | $BIN/gencot-reporigs \
         | $BIN/gencot-mrgcomments /dev/null > $TMPDIR/$CNAME-externs.cogent
-    $BIN/gencot-exttypes $TMPDIR/$IPMFILE $PEVFILE $JFILE < $TMPDIR/infiles | $BIN/gencot-reporigs \
+    $BIN/gencot-exttypes $TMPDIR/$IPMFILE $PEVFILE < $TMPDIR/infiles | $BIN/gencot-reporigs \
         | $BIN/gencot-defcomments $COMMENTDIR \
         | $BIN/gencot-mrgcomments /dev/null > $TMPDIR/$CNAME-exttypes.cogent
-    $BIN/gencot-dvdtypes $TMPDIR/$IPMFILE $PEVFILE $JFILE < $TMPDIR/infiles | $BIN/gencot-reporigs \
+    $BIN/gencot-dvdtypes $TMPDIR/$IPMFILE $PEVFILE < $TMPDIR/infiles | $BIN/gencot-reporigs \
         | $BIN/gencot-defcomments $COMMENTDIR \
         | $BIN/gencot-mrgcomments /dev/null > $TMPDIR/$CNAME-dvdtypes.cogent
     cp $TMPDIR/$CNAME-externs.cogent $TMPDIR/$CNAME-exttypes.cogent $TMPDIR/$CNAME-dvdtypes.cogent .
@@ -260,7 +258,7 @@ then
 else
     prepare_cfile $CFILE
     prepare_itemprops
-    $BIN/gencot-translate $CBASE $TMPDIR/$IPMFILE $JFILE < $TMPDIR/$CNAME.in | $BIN/gencot-reporigs > $TMPDIR/$CNAME.out
+    $BIN/gencot-translate $CBASE $TMPDIR/$IPMFILE < $TMPDIR/$CNAME.in | $BIN/gencot-reporigs > $TMPDIR/$CNAME.out
     process_directives
     process_comments
     if [ "$CMD" == "cfile" ]

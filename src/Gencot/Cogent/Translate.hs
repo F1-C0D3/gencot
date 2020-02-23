@@ -25,7 +25,7 @@ import Gencot.Items.Types (ItemAssocType,isNotNullItem,isReadOnlyItem,isAddResul
 import Gencot.Items.Identifier (removePositions,indivItemIds)
 import Gencot.Cogent.Ast
 import Gencot.C.Translate (transStat,transExpr)
-import Gencot.Traversal (FTrav,getParmods,markTagAsNested,isMarkedAsNested,hasProperty)
+import Gencot.Traversal (FTrav,markTagAsNested,isMarkedAsNested,hasProperty)
 import Gencot.Util.Types (carriedTypes,usedTypeNames,resolveFully,isExtern,isCompOrFunc,isCompPointer,isNamedFunPointer,isFunPointer,isPointer,isAggregate,isFunction,isTypeDefRef,isComplete,isArray,isVoid,isTagRef,containsTypedefs,resolveTypedef,isComposite,isLinearType,isLinearParType,isReadOnlyType,isReadOnlyParType,isDerivedType,wrapFunAsPointer,getTagDef)
 
 genType t = GenType t noOrigin
@@ -94,7 +94,7 @@ transGlobal (LCA.DeclEvent idecl@(LCA.FunctionDef fdef@(LCA.FunDef decl stat n))
     LCA.enterFunctionScope
     LCA.defineParams LCN.undefNode decl
     d <- dummyExpr res
-    d <- extendExpr idecl d pars
+    d <- extendExpr iat d pars
     s <- transStat stat
     LCA.leaveFunctionScope
     return $ wrapOrigin n ([GenToplv (CS.FunDef f (CS.PT [] t) [CS.Alt ps CCS.Regular $ FunBody d s]) noOrigin])
@@ -245,16 +245,7 @@ genDerivedTypeNames tdn tc = do
     miats <- getMemberItemAssocTypes tc
     iats <- (liftM concat) $ mapM getSubItemAssocTypes (iat : miats)
     let fiats = filter (\(_,t) -> (isDerivedType t) && (not $ isFunction t) && ((not $ isPointer t) || isFunPointer t)) iats
---                $ concat $ map (\(iid,t) -> nub [(iid,t), (iid,resolveFully [] t)]) iats
---    mapM (\iat -> do gt <- transType False iat; return $ singleton (getName gt) iat) fiats
     mapM genMap fiats
---    sfn <- srcFileName tc
---    liftM (map (\(gt,iid,t) -> singleton (getName gt) (iid,t))) $ 
---        mapM (\(iid,t) -> do gt <- transType False iid t; return (gt,iid,t)) $ 
---        filter (\(_,t) -> isArray t || (isFunPointer t && (not $ isTypeDefRef t))) $
---       nub $ map (\idandt -> wrapFunAsPointer idandt) $ 
---        concat $ map (\(iid,t) -> nub [(iid,t), (iid,resolveFully [] t)]) $
---        concat $ map (uncurry getDerivedParts) $ carriedWithItemId sfn tdn tc
     where getName (GenType (CS.TCon nam _ _) _) = nam
           getName (GenType (CS.TBang (GenType (CS.TCon nam _ _) _)) _) = nam
           genMap :: ItemAssocType -> FTrav (Map String ItemAssocType)
@@ -298,11 +289,12 @@ genDerivedTypeDefs nam iat@(iid,pt@(LCA.PtrType t _ _)) = do
           getName (GenType (CS.TCon nam _ _) _) = nam
 genDerivedTypeDefs _ _ = return []
 
-extendExpr :: LCA.IdentDecl -> RawExpr -> [LCA.ParamDecl] -> FTrav RawExpr
-extendExpr fdef e pars = do
-    sfn <- srcFileName $ LCA.declIdent fdef
-    pms <- getParmods $ getIndividualItemId fdef sfn
-    let res = map (CS.RE . CS.Var . mapIfUpper . LCA.declIdent . snd) $ filter (((==) "yes") . fst) $ zip pms pars
+-- | Extend a result expression according to the Add-Result properties of the function parameters.
+-- The first argument is the item associated type of the function.
+extendExpr :: ItemAssocType -> RawExpr -> [LCA.ParamDecl] -> FTrav RawExpr
+extendExpr iat e pars = do
+    arProps <- mapM shallAddResult $ map (getParamSubItemAssoc iat) (numberList pars)
+    let res = map (CS.RE . CS.Var . mapIfUpper . LCA.declIdent . snd) $ filter fst $ zip arProps pars
     return $ mkRawExpr $ addres res e
     where addres res (CS.RE CS.Unitel) = res
           addres res e = e : res
@@ -453,11 +445,11 @@ transType rslv iat@(iid, pt@(LCA.PtrType t _ _)) = do
     return $ makeReadOnlyIf ro $ addMayNullIfNot safe rtyp
 -- Complete derived function type: ret (p1,..,pn)
 -- Translate to: Cogent function type (p1,..,pn) -> ret, then apply parmod description.
-transType rslv iat@(iid, t@(LCA.FunctionType (LCA.FunType ret pars variadic) _)) = do
+transType rslv iat@(iid, (LCA.FunctionType (LCA.FunType ret pars variadic) _)) = do
     r <- transType rslv $ getResultSubItemAssoc iat ret
     ps <- mapM (transParamType rslv iat) $ numberList pars
     let pt = mkParType (ps ++ if variadic then [variadicType] else [])
-    applyProperties t iat $ genType $ CS.TFun pt r
+    applyProperties iat $ genType $ CS.TFun pt r
 -- Derived array type for element type t:
 -- Translate t, if again array type apply unbox operator, then apply generic array type. Always boxed.
 -- If Read-OnlyProperty: banged
@@ -521,13 +513,9 @@ encodeType rslv iat@(iid, (LCA.FunctionType (LCA.FunType ret pars variadic) _)) 
     tn <- encodeType rslv $ getResultSubItemAssoc iat ret
     encpars <- mapM (encodeParamType rslv iat) $ numberList pars
     let vencpars = if variadic then encpars ++ [mapRoStep ++ variadicTypeName] else encpars
-    --pms <- getParamMods iid pars variadic
     arProps <- mapM shallAddResult $ map (getParamSubItemAssoc iat) (numberList pars)
     let varProps = if variadic then arProps ++ [False] else arProps
-    
-    --let ps = map applyEncodeParmod $ zip pms vencpars
-    let ps = map applyEncodeProperties $ zip varProps vencpars
-
+    let ps = map (\(arProp,s) -> if arProp then mapModStep ++ s else s) $ zip varProps vencpars
     return ((mapFunStep ps) ++ tn)
 -- Incomplete derived function type: ret ()
 -- Encode ret, prepend incomplete function derivation step.
@@ -618,24 +606,12 @@ getTypedefName :: LCA.Type -> String
 getTypedefName (LCA.TypeDefType (LCA.TypeDefRef nam _ _) _ _) = identToString nam
 getTypedefName t = ""
 
--- | Apply parameter modification description to a mapped function type.
--- The first parameter is the original C function type.
--- The second parameter is the function id of the associated parameter modification description.
--- If the parameter modification description has fewer parameters than the function type,
--- apply the default parameter modification description instead.
-applyParmods :: LCA.Type -> String -> GenType -> FTrav GenType
-applyParmods (LCA.FunctionType (LCA.FunType _ pars variadic) _) fid (GenType (CS.TFun pt rt) o) = do
-    pms <- getParamMods fid pars variadic
-    let pts = zip pms ptl
-    return $ GenType (CS.TFun pt (applyToRes pts rt)) o
-    where ptl = ptlist pt
-          ptlist (GenType CS.TUnit _) = []
-          ptlist (GenType (CS.TTuple ts) _) = ts
-          ptlist gt = [gt]
-applyParmods _ _ t = return t
-
-applyProperties :: LCA.Type -> ItemAssocType -> GenType -> FTrav GenType
-applyProperties (LCA.FunctionType (LCA.FunType _ pars variadic) _) iat (GenType (CS.TFun pt rt) o) = do
+-- | Apply item properties to a mapped function type.
+-- The first parameter is the item associated type of the function.
+-- For every parameter which has the Add-Result property and no Read-Only property its type is appended to the result type.
+-- Comment markers are removed from these types to avoid duplication of comments.
+applyProperties :: ItemAssocType -> GenType -> FTrav GenType
+applyProperties iat@(_,(LCA.FunctionType (LCA.FunType _ pars _) _)) (GenType (CS.TFun pt rt) o) = do
     arProps <- mapM shallAddResult $ map (getParamSubItemAssoc iat) (numberList pars)
     return $ GenType (CS.TFun pt (mkParType $ addPars rt $ map remComment $ map snd $ filter fst $ zip arProps ptl)) o 
     where addPars (GenType CS.TUnit _) ps = ps
@@ -650,43 +626,6 @@ shallAddResult iat = do
     ar <- isAddResultItem iat
     ro <- isReadOnlyItem iat
     return (ar && (not ro))
-
--- | Prepare parameter modification specifications for a given parameter declaration list.
--- First parameter is the function identifier of the parameters' function.
--- Third parameter tells whether the function is variadic.
-getParamMods :: String -> [LCA.ParamDecl] -> Bool -> FTrav [String]
-getParamMods fid pars variadic = do
-    -- when ("mbedtls_dhm_calc_secret/" `isPrefixOf` fid) $ error ("fid: " ++ fid)
-    pms <- getParmods $ removePositions fid
-    let vpms = if variadic then pms ++ ["no"] else pms
-    dpms <- mapM mkDefaultParmod pts
-    let vdpms = if variadic then dpms ++ ["no"] else dpms
-    if (length vpms) < (length vdpms) then return vdpms else return vpms
-    where pts = map LCA.declType pars
-
--- | Apply parameter modification to a function result type.
--- Additional input is a list of parameter types with associated modification description (as a String).
--- For every parameter which is modified, its type is appended to the result type.
--- Comment markers are removed from these types to avoid duplication of comments.
--- Output is the type for the result list (unit, singleton, or tuple).
-applyToRes :: [(String,GenType)] -> GenType -> GenType
-applyToRes pts rt = mkParType $ addrps rt
-    where rps = map remComment $ map snd $ filter (((==) "yes") . fst) pts
-          addrps (GenType CS.TUnit _) = rps
-          addrps t = t : rps
-
--- | Create default parameter modification description for a single C parameter type.
--- If the C type is not linear or readonly, specify this property.
--- Otherwise assume that it is modified.
-mkDefaultParmod :: LCA.Type -> FTrav String
-mkDefaultParmod t = do
-    lin <- isLinearParType t
-    if not lin
-       then return "nonlinear"
-       else do
-           ro <- isReadOnlyParType t
-           if ro then return "readonly"
-           else return "yes"
 
 mkBoxedType :: String -> Origin -> GenType
 mkBoxedType nam = GenType (CS.TCon nam [] $ markBox)
@@ -720,20 +659,6 @@ encodeParamType rslv iat ipd@(_,pd) = do
     if isArray $ LCA.declType pd
        then return $ rmUboxStep typ
        else return typ
-
--- | Apply parameter modification to an encoded parameter type.
--- For "yes" prepend modification pseudo step.
--- For "readonly" and "no" prepend readonly pseudo step.
--- For "nonlinear" and "discarded" do nothing.
-applyEncodeParmod :: (String,String) -> String
-applyEncodeParmod ("yes",s) = mapModStep ++ s
---applyEncodeParmod ("readonly",s) = mapRoStep ++ s
---applyEncodeParmod ("no",s) = mapRoStep ++ s
-applyEncodeParmod (_,s) = s
-
-applyEncodeProperties :: (Bool,String) -> String
-applyEncodeProperties (True,s) = mapModStep ++ s
-applyEncodeProperties (False,s) = s
 
 arraySizeType :: LCA.ArraySize -> GenType
 arraySizeType (LCA.ArraySize _ (LCS.CConst (LCS.CIntConst ci _))) =

@@ -24,7 +24,7 @@ main = do
     {- get input file name -}
     let fnam = head args
     {- determine default properties for all items in globals -}
-    ipm <- runFTrav table (fnam,empty,empty,[]) $ transGlobals [] $ getOwnDeclEvents (globalDefs table) defFilter
+    ipm <- runFTrav table (fnam,empty,[]) $ transGlobals [] $ getOwnDeclEvents (globalDefs table) defFilter
     {- Output -}
     putStrLn $ showProperties ipm
 

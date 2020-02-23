@@ -39,12 +39,6 @@ types-pointer.c-itemprops: types-pointer.c-manprops types-pointer.c-dfltprops ty
 	@$(IT) merge common.types-manprops $*-h2props > $*-itemprops
 	@rm $*-hprops $*-h2props
 
-types-parmod.cogent: types-parmod.c types-parmod.c-itemprops
-	@$(GC) cfile types-parmod.c types-parmod.json
-
-types-pointer.cogent: types-pointer.c types-pointer.c-itemprops
-	@$(GC) cfile types-pointer.c
-
 unit-regression: unit $(foreach U,$(UNIT),test-$(U)-expected.cogent) $(foreach U,$(AUNIT),test.$(U) test-expected.$(U))
 	-@for u in $(UNIT); do \
 	  echo "diff test-$$u.cogent test-$$u-expected.cogent"; \
@@ -103,4 +97,4 @@ test.unit:
 	@cat test.unit
 
 unit: test.unit test.unit-itemprops test.unit-manitems
-	@$(GC) $(ABSINCL) unit test.unit types-parmod.json
+	@$(GC) $(ABSINCL) unit test.unit

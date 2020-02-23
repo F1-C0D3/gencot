@@ -178,12 +178,15 @@ then
     done
     UBASE=$(basename $1)
     UNAME=$(expr match $UBASE '\(.*\)[.][^.]*' '|' $UBASE)
-    EVFILE=$GENCOTDIR/$UNAME.gencot-externs
-    if [ ! -e $EVFILE ]
+    EVFILE=$GENCOTDIR/$UNAME.unit-manitems
+    PEVFILE=$TMPDIR/$UNAME.unit-prcmanitems
+    if [ -e $EVFILE ]
     then
-        EVFILE=
+        $BIN/gencot-prclist < $EVFILE > $PEVFILE
+    else
+        touch $PEVFILE
     fi
-    $BIN/$TAILCMD $EVFILE < $TMPDIR/infiles | sort > $TMPDIR/extfunids
+    $BIN/$TAILCMD $PEVFILE < $TMPDIR/infiles | sort > $TMPDIR/extfunids
     $BIN/$PRC filter $TMPDIR/extfunids < $2 | tee $TMPDIR/extfuns.json \
         | $BIN/$PRC funids | sort | diff - $TMPDIR/extfunids > $TMPDIR/extfunids.diff
     if [ -s $TMPDIR/extfunids.diff ]

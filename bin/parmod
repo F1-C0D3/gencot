@@ -166,6 +166,16 @@ prepare_cfile()
     echo $TMPDIR/$CNAME.in >> $TMPDIR/infiles
 }
 
+prepare_manitems()
+{
+    if [ -e $1 ]
+    then
+        $BIN/gencot-prclist < $1 > $2
+    else
+        touch $2
+    fi
+}
+
 if [ "$CMD" != "idlist" -a "$CMD" != "out" ]
 then
     TMPDIR=$(mktemp -d)
@@ -178,20 +188,15 @@ then
     done
     UBASE=$(basename $1)
     UNAME=$(expr match $UBASE '\(.*\)[.][^.]*' '|' $UBASE)
-    EVFILE=$GENCOTDIR/$UNAME.unit-manitems
-    PEVFILE=$TMPDIR/$UNAME.unit-prcmanitems
-    if [ -e $EVFILE ]
-    then
-        $BIN/gencot-prclist < $EVFILE > $PEVFILE
-    else
-        touch $PEVFILE
-    fi
-    $BIN/$TAILCMD $PEVFILE < $TMPDIR/infiles | sort > $TMPDIR/extfunids
-    $BIN/$PRC filter $TMPDIR/extfunids < $2 | tee $TMPDIR/extfuns.json \
+    MIFILE=$GENCOTDIR/$UNAME.unit-manitems
+    PMIFILE=$TMPDIR/$UNAME.unit-prcman
+    prepare_manitems $MIFILE $PMIFILE
+    $BIN/items-used $PMIFILE < $TMPDIR/infiles | grep -v '.*|.*' | sort > $TMPDIR/extfunids
+    $BIN/$PRC prefilter $TMPDIR/extfunids < $2 | tee $TMPDIR/extfuns.json \
         | $BIN/$PRC funids | sort | diff - $TMPDIR/extfunids > $TMPDIR/extfunids.diff
     if [ -s $TMPDIR/extfunids.diff ]
     then
-        echo "Missing function descriptions:" >&2
+        echo "Warning: no function found for:" >&2
         cat $TMPDIR/extfunids.diff >&2
     fi
     cat $TMPDIR/extfuns.json

@@ -43,17 +43,36 @@ carriedTypes _ = []
 transCloseUsedCarriers :: LCD.DefTable -> TypeCarrierSet -> TypeCarrierSet
 transCloseUsedCarriers dt tcs = transCloseCarriers (usedCarriers (usedTypeNames tcs) dt) tcs
 
+-- | The typedef names used (referenced) in a set of type carriers.
+-- Get the carried types, 
+-- get their non-derived contained types which are typedef references, 
+-- and return their typedef names.
 usedTypeNames :: TypeCarrierSet -> [String]
-usedTypeNames tcs = map (LCI.identToString . typeIdent) $ nub $ concat $ map ((filter isTypeDefRef) . carriedTypes) tcs
-    
+usedTypeNames tcs = map (LCI.identToString . typeIdent) $ nub $ concat $ map (selNonDerived isTypeDefRef) $ concat $ map carriedTypes tcs
+
+-- | Typedef names of external type definitions.
+externTypeNames :: TypeCarrierSet -> [String]
+externTypeNames tcs = catMaybes $ map getDefinedTypeName (filter isExtern tcs)
+
+getDefinedTypeName :: LCA.DeclEvent -> Maybe String
+getDefinedTypeName (LCA.TypeDefEvent (LCA.TypeDef idnam _ _ _)) = Just $ LCI.identToString idnam
+getDefinedTypeName _ = Nothing
+
 -- | Transitive closure of a function on type carriers, applied to a set of type carriers
 transCloseCarriers :: (TypeCarrier -> TypeCarrierSet) -> TypeCarrierSet -> TypeCarrierSet
 transCloseCarriers f tcs = 
-    if null ct then tcs else transCloseCarriers f (ct ++ tcs)
-    where ct = (nub $ concat $ map f tcs) \\ tcs
+    if null (ct \\ tcs) then tcs else transCloseCarriers f ct
+    where ct = nub $ concat $ map f tcs
 
+-- | The set of type carriers referenced via types from a given type carrier.
+-- If the given type carrier is a tag or typedef it is included in the result.
 usedCarriers :: [String] -> LCD.DefTable -> TypeCarrier -> TypeCarrierSet
-usedCarriers tds dt tc = nub $ concat $ map (usedCarriersInType (isExtern tc) tds dt) $ carriedTypes tc
+usedCarriers tds dt tc = nub ((selfCarrierType tc) ++ (concat $ map (usedCarriersInType (isExtern tc) tds dt) $ carriedTypes tc))
+
+selfCarrierType :: TypeCarrier -> TypeCarrierSet
+selfCarrierType tc@(LCA.TypeDefEvent _) = [tc]
+selfCarrierType tc@(LCA.TagEvent _) = [tc]
+selfCarrierType _ = []
 
 -- | Get carriers (tag and type defs) used in a type
 -- If first parameter is true, fully resolve used type defs
@@ -140,26 +159,6 @@ occurringTypes flt (LCA.AsmEvent _) = []
 closeDerivedAndExternal :: LCD.DefTable -> TypeSet -> TypeSet
 closeDerivedAndExternal dt types = transCloseTypes (selTypes (not . isPrimitive)) types
     where selTypes p = unionTypeSelector [selInDerived p, selInFunction p, selInExtTypeDef dt p, selInExtComp dt p]
-
--- | Retrieve from a set of type carriers the referenced external type definitions for types
--- which ultimately resolve to a function (pointer (array)) type
-getExtFunctionTypeDefs :: TypeCarrierSet -> [LCA.TypeDef]
-getExtFunctionTypeDefs tcs = concat $ map getExtFunTypeDefs tcs
-
-getExtFunTypeDefs :: TypeCarrier -> [LCA.TypeDef]
-getExtFunTypeDefs (LCA.TypeDefEvent td@(LCA.TypeDef _ t _ _)) | isExtern td = 
-    if isFunction t || isFunPointerOptArr t then [td] else []
-getExtFunTypeDefs _ = []
-
--- | Retrieve from a set of type carriers all members of external composite types
--- with a directly specified function (pointer (array)) type
-getExtFunctionMembers :: TypeCarrierSet -> [(LCI.SUERef, LCA.MemberDecl)]
-getExtFunctionMembers tcs = concat $ map getExtFunMembers tcs
-
-getExtFunMembers :: TypeCarrier -> [(LCI.SUERef, LCA.MemberDecl)]
-getExtFunMembers e@(LCA.TagEvent (LCA.CompDef (LCA.CompType ref _ membs _ _))) | isExtern e =
-    map (\mdec -> (ref,mdec)) $ filter (isFunPointerOptArr . LCA.declType) membs
-getExtFunMembers _ = []
 
 -- | Type selector combination.
 -- The result is the union of the sets selected by the combined selectors.

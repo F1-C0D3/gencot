@@ -4,7 +4,7 @@
 module Gencot.Json.Process where
 
 import qualified Data.Set as S (Set,toList,fromList,difference,singleton,foldr,union,insert,empty)
-import Data.List (find,isSuffixOf,nub)
+import Data.List (find,isSuffixOf,isPrefixOf,nub)
 import qualified Data.Map.Strict as M (Map,unions,unionsWith,unionWith,empty,singleton,foldr,map,fromList,elems,notMember,keys)
 import Data.Map.Strict ((!))
 import Data.Maybe (mapMaybe,isJust,fromJust,catMaybes)
@@ -124,6 +124,12 @@ filterParmods :: Parmods -> [String] -> Parmods
 filterParmods parmods funids = filter (reqFilter funids) parmods
     where reqFilter :: [String] -> Parmod -> Bool
           reqFilter rs jso = any (\s -> s == getFunName jso) rs
+
+-- | Filter a function description sequence by a list of function identifier prefixes
+prefilterParmods :: Parmods -> [String] -> Parmods
+prefilterParmods parmods funids = filter (reqFilter funids) parmods
+    where reqFilter :: [String] -> Parmod -> Bool
+          reqFilter rs jso = any (\s -> s `isPrefixOf` getFunName jso) rs
 
 -- | Merge two function description sequences.
 -- If a function is described in both sequences the description is selected
@@ -309,13 +315,3 @@ parmodToOmitProps jso =
                    _ -> M.empty
           mkparnam fnam pnam =
               fnam ++ "/" ++ (if elem '-' pnam then tail $ snd $ break ('-' ==) pnam else pnam)
-
-oldConvertParmods :: Parmods -> M.Map String [String]
-oldConvertParmods parmods = M.fromList $ map oldConvertParmod parmods
-
-oldConvertParmod :: Parmod -> (String,[String])
-oldConvertParmod jso = (getFunName jso, map mkval $ getFAttrs isParam jso)
-    where respar = getFunResult jso
-          mkval (_,anam,(JSString js)) = 
-              let r = fromJSString js in
-                  if r == "yes" && anam == respar then "result" else r

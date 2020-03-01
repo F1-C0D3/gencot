@@ -270,6 +270,12 @@ and the invocations are reduced to those for
 which a declarations is present in the combined table. These are the invocations of functions (including function pointers)
 external to all read C sources. 
 
+Although \code{gencot-externs} only processes complete function declarations, 
+\code{items-used} also lists identifiers for incompletely declared functions and for variadic functions,
+if they are invoked in the Cogent compilation unit. This is intended as an 
+information for the developer who has to translate invocations of such functions manually. Additionally, these functions
+may be needed by \code{gencot-exttypes} and \code{gencot-dvdtypes} to process their result types.
+
 An identifier seen by Gencot in a function invocation may also be a macro call which shall be translated by Gencot. 
 In this case a dummy function declaration must be manually provided for it as part of the Gencot macro call conversion
 (see Section~\ref{design-preprocessor-macros}), so that the language-c parser can parse the invocations. 

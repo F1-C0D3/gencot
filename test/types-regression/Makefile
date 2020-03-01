@@ -2,7 +2,8 @@ GC=../../bin/gencot
 PM=../../bin/parmod
 IT=../../bin/items
 
-TESTS = prim enum struct union array func parmod pointer names const
+TESTS = union 
+# prim enum struct union array func parmod pointer names const
 UNIT = externs exttypes dvdtypes
 ABSINCL = -I/home/teege/work/projekte/code/HoBit/devel/gencot/test/types-regression
 AUNIT = unit-extitems ext-dfltprops

@@ -11,7 +11,7 @@ import Language.C.Analysis.DefTable (globalDefs)
 
 import Gencot.Input (getDeclEvents)
 import Gencot.Package (readPackageFromInput,getIdentInvocations,getOwnCallGraphs,foldTables,foldTypeCarrierSets)
-import Gencot.Util.Types (collectTypeCarriers,transCloseUsedCarriers,carriesNonPrimitive,usedTypeNames,isExtern)
+import Gencot.Util.Types (collectTypeCarriers,transCloseUsedCarriers,carriesNonPrimitive,usedTypeNames,externTypeNames,isExtern, transCloseCarriers,usedCarriers)
 import Gencot.Items.Types (getItemAssocType,getExternalItemId,getTypedefItemId,getTagItemId,getEnumItemId)
 import Gencot.Traversal (runWithTable)
 
@@ -26,23 +26,26 @@ main = do
     (tables,initialTypeCarrierSets) <- (liftM unzip) $ readPackageFromInput [] collectTypeCarriers
     {- Determine all call graphs -}
     cgs <- getOwnCallGraphs tables
+    {- Retrieve all invocations of named functions -}
+    invks <- getIdentInvocations cgs
     {- combine symbol tables -}
     table <- foldTables tables
     {- combine sets of initial type carriers -}
     let initialTypeCarriers = foldTypeCarrierSets initialTypeCarrierSets table
-    {- Retrieve all invocations of named functions -}
-    invks <- getIdentInvocations cgs
     {- Get declarations of external functions and objects which are invoked or additionally specified -}
     {- and of additionally specified external tags and type names -}
     let extDecls = getDeclEvents (globalDefs table) (constructFilter invks additems)
     {- build directly used type carriers by adding initial and filtered external -}
     let unitTypeCarriers = initialTypeCarriers ++ filter carriesNonPrimitive extDecls
-    {- construct transitive closure of used type carriers -}
-    let typeCarriers = transCloseUsedCarriers table unitTypeCarriers
     {- Determine type names used directly in the Cogent compilation unit -}
-    let unitTypeNames = usedTypeNames unitTypeCarriers
+    let unitTypeNames = (usedTypeNames unitTypeCarriers) ++ (externTypeNames extDecls)
+    {- construct transitive closure of used type carriers -}
+    --let typeCarriers = transCloseUsedCarriers table unitTypeCarriers
+    let typeCarriers = transCloseCarriers (usedCarriers unitTypeNames table) unitTypeCarriers
+    let typeCarriers1 = {-nub $-} concat $ map (usedCarriers unitTypeNames table) unitTypeCarriers
+    let typeCarriers2 = {-nub $-} concat $ map (usedCarriers unitTypeNames table) typeCarriers1
     {- construct item associated types for external functions/objects and used named type carriers -}
-    iats <- runWithTable table $ mapM (getItemAssocType unitTypeNames) $ nub ((filter isExternNamedDef typeCarriers) ++ extDecls)
+    iats <- runWithTable table $ mapM (getItemAssocType unitTypeNames) {-$ nub-} typeCarriers1 --((filter isExternNamedDef typeCarriers) ++ extDecls)
     {- Output -}
     putStrLn $ unlines $ map fst iats
 

@@ -16,10 +16,10 @@ import Gencot.Items.Properties (ItemProperties)
 -- The first component is the name of the C source file, or "" if several source files are processed
 -- The second component is the set of translated nested tag definitions
 -- The third component is the item property map from item ids to property string lists
--- The fourth component is the list of type names where to stop resolving external types
-type FTrav = Trav (String,[SUERef],ItemProperties,[String])
+-- The fourth component is the list of type names where to stop resolving external types together with a flag whether to use the list
+type FTrav = Trav (String,[SUERef],ItemProperties,(Bool,[String]))
 
-runFTrav :: DefTable -> (String,ItemProperties,[String]) -> FTrav a -> IO a
+runFTrav :: DefTable -> (String,ItemProperties,(Bool,[String])) -> FTrav a -> IO a
 runFTrav table (f,ipm,tds) action = do
     (res,state) <- errorOnLeft "Error during translation" $ 
         runTrav (f,[],ipm,tds) $ (withDefTable $ const ((),table)) >> action
@@ -27,7 +27,7 @@ runFTrav table (f,ipm,tds) action = do
     return res
     
 runWithTable :: DefTable -> FTrav a -> IO a
-runWithTable table action = runFTrav table ("",empty,[]) action
+runWithTable table action = runFTrav table ("",empty,(False,[])) action
 
 instance FileNameTrav FTrav where
     getFileName = do
@@ -52,7 +52,8 @@ hasProperty prop iid = do
     (_,_,ipm,_) <- getUserState
     return $ elem prop $ findWithDefault [] iid ipm
     
-stopResolvTypeNames :: Ident -> FTrav Bool
-stopResolvTypeNames idnam = do
+stopResolvTypeName :: Ident -> FTrav Bool
+stopResolvTypeName idnam = do
     (_,_,_,tds) <- getUserState
-    return $ elem (identToString idnam) tds
+    if fst tds then return $ elem (identToString idnam) $ snd tds
+               else return True

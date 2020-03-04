@@ -2,7 +2,7 @@
 module Gencot.Items.Identifier where
 
 import Data.Char (isDigit,isLetter,isAlphaNum)
-import Data.List (break,elemIndex,dropWhileEnd,findIndices,isSuffixOf,isPrefixOf)
+import Data.List (break,elemIndex,dropWhileEnd,find,findIndices,isSuffixOf,isPrefixOf)
 
 -- | For an item identifier get the identifier of the toplevel item.
 -- This is always a prefix of the item identifier.
@@ -31,7 +31,7 @@ typedefItemId cid = "typedef|" ++ cid
 
 -- | Construct the identifier for a collective item specified by a tag name.
 -- The first argument is the kind of tag (struct, union, enum).
--- The second argument is the tag name or "" for an anonymous tag.
+-- The second argument is the tag name or a pseudo tag name for an anonymous tag.
 tagItemId :: String -> String -> String
 tagItemId knd "" = knd ++ "|<anonymous>"
 tagItemId knd cid = knd ++ "|" ++ cid
@@ -68,7 +68,7 @@ paramSubItemId item pos cid =
                       _ -> '-' : cid
 
 -- | Test an item id whether it is a parameter id built using @paramSubItemId@.
--- It is tested whether the last slash is followed by a digit.
+-- It is tested whether the last slash is followed by a digit and there is no dot after it.
 isParameterId :: String -> Bool
 isParameterId item = 
     if null sis 
@@ -76,11 +76,15 @@ isParameterId item =
        else let li = last sis
             in if (li + 1) == length item 
                   then False
-                  else isDigit $ item !! (li + 1)
+                  else if any (\di -> di > li) dis
+                          then False
+                          else isDigit $ item !! (li + 1)
     where sis = findIndices (== '/') item
+          dis = findIndices (== '.') item
 
 -- | Test an item id whether it is embedded in a composite type or array.
--- It is tested whether it contains a dot with no slash after it (composite type member)
+-- It is tested whether it contains a dot with no slash or colon after it (composite type member)
+-- (a colon ends a file name used as prefix for items with internal linkage)
 -- or it ends with "/[]" (array element)
 isEmbeddedId :: String -> Bool
 isEmbeddedId item =
@@ -91,16 +95,25 @@ isEmbeddedId item =
                 else if null sis
                         then True
                         else (last dis) > (last sis)
-    where sis = findIndices (== '/') item
+    where sis = findIndices (\c -> c == '/' || c == ':') item
           dis = findIndices (== '.') item
 
 -- | Construct all identifiers for an individual item.
 -- In the input parameter ids have the form <pos> or <pos>-<name>.
 -- The second form is split into two separate ids using <pos> and <name>.
 indivItemIds :: String -> [String]
-indivItemIds iid = case elemIndex '-' iid of
+indivItemIds iid = case firstDashAfterColonIndex iid of
                         Nothing -> [iid]
                         Just i -> sepIds i iid
+
+-- | Index of the first '-' after the last colon ':'.
+firstDashAfterColonIndex :: String -> Maybe Int
+firstDashAfterColonIndex iid =
+    if null dis then Nothing
+                else if null cis then Just $ head dis
+                                 else find (\i -> i > last cis) dis
+    where cis = findIndices (== ':') iid
+          dis = findIndices (== '-') iid
 
 sepIds i iid =
     (map (\r -> pre ++ r) seprest) ++ (map (\r -> prefix ++ name ++ r) seprest)
@@ -114,7 +127,7 @@ sepIds i iid =
 -- In the input parameter ids have the form <pos> or <pos>-<name>.
 -- The default item identifier uses <name> when available, otherwise <pos>.
 defaultItemId :: String -> String
-defaultItemId iid = case elemIndex '-' iid of
+defaultItemId iid = case firstDashAfterColonIndex iid of
                         Nothing -> iid
                         Just i -> defId i iid
 

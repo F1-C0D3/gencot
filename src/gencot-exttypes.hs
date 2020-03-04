@@ -35,7 +35,7 @@ main = do
     {- Get declarations of listed tag and type definitions -}    
     let typeDefs = getDeclEvents (globalDefs table) (constructFilter iids)
     {- translate type definitions in system include files -}
-    toplvs <- runFTrav table ("",ipm,getTypedefNames iids) $ transExtGlobals (getTypedefNames iids) typeDefs
+    toplvs <- runFTrav table ("",ipm,(True,getTypedefNames iids)) $ transExtGlobals (getTypedefNames iids) typeDefs
     {- Output -}
     print $ prettyTopLevels toplvs
 

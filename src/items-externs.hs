@@ -10,12 +10,12 @@ import Language.C.Analysis.DefTable (globalDefs)
 import Language.C.Data.Ident (identToString)
 
 import Gencot.Input (getDeclEvents)
-import Gencot.Package (readPackageFromInput,foldTables,foldTypeCarrierSets)
+import Gencot.Package (readPackageFromInput_,foldTables)
 import Gencot.Traversal (runFTrav)
+import Gencot.Items.Identifier (getTypedefNames)
 import Gencot.Items.Translate (transGlobals)
 import Gencot.Items.Properties (showProperties)
 import Gencot.Items.Types (getExternalItemId,getToplevelItemId)
-import Gencot.Util.Types (collectTypeCarriers,usedTypeNames)
 
 main :: IO ()
 main = do
@@ -24,18 +24,16 @@ main = do
     when (null args || length args > 1) $ error "expected arguments: <used external items file name>"
     {- get list of additional external items to process -}
     useditems <- (liftM ((filter (not . null)) . lines)) (readFile $ head args)
-    {- parse and analyse C sources and get global definitions and used types -}
-    (tables,initialTypeCarrierSets) <- (liftM unzip) $ readPackageFromInput [] collectTypeCarriers
+    {- parse and analyse C sources and get global definitions -}
+    tables <- readPackageFromInput_
     {- combine symbol tables -}
     table <- foldTables tables
-    {- combine sets of initial type carriers -}
-    let initialTypeCarriers = foldTypeCarrierSets initialTypeCarrierSets table
     {- Get declarations of used external functions and objects -}
     let usedExtDecls = getDeclEvents (globalDefs table) (usedDeclFilter useditems)
     {- Determine type names used directly in the Cogent compilation unit -}
-    let unitTypeNames = usedTypeNames (initialTypeCarriers ++ usedExtDecls)
+    let unitTypeNames = getTypedefNames useditems
     {- determine default properties for all used items in globals -}
-    ipm <- runFTrav table ("",empty,unitTypeNames) $ transGlobals unitTypeNames $ getDeclEvents (globalDefs table) (usedFilter useditems)
+    ipm <- runFTrav table ("",empty,(True,unitTypeNames)) $ transGlobals unitTypeNames $ getDeclEvents (globalDefs table) (usedFilter useditems)
     {- Output -}
     putStrLn $ showProperties ipm
 

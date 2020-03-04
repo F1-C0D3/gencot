@@ -2,7 +2,8 @@
 module Main where
 
 import System.Environment (getArgs)
-import Control.Monad (when,liftM)
+import Control.Monad (when,liftM,mapM)
+import Data.Map (toList,unions)
 
 import Language.C.Data.Ident (identToString)
 import qualified Language.C.Analysis as LCA
@@ -11,10 +12,11 @@ import Language.C.Analysis.DefTable (globalDefs)
 import Gencot.Input (getDeclEvents)
 import Gencot.Items.Identifier (getTypedefNames)
 import Gencot.Items.Properties (readPropertiesFromFile)
+import Gencot.Items.Types (getItemAssocType,getTagItemId,getTypedefItemId)
 import Gencot.Package (readPackageFromInput,foldTables,foldTypeCarrierSets)
-import Gencot.Util.Types (collectTypeCarriers,carriesNonPrimitive)
-import Gencot.Traversal (runFTrav)
-import Gencot.Cogent.Translate (genTypeDefs)
+import Gencot.Util.Types (collectTypeCarriers,carriesNonPrimitive,isExtern)
+import Gencot.Traversal (runFTrav,runWithTable)
+import Gencot.Cogent.Translate (genTypeDefs,genDerivedTypeNames)
 import Gencot.Cogent.Output (prettyTopLevels)
 
 main :: IO ()
@@ -28,23 +30,27 @@ main = do
     {- get list of external items to process -}
     iids <- (liftM ((filter (not . null)) . lines)) $ readFile $ head $ tail args
     {- parse and analyse C sources and get global definitions and used types -}
-    (tables,initialTypeCarrierSets) <- (liftM unzip) $ readPackageFromInput [] collectTypeCarriers
+    (tables,initialTypeCarrierSets) <- (liftM unzip) $ readPackageFromInput [] (collectTypeCarriers carriesNonPrimitive)
     {- combine symbol tables -}
     table <- foldTables tables
     {- combine sets of initial type carriers -}
     let initialTypeCarriers = foldTypeCarrierSets initialTypeCarrierSets table
-    {- Get declarations of used external functions and objects with nonprimitive types -}    
-    let extDecls = filter carriesNonPrimitive $ getDeclEvents (globalDefs table) (constructFilter iids)
+    {- Get declarations of used external functions and objects -}    
+    let extDecls = getDeclEvents (globalDefs table) (constructFilter iids)
     {- build type carriers in the Cogent compilation unit by adding initial and external -}
     let unitTypeCarriers = initialTypeCarriers ++ extDecls
     {- Determine external type names used directly in the Cogent compilation unit -}
     let unitTypeNames = getTypedefNames iids
     {- generate abstract definitions for derived types in all type carriers -}
-    toplvs <- runFTrav table ("", ipm,unitTypeNames) $ genTypeDefs unitTypeNames $ unitTypeCarriers
+    toplvs <- runFTrav table ("", ipm,(True,unitTypeNames)) $ genTypeDefs unitTypeNames unitTypeCarriers
     {- Output -}
     print $ prettyTopLevels toplvs
 
 constructFilter :: [String] -> LCA.DeclEvent -> Bool
 constructFilter iids (LCA.DeclEvent decl@(LCA.Declaration _)) = 
     elem (identToString $ LCA.declIdent decl) iids
+constructFilter iids (LCA.TagEvent td@(LCA.CompDef (LCA.CompType sueref knd _ _ _))) = 
+    isExtern td && elem (getTagItemId sueref knd) iids
+constructFilter iids (LCA.TypeDefEvent td@(LCA.TypeDef idnam _ _ _)) = 
+    isExtern td && elem (getTypedefItemId idnam) iids
 constructFilter _ _ = False

@@ -2,7 +2,7 @@
 module Gencot.Cogent.Translate where
 
 import Control.Monad (liftM,when)
-import Data.List (nub,isPrefixOf,isInfixOf,intercalate)
+import Data.List (nub,isPrefixOf,isInfixOf,intercalate,unlines)
 import Data.Map (Map,singleton,unions,toList,union)
 import Data.Maybe (catMaybes)
 
@@ -24,8 +24,8 @@ import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapName
 import Gencot.Items.Types (ItemAssocType,isNotNullItem,isReadOnlyItem,isAddResultItem,getIndividualItemId,getTagItemId,getParamSubItemId,derivedItemIds,getIndividualItemAssoc,getTypedefItemAssoc,adjustItemAssocType,getMemberSubItemAssoc,getRefSubItemAssoc,getResultSubItemAssoc,getElemSubItemAssoc,getParamSubItemAssoc,getItemAssocType,getMemberItemAssocTypes,getSubItemAssocTypes,numberList)
 import Gencot.Cogent.Ast
 import Gencot.C.Translate (transStat,transExpr)
-import Gencot.Traversal (FTrav,markTagAsNested,isMarkedAsNested,hasProperty)
-import Gencot.Util.Types (carriedTypes,resolveFully,isExtern,isCompOrFunc,isCompPointer,isNamedFunPointer,isFunPointer,isPointer,isAggregate,isFunction,isTypeDefRef,isComplete,isArray,isVoid,isTagRef,containsTypedefs,resolveTypedef,isComposite,isLinearType,isLinearParType,isReadOnlyType,isReadOnlyParType,isDerivedType,wrapFunAsPointer,getTagDef)
+import Gencot.Traversal (FTrav,markTagAsNested,isMarkedAsNested,hasProperty,stopResolvTypeName)
+import Gencot.Util.Types (carriedTypes,resolveFully,isExtern,isCompOrFunc,isCompPointer,isNamedFunPointer,isFunPointer,isPointer,isAggregate,isFunction,isTypeDefRef,isComplete,isArray,isVoid,isTagRef,containsTypedefs,resolveTypedef,isComposite,isLinearType,isLinearParType,isReadOnlyType,isReadOnlyParType,isDerivedType,isExternTypeDef,wrapFunAsPointer,getTagDef)
 
 genType t = GenType t noOrigin
 
@@ -65,18 +65,20 @@ transGlobal (LCA.TagEvent (LCA.EnumDef (LCA.EnumType sueref es _ n))) = do
            return $ [GenToplv (CS.TypeDec tn [] $ genType $ CS.TCon "U32" [] markUnbox) $ mkOrigin n]
 -- Translate an object or complete function declaration of the form
 -- > typ name;
--- (where type may be a derived type syntactically integrated in the name)
+-- (where typ may be a derived type syntactically integrated in the name)
 -- to a Cogent abstract function definition of the form
--- > name :: funtyp
+-- > name : funtyp
 -- If the C object is not a function, the Cogent function is a parameterless
 -- access function of type () -> typ
-transGlobal (LCA.DeclEvent decl@(LCA.Declaration (LCA.Decl _ n))) | isComplete $ LCA.declType decl = do
+transGlobal de@(LCA.DeclEvent decl@(LCA.Declaration (LCA.Decl _ n))) | isComplete dtyp = do
     f <- transObjName idnam 
     sfn <- srcFileName idnam
     let iat = getIndividualItemAssoc decl sfn
     t <- transType False iat
-    return $ wrapOrigin n ([GenToplv (CS.AbsDec f (CS.PT [] $ mkFunType t)) noOrigin])
+    let typ = if isFunction dtyp then t else mkFunType t
+    return $ wrapOrigin n ([GenToplv (CS.AbsDec f (CS.PT [] typ)) noOrigin])
     where idnam = LCA.declIdent decl
+          dtyp = LCA.declType decl
 -- Translate a C function definition of the form
 -- > rt name(parlist) { stmt }
 -- to a Cogent function definition of the form
@@ -110,8 +112,10 @@ transGlobal (LCA.DeclEvent odef@(LCA.ObjectDef (LCA.ObjDef _ _ n))) = do
     sfn <- srcFileName idnam
     let iat = getIndividualItemAssoc odef sfn
     t <- transType False iat
-    return $ wrapOrigin n ([GenToplv (CS.AbsDec f (CS.PT [] $ mkFunType t)) noOrigin])
+    let typ = if isFunction dtyp then t else mkFunType t
+    return $ wrapOrigin n ([GenToplv (CS.AbsDec f (CS.PT [] typ)) noOrigin])
     where idnam = LCA.declIdent odef
+          dtyp = LCA.declType odef
 -- Translate a C enumerator definition of the form
 -- > name = expr;
 -- to a Cogent constant definition of the form
@@ -154,7 +158,7 @@ transExtGlobal tds (LCA.TypeDefEvent (LCA.TypeDef idnam typ _ n)) = do
     nt <- transTagIfNested resiat n
     return $ wrapOrigin n (nt ++ [GenToplv (CS.TypeDec tn [] (rmMayNullThroughBang t)) noOrigin])
     where tn = mapNameToUpper idnam
-          resiat = getTypedefItemAssoc idnam $ resolveFully tds typ
+          resiat = getTypedefItemAssoc idnam typ
           modifiat = if isComposite typ then adjustItemAssocType resiat else resiat
 transExtGlobal tds (LCA.TagEvent (LCA.CompDef ct@(LCA.CompType sueref LCA.StructTag _ _ _))) = 
     transStruct (getTagItemId sueref LCA.StructTag) ct (transExtMember tds)
@@ -240,7 +244,7 @@ genTypeDefs tdn tcs = do
 -- translate the types to Cogent, and retrieve their names.
 genDerivedTypeNames :: [String] -> LCA.DeclEvent -> FTrav [Map String ItemAssocType]
 genDerivedTypeNames tdn tc = do
-    iat <- getItemAssocType tdn tc
+    iat <- getItemAssocType tc
     miats <- getMemberItemAssocTypes tc
     iats <- (liftM concat) $ mapM getSubItemAssocTypes (iat : miats)
     let fiats = filter (\(_,t) -> (isDerivedType t) && (not $ isFunction t) && ((not $ isPointer t) || isFunPointer t)) iats
@@ -344,8 +348,7 @@ transMember iat mdecl@(LCA.MemberDecl (LCA.VarDecl (LCA.VarName idnam _) _ typ) 
 -- The additional first parameter is a list of type names where to stop resolving.
 transExtMember :: [String] -> ItemAssocType -> LCA.MemberDecl -> FTrav (CCS.FieldName, (GenType, CS.Taken))
 transExtMember tds iat mdecl@(LCA.MemberDecl (LCA.VarDecl (LCA.VarName idnam _) _ typ) _ n) =
-    transMemberDef idnam (iid,resolveFully tds typ) n
-    where (iid,typ) = getMemberSubItemAssoc iat mdecl
+    transMemberDef idnam (getMemberSubItemAssoc iat mdecl) n
 
 -- | Translate struct member definition to pair of Cogent record field name and type.
 -- Translate member type, if array set unboxed. Map member name if it starts with uppercase.
@@ -392,16 +395,18 @@ transType _ (_, (LCA.DirectType tnam _ _)) = do
                 (LCA.TyComp _) -> markUnbox
                 _ -> markBox
 -- Typedef name:
--- If resolving, translate the referenced type.
+-- If resolving or external typedef where resolve does not stop, translate the referenced type.
 -- Otherwise translate to mapped name. Unboxed for struct, union, or function pointer, otherwise boxed.
 -- If the typedef name has the Not-Null property, omit or remove MayNull
 -- otherwise move a MayNull from the resolved type to the mapped name.
 -- If the typedef name has the Read-Only property make the result banged.
 transType rslv iat@(iid, (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _)) = do
+    dt <- LCA.getDefTable
+    srtn <- stopResolvTypeName idnam
     safe <- isNotNullItem iat
     ro <- isReadOnlyItem iat
-    rslvtyp <- transType True $ getTypedefItemAssoc idnam typ
-    let nntyp = if rslv
+    rslvtyp <- transType rslv $ getTypedefItemAssoc idnam typ
+    let nntyp = if rslv || ((isExternTypeDef dt idnam) && not srtn)
                   then rmMayNullIf safe rslvtyp
                   else addMayNullIfNot (safe || (not $ hasMayNull rslvtyp)) rtyp
     return $ makeReadOnlyIf ro nntyp
@@ -481,10 +486,12 @@ encodeType _ (_, (LCA.DirectType tnam _ _)) = do
 -- otherwise move a MayNull step from the resolved type to the mapped name.
 -- If the typedef name has the Read-Only property add readonly step.
 encodeType rslv iat@(iid, (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _)) = do
+    dt <- LCA.getDefTable
+    srtn <- stopResolvTypeName idnam
     safe <- isNotNullItem iat
     ro <- isReadOnlyItem iat
-    rslvtyp <- encodeType True $ getTypedefItemAssoc idnam typ
-    let nntyp = if rslv
+    rslvtyp <- encodeType rslv $ getTypedefItemAssoc idnam typ
+    let nntyp = if rslv || ((isExternTypeDef dt idnam) && not srtn)
                 then rmMayNullStepIf safe rslvtyp
                 else addMayNullStepIfNot (safe || (not $ hasMayNullStep rslvtyp)) rtyp
     return $ addReadOnlyStepIf ro nntyp
@@ -632,8 +639,8 @@ mkBoxedType nam = GenType (CS.TCon nam [] $ markBox)
 mkUnboxedType :: String -> Origin -> GenType
 mkUnboxedType nam = GenType (CS.TCon nam [] $ markUnbox)
 
+-- | Convert an arbitrary Cogent type T to the function type () -> T
 mkFunType :: GenType -> GenType
-mkFunType t@(GenType (CS.TFun _ _) _) = t
 mkFunType t = genType $ CS.TFun (mkParType []) t
 
 variadicType = makeReadOnlyIf True $ genType (CS.TCon variadicTypeName [] markBox)

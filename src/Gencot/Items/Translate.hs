@@ -24,7 +24,7 @@ transGlobals tds tcs = liftM unions $ mapM (transGlobal tds) tcs
 -- and return them as an item property map.
 transGlobal :: [String] -> LCA.DeclEvent -> FTrav ItemProperties
 transGlobal tds tc = do
-    iat <- getItemAssocType tds tc
+    iat <- getItemAssocType tc
     miats <- getMemberItemAssocTypes tc
     iats <- liftM concat $ mapM getSubItemAssocTypes (iat : miats)
     let fiats = filter (\(iid,t) -> (not $ isLeafType $ resolveTypedef t) 

@@ -17,22 +17,45 @@ type TypeCarrier = LCA.DeclEvent
 type TypeCarrierSet = [TypeCarrier]
 
 -- | Callback handler for collecting initial type carriers
-collectTypeCarriers :: TypeCarrier -> Trav TypeCarrierSet ()
-collectTypeCarriers e@(LCA.DeclEvent (LCA.ObjectDef _)) | carriesNonPrimitive e = modifyUserState (e:)
-collectTypeCarriers e@(LCA.DeclEvent (LCA.FunctionDef _)) | carriesNonPrimitive e = modifyUserState (e:)
-collectTypeCarriers e@(LCA.LocalEvent _) | carriesNonPrimitive e = modifyUserState (e:)
-collectTypeCarriers e@(LCA.TypeDefEvent _) 
-    | carriesNonPrimitive e && (not . isExtern) e = modifyUserState (e:)
-collectTypeCarriers e@(LCA.TagEvent (LCA.CompDef _)) 
-    | carriesNonPrimitive e && (not . isExtern) e = modifyUserState (e:)
-collectTypeCarriers _ = return ()
+-- First argument is a filter predicate.
+-- The handler collects all definitions of objects and functions, and of all non-external types and composite tags.
+-- It also collects all declarations and definitions locally in a function.
+-- It omits all global declarations and all enum tag definitions and all external types and composite tags.
+collectTypeCarriers :: (TypeCarrier -> Bool) -> TypeCarrier -> Trav TypeCarrierSet ()
+collectTypeCarriers tcp e@(LCA.DeclEvent (LCA.ObjectDef _)) | tcp e = modifyUserState (e:)
+collectTypeCarriers tcp e@(LCA.DeclEvent (LCA.FunctionDef _)) | tcp e = modifyUserState (e:)
+collectTypeCarriers tcp e@(LCA.LocalEvent _) | tcp e = modifyUserState (e:)
+collectTypeCarriers tcp e@(LCA.TypeDefEvent _) | tcp e && (not $ isExtern e) = modifyUserState (e:)
+collectTypeCarriers tcp e@(LCA.TagEvent (LCA.CompDef _)) | tcp e && (not $ isExtern e) = modifyUserState (e:)
+collectTypeCarriers _ _ = return ()
 
+-- | Type carrier predicate.
+-- True if the type is not primitive.
+-- For a function: if not all parameter and result types are primitive.
+-- For a compound type: if not all member types are primitive.
 carriesNonPrimitive :: TypeCarrier -> Bool
-carriesNonPrimitive = not . (all isPrimitive) . carriedTypes
+carriesNonPrimitive (LCA.DeclEvent decl@(LCA.FunctionDef _)) = not $ (all isPrimitive) $ selInFunction (const True) $ LCA.declType decl
+carriesNonPrimitive (LCA.DeclEvent decl) | isFunction $ LCA.declType decl = not $ (all isPrimitive) $ selInFunction (const True) $ LCA.declType decl
+carriesNonPrimitive (LCA.DeclEvent decl) = not $ isPrimitive $ LCA.declType decl
+carriesNonPrimitive (LCA.LocalEvent decl) = not $ isPrimitive $ LCA.declType decl
+carriesNonPrimitive (LCA.ParamEvent decl) = not $ isPrimitive $ LCA.declType decl
+carriesNonPrimitive (LCA.TypeDefEvent (LCA.TypeDef _ t _ _)) = not $ isPrimitive t
+carriesNonPrimitive (LCA.TagEvent (LCA.CompDef (LCA.CompType _ _ mems _ _))) = not $ (all isPrimitive) $ nub $ map LCA.declType mems
+carriesNonPrimitive _ = False
 
+-- | Type carrier predicate.
+-- The type carrier must not be an external type or tag definition,
+-- and its type (for compound types: its member types) must contain a referenced typedef or tag name.
+carriesNamedType :: TypeCarrier -> Bool
+carriesNamedType tc = not $ null $ concat $ map (selNonDerived isNamedType) $ carriedTypes tc
+    where --getTypes tc = if isExtern tc && isTypeDefinition tc then [] else carriedTypes tc
+          isTypeDefinition (LCA.TypeDefEvent _) = True
+          isTypeDefinition (LCA.TagEvent _) = True
+          isTypeDefinition _ = False
+
+-- | The carried types.
+-- For a compound tag definition the set of member types, otherwise the single declared type.
 carriedTypes :: TypeCarrier -> TypeSet
-carriedTypes (LCA.DeclEvent decl@(LCA.FunctionDef _)) = selInFunction (const True) $ LCA.declType decl
-carriedTypes (LCA.DeclEvent decl) | isFunction $ LCA.declType decl = selInFunction (const True) $ LCA.declType decl
 carriedTypes (LCA.DeclEvent decl) = [LCA.declType decl]
 carriedTypes (LCA.LocalEvent decl) = [LCA.declType decl]
 carriedTypes (LCA.ParamEvent decl) = [LCA.declType decl]
@@ -41,7 +64,7 @@ carriedTypes (LCA.TagEvent (LCA.CompDef (LCA.CompType _ _ mems _ _))) = nub $ ma
 carriedTypes _ = []
 
 transCloseUsedCarriers :: LCD.DefTable -> TypeCarrierSet -> TypeCarrierSet
-transCloseUsedCarriers dt tcs = transCloseCarriers (usedCarriers (usedTypeNames tcs) dt) tcs
+transCloseUsedCarriers dt tcs = transCloseCarriers (usedCarriers dt) tcs
 
 -- | The typedef names used (referenced) in a set of type carriers.
 -- Get the carried types, 
@@ -66,8 +89,8 @@ transCloseCarriers f tcs =
 
 -- | The set of type carriers referenced via types from a given type carrier.
 -- If the given type carrier is a tag or typedef it is included in the result.
-usedCarriers :: [String] -> LCD.DefTable -> TypeCarrier -> TypeCarrierSet
-usedCarriers tds dt tc = nub ((selfCarrierType tc) ++ (concat $ map (usedCarriersInType (isExtern tc) tds dt) $ carriedTypes tc))
+usedCarriers :: LCD.DefTable -> TypeCarrier -> TypeCarrierSet
+usedCarriers dt tc = nub ((selfCarrierType tc) ++ (concat $ map (usedCarriersInType dt) $ carriedTypes tc))
 
 selfCarrierType :: TypeCarrier -> TypeCarrierSet
 selfCarrierType tc@(LCA.TypeDefEvent _) = [tc]
@@ -77,10 +100,9 @@ selfCarrierType _ = []
 -- | Get carriers (tag and type defs) used in a type
 -- If first parameter is true, fully resolve used type defs
 -- The second parameter is a list of type defs names where resolving stops
-usedCarriersInType :: Bool -> [String] -> LCD.DefTable -> LCA.Type -> TypeCarrierSet
-usedCarriersInType rslv tds dt t = 
-    catMaybes $ map (typeToCarrier dt) $ selNonDerived isTypeCarrier rt
-    where rt = if rslv then resolveFully tds t else t
+usedCarriersInType :: LCD.DefTable -> LCA.Type -> TypeCarrierSet
+usedCarriersInType dt t = 
+    catMaybes $ map (typeToCarrier dt) $ selNonDerived isTypeCarrier t
 
 isTypeCarrier :: LCA.Type -> Bool
 isTypeCarrier (LCA.DirectType (LCA.TyComp _) _ _) = True
@@ -413,6 +435,9 @@ isTagRef _ = False
 isTypeDefRef :: TypePred
 isTypeDefRef (LCA.TypeDefType _ _ _) = True
 isTypeDefRef _ = False
+
+isNamedType :: TypePred
+isNamedType t = isTagRef t || isTypeDefRef t
 
 isDerivedType :: TypePred
 isDerivedType (LCA.PtrType _ _ _) = True

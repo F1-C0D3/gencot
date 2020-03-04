@@ -1,5 +1,5 @@
 typedef struct { int m11; int m12; } snam1;
-typedef struct str2 { int m11; int m12; } snam2;
+typedef struct nstr2 { int m11; int m12; } snam2;
 snam1 var_snam1;
 snam2 var_snam2;
 snam1 *var_psnam1;
@@ -43,7 +43,7 @@ typedef int fnam2(inam1 p1); // should be equivalent with fnam1
 typedef int (*fpnam2)(inam1 p1); // should be equivalent with fpnam1
 typedef int fnam3(snam2 p1, fnam1 p2, anam1 p3);
 typedef int fnam4(snam2 p1, fnam2 p2, int p3[5]); // should be equivalent with fnam3
-typedef int fnam5(struct str2 p1, int p2(int), anam1 p3); // should be equivalent with fnam3
+typedef int fnam5(struct nstr2 p1, int p2(int), anam1 p3); // should be equivalent with fnam3
 typedef int (*fpnam3)(snam2 p1, fnam1 p2, anam1 p3);
 typedef int (*fpnam4)(snam2 p1, fnam2 p2, int p3[5]); // should be equivalent with fpnam3
-typedef int (*fpnam5)(struct str2 p1, int p2(int), anam1 p3); // should be equivalent with fpnam3
+typedef int (*fpnam5)(struct nstr2 p1, int p2(int), anam1 p3); // should be equivalent with fpnam3

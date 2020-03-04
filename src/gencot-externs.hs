@@ -33,7 +33,7 @@ main = do
     {- Get declarations of functions and objects listed in iids -}    
     let extDecls = getDeclEvents (globalDefs table) (constructFilter iids)
     {- translate external function declarations to Cogent abstract function definitions -}
-    absdefs <- runFTrav table ("",ipm,[]) $ transGlobals extDecls
+    absdefs <- runFTrav table ("",ipm,(False,[])) $ transGlobals extDecls
     {- Output -}
     print $ prettyTopLevels absdefs
 

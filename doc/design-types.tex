@@ -53,30 +53,17 @@ Global items are always individual. A sub-item is individual only if
 \item the containing item is individual
 \item the containing item's type is not specified by a defined type identifier.
 \end{itemize}
-This means that the containing item's type must be an expression for a derived type or for a tagless struct or union.
+This means that the containing item's type must be an expression for a derived type.
+
 If a struct or union declares a tag, all members can only be used as collective items, since the tag makes it possible
 to assign the type to different items so that a member declaration may be shared by several sub-items. Gencot does
 not check whether a tagged struct or union is only used for a single item, it always treats its members as collective.
 
-For example, if the item \code{s} is declared by
-\begin{verbatim}
-  struct { int m1,m2; } s;
-\end{verbatim}
-then \code{m1} is an individual sub-item of \code{s}. If \code{s} is declared by
-\begin{verbatim}
-  struct str { int m1,m2; } s;
-\end{verbatim}
-then \code{m1} is not an individual sub-item of \code{s} anymore, it is a collective sub-item of all items with
-type \code{struct str}.
-
-A tagless struct can be used to declare several items by using several declarators in the same declaration, such as
-\begin{verbatim}
-  struct { int m1,m2; } s1, s2, *s3;
-\end{verbatim}
-In this case Gencot treats \code{m1} as a collective sub-item of all declared items, however, its identifier is
-only constructed from the first declarator. This implies that properties declared for \code{m1} as sub-item
-of \code{s1} apply to the field of all three items whereas properties declared for \code{m1} as sub-item of 
-\code{s2} or \code{s3} are ignored. 
+A tagless struct or union can only be used at the place where it syntactically occurs, this may suggest that it may 
+only be the type of one item and thus its sub-items cannot be shared. However, a tagless struct or union can be used as 
+base type for several different declarators which may declare different items having this base type. It may even be
+used in a typedef to define one or more typedef names for it which may then be used to define any number of items
+with these types. Therefore Gencot also treats sub-items of tagless struct and unions always as collective.
 
 Basically, collective items are identified by their type. If a property is declared for a type, it applies to 
 all items which are declared to have this type. Additionally, for a collective item its sub-items can be determined
@@ -105,7 +92,7 @@ with declared type \code{str\_t} but not vice versa.
 
 Gencot does not support primitive types for item identification, because (currently) there are no properties supported
 for them and they have no sub-items. Moreover, it seems not useful to declare a property for \textit{all} items of
-a primitive type. Gencot does not support derived array types for item identification because (currently) the only 
+a primitive type. Gencot also does not support derived array types for item identification because (currently) the only 
 property supported for them is Read-only and it does not seem useful to declare this for all items of a certain array 
 type. It could be useful to declare properties for the elements of all such items, but Gencot does not realize that.
 For derived function types or their parameters and results it could be useful to declare properties, but this is not

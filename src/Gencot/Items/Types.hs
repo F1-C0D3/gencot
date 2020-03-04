@@ -10,8 +10,8 @@ import Language.C.Analysis as LCA
 
 import Gencot.Items.Identifier (individualItemId,localItemId,paramItemId,typedefItemId,tagItemId,memberSubItemId,paramSubItemId,elemSubItemId,refSubItemId,resultSubItemId,indivItemIds)
 import Gencot.Names (srcFileName)
-import Gencot.Traversal (FTrav,hasProperty)
-import Gencot.Util.Types (getTagDef,isExtern,isFunction,resolveFully,TypeCarrier,TypeCarrierSet)
+import Gencot.Traversal (FTrav,hasProperty,stopResolvTypeName)
+import Gencot.Util.Types (getTagDef,isExtern,isFunction,isExternTypeDef,resolveFully,TypeCarrier,TypeCarrierSet)
 
 -- | Construct the identifier for an individual toplevel item.
 -- An individual toplevel item is a function or a global object (variable).
@@ -168,41 +168,44 @@ adjustItemAssocType :: ItemAssocType -> ItemAssocType
 adjustItemAssocType (iid,t) = ("&" ++ iid, (LCA.PtrType t LCA.noTypeQuals LCA.noAttributes))
 
 -- | Retrieve ItemAssocType from a TypeCarrier.
--- The additional first parameter is a set of typedef names where to stop resolving external types.
 -- This is a monadic action because the TypeCarrier's @srcFileName@ must be determined.
 -- To avoid standalone parameters, local variables, and tagless compound items they must be filtered before.
 -- AsmEvents must always be filtered.
 -- External types are not resolved through anonymous composite types because that would require to 
 -- modify the definition of the anonymous composite type in the symbol table.
-getItemAssocType :: [String] -> TypeCarrier -> FTrav ItemAssocType
-getItemAssocType _ (LCA.DeclEvent idecl) = do
+getItemAssocType :: TypeCarrier -> FTrav ItemAssocType
+getItemAssocType (LCA.DeclEvent idecl) = do
     sfn <- srcFileName idecl
     return $ getIndividualItemAssoc idecl sfn
-getItemAssocType tdn (LCA.TypeDefEvent td@(LCA.TypeDef idnam t _ _)) | isExtern td = 
-    return $ getTypedefItemAssoc idnam $ resolveFully tdn t
-getItemAssocType _ (LCA.TypeDefEvent (LCA.TypeDef idnam t _ _)) = 
+getItemAssocType (LCA.TypeDefEvent (LCA.TypeDef idnam t _ _)) = 
     return $ getTypedefItemAssoc idnam t
-getItemAssocType _ (LCA.TagEvent def@(LCA.CompDef (LCA.CompType sueref knd mems _ _))) =
+getItemAssocType (LCA.TagEvent def@(LCA.CompDef (LCA.CompType sueref knd mems _ _))) =
     return (getTagItemId sueref knd,LCA.DirectType (LCA.typeOfTagDef def) LCA.noTypeQuals LCA.noAttributes)
-getItemAssocType _ (LCA.TagEvent def@(LCA.EnumDef (LCA.EnumType sueref enms _ _))) =
+getItemAssocType (LCA.TagEvent def@(LCA.EnumDef (LCA.EnumType sueref enms _ _))) =
     return (getEnumItemId sueref,LCA.DirectType (LCA.typeOfTagDef def) LCA.noTypeQuals LCA.noAttributes)
-getItemAssocType _ (LCA.LocalEvent decl) = return $ getLocalItemAssoc decl
-getItemAssocType _ (LCA.ParamEvent decl) = return $ getParamItemAssoc decl
-getItemAssocType _ (LCA.AsmEvent _) = error "Cannot translate an ASM block as an item."
+getItemAssocType (LCA.LocalEvent decl) = return $ getLocalItemAssoc decl
+getItemAssocType (LCA.ParamEvent decl) = return $ getParamItemAssoc decl
+getItemAssocType (LCA.AsmEvent _) = error "Cannot translate an ASM block as an item."
 
 -- | Retrieve the ItemAssocTypes for the members of a compound tag definition.
 -- This is a monadic action because it uses @getItemAssocType@.
 getMemberItemAssocTypes :: TypeCarrier -> FTrav [ItemAssocType]
 getMemberItemAssocTypes tc@(LCA.TagEvent def@(LCA.CompDef (LCA.CompType sueref knd mems _ _))) = do
-    iat <- getItemAssocType [] tc
+    iat <- getItemAssocType tc
     return (map (\md -> getMemberSubItemAssoc iat md) mems)
 getMemberItemAssocTypes _ = return []
 
 -- | Get all sub-ItemAssocTypes of an ItemAssocType, including itself.
--- This is a monadic action because for an anonymous compound type the definition must be retrieved.
+-- This is a monadic action because for an anonymous compound type the definition must be retrieved
+-- and type names must be tested whether they stop resolving.
 -- Paremeter sub-items of function type are adjusted to function pointer type.
 getSubItemAssocTypes :: ItemAssocType -> FTrav [ItemAssocType]
-getSubItemAssocTypes iat@(iid,(LCA.TypeDefType _ _ _)) = return [iat]
+getSubItemAssocTypes iat@(iid,(LCA.TypeDefType (LCA.TypeDefRef idnam t _) _ _)) = do
+    dt <- LCA.getDefTable
+    srtn <- stopResolvTypeName idnam
+    if ((isExternTypeDef dt idnam) && not srtn)
+       then getSubItemAssocTypes (iid,t)
+       else return [iat]
 getSubItemAssocTypes iat@(iid,(LCA.DirectType (LCA.TyComp (LCA.CompTypeRef sueref knd _)) _ _)) | LCI.isAnonymousRef sueref = do
     dt <- LCA.getDefTable
     let mtd = getTagDef dt sueref

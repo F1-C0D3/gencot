@@ -41,6 +41,15 @@ For a tag name it has one of the forms
     struct | <tag name>
     union  | <tag name>
 \end{verbatim}
+For a tagless struct or union a pseudo tag name is used which has either of the forms
+\begin{verbatim}
+    <lnr>_x_h
+    <lnr>_x_c
+\end{verbatim}
+where \code{<lnr>} is the line number in the source file where the tagless struct or union begins syntactically 
+and the suffix is constructed from the name \code{x.h} or \code{x.c} of the source file. In \code{x} all minus signs
+and dots are substituted by an underscore.
+
 For a derived pointer type where the base type can be used as a collective item it has the form
 \begin{verbatim}
     <base item identifier> *
@@ -111,8 +120,7 @@ variables may have all other types, including types derived from function types 
 always belong to a composite type, therefore we can reach them from their composite type.
 Together we can reach all item associated types used in a C program by determining all toplevel items (variables/functions, 
 composite types, typedef names), associate them with their types and then transitively determining all their sub-items 
-paired with their types (field types, parameter and result types, base types of pointer and array types). Fields
-of tagless composite types are treated as direct sub-items of the item declared to have the tagless composite type.
+paired with their types (field types, parameter and result types, base types of pointer and array types). 
 
 We also associate enum types with an item id, although they are not affected by properties. However, Gencot must determine 
 and translate enum types as described in Section~\ref{design-types-enum}.

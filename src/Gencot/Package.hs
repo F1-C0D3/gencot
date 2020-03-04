@@ -10,7 +10,7 @@ import qualified Data.Set as S (Set,filter,map,toList,unions)
 import Data.Maybe (catMaybes,isJust)
 import Control.Monad (liftM,when,foldM,mapM,sequence)
 
-import "language-c" Language.C (CTranslUnit,CError,parseC,fileOfNode,CNode,nodeInfo,Ident,SUERef(AnonymousRef),isAnonymousRef,pretty,identToString)
+import "language-c" Language.C (CTranslUnit,CError,parseC,fileOfNode,CNode,nodeInfo,Ident,SUERef(AnonymousRef,NamedRef),isAnonymousRef,pretty,identToString)
 import Language.C.Data.Position (initPos,posOf,posFile,posRow,isSourcePos)
 import Language.C.Analysis
 import Language.C.Analysis.DefTable (DefTable,DefTable(..),emptyDefTable,IdentEntry,TagEntry,globalDefs,lookupTag,lookupIdent)
@@ -150,6 +150,13 @@ selTagEntry (AnonymousRef _) res@(Right t1) (Just other@(Right t2)) = do
         hPrint stderr $ pretty res
         hPrint stderr $ pretty other
         hPutStrLn stderr $ "To solve this, specify a tag for at least one of them."
+    return res
+selTagEntry (NamedRef idnam) res@(Right t1) (Just other@(Right t2)) = do
+    when (not $ samePos t1 t2) $ do
+        hPutStrLn stderr ("Error: same tag \"" ++ (identToString idnam) ++ "\" used for different types:")
+        hPrint stderr $ pretty res
+        hPrint stderr $ pretty other
+        hPutStrLn stderr $ "To solve this, rename one of them."
     return res
 selTagEntry _ res _ = return res
 

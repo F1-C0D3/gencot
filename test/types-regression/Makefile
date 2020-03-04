@@ -2,8 +2,7 @@ GC=../../bin/gencot
 PM=../../bin/parmod
 IT=../../bin/items
 
-TESTS = union 
-# prim enum struct union array func parmod pointer names const
+TESTS = prim enum struct union array func parmod pointer names const extrefs
 UNIT = externs exttypes dvdtypes
 ABSINCL = -I/home/teege/work/projekte/code/HoBit/devel/gencot/test/types-regression
 AUNIT = unit-extitems ext-dfltprops
@@ -67,10 +66,10 @@ test.unit-extitems: test.unit test.unit-manitems
 	@$(IT) $(ABSINCL) used test.unit > test.unit-extitems
 
 %-dfltprops: %
-	@$(IT) file $* > $*-dfltprops
+	@$(IT) $(ABSINCL) file $* > $*-dfltprops
 
 %.cogent: %.c %.c-itemprops
-	@$(GC) cfile $*.c
+	@$(GC) $(ABSINCL) cfile $*.c
 
 %-regression: types-%.cogent types-%-expected.cogent types-%.c-dfltprops types-%-expected.c-dfltprops
 	-diff types-$*.cogent types-$*-expected.cogent
@@ -94,7 +93,6 @@ test.unit:
 	@for f in $(foreach TST,$(TESTS),types-$(TST).c); do \
 	  echo $$f >> test.unit; \
 	done
-	@echo extrefs.c >> test.unit
 	@cat test.unit
 
 unit: test.unit test.unit-itemprops test.unit-manitems

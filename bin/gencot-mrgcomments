@@ -1,83 +1,84 @@
-#! /bin/csh -f
+#! /bin/sh
 
 # Merge selected comments into a marked Cogent source.
 # This is a filter from stdin to stdout with an additional filename argument.
 # The argument file must contain output of gencot-selcomments.
 
-if ( $#argv != 1) then
+if [ $# != 1 ]
+then
   echo "Error: Single file name expected as argument."
   exit 0
-endif
+fi
 
 awk \
-'function flushbufs() { \
-   hasBef = match(beforeBuf, /[^[:space:]]/) \
-   hasAft = match(afterBuf, /[^[:space:]]/) \
-   if (prevBuf && wassep && !(hasBef)) { \
-     prevBuf = prevBuf substr(lineBuf,indent) \
-     if (hasAft) { \
-       print prevBuf afterBuf \
-       prevBuf = "" \
-     } \
-   } \
-   else { \
-     if (prevBuf) { \
-       print prevBuf \
-       prevBuf = "" \
-     } \
-     if (hasAft) print beforeBuf lineBuf afterBuf \
-     else prevBuf = beforeBuf lineBuf \
-   } \
-   beforeBuf = ""; afterBuf = "" \
- } \
- BEGIN { \
-   cfile = ARGV[1]; delete ARGV[1] \
-   bef = 1; lnr = 0; unit = ""; ustart = 1 \
-   while ((getline cline < cfile) > 0) { \
-     if (cline ~ /^-\}_/) { \
-       if (bef) before[alnr = lnr] = unit \
-       else after[alnr] = (unit?" " unit:"") \
-       unit = substr(cline,4) \
-       if (unit == "") ustart = 1 \
-       bef = 1 - bef \
-     } \
-     else { lnr++ \
-       if (ustart) { unit = cline; ustart = 0 } \
-       else { unit = unit "\n" cline } \
-     } \
-   } \
-   close(cfile) \
-   pending = 0 \
- } \
- { \
-   if ($1 == "#ORIGIN") { \
-     separated = 1 \
-     if (pending) { \
-       flushbufs() \
-       pending = 0 \
-     } \
-     indent = match($0,/#/) \
-     if ($3 == "+") beforeBuf = beforeBuf before[$2] \
-   } \
-   else if ($1 == "#ENDORIG") { \
-     separated = 1 \
-     nextindent = match($0,/#/) \
-     if ($3 == "+") afterBuf = (afterBuf?afterBuf "\n":"") after[$2] \
-   } \
-   else { \
-     if (pending) { \
-       flushbufs() \
-       indent = nextindent \
-     } \
-     lineBuf = $0 \
-     pending = 1 \
-     wassep = separated \
-     separated = 0 \
-  } \
- } \
- END { \
-   if (pending) flushbufs() \
-   if (prevBuf) print prevBuf \
+'function flushbufs() { 
+   hasBef = match(beforeBuf, /[^[:space:]]/) 
+   hasAft = match(afterBuf, /[^[:space:]]/) 
+   if (prevBuf && wassep && !(hasBef)) { 
+     prevBuf = prevBuf substr(lineBuf,indent) 
+     if (hasAft) { 
+       print prevBuf afterBuf 
+       prevBuf = "" 
+     } 
+   } 
+   else { 
+     if (prevBuf) { 
+       print prevBuf 
+       prevBuf = "" 
+     } 
+     if (hasAft) print beforeBuf lineBuf afterBuf 
+     else prevBuf = beforeBuf lineBuf 
+   } 
+   beforeBuf = ""; afterBuf = "" 
+ } 
+ BEGIN { 
+   cfile = ARGV[1]; delete ARGV[1] 
+   bef = 1; lnr = 0; unit = ""; ustart = 1 
+   while ((getline cline < cfile) > 0) { 
+     if (cline ~ /^-\}_/) { 
+       if (bef) before[alnr = lnr] = unit 
+       else after[alnr] = (unit?" " unit:"") 
+       unit = substr(cline,4) 
+       if (unit == "") ustart = 1 
+       bef = 1 - bef 
+     } 
+     else { lnr++ 
+       if (ustart) { unit = cline; ustart = 0 } 
+       else { unit = unit "\n" cline } 
+     } 
+   } 
+   close(cfile) 
+   pending = 0 
+ } 
+ { 
+   if ($1 == "#ORIGIN") { 
+     separated = 1 
+     if (pending) { 
+       flushbufs() 
+       pending = 0 
+     } 
+     indent = match($0,/#/) 
+     if ($3 == "+") beforeBuf = beforeBuf before[$2] 
+   } 
+   else if ($1 == "#ENDORIG") { 
+     separated = 1 
+     nextindent = match($0,/#/) 
+     if ($3 == "+") afterBuf = (afterBuf?afterBuf "\n":"") after[$2] 
+   } 
+   else { 
+     if (pending) { 
+       flushbufs() 
+       indent = nextindent 
+     } 
+     lineBuf = $0 
+     pending = 1 
+     wassep = separated 
+     separated = 0 
+  } 
+ } 
+ END { 
+   if (pending) flushbufs() 
+   if (prevBuf) print prevBuf 
  }' $1
 
 # documentation:

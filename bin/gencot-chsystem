@@ -1,48 +1,49 @@
-#! /bin/csh -f
+#! /bin/sh
 
 # Change system definitions by inserting content after the last system include.
 # This is a filter from stdin to stdout with an additional filename argument.
 
-if ( $#argv != 1) then
+if [ $# != 1 ]
+then
   echo "Error: Single file name expected as argument."
   exit 0
-endif
+fi
 
 awk \
-'BEGIN { \
-   cfile = ARGV[1]; delete ARGV[1] \
-   while ((getline cline < cfile) > 0) { \
-     cont = cont cline "\n" \
-   } \
- } \
- { if ($1 == "#") { \
-     if ($3 == "\"<stdin>\"") { \
-       lnr = $2 - 1 \
-       forgn = 0 \
-     } \
-     else forgn = 1 \
-     buf = buf $0 "\n" \
-   } \
-   else { \
-     if (!(forgn)) lnr++ \
-     if ($1 == "#include" && $2 ~ /^</) { \
-       sysinc = 1 \
-       printf "%s", buf \
-       buf = "" \
-       print \
-       if (forgn) inclnr = 0 \
-       else inclnr = lnr+1 \
-     } \
-     else buf = buf $0 "\n" \
-   } \
- } \
- END { \
-   if (sysinc) { \
-     if (inclnr) print "# 1 \"<chsystem>\" 1" \
-     printf "%s", cont \
-     if (inclnr) print "# " inclnr " \"<stdin>\" 2" \
-   } \
-   printf "%s", buf \
+'BEGIN { 
+   cfile = ARGV[1]; delete ARGV[1] 
+   while ((getline cline < cfile) > 0) { 
+     cont = cont cline "\n" 
+   } 
+ } 
+ { if ($1 == "#") { 
+     if ($3 == "\"<stdin>\"") { 
+       lnr = $2 - 1 
+       forgn = 0 
+     } 
+     else forgn = 1 
+     buf = buf $0 "\n" 
+   } 
+   else { 
+     if (!(forgn)) lnr++ 
+     if ($1 == "#include" && $2 ~ /^</) { 
+       sysinc = 1 
+       printf "%s", buf 
+       buf = "" 
+       print 
+       if (forgn) inclnr = 0 
+       else inclnr = lnr+1 
+     } 
+     else buf = buf $0 "\n" 
+   } 
+ } 
+ END { 
+   if (sysinc) { 
+     if (inclnr) print "# 1 \"<chsystem>\" 1" 
+     printf "%s", cont 
+     if (inclnr) print "# " inclnr " \"<stdin>\" 2" 
+   } 
+   printf "%s", buf 
  }' $1
 
 # documentation:

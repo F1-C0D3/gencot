@@ -1,82 +1,83 @@
-#! /bin/csh -f
+#! /bin/sh
 
 # Merge preprocessor conditional directives into the input according to #ORIGIN markers.
 # This is a filter from stdin to stdout with an additional filename argument.
 # The argument file must contain the conditional directives, each in its original line as in the source file.
 
-if ( $#argv != 1) then
+if [ $# != 1 ]
+then
   echo "Error: Single file name expected as argument."
   exit 0
-endif
+fi
 
 awk \
-'BEGIN { \
-   cfile = ARGV[1]; delete ARGV[1] \
-   isec = 0; lnr = 0; secnr = 0 \
-   while ((getline cline < cfile) > 0) { \
-     lnr++ \
-     if (cline ~ /[[:blank:]]*#/) { \
-       if (cline ~ /^[[:blank:]]*#[[:blank:]]*(if|ifdef|ifndef)[[:blank:]]/) { \
-         cursecs[++isec] = lnr; curgrps[isec] = lnr; secs[++secnr] = lnr \
-       } \
-       else if (cline ~ /^[[:blank:]]*#[[:blank:]]*(else|elif)/) { \
-         nextd[curgrps[isec]] = lnr; curgrps[isec] = lnr \
-       } \
-       else if (cline ~ /^[[:blank:]]*#[[:blank:]]*endif/) { \
-         nextd[curgrps[isec]] = lnr; eline[cursecs[isec--]] = lnr \
-       } \
-       dline = lnr; dtext[dline] = cline \
-       while (cline ~ /\\$/) { \
-         getline cline < cfile \
-         lnr++ \
-         dtext[dline] = dtext[dline] "\n" cline \
-       } \
-       dtext[dline] = "\n#ORIGIN " dline " +\n" dtext[dline] "\n#ENDORIG " lnr " +\n" \
-     } \
-   } \
-   close(cfile) \
-   isec = 0 \
- } \
-{ if ($1 == "#ORIGIN") { \
-    while (isec > 0 && ($2 > nextd[curgrps[isec]] || $2 < curgrps[isec])) { \
-      e = eline[cursecs[isec]] \
-      if (prevEndorig) { print ""; prevEndorig = 0 } \
-      if ($2 > e || $2 < curgrps[isec]) { \
-        print dtext[e] \
-        actsecs[cursecs[isec--]] = 0 \
-      } \
-      else { \
-        n = nextd[curgrps[isec]] \
-        curgrps[isec] = n \
-        print dtext[n] \
-      } \
-    } \
-    secnr = 0 \
-    while (secs[++secnr]) { \
-      s = secs[secnr] \
-      if (!(actsecs[s]) && $2 > s && $2 < eline[s]) { \
-        cursecs[++isec] = s \
-        actsecs[s] = 1 \
-        if (prevEndorig) { print ""; prevEndorig = 0 } \
-        print dtext[s] \
-        while ($2 > nextd[s]) { \
-          s = nextd[s] \
-          print dtext[s] \
-        } \
-        curgrps[isec] = s \
-      } \
-    } \
-  } \
-  if (notfirst) print buf \
-  prevEndorig = match(buf,/#ENDORIG/) \
-  buf = $0; notfirst = 1 \
-} \
-END { \
-  if (notfirst) print buf \
-  if (match(buf,/#ENDORIG/)) print "" \
-  while (isec > 0) { \
-    print dtext[eline[cursecs[isec--]]] \
-  } \
+'BEGIN { 
+   cfile = ARGV[1]; delete ARGV[1] 
+   isec = 0; lnr = 0; secnr = 0 
+   while ((getline cline < cfile) > 0) { 
+     lnr++ 
+     if (cline ~ /[[:blank:]]*#/) { 
+       if (cline ~ /^[[:blank:]]*#[[:blank:]]*(if|ifdef|ifndef)[[:blank:]]/) { 
+         cursecs[++isec] = lnr; curgrps[isec] = lnr; secs[++secnr] = lnr 
+       } 
+       else if (cline ~ /^[[:blank:]]*#[[:blank:]]*(else|elif)/) { 
+         nextd[curgrps[isec]] = lnr; curgrps[isec] = lnr 
+       } 
+       else if (cline ~ /^[[:blank:]]*#[[:blank:]]*endif/) { 
+         nextd[curgrps[isec]] = lnr; eline[cursecs[isec--]] = lnr 
+       } 
+       dline = lnr; dtext[dline] = cline 
+       while (cline ~ /\\$/) { 
+         getline cline < cfile 
+         lnr++ 
+         dtext[dline] = dtext[dline] "\n" cline 
+       } 
+       dtext[dline] = "\n#ORIGIN " dline " +\n" dtext[dline] "\n#ENDORIG " lnr " +\n" 
+     } 
+   } 
+   close(cfile) 
+   isec = 0 
+ } 
+{ if ($1 == "#ORIGIN") { 
+    while (isec > 0 && ($2 > nextd[curgrps[isec]] || $2 < curgrps[isec])) { 
+      e = eline[cursecs[isec]] 
+      if (prevEndorig) { print ""; prevEndorig = 0 } 
+      if ($2 > e || $2 < curgrps[isec]) { 
+        print dtext[e] 
+        actsecs[cursecs[isec--]] = 0 
+      } 
+      else { 
+        n = nextd[curgrps[isec]] 
+        curgrps[isec] = n 
+        print dtext[n] 
+      } 
+    } 
+    secnr = 0 
+    while (secs[++secnr]) { 
+      s = secs[secnr] 
+      if (!(actsecs[s]) && $2 > s && $2 < eline[s]) { 
+        cursecs[++isec] = s 
+        actsecs[s] = 1 
+        if (prevEndorig) { print ""; prevEndorig = 0 } 
+        print dtext[s] 
+        while ($2 > nextd[s]) { 
+          s = nextd[s] 
+          print dtext[s] 
+        } 
+        curgrps[isec] = s 
+      } 
+    } 
+  } 
+  if (notfirst) print buf 
+  prevEndorig = match(buf,/#ENDORIG/) 
+  buf = $0; notfirst = 1 
+} 
+END { 
+  if (notfirst) print buf 
+  if (match(buf,/#ENDORIG/)) print "" 
+  while (isec > 0) { 
+    print dtext[eline[cursecs[isec--]]] 
+  } 
 }' $1
 
 # documentation:

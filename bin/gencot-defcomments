@@ -1,26 +1,27 @@
-#! /bin/csh -f
+#! /bin/sh
 
 # Merge declaration comments into a marked Cogent source.
 # This is a filter from stdin to stdout with an additional directory name argument.
 # The argument directory must contain files created by gencot-movcomments.
 
-if ( $#argv != 1) then
+if [ $# != 1 ]
+then
   echo "Error: Single directory name expected as argument."
   exit 0
-endif
+fi
 
 awk \
-'BEGIN { \
-   dir = ARGV[1] "/"; delete ARGV[1] \
- } \
- { \
-   if ($1 ~ /#DEF/) { \
-     file = (dir $2 ".comment") \
-     while ((getline line < file) > 0) \
-       print line \
-     close(file) \
-   } \
-   else print $0 \
+'BEGIN { 
+   dir = ARGV[1] "/"; delete ARGV[1] 
+ } 
+ { 
+   if ($1 ~ /#DEF/) { 
+     file = (dir $2 ".comment") 
+     while ((getline line < file) > 0) 
+       print line 
+     close(file) 
+   } 
+   else print $0 
  }' $1
 
 # documentation:

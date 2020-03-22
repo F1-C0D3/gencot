@@ -1,55 +1,56 @@
-#! /bin/csh -f
+#! /bin/sh
 
 # Remove preprocessor directives from a C source, retaining their line positions of the rest.
 # This is a filter from stdin to stdout with an additional filename argument.
 # The file contains regular expressions for normalized directives to be retained.
 
-if ( $#argv > 1) then
+if [ $# -gt 1 ]
+then
   echo "Error: Only optional file with regular expression list expected as argument."
   exit 0
-endif
+fi
 
 awk \
-'BEGIN { \
-   nregs = 0 \
-   if (ARGC > 1) { \
-     rfile = ARGV[1]; delete ARGV[1] \
-     while ((getline cline < rfile) > 0) { \
-       regs[++nregs] = cline \
-     } \
-     close(rfile) \
-   } \
-   condlevel = 0 \
-   remcont = 0 \
- } \
- { if ($0 ~ /^[[:blank:]]*#/) { \
-     if ($0 ~ /^[[:blank:]]*#[[:blank:]]*[[:digit:]]+/) print \
-     else { \
-       retain = 0 \
-       gsub(/^[[:blank:]]*#[[:blank:]]*/, "#") \
-       $0 = $0 \
-       if ($0 ~ /^#include[[:blank:]]+</) retain = 1 \
-       else if ($0 ~ /^#(define|undef|if)/) { \
-         for (i=1; i <= nregs; i++) \
-           if ($0 ~ regs[i]) { retain = 1; break } \
-       } \
-       if ($0 ~ /^#if/) retcond[++condlevel] = retain \
-       else if ($0 ~ /^#(else|elif|endif)/ && retcond[condlevel]) { \
-         retain = 1 \
-       } \
-       if ($0 ~ /^#endif/) condlevel-- \
-       if (retain) print \
-       else { \
-         printf("\n") \
-         if ($0 ~ /\\$/) remcont = 1 \
-       } \
-     } \
-   } \
-   else if (remcont) { \
-     printf("\n") \
-     if ($0 !~ /\\$/) remcont = 0 \
-   } \
-   else print \
+'BEGIN { 
+   nregs = 0 
+   if (ARGC > 1) { 
+     rfile = ARGV[1]; delete ARGV[1] 
+     while ((getline cline < rfile) > 0) { 
+       regs[++nregs] = cline 
+     } 
+     close(rfile) 
+   } 
+   condlevel = 0 
+   remcont = 0 
+ } 
+ { if ($0 ~ /^[[:blank:]]*#/) { 
+     if ($0 ~ /^[[:blank:]]*#[[:blank:]]*[[:digit:]]+/) print 
+     else { 
+       retain = 0 
+       gsub(/^[[:blank:]]*#[[:blank:]]*/, "#") 
+       $0 = $0 
+       if ($0 ~ /^#include[[:blank:]]+</) retain = 1 
+       else if ($0 ~ /^#(define|undef|if)/) { 
+         for (i=1; i <= nregs; i++) 
+           if ($0 ~ regs[i]) { retain = 1; break } 
+       } 
+       if ($0 ~ /^#if/) retcond[++condlevel] = retain 
+       else if ($0 ~ /^#(else|elif|endif)/ && retcond[condlevel]) { 
+         retain = 1 
+       } 
+       if ($0 ~ /^#endif/) condlevel-- 
+       if (retain) print 
+       else { 
+         printf("\n") 
+         if ($0 ~ /\\$/) remcont = 1 
+       } 
+     } 
+   } 
+   else if (remcont) { 
+     printf("\n") 
+     if ($0 !~ /\\$/) remcont = 0 
+   } 
+   else print 
  }' $1
 
 # documentation:

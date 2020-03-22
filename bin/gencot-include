@@ -1,4 +1,4 @@
-#! /bin/csh -f
+#! /bin/sh
 
 # Expand transitively all quoted include directives in the input.
 # This is a filter from stdin to stdout with an additional directory list argument and an optional file name argument.
@@ -6,82 +6,83 @@
 # Do not append a trailing "/" to directory pathnames.
 # The optional file name specifies the file with the list of includes to be omitted.
 
-if ( $#argv == 0) then
+if [ $# == 0 ]
+then
   echo "Error: Include directory search list expected as argument."
   exit 0
-endif
+fi
 
 awk \
-'BEGIN { \
-   ndirs = split(ARGV[1], dirs, ":"); delete ARGV[1] \
-   if (ARGC > 2) { \
-     ofile = ARGV[2]; delete ARGV[2] \
-     while ((getline cline < ofile) > 0) { \
-       omit[cline] = 1 \
-     } \
-     close(ofile) \
-   } \
-   stackptr = 0 \
-   input[stackptr] = "/dev/stdin" \
-   curdir[stackptr] = "-" \
-   lnr[stackptr] = 0 \
-   curnam = "<stdin>" \
-   print "# 1 \"" curnam "\"" \
-   for (; stackptr >= 0; stackptr--) { \
-     while ((getline < input[stackptr]) > 0) { \
-       lnr[stackptr]++ \
-       if ($0 ~ /^[[:blank:]]*#[[:blank:]]*include[[:blank:]]*\"/) { \
-         gsub(/^[[:blank:]]*#[[:blank:]]*include[[:blank:]]*\"/, "#include \"") \
-         $0 = $0 \
-         ipath = substr($2,2,length($2)-2) \
-         if (! omit[ipath]) { \
-           fpath = "" \
-           if (curdir[stackptr] != "-") { \
-             t = (curdir[stackptr] ipath) \
-             if ((getline junk < t) > 0) { \
-               close(t); fpath = t; \
-             } \
-           } \
-           if (! fpath) { \
-             for (i = 1; i <= ndirs; i++) { \
-               t = (dirs[i] (dirs[i]?"/":"") ipath) \
-               if ((getline junk < t) > 0) { \
-                 close(t); fpath = t; break; \
-               } \
-             } \
-           } \
-           if (! fpath) { \
-             printf("cannot find %s (included in %s)\n", ipath, input[stackptr]) > "/dev/stderr" \
-             continue \
-           } \
-           printf("# 1 \"%s\" 1\n", fpath) \
-           if (! (fpath in processed)) { \
-             processed[fpath] = 1 \
-             input[++stackptr] = fpath \
-             flen = split(fpath,apath,"/") \
-             hdir = ""; for (i = 1; i < flen; i++) hdir = hdir apath[i] "/" \
-             curdir[stackptr] = hdir \
-             lnr[stackptr] = 0 \
-           } \
-           else printf("# %d \"%s\" 2\n", lnr[stackptr]+1, input[stackptr] == "/dev/stdin"?curnam:input[stackptr]) \
-         } \
-       } \
-       else if ($0 ~ /^[[:blank:]]*#[[:blank:]]*[[:digit:]]+/) { \
-         gsub(/^[[:blank:]]*#[[:blank:]]*/, "# ") \
-         $0 = $0 \
-         lnr[stackptr] = $2 - 1 \
-         if (stackptr == 0) curnam = substr($3,2,length($3)-2) \
-         print \
-       } \
-       else { \
-         print; continue \
-       } \
-     } \
-     if (stackptr > 0) { \
-       printf("# %d \"%s\" 2\n", lnr[stackptr-1]+1, input[stackptr-1] == "/dev/stdin"?curnam:input[stackptr-1]) \
-     } \
-     close(input[stackptr]) \
-   } \
+'BEGIN { 
+   ndirs = split(ARGV[1], dirs, ":"); delete ARGV[1] 
+   if (ARGC > 2) { 
+     ofile = ARGV[2]; delete ARGV[2] 
+     while ((getline cline < ofile) > 0) { 
+       omit[cline] = 1 
+     } 
+     close(ofile) 
+   } 
+   stackptr = 0 
+   input[stackptr] = "/dev/stdin" 
+   curdir[stackptr] = "-" 
+   lnr[stackptr] = 0 
+   curnam = "<stdin>" 
+   print "# 1 \"" curnam "\"" 
+   for (; stackptr >= 0; stackptr--) { 
+     while ((getline < input[stackptr]) > 0) { 
+       lnr[stackptr]++ 
+       if ($0 ~ /^[[:blank:]]*#[[:blank:]]*include[[:blank:]]*\"/) { 
+         gsub(/^[[:blank:]]*#[[:blank:]]*include[[:blank:]]*\"/, "#include \"") 
+         $0 = $0 
+         ipath = substr($2,2,length($2)-2) 
+         if (! omit[ipath]) { 
+           fpath = "" 
+           if (curdir[stackptr] != "-") { 
+             t = (curdir[stackptr] ipath) 
+             if ((getline junk < t) > 0) { 
+               close(t); fpath = t; 
+             } 
+           } 
+           if (! fpath) { 
+             for (i = 1; i <= ndirs; i++) { 
+               t = (dirs[i] (dirs[i]?"/":"") ipath) 
+               if ((getline junk < t) > 0) { 
+                 close(t); fpath = t; break; 
+               } 
+             } 
+           } 
+           if (! fpath) { 
+             printf("cannot find %s (included in %s)\n", ipath, input[stackptr]) > "/dev/stderr" 
+             continue 
+           } 
+           printf("# 1 \"%s\" 1\n", fpath) 
+           if (! (fpath in processed)) { 
+             processed[fpath] = 1 
+             input[++stackptr] = fpath 
+             flen = split(fpath,apath,"/") 
+             hdir = ""; for (i = 1; i < flen; i++) hdir = hdir apath[i] "/" 
+             curdir[stackptr] = hdir 
+             lnr[stackptr] = 0 
+           } 
+           else printf("# %d \"%s\" 2\n", lnr[stackptr]+1, input[stackptr] == "/dev/stdin"?curnam:input[stackptr]) 
+         } 
+       } 
+       else if ($0 ~ /^[[:blank:]]*#[[:blank:]]*[[:digit:]]+/) { 
+         gsub(/^[[:blank:]]*#[[:blank:]]*/, "# ") 
+         $0 = $0 
+         lnr[stackptr] = $2 - 1 
+         if (stackptr == 0) curnam = substr($3,2,length($3)-2) 
+         print 
+       } 
+       else { 
+         print; continue 
+       } 
+     } 
+     if (stackptr > 0) { 
+       printf("# %d \"%s\" 2\n", lnr[stackptr-1]+1, input[stackptr-1] == "/dev/stdin"?curnam:input[stackptr-1]) 
+     } 
+     close(input[stackptr]) 
+   } 
 }' $1 $2
 
 # documentation:

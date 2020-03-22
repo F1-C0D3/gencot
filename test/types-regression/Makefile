@@ -1,5 +1,4 @@
 GC=../../bin/gencot
-PM=../../bin/parmod
 IT=../../bin/items
 
 TESTS = prim enum struct union array func parmod pointer names const extrefs
@@ -21,11 +20,7 @@ expect-current: $(foreach TST,$(TESTS),$(TST)-expect-current) unit-expect-curren
 
 clean:  $(foreach TST,$(TESTS),$(TST)-clean)
 	-rm -f test.unit test.cogent $(foreach U,$(UNIT),test-$(U).cogent)
-	-rm -f types-parmod.json-itemprops types-parmod.json-omitprops
 	-rm -f test.unit-extitems test.ext-dfltprops test.ext-itemprops test.unit-itemprops
-
-types-parmod.json-itemprops types-parmod.json-omitprops: types-parmod.json
-	@$(PM) out types-parmod.json
 
 types-pointer.c-itemprops: types-pointer.c-manprops types-pointer.c-dfltprops types-parmod.json-itemprops
 	@$(IT) mergeto types-pointer.c-dfltprops types-parmod.json-itemprops > types-pointer.c-hprops
@@ -33,11 +28,17 @@ types-pointer.c-itemprops: types-pointer.c-manprops types-pointer.c-dfltprops ty
 	@$(IT) merge types-pointer.c-h2props types-pointer.c-manprops > types-pointer.c-itemprops
 	@rm types-pointer.c-hprops types-pointer.c-h2props
 
-%-itemprops: %-dfltprops types-parmod.json-itemprops types-parmod.json-omitprops common.types-manprops
-	@$(IT) mergeto $*-dfltprops types-parmod.json-itemprops > $*-hprops
-	@$(IT) omitfrom $*-hprops types-parmod.json-omitprops > $*-h2props
-	@$(IT) merge common.types-manprops $*-h2props > $*-itemprops
-	@rm $*-hprops $*-h2props
+%.ext-itemprops: %.ext-dfltprops types-parmod.json-itemprops types-parmod.json-omitprops common.types-manprops
+	@$(IT) mergeto $*.ext-dfltprops types-parmod.json-itemprops > $*.ext-hprops
+	@$(IT) omitfrom $*.ext-hprops types-parmod.json-omitprops > $*.ext-h2props
+	@$(IT) merge common.types-manprops $*.ext-h2props > $*.ext-itemprops
+	@rm $*.ext-hprops $*.ext-h2props
+
+%.c-itemprops: %.c-dfltprops types-parmod.json-itemprops types-parmod.json-omitprops common.types-manprops
+	@$(IT) mergeto $*.c-dfltprops types-parmod.json-itemprops > $*.c-hprops
+	@$(IT) omitfrom $*.c-hprops types-parmod.json-omitprops > $*.c-h2props
+	@$(IT) merge common.types-manprops $*.c-h2props > $*.c-itemprops
+	@rm $*.c-hprops $*.c-h2props
 
 unit-regression: unit $(foreach U,$(UNIT),test-$(U)-expected.cogent) $(foreach U,$(AUNIT),test.$(U) test-expected.$(U))
 	-@for u in $(UNIT); do \
@@ -65,8 +66,8 @@ test.ext-dfltprops: test.unit test.unit-manitems
 test.unit-extitems: test.unit test.unit-manitems 
 	@$(IT) $(ABSINCL) used test.unit > test.unit-extitems
 
-%-dfltprops: %
-	@$(IT) $(ABSINCL) file $* > $*-dfltprops
+%.c-dfltprops: %.c
+	@$(IT) $(ABSINCL) file $*.c > $*.c-dfltprops
 
 %.cogent: %.c %.c-itemprops
 	@$(GC) $(ABSINCL) cfile $*.c

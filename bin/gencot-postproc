@@ -1,21 +1,21 @@
-#! /bin/csh -f
+#! /bin/sh
 
 # Postprocess Origin markers.
 # An empty line after #ENDORIG is removed, an empty line before #ORIGIN is removed.
 # This is a filter from stdin to stdout.
 
 awk \
-'{ if (notfst) { \
-     if (bufNF == 0 && $1 == "#ORIGIN") { \
-       buf = $0; bufNF = NF; buf1 = $1 \
-     } \
-     else if (NF == 0 && buf1 == "#ENDORIG" && endorig == 0) { \
-       endorig = 1 \
-     } \
-     else { print buf; endorig = 0; buf = $0; bufNF = NF; buf1 = $1 } \
-   } \
-   else { notfst = 1; buf = $0; bufNF = NF; buf1 = $1 } \
- } \
+'{ if (notfst) { 
+     if (bufNF == 0 && $1 == "#ORIGIN") { 
+       buf = $0; bufNF = NF; buf1 = $1 
+     } 
+     else if (NF == 0 && buf1 == "#ENDORIG" && endorig == 0) { 
+       endorig = 1 
+     } 
+     else { print buf; endorig = 0; buf = $0; bufNF = NF; buf1 = $1 } 
+   } 
+   else { notfst = 1; buf = $0; bufNF = NF; buf1 = $1 } 
+ } 
  END { print buf }'
 
 # documentation:

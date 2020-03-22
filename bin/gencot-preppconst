@@ -1,40 +1,40 @@
-#! /bin/csh -f
+#! /bin/sh
 
 # Substitute constant names in constant replacement bodies.
 # This is a filter from stdin to stdout.
 
 awk \
-'function mapname(nam) { \
-   if (nam ~ /^MBEDTLS_/) res = "se" nam \
-   else if (nam ~ /^mbedtls_/) res = "se" nam \
-   else res = "cogent_" nam \
-   return res \
-} \
-BEGIN { \
-   lnr = 0 \
-   cont = 0 \
-   print "# 1 \"<mappings>\"" \
- } \
- { lnr++ \
-   if ($1 == "#define") { \
-     print "#define " $2 " " mapname($2) \
-     if ($0 ~ /\\$/) cont = 1 \
-     else cont = 0 \
-     masked = "_" $1 " GENCOT_" $2 \
-     for (i = 3; i <= NF; i++) masked = masked " " $i \
-     if (cont) masked = masked "\\" \
-     buf[lnr] = masked \
-   } \
-   else if (cont) { \
-     if ($0 ~ /\\$/) { cont = 1; buf[lnr] = $0 "\\" } \
-     else { cont = 0; buf[lnr] = $0 } \
-   } \
-   else if ($1 == "#") buf[lnr] = $0 \
-   else buf[lnr] = "" \
- } \
-END { \
-  lnrb = 0 \
-  while (lnrb < lnr) print buf[++lnrb] \
+'function mapname(nam) { 
+   if (nam ~ /^MBEDTLS_/) res = "se" nam 
+   else if (nam ~ /^mbedtls_/) res = "se" nam 
+   else res = "cogent_" nam 
+   return res 
+} 
+BEGIN { 
+   lnr = 0 
+   cont = 0 
+   print "# 1 \"<mappings>\"" 
+ } 
+ { lnr++ 
+   if ($1 == "#define") { 
+     print "#define " $2 " " mapname($2) 
+     if ($0 ~ /\\$/) cont = 1 
+     else cont = 0 
+     masked = "_" $1 " GENCOT_" $2 
+     for (i = 3; i <= NF; i++) masked = masked " " $i 
+     if (cont) masked = masked "\\" 
+     buf[lnr] = masked 
+   } 
+   else if (cont) { 
+     if ($0 ~ /\\$/) { cont = 1; buf[lnr] = $0 "\\" } 
+     else { cont = 0; buf[lnr] = $0 } 
+   } 
+   else if ($1 == "#") buf[lnr] = $0 
+   else buf[lnr] = "" 
+ } 
+END { 
+  lnrb = 0 
+  while (lnrb < lnr) print buf[++lnrb] 
 }' | cpp -nostdinc
 
 # documentation:

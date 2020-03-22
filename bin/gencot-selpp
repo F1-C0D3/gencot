@@ -1,29 +1,29 @@
-#! /bin/csh -f
+#! /bin/sh
 
 # Select and normalize preprocessor directives from a C source, retaining their line positions.
 # This is a filter from stdin to stdout.
 
 awk \
-'BEGIN { \
-   cont = 0 \
- } \
- { if ($0 ~ /^[[:blank:]]*#/) { \
-     if ($0 ~ /^[[:blank:]]*#[[:blank:]]*[[:digit:]]+/) { \
-       gsub(/^[[:blank:]]*#[[:blank:]]*/, "# ") \
-     } \
-     else { \
-       gsub(/^[[:blank:]]*#[[:blank:]]*/, "#") \
-       if ($0 ~ /\\$/) cont = 1 \
-       else cont = 0 \
-     } \
-     print \
-   } \
-   else if (cont) { \
-     print \
-     if ($0 ~ /\\$/) cont = 1 \
-     else cont = 0 \
-   } \
-   else printf("\n") \
+'BEGIN { 
+   cont = 0 
+ } 
+ { if ($0 ~ /^[[:blank:]]*#/) { 
+     if ($0 ~ /^[[:blank:]]*#[[:blank:]]*[[:digit:]]+/) { 
+       gsub(/^[[:blank:]]*#[[:blank:]]*/, "# ") 
+     } 
+     else { 
+       gsub(/^[[:blank:]]*#[[:blank:]]*/, "#") 
+       if ($0 ~ /\\$/) cont = 1 
+       else cont = 0 
+     } 
+     print 
+   } 
+   else if (cont) { 
+     print 
+     if ($0 ~ /\\$/) cont = 1 
+     else cont = 0 
+   } 
+   else printf("\n") 
  }'
 
 # documentation:

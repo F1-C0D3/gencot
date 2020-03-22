@@ -3,15 +3,15 @@
 
 3
 
-#include "mbedtls/config.h"
-
-#include MBEDTLS_CONFIG_FILE
 
 
 
 
 
-#include "mbedtls/platform.h"
+
+
+
+
 
 int something;
 

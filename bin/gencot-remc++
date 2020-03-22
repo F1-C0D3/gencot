@@ -1,4 +1,4 @@
-#! /bin/csh -f
+#! /bin/sh
 
 # remove C++ extern-C-declarations
 # Constructs of the form 
@@ -11,34 +11,34 @@
 # - between two extern-C-declarations there must be at least one newline
 
 awk \
-'{ match($0,/(^|[[:blank:]]+)extern[[:blank:]]+"C"[[:blank:]]+{/) \
-   if (RSTART != 0) { \
-     cplpl = 1 \
-     before = substr($0,1,RSTART-1) \
-     inbr = substr($0,RSTART+RLENGTH) \
-     printf("%s",before) \
-     brack = 1 \
-   } \
-   else inbr = $0 \
-   if (cplpl) { \
-     n = patsplit(inbr,arr,/{|}/,seps) \
-     found = 0 \
-     for (i = 1; i <= n; i++) { \
-       if (arr[i] == "{") brack++ \
-       else brack-- \
-       if (brack == 0) found = i \
-     }\
-     if (found) { \
-       inbr = seps[0] \
-       for (i=1; i<=n; i++) {\
-         if (i==found) inbr = inbr seps[i] \
-         else inbr = inbr arr[i] seps[i] \
-       } \
-       cplpl = 0 \
-     } \
-     print inbr \
-   } \
-   else print \
+'{ match($0,/(^|[[:blank:]]+)extern[[:blank:]]+"C"[[:blank:]]+{/) 
+   if (RSTART != 0) { 
+     cplpl = 1 
+     before = substr($0,1,RSTART-1) 
+     inbr = substr($0,RSTART+RLENGTH) 
+     printf("%s",before) 
+     brack = 1 
+   } 
+   else inbr = $0 
+   if (cplpl) { 
+     n = patsplit(inbr,arr,/{|}/,seps) 
+     found = 0 
+     for (i = 1; i <= n; i++) { 
+       if (arr[i] == "{") brack++ 
+       else brack-- 
+       if (brack == 0) found = i 
+     }
+     if (found) { 
+       inbr = seps[0] 
+       for (i=1; i<=n; i++) {
+         if (i==found) inbr = inbr seps[i] 
+         else inbr = inbr arr[i] seps[i] 
+       } 
+       cplpl = 0 
+     } 
+     print inbr 
+   } 
+   else print 
  }'
 
 # documentation:

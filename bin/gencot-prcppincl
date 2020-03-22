@@ -1,31 +1,32 @@
-#! /bin/csh -f
+#! /bin/sh
 
 # Select and process include directives from normalized preprocessor directives.
 # This is a filter from stdin to stdout with an additional filename argument.
 # The argument file must contain a list of include file name strings or macro names (one per line).
 
-if ( $#argv > 1) then
+if [ $# -gt 1 ]
+then
   echo "Error: Only optional file name expected as arguments."
   exit 0
-endif
+fi
 
 awk \
-'BEGIN { \
-   if (ARGC > 1) { \
-     rfile = ARGV[1]; delete ARGV[1] \
-     while ((getline cline < rfile) > 0) { \
-       omit[cline] = 1 \
-     } \
-     close(rfile) \
-   } \
- } \
- { lnr++ \
-   if ($1 == "#include" && !($2 ~ /^</) && !(omit[$2])) { \
-     print "#ORIGIN " lnr " +" \
-     if ($2 ~ /^".*[.]h"$/) print "#include \"" substr($2,2,length($2)-4) "-incl.cogent\"" \
-     else print \
-     print "#ENDORIG " lnr " +\n\n" \
-   } \
+'BEGIN { 
+   if (ARGC > 1) { 
+     rfile = ARGV[1]; delete ARGV[1] 
+     while ((getline cline < rfile) > 0) { 
+       omit[cline] = 1 
+     } 
+     close(rfile) 
+   } 
+ } 
+ { lnr++ 
+   if ($1 == "#include" && !($2 ~ /^</) && !(omit[$2])) { 
+     print "#ORIGIN " lnr " +" 
+     if ($2 ~ /^".*[.]h"$/) print "#include \"" substr($2,2,length($2)-4) "-incl.cogent\"" 
+     else print 
+     print "#ENDORIG " lnr " +\n\n" 
+   } 
  }' $1
 
 # documentation:

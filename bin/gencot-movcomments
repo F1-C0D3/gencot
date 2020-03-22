@@ -1,35 +1,36 @@
-#! /bin/csh -f
+#! /bin/sh
 
 # Transfer declaration comments to single files.
 # This is a filter from stdin to stdout with an additional filename argument.
 # The argument file must contain output of gencot-selcomments.
 # The comment files are written in the current directory.
 
-if ( $#argv != 1) then
+if [ $# != 1 ]
+then
   echo "Error: Single file name expected as argument."
   exit 0
-endif
+fi
 
 awk \
-'BEGIN { \
-   cfile = ARGV[1]; delete ARGV[1] \
-   bef = 1; lnr = 0; unit = ""; ustart = 1 \
-   while ((getline cline < cfile) > 0) { \
-     if (cline ~ /^-\}_/) { \
-       if (bef) before[lnr] = unit \
-       unit = substr(cline,4) \
-       if (unit == "") ustart = 1 \
-       bef = 1 - bef \
-     } \
-     else { lnr++ \
-       if (ustart) { unit = cline; ustart = 0 } \
-       else { unit = unit "\n" cline } \
-     } \
-   } \
-   close(cfile) \
- } \
- /^#DECL/ { \
-   printf(before[$3]) > ($2 ".comment") \
+'BEGIN { 
+   cfile = ARGV[1]; delete ARGV[1] 
+   bef = 1; lnr = 0; unit = ""; ustart = 1 
+   while ((getline cline < cfile) > 0) { 
+     if (cline ~ /^-\}_/) { 
+       if (bef) before[lnr] = unit 
+       unit = substr(cline,4) 
+       if (unit == "") ustart = 1 
+       bef = 1 - bef 
+     } 
+     else { lnr++ 
+       if (ustart) { unit = cline; ustart = 0 } 
+       else { unit = unit "\n" cline } 
+     } 
+   } 
+   close(cfile) 
+ } 
+ /^#DECL/ { 
+   printf(before[$3]) > ($2 ".comment") 
  }' $1
 
 # documentation:

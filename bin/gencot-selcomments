@@ -1,4 +1,4 @@
-#! /bin/csh -f
+#! /bin/sh
 
 # Select comments from a C source and translate to Cogent comments, retaining their line positions.
 # In a line, comments surrounded by other code are removed.
@@ -6,48 +6,48 @@
 # This is a filter from stdin to stdout.
 
 awk \
-'BEGIN { separator = "\n-}_"; state = 1 } \
- { before = "" \
-   rest = $0 \
-   while (1) { \
-     switch (state) { \
-     case 1: pos = match(rest, /[^[:blank:]]/) \
-       if (pos == 0) { print(before); state = 1; next } \
-       else { code = substr(rest,pos) \
-         if (code ~ /^\/\*/) { before = before substr(rest,1,pos-1) "{-"; rest = substr(rest,pos+2); state = 2 } \
-         else if (code ~ /^\/\//) { print(before substr(rest,1,pos-1) "--" substr(rest,pos+2)); state = 1; next } \
-         else { before = before separator; after = ""; rest = substr(rest,pos+1); state = 3 } \
-       } \
-       break \
-     case 2: pos = index(rest,"*/") \
-       if (pos == 0) { print(before rest); state = 2; next } \
-       else { before = before substr(rest,1,pos-1) "-}"; rest = substr(rest,pos+2); state = 1 } \
-       break \
-     case 3: pos = match(rest, /\/\*|\/\//) \
-       if (pos == 0) { print(before separator); state = 1; next } \
-       else { code = substr(rest,pos) \
-         if (code ~ /^\/\*/) { after = after "{-"; rest = substr(code,3); state = 4 } \
-         else { print(before "--" substr(code,3) separator); state = 1; next } \
-       } \
-       break \
-     case 4: pos = index(rest,"*/") \
-       if (pos == 0) { print(before after rest); state = 6; next } \
-       else { after = after substr(rest,1,pos-1) "-}"; rest = substr(rest,pos+2); state = 5 } \
-       break \
-     case 5: pos = match(rest, /[^[:blank:]]/) \
-       if (pos == 0) { print(before after separator); state = 1; next } \
-       else { code = substr(rest,pos) \
-         if (code ~ /^\/\*/) { after = after substr(rest,1,pos-1) "{-"; rest = substr(rest,pos+2); state = 4 } \
-         else if (code ~ /^\/\//) { print(before after substr(rest,1,pos-1) "--" substr(rest,pos+2) separator); state = 1; next } \
-         else { after = ""; rest = substr(rest,pos+1); state = 3 } \
-       } \
-       break \
-     case 6: pos = index(rest,"*/") \
-       if (pos == 0) { print(rest); state = 6; next } \
-       else { before = substr(rest,1,pos-1) "-}" separator; rest = substr(rest,pos+2); state = 1 } \
-       break \
-     } \
-   } \
+'BEGIN { separator = "\n-}_"; state = 1 } 
+ { before = "" 
+   rest = $0 
+   while (1) { 
+     switch (state) { 
+     case 1: pos = match(rest, /[^[:blank:]]/) 
+       if (pos == 0) { print(before); state = 1; next } 
+       else { code = substr(rest,pos) 
+         if (code ~ /^\/\*/) { before = before substr(rest,1,pos-1) "{-"; rest = substr(rest,pos+2); state = 2 } 
+         else if (code ~ /^\/\//) { print(before substr(rest,1,pos-1) "--" substr(rest,pos+2)); state = 1; next } 
+         else { before = before separator; after = ""; rest = substr(rest,pos+1); state = 3 } 
+       } 
+       break 
+     case 2: pos = index(rest,"*/") 
+       if (pos == 0) { print(before rest); state = 2; next } 
+       else { before = before substr(rest,1,pos-1) "-}"; rest = substr(rest,pos+2); state = 1 } 
+       break 
+     case 3: pos = match(rest, /\/\*|\/\//) 
+       if (pos == 0) { print(before separator); state = 1; next } 
+       else { code = substr(rest,pos) 
+         if (code ~ /^\/\*/) { after = after "{-"; rest = substr(code,3); state = 4 } 
+         else { print(before "--" substr(code,3) separator); state = 1; next } 
+       } 
+       break 
+     case 4: pos = index(rest,"*/") 
+       if (pos == 0) { print(before after rest); state = 6; next } 
+       else { after = after substr(rest,1,pos-1) "-}"; rest = substr(rest,pos+2); state = 5 } 
+       break 
+     case 5: pos = match(rest, /[^[:blank:]]/) 
+       if (pos == 0) { print(before after separator); state = 1; next } 
+       else { code = substr(rest,pos) 
+         if (code ~ /^\/\*/) { after = after substr(rest,1,pos-1) "{-"; rest = substr(rest,pos+2); state = 4 } 
+         else if (code ~ /^\/\//) { print(before after substr(rest,1,pos-1) "--" substr(rest,pos+2) separator); state = 1; next } 
+         else { after = ""; rest = substr(rest,pos+1); state = 3 } 
+       } 
+       break 
+     case 6: pos = index(rest,"*/") 
+       if (pos == 0) { print(rest); state = 6; next } 
+       else { before = substr(rest,1,pos-1) "-}" separator; rest = substr(rest,pos+2); state = 1 } 
+       break 
+     } 
+   } 
 }'
 
 # documentation:

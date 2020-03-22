@@ -1,36 +1,37 @@
-#! /bin/csh -f
+#! /bin/sh
 
 # Select preprocessor constant definitions from normalized preprocessor directives, retaining their line positions.
 # This is a filter from stdin to stdout with an additional filename argument.
 # The argument file must contain a list of preprocessor macro names (one per line).
 
-if ( $#argv > 1) then
+if [ $# -gt 1 ]
+then
   echo "Error: Only optional file name expected as arguments."
   exit 0
-endif
+fi
 
 awk \
-'BEGIN { \
-   if (ARGC > 1) { \
-     rfile = ARGV[1]; delete ARGV[1] \
-     while ((getline cline < rfile) > 0) { \
-       omit[cline] = 1 \
-     } \
-     close(rfile) \
-   } \
- } \
- { if ($1 == "#define" && !($2 ~ /\(/) && !(omit[$2]) && (NF > 2 || $0 ~ /\\$/)) { \
-     print \
-     if ($0 ~ /\\$/) cont = 1 \
-     else cont = 0 \
-   } \
-   else if (cont) { \
-     print \
-     if ($0 ~ /\\$/) cont = 1 \
-     else cont = 0 \
-   } \
-   else if ($1 == "#") print \
-   else printf "\n" \
+'BEGIN { 
+   if (ARGC > 1) { 
+     rfile = ARGV[1]; delete ARGV[1] 
+     while ((getline cline < rfile) > 0) { 
+       omit[cline] = 1 
+     } 
+     close(rfile) 
+   } 
+ } 
+ { if ($1 == "#define" && !($2 ~ /\(/) && !(omit[$2]) && (NF > 2 || $0 ~ /\\$/)) { 
+     print 
+     if ($0 ~ /\\$/) cont = 1 
+     else cont = 0 
+   } 
+   else if (cont) { 
+     print 
+     if ($0 ~ /\\$/) cont = 1 
+     else cont = 0 
+   } 
+   else if ($1 == "#") print 
+   else printf "\n" 
  }' $1
 
 # documentation:

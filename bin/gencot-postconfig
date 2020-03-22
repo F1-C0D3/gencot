@@ -1,29 +1,30 @@
-#! /bin/csh -f
+#! /bin/sh
 
 # Comment code generated from preprocessor directives if it was commented in the original source.
 # This is a filter from stdin to stdout with an additional filename argument.
 # The argument file must contain the original source.
 
-if ( $#argv != 1) then
+if [ $# != 1 ]
+then
   echo "Error: Single file name expected as argument."
   exit 0
-endif
+fi
 
 awk \
-'BEGIN { \
-   cfile = ARGV[1]; delete ARGV[1] \
-   lnr = 0 \
-   while ((getline cline < cfile) > 0) { \
-     lnr++ \
-     if (cline ~ /^[[:blank:]]*\/\/[[:blank:]]*#/) \
-       commented[lnr] = 1 \
-   } \
-   close(cfile) \
- } \
- { if ($1 == "#ORIGIN" && commented[$2]) { comm = 1; print } \
-   else if ($1 == "#ENDORIG") { comm = 0; print } \
-   else if (comm) print "--" $0 \
-   else print \
+'BEGIN { 
+   cfile = ARGV[1]; delete ARGV[1] 
+   lnr = 0 
+   while ((getline cline < cfile) > 0) { 
+     lnr++ 
+     if (cline ~ /^[[:blank:]]*\/\/[[:blank:]]*#/) 
+       commented[lnr] = 1 
+   } 
+   close(cfile) 
+ } 
+ { if ($1 == "#ORIGIN" && commented[$2]) { comm = 1; print } 
+   else if ($1 == "#ENDORIG") { comm = 0; print } 
+   else if (comm) print "--" $0 
+   else print 
  }' $1
 
 # documentation:

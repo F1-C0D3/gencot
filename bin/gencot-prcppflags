@@ -1,30 +1,31 @@
-#! /bin/csh -f
+#! /bin/sh
 
 # Select preprocessor flag definitions from normalized preprocessor directives and add origin markers.
 # This is a filter from stdin to stdout with an additional filename argument.
 # The argument file must contain a list of preprocessor macro names (one per line).
 
-if ( $#argv > 1) then
+if [ $# -gt 1 ]
+then
   echo "Error: Only optional file name expected as arguments."
   exit 0
-endif
+fi
 
 awk \
-'BEGIN { \
-   if (ARGC > 1) { \
-     rfile = ARGV[1]; delete ARGV[1] \
-     while ((getline cline < rfile) > 0) { \
-       omit[cline] = 1 \
-     } \
-     close(rfile) \
-   } \
- } \
- { lnr++ \
-   if ($1 == "#define" && !($2 ~ /\(/) && !(omit[$2]) && NF == 2) { \
-     print "#ORIGIN " lnr " +" \
-     print \
-     print "#ENDORIG " lnr " +\n\n" \
-   } \
+'BEGIN { 
+   if (ARGC > 1) { 
+     rfile = ARGV[1]; delete ARGV[1] 
+     while ((getline cline < rfile) > 0) { 
+       omit[cline] = 1 
+     } 
+     close(rfile) 
+   } 
+ } 
+ { lnr++ 
+   if ($1 == "#define" && !($2 ~ /\(/) && !(omit[$2]) && NF == 2) { 
+     print "#ORIGIN " lnr " +" 
+     print 
+     print "#ENDORIG " lnr " +\n\n" 
+   } 
  }' $1
 
 # documentation:

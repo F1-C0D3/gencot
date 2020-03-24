@@ -22,8 +22,17 @@ Installation
     This will yield `G/gencot`
 2. In `G/gencot` execute
 
+        git submodule init
+        git submodule update
+    This will clone the Cogent distribution into subdirectory `cogent`.
+3. In `G/gencot` execute
+
+        cabal new-update
+    (if necessary) and then
+    
         make
-3. Set environment variable `GENCOT_HOME` to `G/gencot`, e.g., by
+    This will compile all Haskell parts of Gencot and link them into `G/gencot/bin`.
+4. Set environment variable `GENCOT_HOME` to `G/gencot`, e.g., by
 
         export GENCOT_HOME=G/gencot
 

@@ -8,9 +8,11 @@ import Data.Foldable (foldlM,find)
 import Control.Monad (liftM,liftM2)
 
 import Language.C.Analysis as LCA
+import Language.C.Data.Ident as LCI
 
 import Gencot.Util.CallGraph (CallGraph,CGFunInvoke,CGInvoke(IdentInvoke,MemberInvoke))
-import Gencot.Json.Identifier (getFunId,getLocalFunId,getFunMemberId)
+import Gencot.Items.Types (getIndividualItemId,getTagItemId,getParamSubItemId,getMemberSubItemId)
+import Gencot.Items.Identifier (paramSubItemId) -- only temporary
  
 -- | Translate a call graph to a relation on parmod function ids.
 -- The second argument is the name of the main source file.
@@ -18,10 +20,14 @@ callGraphToIdentRel :: CallGraph -> String -> Set (String,String)
 callGraphToIdentRel cg s = S.map (funInvokeToIdentRel s) cg
 
 funInvokeToIdentRel :: String -> CGFunInvoke -> (String,String)
-funInvokeToIdentRel s (fdef,(IdentInvoke idec _),False) = (getFunId fdef s,getFunId idec s)
-funInvokeToIdentRel s (fdef,(IdentInvoke idec _),True) = (fid,getLocalFunId fid idec)
-    where fid = getFunId fdef s
-funInvokeToIdentRel s (fdef,(MemberInvoke ctyp mdec _),_) = (getFunId fdef s,getFunMemberId (LCA.sueRef ctyp) mdec)
+funInvokeToIdentRel s (fdef,(IdentInvoke idec _),False) = (getIndividualItemId (LCA.FunctionDef fdef) s,getIndividualItemId idec s)
+funInvokeToIdentRel s (fdef,(IdentInvoke idec _),True) = (fid,pid)
+    where fid = getIndividualItemId (LCA.FunctionDef fdef) s
+          pid = -- getParamSubItemId fid (pos,pdec) -- use when pos and pdec are available
+                paramSubItemId fid 0 $ LCI.identToString $ LCA.declIdent idec
+
+funInvokeToIdentRel s (fdef,(MemberInvoke (LCA.CompType sueref knd _ _ _) mdec _),_) = 
+    (getIndividualItemId (LCA.FunctionDef fdef) s,getMemberSubItemId (getTagItemId sueref knd) mdec)
 
 -- | Convert a relation on Strings to the map from Strings to the pair
 -- of predomain and postdomain, each represented as a String list.

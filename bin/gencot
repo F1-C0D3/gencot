@@ -54,13 +54,13 @@ COMMENTDIR='./comments'
 KEEP=''
 add_incl()
 {
-    if [ "$1" == "." ] 
+    if [ "$1" = "." ] 
     then INCL=""
     else INCL="$1"
     fi
     if [ -z "$INCLPATH" ]
     then INCLPATH=$1
-    elif [ "$INCLPATH" == "." ]
+    elif [ "$INCLPATH" = "." ]
     then INCLPATH=":$INCL"
     else INCLPATH="${INCLPATH}:$INCL"
     fi
@@ -118,7 +118,7 @@ IPMFILE=$CBASE-itemprops
 
 TMPDIR=$(mktemp -d)
 
-if [ "$CMD" == "config" ]
+if [ "$CMD" = "config" ]
 then
     REMCOMM="($BIN/gencot-preconfig | $BIN/gencot-remcomments)"
     SELCOMM="($BIN/gencot-preconfig | $BIN/gencot-selcomments)"
@@ -169,7 +169,7 @@ prepare_cfile()
     for aux in addincl omitincl noincl manmacros macroconv ppretain chsystem
     do prepare_aux $NAME $aux
     done
-    if [ "$CMD" == "config" ]
+    if [ "$CMD" = "config" ]
     then
         $BIN/gencot-preconfig < $FILE > $TMPDIR/$NAME.gi
     else
@@ -208,7 +208,7 @@ process_comments()
     # input: $CFILE, $CNAME.ppcond, $CNAME.in
     # output: $CNAME.cogent
     eval $SELCOMM < $CFILE > $TMPDIR/$CNAME.comm
-    if [ "$CMD" == "hfile" ]
+    if [ "$CMD" = "hfile" ]
     then
         if [ ! -e $COMMENTDIR ]
         then
@@ -221,7 +221,7 @@ process_comments()
         | eval $MRGCOMM > $TMPDIR/$CNAME.cogent
 }
 
-if [ "$CMD" == "unit" ]
+if [ "$CMD" = "unit" ]
 then
     for file in $(< $CFILE)
     do prepare_cfile $file
@@ -247,13 +247,13 @@ then
         | $BIN/gencot-mrgcomments /dev/null > $TMPDIR/$CNAME-dvdtypes.cogent
     cp $TMPDIR/$CNAME-externs.cogent $TMPDIR/$CNAME-exttypes.cogent $TMPDIR/$CNAME-dvdtypes.cogent .
     $BIN/gencot-mainfile $CNAME < $CFILE > $CNAME.cogent
-elif [ "$CMD" == "cgraph" ]
+elif [ "$CMD" = "cgraph" ]
 then
     for file in $(< $CFILE)
     do prepare_cfile $file
     done
     $BIN/callgraph-print $CFILE < $TMPDIR/infiles
-elif [ "$CMD" == "check" ]
+elif [ "$CMD" = "check" ]
 then 
     prepare_cfile $CFILE
     $BIN/gencot-check < $TMPDIR/$CNAME.in
@@ -263,7 +263,7 @@ else
     $BIN/gencot-translate $CBASE $TMPDIR/$IPMFILE < $TMPDIR/$CNAME.in | $BIN/gencot-reporigs > $TMPDIR/$CNAME.out
     process_directives
     process_comments
-    if [ "$CMD" == "cfile" ]
+    if [ "$CMD" = "cfile" ]
     then
         cp $TMPDIR/$CNAME.cogent .
     else

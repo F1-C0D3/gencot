@@ -18,14 +18,14 @@ import Language.C.Data.Position as LCP
 import Language.C.Analysis as LCA hiding (mapMaybeM)
 
 import Gencot.Util.CallGraph (CallGraph,CGFunInvoke,CGInvoke(IdentInvoke,MemberInvoke),CTrav,lookupCallGraph,invokeAnum,unionM,foldsets,getCGInvoke,invokeType,invokeParams)
-import Gencot.Util.Types (isLinearParType,isReadOnlyParType,isFunPointerOptArr,isFunction,resolveTypedef,getsParmodDescr,getParmodFunctionType,getFunType)
+import Gencot.Util.Types (isLinearParType,isReadOnlyParType,isFunction,resolveTypedef,isSIFType,getFunctionInSIFType,getFunType,isPointer,isArray)
 import Gencot.Util.Expr (getRootIdent,isReference)
 import Gencot.Util.Decl (traverseLocalDecl)
 import Gencot.Names (srcFileName)
 import Gencot.Json.Parmod (Parmod,Parmods)
 import Gencot.Json.Process (mergeParmods)
 import Gencot.Items.Types (getIndividualItemId,getTagItemId,getTypedefItemId,getMemberSubItemId,getParamSubItemId)
-import Gencot.Items.Identifier (paramSubItemId) -- only temporary
+import Gencot.Items.Identifier (refSubItemId,elemSubItemId,paramSubItemId)
 
 qmark = showJSON "?"
 jsEmpty = JSArray []
@@ -36,11 +36,12 @@ transGlobals evs = (liftM concat) $ (mapM transGlobal) evs
 
 -- | Translate a C global declaration to a sequence of function descriptions.
 -- Every function definition and declaration is translated to a function description.
--- For each invocation which invokes a local function
--- pointer (a parameter or local variable), a function description for the local function pointer is appended.
--- Every object definition or declaration with function pointer (array) type is translated to a function description.
--- For every definition of a compound type all members of function pointer (array) type are translated to function descriptions.
--- Definitions of function (pointer (array)) types which directly include the function type are translated to function descriptions.
+-- Additional descriptions are generated for items with a declared SIF (syntactically including function) type.
+-- For each invocation which invokes a local item (a parameter or local variable) of a SIF type, 
+--   a function description for the local function item is appended.
+-- Every object definition or declaration of SIF type is translated to a function description.
+-- For every definition of a compound type all members of SIF type are translated to function descriptions.
+-- Definitions of type names for SIF types are translated to function descriptions.
 -- All other global declarations are ignored.
 transGlobal :: LCA.DeclEvent -> CTrav Parmods
 transGlobal (LCA.DeclEvent idec@(LCA.FunctionDef fdef)) = do
@@ -60,73 +61,86 @@ transGlobal (LCA.DeclEvent idec@(LCA.FunctionDef fdef)) = do
         ++ (mergeParmods funpars locals)
     where (LCA.FunctionType ftyp@(LCA.FunType restype pars isVar) _) = LCA.declType fdef
           maymodify (_,jss) = jss == qmark || jss == showJSON "?depends"
-transGlobal (LCA.DeclEvent idec@(LCA.ObjectDef odef)) | isFunPointerOptArr $ LCA.declType odef =
-    transDecl1 getIndividualItemId idec $ getFunType $ getParmodFunctionType $ LCA.declType odef
-transGlobal (LCA.DeclEvent idec@(LCA.Declaration decl)) | (isFunPointerOptArr typ || isFunction typ) =
-    transDecl1 getIndividualItemId idec $ getFunType $ getParmodFunctionType typ
-    where typ = LCA.declType decl
+transGlobal (LCA.DeclEvent idec@(LCA.ObjectDef odef)) | isSIFType $ LCA.declType idec =
+    transDecl idec $ getFunType $ getFunctionInSIFType $ LCA.declType idec
+transGlobal (LCA.DeclEvent idec@(LCA.Declaration decl)) | isSIFType $ LCA.declType idec =
+    transDecl idec $ getFunType $ getFunctionInSIFType $ LCA.declType idec
 transGlobal (LCA.TagEvent (LCA.CompDef (LCA.CompType sueref knd mdecls _ _))) =
     mapMaybeM (transMember sueref knd) mdecls
-transGlobal (LCA.TypeDefEvent tdef@(LCA.TypeDef nam typ _ _)) | getsParmodDescr typ = do
+transGlobal (LCA.TypeDefEvent tdef@(LCA.TypeDef nam typ _ _)) | isSIFType typ = do
     sfn <- srcFileName tdef
     parlist <- mapM simpleParamEntry $ numberList pars
     return $ [toJSObject ([tdNamEntry tdef,comEntry,locEntry sfn,nmpEntry ftyp] ++ parlist)]
-    where ftyp@(LCA.FunType restype pars isVar) = getFunType $ getParmodFunctionType typ
+    where ftyp@(LCA.FunType restype pars isVar) = getFunType $ getFunctionInSIFType typ
 transGlobal _ = return $ []
 
 mapMaybeM :: Monad m => (a -> m (Maybe b)) -> [a] -> m [b]
 mapMaybeM f = liftM catMaybes . mapM f
 
--- | Translate a declaration of a function or function pointer (array) to a sequence (of length 1) of function descriptions.
--- getItemId must be a function which returns the item id when applied to the declaration and source file name.
-transDecl1 :: (LCA.IdentDecl -> String -> String) -> LCA.IdentDecl -> LCA.FunType -> CTrav Parmods
-transDecl1 getItemId decl ftyp@(LCA.FunType _ pars isVar) = do
+-- | Translate a declaration with SIF type to a sequence (of length 1) of function descriptions.
+transDecl :: LCA.IdentDecl -> LCA.FunType -> CTrav Parmods
+transDecl decl ftyp@(LCA.FunType _ pars isVar) = do
     sfn <- srcFileName decl
     parlist <- mapM simpleParamEntry $ numberList pars
-    funpars <- if isFunction $ LCA.declType decl then mapMaybeM (transParam (getIndividualItemId decl sfn) sfn) (numberList pars) else return []
-    return $ [toJSObject ([namEntry (getItemId decl sfn),comEntry,locEntry sfn,nmpEntry ftyp] ++ parlist)] 
+    funpars <- if isFunction typ then mapMaybeM (transParam (getIndividualItemId decl sfn) sfn) (numberList pars) else return []
+    return $ [toJSObject ([namEntry (getFunctionItemId typ $ getIndividualItemId decl sfn),comEntry,locEntry sfn,nmpEntry ftyp] ++ parlist)] 
                 ++ funpars
-transDecl1 getItemId decl ftyp@(LCA.FunTypeIncomplete _) = do
+    where typ = LCA.declType decl
+transDecl decl ftyp@(LCA.FunTypeIncomplete _) = do
     sfn <- srcFileName decl
-    return $ [toJSObject ([namEntry (getItemId decl sfn),comEntry,locEntry sfn,nmpEntry ftyp])] 
+    return $ [toJSObject ([namEntry (getFunctionItemId typ $ getIndividualItemId decl sfn),comEntry,locEntry sfn,nmpEntry ftyp])] 
+    where typ = LCA.declType decl
 
--- | Translate a struct or union member to a function description, if it is a function pointer (array).
+-- | Get the item id of the function subitem in an item.
+-- The first argument is the type of the item, the second argument ist the item's id.
+getFunctionItemId :: LCA.Type -> String -> String
+getFunctionItemId (LCA.FunctionType _ _) baseid = baseid
+getFunctionItemId (LCA.PtrType bt _ _) baseid = getFunctionItemId bt $ refSubItemId baseid
+getFunctionItemId (LCA.ArrayType bt _ _ _) baseid = getFunctionItemId bt $ elemSubItemId baseid
+getFunctionItemId (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _) _ = getFunctionItemId typ $ getTypedefItemId idnam
+getFunctionItemId _ baseid = error ("getFunctionItemId for item with direct type: " ++ baseid)
+
+-- | Translate a struct or union member to a function description, if it has a SIF type.
 transMember :: LCI.SUERef -> LCA.CompTyKind -> LCA.MemberDecl -> CTrav (Maybe Parmod)
-transMember sueref knd mdecl | isFunPointerOptArr $ LCA.declType mdecl = do
+transMember sueref knd mdecl | isSIFType typ = do
     sfn <- srcFileName mdecl
-    liftM (Just . head) $ transDecl2 sfn (getMemberSubItemId (getTagItemId sueref knd) mdecl) mdecl
-        $ getFunType $ getParmodFunctionType $ LCA.declType mdecl
+    liftM (Just . head) $ transMemberDecl sfn (getMemberSubItemId (getTagItemId sueref knd) mdecl) mdecl
+        $ getFunType $ getFunctionInSIFType typ
+    where typ = LCA.declType mdecl
 transMember _ _ _ = return Nothing
 
--- | Translate a declaration of a function or function pointer (array) to a sequence (of length 1) of function descriptions.
--- itemId is the item id of the function.
-transDecl2 :: String -> String -> LCA.MemberDecl -> LCA.FunType -> CTrav Parmods
-transDecl2 sfn itemId decl ftyp@(LCA.FunType _ pars isVar) = do
+-- | Translate a member declaration with a SIF type to a sequence (of length 1) of function descriptions.
+-- itemId is the item id of the member.
+transMemberDecl :: String -> String -> LCA.MemberDecl -> LCA.FunType -> CTrav Parmods
+transMemberDecl sfn itemId decl ftyp@(LCA.FunType _ pars isVar) = do
     parlist <- mapM simpleParamEntry $ numberList pars
-    funpars <- if isFunction $ LCA.declType decl then mapMaybeM (transParam itemId sfn) (numberList pars) else return []
-    return $ [toJSObject ([namEntry itemId,comEntry,locEntry sfn,nmpEntry ftyp] ++ parlist)] 
+    funpars <- if isFunction typ then mapMaybeM (transParam itemId sfn) (numberList pars) else return []
+    return $ [toJSObject ([namEntry $ getFunctionItemId typ itemId,comEntry,locEntry sfn,nmpEntry ftyp] ++ parlist)] 
                 ++ funpars
-transDecl2 sfn itemId decl ftyp@(LCA.FunTypeIncomplete _) = do
+    where typ = LCA.declType decl
+transMemberDecl sfn itemId decl ftyp@(LCA.FunTypeIncomplete _) = do
     sfn <- srcFileName decl
-    return $ [toJSObject ([namEntry itemId,comEntry,locEntry sfn,nmpEntry ftyp])] 
+    return $ [toJSObject ([namEntry $ getFunctionItemId typ itemId,comEntry,locEntry sfn,nmpEntry ftyp])] 
+    where typ = LCA.declType decl
 
--- | Translate a function parameter, if it is a function (pointer (array)) directly containing the function type.
+-- | Translate a function parameter, if it has a SIF type.
 -- Other function parameters are only described (by transLocal), if they are invoked.
 -- The first argument is the item id of the function containing the parameter.
 transParam :: String -> String -> (Int,LCA.ParamDecl) -> CTrav (Maybe Parmod)
-transParam iid sfn (pos,pd) | getsParmodDescr ptyp = do
+transParam iid sfn (pos,pd) | isSIFType ptyp = do
     parlist <- mapM simpleParamEntry $ numberList pars
-    return $ Just $ toJSObject $ [namEntry (getParamSubItemId iid (pos,pd)),comEntry,locEntry sfn,nmpEntry ftyp] ++ parlist
+    return $ Just $ toJSObject $ [namEntry $ getFunctionItemId ptyp (getParamSubItemId iid (pos,pd)),comEntry,locEntry sfn,nmpEntry ftyp] ++ parlist
     where ptyp = LCA.declType pd
-          ftyp@(LCA.FunType restype pars isVar) = getFunType $ getParmodFunctionType ptyp
+          ftyp@(LCA.FunType restype pars isVar) = getFunType $ getFunctionInSIFType ptyp
 transParam _ _ _ = return Nothing
 
--- | Translate an invocation of a local function pointer to a function description.
+-- | Translate an invocation of a local item of SIF type to a function description.
 transLocal :: String -> CGFunInvoke -> CTrav Parmod
 transLocal sfn fi@(fd,invk@(IdentInvoke idec _),_) = do
     parlist <- mapM simpleParamEntry $ numberList $ invokeParams invk
-    return $ toJSObject $ [namEntry parItemId,comEntry,locEntry sfn,nmpEntry $ invokeType invk] ++ parlist
-    where parItemId = -- (getParamSubItemId (getIndividualItemId (LCA.FunctionDef fd) sfn) (pos,pdec))  -- use this when pos and pdec are available
+    return $ toJSObject $ [namEntry $ getFunctionItemId ptyp parItemId,comEntry,locEntry sfn,nmpEntry $ invokeType invk] ++ parlist
+    where ptyp = LCA.declType idec
+          parItemId = -- (getParamSubItemId (getIndividualItemId (LCA.FunctionDef fd) sfn) (pos,pdec))  -- use this when pos and pdec are available
             paramSubItemId (getIndividualItemId (LCA.FunctionDef fd) sfn) 0 $ LCI.identToString $ LCA.declIdent idec
 
 -- | Find parameter modifications in a function definition.
@@ -418,7 +432,7 @@ namEntry :: String -> (String, JSValue)
 namEntry iid = ("f_name", showJSON iid)
 
 tdNamEntry :: LCA.TypeDef -> (String, JSValue)
-tdNamEntry tdef = ("f_name", showJSON $ getTypedefItemId $ identOfTypeDef tdef)
+tdNamEntry (LCA.TypeDef nam typ _ _) = ("f_name", showJSON $ getFunctionItemId typ $ getTypedefItemId $ nam)
 
 comEntry = ("f_comments", showJSON "")
 locEntry sfn = ("f_def_loc", showJSON $ sfn)
@@ -433,15 +447,16 @@ transInvocation :: Set ParDep -> String -> CGFunInvoke -> CTrav (Maybe (JSObject
 transInvocation pardeps sfnx fi@(fd,cgd,loc) = do
     sfn <- srcFileName cgd
     transInvk fpdeps (getInvokeItemId sfn fi) (LCA.declType cgd) $ invokeAnum cgd
-    where (LCI.Ident namstr _ _) = LCA.declIdent cgd
-          fpdeps = S.filter (\(_,_,invk,_) -> invk == cgd) pardeps
+    where fpdeps = S.filter (\(_,_,invk,_) -> invk == cgd) pardeps
 
 getInvokeItemId :: String -> CGFunInvoke -> String
-getInvokeItemId sfn (_,(IdentInvoke idec _),False) = getIndividualItemId idec sfn
-getInvokeItemId sfn (_,(MemberInvoke (LCA.CompType sueref knd _ _ _) mdec _),_) = getMemberSubItemId (getTagItemId sueref knd) mdec
+getInvokeItemId sfn (_,(IdentInvoke idec _),False) = 
+    getFunctionItemId (LCA.declType idec) $ getIndividualItemId idec sfn
+getInvokeItemId sfn (_,(MemberInvoke (LCA.CompType sueref knd _ _ _) mdec _),_) = 
+    getFunctionItemId (LCA.declType mdec) $ getMemberSubItemId (getTagItemId sueref knd) mdec
 getInvokeItemId sfn (fd,(IdentInvoke idec _),True) = 
     -- getParamSubItemId (getIndividualItemId fd sfn) (pos,pdec) -- use when pos and pdec are available
-    paramSubItemId (getIndividualItemId (LCA.FunctionDef fd) sfn) 0 $ LCI.identToString $ LCA.declIdent idec
+    getFunctionItemId (LCA.declType idec) $ paramSubItemId (getIndividualItemId (LCA.FunctionDef fd) sfn) 0 $ LCI.identToString $ LCA.declIdent idec
 
 getDeclName :: LCA.Declaration d => d -> String
 getDeclName = LCI.identToString . LCA.declIdent

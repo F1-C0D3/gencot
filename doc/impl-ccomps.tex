@@ -613,24 +613,24 @@ It may be invoked in two forms:
 The second form runs the filter in ``closing mode''.
 
 In normal mode the filter processes all \code{DeclEvent}s in the source file which are function
-definitions or definitions for objects with function pointer (array) type. Every such definition is translated to an
+definitions or definitions for objects with a type syntactically including a function type (called a ``SIFT'' 
+type in the following). Every such definition is translated to an
 entry in the parameter modification description. A function definition is translated to the sequence of its
-own description entry and the entries for all invoked local function pointer (array)s and all parameters for which
-the type is a function or function pointer (array) directly including the derived function type.
+own description entry and the entries for all invoked local items with a SIFT type and all parameters with 
+a SIFT type.
 
 The filter processes every definition of a composite type in the source file and translates all
-its members with function pointer (array) type directly including the derived function type to the corresponding
+its members with a SIFT type to the corresponding
 description. The filter processes every type name definition in the source file where the defining type
-is a function (pointer (array)) type directly including the derived function type, and translates it to
-the corresponding description.
+is a SIFT type, and translates it to the corresponding description.
 
 The descriptions of functions, their function parameters, composite type members, and typedef names are 
-intended to be converted to property declarations for being used by \code{gencot-translate}
-when it translates the function and type definitions. The descriptions of invoked local function pointer (array)s
+intended to be converted to item property declarations for being used by \code{gencot-translate}
+when it translates the function and type definitions. The descriptions of invoked local items 
 are intended for evaluating dependencies as described in Section~\ref{impl-parmod}.
 
 In closing mode the filter processes all \code{DeclEvent}s in the source file and in all included files which
-are declarations for functions or function pointer (array)s. Every declaration is translated to an entry in the parameter
+are declarations for functions or items with a SIFT type. Every declaration is translated to an entry in the parameter
 modification description. These descriptions are only intended for ``closing'' the dependencies for the evaluation.
 
 After analysing the C code as described in Section~\ref{impl-ccode} the call graph is generated as described

@@ -1,15 +1,15 @@
-Normally, function parameters of linear type are be returned as part of the function result, 
-as described in Section~\ref{design-types-function}. The item properties Read-Only or Discard-Parameter
-(see Section~\ref{design-types-itemprops}) can be declared for such parameters to omit them from the function 
-result. Gencot provides specific support to detect when it is semantically possible to declare 
-these properties for a parameter.
+If a function parameter of linear type is modified by a function it can be returned as part of the function result, 
+as described in Section~\ref{design-types-function}. This is done by declaring the item property Add-Result 
+(see Section~\ref{design-types-itemprops}) for the parameter. Gencot automatically declares this property for all 
+parameters of linear type and provides specific support to suppress its effect by either adding the Read-Only 
+property or by omitting the Add-Result property.
 
 The Read-Only property can only be declared, if the parameter value is not modified by the C function implementation.
 A parameter is modified, when a part of it is changed, which is referenced through a pointer. Only then the 
 modification is shared with the caller and persists after the function call.
 
-The Discard-Parameter property can only be declared for the parameter of the external C standard function \code{free}
-or for parameters which are directly or indirectly passed to \code{free}.
+The Add-Result property must be omitted if a parameter is actually discarded by a function. This is only the case
+for the external C standard function \code{free} or for parameters which are directly or indirectly passed to \code{free}.
 
 \subsection{Detecting Parameter Modifications}
 
@@ -40,7 +40,7 @@ parameter. Gencot supports these dependent parameter modifications, by detecting
 modifications by invoked functions and adding them to the JSON description. Again, only dependencies which
 involve the parameter name are detected automatically, other dependencies must be added by the developer.
 
-When Gencot reads the JSON template it calculates the transitive closure of all dependencies and uses it to
+Before Gencot uses the JSON template it calculates the transitive closure of all dependencies and uses it to
 determine the parameter modification information. Thus the developer has only to look at every function locally,
 it is not necessary to take into account the effects of invoked functions.
 
@@ -75,12 +75,11 @@ for all these external functions (and function pointers).
 
 Invoked function pointers may also be members of a struct or union type. For them no definition exists, they are also 
 handled by Gencot when closing a JSON description: for all required invocations of a struct or union member a 
-description template is added which is identified by the member name and the tag of the struct or union type. Invocations
-of function pointer members in anonymous struct or union types are ignored by the current Gencot version.
+description template is added which is identified by the member name and the item identifier of the struct or union type.
  
 \subsection{Described Entities}
 
-Gencot uses the information about parameter modifications to declare Read-Only and Discard-Parameter properties
+Gencot uses the information about parameter modifications to declare Read-Only properties or omit Add-Result properties
 for the parameters. 
 
 C function types are only used when functions are declared or defined. Function definitions are translated to
@@ -101,7 +100,9 @@ description is provided independent of whether the function has parameters of li
 not needed by Gencot for translating the item's type, however it may be needed as required invocation for
 calculating information for parameters depending on it.
 
-If a function type is specified by a typedef name in C, the parameters are collective items and properties can only 
-be declared for them collectively. In this case Gencot does not provide a JSON description for the individual
-item to which the function type applies, but instead a JSON description for the typedef name as a collective item.
+If a typedef name is defined in C for a function type or a type derived from a function type, the parameters are collective items
+and properties can only be declared for them collectively. In this case Gencot does not provide a JSON description for the individual
+item(s) to which the typedef name applies, but instead a JSON description for the typedef name as a collective item. This 
+is only done if the function type occurs directly in the typedef name's definition, if it is specified by another typedef
+name the JSON description is only provided for that other name.
 

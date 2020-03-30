@@ -357,11 +357,13 @@ isNamedFunPointer :: TypePred
 isNamedFunPointer (LCA.PtrType t _ _) = isTypeDefRef t && isFunction t
 isNamedFunPointer _ = False
 
-getsParmodDescr :: TypePred
-getsParmodDescr (LCA.FunctionType _ _) = True
-getsParmodDescr (LCA.PtrType (LCA.FunctionType _ _) _ _) = True
-getsParmodDescr (LCA.ArrayType t _ _ _) = getsParmodDescr t
-getsParmodDescr _ = False
+-- | A type which Syntactically Includes a Function Type.
+isSIFType :: TypePred
+isSIFType (LCA.FunctionType _ _) = True
+isSIFType (LCA.PtrType bt _ _) = isSIFType bt
+isSIFType (LCA.ArrayType bt _ _ _) = isSIFType bt
+isSIFType (LCA.TypeDefType _ _ _) = False
+isSIFType (LCA.DirectType _ _ _) = False
 
 isFunPointerOptArr :: TypePred
 isFunPointerOptArr td@(LCA.TypeDefType _ _ _) = isFunPointerOptArr $ resolveTypedef td
@@ -458,10 +460,11 @@ resolveTypedef :: LCA.Type -> LCA.Type
 resolveTypedef (LCA.TypeDefType (LCA.TypeDefRef _ t _) _ _) = resolveTypedef t
 resolveTypedef t = t
 
-getParmodFunctionType :: LCA.Type -> LCA.Type
-getParmodFunctionType t | isFunPointerOptArr t = getPointedType t
-getParmodFunctionType t | isFunction t = t
-getParmodFunctionType _ = error "No function (pointer (array)) type passed to getParmodFunctionType"
+getFunctionInSIFType :: LCA.Type -> LCA.Type
+getFunctionInSIFType t@(LCA.FunctionType _ _) = t
+getFunctionInSIFType (LCA.PtrType t _ _) = getFunctionInSIFType t
+getFunctionInSIFType (LCA.ArrayType t _ _ _) = getFunctionInSIFType t
+getFunctionInSIFType _ = error "No SIF type passed to getFunctionInSIFType"
 
 getDeclaration :: LCD.DefTable -> LCI.Ident -> Maybe LCA.IdentDecl
 getDeclaration dt nam =
@@ -484,13 +487,6 @@ getTypeDef dt nam =
          Just (Right _) -> Nothing
          Just (Left typeDef) -> Just typeDef
          
-getPointedType :: LCA.Type -> LCA.Type
-getPointedType t | isPointer t = rt
-    where (LCA.PtrType rt _ _) = resolveTypedef t
-getPointedType t | isArray t = getPointedType rt
-    where (LCA.ArrayType rt _ _ _) = resolveTypedef t
-getPointedType _ = error "No pointer (array) type passed to getPointedType"
-
 -- | Adjust a function type as function pointer type, together with its item identifier.
 -- The item identifier is adjusted by prepending a "&".
 wrapFunAsPointer :: (String,LCA.Type) -> (String,LCA.Type)

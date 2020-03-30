@@ -223,7 +223,7 @@ process_comments()
 
 if [ "$CMD" = "unit" ]
 then
-    for file in $(< $CFILE)
+    for file in $(cat $CFILE)
     do prepare_cfile $file
     done
     MIFILE=$GENCOTDIR/$CNAME.unit-manitems
@@ -249,7 +249,7 @@ then
     $BIN/gencot-mainfile $CNAME < $CFILE > $CNAME.cogent
 elif [ "$CMD" = "cgraph" ]
 then
-    for file in $(< $CFILE)
+    for file in $(cat $CFILE)
     do prepare_cfile $file
     done
     $BIN/callgraph-print $CFILE < $TMPDIR/infiles

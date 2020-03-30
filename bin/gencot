@@ -214,7 +214,7 @@ process_comments()
 
 if [ "$CMD" = "unit" ]
 then
-    for file in $(< $CFILE)
+    for file in $(cat $CFILE)
     do prepare_cfile $file
     done
     EVFILE=$GENCOTDIR/$CNAME.gencot-externs
@@ -228,7 +228,7 @@ then
     HSPLFILE=$TMPDIR/unit.gencot-safepointers
     SPLFILE=$TMPDIR/unit.gencot-prcspl
     touch $HSPLFILE
-    for file in $(< $CFILE)
+    for file in $(cat $CFILE)
     do 
         base=$(basename $file)
         name=$(expr match $base '\(.*\)[.][^.]*' '|' $base)
@@ -247,7 +247,7 @@ then
     $BIN/gencot-mainfile $CNAME < $CFILE > $CNAME.cogent
 elif [ "$CMD" = "cgraph" ]
 then
-    for file in $(< $CFILE)
+    for file in $(cat $CFILE)
     do prepare_cfile $file
     done
     $BIN/callgraph-print $CFILE < $TMPDIR/infiles

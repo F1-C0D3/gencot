@@ -16,7 +16,7 @@ import Gencot.Util.Types (getTagDef,isExtern,isFunction,isExternTypeDef,resolveF
 -- | Construct the identifier for an individual toplevel item.
 -- An individual toplevel item is a function or a global object (variable).
 -- It is specified by its declaration. 
--- The second argument is the source file name of @idec@.
+-- The second argument is the source file name of the main file.
 getIndividualItemId :: LCA.IdentDecl -> String -> String
 getIndividualItemId idec sfn = individualItemId (linkagePrefix idec sfn) (LCI.identToString $ LCA.declIdent idec)
 
@@ -28,10 +28,14 @@ getExternalItemId idec = individualItemId "" (LCI.identToString $ LCA.declIdent 
 
 -- | The prefix to be prepended to an item identifier if the item has internal linkage.
 -- The item is specified by its declaration. 
--- The second parameter is the source file name of @idec@.
+-- The second parameter is the source file name of the main file.
 linkagePrefix :: (LCA.Declaration d, LCN.CNode d) => d -> String -> String
 linkagePrefix idec sfn | isInternal idec = prefix
-    where prefix = if (takeExtension sfn) == ".c" then (takeBaseName sfn) else (takeFileName sfn)
+    where fn = case LCN.fileOfNode idec of
+                    Nothing -> "<unknown>"
+                    Just res -> takeFileName res
+          fn' = if fn == "<stdin>" then sfn else fn
+          prefix = if (takeExtension fn') == ".c" then (takeBaseName fn') else fn'
           isInternal idec = 
             case LCA.declStorage idec of
                  NoStorage -> False -- function pointer struct members
@@ -92,6 +96,15 @@ getParamSubItemId item (pos,pdecl) = paramSubItemId item pos pnam
                       LCA.VarName idnam _ -> (LCI.identToString idnam)
                       LCA.NoName -> ""
 
+-- | Get the item id of the (first) function subitem in an item.
+-- The first argument is the type of the item, the second argument ist the item's id.
+getFunctionSubItemId :: LCA.Type -> String -> String
+getFunctionSubItemId (LCA.FunctionType _ _) baseid = baseid
+getFunctionSubItemId (LCA.PtrType bt _ _) baseid = getFunctionSubItemId bt $ refSubItemId baseid
+getFunctionSubItemId (LCA.ArrayType bt _ _ _) baseid = getFunctionSubItemId bt $ elemSubItemId baseid
+getFunctionSubItemId (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _) _ = getFunctionSubItemId typ $ getTypedefItemId idnam
+getFunctionSubItemId _ baseid = error ("getFunctionSubItemId for item with direct type: " ++ baseid)
+
 -- | Construct all identifiers for a collective item specified by a type.
 -- Only supported for tag and typedef names and for pointer types where the ultimate base type is a tag or typedef name.
 -- Several identifiers may result from resolving typed names or not.
@@ -121,34 +134,41 @@ isAddResultItem :: ItemAssocType -> FTrav Bool
 isAddResultItem (iid,t) = 
     liftM or $ mapM (hasProperty "ar") $ ((indivItemIds iid) ++ (derivedItemIds t))
 
+-- | ItemAssocType for an individual (top-level) item.
+-- The second argument is the name of the main source file.
 getIndividualItemAssoc :: LCA.IdentDecl -> String -> ItemAssocType
 getIndividualItemAssoc idecl sfn = (getIndividualItemId idecl sfn, LCA.declType idecl)
 
+-- | ItemAssocType for a local item (variable declared in a function).
 getLocalItemAssoc :: LCA.IdentDecl -> ItemAssocType
 getLocalItemAssoc idecl = (getLocalItemId idecl, LCA.declType idecl)
 
+-- | ItemAssocType for a parameter (without known function).
 getParamItemAssoc :: LCA.ParamDecl -> ItemAssocType
 getParamItemAssoc idecl = (getParamItemId idecl, LCA.declType idecl)
 
+-- | ItemAssocType for a named type.
 getTypedefItemAssoc :: LCI.Ident -> LCA.Type -> ItemAssocType
 getTypedefItemAssoc idnam typ = (getTypedefItemId idnam, typ)
 
+-- | ItemAssocType for a composite type member.
+-- The first argument is the ItemAssocType of the composite type.
 getMemberSubItemAssoc :: ItemAssocType -> LCA.MemberDecl -> ItemAssocType
 getMemberSubItemAssoc (iid,_) mdecl = 
     (getMemberSubItemId iid mdecl, LCA.declType mdecl)
 
 -- | Element sub-item  for ItemAssocType
--- The sub-ietm type must be explicitly provided as second argument as a hint to avoid resolving a typedef name.
+-- The sub-item type must be explicitly provided as second argument as a hint to avoid resolving a typedef name.
 getElemSubItemAssoc :: ItemAssocType -> LCA.Type -> ItemAssocType
 getElemSubItemAssoc (iid,_) st = (elemSubItemId iid,st)
 
 -- | Referenced data sub-item  for ItemAssocType
--- The sub-ietm type must be explicitly provided as second argument as a hint to avoid resolving a typedef name.
+-- The sub-item type must be explicitly provided as second argument as a hint to avoid resolving a typedef name.
 getRefSubItemAssoc :: ItemAssocType -> LCA.Type -> ItemAssocType
 getRefSubItemAssoc (iid,_) st = (refSubItemId iid,st)
 
 -- | Referenced data sub-item  for ItemAssocType
--- The sub-ietm type must be explicitly provided as second argument as a hint to avoid resolving a typedef name.
+-- The sub-item type must be explicitly provided as second argument as a hint to avoid resolving a typedef name.
 getResultSubItemAssoc :: ItemAssocType -> LCA.Type -> ItemAssocType
 getResultSubItemAssoc (iid,_) st = (resultSubItemId iid,st)
 

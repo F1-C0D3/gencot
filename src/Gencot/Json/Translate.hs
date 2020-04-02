@@ -24,8 +24,8 @@ import Gencot.Util.Decl (traverseLocalDecl)
 import Gencot.Names (srcFileName)
 import Gencot.Json.Parmod (Parmod,Parmods)
 import Gencot.Json.Process (mergeParmods)
-import Gencot.Items.Types (getIndividualItemId,getTagItemId,getTypedefItemId,getMemberSubItemId,getParamSubItemId)
-import Gencot.Items.Identifier (refSubItemId,elemSubItemId,paramSubItemId)
+import Gencot.Items.Types (getIndividualItemId,getTagItemId,getTypedefItemId,getMemberSubItemId,getParamSubItemId,getFunctionSubItemId)
+import Gencot.Items.Identifier (paramSubItemId) -- only temporary
 
 qmark = showJSON "?"
 jsEmpty = JSArray []
@@ -83,22 +83,13 @@ transDecl decl ftyp@(LCA.FunType _ pars isVar) = do
     sfn <- srcFileName decl
     parlist <- mapM simpleParamEntry $ numberList pars
     funpars <- if isFunction typ then mapMaybeM (transParam (getIndividualItemId decl sfn) sfn) (numberList pars) else return []
-    return $ [toJSObject ([namEntry (getFunctionItemId typ $ getIndividualItemId decl sfn),comEntry,locEntry sfn,nmpEntry ftyp] ++ parlist)] 
+    return $ [toJSObject ([namEntry (getFunctionSubItemId typ $ getIndividualItemId decl sfn),comEntry,locEntry sfn,nmpEntry ftyp] ++ parlist)] 
                 ++ funpars
     where typ = LCA.declType decl
 transDecl decl ftyp@(LCA.FunTypeIncomplete _) = do
     sfn <- srcFileName decl
-    return $ [toJSObject ([namEntry (getFunctionItemId typ $ getIndividualItemId decl sfn),comEntry,locEntry sfn,nmpEntry ftyp])] 
+    return $ [toJSObject ([namEntry (getFunctionSubItemId typ $ getIndividualItemId decl sfn),comEntry,locEntry sfn,nmpEntry ftyp])] 
     where typ = LCA.declType decl
-
--- | Get the item id of the function subitem in an item.
--- The first argument is the type of the item, the second argument ist the item's id.
-getFunctionItemId :: LCA.Type -> String -> String
-getFunctionItemId (LCA.FunctionType _ _) baseid = baseid
-getFunctionItemId (LCA.PtrType bt _ _) baseid = getFunctionItemId bt $ refSubItemId baseid
-getFunctionItemId (LCA.ArrayType bt _ _ _) baseid = getFunctionItemId bt $ elemSubItemId baseid
-getFunctionItemId (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _) _ = getFunctionItemId typ $ getTypedefItemId idnam
-getFunctionItemId _ baseid = error ("getFunctionItemId for item with direct type: " ++ baseid)
 
 -- | Translate a struct or union member to a function description, if it has a SIF type.
 transMember :: LCI.SUERef -> LCA.CompTyKind -> LCA.MemberDecl -> CTrav (Maybe Parmod)
@@ -115,12 +106,12 @@ transMemberDecl :: String -> String -> LCA.MemberDecl -> LCA.FunType -> CTrav Pa
 transMemberDecl sfn itemId decl ftyp@(LCA.FunType _ pars isVar) = do
     parlist <- mapM simpleParamEntry $ numberList pars
     funpars <- if isFunction typ then mapMaybeM (transParam itemId sfn) (numberList pars) else return []
-    return $ [toJSObject ([namEntry $ getFunctionItemId typ itemId,comEntry,locEntry sfn,nmpEntry ftyp] ++ parlist)] 
+    return $ [toJSObject ([namEntry $ getFunctionSubItemId typ itemId,comEntry,locEntry sfn,nmpEntry ftyp] ++ parlist)] 
                 ++ funpars
     where typ = LCA.declType decl
 transMemberDecl sfn itemId decl ftyp@(LCA.FunTypeIncomplete _) = do
     sfn <- srcFileName decl
-    return $ [toJSObject ([namEntry $ getFunctionItemId typ itemId,comEntry,locEntry sfn,nmpEntry ftyp])] 
+    return $ [toJSObject ([namEntry $ getFunctionSubItemId typ itemId,comEntry,locEntry sfn,nmpEntry ftyp])] 
     where typ = LCA.declType decl
 
 -- | Translate a function parameter, if it has a SIF type.
@@ -129,7 +120,7 @@ transMemberDecl sfn itemId decl ftyp@(LCA.FunTypeIncomplete _) = do
 transParam :: String -> String -> (Int,LCA.ParamDecl) -> CTrav (Maybe Parmod)
 transParam iid sfn (pos,pd) | isSIFType ptyp = do
     parlist <- mapM simpleParamEntry $ numberList pars
-    return $ Just $ toJSObject $ [namEntry $ getFunctionItemId ptyp (getParamSubItemId iid (pos,pd)),comEntry,locEntry sfn,nmpEntry ftyp] ++ parlist
+    return $ Just $ toJSObject $ [namEntry $ getFunctionSubItemId ptyp (getParamSubItemId iid (pos,pd)),comEntry,locEntry sfn,nmpEntry ftyp] ++ parlist
     where ptyp = LCA.declType pd
           ftyp@(LCA.FunType restype pars isVar) = getFunType $ getFunctionInSIFType ptyp
 transParam _ _ _ = return Nothing
@@ -138,7 +129,7 @@ transParam _ _ _ = return Nothing
 transLocal :: String -> CGFunInvoke -> CTrav Parmod
 transLocal sfn fi@(fd,invk@(IdentInvoke idec _),_) = do
     parlist <- mapM simpleParamEntry $ numberList $ invokeParams invk
-    return $ toJSObject $ [namEntry $ getFunctionItemId ptyp parItemId,comEntry,locEntry sfn,nmpEntry $ invokeType invk] ++ parlist
+    return $ toJSObject $ [namEntry $ getFunctionSubItemId ptyp parItemId,comEntry,locEntry sfn,nmpEntry $ invokeType invk] ++ parlist
     where ptyp = LCA.declType idec
           parItemId = -- (getParamSubItemId (getIndividualItemId (LCA.FunctionDef fd) sfn) (pos,pdec))  -- use this when pos and pdec are available
             paramSubItemId (getIndividualItemId (LCA.FunctionDef fd) sfn) 0 $ LCI.identToString $ LCA.declIdent idec
@@ -432,7 +423,7 @@ namEntry :: String -> (String, JSValue)
 namEntry iid = ("f_name", showJSON iid)
 
 tdNamEntry :: LCA.TypeDef -> (String, JSValue)
-tdNamEntry (LCA.TypeDef nam typ _ _) = ("f_name", showJSON $ getFunctionItemId typ $ getTypedefItemId $ nam)
+tdNamEntry (LCA.TypeDef nam typ _ _) = ("f_name", showJSON $ getFunctionSubItemId typ $ getTypedefItemId $ nam)
 
 comEntry = ("f_comments", showJSON "")
 locEntry sfn = ("f_def_loc", showJSON $ sfn)
@@ -451,12 +442,12 @@ transInvocation pardeps sfnx fi@(fd,cgd,loc) = do
 
 getInvokeItemId :: String -> CGFunInvoke -> String
 getInvokeItemId sfn (_,(IdentInvoke idec _),False) = 
-    getFunctionItemId (LCA.declType idec) $ getIndividualItemId idec sfn
+    getFunctionSubItemId (LCA.declType idec) $ getIndividualItemId idec sfn
 getInvokeItemId sfn (_,(MemberInvoke (LCA.CompType sueref knd _ _ _) mdec _),_) = 
-    getFunctionItemId (LCA.declType mdec) $ getMemberSubItemId (getTagItemId sueref knd) mdec
+    getFunctionSubItemId (LCA.declType mdec) $ getMemberSubItemId (getTagItemId sueref knd) mdec
 getInvokeItemId sfn (fd,(IdentInvoke idec _),True) = 
     -- getParamSubItemId (getIndividualItemId fd sfn) (pos,pdec) -- use when pos and pdec are available
-    getFunctionItemId (LCA.declType idec) $ paramSubItemId (getIndividualItemId (LCA.FunctionDef fd) sfn) 0 $ LCI.identToString $ LCA.declIdent idec
+    getFunctionSubItemId (LCA.declType idec) $ paramSubItemId (getIndividualItemId (LCA.FunctionDef fd) sfn) 0 $ LCI.identToString $ LCA.declIdent idec
 
 getDeclName :: LCA.Declaration d => d -> String
 getDeclName = LCI.identToString . LCA.declIdent

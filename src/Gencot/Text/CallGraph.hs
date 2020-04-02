@@ -1,7 +1,7 @@
 {-# LANGUAGE PackageImports, TypeSynonymInstances, FlexibleInstances #-}
 module Gencot.Text.CallGraph where
 
-import Data.List as L (map,intercalate,sort)
+import Data.List as L (map,intercalate,sort,isInfixOf)
 import Data.Set as S (Set,toList,map)
 import Data.Map as M (Map,unionWith,fromListWith,map,foldrWithKey)
 import Data.Foldable (foldlM,find)
@@ -11,7 +11,7 @@ import Language.C.Analysis as LCA
 import Language.C.Data.Ident as LCI
 
 import Gencot.Util.CallGraph (CallGraph,CGFunInvoke,CGInvoke(IdentInvoke,MemberInvoke))
-import Gencot.Items.Types (getIndividualItemId,getTagItemId,getParamSubItemId,getMemberSubItemId)
+import Gencot.Items.Types (getIndividualItemId,getTagItemId,getParamSubItemId,getMemberSubItemId,getFunctionSubItemId)
 import Gencot.Items.Identifier (paramSubItemId) -- only temporary
  
 -- | Translate a call graph to a relation on parmod function ids.
@@ -20,14 +20,16 @@ callGraphToIdentRel :: CallGraph -> String -> Set (String,String)
 callGraphToIdentRel cg s = S.map (funInvokeToIdentRel s) cg
 
 funInvokeToIdentRel :: String -> CGFunInvoke -> (String,String)
-funInvokeToIdentRel s (fdef,(IdentInvoke idec _),False) = (getIndividualItemId (LCA.FunctionDef fdef) s,getIndividualItemId idec s)
-funInvokeToIdentRel s (fdef,(IdentInvoke idec _),True) = (fid,pid)
+funInvokeToIdentRel s (fdef,(IdentInvoke idec _),False) = 
+    (getIndividualItemId (LCA.FunctionDef fdef) s,getFunctionSubItemId (LCA.declType idec) $ getIndividualItemId idec s )
+funInvokeToIdentRel s (fdef,(IdentInvoke idec _),True) = (fid,getFunctionSubItemId (LCA.declType idec) pid)
     where fid = getIndividualItemId (LCA.FunctionDef fdef) s
           pid = -- getParamSubItemId fid (pos,pdec) -- use when pos and pdec are available
                 paramSubItemId fid 0 $ LCI.identToString $ LCA.declIdent idec
 
 funInvokeToIdentRel s (fdef,(MemberInvoke (LCA.CompType sueref knd _ _ _) mdec _),_) = 
-    (getIndividualItemId (LCA.FunctionDef fdef) s,getMemberSubItemId (getTagItemId sueref knd) mdec)
+    (getIndividualItemId (LCA.FunctionDef fdef) s,
+     getFunctionSubItemId (LCA.declType mdec) $ getMemberSubItemId (getTagItemId sueref knd) mdec)
 
 -- | Convert a relation on Strings to the map from Strings to the pair
 -- of predomain and postdomain, each represented as a String list.

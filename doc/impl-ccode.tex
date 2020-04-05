@@ -540,15 +540,15 @@ constant definition of the form
 \end{verbatim}
 a dummy declaration of the form
 \begin{verbatim}
-  static int NNN;
+  extern int NNN;
 \end{verbatim}
 is generated. This is implemented by the additional filter \code{gencot-gendummydecls}. It is applied to the result of 
 \code{gencot-selppconst}. The resulting dummy declarations are prepended to the input of the language-c preprocessor
 since this prevents the lines from being counted for the \code{<stdin>} part.
 
-Dummy declarations are generated with internal linkage. This causes them to be removed when symbol tables are combined.
-Otherwise, since they always declare objects and are classified by language-c as (tentative) definitions, they would
-be signaled as repeated definitions when they occur in several symbol tables (see Section~\ref{impl-ccode-package}).
+Dummy declarations are generated with explicit external linkage. This causes them to be classified by language-c as 
+declarations instead as (tentative) definitions, hence they are not signaled as repeated definitions when they occur 
+in several symbol tables (see Section~\ref{impl-ccode-package}).
 
 Flag macro calls do not occur in C code, hence no dummy declarations are required for them.
 

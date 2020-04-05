@@ -222,18 +222,19 @@ are thus a part of the Cogent compilation unit. Thus a type can only be external
 file.
 
 If an external item is actually used (by invoking a function, accessing an object, or referencing a type) in the Cogent
-compilation unit, it must also be translated to Cogent so that it is known in the Cogent propgram. Functions are translated
+compilation unit, it must also be translated to Cogent so that it is known in the Cogent program. Functions are translated
 in the form of exit wrappers, objects are translated in the form of abstract access functions, and types are translated
 as usual.
 
 Usually, C programs know many external items without actually using them. To keep the resulting Cogent code as small 
 as possible, Gencot performs an automatic analysis to determine the external toplevel items which are actually used
-by the Cogent compilation unit.
+by the Cogent compilation unit. The result of this analysis can be manually overridden by explicitly specifying additional
+external items which also should be processed.
 
 \subsubsection{The processor \code{items-used}}
 
 The processor \code{items-used} generates a list of the external toplevel items used by the Cogent compilation unit.
-It is intended as a filter for the processors \code{gencot-externs}, \code{gencot-exttypes}, \code{gencot-dvdtypes},
+It is intended as a filtering list for the processors \code{gencot-externs}, \code{gencot-exttypes}, \code{gencot-dvdtypes},
 \code{items-externs} and \code{parmod-gen} which process external items, to reduce them to the relevant ones.
 
 The processor is invoked as

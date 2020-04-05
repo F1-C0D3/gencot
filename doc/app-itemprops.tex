@@ -1,0 +1,198 @@
+The goal of this step is to create the item property declarations (see Section~\ref{impl-itemprops})
+to be used in the translation from C to Cogent. This step is optional, Gencot can translate a C source 
+without them. However, the assumptions it uses for the translation will in many cases lead to 
+invalid Cogent code (which is syntactically correct but does not pass the semantics checks).
+
+Instead of specifying the additional information used for the translation as annotations in the C source files,
+Gencot uses the item property declarations which reside in separate files and reference the affected C 
+items by name (the ``item identifiers'' described in Section~\ref{impl-itemprops-ids}. This makes it 
+easier to replace the C sources by a newer version and still reuse (most of) the item properties.
+
+Item properties could be specified fully manually by the developer, if she knows the item naming scheme
+and searches the C source files for items which require properties to be declared. However, Gencot provides
+support by generating default item property declarations. This has the following advantages:
+\begin{itemize}
+\item The developer gets a list of all items with their correct names.
+\item Gencot can use simple heuristics to populate the declarations with useful default properties.
+\end{itemize}
+
+The default item property declarations are intended to be manually modified by the developer. Additionally, the 
+results of a parameter modification analysis described in Section~\ref{app-parmod} are intended to be transferred
+to the item property declarations.
+
+Property declarations are used by Gencot, if present, for all items processed in the translation. These are all internal items 
+which are defined in the translation set and all external items which are declared and used in the translation set.
+
+The automatic parts of this step are executed with the help of the script command \code{items} (see 
+Section~\ref{impl-all-items}).
+
+\subsection{Grouping Item Property Declarations in Files}
+\label{app-items-files}
+
+C items for which Gencot supports property declarations are types (tags and named types), functions and objects (``variables'').
+Items may have sub-items (function parameters and results, array elements, pointer targets). 
+
+For tags and type names there is always a single definition (which also defines sub-items). For functions and objects there 
+can be declarations
+in addition to the single definition. The definition or declaration introduces a name for the item and it specifies its type.
+Afterwards, an item can be used any number of times (e.g. types can be used in other definitions and declarations, functions
+can be invoked and objects can be read and written).
+
+The current version of Gencot uses the properties of such items only when translating the item's definition or declaration, not when 
+it translates the item's use. 
+
+When Gencot translates a single C source file it ignores all declarations and only processes item definitions and uses. This implies
+that it only uses property declarations for exactly the items which are defined in the translated source file, and suggests to
+use a seperate item property declaration file for every C source file, containing the declarations for the items defined in the 
+C source file.
+
+Gencot expects the item properties to be used when translating a single C source file \code{x.<e>} (where \code{<e>} 
+is \code{c} or \code{h}) in an auxiliary file named \code{x.<e>-itemprops} (see Section~\ref{impl-all-gencot}).
+
+When Gencot processes all C source files of the translation set together to generate the additional Cogent sources for the
+Cogent compilation unit (command \code{gencot unit}, see Section~\ref{impl-all-gencot}), it processes items defined in the
+translation set and also external items declared and used in the translation set. Therefore it needs property declarations 
+for all these items. They can be retrieved by uniting all item property declaration files for the single C sources and adding
+property declarations for the external used items. If the Cogent compilation unit is described by the unit file \code{y.<e>} 
+(where the convention for the file extension \code{<e>} is \code{unit}), Gencot expects these item property declarations
+in an auxiliary file named \code{y.<e>-itemprops} (see Section~\ref{impl-all-gencot}).
+
+Since the properties in the \code{-itemprops} files may originate from several sources (default properties, manual specification, 
+parmod descriptions, merging other property declarations) it is recommended to keep these sources separate and recreate
+the \code{-itemprops} files from these sources whenever they are used for a translation. 
+
+It is recommended to put the item property declarations for all external used items of a Cogent compilation unit described by
+the unit file \code{y.<e>} in a file \code{y.ext-itemprops} and always recreate the file \code{y.<e>-itemprops} by merging all
+files \code{x.<e>-itemprops} and the file \code{y.ext-itemprops}.
+
+For the sources of a file \code{x.<e>-itemprops} the following file names are recommended :
+\begin{description}
+\item[\code{x.<e>-dfltprops}] The default item property declarations generated by Gencot.
+\item[\code{x.<e>-manprops}] Manually specified item properties to be added. 
+\end{description}
+Then the file \code{x.<e>-itemprops} for a single C source file is generated by first modifying \code{x.<e>-dfltprops} 
+according to the parameter modification descriptions and then adding the properties from \code{x.<e>-manprops}. In the same
+way the file \code{y.ext-itemprops} should be generated.
+
+Gencot also supports item property declarations for a restricted form of type expressions (derived pointer types). These items
+are not explicitly defined, they are used by simply denoting the type expression. For this kind of items the properties are 
+needed by Gencot for translating the item uses. 
+
+Gencot does not provide default item property declarations for these items, they must always be specified manually. Since they 
+are not related to a specific C source file or a specific translation set, they should be put in a single separate file. The 
+recommended name for this file is \code{common.types-manprops}. The properties in this file must be used for the translation 
+of all single C source files and for the generation of the additional Cogent sources for the compilation unit. This is 
+achieved by merging the properties in this file to all generated \code{-itemprops} files.
+
+\subsection{Generating Default Item Property Declarations}
+\label{app-items-default}
+
+The first step for using item property declarations is to generate the default property declarations. For a single C source 
+file or include file \code{<file>} the command
+\begin{verbatim}
+  items file <file>
+\end{verbatim}
+is used. The result should be stored in file \code{<file>-dfltprops}.
+
+To generate the default property declarations for the external items used by the Cogent compilation unit described in the 
+unit file \code{y.<e>} the command
+\begin{verbatim}
+  items unit y.<e>
+\end{verbatim}
+is used. The result should be stored in file \code{y.ext-dfltprops}.
+
+\subsection{Transferring Parameter Modification Descriptions}
+\label{app-items-parmod}
+
+If parameter modification descriptions are used as described in Section~\ref{app-parmod}, the result must be converted to item
+property declarations to be used by Gencot. The result consists of a single file \code{<jfile>} in JSON format containing 
+parameter modification descriptions. All entries have been confirmed and the file has been evaluated as described in 
+Section~\ref{app-parmod-extern}. The file contains entries for all functions defined in the translation set, for all external 
+functions used in the translation set, and maybe additional functions which have been used to follow dependencies.
+
+Every function is an item, and every parameter is a sub-item of its function. Thus the information in the parameter modification
+description can be converted to property declarations for function parameter items. This is done using the command
+\begin{verbatim}
+  parmod out <jfile>
+\end{verbatim}
+It will create the two files \code{<jfile>-itemprops} and \code{<jfile>-omitprops}. 
+
+The file \code{<jfile>-itemprops} contains properties to be added to the default properties. For every file \code{<file>-dfltprops}
+the command 
+\begin{verbatim}
+  items mergeto <file>-dfltprops <jfile>-itemprops
+\end{verbatim}
+is used. Its output should be stored in an intermediate file \code{<file>-ip1}. The command only selects from 
+\code{<jfile>-itemprops} declarations for items which are already present in
+\code{<file>-dfltprops}. In this way the collective information in \code{<jfile>-itemprops} is distributed to the different
+specific property declaration files for the single C sources and the file \code{y.ext-dfltprops}. Information about functions
+only used for following dependencies is not transferred, it is not used by the translation to Cogent.
+
+The file \code{<jfile>-omitprops} contains properties to be removed from the default properties. For every intermediate file
+\code{<file>-ip1} created by \code{items mergeto} the command 
+\begin{verbatim}
+  items omitfrom <file>-ip1 <jfile>-omitprops
+\end{verbatim}
+is used. Its output should again be stored in an intermediate file \code{<file>-ip2}. If no manual modifications are intended
+the result can directly be written to file \code{<file>-itemprops} and used for the translation by Gencot.
+
+\subsection{Adding Manually Specified Properties}
+\label{app-items-manual}
+
+It is recommended to put manually specified item properties in separate files, grouped in the same way as the default 
+properties. For every file \code{<file>-dfltprops} a file \code{<file>-manprops} should be used. To create this file,
+you can make a copy of \code{<file>-dfltprops}, manually remove all declared properties and then populate the empty
+declarations with manually specified properties. Remaining empty declarations can be removed.
+
+The manual properties are then merged to the default properties. This makes it possible to re-apply the manual properties 
+whenever the default properties change (e.g., because the C source is modified). To avoid removing manually specified 
+properties by transmitting parameter modification description results, it is recommended to merge the manual properties 
+afterwards into the intermediate file \code{<file>-ip2} using the command
+\begin{verbatim}
+  items mergeto <file>-ip2 <file>-manprops
+\end{verbatim}
+and storing the result in another intermediate file \code{<file>-ip3}.
+
+If properties shall be specified for type expression items, they should be collected in the file \code{common.types-manprops}.
+No default property declarations exist for these items. Since the type expressions may be used in all C source files, the 
+file should be merged into \textit{all} item property declaration files additionally to the file specific manual properties.
+This must be done using the command
+\begin{verbatim}
+  items merge <file>-ip3 common.types-manprops
+\end{verbatim}
+because here the added items shall not be reduced to those already present in \code{<file>-ip3}. The result is ready to be used
+by Gencot and should be written to file \code{<file>-itemprops}.
+
+Normally, it should not be necessary to manually remove properties. Should that be needed, the properties to be removed can
+be specified in a separate file which can then be applied to remove the properties using the command \code{items omitfrom} in 
+an additional step.
+
+For convenience for the developer Gencot supports empty lines and comment lines starting with a hash sign \code{\#} in the 
+\code{-manprops} files. These lines are removed by the commands \code{items merge}, \code{items mergeto}, and \code{items omitfrom}.
+
+\subsection{Property Declarations for a Cogent Compilation Unit}
+\label{app-items-unit}
+
+When processing a Cogent compilation unit described by the unit file \code{y.<e>} the item property declarations in file
+\code{y.<e>-itemprops} are used (see Section~\ref{app-items-files}). This file is built by simply merging all
+generated files \code{<file>-itemprops} and the file \code{y.ext-itemprops} iteratively using the command
+\begin{verbatim}
+  items merge
+\end{verbatim}
+This command removes all duplicate item declarations which may originate from \code{common.types-manprops}.
+
+\subsection{Adding External Items}
+\label{app-items-extern}
+
+The command \code{items unit} automatically reduces the known (declared) external items to those actually used in the
+translation set, as described in Section~\ref{impl-ccomps-items}, and generates default item property declarations only
+for them and their sub-items. It may be necessary to process additional external items which are not used or are not recognized
+to be used. The set of external items recognized by Gencot as used can be displayed using the command
+\begin{verbatim}
+  items used y.<e>
+\end{verbatim}
+where \code{y.<e>} is the unit file describing the translation set.
+
+To generate default properties for additional external items, a list of the additional (toplevel) items can be 
+specified in the auxiliary file \code{y.<e>-manitems}. If present, this file is automatically read by \code{items extern}
+and default property declarations are generated for all items listed in it (and all items transitively used from them).

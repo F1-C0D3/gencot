@@ -1,4 +1,5 @@
 \subsection{Filters for Processing Steps}
+\label{impl-preprocessor-filters}
 
 Directive processing is done for the output of \code{gencot-remcomments}. All comments have been removed. 
 However, there may be line directives present. 
@@ -43,6 +44,7 @@ uncomments all commented macro definitions. The filter \code{gencot-postconfig <
 generated target code, it takes the original configuration file as its argument.
 
 \subsection{Separating Directives}
+\label{impl-preprocessor-separate}
 
 The Gencot directive retainment list is used to retain some directives in the output of \code{gencot-rempp}.
 These directives are still selected by \code{gencot-selpp} and re-inserted by \code{gencot-mrgcond}, if they
@@ -134,6 +136,7 @@ which have the same effect. This is done to simplify reading the input for all s
 All content which does not origin in file \code{<stdin>} is removed together with its line directives.
 
 \subsection{Processing Directives}
+\label{impl-preprocessor-process}
 
 \subsubsection{Processing Constants Defined as Preprocessor Macros}
 
@@ -273,6 +276,7 @@ in the current source file and expands line directives.
 The argument file contains the Gencot include omission list (see Section~\ref{design-preprocessor-incl}).
 
 \subsection{Merging Directive Processing Results}
+\label{impl-preprocessor-merge}
 
 When the conditional directives are merged into the target code, the other 
 directives must have already been merged in, since the conditional directives are inserted depending on the content 
@@ -349,6 +353,7 @@ If the line before an inserted code contains an \code{\#ENDORIG} marker an addit
 the code for the same reason as for conditional directives.
 
 \subsection{Special Processing for Configuration Files}
+\label{impl-preprocessor-config}
 
 The filter \code{gencot-preconfig} simply removes all \code{//} comment starts before a preprocessor directive.
 It must be applied before \code{gencot-remcomments} so that the commented directives are still present. Gencot 

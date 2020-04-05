@@ -506,7 +506,7 @@ encodeType rslv iat@(_, (LCA.PtrType t _ _)) | isFunction t = do
 -- Derived pointer type for other type t:
 -- Encode t, for aggregate type remove unbox step, otherwise prepend pointer derivation step.
 -- If no Not-Null property, add MayNull step.
--- If Read-Only property make banged.
+-- If Read-Only property  add readonly step.
 encodeType rslv iat@(iid, pt@(LCA.PtrType t _ _)) = do
     safe <- isNotNullItem iat
     ro <- isReadOnlyItem iat
@@ -530,7 +530,7 @@ encodeType rslv iat@(_, (LCA.FunctionType (LCA.FunTypeIncomplete ret) _)) = do
     return (mapIncFunStep ++ tn)
 -- Derived array type for element type t:
 -- Encode t, prepend array derivation step and unbox step.
--- If Read-Only property make banged.
+-- If Read-Only property add readonly step.
 encodeType rslv iat@(iid, (LCA.ArrayType t as _ _)) = do
     ro <- isReadOnlyItem iat
     tn <- encodeType rslv $ getElemSubItemAssoc iat t

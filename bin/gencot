@@ -9,13 +9,13 @@ fi
 
 BIN=$GENCOT_HOME/bin
 
-USAGE="Usage: $0 [-I<dir>] [-G<dir>] [-C<dir>] [-k] [check|config|hfile|cfile|unit|cgraph|help] <file> [<file>]"
+USAGE="Usage: $0 [-I<dir>] [-G<dir>] [-C<dir>] [-k] [check|config|hfile|cfile|unit|cgraph|help] <file>"
 
 long_usage()
 {
     echo $USAGE
     echo 'Translate C source files to Cogent language.'
-    echo 'Commands:'
+    echo 'Subcommands:'
     echo '  check  <cfile>  Test C sourcefile <cfile> for parsability by Gencot'
     echo '  config <hfile>  Translate a C configuration include file to Cogent'
     echo '  hfile  <hfile>  Translate a C include file to Cogent'
@@ -24,7 +24,7 @@ long_usage()
     echo '  cgraph <ufile>  Print call graph for unit described in <ufile>'
     echo '  help            Display this help information'
     echo 'A <ufile> contains a list of <cfile> names, each on a separate line.'
-    echo 'Options for commands check|config|hfile|cfile|unit: '
+    echo 'Options: '
     echo '  -I<dir>  Directory for searching C include files. Can be repeated, as for cpp. '
     echo '  -G<dir>  Directory for searching Gencot auxiliary files. Only one can be given, default is "."'
     echo '  -C<dir>  Directory for stored declaration comments. Default is "./comments"'
@@ -90,7 +90,7 @@ case "$CMD" in
     unit) ;;
     cgraph) ;;
     help) long_usage; exit;;
-    *) echo "unknown gencot command: $1"; short_usage; exit;;
+    *) echo "unknown gencot subcommand: $1"; short_usage; exit;;
 esac
 
 shift
@@ -99,13 +99,13 @@ if [ $OPTARGS ]
 then
     if [ $REQARGS -gt $# ]
     then
-        echo "wrong number of arguments for gencot command ${CMD}: expected at least $REQARGS"
+        echo "wrong number of arguments for gencot subcommand ${CMD}: expected at least $REQARGS"
         exit
     fi
 else
     if [ "$REQARGS" != "$#" ]
     then
-        echo "wrong number of arguments for gencot command ${CMD}: expected $REQARGS"
+        echo "wrong number of arguments for gencot subcommand ${CMD}: expected $REQARGS"
         exit
     fi
 fi

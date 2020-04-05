@@ -1,12 +1,112 @@
 The single filters and processors of Gencot are combined for the typical use cases in the shell scripts
-\code{gencot} and \code{parmod}.
+\code{gencot}, \code{items}, \code{parmod}, and \code{auxcog}. The script \code{items} is intended for handling all 
+aspects of working with the item property declarations (see Section~\ref{impl-itemprops}), the script \code{parmod} 
+is intended for handling all aspects
+of working with the parameter modification descriptions (see Section~\ref{impl-parmod}), the script
+\code{gencot} is intended for handling all other aspects of translating from C to Cogent. The script \code{auxcog}
+is intended for handling all aspects of additional processing after or in addition to processing the Cogent program by the 
+Cogent compiler.
 
 \subsection{The \code{gencot} Script}
 \label{impl-all-gencot}
 
+\subsubsection{Usage}
 
+The overall synopsis of the \code{gencot} command is
+\begin{verbatim}
+  gencot <options> <subcommand> <file>
+\end{verbatim}
 
+The \code{gencot} command supports the following subcommands:
+\begin{description}
+\item[\code{check}] Test the specified C source file or include file for parsability by Gencot (see Section~\ref{app-prep} for how to 
+make a C source parsable, if necessary).
 
+\item[\code{cfile}] Translate the specified C source file to Cogent. If the source file name is \code{x.c} the result is
+written to file \code{x.cogent}
+
+\item[\code{hfile}] Translate the specified C include file to Cogent. If the source file name is \code{x.h} the result is
+written to file \code{x-incl.cogent}
+
+\item[\code{config}] Translate the specified C include file to Cogent with specific support for configuration files as described
+in Section~\ref{impl-preprocessor-config}. If the source file name is \code{x.h} the result is
+written to file \code{x-incl.cogent}
+
+\item[\code{unit}] Generate additional Cogent files for the Cogent compilation unit described in the argument file.
+
+\item[\code{cgraph}] Print the call graph for the Cogent compilation unit described in the argument file.
+
+\end{description}
+
+The subcommands \code{unit} and \code{cgraph} expect as argument file a file containing the list of C source file names
+(one per line) which together constitute the Cogent compilation unit. As a convention it is recommended to use the 
+file name extension \code{".unit"} for these argument files.
+
+If the file has the name \code{x.<ext>} the subcommand \code{unit} generates the following additional files (see Section~\ref{design-files}):
+\begin{itemize}
+\item \code{x.cogent}
+\item \code{x-externs.cogent}
+\item \code{x-exttypes.cogent}
+\item \code{x-dvdtypes.cogent}
+\end{itemize}
+
+The \code{gencot} command supports the following options:
+\begin{description}
+\item[\code{-I}] used to specify directories where included files are searched, like for \code{cpp}. The 
+option can be repeated to specify several directories, they are searched in the order in which the options
+are specified.
+
+\item[\code{-G}] Directory for searching Gencot auxiliary files. Only one can be given, default is \code{"."}.
+
+\item[\code{-C}] Directory for retrieving stored declaration comments. Default is \code{"./comments"}.
+
+\item[\code{-k}] Keep directory with intermediate files. This is only intended for debugging.
+
+\end{description}
+
+As described in Section~\ref{impl-comments-decl}, Gencot moves comments from C function declarations to translated function
+definitions. Since a declaration may be specified in a different C source file (often an include file) than the definition, 
+the subcommands \code{cfile}, \code{hfile}, and \code{config} write all declaration comments in the processed file to
+the directory specified by the \code{-C} option and use all comments found there when translating function definitions.
+
+\subsubsection{Auxiliary Files}
+
+Gencot uses an approach, where all manual annotations added to the C program for configuring the translation to Cogent 
+are stored in auxiliary files separate from the original C program sources. This way it is possible to update the C 
+sources to a newer version without the need to re-insert the annotations.
+
+There are different auxiliary files for different purposes. The \code{gencot} script determines the auxiliary files using
+a predefined naming scheme. These files are searched in the directory specified by the \code{-G} option. All auxiliary files
+are optional, if a file is not found it is assumed that no corresponding annotations are needed.
+
+When processing a file \code{x.<ext>} where \code{<ext>} is \code{c} or \code{h}, the \code{gencot} command uses the 
+following auxiliary files, if they exist:
+\begin{description}
+\item[\code{x.gencot-addincl}] The content of this file is prepended to the processed file before processing.
+\item[\code{x.gencot-noincl}] List of ignored include files, as described in Section~\ref{impl-ccode-include}.
+\item[\code{x.gencot-omitincl}] The Gencot include omission list (see Section~\ref{design-preprocessor-incl}).
+\item[\code{x.gencot-ppretain}] The Gencot directive retainment list (see Section~\ref{design-preprocessor-config}).
+\item[\code{x.gencot-chsystem}] The content of this file is inserted immediately after the last system include directive.
+\item[\code{x.gencot-manmacros}] The Gencot manual macro list (see Section~\ref{design-preprocessor-macros}).
+\item[\code{x.gencot-macroconv}] The Gencot macro call conversion (see Section~\ref{design-preprocessor-macros}).
+\item[\code{x.gencot-macrodefs}] The Gencot macro translation for the processed file (see Section~\ref{design-preprocessor-macros}).
+\item[\code{x.<ext>-itemprops}] The item property declarations (see Section~\ref{impl-itemprops-decl}).
+\end{description}
+
+For all cases with the exception of the last two, additionally a file with name \code{common} instead of \code{x} ist used, when it
+is present. If both files are present the concatenation of them is used. In this way it is possible to specify common annotations 
+for all C sources and add specific annotations in the source file specific files.
+
+The subcommand \code{unit} uses corresponding auxiliary files for every file \code{x.c} listed in its argument file.
+Additionally, if the argument file name is \code{<file>} it uses the auxiliary file
+\begin{description}
+\item[\code{<file>-manitems}] Manually specified external items, as described in Section~\ref{impl-ccomps-items} as
+input to the processor \code{items-used}.
+\end{description}
+
+\subsubsection{Implementation}
+
+**todo**
 
 The intended use of filter \code{gencot-remcomments} is for removing all comments from input to the language-c parser.
 This input always consists of the actual source code file and the content of all included files. The simplest approach
@@ -20,22 +120,167 @@ The filters \code{gencot-selcomments} and \code{gencot-selpp} for selecting comm
 still applied to the single original source files, since they do not require additional information from the included files.
 
 
+\subsection{The \code{items} Script}
+\label{impl-all-items}
 
+\subsubsection{Usage}
 
-The \code{gencot} command supports the followin options:
+The overall synopsis of the \code{items} command is
+\begin{verbatim}
+  items <options> <subcommand> <file> [<file2>]
+\end{verbatim}
+
+The \code{items} command supports the following subcommands:
 \begin{description}
-\item[\code{-I}] used to specify directories where included files are searched, like for \code{cpp}. The 
-option can be repeated to specify several directories, they are searched in the order in which the options
-are specified.
+\item[\code{file}] Create default property declarations for all items defined in the specified C source file
+or include file \code{<file>}. 
 
-\item[\code{-G}]
+\item[\code{unit}] Create default property declarations for all external items used in the Cogent compilation 
+unit described in \code{<file>}. 
 
-\item[\code{-C}]
+\item[\code{used}] List external toplevel items used in the Cogent compilation 
+unit described in \code{<file>}. 
+
+\item[\code{merge}] Merge the declarations in \code{<file>} and \code{<file2>}. Two declarations for the 
+same item are combined by uniting the properties.
+
+\item[\code{mergeto}] Add properties from \code{<file2>} to items in \code{<file>}. Properties are only added
+if their item is already present in \code{<file>}.
+
+\item[\code{omitfrom}] Omit (remove) properties in \code{<file2>} from items in \code{<file>}. 
 
 \end{description}
+
+All subcommands write their result to standard output.
+
+The subcommands \code{unit} and \code{used} expect the same kind of argument file as the subcommand \code{unit} 
+of the \code{gencot} command.
+
+The \code{items} command supports the options \code{-I}, \code{-G}, \code{-k} with the same meaning as
+for the \code{gencot} command.
+
+\subsubsection{Auxiliary Files}
+
+The subcommand \code{file} uses the same auxiliary files as the subcommands \code{cfile} and \code{hfile} of \code{gencot}.
+The subcommands \code{unit} and \code{used} use the same auxiliary files as the subcommand \code{unit} of \code{gencot}.
+
+\subsubsection{Implementation}
+
+**todo**
 
 
 
 \subsection{The \code{parmod} Script}
 \label{impl-all-parmod}
+
+\subsubsection{Usage}
+
+The overall synopsis of the \code{parmod} command is
+\begin{verbatim}
+  parmod <options> <subcommand> <file> [<file2>]
+\end{verbatim}
+
+The \code{parmod} command supports the following subcommands:
+\begin{description}
+\item[\code{init}] Create parameter modification descriptions for all functions defined in C source file 
+or include file \code{<file>}. The result is written to standard output.
+
+\item[\code{close}] Create parameter modification descriptions for all functions declared for the C source file
+\code{<file>} in the file itself or in a file included by it. The result is written to standard output.
+
+\item[\code{extern}] Select entries from \code{<file2>} (a file in JSON format containing parameter modification
+descriptions) for all external functions actually used in the Cogent compilation 
+unit described in \code{<file>}. The result is written to standard output.
+
+\item[\code{show}] Display on standard output information about the parameter modification description in \code{<file>}.
+
+\item[\code{idlist}] List on standard output the item identifiers of all functions described in the 
+paramer modification description in \code{<file>}.
+
+\item[\code{diff}] Compare the parameter modification descriptions in \code{<file>} and \code{<file2>}. The output
+has the same form as the Unix \code{diff} command, however, entries of functions occurring in both files are 
+directly compared.
+
+\item[\code{iddiff}] Compare the item identifiers of all functions described in \code{<file>} and \code{<file2>}.
+The output has the same form as the Unix \code{diff} command.
+
+\item[\code{addto}] Add to \code{<file>} all entries for required dependencies found in \code{<file2>}. Both files must contain 
+parameter modification descriptions in JSON format. The result is written to \code{<file>}.
+
+\item[\code{mergin}] Merge the parameter modification description entries in \code{<file>} and \code{<file2>} by building 
+the union of the described functions. If a function is described in both files the entry with more confirmed parameter 
+descriptions is used. The result is written to \code{<file>}.
+
+\item[\code{replin}] Replace in \code{<file>} all function entries by an entry for the same function in \code{<file2>}
+if it is present and has not less confirmed parameters. Both files must contain 
+parameter modification descriptions in JSON format. The result is written to \code{<file>}.
+
+\item[\code{eval}] Evaluate the parameter modification description in \code{<file>} as described in 
+Section~\ref{impl-parmod-eval}.  The resulting parameter modification description is written to standard output.
+
+\item[\code{out}] Convert the evaluated parameter modification description in \code{<file>} to item property declarations.
+The result is written to the two files \code{<file>-itemprops} (properties to be added to the default properties) 
+and \code{<file>-omitprops} (properties to be removed from the default properties).
+
+\end{description}
+
+The subcommand \code{extern} expect as its first argument file the same kind as the subcommand \code{unit} 
+of the \code{gencot} command.
+
+The \code{parmod} command supports the options \code{-I}, \code{-G}, \code{-k} with the same meaning as
+for the \code{gencot} command.
+
+\subsubsection{Auxiliary Files}
+
+The subcommands \code{init} and \code{close} use the same auxiliary files as the subcommands \code{cfile} and \code{hfile} of \code{gencot}.
+The subcommand \code{extern} uses the same auxiliary files as the subcommand \code{unit} of \code{gencot}.
+
+\subsubsection{Implementation}
+
+**todo**
+
+\subsection{The \code{auxcog} Script}
+\label{impl-all-auxcog}
+
+\subsubsection{Usage}
+
+The overall synopsis of the \code{auxcog} command is
+\begin{verbatim}
+  auxcog <options> <subcommand> <file>
+\end{verbatim}
+
+The \code{auxcog} command supports the following subcommands:
+\begin{description}
+\item[\code{unit}] Generate additional C files for the Cogent compilation unit described in the argument file.
+
+\item[\code{comments}] Remove comments from the Cogent source \code{<file>} and write the result to standard output.
+
+\end{description}
+
+The subcommand \code{unit} expect as its first argument \code{<file>} the same kind as the subcommand \code{unit} 
+of the \code{gencot} command. If the file has the name \code{x.<ext>} the following additional files are generated 
+(see Section~\ref{design-files}):
+\begin{itemize}
+\item \code{x.c}
+\item \code{x-macros.h}
+\item \code{x-gencot.c} (only if \code{x-gencot\_pp\_inferred.c} is present)
+\item \code{x-externs.c}
+\end{itemize}
+and for all files \code{y.c} listed in \code{x.<ext>}:
+\begin{itemize}
+\item \code{y-entry.c}
+\end{itemize}
+
+The subcommand \code{comments} is mainly intended for testing the comment structure in a Cogent source generated by
+\code{gencot}. In rare cases it may happen that a closing comment delimiter and a subsequent opening comment delimiter
+are omitted, so that the Cogent compiler will not detect the wrong comment structure.
+
+The \code{auxcog} command supports the option \code{-I} with the same meaning as
+for the \code{gencot} command.
+
+The \code{auxcog} command does not use any auxiliary files.
+
+\subsubsection{Implementation}
+
+**todo**
 

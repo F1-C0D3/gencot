@@ -151,7 +151,8 @@ afterwards. This would cause the declared item properties for typedef names to b
 resolved type.
 
 A type reference may be a direct type, a derived type, or a typedef name. For every typedef name a Cogent type
-name is defined, as described in Sections~\ref{design-names} and~\ref{design-types-typedef}. A direct type is either
+name is defined, as described in Sections~\ref{design-names} and~\ref{design-types-typedef}. An exception are 
+externally defined typedef names not used directly in the Cogent compilation unit, they are resolved. A direct type is either
 the type \code{void}, a primitive C type, which is mapped to the name of a primitive Cogent type, or it is a 
 struct/union/enum type reference for which Gencot also introduces a Cogent type name or maps it to the 
 primitive Cogent type \code{U32} (tagless enums). Hence, both direct types and typedef names can always be mapped
@@ -600,16 +601,42 @@ The processor reads the source files of the Cogent compilation unit as described
 and processes all external toplevel items specified in the list of used items in the same way as \code{items-gen}
 to generate default property declarations for them on standard output.
 
+The type of a processed item may involve an externally defined type name which is not in the list of used external items.
+This means that the type name is not used in the Cogent code and is resolved in the translation. In this case it is 
+also resolved by \code{items-externs} so that collective sub-items of the type name become individual sub-items of 
+the processed item, as described in Section~\ref{design-types-itemprops}.
+
 \subsection{Parameter Modification}
 \label{impl-ccomps-parmod}
+
+The goal of working with the parameter modification descriptions (see Section~\ref{design-parmod}) is to analyse 
+transitive function invocation chains which only stop at functions external to the C <package>, for which no sources
+are available. Therefore the approach used for item property declarations in Section~\ref{impl-ccomps-itemprops}
+cannot be used here, since it treats all items as external which do not belong to the Cogent compilation unit.
+
+Instead, we use a single filter \code{parmod-gen} which is always applied to a single C source file in the 
+<package>. It may be run in two modes: in normal mode it processes all functions \textit{defined} in the source
+file and outputs descriptions for them, in ``closing mode'' it processes all functions only \textit{declared} in 
+the source file or in a file included by it and outputs a description template. This covers all functions which 
+may be invoked by the functions defined in the source, including functions external to the <package>. 
+
+The invocation chains can then be followed using the descriptions generated in normal mode, until a function is invoked
+which is external to the <package>. Only for these functions the templates generated in closing mode are used
+to ``close'' the invocation chains, all other templates (in particular, for functions defined in the <package>)
+are ignored.
+
+The filter still needs the information about the used items outside the Cogent compilation unit to correctly handle
+typedef names which are used only indirectly and are resolved during the translation to Cogent. If the type of an
+invoked function is specified by a type name, the invocation either refers to the type name or to individual function items,
+depending on whether the type name is resolved, as described in Section~\ref{design-parmod}.
 
 \subsubsection{\code{parmod-gen}}
 
 The filter \code{parmod-gen} is used to generate the Json parameter modification description from a C source file.
 It may be invoked in two forms:
 \begin{verbatim}
-  parmod-gen <source file name>
-  parmod-gen <source file name> close
+  parmod-gen <source file name> <used external items file>
+  parmod-gen <source file name> <used external items file> close
 \end{verbatim}
 The second form runs the filter in ``closing mode''.
 
@@ -622,8 +649,8 @@ a SIFT type.
 
 The filter processes every definition of a composite type in the source file and translates all
 its members with a SIFT type to the corresponding
-description. The filter processes every type name definition in the source file where the defining type
-is a SIFT type, and translates it to the corresponding description.
+description template. The filter processes every type name definition in the source file where the defining type
+is a SIFT type, and translates it to the corresponding description template.
 
 The descriptions of functions, their function parameters, composite type members, and typedef names are 
 intended to be converted to item property declarations for being used by \code{gencot-translate}
@@ -632,7 +659,13 @@ are intended for evaluating dependencies as described in Section~\ref{impl-parmo
 
 In closing mode the filter processes all \code{DeclEvent}s in the source file and in all included files which
 are declarations for functions or items with a SIFT type. Every declaration is translated to an entry in the parameter
-modification description. These descriptions are only intended for ``closing'' the dependencies for the evaluation.
+modification template. The filter also processes all composite type definitions and type name definitions which
+are specified in system include files in the same way as described above. 
+These templates are only intended for ``closing'' the dependencies for the evaluation.
+
+Here, resolved external type names are taken into account, when the type of a declaration is tested for 
+being a SIFT type: all such type names are resolved before testing whether a derived function type directly
+occurs in the type.
 
 After analysing the C code as described in Section~\ref{impl-ccode} the call graph is generated as described
 in Section~\ref{impl-ccode-callgraph}. Then another traversal is performed using the \code{CTrav} monad and

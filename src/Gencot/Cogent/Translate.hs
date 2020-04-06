@@ -25,7 +25,7 @@ import Gencot.Items.Types (ItemAssocType,isNotNullItem,isReadOnlyItem,isAddResul
 import Gencot.Cogent.Ast
 import Gencot.C.Translate (transStat,transExpr)
 import Gencot.Traversal (FTrav,markTagAsNested,isMarkedAsNested,hasProperty,stopResolvTypeName)
-import Gencot.Util.Types (carriedTypes,resolveFully,isExtern,isCompOrFunc,isCompPointer,isNamedFunPointer,isFunPointer,isPointer,isAggregate,isFunction,isTypeDefRef,isComplete,isArray,isVoid,isTagRef,containsTypedefs,resolveTypedef,isComposite,isLinearType,isLinearParType,isReadOnlyType,isReadOnlyParType,isDerivedType,isExternTypeDef,wrapFunAsPointer,getTagDef)
+import Gencot.Util.Types (carriedTypes,isExtern,isCompOrFunc,isCompPointer,isNamedFunPointer,isFunPointer,isPointer,isAggregate,isFunction,isTypeDefRef,isComplete,isArray,isVoid,isTagRef,containsTypedefs,resolveTypedef,isComposite,isLinearType,isLinearParType,isReadOnlyType,isReadOnlyParType,isDerivedType,isExternTypeDef,wrapFunAsPointer,getTagDef)
 
 genType t = GenType t noOrigin
 
@@ -144,25 +144,6 @@ transGlobal (LCA.TypeDefEvent (LCA.TypeDef idnam typ _ n)) = do
           modifiat = if isComposite typ then adjustItemAssocType iat else iat
         
 transGlobal _ = return $ [GenToplv (CS.Include "err-unexpected toplevel") noOrigin]
-
-transExtGlobals :: [String] -> [LCA.DeclEvent] -> FTrav [GenToplv]
-transExtGlobals tds tcs = liftM concat $ mapM (transExtGlobal tds) tcs
-
--- | Translate an external declaration (from a system include file) to a sequence of Cogent toplevel definitions.
--- For typedefs and composite type members the type is fully resolved.
--- Otherwise the translation is performed as usual.
--- The additional first parameter is a list of type names where to stop resolving.
-transExtGlobal :: [String] -> LCA.DeclEvent -> FTrav [GenToplv]
-transExtGlobal tds (LCA.TypeDefEvent (LCA.TypeDef idnam typ _ n)) = do
-    t <- transType False modifiat
-    nt <- transTagIfNested resiat n
-    return $ wrapOrigin n (nt ++ [GenToplv (CS.TypeDec tn [] (rmMayNullThroughBang t)) noOrigin])
-    where tn = mapNameToUpper idnam
-          resiat = getTypedefItemAssoc idnam typ
-          modifiat = if isComposite typ then adjustItemAssocType resiat else resiat
-transExtGlobal tds (LCA.TagEvent (LCA.CompDef ct@(LCA.CompType sueref LCA.StructTag _ _ _))) = 
-    transStruct (getTagItemId sueref LCA.StructTag) ct (transExtMember tds)
-transExtGlobal _ e = transGlobal e
 
 -- | If not yet translated as nested, translate a C struct definition of the form
 -- > struct tagname { ... }
@@ -343,13 +324,6 @@ transMember iat mdecl@(LCA.MemberDecl (LCA.VarDecl (LCA.VarName idnam _) _ typ) 
     transMemberDef idnam (getMemberSubItemAssoc iat mdecl) n
 {- LCA.AnonBitField cannot occur since it is always replaced by aggBitfields -}
 
--- | Translate external struct member definition to pair of Cogent record field name and type.
--- The member type is fully resolved.
--- The additional first parameter is a list of type names where to stop resolving.
-transExtMember :: [String] -> ItemAssocType -> LCA.MemberDecl -> FTrav (CCS.FieldName, (GenType, CS.Taken))
-transExtMember tds iat mdecl@(LCA.MemberDecl (LCA.VarDecl (LCA.VarName idnam _) _ typ) _ n) =
-    transMemberDef idnam (getMemberSubItemAssoc iat mdecl) n
-
 -- | Translate struct member definition to pair of Cogent record field name and type.
 -- Translate member type, if array set unboxed. Map member name if it starts with uppercase.
 transMemberDef :: LCI.Ident -> ItemAssocType -> LCN.NodeInfo -> FTrav (CCS.FieldName, (GenType, CS.Taken))
@@ -377,7 +351,8 @@ transParamName pd =
 
 -- | Translate a C type specification to a Cogent type.
 -- The C type is specified as an ItemAssocType, so that its item properties can be respected.
--- The first parameter specifies whether typedef names shall be resolved.
+-- The first parameter specifies whether all typedef names shall be resolved.
+-- (External types are always resolved until directly used typedef names.)
 transType :: Bool -> ItemAssocType -> FTrav GenType 
 
 -- Type void:
@@ -405,7 +380,7 @@ transType rslv iat@(iid, (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _)) = d
     srtn <- stopResolvTypeName idnam
     safe <- isNotNullItem iat
     ro <- isReadOnlyItem iat
-    rslvtyp <- transType rslv $ getTypedefItemAssoc idnam typ
+    rslvtyp <- transType rslv (iid,typ)
     let nntyp = if rslv || ((isExternTypeDef dt idnam) && not srtn)
                   then rmMayNullIf safe rslvtyp
                   else addMayNullIfNot (safe || (not $ hasMayNull rslvtyp)) rtyp
@@ -490,7 +465,7 @@ encodeType rslv iat@(iid, (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _)) = 
     srtn <- stopResolvTypeName idnam
     safe <- isNotNullItem iat
     ro <- isReadOnlyItem iat
-    rslvtyp <- encodeType rslv $ getTypedefItemAssoc idnam typ
+    rslvtyp <- encodeType rslv (iid,typ)
     let nntyp = if rslv || ((isExternTypeDef dt idnam) && not srtn)
                 then rmMayNullStepIf safe rslvtyp
                 else addMayNullStepIfNot (safe || (not $ hasMayNullStep rslvtyp)) rtyp
@@ -565,6 +540,7 @@ rmMayNullIf False t = t
 
 addMayNullIfNot :: Bool -> GenType -> GenType
 addMayNullIfNot False (GenType (CS.TBang t) o) = (GenType (CS.TBang $ addMayNullIfNot False t) o)
+addMayNullIfNot False t | hasMayNull t = t
 addMayNullIfNot False t = genType $ CS.TCon mapMayNull [t] markBox
 addMayNullIfNot True t = t
 
@@ -590,10 +566,12 @@ hasMayNullStep :: String -> Bool
 hasMayNullStep t = (mapMayNullStep `isPrefixOf` t) || ((mapRoStep ++ mapMayNullStep) `isPrefixOf` t)
 
 makeReadOnlyIf :: Bool -> GenType -> GenType
+makeReadOnlyIf True t@(GenType (CS.TBang _) _) = t
 makeReadOnlyIf True t = genType $ CS.TBang t
 makeReadOnlyIf False t = t
 
 addReadOnlyStepIf :: Bool -> String -> String
+addReadOnlyStepIf True t@('R' : '_' : _) = t
 addReadOnlyStepIf True t = mapRoStep ++ t
 addReadOnlyStepIf False t = t
 

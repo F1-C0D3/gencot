@@ -17,9 +17,9 @@ long_usage()
     echo $USAGE
     echo 'Manage Gencot parameter modification descriptions in JSON format.'
     echo 'Commands:'
-    echo '  init   <cfile>  Create parmod description for all functions defined in C sourcefile <cfile>'
-    echo '  close  <cfile>  Create parmod description for all functions declared for C sourcefile <cfile>'
-    echo '  extern <pckfile> <json> Select descriptions from <json> for externals used in <pckfile>'
+    echo '  init   <cfile> <uitems> Create parmod description for all functions defined in C sourcefile <cfile>'
+    echo '  close  <cfile> <uitems> Create parmod description for all functions declared for C sourcefile <cfile>'
+    echo '  extern <json> <uitems>  Select descriptions from <json> for externals in <uitems>'
     echo '  show   <json>   Display information about parmod description'
     echo '  idlist <json>   List function identifiers of parmod descriptions'
     echo '  diff   <json1> <json2>  Compare parmod descriptions in <json1> and <json2>'
@@ -33,7 +33,7 @@ long_usage()
     echo '  (init|close|eval write the resulting parmod description to stdout)'
     echo '  (addto|mergin|replin modify the first argument)'
     echo '  (out writes two files <json>-itemprops and <json>-omitprops)'
-    echo 'A <pckfile> contains a list of <cfile> names, each on a separate line.'
+    echo 'A <uitems> file contains a list of used external items ids, each on a separate line.'
     echo 'Options for commands check|init|close|extern: '
     echo '  -I<dir>  Directory for searching C include files. Can be repeated, as for cpp. '
     echo '  -G<dir>  Directory for searching Gencot auxiliary files. Only one can be given, default is "."'
@@ -86,16 +86,15 @@ done
 
 # Parse command
 PARSE=''
-TAILCMD=''
 CLOSE=''
 REQARGS=1
 OPTARGS=''
 CMD=$1
 
 case "$CMD" in
-    init) TAILCMD='parmod-gen';PARSE='yes';;
-    close) TAILCMD='parmod-gen';PARSE='yes';CLOSE='close';;
-    extern) TAILCMD='parmod-externs';PARSE='yes';REQARGS=2;;
+    init) PARSE='yes';REQARGS=2;;
+    close) PARSE='yes';CLOSE='close';REQARGS=2;;
+    extern) PARSE='yes';REQARGS=2;;
     show) ;;
     idlist) ;;
     diff) REQARGS=2;;
@@ -183,16 +182,8 @@ fi
 
 if [ "$CMD" = "extern" ]
 then
-    for file in $(cat $1)
-    do prepare_cfile $file
-    done
-    UBASE=$(basename $1)
-    UNAME=$(expr match $UBASE '\(.*\)[.][^.]*' '|' $UBASE)
-    MIFILE=$GENCOTDIR/$UNAME.unit-manitems
-    PMIFILE=$TMPDIR/$UNAME.unit-prcman
-    prepare_manitems $MIFILE $PMIFILE
-    $BIN/items-used $PMIFILE < $TMPDIR/infiles | grep -v '.*|.*' | sort > $TMPDIR/extfunids
-    $BIN/$PRC prefilter $TMPDIR/extfunids < $2 | tee $TMPDIR/extfuns.json \
+    grep -v '.*|.*' $2 | sort > $TMPDIR/extfunids
+    $BIN/$PRC prefilter $TMPDIR/extfunids < $1 | tee $TMPDIR/extfuns.json \
         | $BIN/$PRC funids | sort | diff - $TMPDIR/extfunids > $TMPDIR/extfunids.diff
     if [ -s $TMPDIR/extfunids.diff ]
     then
@@ -203,7 +194,7 @@ then
 elif [ $PARSE ]
 then 
     prepare_cfile $1
-    $BIN/$TAILCMD $CBASE $CLOSE < $TMPDIR/$CNAME.in
+    $BIN/parmod-gen $CBASE $2 $CLOSE < $TMPDIR/$CNAME.in
 elif [ "$CMD" = "show" ]
 then
     #$BIN/$PRC check < $1

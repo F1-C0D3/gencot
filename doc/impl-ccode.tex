@@ -1089,8 +1089,21 @@ so that the method \code{getFileName} can be used to retrieve the source file na
 this class. Based on this the monadic action \code{srcFileName} is defined to return the file name for a 
 \code{NodeInfo} value and replace it by the original source file name if it is equal to \code{<stdin>}.
 
-Another information needed during C AST traversal is the parameter modification description (see Section~\ref{impl-parmod}).
-It is used for translating the types of all functions, as described in Section~\ref{design-types-function}.
+A second information is the set of external type names directly used in the Cogent compilation unit. All other 
+external type names are resolved during translation, as described in Section~\ref{design-modular}.
+
+This is supported by defining in module \code{Gencot.Tranversal} the class \code{TypeNamesTrav} as
+\begin{verbatim}
+  class (Monad m) => TypeNamesTrav m where
+    stopResolvTypeName :: Ident -> m Bool
+\end{verbatim}
+so that the method \code{stopResolvTypeName} can be used to test a type name whether it should be resolved or not.
+The list can be deactivated using a flag in the user state. This is useful, if only code is processed which belongs
+to the Cogent compilation unit. Then all referenced external type names are directly used and no additional information about
+the external type names is required, the list can be deactivated and be empty.
+
+Another information needed during C AST traversal is the item property map (see Section~\ref{impl-itemprops-internal}).
+It is used for translating all types, as described in Section~\ref{design-types-itemprops}.
 
 Finally, Gencot maintains a list of tag definitions which are processed in advance as nested, as described in 
 Section~\ref{impl-ccode-read}. This list is implemented as a list of elements of type \code{SUERef} which is used
@@ -1099,19 +1112,21 @@ by language-c to identify both tagged and untagged struct/union/enum types.
 The utilities for the monadic traversal of the semantics map are defined in module \code{Gencot.Traversal}. 
 The main monadic type is defined as
 \begin{verbatim}
-  type FTrav = Trav (String,ParmodMap,[SUERef])
+  type FTrav = Trav (String,[SUERef],ItemProperties,(Bool,[String]))
 \end{verbatim}
 where \code{String} is the type used for storing the original C source file name in the user state,
-\code{ParmodMap} is the type for storing the parameter modification description, and the third component is the list for
-maintaining tag definitions processed as nested. \code{FTrav} is an
-instance of \code{FileNameTrav}. As execution function for the monadic actions the functions
+\code{ItemProperties} is the type for storing the item property map, the second component is the list for
+maintaining tag definitions processed as nested, and the last component is the list of directly used external type names 
+together with the flag for activating or deactivating the list. \code{FTrav} is an
+instance of \code{FileNameTrav} and \code{TypeNamesTrav}. As execution function for the monadic actions the functions
 \begin{verbatim}
-  runFTrav :: DefTable -> (String,ParmodMap) -> FTrav a -> IO a
+  runFTrav :: DefTable -> (String,ItemProperties,(Bool,[String])) -> FTrav a -> IO a
   runWithTable :: DefTable -> FTrav a -> IO a
 \end{verbatim}
-are defined. The first one takes the symbol table, the original C source file name and the parameter modification
-description as arguments to initialize the state. The tag definition list is always initialized as empty. The second 
-function leaves also the other two components empty. The functions are themselves 
+are defined. The first one takes the symbol table, the original C source file name, the item property map and
+the list of directly used external type names as arguments to initialize the state. The tag definition list
+is always initialized as empty. The second 
+function leaves also the other three components empty and deactivated. The functions are themselves 
 \code{IO} actions and print error messages generated during traversal to the standard output.
 
 In the monadic actions the symbol table can be accessed by actions defined in the modules 
@@ -1142,12 +1157,13 @@ An error can be recorded in the monad using the action
   recordError :: Language.C.Data.Error.Error e => e -> m () 
 \end{verbatim}
 
-The parameter modification description can be accessed by the monadic action
+The item property map can be accessed by the monadic actions
 \begin{verbatim}
-  getParmods :: String -> FTrav [String]
+  getProperties :: String -> FTrav [String]
+  hasProperty :: String -> String -> FTrav Bool
 \end{verbatim}
-where the \code{String} argument is a function identifier and the result is the list of parameter description values
-for the parameters of the identified function.
+where the last \code{String} argument is an item identifier. The first action returns the list of all properties declared 
+for the item, the second action tests whether the property named as first argument is declared for the item.
 
 \subsection{Creating and Using the C Call Graph}
 \label{impl-ccode-callgraph}
@@ -1219,9 +1235,9 @@ pass'' through the C source after the analysis phase of language-c. During analy
 declarations in the symbol table whenever it finds the corresponding definition.
 
 To use the call graph the \code{CallGraph} module defines a traversal monad \code{CTrav} 
-with the call graph in the user state (in addition to the own source file name). The corresponding execution function is
+with the call graph in the user state. The corresponding execution function is
 \begin{verbatim}
-  runCTrav :: CallGraph -> DefTable -> String -> CTrav a -> IO a
+  runCTrav :: CallGraph -> DefTable -> (String,(Bool,[String])) -> CTrav a -> IO a
 \end{verbatim}
 The monadic action to access the call graph is
 \begin{verbatim}
@@ -1230,5 +1246,7 @@ The monadic action to access the call graph is
 It takes the identifier of an invoking function as argument and returns the part of the call graph for this function,
 consisting of all invocations in its body.
 
-The monad \code{CTrav} is an instance of class \code{FileNameTrav}, so the own source file name can be accessed by
-\code{getFileName} (see Section~\ref{impl-ccode-trav}).
+The monad \code{CTrav} is an instance of classes \code{FileNameTrav} and \code{TypeNamesTrav}, so the own source file 
+name can be accessed by \code{getFileName} and external type names can be tested for being directly used by 
+\code{stopResolvTypeName} (see Section~\ref{impl-ccode-trav}). The corresponding information is passed as third argument
+to \code{runCTrav}.

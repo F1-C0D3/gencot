@@ -112,7 +112,8 @@ rmMayNullStepThroughRo ('R' : '_' : 'N' : '_' : rest) = mapRoStep ++ rest
 rmMayNullStepThroughRo ('N' : '_' : rest) = rest
 rmMayNullStepThroughRo nam = nam
 
-addMayNullStep ('R' : '_' : rest) = mapRoStep ++ mapMayNullStep ++ rest
+addMayNullStep ('R' : '_' : rest) = mapRoStep ++ (addMayNullStep rest)
+addMayNullStep s@('N' : '_' : rest) = s
 addMayNullStep s = mapMayNullStep ++ s
 
 mapArrStep :: LCA.ArraySize -> String

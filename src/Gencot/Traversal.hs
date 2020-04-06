@@ -52,8 +52,11 @@ hasProperty prop iid = do
     (_,_,ipm,_) <- getUserState
     return $ elem prop $ findWithDefault [] iid ipm
     
-stopResolvTypeName :: Ident -> FTrav Bool
-stopResolvTypeName idnam = do
-    (_,_,_,tds) <- getUserState
-    if fst tds then return $ elem (identToString idnam) $ snd tds
-               else return True
+class (Monad m) => TypeNamesTrav m where
+    stopResolvTypeName :: Ident -> m Bool
+
+instance TypeNamesTrav FTrav where
+    stopResolvTypeName idnam = do
+        (_,_,_,tds) <- getUserState
+        if fst tds then return $ elem (identToString idnam) $ snd tds
+                   else return True

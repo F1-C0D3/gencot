@@ -122,26 +122,6 @@ getTagDefEvent dt ref = fmap LCA.TagEvent $ getTagDef dt ref
 getTypeDefEvent :: LCD.DefTable -> LCI.Ident -> Maybe TypeCarrier
 getTypeDefEvent dt nam = fmap LCA.TypeDefEvent $ getTypeDef dt nam
 
-resolveSetFully :: Bool -> [String] -> TypeSet -> TypeSet
-resolveSetFully False _ ts = ts
-resolveSetFully True tds ts = map (resolveFully tds) ts
-
-resolveFully :: [String] -> LCA.Type -> LCA.Type
-resolveFully tds (LCA.TypeDefType (LCA.TypeDefRef nam t _) _ _) = 
-    if elem (LCI.identToString nam) tds then t else resolveFully tds t
-resolveFully tds (LCA.PtrType t q n) = LCA.PtrType (resolveFully tds t) q n
-resolveFully tds (LCA.ArrayType t i q n) = LCA.ArrayType (resolveFully tds t) i q n
-resolveFully tds (LCA.FunctionType (LCA.FunType rt pars v) n) = 
-    LCA.FunctionType (LCA.FunType (resolveFully tds rt) (map (resolveFullyInParDecl tds) pars) v) n
-resolveFully tds (LCA.FunctionType (LCA.FunTypeIncomplete rt) n) = 
-    LCA.FunctionType (LCA.FunTypeIncomplete (resolveFully tds rt)) n
-resolveFully tds t = t
-
-resolveFullyInParDecl tds (LCA.ParamDecl (LCA.VarDecl vn a t) n) = 
-    LCA.ParamDecl (LCA.VarDecl vn a (resolveFully tds t)) n
-resolveFullyInParDecl tds (LCA.AbstractParamDecl (LCA.VarDecl vn a t) n) = 
-    LCA.AbstractParamDecl (LCA.VarDecl vn a (resolveFully tds t)) n
-
 carrierInTable :: LCD.DefTable -> TypeCarrier -> Bool
 carrierInTable dt (LCA.DeclEvent decl) = maybe False (decl ==) $ getDeclaration dt (LCA.declIdent decl)
 carrierInTable dt (LCA.TypeDefEvent tdef) = maybe False (tdef ==) $ getTypeDef dt (LCA.identOfTypeDef tdef)

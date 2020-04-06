@@ -40,9 +40,14 @@ parameter. Gencot supports these dependent parameter modifications, by detecting
 modifications by invoked functions and adding them to the JSON description. Again, only dependencies which
 involve the parameter name are detected automatically, other dependencies must be added by the developer.
 
-Before Gencot uses the JSON template it calculates the transitive closure of all dependencies and uses it to
+Before Gencot uses the JSON descriptions it calculates the transitive closure of all dependencies and uses it to
 determine the parameter modification information. Thus the developer has only to look at every function locally,
 it is not necessary to take into account the effects of invoked functions.
+
+Gencot generates the JSON descriptions from function definitions, so that it can analyse the function body for
+detecting parameter modifications and invocations of other functions. If for a function no definition is available 
+(which is the case for function pointers and for functions defined outside the C <package>), Gencot only generates 
+a description template which must be filled by the developer.
 
 \subsection{Required Invocations}
 
@@ -106,3 +111,8 @@ item(s) to which the typedef name applies, but instead a JSON description for th
 is only done if the function type occurs directly in the typedef name's definition, if it is specified by another typedef
 name the JSON description is only provided for that other name.
 
+If a type name is defined external to the Cogent compilation unit and is only used indirectly, it is resolved and not 
+used in the Cogent code. As described for items in Section~\ref{design-types-itemprops}, then collective sub-items of the
+type are replaced by individual sub-items of the items declared to have that type. Gencot treats parameter modification 
+descriptions in the same way and uses different individual descriptions, if function items use a common function type name which 
+is resolved because it is external.

@@ -15,7 +15,7 @@ import Gencot.Items.Properties (readPropertiesFromFile)
 import Gencot.Items.Types (getEnumItemId,getTagItemId,getTypedefItemId)
 import Gencot.Package (readPackageFromInput_,foldTables)
 import Gencot.Traversal (runFTrav)
-import Gencot.Cogent.Translate (transExtGlobals)
+import Gencot.Cogent.Translate (transGlobals)
 import Gencot.Cogent.Output (prettyTopLevels)
 
 main :: IO ()
@@ -35,7 +35,7 @@ main = do
     {- Get declarations of listed tag and type definitions -}    
     let typeDefs = getDeclEvents (globalDefs table) (constructFilter iids)
     {- translate type definitions in system include files -}
-    toplvs <- runFTrav table ("",ipm,(True,getTypedefNames iids)) $ transExtGlobals (getTypedefNames iids) typeDefs
+    toplvs <- runFTrav table ("",ipm,(True,getTypedefNames iids)) $ transGlobals typeDefs
     {- Output -}
     print $ prettyTopLevels toplvs
 

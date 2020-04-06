@@ -1,18 +1,28 @@
-typedef int (*fun_t)(char *p1);
+#include "parmod-test-sys.h"
 
-struct s1 { int i; fun_t f[5][2]; };
+typedef int fun_t(char *p1);
+typedef int (*funp_t)(char *p1);
 
-struct s2 { int j; fun_t g; int (*gg)(char* p1); };
+struct s1 { int i; funp_t f[5][2]; };
+
+struct s2 { int j; funp_t g; int (*gg)(char* p1); };
 
 extern struct s1 str1;
 extern struct s2 str2;
-extern fun_t h1;
+extern fun_t h0;
+extern funp_t h1;
 extern int h2(char*,...);
 extern int h3(char*);
 extern int h4(char*);
 
+extfunt1 h5;  // external, invoked, declared using external function typedef
+exttypt1 var1;  // internal, references external typedef
+
 int fid(char *p1) {
-    return h1(p1) + 5;
+    extfun1a(1,2);
+    extfun1b(1,2);
+    var1.m1(1,p1);
+    return h0(p1) + h1(p1) + h5(1,2) + 5;
 }
 void fpvr1(char *p1) {}
 void fpvr2(int p1, char *p2) {}

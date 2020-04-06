@@ -11,7 +11,7 @@ import Language.C.Analysis as LCA
 import Gencot.Items.Identifier (individualItemId,localItemId,paramItemId,typedefItemId,tagItemId,memberSubItemId,paramSubItemId,elemSubItemId,refSubItemId,resultSubItemId,indivItemIds)
 import Gencot.Names (srcFileName)
 import Gencot.Traversal (FTrav,hasProperty,stopResolvTypeName)
-import Gencot.Util.Types (getTagDef,isExtern,isFunction,isExternTypeDef,resolveFully,TypeCarrier,TypeCarrierSet)
+import Gencot.Util.Types (getTagDef,isExtern,isFunction,isExternTypeDef,TypeCarrier,TypeCarrierSet)
 
 -- | Construct the identifier for an individual toplevel item.
 -- An individual toplevel item is a function or a global object (variable).

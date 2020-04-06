@@ -65,6 +65,31 @@ base type for several different declarators which may declare different items ha
 used in a typedef to define one or more typedef names for it which may then be used to define any number of items
 with these types. Therefore Gencot also treats sub-items of tagless struct and unions always as collective.
 
+In a similar way sub-items are collective, if the containing item's type is specified by a defined type identifier
+(a ``typedef name''). As an example, if two function pointers are defined by
+\begin{verbatim}
+  int (*fp1)(int i, char* p);
+  int (*fp2)(int i, char* p);
+\end{verbatim}
+the parameter \code{p} occurs as individual sub-items of the individual items \code{fp1} and \code{fp2}
+and may have different properties for both. If the function pointers are instead defined by
+\begin{verbatim}
+  typedef int (*fptyp)(int i, char* p);
+  fptyp fp1, fp2;
+\end{verbatim}
+using a typedef name for the common function pointer type, the parameter \code{p} occurs only once, as collective sub-item of
+the collective item \code{fptyp} and its properties may not be different for \code{fp1} and \code{fp2}.
+The reason is that also in the Cogent code a common type is defined and used for the definition of both pointers. This implies,
+that no different properties can be applied to their function parameters, since there is only one common translation of the 
+function type.
+
+If, however, these definitions are extern to the Cogent compilation unit and the name \code{fptyp} is not used elsewhere
+in the Cogent compilation unit, it is resolved as described in Section~\ref{design-modular} and never used in the Cogent code. 
+There every function pointer is defined using a separate copy of the translated function type. In this case
+Gencot again uses two individual sub-items \code{p} for the individual items \code{fp1} and \code{fp2}, which implies, that different
+properties could be defined for them. This is ok, since the function type can be translated differently for both
+items.
+
 Basically, collective items are identified by their type. If a property is declared for a type, it applies to 
 all items which are declared to have this type. Additionally, for a collective item its sub-items can be determined
 in the same way as for an individual item. 

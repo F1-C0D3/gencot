@@ -1,4 +1,4 @@
-#include "types-extrefs.h"
+#include "types-extrefs-sys.h"
 
 void extfun1(int);  // external, invoked
 void extfun2(int);  // external, listed
@@ -25,12 +25,15 @@ typedef exttyp2 *pexttyp2;         // typedef references exttyp2
 void deffun2(struct extstr3 *p,exttyp3 q,exttypc3 r) { p->m1 = q; }  // function definition references extstr3, exttyp3, exttypc3
 struct defstr1 { struct extstr4 *m1; exttyp4 *m2; };  // member declarations reference extstr4, exttyp4
 extfunt1 extfun6;  // external, invoked, declared using external function typedef
+exttypt7 extvar4;  // internal, references external typedef
 
 void invoker(void) {
     deffun1(5);
     extfun1(5);
     extfun4(5);
     extfun6(5,6);
+    extfun7a(1,2);
+    extfun7b(3,4);
     (*deffunp1)(5);
     (*extfunp1)(5);
     extvar1 = 5;

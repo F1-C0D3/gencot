@@ -15,7 +15,7 @@ import qualified Language.C.Analysis.DefTable as LCD
 import Language.C.Analysis.TravMonad (MonadTrav,Trav,runTrav,travErrors,getUserState)
 
 import Gencot.Names (FileNameTrav,getFileName)
-import Gencot.Traversal (FTrav,runWithTable)
+import Gencot.Traversal (FTrav,runWithTable,TypeNamesTrav,stopResolvTypeName)
 import Gencot.Input (showWarnings,errorOnLeft)
 import Gencot.Util.Equality
 import Gencot.Util.Types (resolveTypedef,getCompType,getMemberDecl)
@@ -247,21 +247,31 @@ getCGInvoke (LC.CIndex expr _ _) alen = getCGInvoke expr alen
 getCGInvoke (LC.CUnary LC.CIndOp expr _) alen = getCGInvoke expr alen
 getCGInvoke _ _ = return Nothing
 
-type CTrav = Trav (String,CallGraph)
+-- | The traversal state for processing C code using the call graph.
+-- The first component is the name of the C source file, or "" if several source files are processed
+-- The second component is the call graph.
+-- The third component is the list of type names where to stop resolving external types together with a flag whether to use the list
+type CTrav = Trav (String,CallGraph,(Bool,[String]))
 
-runCTrav :: CallGraph -> LCD.DefTable -> String -> CTrav a -> IO a
-runCTrav cg table init action = do
+runCTrav :: CallGraph -> LCD.DefTable -> (String,(Bool,[String])) -> CTrav a -> IO a
+runCTrav cg table (f,tds) action = do
     (res,state) <- errorOnLeft "Error during translation" $ 
-        runTrav (init,cg) $ (LCA.withDefTable $ const ((),table)) >> action
+        runTrav (f,cg,tds) $ (LCA.withDefTable $ const ((),table)) >> action
     showWarnings $ travErrors state
     return res
 
 lookupCallGraph :: LCI.Ident -> CTrav CallGraph
 lookupCallGraph idnam = do
-    u <- getUserState
-    return $ S.filter (\(fd,_,_) -> case LCA.declName fd of {LCA.VarName i _ -> i == idnam; LCA.NoName -> False}) $ snd u
+    (_,cg,_) <- getUserState
+    return $ S.filter (\(fd,_,_) -> case LCA.declName fd of {LCA.VarName i _ -> i == idnam; LCA.NoName -> False}) cg
 
 instance FileNameTrav CTrav where
     getFileName = do
-        u <- getUserState
-        return $ fst u
+        (f,_,_) <- getUserState
+        return f
+
+instance TypeNamesTrav CTrav where
+    stopResolvTypeName idnam = do
+        (_,_,tds) <- getUserState
+        if fst tds then return $ elem (identToString idnam) $ snd tds
+                   else return True

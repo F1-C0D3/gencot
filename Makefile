@@ -1,6 +1,6 @@
 all: build links
 
-build: check deccm pmgen pmprc trans extns exttp dvdtp cgrph dmpca itprc itgen ituse itext
+build: check deccm pmgen pmprc trans extns exttp dvdtp cgrph dmpca itprc itgen ituse itext itefs
 
 CHECK = gencot-check
 TRANS = gencot-translate
@@ -16,6 +16,7 @@ ITPRC = items-proc
 ITGEN = items-gen
 ITUSE = items-used
 ITEXT = items-externs
+ITEFS = items-extfuns
 
 check: 
 	cabal new-build $(CHECK)
@@ -59,7 +60,10 @@ ituse:
 itext: 
 	cabal new-build $(ITEXT)
 
-links: bin/$(CHECK) bin/$(DECCM) bin/$(PMGEN) bin/$(PMPRC) bin/$(TRANS) bin/$(EXTNS) bin/$(EXTTP) bin/$(DVDTP) bin/$(CGRPH) bin/$(DMPCA) bin/$(ITPRC) bin/$(ITGEN) bin/$(ITUSE) bin/$(ITEXT)
+itefs: 
+	cabal new-build $(ITEFS)
+
+links: bin/$(CHECK) bin/$(DECCM) bin/$(PMGEN) bin/$(PMPRC) bin/$(TRANS) bin/$(EXTNS) bin/$(EXTTP) bin/$(DVDTP) bin/$(CGRPH) bin/$(DMPCA) bin/$(ITPRC) bin/$(ITGEN) bin/$(ITUSE) bin/$(ITEXT) bin/$(ITEFS)
 
 bin/$(CHECK):
 	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(CHECK)/build/$(CHECK)/$(CHECK) .)
@@ -102,3 +106,6 @@ bin/$(ITUSE):
 
 bin/$(ITEXT):
 	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(ITEXT)/build/$(ITEXT)/$(ITEXT) .)
+
+bin/$(ITEFS):
+	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(ITEFS)/build/$(ITEFS)/$(ITEFS) .)

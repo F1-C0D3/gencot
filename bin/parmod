@@ -10,16 +10,16 @@ fi
 BIN=$GENCOT_HOME/bin
 PRC=parmod-proc
 
-USAGE="Usage: $0 [-I<dir>] [-G<dir>] [-k] [init|close|extern|show|idlist|diff|iddiff|addto|mergin|replin|eval|out|help] <file> [<file>]"
+USAGE="Usage: $0 [-I<dir>] [-G<dir>] [-k] [file|close|unit|show|idlist|diff|iddiff|addto|mergin|replin|eval|out|help] <file> [<file>]"
 
 long_usage()
 {
     echo $USAGE
     echo 'Manage Gencot parameter modification descriptions in JSON format.'
     echo 'Commands:'
-    echo '  init   <cfile> <uitems> Create parmod description for all functions defined in C sourcefile <cfile>'
+    echo '  file   <cfile> <uitems> Create parmod description for all functions defined in C sourcefile <cfile>'
     echo '  close  <cfile> <uitems> Create parmod description for all functions declared for C sourcefile <cfile>'
-    echo '  extern <json> <uitems>  Select descriptions from <json> for externals in <uitems>'
+    echo '  unit   <ufile> <json>  Select descriptions from <json> for externals in unit described in <ufile>'
     echo '  show   <json>   Display information about parmod description'
     echo '  idlist <json>   List function identifiers of parmod descriptions'
     echo '  diff   <json1> <json2>  Compare parmod descriptions in <json1> and <json2>'
@@ -30,11 +30,12 @@ long_usage()
     echo '  eval   <json>   Evaluate finished parmod description'
     echo '  out    <json>   Convert evaluated parmod description to item properties'
     echo '  help            Display this help information'
-    echo '  (init|close|eval write the resulting parmod description to stdout)'
+    echo '  (file|close|unit|eval write the resulting parmod description to stdout)'
     echo '  (addto|mergin|replin modify the first argument)'
     echo '  (out writes two files <json>-itemprops and <json>-omitprops)'
-    echo 'A <uitems> file contains a list of used external items ids, each on a separate line.'
-    echo 'Options for commands check|init|close|extern: '
+    echo 'A <uitems> file contains a list of used external toplevel item ids, each on a separate line.'
+    echo 'A <ufile> contains a list of <cfile> names, each on a separate line.'
+    echo 'Options for commands file|close|unit: '
     echo '  -I<dir>  Directory for searching C include files. Can be repeated, as for cpp. '
     echo '  -G<dir>  Directory for searching Gencot auxiliary files. Only one can be given, default is "."'
     echo '  -k   Keep directory with intermediate files and display it at the end.'
@@ -92,9 +93,9 @@ OPTARGS=''
 CMD=$1
 
 case "$CMD" in
-    init) PARSE='yes';REQARGS=2;;
+    file) PARSE='yes';REQARGS=2;;
     close) PARSE='yes';CLOSE='close';REQARGS=2;;
-    extern) PARSE='yes';REQARGS=2;;
+    unit) PARSE='yes';REQARGS=2;;
     show) ;;
     idlist) ;;
     diff) REQARGS=2;;
@@ -180,10 +181,20 @@ then
     TMPDIR=$(mktemp -d)
 fi
 
-if [ "$CMD" = "extern" ]
+if [ "$CMD" = "unit" ]
 then
-    grep -v '.*|.*' $2 | sort > $TMPDIR/extfunids
-    $BIN/$PRC prefilter $TMPDIR/extfunids < $1 | tee $TMPDIR/extfuns.json \
+    UFILE=$1
+    UBASE=$(basename $UFILE)
+    UNAME=$(expr match $UBASE '\(.*\)[.][^.]*' '|' $UBASE)
+    MIFILE=$GENCOTDIR/$UNAME.unit-manitems
+    PMIFILE=$TMPDIR/$UNAME.unit-prcman
+    prepare_manitems $MIFILE $PMIFILE
+    for file in $(cat $1)
+    do prepare_cfile $file
+    done
+    $BIN/items-used $PMIFILE < $TMPDIR/infiles > $TMPDIR/useditems
+    $BIN/items-extfuns $TMPDIR/useditems < $TMPDIR/infiles | sort > $TMPDIR/extfunids
+    $BIN/$PRC filter $TMPDIR/extfunids < $2 | tee $TMPDIR/extfuns.json \
         | $BIN/$PRC funids | sort | diff - $TMPDIR/extfunids > $TMPDIR/extfunids.diff
     if [ -s $TMPDIR/extfunids.diff ]
     then

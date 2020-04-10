@@ -83,7 +83,7 @@ Section~\ref{impl-ccode-read}.
 
 \subsubsection{Translating Toplevel Definitions}
 
-The translation of the \code{DeclEvent} sequence is implemented by the function
+The translation of the \code{DeclEvent} sequence is implemented by the monadic action
 \begin{verbatim}
   transGlobals :: [DeclEvent] -> FTrav [GenToplv]
 \end{verbatim}
@@ -409,7 +409,7 @@ all C source files specified in the input file name list, resulting in the list 
 described in Section~\ref{impl-ccode-package}. The tables are combined and from the resulting table all 
 declarations of toplevel items are retrieved which are listed in the file of used items.
 
-The processor translates these declarations using the function \code{transGlobals} of
+The processor translates these declarations using the monadic action \code{transGlobals} of
 module \code{Gencot.Cogent.Translate}. It translates C function and variable declarations to abstract function 
 definitions in Cogent. It uses the item properties to fine tune the translation.
 The result is output using \code{prettyTopLevels} from module \code{Gencot.Cogent.Output}.
@@ -431,8 +431,7 @@ Section~\ref{impl-itemprops}) and a file with the identifiers of the used extern
 by \code{items-used} (see Section~\ref{impl-ccomps-itemprops}).
 
 The task of \code{gencot-exttypes} is to translate all tag and typedef name definitions listed in the 
-file of used external items. 
-it parses and analyses
+file of used external items. It parses and analyses
 all C source files specified in the input file name list and combines the resulting symbol tables as
 described in Section~\ref{impl-ccode-package}. The tag and typedef name definitions in the resulting
 table listed in the argument file are then translated.
@@ -441,16 +440,8 @@ table listed in the argument file are then translated.
 
 For all external enum types, composite types and typedef names in the resulting set \code{gencot-exttypes} translates the
 definition to Cogent as described in Sections~\ref{design-types}.
-All types used in these definitions are fully resolved, as described in Section~\ref{impl-ccomps-items}.
-
-To support the full resolving of types, the normal monadic action \code{transGlobals} used by the main translation 
-to Cogent described in Section~\ref{impl-ccomps-main} cannot be used. The resolving needs access to all
-type names directly referenced from the Cogent compilation unit to stop the resolving there.
-The translation of external types is implemented by the monadic action 
-\begin{verbatim}
-  transExtGlobals :: [String] -> [DeclEvent] -> FTrav [GenToplv]
-\end{verbatim}
-in module \code{Gencot.Cogent.Translate} where the string list contains the directly referenced type names.
+All typedef names not used directly are resolved in these definitions, as described in Section~\ref{impl-ccomps-items}.
+The same monadic action \code{transGlobals} is used as for \code{gencot-translate}.
 
 \subsection{Derived Types}
 \label{impl-ccomps-dvdtypes}
@@ -551,7 +542,11 @@ It is invoked as:
 The filter processes as individual items all \code{DeclEvent}s in the source file which are function
 definitions or definitions for objects. The filter processes every definition of a composite type 
 with a tag and every type name definition in the source file as collective item. (The filter does not
-process any derived pointer types as collective items.)
+process any derived pointer types as collective items.) The processing is done by the monadic action
+\begin{verbatim}
+  transGlobals :: [DeclEvent] -> FTrav ItemProperties
+\end{verbatim}
+defined in module \code{Gencot.Items.Translate}.
 
 For every item, if its declared type (in the case of a typedef name item its defining type) is
 a derived function, array, or pointer type or a tagless struct or union type, its sub-items according to the 
@@ -599,12 +594,52 @@ by \code{items-used}.
 
 The processor reads the source files of the Cogent compilation unit as described in Section~\ref{impl-ccode-package}
 and processes all external toplevel items specified in the list of used items in the same way as \code{items-gen}
-to generate default property declarations for them on standard output.
+to generate default property declarations for them on standard output. The same monadic action \code{transGlobals}
+is used as by \code{items-gen}.
 
 The type of a processed item may involve an externally defined type name which is not in the list of used external items.
 This means that the type name is not used in the Cogent code and is resolved in the translation. In this case it is 
 also resolved by \code{items-externs} so that collective sub-items of the type name become individual sub-items of 
 the processed item, as described in Section~\ref{design-types-itemprops}.
+
+\subsubsection{The processor \code{items-extfuns}}
+
+The processor \code{items-extfuns} is used to generate the list of identifiers of all used external items which 
+have a derived function type as declared type. It is invoked as
+\begin{verbatim}
+  items-extfuns <used external items file>
+\end{verbatim}
+where the argument is the list of external toplevel items used by the Cogent compilation unit, as it is created 
+by \code{items-used}.
+
+The processor reads the source files of the Cogent compilation unit as described in Section~\ref{impl-ccode-package}
+and processes all external toplevel items specified in the list of used items in the same way as \code{items-externs}.
+Instead of generating default property declarations for them, it lists the identifiers of all function items on 
+standard output. This list is intended for selecting parameter modification descriptions for these functions. It
+is produced by the monadic action
+\begin{verbatim}
+  functionsInGlobals :: [DeclEvent] -> FTrav [String]
+\end{verbatim}
+defined in module \code{Gencot.Items.Translate}.
+
+It is not possible to directly use the list of identifiers of the used external toplevel items for this purpose, since 
+functions can be sub-items of toplevel items and the resolved external typedef names have to be taken into account.
+
+The result must include all functions processed by \code{gencot-externs} and all function types and composite type members
+processed by \code{gencot-exttypes}. 
+
+Although \code{gencot-externs} only processes complete function declarations of non-variadic external functions, 
+\code{items-extfuns} also lists identifiers for incompletely declared functions and for variadic functions.
+This is intended as an information for the developer who has to translate invocations of such functions manually.
+
+For declared functions and for all kinds of function pointers the function type can be specified in C using a typedef name.
+Such function items are not listed, instead, the typedef name is listed as the collective item for which the parameter
+modification description is required. If, however, the external typedef name is not used diectly by the Cogent compilation
+unit, it is resolved, and the item for which the typedef name has been declared is listed, as described in 
+Section~\ref{design-parmod-entities}.
+
+Manually specified additional external functions are also listed, since they have been added by \code{items-used}
+to the \code{<used external items file>}.
 
 \subsection{Parameter Modification}
 \label{impl-ccomps-parmod}
@@ -676,89 +711,3 @@ in Section~\ref{impl-ccode-callgraph}. Then another traversal is performed using
 defined in module \code{Gencot.Json.Translate}. The resulting list of JSON objects is output as described 
 in Section~\ref{impl-parmod-json}.
 
-\subsubsection{Processor \code{parmod-externs}}
-
-\textbf{deprecated, the generated list is now produced by \code{items-used}}.
-
-The processor \code{parmod-externs} is used to generate the parameter modification descriptions intended
-to be converted to item property declarations used by \code{gencot-externs} (see Section~\ref{impl-ccomps-externs}) 
-and \code{gencot-exttypes} (see Section~\ref{impl-ccomps-exttypes}). It is invoked as
-\begin{verbatim}
-  parmod-externs <used external items file>
-\end{verbatim}
-where the argument is the list of external toplevel items used by the Cogent compilation unit, as it is created 
-by \code{items-used}.
-
-Since all these parameter modification descriptions are already
-generated by \code{parmod-gen}, the processor only generates a list of function identifiers, as described in 
-Section~\ref{impl-parmod-ids}. Every identifier is output in a separate line. The identifiers can be used
-to specifically select and manually process only those descriptions which are actually required by
-\code{gencot-externs} and \code{gencot-exttypes}. 
-
-However, only identifiers for those descriptions are listed,
-which are not yet needed by \code{gencot-translate} to translate the source files of the Cogent compilation unit.
-The idea is to merge these with the descriptions selected by the listed identifiers to determine the 
-descriptions needed by \code{gencot-externs} and \code{gencot-exttypes}.
-
-The processor \code{gencot-externs} processes declarations of external invoked functions. It needs parameter
-modification descriptions for these functions and for their parameters of function (pointer (array)) type.
-The descriptions for the parameters are needed by \code{gencot-externs} to translate the parameter type as part of the 
-generated abstract Cogent function definition. 
-
-Although \code{gencot-externs} only processes complete function declarations of non-variadic external functions, 
-\code{parmod-externs} also lists identifiers for incompletely declared functions and for variadic functions,
-if they are invoked in the Cogent compilation unit. This is intended as an 
-information for the developer who has to translate invocations of such functions manually. All these
-external invoked functions are determined with the help of the call graph in the same way as described for 
-\code{gencot-externs} in Section~\ref{impl-ccomps-externs}.
-
-The processor \code{gencot-externs} also processes external variables, if they are invoked or listed explicitly
-by the developer. Parameter modification descriptions are only relevant for variables of function pointer (array)
-type. There may be such variables which are not invoked, but explicitly specified by the developer. For this
-reason \code{parmod-externs} also reads the list of external variables to be processed in addition to the
-invoked variables.
-
-External invoked composite type members are not included, since they will be added through the used types below. To invoke 
-a composite type member an object must exist which is a type carrier for the composite type. The parameter modification
-description identifier for the member will be listed when this type carrier or a typedef referenced by it
-is processed.
-
-The processor \code{gencot-exttypes} processes derived types of all type carriers and translates enum types,
-composite types and typedef names defined in system include files. It needs parameter modification descriptions
-for both cases. 
-
-Since parameter modification descriptions must be associated with a function identifier, they cannot be used
-for arbitrary types. They are only used for composite type members with a function pointer (array) type and 
-for typedef names where the defining type is a function (pointer (array)) type. In both cases the derived
-function type must be syntactically included. If it is specified using a typedef name, the parameter modification
-description is only used for translating the corresponding type definition.
-
-Accordingly, \code{parmod-externs} lists for all processed type carriers the function ids of all composite type
-members and of all typedef names which have a type of this kind. These descriptions cover all cases needed
-by \code{gencot-exttypes}.
-
-The type carriers to be processed are determined in the same way as by \code{gencot-exttypes}. Note that the 
-external invoked functions and variables are already included there, however, those with only primitive types are omitted.
-Here we also include them, since \code{gencot-externs} processes them. 
-For external function pointer (array)s descriptions for parameters are not listed, since
-for the parameter types of function pointers no parameter modification descriptions are used by Gencot, they
-are always translated assuming as default that all nonlinear parameters are modified.
-
-Descriptions for composite types and typedef names need only be processed if they are defined in a system include
-file. In all other cases they are already needed by \code{gencot-translate} for translating the source files
-of the Cogent compilation unit and are omitted here.
-
-For the determined type carriers \code{parmod-externs} lists the identifiers of 
-the parameter modification descriptions for the following entities:
-\begin{itemize}
-\item declarations of external invoked functions, together with all their parameters, if the parameter
-type is a function (pointer (array)) type directly specifying the function type,
-\item declarations of external invoked or listed function pointer (array)s, if the declared type directly specifies
-the function type,
-\item members of all composite types defined in system include files, if their type resolves to a function pointer (array) type.
-\item typedef names defined in a system include file, if they resolve to a function (pointer (array)) type.
-\end{itemize}
-
-Note that typedef names and member types in system include files need not specify a function type directly for being listed, 
-since types in external type carriers are fully resolved by \code{gencot-exttypes} and the resulting type is needed to translate 
-the type definition.

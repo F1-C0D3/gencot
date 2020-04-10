@@ -12,9 +12,8 @@ import Gencot.Traversal (FTrav)
 import Gencot.Util.Types (isReadOnlyType,isLinearParType,isFunction,isPointer,isArray,isFunPointer,isComposite,isLeafType,resolveTypedef)
 
 -- | Translate a sequence of C "external" (global) declarations to an item property map.
--- First argument is stop-resolve typenames, this will be removed when they are retrieved from the user state.
-transGlobals :: [String] -> [LCA.DeclEvent] -> FTrav ItemProperties
-transGlobals tds tcs = liftM unions $ mapM (transGlobal tds) tcs
+transGlobals :: [LCA.DeclEvent] -> FTrav ItemProperties
+transGlobals tcs = liftM unions $ mapM transGlobal tcs
 
 -- | Translate a C "external" (global) declaration to an item property map
 -- Retrieve the item associated type(s) of the declaration,
@@ -22,8 +21,8 @@ transGlobals tds tcs = liftM unions $ mapM (transGlobal tds) tcs
 -- filter function types, array types, and non-function pointer types,
 -- determine the default properties for them 
 -- and return them as an item property map.
-transGlobal :: [String] -> LCA.DeclEvent -> FTrav ItemProperties
-transGlobal tds tc = do
+transGlobal :: LCA.DeclEvent -> FTrav ItemProperties
+transGlobal tc = do
     iat <- getItemAssocType tc
     miats <- getMemberItemAssocTypes tc
     iats <- liftM concat $ mapM getSubItemAssocTypes (iat : miats)
@@ -44,3 +43,21 @@ getDefaultProperies (iid,t) = do
     let roProp = if ro && ((isPointer t) || ((isArray t) && (not $ isEmbeddedId iid))) then ["ro"] else []
     let arProp = if lt && (isParameterId iid) then ["ar"] else []
     return (defaultItemId iid,roProp ++ arProp)
+
+-- | Get the list of item identifiers for all functions in a sequence of C "external" (global) declarations.
+-- Only those function items are included where the derived function type is directly specified in the declaration.
+functionsInGlobals :: [LCA.DeclEvent] -> FTrav [String]
+functionsInGlobals tcs = liftM concat $ mapM functionsInGlobal tcs
+
+-- | Get the list of item identifiers for all functions in a C "external" (global) declaration.
+-- These are all sub-items where the declared type is a derived function type.
+functionsInGlobal :: LCA.DeclEvent -> FTrav [String]
+functionsInGlobal tc = do
+    iat <- getItemAssocType tc
+    miats <- getMemberItemAssocTypes tc
+    iats <- liftM concat $ mapM getSubItemAssocTypes (iat : miats)
+    let fiats = filter (\(iid,t) -> case t of
+                                        (LCA.FunctionType _ _) -> True
+                                        _ -> False) iats
+    return $ map fst fiats
+    

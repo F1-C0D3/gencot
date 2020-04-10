@@ -13,7 +13,7 @@ import Gencot.Input (getDeclEvents)
 import Gencot.Package (readPackageFromInput_,foldTables)
 import Gencot.Traversal (runFTrav)
 import Gencot.Items.Identifier (getTypedefNames)
-import Gencot.Items.Translate (transGlobals)
+import Gencot.Items.Translate (functionsInGlobals)
 import Gencot.Items.Properties (showProperties)
 import Gencot.Items.Types (getExternalItemId,getToplevelItemId)
 
@@ -32,10 +32,10 @@ main = do
     let usedExtDecls = getDeclEvents (globalDefs table) (usedDeclFilter useditems)
     {- Determine type names used directly in the Cogent compilation unit -}
     let unitTypeNames = getTypedefNames useditems
-    {- determine default properties for all used items in globals -}
-    ipm <- runFTrav table ("",empty,(True,unitTypeNames)) $ transGlobals $ getDeclEvents (globalDefs table) (usedFilter useditems)
+    {- determine item ids of used external functions -}
+    iids <- runFTrav table ("",empty,(True,unitTypeNames)) $ functionsInGlobals $ getDeclEvents (globalDefs table) (usedFilter useditems)
     {- Output -}
-    putStrLn $ showProperties ipm
+    putStrLn $ unlines iids
 
 usedFilter :: [String] -> LCA.DeclEvent -> Bool
 usedFilter usedItems tc = elem (getToplevelItemId tc) usedItems

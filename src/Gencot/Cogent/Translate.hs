@@ -38,7 +38,7 @@ transGlobals tcs = liftM concat $ mapM transGlobal tcs
 transGlobal :: LCA.DeclEvent -> FTrav [GenToplv]
 -- Translate a C struct definition -> see transStruct
 transGlobal (LCA.TagEvent (LCA.CompDef ct@(LCA.CompType sueref LCA.StructTag _ _ _))) =
-    transStruct (getTagItemId sueref LCA.StructTag) ct transMember
+    transStruct (getTagItemId sueref LCA.StructTag) ct
 -- If not yet translated as nested, translate a C union definition of the form
 -- > union tagname { ... }
 -- to an abstract Cogent type definition of the form
@@ -134,11 +134,13 @@ transGlobal (LCA.DeclEvent (LCA.EnumeratorDef (LCA.Enumerator idnam expr _ n))) 
 -- The translation result has the form
 -- > type idnam = type
 -- where @type@ is constructed by translating @type-specifier@ and applying all derivations from the adjusted @declarator@.
--- A Bang and/or MayNull application to type is removed.
+-- A MayNull application to @type@ is removed.
+-- If @type@ is an array type, a Bang operator is also removed.
 transGlobal (LCA.TypeDefEvent (LCA.TypeDef idnam typ _ n)) = do
     t <- transType False modifiat
     nt <- transTagIfNested iat n
-    return $ wrapOrigin n (nt ++ [GenToplv (CS.TypeDec tn [] (rmMayNullThroughBang t)) noOrigin])
+    let dt = if isArray typ then rmReadOnly $ rmMayNullThroughBang t else rmMayNullThroughBang t
+    return $ wrapOrigin n (nt ++ [GenToplv (CS.TypeDec tn [] dt) noOrigin])
     where tn = mapNameToUpper idnam
           iat = getTypedefItemAssoc idnam typ
           modifiat = if isComposite typ then adjustItemAssocType iat else iat
@@ -155,14 +157,14 @@ transGlobal _ = return $ [GenToplv (CS.Include "err-unexpected toplevel") noOrig
 -- to a pair of Cogent field name and type. As additional first parameter it expects the reference
 -- to the C struct type definition.
 -- All nested tag definitions are translated and appended as separate toplevel type definitions.
-transStruct :: String -> LCA.CompType -> (ItemAssocType -> LCA.MemberDecl -> FTrav (CCS.FieldName, (GenType, CS.Taken))) -> FTrav [GenToplv]
-transStruct iid (LCA.CompType sueref LCA.StructTag mems _ n) trMember = do
+transStruct :: String -> LCA.CompType -> FTrav [GenToplv]
+transStruct iid (LCA.CompType sueref LCA.StructTag mems _ n) = do
     nst <- isMarkedAsNested sueref
     if nst 
        then return []
        else do
            tn <- transTagName typnam
-           ms <- mapM (trMember iat) aggmems
+           ms <- mapM (transMember iat) aggmems
            nts <- liftM concat $ mapM (transMemTagIfNested iat) aggmems
            return $ wrapOrigin n ([GenToplv (CS.TypeDec tn [] $ genType $ CS.TRecord ms markBox) noOrigin] ++ nts)
     where siid = if LCI.isAnonymousRef sueref then iid else getTagItemId sueref LCA.StructTag
@@ -191,7 +193,7 @@ transTagIfNested (iid, typ@(LCA.DirectType tn _ _)) n | isTagRef typ = do
             if isNested (nodeInfo td) n 
                then do
                    ng <- case td of
-                              LCA.CompDef ct@(LCA.CompType _ LCA.StructTag _ _ _) -> transStruct iid ct transMember
+                              LCA.CompDef ct@(LCA.CompType _ LCA.StructTag _ _ _) -> transStruct iid ct
                               _ -> transGlobal $ LCA.TagEvent td
                    markTagAsNested $ sueRef td
                    return ng
@@ -329,7 +331,7 @@ transMember iat mdecl@(LCA.MemberDecl (LCA.VarDecl (LCA.VarName idnam _) _ typ) 
 transMemberDef :: LCI.Ident -> ItemAssocType -> LCN.NodeInfo -> FTrav (CCS.FieldName, (GenType, CS.Taken))
 transMemberDef idnam iat@(_,typ) n = do
     t <- transType False iat
-    let ut = if isArray typ then setUnboxed t else t
+    let ut = if isArray typ then setUnboxed (rmReadOnly t) else t
     return (mapIfUpper idnam, (setOrigin n ut, False))
 
 transParamNames :: Bool -> [LCA.ParamDecl] -> FTrav GenIrrefPatn
@@ -574,6 +576,10 @@ addReadOnlyStepIf :: Bool -> String -> String
 addReadOnlyStepIf True t@('R' : '_' : _) = t
 addReadOnlyStepIf True t = mapRoStep ++ t
 addReadOnlyStepIf False t = t
+
+rmReadOnly :: GenType -> GenType
+rmReadOnly (GenType (CS.TBang t) _) = t
+rmReadOnly t = t
 
 getTag :: LCA.Type -> String
 getTag (LCA.DirectType (LCA.TyComp (LCA.CompTypeRef sueref knd _)) _ _) = 

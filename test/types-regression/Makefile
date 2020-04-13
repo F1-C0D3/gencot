@@ -28,6 +28,12 @@ types-pointer.c-itemprops: types-pointer.c-manprops types-pointer.c-dfltprops ty
 	@$(IT) merge types-pointer.c-h2props types-pointer.c-manprops > types-pointer.c-itemprops
 	@rm types-pointer.c-hprops types-pointer.c-h2props
 
+types-const.c-itemprops: types-const.c-manprops types-const.c-dfltprops types-parmod.json-itemprops
+	@$(IT) mergeto types-const.c-dfltprops types-parmod.json-itemprops > types-const.c-hprops
+	@$(IT) merge common.types-manprops types-const.c-hprops > types-const.c-h2props
+	@$(IT) merge types-const.c-h2props types-const.c-manprops > types-const.c-itemprops
+	@rm types-const.c-hprops types-const.c-h2props
+
 %.ext-itemprops: %.ext-dfltprops %.ext-manprops types-parmod.json-itemprops types-parmod.json-omitprops common.types-manprops
 	@$(IT) mergeto $*.ext-dfltprops types-parmod.json-itemprops > $*.ext-hprops
 	@$(IT) omitfrom $*.ext-hprops types-parmod.json-omitprops > $*.ext-h2props

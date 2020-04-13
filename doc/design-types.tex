@@ -1206,6 +1206,8 @@ replacing the value bound to a variable in Cogent. This can be represented by bi
 of the same name which will shadow the previous binding. Together, this means that a \code{const} qualifier is
 irrelevant whenever a C type is translated to a primitive or unboxed type in Cogent.
 
+\subsubsection{Pointer Types}
+
 The situation is different for C pointer types which are translated to linear types in Cogent. Values of linear types
 may be modified using put and take operations in Cogent, but they are restricted in their use. Put and take operations
 correspond to modifications of the value referenced by the pointer. Thus, a \code{const} qualification of the pointer
@@ -1235,14 +1237,63 @@ by applying the bang operator \code{!} to the type after translating it as descr
 In particular, the readonly property is valid for all pointer types where the base type is \code{const} qualified 
 and contains no pointers, such as \code{const char*}.
 
-Values of a C type where not all pointer base types are const qualified may still be used in an immutable way in the 
-C program, if the C programmer forgot to specify the const qualifier or did not care about it. In such cases the item
-property Read-Only can be set manually to tell Gencot to apply the bang operator when it maps the type to Cogent.
-
-If a C type is translated to a type of the form \code{MayNull t} (see Section~\ref{design-types-pointer}) the bang operator
+If a C pointer type is translated to a type of the form \code{MayNull t} (see Section~\ref{design-types-pointer}) the bang operator
 is applied after \code{MayNull} resulting in \code{(MayNull t)!}. If a typedef name is defined for such a type the
 \code{MayNull} is removed as described in Section~\ref{design-types-typedef} and applied together with the bang operator
 to every occurrence of the translated typedef name. Since the defined type can only be banged if it or the typedef name
 has the Read-Only property the bang operator is still preserved for the defined type, other than the \code{MayNull}. 
 The difference is that the bang operator is caused by the presence of the Read-Only property whereas the \code{MayNull}
 is caused by the absence of the Not-Null property.
+
+\subsubsection{Array Types}
+
+As described in Section~\ref{design-types-array}, the mapping of C array types depends on the type's context and may 
+be a linear type or not. If an array type is mapped to a linear type, a \code{const} qualifier for the array type
+or its element type (which both has the same meaning in C) causes the mapped type to be readonly, if the array element 
+type is transitively readonly.
+
+An array type is mapped to a linear type if it is used as type of a global variable or a function parameter. In case of
+a global variable, such as
+\begin{verbatim}
+  const int gvar[5];
+\end{verbatim}
+Gencot translates the variable to an access function returning a pointer. The \code{const} qualifier causes the 
+result type of the access function to be readonly:
+\begin{verbatim}
+  cogent_gvar: () -> (Carr5 U32)!
+\end{verbatim}
+In case of a function parameter, such as
+\begin{verbatim}
+  void f(const int p[5]);
+\end{verbatim}
+the parameter type is already ``adjusted'' to type \code{const int *p} in C and Gencot maps the parameter type 
+accordingly. Again, the \code{const} qualifier causes the parameter type to be readonly:
+\begin{verbatim}
+  cogent_f: (Carr5 U32)! -> ()
+\end{verbatim}
+
+If an array type is used as base type of a derived pointer type the pointer type is mapped to a readonly type, as
+described above, if its base type is \code{const} qualified. Here the C rule must be taken into account that an array
+type is \code{const} qualified if its element type is \code{const} qualified. The same applies if an array type is used
+as element type of another array type (multidimensional array).
+
+If an array type is used as the type of a member of a composite type it is mapped to a record field with an unboxed type,
+hence a \code{const} qualifier is irrelevant. Since the current Cogent version has problems when bang and unbox operators
+are combined, Gencot omits the bang operator in this case. 
+
+If a typedef name is defined for an array type in C, the mapped typedef name is defined for the linear type in Cogent. 
+If the typedef name is used for a member of a composite type, the Cogent type must not be readonly, therefore it
+cannot be made readonly in the definition, even if in C the array type is \code{const} qualified in the definition.
+Instead, the mapped typedef name must be banged whenever no unbox operator is applied. If the array type is not 
+\code{const} qualified in the definition, the mapped typedef name must only be banged if the typedef name is \code{const}
+qualified in C and not used for a member of a composite type.
+
+\subsubsection{Manual Readonly Types}
+
+Values of a C type where not all pointer base types are const qualified may still be used in an immutable way in the 
+C program, if the C programmer forgot to specify the const qualifier or did not care about it. In such cases the item
+property Read-Only can be set manually to tell Gencot to apply the bang operator when it maps the type to Cogent.
+
+For a \code{const} qualified array type used for a member of a compound type the Read-Only property is always ignored,
+even if it has been set manually.
+

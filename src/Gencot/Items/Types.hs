@@ -11,7 +11,7 @@ import Language.C.Analysis as LCA
 import Gencot.Items.Identifier (individualItemId,localItemId,paramItemId,typedefItemId,tagItemId,memberSubItemId,paramSubItemId,elemSubItemId,refSubItemId,resultSubItemId,indivItemIds)
 import Gencot.Names (srcFileName)
 import Gencot.Traversal (FTrav,hasProperty,stopResolvTypeName)
-import Gencot.Util.Types (getTagDef,isExtern,isFunction,isExternTypeDef,TypeCarrier,TypeCarrierSet)
+import Gencot.Util.Types (getTagDef,isExtern,isFunction,isExternTypeDef,TypeCarrier,TypeCarrierSet,mergeQualsTo)
 
 -- | Construct the identifier for an individual toplevel item.
 -- An individual toplevel item is a function or a global object (variable).
@@ -220,11 +220,11 @@ getMemberItemAssocTypes _ = return []
 -- and type names must be tested whether they stop resolving.
 -- Paremeter sub-items of function type are adjusted to function pointer type.
 getSubItemAssocTypes :: ItemAssocType -> FTrav [ItemAssocType]
-getSubItemAssocTypes iat@(iid,(LCA.TypeDefType (LCA.TypeDefRef idnam t _) _ _)) = do
+getSubItemAssocTypes iat@(iid,(LCA.TypeDefType (LCA.TypeDefRef idnam t _) q _)) = do
     dt <- LCA.getDefTable
     srtn <- stopResolvTypeName idnam
     if ((isExternTypeDef dt idnam) && not srtn)
-       then getSubItemAssocTypes (iid,t)
+       then getSubItemAssocTypes (iid,(mergeQualsTo t q))
        else return [iat]
 getSubItemAssocTypes iat@(iid,(LCA.DirectType (LCA.TyComp (LCA.CompTypeRef sueref knd _)) _ _)) | LCI.isAnonymousRef sueref = do
     dt <- LCA.getDefTable

@@ -82,6 +82,12 @@ type Struct_Cogent_cstr = { m_cint : U32 -- nonlinear
    , m_pciname : (MayNull Cogent_pciname)! -- readonly
    , m_cpiname : MayNull Cogent_cpiname -- not readonly
    , m_pcpiname : (MayNull Cogent_pcpiname)! -- readonly
+   , m_aint : #(CArr5 U32) -- unboxed array
+   , m_acint : #(CArr5 U32) -- unboxed array
+   , m_apint : #(CArr5 (MayNull (CPtr U32))) -- array of pointers to int, not readonly
+   , m_apcint : #(CArr5 ((MayNull (CPtr U32))!)) -- array of pointers to const int; readonly but not applied, since unboxed
+   , m_acpint : #(CArr5 (MayNull (CPtr U32))) -- array of constant pointers to int, not readonly
+   , m_acpcint : #(CArr5 ((MayNull (CPtr U32))!)) -- readonly but not applied, since unboxed
     }
 
 cogent_var_acint : () -> (CArr5 U32)! -- readonly
@@ -113,3 +119,13 @@ cogent_var_apcspinamepciname : () -> CArr5 (MayNull Struct_Cogent_cspinamepcinam
 cogent_var_acspfname : () -> (CArr5 #Struct_Cogent_cspfname)! -- readonly
 cogent_var_apcspfname : () -> CArr5 ((MayNull Struct_Cogent_cspfname)!) -- not readonly: array elements can be assigned
 cogent_var_acpcspfname : () -> (CArr5 ((MayNull Struct_Cogent_cspfname)!))! -- readonly
+
+type Struct74_types_const_c = { mi : U32, ma : #(CArr5 U32) }
+type Cogent_iastrnam =
+   Struct74_types_const_c
+cogent_var_pciastr : () -> (MayNull Cogent_iastrnam)!
+
+type Cogent_typ_acint =
+   CArr5 U32 -- readonly, but deferred to typedef name use
+cogent_var_tacint : () -> Cogent_typ_acint! -- readonly from typedef
+type Struct79_types_const_c = { m : #Cogent_typ_acint } -- not readonly, because unboxed

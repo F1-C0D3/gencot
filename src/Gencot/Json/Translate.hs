@@ -6,7 +6,7 @@ module Gencot.Json.Translate where
 import Data.Set (Set,size,toList,empty,union,fromList,insert,unions,singleton)
 import qualified Data.Set as S (filter)
 import Data.Maybe (fromJust,catMaybes,mapMaybe)
-import Data.List (elemIndex)
+import Data.List (elemIndex,isSuffixOf)
 import Control.Monad (liftM)
 import Data.Foldable (foldlM)
 import Text.JSON
@@ -19,7 +19,7 @@ import Language.C.Analysis as LCA hiding (mapMaybeM)
 
 import Gencot.Traversal (stopResolvTypeName)
 import Gencot.Util.CallGraph (CallGraph,CGFunInvoke,CGInvoke(IdentInvoke,MemberInvoke),CTrav,lookupCallGraph,invokeAnum,unionM,foldsets,getCGInvoke,invokeType,invokeParams)
-import Gencot.Util.Types (isLinearParType,isReadOnlyParType,isFunction,resolveTypedef,isSIFType,getFunctionInSIFType,getFunType,isPointer,isArray,isExtern)
+import Gencot.Util.Types (isLinearParType,isReadOnlyParType,isFunction,resolveTypedef,isSIFType,getFunctionInSIFType,mergeQualsTo,getFunType,isPointer,isArray,isExtern)
 import Gencot.Util.Expr (getRootIdent,isReference)
 import Gencot.Util.Decl (traverseLocalDecl)
 import Gencot.Names (srcFileName)
@@ -146,22 +146,22 @@ transLocal sfn fi@(fd,invk@(IdentInvoke idec _),_) = do
 -- | Resolve an external type.
 -- Must be a monadic action because it needs the type names where to stop resolving.
 resolveExternalType :: LCA.Type -> CTrav LCA.Type
-resolveExternalType td@(LCA.TypeDefType (LCA.TypeDefRef nam t _) _ _) = do
+resolveExternalType td@(LCA.TypeDefType (LCA.TypeDefRef nam t _) quals _) = do
     stop <- stopResolvTypeName nam
-    if stop then return td else resolveExternalType t
-resolveExternalType (LCA.PtrType t q n) = do
+    if stop then return td else resolveExternalType (mergeQualsTo t quals)
+resolveExternalType (LCA.PtrType t q a) = do
     t' <- resolveExternalType t
-    return $ LCA.PtrType t' q n
-resolveExternalType (LCA.ArrayType t i q n) = do
+    return $ LCA.PtrType t' q a
+resolveExternalType (LCA.ArrayType t i q a) = do
     t' <- resolveExternalType t
-    return $ LCA.ArrayType t' i q n
-resolveExternalType (LCA.FunctionType (LCA.FunType rt pars v) n) = do
+    return $ LCA.ArrayType t' i q a
+resolveExternalType (LCA.FunctionType (LCA.FunType rt pars v) a) = do
     rt' <- resolveExternalType rt
     pars' <- mapM resolveExternalTypesInParDecl pars
-    return $ LCA.FunctionType (LCA.FunType rt' pars' v) n
-resolveExternalType (LCA.FunctionType (LCA.FunTypeIncomplete rt) n) = do
+    return $ LCA.FunctionType (LCA.FunType rt' pars' v) a
+resolveExternalType (LCA.FunctionType (LCA.FunTypeIncomplete rt) a) = do
     rt' <- resolveExternalType rt
-    return $ LCA.FunctionType (LCA.FunTypeIncomplete rt') n
+    return $ LCA.FunctionType (LCA.FunTypeIncomplete rt') a
 resolveExternalType t = return t
 
 resolveExternalTypesInParDecl (LCA.ParamDecl (LCA.VarDecl vn a t) n) = do

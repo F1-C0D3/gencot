@@ -39,4 +39,3 @@ void invoker(void) {
     extvar1 = 5;
     defvar1 = 5;
 }
-

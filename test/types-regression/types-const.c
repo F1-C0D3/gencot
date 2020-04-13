@@ -36,6 +36,12 @@ ciname m_ciname; // nonlinear
 pciname m_pciname; // readonly
 cpiname m_cpiname; // not readonly
 pcpiname m_pcpiname; // readonly
+int m_aint[5]; // unboxed array
+const int m_acint[5]; // unboxed array
+int * m_apint[5]; // array of pointers to int, not readonly
+const int * m_apcint[5]; // array of pointers to const int; readonly but not applied, since unboxed
+int * const m_acpint[5]; // array of constant pointers to int, not readonly
+const int * const m_acpcint[5]; // readonly but not applied, since unboxed
 };
 
 const int var_acint[5]; // readonly
@@ -65,4 +71,9 @@ const struct cspfname var_acspfname[5]; // readonly
 const struct cspfname *var_apcspfname[5]; // not readonly: array elements can be assigned
 const struct cspfname * const var_acpcspfname[5]; // readonly
 
+typedef struct { int mi; int ma[5]; } iastrnam;
+const iastrnam * var_pciastr;
 
+typedef const int typ_acint[5]; // readonly, but deferred to typedef name use
+typ_acint var_tacint; // readonly from typedef
+struct { typ_acint m; }; // not readonly, because unboxed

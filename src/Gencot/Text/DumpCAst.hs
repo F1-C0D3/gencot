@@ -115,7 +115,7 @@ optStr b s = if b then s else ""
 
 dumpType :: LCA.Type -> [String]
 dumpType (LCA.DirectType tnam quals attrs) = 
-    ["Dir(" ++ (dumpTypeName tnam) ++ (dumpQA quals attrs) ++ ")"]
+    ["Dir(" ++ (dumpTypeName tnam) ++ " " ++ (dumpQA quals attrs) ++ ")"]
 dumpType (LCA.PtrType typ quals attrs) =
     (prepend "Ptr(" (dumpType typ)) ++ (indent [(dumpQA quals attrs) ++ ")"])
 dumpType (LCA.ArrayType typ size quals attrs) = 
@@ -125,7 +125,7 @@ dumpType (LCA.FunctionType (LCA.FunType typ pars var) attrs) =
 dumpType (LCA.FunctionType (LCA.FunTypeIncomplete typ) attrs) = 
     (prepend "Fun(" (dumpType typ)) ++ (indent [(dumpA attrs) ++ ")"])
 dumpType (LCA.TypeDefType (LCA.TypeDefRef idnam typ n) quals attrs) = 
-    ["Ref(" ++ (dumpIdent idnam) ++ (dumpNodeinfo n) ++ (dumpQA quals attrs) ++ ")"]
+    ["Ref(" ++ (dumpIdent idnam) ++ (dumpNodeinfo n) ++ " " ++ (dumpQA quals attrs) ++ ")"]
 
 dumpQA quals attrs = (dumpQuals quals) ++ dumpA attrs
 dumpA attrs = if null attrs then "" else ";" ++ (dumpAttrs attrs)

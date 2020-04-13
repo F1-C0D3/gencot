@@ -288,7 +288,7 @@ isReadOnlyType (LCA.DirectType (LCA.TyComp (LCA.CompTypeRef sueref _ _)) _ _) = 
     case getTagDef table sueref of
          Nothing -> return False
          Just (LCA.CompDef (LCA.CompType _ _ mdecls _ _)) -> do
-             h <- mapM (isReadOnlyType . LCA.declType) mdecls
+             h <- mapM (isReadOnlyMemberType . LCA.declType) mdecls
              return $ all id h
 isReadOnlyType (LCA.DirectType _ _ _) = return True
 
@@ -299,10 +299,15 @@ isReadOnlyParType arr@(LCA.ArrayType t _ _ _) =
        else isReadOnlyType arr
 isReadOnlyParType t = isReadOnlyType t
 
+isReadOnlyMemberType :: MonadSymtab m => LCA.Type -> m Bool
+isReadOnlyMemberType (LCA.ArrayType _ _ _ _) = return True
+isReadOnlyMemberType t = isReadOnlyType t
+
 isConstQualified :: TypePred
 isConstQualified (LCA.TypeDefType (LCA.TypeDefRef _ t _) tq _) = constant tq || isConstQualified t
 isConstQualified (LCA.PtrType _ tq _) = constant tq
-isConstQualified (LCA.ArrayType _ _ tq _) = constant tq
+-- for an array type, according to the C standard, a qualifier has the same meaning as if applied to the element type.
+isConstQualified (LCA.ArrayType t _ tq _) = constant tq || isConstQualified t
 isConstQualified (LCA.FunctionType _ _) = False
 isConstQualified (LCA.DirectType _ tq _) = constant tq
 
@@ -445,6 +450,16 @@ getFunctionInSIFType t@(LCA.FunctionType _ _) = t
 getFunctionInSIFType (LCA.PtrType t _ _) = getFunctionInSIFType t
 getFunctionInSIFType (LCA.ArrayType t _ _ _) = getFunctionInSIFType t
 getFunctionInSIFType _ = error "No SIF type passed to getFunctionInSIFType"
+
+mergeQualsTo :: LCA.Type -> LCA.TypeQuals -> LCA.Type
+mergeQualsTo (LCA.TypeDefType tr q a) mq = LCA.TypeDefType tr (orTypeQuals q mq) a
+mergeQualsTo (LCA.PtrType t q a) mq = LCA.PtrType t (orTypeQuals q mq) a
+mergeQualsTo (LCA.ArrayType t i q a) mq = LCA.ArrayType t i (orTypeQuals q mq) a
+mergeQualsTo t@(LCA.FunctionType ft a) _ = t -- C standard: applying qualifiers to function type is undefined
+mergeQualsTo (LCA.DirectType tn q a) mq = LCA.DirectType tn (orTypeQuals q mq) a
+
+orTypeQuals (LCA.TypeQuals c1 v1 r1 a1 n1 nn1 x1 y1) (LCA.TypeQuals c2 v2 r2 a2 n2 nn2 x2 y2) =
+  LCA.TypeQuals (c1 || c2) (v1 || v2) (r1 || r2) (a1 || a2) (n1 || n2) (nn1 || nn2) (x1 || x2) (y1 || y2)
 
 getDeclaration :: LCD.DefTable -> LCI.Ident -> Maybe LCA.IdentDecl
 getDeclaration dt nam =

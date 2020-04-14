@@ -25,8 +25,7 @@ import Gencot.Util.Decl (traverseLocalDecl)
 import Gencot.Names (srcFileName)
 import Gencot.Json.Parmod (Parmod,Parmods)
 import Gencot.Json.Process (mergeParmods)
-import Gencot.Items.Types (getIndividualItemId,getTagItemId,getTypedefItemId,getMemberSubItemId,getParamSubItemId,getFunctionSubItemId)
-import Gencot.Items.Identifier (paramSubItemId) -- only temporary
+import Gencot.Items.Types (getIndividualItemId,getTagItemId,getTypedefItemId,getLocalItemId,getMemberSubItemId,getParamSubItemId,getFunctionSubItemId)
 
 qmark = showJSON "?"
 jsEmpty = JSArray []
@@ -55,7 +54,7 @@ transGlobal (LCA.DeclEvent idec@(LCA.FunctionDef fdef)) = do
     tinvokes <- mapM (transInvocation fpardeps sfn) cg
     let invokes = catMaybes tinvokes
     funpars <- mapMaybeM (transParam (getIndividualItemId idec sfn) sfn) (numberList pars)
-    let localcg = filter (\(_,_,loc) -> loc) cg
+    let localcg = filter (\(_,_,(loc,_)) -> loc) cg
     locals <- mapM (transLocal sfn) localcg
     return $ [toJSObject ([namEntry (getIndividualItemId idec sfn),comEntry,locEntry sfn,nmpEntry ftyp] ++ parlist ++ 
                 [nmiEntry invokes] ++ if not (null invokes) && (any maymodify parlist) then [invEntry invokes] else [])] 
@@ -136,12 +135,13 @@ transParam _ _ _ = return Nothing
 
 -- | Translate an invocation of a local item of SIF type to a function description.
 transLocal :: String -> CGFunInvoke -> CTrav Parmod
-transLocal sfn fi@(fd,invk@(IdentInvoke idec _),_) = do
+transLocal sfn fi@(fd,invk@(IdentInvoke idec _),(True,pos)) = do
     parlist <- mapM simpleParamEntry $ numberList $ invokeParams invk
-    return $ toJSObject $ [namEntry $ getFunctionSubItemId ptyp parItemId,comEntry,locEntry sfn,nmpEntry $ invokeType invk] ++ parlist
+    return $ toJSObject $ [namEntry $ getFunctionSubItemId ptyp locItemId,comEntry,locEntry sfn,nmpEntry $ invokeType invk] ++ parlist
     where ptyp = LCA.declType idec
-          parItemId = -- (getParamSubItemId (getIndividualItemId (LCA.FunctionDef fd) sfn) (pos,pdec))  -- use this when pos and pdec are available
-            paramSubItemId (getIndividualItemId (LCA.FunctionDef fd) sfn) 0 $ LCI.identToString $ LCA.declIdent idec
+          locItemId = if pos > 0 
+                         then getParamSubItemId (getIndividualItemId (LCA.FunctionDef fd) sfn) $ getPosAndParDecl pos fd
+                         else getLocalItemId idec
 
 -- | Resolve an external type.
 -- Must be a monadic action because it needs the type names where to stop resolving.
@@ -479,7 +479,7 @@ transInvocation pardeps sfnx fi@(fd,cgd,loc) = do
     where fpdeps = S.filter (\(_,_,invk,_) -> invk == cgd) pardeps
 
 getInvokeItemId :: String -> CGFunInvoke -> CTrav String
-getInvokeItemId sfn (_,(IdentInvoke idec _),False) = do
+getInvokeItemId sfn (_,(IdentInvoke idec _),(False,_)) = do
     rtyp <- if isExtern idec then resolveExternalType typ else return typ
     return $ getFunctionSubItemId rtyp $ getIndividualItemId idec sfn
     where typ = LCA.declType idec
@@ -487,9 +487,15 @@ getInvokeItemId sfn (_,(MemberInvoke ct@(LCA.CompType sueref knd _ _ _) mdec _),
     rtyp <- if isExtern ct then resolveExternalType typ else return typ
     return $ getFunctionSubItemId rtyp $ getMemberSubItemId (getTagItemId sueref knd) mdec
     where typ = LCA.declType mdec
-getInvokeItemId sfn (fd,(IdentInvoke idec _),True) = 
-    -- getParamSubItemId (getIndividualItemId fd sfn) (pos,pdec) -- use when pos and pdec are available
-    return $ getFunctionSubItemId (LCA.declType idec) $ paramSubItemId (getIndividualItemId (LCA.FunctionDef fd) sfn) 0 $ LCI.identToString $ LCA.declIdent idec
+getInvokeItemId sfn (fd,(IdentInvoke idec _),(True,pos)) | pos > 0 = 
+    return $ getFunctionSubItemId (LCA.declType idec) 
+        $ getParamSubItemId (getIndividualItemId (LCA.FunctionDef fd) sfn) $ getPosAndParDecl pos fd
+getInvokeItemId sfn (fd,(IdentInvoke idec _),(True,_)) = 
+    return $ getFunctionSubItemId (LCA.declType idec) $ getLocalItemId idec
+
+getPosAndParDecl :: Int -> LCA.FunDef -> (Int, LCA.ParamDecl)
+getPosAndParDecl pos (LCA.FunDef (LCA.VarDecl _ _ (LCA.FunctionType (LCA.FunType _ pars _) _)) _ _) = 
+    (pos, pars!!(pos-1))
 
 getDeclName :: LCA.Declaration d => d -> String
 getDeclName = LCI.identToString . LCA.declIdent

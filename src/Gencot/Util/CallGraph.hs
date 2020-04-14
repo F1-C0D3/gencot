@@ -1,6 +1,7 @@
 {-# LANGUAGE PackageImports, TypeSynonymInstances, FlexibleInstances #-}
 module Gencot.Util.CallGraph where
 
+import Data.List as L (findIndex)
 import Data.Set as S (Set,empty,union,unions,insert,filter,toList,fromList,map,member,delete)
 import Data.Foldable (foldlM,find)
 import Control.Monad (liftM,liftM2)
@@ -29,8 +30,8 @@ type CallGraph = Set CGFunInvoke
 -- | A function invocation.
 -- The first component is the invoking function, the second component is the invoked function.
 -- The third component tells whether the invoked function is a locally declared pointer
--- in the invoking function.
-type CGFunInvoke = (LCA.FunDef, CGInvoke, Bool)
+-- in the invoking function and if yes, the position of the parameter or -1 for a local variable.
+type CGFunInvoke = (LCA.FunDef, CGInvoke, (Bool, Int))
 
 -- | An invocation description. 
 -- It is specified by the invoked function and the number of actual arguments.
@@ -100,19 +101,25 @@ retrieveFunInvokes (LCA.DeclEvent fdef@(LCA.FunctionDef fd)) =
        then return empty 
        else do 
            hlist <- (liftM toList) $ retrieveInvokes fdef 
-           rlist <- mapM (\inv -> return (fd,inv,False)) hlist
+           rlist <- mapM (\inv -> return (fd,inv,(False,0))) hlist
            return $ fromList rlist
     where (LCA.VarDecl nam _ _) = LCA.getVarDecl fd
 retrieveFunInvokes _ = return empty
 
 markLocal :: LCD.DefTable -> CGFunInvoke -> CGFunInvoke
-markLocal table (fd,inv@(IdentInvoke idec _),_) = (fd,inv,isLocal table idec)
-markLocal table (fd,inv@(MemberInvoke _ _ _),_) = (fd,inv,False)
+markLocal table (fd,inv@(IdentInvoke idec _),_) = (fd,inv,(isLocal table idec,markPos idec fd))
+markLocal table (fd,inv@(MemberInvoke _ _ _),_) = (fd,inv,(False,0))
 
 isLocal :: LCD.DefTable -> LCA.IdentDecl -> Bool
 isLocal table idec = case LCD.lookupIdent (LCA.declIdent idec) table of
                           Just (Right gdec) -> idec /= gdec
                           _ -> True
+
+markPos :: LCA.IdentDecl -> LCA.FunDef -> Int
+markPos idec (LCA.FunDef (LCA.VarDecl _ _ (LCA.FunctionType (LCA.FunType _ pars _) _)) _ _) =
+    maybe (-1) (1+) (L.findIndex (\pd -> (LCI.identToString $ LCA.declIdent pd) == inam) pars) 
+    where inam = LCI.identToString $ LCA.declIdent idec
+markPos _ _ = -1
 
 unionM :: (MonadTrav m, Ord a) => m (Set a) -> m (Set a) -> m (Set a)
 unionM = liftM2 union

@@ -11,7 +11,7 @@ import Language.C.Analysis as LCA
 import Language.C.Data.Ident as LCI
 
 import Gencot.Util.CallGraph (CallGraph,CGFunInvoke,CGInvoke(IdentInvoke,MemberInvoke))
-import Gencot.Items.Types (getIndividualItemId,getTagItemId,getParamSubItemId,getMemberSubItemId,getFunctionSubItemId)
+import Gencot.Items.Types (getIndividualItemId,getTagItemId,getParamSubItemId,getLocalItemId,getMemberSubItemId,getFunctionSubItemId)
 import Gencot.Items.Identifier (paramSubItemId) -- only temporary
  
 -- | Translate a call graph to a relation on parmod function ids.
@@ -20,12 +20,15 @@ callGraphToIdentRel :: CallGraph -> String -> Set (String,String)
 callGraphToIdentRel cg s = S.map (funInvokeToIdentRel s) cg
 
 funInvokeToIdentRel :: String -> CGFunInvoke -> (String,String)
-funInvokeToIdentRel s (fdef,(IdentInvoke idec _),False) = 
+funInvokeToIdentRel s (fdef,(IdentInvoke idec _),(False,_)) = 
     (getIndividualItemId (LCA.FunctionDef fdef) s,getFunctionSubItemId (LCA.declType idec) $ getIndividualItemId idec s )
-funInvokeToIdentRel s (fdef,(IdentInvoke idec _),True) = (fid,getFunctionSubItemId (LCA.declType idec) pid)
+funInvokeToIdentRel s (fdef,(IdentInvoke idec _),(True,pos)) | pos > 0 = 
+    (fid,getFunctionSubItemId (LCA.declType idec) pid)
     where fid = getIndividualItemId (LCA.FunctionDef fdef) s
-          pid = -- getParamSubItemId fid (pos,pdec) -- use when pos and pdec are available
-                paramSubItemId fid 0 $ LCI.identToString $ LCA.declIdent idec
+          (LCA.FunDef (LCA.VarDecl _ _ (LCA.FunctionType (LCA.FunType _ pars _) _)) _ _) = fdef
+          pid = getParamSubItemId fid (pos,pars!!(pos-1))
+funInvokeToIdentRel s (fdef,(IdentInvoke idec _),(True,_)) = 
+    (getIndividualItemId (LCA.FunctionDef fdef) s,getFunctionSubItemId (LCA.declType idec) $ getLocalItemId idec )
 
 funInvokeToIdentRel s (fdef,(MemberInvoke (LCA.CompType sueref knd _ _ _) mdec _),_) = 
     (getIndividualItemId (LCA.FunctionDef fdef) s,

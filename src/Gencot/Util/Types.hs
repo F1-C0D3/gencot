@@ -22,9 +22,9 @@ type TypeCarrierSet = [TypeCarrier]
 -- It also collects all declarations and definitions locally in a function.
 -- It omits all global declarations and all enum tag definitions and all external types and composite tags.
 collectTypeCarriers :: (TypeCarrier -> Bool) -> TypeCarrier -> Trav TypeCarrierSet ()
-collectTypeCarriers tcp e@(LCA.DeclEvent (LCA.ObjectDef _)) | tcp e = modifyUserState (e:)
-collectTypeCarriers tcp e@(LCA.DeclEvent (LCA.FunctionDef _)) | tcp e = modifyUserState (e:)
-collectTypeCarriers tcp e@(LCA.LocalEvent _) | tcp e = modifyUserState (e:)
+collectTypeCarriers tcp e@(LCA.DeclEvent (LCA.ObjectDef _)) | tcp e && (not $ isExtern e) = modifyUserState (e:)
+collectTypeCarriers tcp e@(LCA.DeclEvent (LCA.FunctionDef _)) | tcp e && (not $ isExtern e) = modifyUserState (e:)
+collectTypeCarriers tcp e@(LCA.LocalEvent _) | tcp e && (not $ isExtern e) = modifyUserState (e:)
 collectTypeCarriers tcp e@(LCA.TypeDefEvent _) | tcp e && (not $ isExtern e) = modifyUserState (e:)
 collectTypeCarriers tcp e@(LCA.TagEvent (LCA.CompDef _)) | tcp e && (not $ isExtern e) = modifyUserState (e:)
 collectTypeCarriers _ _ = return ()

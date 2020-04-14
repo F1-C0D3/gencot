@@ -42,7 +42,7 @@ main = do
     {- Determine external type names used directly in the Cogent compilation unit -}
     let unitTypeNames = getTypedefNames iids
     {- generate abstract definitions for derived types in all type carriers -}
-    toplvs <- runFTrav table ("", ipm,(True,unitTypeNames)) $ genTypeDefs unitTypeNames unitTypeCarriers
+    toplvs <- runFTrav table ("", ipm,(True,unitTypeNames)) $ genTypeDefs unitTypeCarriers
     {- Output -}
     print $ prettyTopLevels toplvs
 

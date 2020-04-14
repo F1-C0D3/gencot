@@ -32,7 +32,6 @@ main = do
     table <- foldTables tables
     {- combine sets of initial type carriers -}
     let initialTypeCarriers = foldTypeCarrierSets initialTypeCarrierSets table
-    putStrLn $ unlines $ map dumpCarrier initialTypeCarriers
     {- Get declarations of external functions and objects which are invoked or additionally specified -}
     let extDecls = getDeclEvents (globalDefs table) (extDeclFilter invks additems)
     {- Get definitions of additionally specified external tags and type names -}
@@ -67,9 +66,3 @@ extTypeFilter iids (LCA.TypeDefEvent td@(LCA.TypeDef idnam _ _ _)) =
     isExtern td && elem (getTypedefItemId idnam) iids
 extTypeFilter _ _ = False
 
-dumpCarrier :: LCA.DeclEvent -> String
-dumpCarrier (LCA.TagEvent td@(LCA.CompDef (LCA.CompType sueref knd _ _ _))) = show sueref
-dumpCarrier (LCA.TagEvent td@(LCA.EnumDef (LCA.EnumType sueref _ _ _))) = show sueref
-dumpCarrier (LCA.TypeDefEvent td@(LCA.TypeDef idnam _ _ _)) = identToString idnam
-dumpCarrier (LCA.DeclEvent idec) = identToString $ LCA.declIdent idec
-dumpCarrier _ = "<unknown>"

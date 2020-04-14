@@ -210,23 +210,21 @@ wrapOrigin n gts = (GenToplv t1 $ prepOrigin n o1):((init $ tail gts)++[GenToplv
           (GenToplv t2 o2) = last gts
 
 -- | Generate type definitions for all derived array and function pointer types used by a sequence of C declarations.
--- The String list @tdn@ contains typedef names where to stop resolving external typedef names.
-genTypeDefs :: [String] -> [LCA.DeclEvent] -> FTrav [GenToplv]
-genTypeDefs tdn tcs = do
-    derivedTypes <- liftM (unions . concat) $ mapM (genDerivedTypeNames tdn) tcs
+genTypeDefs :: [LCA.DeclEvent] -> FTrav [GenToplv]
+genTypeDefs tcs = do
+    derivedTypes <- liftM (unions . concat) $ mapM genDerivedTypeNames tcs
     (liftM concat) $ mapM (uncurry genDerivedTypeDefs) $ toList derivedTypes
 
 -- | Construct all names of derived array and function pointer types occurring in a type carrier @tc@.
 -- The result is a map from names of generic types used for mapped array types and names of
 -- abstract types used for function pointer types to the original ItemAssocType.
--- The String list @tdn@ contains typedef names where to stop resolving external typedef names.
 --
 -- Retrieve the ItemAssocTypes carried by @tc@, get all sub-ItemAssocTypes,
--- add all fully resolved forms (without stopping at @tdn@) for function pointer equivalence definitions
+-- add all fully resolved forms (without stopping at stop-resolve names) for function pointer equivalence definitions
 -- reduce to derived array and function pointer types, 
 -- translate the types to Cogent, and retrieve their names.
-genDerivedTypeNames :: [String] -> LCA.DeclEvent -> FTrav [Map String ItemAssocType]
-genDerivedTypeNames tdn tc = do
+genDerivedTypeNames :: LCA.DeclEvent -> FTrav [Map String ItemAssocType]
+genDerivedTypeNames tc = do
     iat <- getItemAssocType tc
     miats <- getMemberItemAssocTypes tc
     iats <- (liftM concat) $ mapM getSubItemAssocTypes (iat : miats)
@@ -262,13 +260,14 @@ genDerivedTypeDefs nam (_,(LCA.ArrayType _ _ _ _)) | arrDerivHasSize nam =
 -- In the case of a complete function type additionally introduce a synonym for the corresponding
 -- function type of the form
 -- > type CFun_enc = <Cogent mapping of C function type>
-genDerivedTypeDefs nam iat@(iid,pt@(LCA.PtrType t _ _)) = do
+genDerivedTypeDefs nam iat@(iid,pt@(LCA.PtrType _ _ _)) = do
     rslvtyp <- transType True iat
     let isResolved = getName rslvtyp == nam
     let tdef = if isResolved
                 then CS.AbsTypeDec nam [] []
                 else CS.TypeDec nam [] rslvtyp
-    typ <- transType isResolved $ getRefSubItemAssoc iat t
+    sub <- getRefSubItemAssoc iat
+    typ <- transType isResolved sub
     let fdef = GenToplv (CS.TypeDec fnam [] typ ) noOrigin
     return $ (GenToplv tdef noOrigin): if (mapFunDeriv True) `isPrefixOf` nam then [fdef] else []
     where fnam = "CFun" ++ (drop (length (mapFunDeriv True)) nam)
@@ -321,18 +320,14 @@ aggBitfields ms = foldl accu [] ms
 
 -- | Translate struct member definition to pair of Cogent record field name and type.
 -- First parameter is the ItemAssocType of the enclosing struct type.
-transMember :: ItemAssocType -> LCA.MemberDecl -> FTrav (CCS.FieldName, (GenType, CS.Taken))
-transMember iat mdecl@(LCA.MemberDecl (LCA.VarDecl (LCA.VarName idnam _) _ typ) _ n) =
-    transMemberDef idnam (getMemberSubItemAssoc iat mdecl) n
-{- LCA.AnonBitField cannot occur since it is always replaced by aggBitfields -}
-
--- | Translate struct member definition to pair of Cogent record field name and type.
 -- Translate member type, if array set unboxed. Map member name if it starts with uppercase.
-transMemberDef :: LCI.Ident -> ItemAssocType -> LCN.NodeInfo -> FTrav (CCS.FieldName, (GenType, CS.Taken))
-transMemberDef idnam iat@(_,typ) n = do
-    t <- transType False iat
-    let ut = if isArray typ then setUnboxed (rmReadOnly t) else t
+transMember :: ItemAssocType -> LCA.MemberDecl -> FTrav (CCS.FieldName, (GenType, CS.Taken))
+transMember iat mdecl@(LCA.MemberDecl (LCA.VarDecl (LCA.VarName idnam _) _ _) _ n) = do
+    t <- transType False miat
+    let ut = if isArray mtyp then setUnboxed (rmReadOnly t) else t
     return (mapIfUpper idnam, (setOrigin n ut, False))
+    where miat@(_,mtyp) = getMemberSubItemAssoc iat mdecl
+{- LCA.AnonBitField cannot occur since it is always replaced by aggBitfields -}
 
 transParamNames :: Bool -> [LCA.ParamDecl] -> FTrav GenIrrefPatn
 transParamNames variadic [] = 
@@ -394,40 +389,44 @@ transType rslv iat@(iid, (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _)) = d
 -- Translate to: CVoidPtr
 -- If no Not-Null property: MayNull CVoidPtr
 -- If Read-OnlyProperty: banged
-transType _ iat@(iid, (LCA.PtrType t _ _)) | isVoid t = do
+transType _ iat@(_, (LCA.PtrType t _ _)) | isVoid t = do
     safe <- isNotNullItem iat
     ro <- isReadOnlyItem iat
     return $ makeReadOnlyIf ro $ addMayNullIfNot safe $ genType $ CS.TCon mapPtrVoid [] markBox
 -- Derived pointer type for function type t:
 -- Encode t, apply CFunPtr or CFunInc and make unboxed.
 transType rslv iat@(_, (LCA.PtrType t _ _)) | isFunction t = do
-    enctyp <- encodeType rslv $ getRefSubItemAssoc iat t
+    sub <- getRefSubItemAssoc iat
+    enctyp <- encodeType rslv sub
     return $ genType $ CS.TCon ((mapFunDeriv $ isComplete t) ++ "_" ++ enctyp) [] markUnbox
 -- Derived pointer type for array type t:
 -- Translate t and use as result. Always boxed.
 -- If no Not-Null property: apply MayNull
 -- If Read-OnlyProperty: banged
-transType rslv iat@(iid, (LCA.PtrType t _ _)) | isArray t = do
+transType rslv iat@(_, (LCA.PtrType t _ _)) | isArray t = do
     safe <- isNotNullItem iat
     ro <- isReadOnlyItem iat
-    typ <- transType rslv $ getRefSubItemAssoc iat t
+    sub <- getRefSubItemAssoc iat
+    typ <- transType rslv sub
     return $ makeReadOnlyIf ro $ addMayNullIfNot safe typ
 -- Derived pointer type for other type t:
 -- Translate t. If unboxed and no function pointer make boxed, otherwise apply CPtr. Always boxed.
 -- If no Not-Null property: apply MayNull
 -- If Read-OnlyProperty: banged
-transType rslv iat@(iid, pt@(LCA.PtrType t _ _)) = do
+transType rslv iat@(_, pt@(LCA.PtrType t _ _)) = do
     safe <- isNotNullItem iat
     ro <- isReadOnlyItem iat
-    typ <- transType rslv $ getRefSubItemAssoc iat t
+    sub <- getRefSubItemAssoc iat
+    typ <- transType rslv sub
     let rtyp = if (isUnboxed typ) && not (isFunPointer t) 
                 then setBoxed typ
                 else genType $ CS.TCon mapPtrDeriv [typ] markBox
     return $ makeReadOnlyIf ro $ addMayNullIfNot safe rtyp
 -- Complete derived function type: ret (p1,..,pn)
 -- Translate to: Cogent function type (p1,..,pn) -> ret, then apply parmod description.
-transType rslv iat@(iid, (LCA.FunctionType (LCA.FunType ret pars variadic) _)) = do
-    r <- transType rslv $ getResultSubItemAssoc iat ret
+transType rslv iat@(_, (LCA.FunctionType (LCA.FunType ret pars variadic) _)) = do
+    sub <- getResultSubItemAssoc iat
+    r <- transType rslv sub
     ps <- mapM (transParamType rslv iat) $ numberList pars
     let pt = mkParType (ps ++ if variadic then [variadicType] else [])
     applyProperties iat $ genType $ CS.TFun pt r
@@ -436,7 +435,8 @@ transType rslv iat@(iid, (LCA.FunctionType (LCA.FunType ret pars variadic) _)) =
 -- If Read-OnlyProperty: banged
 transType rslv iat@(_, (LCA.ArrayType t as _ _)) = do
     ro <- isReadOnlyItem iat
-    typ <- transType rslv $ getElemSubItemAssoc iat t
+    sub <- getElemSubItemAssoc iat
+    typ <- transType rslv sub
     return $ makeReadOnlyIf ro $ genType $ CS.TCon (mapArrDeriv as) [if isArray t then setUnboxed typ else typ] markBox 
 
 -- | Encode a C type specification as a Cogent type name.
@@ -478,22 +478,25 @@ encodeType rslv iat@(iid, (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _)) = 
 -- Derived pointer type for function type t:
 -- Encode t, prepend pointer derivation step.
 encodeType rslv iat@(_, (LCA.PtrType t _ _)) | isFunction t = do
-    tn <- encodeType rslv $ getRefSubItemAssoc iat t
+    sub <- getRefSubItemAssoc iat
+    tn <- encodeType rslv sub
     return (mapPtrStep ++ tn)
 -- Derived pointer type for other type t:
 -- Encode t, for aggregate type remove unbox step, otherwise prepend pointer derivation step.
 -- If no Not-Null property, add MayNull step.
 -- If Read-Only property  add readonly step.
-encodeType rslv iat@(iid, pt@(LCA.PtrType t _ _)) = do
+encodeType rslv iat@(_, pt@(LCA.PtrType t _ _)) = do
     safe <- isNotNullItem iat
     ro <- isReadOnlyItem iat
-    tn <- encodeType rslv $ getRefSubItemAssoc iat t
+    sub <- getRefSubItemAssoc iat
+    tn <- encodeType rslv sub
     let htn = if isAggregate t then (rmUboxStep tn) else (mapPtrStep ++ tn)
     return $ addReadOnlyStepIf ro $ addMayNullStepIfNot safe htn
 -- Complete derived function type: ret (p1,..,pn)
 -- Encode ret, prepend function derivation step using encoded pi.
-encodeType rslv iat@(iid, (LCA.FunctionType (LCA.FunType ret pars variadic) _)) = do
-    tn <- encodeType rslv $ getResultSubItemAssoc iat ret
+encodeType rslv iat@(_, (LCA.FunctionType (LCA.FunType ret pars variadic) _)) = do
+    sub <- getResultSubItemAssoc iat
+    tn <- encodeType rslv sub
     encpars <- mapM (encodeParamType rslv iat) $ numberList pars
     let vencpars = if variadic then encpars ++ [mapRoStep ++ variadicTypeName] else encpars
     arProps <- mapM shallAddResult $ map (getParamSubItemAssoc iat) (numberList pars)
@@ -503,14 +506,16 @@ encodeType rslv iat@(iid, (LCA.FunctionType (LCA.FunType ret pars variadic) _)) 
 -- Incomplete derived function type: ret ()
 -- Encode ret, prepend incomplete function derivation step.
 encodeType rslv iat@(_, (LCA.FunctionType (LCA.FunTypeIncomplete ret) _)) = do
-    tn <- encodeType rslv $ getResultSubItemAssoc iat ret
+    sub <- getResultSubItemAssoc iat
+    tn <- encodeType rslv sub
     return (mapIncFunStep ++ tn)
 -- Derived array type for element type t:
 -- Encode t, prepend array derivation step and unbox step.
 -- If Read-Only property add readonly step.
-encodeType rslv iat@(iid, (LCA.ArrayType t as _ _)) = do
+encodeType rslv iat@(_, (LCA.ArrayType t as _ _)) = do
     ro <- isReadOnlyItem iat
-    tn <- encodeType rslv $ getElemSubItemAssoc iat t
+    sub <- getElemSubItemAssoc iat
+    tn <- encodeType rslv sub
     return $ addReadOnlyStepIf ro (mapUboxStep ++ (mapArrStep as) ++ tn)
 
 -- | Translate a C type name to a Cogent type name.

@@ -312,6 +312,7 @@ parmodToOmitProps jso =
               case fromJSString js of
                    "yes" -> if pnam == respar then M.singleton (mkparnam fnam pnam) ["ar"] else M.empty
                    "discarded" -> M.singleton (mkparnam fnam pnam) ["ar"]
+                   "no" -> M.singleton (mkparnam fnam pnam) ["ar"]
                    _ -> M.empty
           mkparnam fnam pnam =
               fnam ++ "/" ++ (if elem '-' pnam then tail $ snd $ break ('-' ==) pnam else pnam)

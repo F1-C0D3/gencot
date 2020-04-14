@@ -6,7 +6,7 @@ import Data.Map (Map,findWithDefault,empty)
 
 import Language.C.Analysis.DefTable (DefTable)
 import Language.C.Data.Ident (SUERef,Ident,identToString)
-import Language.C.Analysis.TravMonad (Trav,runTrav,travErrors,withDefTable,getUserState,modifyUserState)
+import Language.C.Analysis.TravMonad (Trav,runTrav,travErrors,withDefTable,getUserState,modifyUserState,getDefTable)
 
 import Gencot.Input (showWarnings,errorOnLeft)
 import Gencot.Names (FileNameTrav,getFileName)
@@ -60,3 +60,4 @@ instance TypeNamesTrav FTrav where
         (_,_,_,tds) <- getUserState
         if fst tds then return $ elem (identToString idnam) $ snd tds
                    else return True
+    

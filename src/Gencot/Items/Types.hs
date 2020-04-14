@@ -157,20 +157,28 @@ getMemberSubItemAssoc :: ItemAssocType -> LCA.MemberDecl -> ItemAssocType
 getMemberSubItemAssoc (iid,_) mdecl = 
     (getMemberSubItemId iid mdecl, LCA.declType mdecl)
 
--- | Element sub-item  for ItemAssocType
--- The sub-item type must be explicitly provided as second argument as a hint to avoid resolving a typedef name.
-getElemSubItemAssoc :: ItemAssocType -> LCA.Type -> ItemAssocType
-getElemSubItemAssoc (iid,_) st = (elemSubItemId iid,st)
+-- | Element sub-item  for array ItemAssocType
+getElemSubItemAssoc :: ItemAssocType -> FTrav ItemAssocType
+getElemSubItemAssoc (iid,(LCA.ArrayType st _ _ _)) = hSubItemAssoc st (elemSubItemId iid)
 
--- | Referenced data sub-item  for ItemAssocType
--- The sub-item type must be explicitly provided as second argument as a hint to avoid resolving a typedef name.
-getRefSubItemAssoc :: ItemAssocType -> LCA.Type -> ItemAssocType
-getRefSubItemAssoc (iid,_) st = (refSubItemId iid,st)
+-- | Referenced data sub-item for pointer ItemAssocType
+getRefSubItemAssoc :: ItemAssocType -> FTrav ItemAssocType
+getRefSubItemAssoc (iid,(LCA.PtrType st _ _)) = hSubItemAssoc st (refSubItemId iid)
 
--- | Referenced data sub-item  for ItemAssocType
--- The sub-item type must be explicitly provided as second argument as a hint to avoid resolving a typedef name.
-getResultSubItemAssoc :: ItemAssocType -> LCA.Type -> ItemAssocType
-getResultSubItemAssoc (iid,_) st = (resultSubItemId iid,st)
+-- | Result sub-item  for function ItemAssocType
+getResultSubItemAssoc :: ItemAssocType -> FTrav ItemAssocType
+getResultSubItemAssoc (iid,(LCA.FunctionType ft _)) = hSubItemAssoc (resultType ft) (resultSubItemId iid)
+    where resultType (LCA.FunType t _ _) = t
+          resultType (LCA.FunTypeIncomplete t) = t
+
+-- | Return individual or collective ItemAssocType for the first argument.
+-- If it is a typedef reference which is not resolved, use the corresponding collective Item id.
+-- Otherwise use the second argument as item id.
+hSubItemAssoc :: LCA.Type -> String -> FTrav ItemAssocType
+hSubItemAssoc st@(LCA.TypeDefType (LCA.TypeDefRef idnam t _) _ _) iid = do
+    rtn <- isResolvTypeName idnam
+    return (if rtn then (iid,st) else (getTypedefItemAssoc idnam st))
+hSubItemAssoc st iid = return (iid,st)
 
 -- | Parameter sub-item for ItemAssocType.
 -- The parameter is specified by the pair of its position and its declaration.
@@ -235,19 +243,29 @@ getSubItemAssocTypes iat@(iid,(LCA.DirectType (LCA.TyComp (LCA.CompTypeRef suere
              subs <- liftM concat $ mapM (\md -> getSubItemAssocTypes $ getMemberSubItemAssoc iat md) mems
              return (iat : subs)
 getSubItemAssocTypes iat@(iid,(LCA.DirectType _ _ _)) = return [iat] 
-getSubItemAssocTypes iat@(iid,(LCA.PtrType bt _ _)) = do
-    subs <- getSubItemAssocTypes $ getRefSubItemAssoc iat bt
+getSubItemAssocTypes iat@(iid,(LCA.PtrType _ _ _)) = do
+    sub <- getRefSubItemAssoc iat
+    subs <- getSubItemAssocTypes sub
     return (iat : subs)
-getSubItemAssocTypes iat@(iid,(LCA.ArrayType bt _ _ _)) = do
-    subs <- getSubItemAssocTypes $ getElemSubItemAssoc iat bt
+getSubItemAssocTypes iat@(iid,(LCA.ArrayType _ _ _ _)) = do
+    sub <- getElemSubItemAssoc iat
+    subs <- getSubItemAssocTypes sub
     return (iat : subs)
 getSubItemAssocTypes iat@(iid,(LCA.FunctionType (LCA.FunType rt pars _) _)) = do
-    rsubs <- getSubItemAssocTypes $ getResultSubItemAssoc iat rt
+    sub <- getResultSubItemAssoc iat
+    rsubs <- getSubItemAssocTypes sub
     psubs <- mapM (\ipd -> getSubItemAssocTypes $ getParamSubItemAssoc iat ipd) $ numberList pars
     return (iat : (rsubs ++ (concat psubs)))
 getSubItemAssocTypes iat@(iid,(LCA.FunctionType (LCA.FunTypeIncomplete rt) _)) = do
-    subs <- getSubItemAssocTypes $ getResultSubItemAssoc iat rt
+    sub <- getResultSubItemAssoc iat
+    subs <- getSubItemAssocTypes sub
     return (iat : subs)
 
 numberList :: [a] -> [(Int,a)]
 numberList l = zip (iterate (1 +) 1) l 
+
+isResolvTypeName :: Ident -> FTrav Bool
+isResolvTypeName idnam = do
+    dt <- getDefTable
+    srtn <- stopResolvTypeName idnam
+    return ((isExternTypeDef dt idnam) && not srtn)

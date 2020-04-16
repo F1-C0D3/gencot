@@ -199,6 +199,7 @@ adjustItemAssocType (iid,t) = ("&" ++ iid, (LCA.PtrType t LCA.noTypeQuals LCA.no
 -- This is a monadic action because the TypeCarrier's @srcFileName@ must be determined.
 -- To avoid standalone parameters, local variables, and tagless compound items they must be filtered before.
 -- AsmEvents must always be filtered.
+-- External types are never resolved, if they are not stopResolve they must be filtered before.
 -- External types are not resolved through anonymous composite types because that would require to 
 -- modify the definition of the anonymous composite type in the symbol table.
 getItemAssocType :: TypeCarrier -> FTrav ItemAssocType
@@ -229,9 +230,8 @@ getMemberItemAssocTypes _ = return []
 -- Paremeter sub-items of function type are adjusted to function pointer type.
 getSubItemAssocTypes :: ItemAssocType -> FTrav [ItemAssocType]
 getSubItemAssocTypes iat@(iid,(LCA.TypeDefType (LCA.TypeDefRef idnam t _) q _)) = do
-    dt <- LCA.getDefTable
-    srtn <- stopResolvTypeName idnam
-    if ((isExternTypeDef dt idnam) && not srtn)
+    rtn <- isResolvTypeName idnam
+    if rtn
        then getSubItemAssocTypes (iid,(mergeQualsTo t q))
        else return [iat]
 getSubItemAssocTypes iat@(iid,(LCA.DirectType (LCA.TyComp (LCA.CompTypeRef sueref knd _)) _ _)) | LCI.isAnonymousRef sueref = do

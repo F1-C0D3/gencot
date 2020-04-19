@@ -98,10 +98,10 @@ sorting step done by \code{Gencot.Input.getDeclEvents} creates the desired order
 \code{DeclEvent}s in the list could be processed by \code{transGlobal} independently from each other.
 
 However, this approach would create inappropriate origin markers which could result in duplicated conditional preprocessor
-directives and comments. If a struct definition in lines $b1 < e1$ contains a nested struct definition in lines $b2 < e2$
+directives and comments. If a definition in lines $b1 < e1$ contains a nested struct definition in lines $b2 < e2$
 independent translation would wrap the translated nested struct always in origin markers for $b2$ and $e2$. If $e1 = e2$
 the corresponding origin marker would occur twice. A better approach is to use origin markers for $b1, e1$ to wrap the 
-whole sequence consisting of the translated struct together with the translations of all nested structs. Then, the translated
+whole sequence consisting of the translated definition together with the translations of all nested structs. Then, the translated
 nested struct would be followed by the two origin markers for $e2$ and $e1$ which can be reduced to a single marker if
 $e2 = e1$.
 
@@ -109,7 +109,7 @@ Therefore function \code{transGlobal} is defined as
 \begin{verbatim}
   transGlobal :: DeclEvent -> FTrav [GenToplv]
 \end{verbatim}
-It translates every struct definition together with all nested struct/union/enum definitions and returns the sequence of 
+It translates every definition together with all nested struct/union/enum definitions and returns the sequence of 
 the corresponding Cogent toplevel definitions, wrapped by the origin markers as described.
 
 Since the nested definitions still occur seperately in the list of \code{DeclEvent}s processed by \code{transGlobals}, their processing

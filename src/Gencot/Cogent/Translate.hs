@@ -90,8 +90,10 @@ transGlobal de@(LCA.DeclEvent decl@(LCA.Declaration (LCA.Decl _ n))) | isComplet
     sfn <- getFileName
     let iat = getIndividualItemAssoc decl sfn
     t <- transType False iat
+-- from nesttags:
+--    nt <- transTagIfNested dtyp n
     let typ = if isFunction dtyp then t else mkFunType t
-    return $ wrapOrigin n ([GenToplv (CS.AbsDec f (CS.PT [] typ)) noOrigin])
+        return $ wrapOrigin n ({-nt ++ -}[GenToplv (CS.AbsDec f (CS.PT [] typ)) noOrigin])
     where idnam = LCA.declIdent decl
           dtyp = LCA.declType decl
 -- Translate a C function definition of the form
@@ -106,6 +108,8 @@ transGlobal (LCA.DeclEvent idecl@(LCA.FunctionDef fdef@(LCA.FunDef decl stat n))
     sfn <- getFileName
     let iat = getIndividualItemAssoc idecl sfn
     t <- transType False iat
+-- from nesttags:
+--    nt <- transTagIfNested typ n -- wirkt erst wenn transTagIfNested auch derived types verarbeitet
     ps <- transParamNames isVar pars
     LCA.enterFunctionScope
     LCA.defineParams LCN.undefNode decl
@@ -113,9 +117,9 @@ transGlobal (LCA.DeclEvent idecl@(LCA.FunctionDef fdef@(LCA.FunDef decl stat n))
     d <- extendExpr iat d pars
     s <- transStat stat
     LCA.leaveFunctionScope
-    return $ wrapOrigin n ([GenToplv (CS.FunDef f (CS.PT [] t) [CS.Alt ps CCS.Regular $ FunBody d s]) noOrigin])
+return $ wrapOrigin n ({-nt ++ -}[GenToplv (CS.FunDef f (CS.PT [] t) [CS.Alt ps CCS.Regular $ FunBody d s]) noOrigin])
     where idnam = LCA.declIdent idecl
-          (LCA.FunctionType (LCA.FunType res pars isVar) _) = LCA.declType idecl
+          typ@(LCA.FunctionType (LCA.FunType res pars isVar) _) = LCA.declType idecl
 -- Translate a C object definition of the form
 -- > typ name = expr;
 -- (where type may be a derived type syntactically integrated in the name)
@@ -127,8 +131,10 @@ transGlobal (LCA.DeclEvent odef@(LCA.ObjectDef (LCA.ObjDef _ _ n))) = do
     sfn <- getFileName
     let iat = getIndividualItemAssoc odef sfn
     t <- transType False iat
+-- from nesttags:
+--    nt <- transTagIfNested dtyp n
     let typ = if isFunction dtyp then t else mkFunType t
-    return $ wrapOrigin n ([GenToplv (CS.AbsDec f (CS.PT [] typ)) noOrigin])
+        return $ wrapOrigin n ({-nt ++ -}[GenToplv (CS.AbsDec f (CS.PT [] typ)) noOrigin])
     where idnam = LCA.declIdent odef
           dtyp = LCA.declType odef
 -- Translate a C enumerator definition of the form

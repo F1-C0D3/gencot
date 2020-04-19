@@ -93,7 +93,7 @@ transGlobal de@(LCA.DeclEvent decl@(LCA.Declaration (LCA.Decl _ n))) | isComplet
 -- from nesttags:
 --    nt <- transTagIfNested dtyp n
     let typ = if isFunction dtyp then t else mkFunType t
-        return $ wrapOrigin n ({-nt ++ -}[GenToplv (CS.AbsDec f (CS.PT [] typ)) noOrigin])
+    return $ wrapOrigin n ({-nt ++ -}[GenToplv (CS.AbsDec f (CS.PT [] typ)) noOrigin])
     where idnam = LCA.declIdent decl
           dtyp = LCA.declType decl
 -- Translate a C function definition of the form
@@ -117,7 +117,7 @@ transGlobal (LCA.DeclEvent idecl@(LCA.FunctionDef fdef@(LCA.FunDef decl stat n))
     d <- extendExpr iat d pars
     s <- transStat stat
     LCA.leaveFunctionScope
-return $ wrapOrigin n ({-nt ++ -}[GenToplv (CS.FunDef f (CS.PT [] t) [CS.Alt ps CCS.Regular $ FunBody d s]) noOrigin])
+    return $ wrapOrigin n ({-nt ++ -}[GenToplv (CS.FunDef f (CS.PT [] t) [CS.Alt ps CCS.Regular $ FunBody d s]) noOrigin])
     where idnam = LCA.declIdent idecl
           typ@(LCA.FunctionType (LCA.FunType res pars isVar) _) = LCA.declType idecl
 -- Translate a C object definition of the form
@@ -134,7 +134,7 @@ transGlobal (LCA.DeclEvent odef@(LCA.ObjectDef (LCA.ObjDef _ _ n))) = do
 -- from nesttags:
 --    nt <- transTagIfNested dtyp n
     let typ = if isFunction dtyp then t else mkFunType t
-        return $ wrapOrigin n ({-nt ++ -}[GenToplv (CS.AbsDec f (CS.PT [] typ)) noOrigin])
+    return $ wrapOrigin n ({-nt ++ -}[GenToplv (CS.AbsDec f (CS.PT [] typ)) noOrigin])
     where idnam = LCA.declIdent odef
           dtyp = LCA.declType odef
 -- Translate a C enumerator definition of the form

@@ -33,7 +33,6 @@ typedefItemId cid = "typedef|" ++ cid
 -- The first argument is the kind of tag (struct, union, enum).
 -- The second argument is the tag name or a pseudo tag name for an anonymous tag.
 tagItemId :: String -> String -> String
-tagItemId knd "" = knd ++ "|<anonymous>"
 tagItemId knd cid = knd ++ "|" ++ cid
 
 -- | Construct the identifier for a member subitem of an item of struct or union type.

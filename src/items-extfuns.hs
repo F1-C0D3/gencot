@@ -15,7 +15,7 @@ import Gencot.Traversal (runFTrav)
 import Gencot.Items.Identifier (getTypedefNames)
 import Gencot.Items.Translate (functionsInGlobals)
 import Gencot.Items.Properties (showProperties)
-import Gencot.Items.Types (getExternalItemId,getToplevelItemId)
+import Gencot.Items.Types (getToplevelItemId)
 
 main :: IO ()
 main = do
@@ -41,5 +41,5 @@ usedFilter :: [String] -> LCA.DeclEvent -> Bool
 usedFilter usedItems tc = elem (getToplevelItemId tc) usedItems
 
 usedDeclFilter :: [String] -> LCA.DeclEvent -> Bool
-usedDeclFilter usedItems (LCA.DeclEvent decl@(LCA.Declaration _)) = elem (getExternalItemId decl) usedItems
+usedDeclFilter usedItems e@(LCA.DeclEvent (LCA.Declaration _)) = elem (getToplevelItemId e) usedItems
 usedDeclFilter _ _ = False

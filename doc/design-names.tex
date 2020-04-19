@@ -53,14 +53,21 @@ with internal linkage could cause conflicts when they origin in different C comp
 
 To avoid these conflicts, Gencot uses a name mapping scheme for names with internal linkage which is based on the 
 compilation unit's file name. Names with internal linkage are mapped by substituting a prefix by the prefix \code{local\_x\_}
-where \code{x} is the basename of the file which contains the definition, which is usually a file \code{x.c}. The default
+where \code{x} is the basename of the file which contains the definition, which is usually a file \code{x.c}. A name with
+internal linkage can also be defined in an included file, but this is rarely done, because it introduces a separate object
+in every compilation unit which includes the file. Gencot uses the same prefix in both cases, because if two files \code{x.c}
+and \code{x.h} exist, the file \code{x.c} usually includes \code{x.h} and no different objects with the same name can be defined 
+in both files. 
+
+The default
 is to substitute the empty prefix, i.e., prepend the target prefix. The mapping can be configured by specifying prefixes
 to be substituted. This is motivated by the C programming practice to sometimes also use a common prefix for names 
 with internal linkage which can be removed in this way.
 
-Name conflicts could also occur for type names and tags defined in a \code{.h} file. This would be the case if different
+Name conflicts could also occur for type names and tags (which have no linkage) defined in a \code{.h} file. 
+This would be the case if different
 C compilation units include individual \code{.h} files which use the same identifier for different purposes. However, most
-C packages avoid this to make include files more robust. Gencot assumes that all identifiers defined in a \code{.h} file
+C packages avoid this to make include files more robust. Gencot assumes that all identifiers without linkage 
 are unique in the <package> and does not apply a file-specific renaming scheme. If a <package> does not satisfy this assumption
 Gencot will generate several Cogent type definitions with the same name, which will be detected and signaled by the Cogent 
 compiler and must be handled manually.

@@ -20,8 +20,8 @@ import Cogent.Common.Types as CCT
 import Cogent.Util (ffmap)
 
 import Gencot.Origin (Origin,noOrigin,origin,mkOrigin,noComOrigin,mkBegOrigin,mkEndOrigin,prepOrigin,appdOrigin,isNested,toNoComOrigin)
-import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapNameToLower,mapPtrDeriv,mapPtrVoid,mapMayNull,mapArrDeriv,mapFunDeriv,arrDerivHasSize,arrDerivToUbox,mapUboxStep,rmUboxStep,mapMayNullStep,rmMayNullStepThroughRo,addMayNullStep,mapPtrStep,mapFunStep,mapIncFunStep,mapArrStep,mapModStep,mapRoStep,mapNamFunStep,srcFileName)
-import Gencot.Items.Types (ItemAssocType,isNotNullItem,isReadOnlyItem,isAddResultItem,getIndividualItemId,getTagItemId,getParamSubItemId,derivedItemIds,getIndividualItemAssoc,getTypedefItemAssoc,adjustItemAssocType,getMemberSubItemAssoc,getRefSubItemAssoc,getResultSubItemAssoc,getElemSubItemAssoc,getParamSubItemAssoc,getItemAssocType,getMemberItemAssocTypes,getSubItemAssocTypes,numberList)
+import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapNameToLower,mapPtrDeriv,mapPtrVoid,mapMayNull,mapArrDeriv,mapFunDeriv,arrDerivHasSize,arrDerivToUbox,mapUboxStep,rmUboxStep,mapMayNullStep,rmMayNullStepThroughRo,addMayNullStep,mapPtrStep,mapFunStep,mapIncFunStep,mapArrStep,mapModStep,mapRoStep,mapNamFunStep,getFileName)
+import Gencot.Items.Types (ItemAssocType,isNotNullItem,isReadOnlyItem,isAddResultItem,getTagItemAssoc,getIndividualItemAssoc,getTypedefItemAssoc,adjustItemAssocType,getMemberSubItemAssoc,getRefSubItemAssoc,getResultSubItemAssoc,getElemSubItemAssoc,getParamSubItemAssoc,getItemAssocType,getMemberItemAssocTypes,getSubItemAssocTypes,numberList)
 import Gencot.Cogent.Ast
 import Gencot.C.Translate (transStat,transExpr)
 import Gencot.Traversal (FTrav,markTagAsNested,isMarkedAsNested,hasProperty,stopResolvTypeName)
@@ -36,9 +36,24 @@ transGlobals tcs = liftM concat $ mapM transGlobal tcs
 -- | Translate a C "external" (global) declaration to a sequence of Cogent toplevel definitions.
 -- A single C declaration with nested declarations may be translated to a sequence of Cogent definitions.
 transGlobal :: LCA.DeclEvent -> FTrav [GenToplv]
--- Translate a C struct definition -> see transStruct
-transGlobal (LCA.TagEvent (LCA.CompDef ct@(LCA.CompType sueref LCA.StructTag _ _ _))) =
-    transStruct (getTagItemId sueref LCA.StructTag) ct
+-- | If not yet translated as nested, translate a C struct definition of the form
+-- > struct tagname { ... }
+-- to a Cogent record definition of the form
+-- > type Struct_tagname = { ... }
+-- All nested tag definitions are translated and appended as separate toplevel type definitions.
+transGlobal (LCA.TagEvent def@(LCA.CompDef (LCA.CompType sueref LCA.StructTag mems _ n))) = do
+    nst <- isMarkedAsNested sueref
+    if nst 
+       then return []
+       else do
+           tn <- transTagName typnam
+           sfn <- getFileName
+           let iat = getTagItemAssoc def sfn
+           ms <- mapM (transMember iat) aggmems
+           nts <- liftM concat $ mapM (transMemTagIfNested iat) aggmems
+           return $ wrapOrigin n ([GenToplv (CS.TypeDec tn [] $ genType $ CS.TRecord ms markBox) noOrigin] ++ nts)
+    where typnam = LCA.TyComp $ LCA.CompTypeRef sueref LCA.StructTag n
+          aggmems = aggBitfields mems
 -- If not yet translated as nested, translate a C union definition of the form
 -- > union tagname { ... }
 -- to an abstract Cogent type definition of the form
@@ -72,7 +87,7 @@ transGlobal (LCA.TagEvent (LCA.EnumDef (LCA.EnumType sueref es _ n))) = do
 -- access function of type () -> typ
 transGlobal de@(LCA.DeclEvent decl@(LCA.Declaration (LCA.Decl _ n))) | isComplete dtyp = do
     f <- transObjName idnam 
-    sfn <- srcFileName idnam
+    sfn <- getFileName
     let iat = getIndividualItemAssoc decl sfn
     t <- transType False iat
     let typ = if isFunction dtyp then t else mkFunType t
@@ -88,7 +103,7 @@ transGlobal de@(LCA.DeclEvent decl@(LCA.Declaration (LCA.Decl _ n))) | isComplet
 -- and stmt is translated by mapping all non-local names.
 transGlobal (LCA.DeclEvent idecl@(LCA.FunctionDef fdef@(LCA.FunDef decl stat n))) = do
     f <- transObjName idnam
-    sfn <- srcFileName idnam
+    sfn <- getFileName
     let iat = getIndividualItemAssoc idecl sfn
     t <- transType False iat
     ps <- transParamNames isVar pars
@@ -109,7 +124,7 @@ transGlobal (LCA.DeclEvent idecl@(LCA.FunctionDef fdef@(LCA.FunDef decl stat n))
 -- for a parameterless access function
 transGlobal (LCA.DeclEvent odef@(LCA.ObjectDef (LCA.ObjDef _ _ n))) = do
     f <- transObjName idnam
-    sfn <- srcFileName idnam
+    sfn <- getFileName
     let iat = getIndividualItemAssoc odef sfn
     t <- transType False iat
     let typ = if isFunction dtyp then t else mkFunType t
@@ -147,44 +162,19 @@ transGlobal (LCA.TypeDefEvent (LCA.TypeDef idnam typ _ n)) = do
         
 transGlobal _ = return $ [GenToplv (CS.Include "err-unexpected toplevel") noOrigin]
 
--- | If not yet translated as nested, translate a C struct definition of the form
--- > struct tagname { ... }
--- to a Cogent record definition of the form
--- > type Struct_tagname = { ... }
--- The first parameter is the item identifier of the item where the struct type is used.
--- It is only needed for anonymous structs which can be used by a single item only.
--- The third parameter is a monadic action which translates a single member declaration
--- to a pair of Cogent field name and type. As additional first parameter it expects the reference
--- to the C struct type definition.
--- All nested tag definitions are translated and appended as separate toplevel type definitions.
-transStruct :: String -> LCA.CompType -> FTrav [GenToplv]
-transStruct iid (LCA.CompType sueref LCA.StructTag mems _ n) = do
-    nst <- isMarkedAsNested sueref
-    if nst 
-       then return []
-       else do
-           tn <- transTagName typnam
-           ms <- mapM (transMember iat) aggmems
-           nts <- liftM concat $ mapM (transMemTagIfNested iat) aggmems
-           return $ wrapOrigin n ([GenToplv (CS.TypeDec tn [] $ genType $ CS.TRecord ms markBox) noOrigin] ++ nts)
-    where siid = if LCI.isAnonymousRef sueref then iid else getTagItemId sueref LCA.StructTag
-          typnam = LCA.TyComp $ LCA.CompTypeRef sueref LCA.StructTag n
-          iat = (siid,LCA.DirectType typnam LCA.noTypeQuals LCA.noAttributes)
-          aggmems = aggBitfields mems
-
 -- | Translate nested tag definitions in a member definition.
 -- The first argument is the ItemAssocType of the struct.
 transMemTagIfNested :: ItemAssocType -> LCA.MemberDecl -> FTrav [GenToplv]
 transMemTagIfNested iat mdecl = transTagIfNested (getMemberSubItemAssoc iat mdecl) $ LCN.nodeInfo mdecl
 
 -- | Translate a C type as nested tag definition together with all contained nested tag definitions.
--- The type is specified as an ItemAssocType. The item id is used for tagless struct, union, and enums.
+-- The type is specified as an ItemAssocType.
 -- Additional second parameter is the position where the type is used.
 -- If the type is a reference to a struct,union, or enum, lookup its definition.
 -- If the definition's position is nested in the position where the type is used, then
 -- the definition is nested at that position. Translate it and mark it as nested in the user state.
 transTagIfNested :: ItemAssocType -> LCN.NodeInfo -> FTrav [GenToplv]
-transTagIfNested (iid, typ@(LCA.DirectType tn _ _)) n | isTagRef typ = do
+transTagIfNested (_, typ@(LCA.DirectType tn _ _)) n | isTagRef typ = do
     dt <- LCA.getDefTable
     let mtd = getTagDef dt $ getSUERef tn
     case mtd of
@@ -192,9 +182,7 @@ transTagIfNested (iid, typ@(LCA.DirectType tn _ _)) n | isTagRef typ = do
          Just td -> 
             if isNested (nodeInfo td) n 
                then do
-                   ng <- case td of
-                              LCA.CompDef ct@(LCA.CompType _ LCA.StructTag _ _ _) -> transStruct iid ct
-                              _ -> transGlobal $ LCA.TagEvent td
+                   ng <- transGlobal $ LCA.TagEvent td
                    markTagAsNested $ sueRef td
                    return ng
                else return []
@@ -430,6 +418,10 @@ transType rslv iat@(_, (LCA.FunctionType (LCA.FunType ret pars variadic) _)) = d
     ps <- mapM (transParamType rslv iat) $ numberList pars
     let pt = mkParType (ps ++ if variadic then [variadicType] else [])
     applyProperties iat $ genType $ CS.TFun pt r
+-- Incomplete derived function type: ret ()
+-- Signal an error.
+transType rslv iat@(iid, (LCA.FunctionType (LCA.FunTypeIncomplete ret) _)) =
+    error ("Cannot translate incomplete function type for " ++ iid)
 -- Derived array type for element type t:
 -- Translate t, if again array type apply unbox operator, then apply generic array type. Always boxed.
 -- If Read-OnlyProperty: banged

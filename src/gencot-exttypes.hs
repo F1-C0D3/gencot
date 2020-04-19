@@ -40,7 +40,7 @@ main = do
     print $ prettyTopLevels toplvs
 
 constructFilter :: [String] -> LCA.DeclEvent -> Bool
-constructFilter iids (LCA.TagEvent cd@(LCA.CompDef (LCA.CompType sueref knd _ _ _))) = elem (getTagItemId sueref knd) iids
+constructFilter iids (LCA.TagEvent cd@(LCA.CompDef ct)) = elem (getTagItemId ct "") iids
 constructFilter iids (LCA.TagEvent cd@(LCA.EnumDef (LCA.EnumType sueref _ _ _))) = elem (getEnumItemId sueref) iids
 constructFilter iids (LCA.TypeDefEvent (LCA.TypeDef idnam _ _ _)) = elem (getTypedefItemId idnam) iids
 constructFilter _ _ = False

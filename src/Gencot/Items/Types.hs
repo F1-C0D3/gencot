@@ -9,7 +9,7 @@ import Language.C.Data.Node as LCN
 import Language.C.Analysis as LCA
 
 import Gencot.Items.Identifier (individualItemId,localItemId,paramItemId,typedefItemId,tagItemId,memberSubItemId,paramSubItemId,elemSubItemId,refSubItemId,resultSubItemId,indivItemIds)
-import Gencot.Names (srcFileName)
+import Gencot.Names (getFileName,anonCompTypeName,srcFileName)
 import Gencot.Traversal (FTrav,hasProperty,stopResolvTypeName)
 import Gencot.Util.Types (getTagDef,isExtern,isFunction,isExternTypeDef,TypeCarrier,TypeCarrierSet,mergeQualsTo)
 
@@ -20,22 +20,13 @@ import Gencot.Util.Types (getTagDef,isExtern,isFunction,isExternTypeDef,TypeCarr
 getIndividualItemId :: LCA.IdentDecl -> String -> String
 getIndividualItemId idec sfn = individualItemId (linkagePrefix idec sfn) (LCI.identToString $ LCA.declIdent idec)
 
--- | Construct the identifier for a individual non-internal toplevel item.
--- An individual non-internal toplevel item is a function or a global object (variable) with external linkage.
--- It is specified by its declaration. 
-getExternalItemId :: LCA.IdentDecl -> String
-getExternalItemId idec = individualItemId "" (LCI.identToString $ LCA.declIdent idec)
-
 -- | The prefix to be prepended to an item identifier if the item has internal linkage.
 -- The item is specified by its declaration. 
 -- The second parameter is the source file name of the main file.
 linkagePrefix :: (LCA.Declaration d, LCN.CNode d) => d -> String -> String
 linkagePrefix idec sfn | isInternal idec = prefix
-    where fn = case LCN.fileOfNode idec of
-                    Nothing -> "<unknown>"
-                    Just res -> takeFileName res
-          fn' = if fn == "<stdin>" then sfn else fn
-          prefix = if (takeExtension fn') == ".c" then (takeBaseName fn') else fn'
+    where fn = srcFileName sfn idec
+          prefix = if (takeExtension fn) == ".c" then (takeBaseName fn) else fn
           isInternal idec = 
             case LCA.declStorage idec of
                  NoStorage -> False -- function pointer struct members
@@ -59,10 +50,12 @@ getParamItemId idec = paramItemId (LCI.identToString $ LCA.declIdent idec)
 getTypedefItemId :: LCI.Ident -> String
 getTypedefItemId idnam = typedefItemId (LCI.identToString idnam)
 
--- | Construct the identifier for a collective item specified by a compound tag name.
-getTagItemId :: LCI.SUERef -> LCA.CompTyKind -> String
-getTagItemId (LCI.AnonymousRef _) knd = tagItemId (kndstr knd) ""
-getTagItemId (LCI.NamedRef idnam) knd = tagItemId (kndstr knd) (LCI.identToString idnam)
+-- | Construct the identifier for a collective item specified by a compound type.
+-- The second argument is the name of the main source file.
+-- It may be used for constructing the item id in case of a tagless type.
+getTagItemId :: LCA.CompType -> String -> String
+getTagItemId (LCA.CompType (LCI.AnonymousRef _) knd _ _ n) sfn = tagItemId (kndstr knd) $ anonCompTypeName sfn n
+getTagItemId (LCA.CompType (LCI.NamedRef idnam) knd _ _ _) _ = tagItemId (kndstr knd) $ LCI.identToString idnam
 
 kndstr LCA.StructTag = "struct"
 kndstr LCA.UnionTag = "union"
@@ -72,11 +65,14 @@ getEnumItemId :: LCI.SUERef -> String
 getEnumItemId (LCI.AnonymousRef _) = tagItemId "enum" ""
 getEnumItemId (LCI.NamedRef idnam) = tagItemId "enum" (LCI.identToString idnam)
 
--- | Get the identifier for a toplevel item which has not internal linkage
+-- | Get the identifier for an external toplevel item
+-- Since the item is external, the main file name is not required:
+-- The linkage prefix is only required for items with internal linkage.
+-- If a tagless type is defined in the main file it is not external.
 getToplevelItemId :: TypeCarrier -> String
-getToplevelItemId (LCA.DeclEvent idecl) = getExternalItemId idecl
+getToplevelItemId (LCA.DeclEvent idecl) = individualItemId "" (LCI.identToString $ LCA.declIdent idecl)
 getToplevelItemId (LCA.TypeDefEvent (LCA.TypeDef idnam _ _ _)) = getTypedefItemId idnam
-getToplevelItemId (LCA.TagEvent (LCA.CompDef (LCA.CompType sueref knd _ _ _))) = getTagItemId sueref knd
+getToplevelItemId (LCA.TagEvent (LCA.CompDef ct)) = getTagItemId ct ""
 getToplevelItemId (LCA.TagEvent (LCA.EnumDef (LCA.EnumType sueref _ _ _))) = getEnumItemId sueref
 getToplevelItemId (LCA.LocalEvent decl) = getLocalItemId decl
 getToplevelItemId (LCA.ParamEvent decl) = getParamItemId decl
@@ -108,31 +104,40 @@ getFunctionSubItemId _ baseid = error ("getFunctionSubItemId for item with direc
 -- | Construct all identifiers for a collective item specified by a type.
 -- Only supported for tag and typedef names and for pointer types where the ultimate base type is a tag or typedef name.
 -- Several identifiers may result from resolving typed names or not.
-derivedItemIds :: LCA.Type -> [String]
-derivedItemIds (LCA.DirectType (LCA.TyComp (LCA.CompTypeRef sueref knd _)) _ _) | not $ LCI.isAnonymousRef sueref =
-    [getTagItemId sueref knd]
+derivedItemIds :: LCA.Type -> FTrav [String]
+derivedItemIds (LCA.DirectType (LCA.TyComp (LCA.CompTypeRef sueref _ _)) _ _) = do
+    dt <- LCA.getDefTable
+    sfn <- getFileName
+    case getTagDef dt sueref of
+         Nothing -> return []
+         Just (LCA.CompDef ct) -> return [getTagItemId ct sfn]
 derivedItemIds (LCA.DirectType (LCA.TyEnum (LCA.EnumTypeRef sueref _)) _ _) | not $ LCI.isAnonymousRef sueref =
-    [getEnumItemId sueref]
-derivedItemIds (LCA.TypeDefType (LCA.TypeDefRef idnam t _) _ _) = 
-    (getTypedefItemId idnam) : (derivedItemIds t)
-derivedItemIds (LCA.PtrType bt _ _) = 
-    map (\s -> s ++ "*") $ derivedItemIds bt
-derivedItemIds _ = []
+    return $ [getEnumItemId sueref]
+derivedItemIds (LCA.TypeDefType (LCA.TypeDefRef idnam t _) _ _) = do
+    dii <- derivedItemIds t
+    return $ (getTypedefItemId idnam) : dii
+derivedItemIds (LCA.PtrType bt _ _) = do
+    dii <- derivedItemIds bt
+    return $ map (\s -> s ++ "*") dii
+derivedItemIds _ = return $ []
 
 -- | A type with an associated item identifier.
 type ItemAssocType = (String,LCA.Type)
 
 isNotNullItem :: ItemAssocType -> FTrav Bool
-isNotNullItem (iid,t) = 
-    liftM or $ mapM (hasProperty "nn") $ ((indivItemIds iid) ++ (derivedItemIds t))
+isNotNullItem (iid,t) = do
+    dii <- derivedItemIds t
+    liftM or $ mapM (hasProperty "nn") $ ((indivItemIds iid) ++ dii)
 
 isReadOnlyItem :: ItemAssocType -> FTrav Bool
-isReadOnlyItem (iid,t) = 
-    liftM or $ mapM (hasProperty "ro") $ ((indivItemIds iid) ++ (derivedItemIds t))
+isReadOnlyItem (iid,t) = do
+    dii <- derivedItemIds t
+    liftM or $ mapM (hasProperty "ro") $ ((indivItemIds iid) ++ dii)
 
 isAddResultItem :: ItemAssocType -> FTrav Bool
-isAddResultItem (iid,t) = 
-    liftM or $ mapM (hasProperty "ar") $ ((indivItemIds iid) ++ (derivedItemIds t))
+isAddResultItem (iid,t) = do
+    dii <- derivedItemIds t
+    liftM or $ mapM (hasProperty "ar") $ ((indivItemIds iid) ++ dii)
 
 -- | ItemAssocType for an individual (top-level) item.
 -- The second argument is the name of the main source file.
@@ -146,6 +151,11 @@ getLocalItemAssoc idecl = (getLocalItemId idecl, LCA.declType idecl)
 -- | ItemAssocType for a parameter (without known function).
 getParamItemAssoc :: LCA.ParamDecl -> ItemAssocType
 getParamItemAssoc idecl = (getParamItemId idecl, LCA.declType idecl)
+
+-- | ItemAssocType for an compound type item.
+-- The second argument is the name of the main source file.
+getTagItemAssoc :: LCA.TagDef -> String -> ItemAssocType
+getTagItemAssoc def@(LCA.CompDef ct) sfn = (getTagItemId ct sfn,LCA.DirectType (LCA.typeOfTagDef def) LCA.noTypeQuals LCA.noAttributes)
 
 -- | ItemAssocType for a named type.
 getTypedefItemAssoc :: LCI.Ident -> LCA.Type -> ItemAssocType
@@ -196,20 +206,19 @@ adjustItemAssocType :: ItemAssocType -> ItemAssocType
 adjustItemAssocType (iid,t) = ("&" ++ iid, (LCA.PtrType t LCA.noTypeQuals LCA.noAttributes))
 
 -- | Retrieve ItemAssocType from a TypeCarrier.
--- This is a monadic action because the TypeCarrier's @srcFileName@ must be determined.
+-- This is a monadic action because the @getFileName@ must be determined.
 -- To avoid standalone parameters, local variables, and tagless compound items they must be filtered before.
 -- AsmEvents must always be filtered.
 -- External types are never resolved, if they are not stopResolve they must be filtered before.
--- External types are not resolved through anonymous composite types because that would require to 
--- modify the definition of the anonymous composite type in the symbol table.
 getItemAssocType :: TypeCarrier -> FTrav ItemAssocType
 getItemAssocType (LCA.DeclEvent idecl) = do
-    sfn <- srcFileName idecl
+    sfn <- getFileName
     return $ getIndividualItemAssoc idecl sfn
 getItemAssocType (LCA.TypeDefEvent (LCA.TypeDef idnam t _ _)) = 
     return $ getTypedefItemAssoc idnam t
-getItemAssocType (LCA.TagEvent def@(LCA.CompDef (LCA.CompType sueref knd mems _ _))) =
-    return (getTagItemId sueref knd,LCA.DirectType (LCA.typeOfTagDef def) LCA.noTypeQuals LCA.noAttributes)
+getItemAssocType (LCA.TagEvent def@(LCA.CompDef ct)) = do
+    sfn <- getFileName
+    return $ getTagItemAssoc def sfn
 getItemAssocType (LCA.TagEvent def@(LCA.EnumDef (LCA.EnumType sueref enms _ _))) =
     return (getEnumItemId sueref,LCA.DirectType (LCA.typeOfTagDef def) LCA.noTypeQuals LCA.noAttributes)
 getItemAssocType (LCA.LocalEvent decl) = return $ getLocalItemAssoc decl
@@ -225,8 +234,7 @@ getMemberItemAssocTypes tc@(LCA.TagEvent def@(LCA.CompDef (LCA.CompType sueref k
 getMemberItemAssocTypes _ = return []
 
 -- | Get all sub-ItemAssocTypes of an ItemAssocType, including itself.
--- This is a monadic action because for an anonymous compound type the definition must be retrieved
--- and type names must be tested whether they stop resolving.
+-- This is a monadic action because type names must be tested whether they stop resolving.
 -- Paremeter sub-items of function type are adjusted to function pointer type.
 getSubItemAssocTypes :: ItemAssocType -> FTrav [ItemAssocType]
 getSubItemAssocTypes iat@(iid,(LCA.TypeDefType (LCA.TypeDefRef idnam t _) q _)) = do
@@ -234,14 +242,14 @@ getSubItemAssocTypes iat@(iid,(LCA.TypeDefType (LCA.TypeDefRef idnam t _) q _)) 
     if rtn
        then getSubItemAssocTypes (iid,(mergeQualsTo t q))
        else return [iat]
-getSubItemAssocTypes iat@(iid,(LCA.DirectType (LCA.TyComp (LCA.CompTypeRef sueref knd _)) _ _)) | LCI.isAnonymousRef sueref = do
+{-getSubItemAssocTypes iat@(iid,(LCA.DirectType (LCA.TyComp (LCA.CompTypeRef sueref knd _)) _ _)) | LCI.isAnonymousRef sueref = do
     dt <- LCA.getDefTable
     let mtd = getTagDef dt sueref
     case mtd of
          Nothing -> return []
          Just (LCA.CompDef (LCA.CompType _ _ mems _ _)) -> do
              subs <- liftM concat $ mapM (\md -> getSubItemAssocTypes $ getMemberSubItemAssoc iat md) mems
-             return (iat : subs)
+             return (iat : subs)-}
 getSubItemAssocTypes iat@(iid,(LCA.DirectType _ _ _)) = return [iat] 
 getSubItemAssocTypes iat@(iid,(LCA.PtrType _ _ _)) = do
     sub <- getRefSubItemAssoc iat

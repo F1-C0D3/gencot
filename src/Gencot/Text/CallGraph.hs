@@ -30,9 +30,9 @@ funInvokeToIdentRel s (fdef,(IdentInvoke idec _),(True,pos)) | pos > 0 =
 funInvokeToIdentRel s (fdef,(IdentInvoke idec _),(True,_)) = 
     (getIndividualItemId (LCA.FunctionDef fdef) s,getFunctionSubItemId (LCA.declType idec) $ getLocalItemId idec )
 
-funInvokeToIdentRel s (fdef,(MemberInvoke (LCA.CompType sueref knd _ _ _) mdec _),_) = 
+funInvokeToIdentRel s (fdef,(MemberInvoke ct@(LCA.CompType sueref knd _ _ _) mdec _),_) = 
     (getIndividualItemId (LCA.FunctionDef fdef) s,
-     getFunctionSubItemId (LCA.declType mdec) $ getMemberSubItemId (getTagItemId sueref knd) mdec)
+     getFunctionSubItemId (LCA.declType mdec) $ getMemberSubItemId (getTagItemId ct s) mdec)
 
 -- | Convert a relation on Strings to the map from Strings to the pair
 -- of predomain and postdomain, each represented as a String list.

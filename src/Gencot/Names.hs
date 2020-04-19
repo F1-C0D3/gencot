@@ -41,33 +41,36 @@ mapIfUpper idnam = if (isUpper $ head s) || "_" `isPrefixOf` s then mapNameToLow
 
 transTagName :: (FileNameTrav f, MonadTrav f) => LCA.TypeName -> f String
 transTagName (LCA.TyComp (LCA.CompTypeRef (LCI.NamedRef idnam) kind _)) = 
-    return $ kindPrefix kind ++ mapNameToUpper idnam
-    where kindPrefix LCA.StructTag = "Struct_"
-          kindPrefix LCA.UnionTag  = "Union_"
-transTagName (LCA.TyComp (LCA.CompTypeRef ref@(LCI.AnonymousRef unam) kind _)) = do
+    return $ kindPrefix kind ++ "_" ++ mapNameToUpper idnam
+transTagName (LCA.TyComp (LCA.CompTypeRef ref@(LCI.AnonymousRef unam) knd _)) = do
     table <- LCA.getDefTable
-    let (Just (Right tagdef)) = LCD.lookupTag ref table
-    fnam <- srcFileName tagdef
-    return $ kindPrefix kind ++ show (lineNr tagdef) ++ "_" ++ (map mapFileChar fnam)
-    where kindPrefix LCA.StructTag = "Struct"
-          kindPrefix LCA.UnionTag  = "Union"
+    let (Just (Right (LCA.CompDef (LCA.CompType _ _ _ _ n)))) = LCD.lookupTag ref table
+    sfn <- getFileName
+    return $ (kindPrefix knd ++ anonCompTypeName sfn n)
 transTagName (LCA.TyEnum (LCA.EnumTypeRef (LCI.NamedRef idnam) _)) = 
     return $ "Enum_" ++ mapNameToUpper idnam
+
+anonCompTypeName :: CNode a => String -> a -> String
+anonCompTypeName sfn n = 
+    show (lineNr n) ++ "_" ++ (map mapFileChar $ srcFileName sfn n)
+
+kindPrefix LCA.StructTag = "Struct"
+kindPrefix LCA.UnionTag  = "Union"
 
 transObjName :: (FileNameTrav f, MonadTrav f) => LCI.Ident -> f String
 transObjName idnam = do
     mdecdef <- LCA.lookupObject idnam
     let (Just decdef) = mdecdef
-    fnam <- srcFileName decdef
+    fnam <- getFileName 
     let lnk = LCA.declLinkage decdef
     return $ case decdef of
                   LCA.EnumeratorDef _ -> mapNameToLower idnam
-                  _ -> mapObjectName idnam lnk fnam
+                  _ -> mapObjectName idnam lnk fnam decdef
 
-mapObjectName :: LCI.Ident -> LCA.Linkage -> String -> String
-mapObjectName idnam lnk fnam = 
+mapObjectName :: CNode a => LCI.Ident -> LCA.Linkage -> String -> a -> String
+mapObjectName idnam lnk fnam n = 
     case lnk of
-         LCA.InternalLinkage -> mapInternal fnam idnam
+         LCA.InternalLinkage -> mapInternal (srcFileName fnam n) idnam
          LCA.ExternalLinkage -> mapNameToLower idnam
          LCA.NoLinkage -> mapIfUpper idnam
 
@@ -143,7 +146,7 @@ mapFileChar '-' = '_'
 mapFileChar c = c
 
 fileName :: CNode a => a -> String
-fileName n = -- takeFileName . LCP.posFile . LCN.posOfNode . LCN.nodeInfo
+fileName n =
     case LCN.fileOfNode n of
          Nothing -> "<unknown>"
          Just res -> takeFileName res
@@ -151,7 +154,6 @@ fileName n = -- takeFileName . LCP.posFile . LCN.posOfNode . LCN.nodeInfo
 lineNr :: CNode a => a -> Int
 lineNr = LCP.posRow . LCN.posOfNode . LCN.nodeInfo
 
-srcFileName :: (FileNameTrav f, CNode a) => a -> f String
-srcFileName n | "<stdin>" == fileName n = getFileName
-srcFileName n = return $ fileName n
-
+srcFileName :: CNode a => String -> a -> String
+srcFileName sfn n | "<stdin>" == fileName n = sfn
+srcFileName _ n = fileName n

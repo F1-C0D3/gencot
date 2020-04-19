@@ -6,7 +6,6 @@ import Control.Monad (when)
 import Data.Map (empty)
 
 import Language.C.Analysis
-import Language.C.Data.Ident (isAnonymousRef)
 import Language.C.Analysis.DefTable (globalDefs)
 
 import Gencot.Input (readFromInput_,getOwnDeclEvents)
@@ -32,7 +31,7 @@ main = do
 defFilter :: DeclEvent -> Bool
 defFilter (DeclEvent (FunctionDef _)) = True
 defFilter (DeclEvent (ObjectDef _)) = True
-defFilter (TagEvent cd@(CompDef _)) = not $ isAnonymousRef $ sueRef cd
+defFilter (TagEvent (CompDef _)) = True
 defFilter (TypeDefEvent _) = True
 defFilter _ = False
 

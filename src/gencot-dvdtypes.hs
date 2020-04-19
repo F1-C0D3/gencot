@@ -49,8 +49,8 @@ main = do
 constructFilter :: [String] -> LCA.DeclEvent -> Bool
 constructFilter iids (LCA.DeclEvent decl@(LCA.Declaration _)) = 
     elem (identToString $ LCA.declIdent decl) iids
-constructFilter iids (LCA.TagEvent td@(LCA.CompDef (LCA.CompType sueref knd _ _ _))) = 
-    isExtern td && elem (getTagItemId sueref knd) iids
+constructFilter iids (LCA.TagEvent td@(LCA.CompDef ct)) = 
+    isExtern td && elem (getTagItemId ct "") iids
 constructFilter iids (LCA.TypeDefEvent td@(LCA.TypeDef idnam _ _ _)) = 
     isExtern td && elem (getTypedefItemId idnam) iids
 constructFilter _ _ = False

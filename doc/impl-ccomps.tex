@@ -244,7 +244,7 @@ The processor is invoked as
 \end{verbatim}
 where the argument is a list of additional external toplevel items specified manually.
 
-A toplevel item is a tagged struct, union, or enum, a typedef name, a function or a global variable. 
+A toplevel item is a struct, union, or enum, a typedef name, a function or a global variable. 
 
 The processor writes a textual list of the used external items to its standard output. Each item is output in a separate line 
 identified by its item identifer as described in Section~\ref{impl-itemprops-ids}. The argument file content must have the 
@@ -296,22 +296,36 @@ provides more control about the processed external variables for the developer.
 
 \subsubsection{Collecting Used Types}
 
-A type can be used by code in a translated C soure file or by a declaration of an external function or variable.
+As described in Section~\ref{design-types-itemprops}, type items are all typedef names, tag names, generated names 
+for tagless struct/unions, and some derived pointer types. Typedef names and tag names can be external, if they are 
+declared in a system include file. Tagless struct/unions and derived types cannot be extern in this sense, because 
+for them the declaration is identical with their single use. However, the following situation can lead to external 
+used items of this kind: a typedef name is defined for them in a system include file. This typedef name is used 
+indirectly by the Cogent compilation unit and is thus resolved. Then the result of resolving the name becomes the 
+used external type item. 
+
+Properties declared for a derived pointer type item are always applied to the individual items having that type. 
+Thus it is always possible to declare the properties directly for the individual items and Gencot does not support 
+external pointer type items for this reason. For a tagless struct/union the situation is different, it is translated
+to a single defined type and declared properties must be used in this type definition, they cannot be replaced by
+properties declared for the individual typed items. Therefore Gencot also supports tagless struct/unions as used
+external items, identified by their item identifier using a generated name as described in Section~\ref{impl-itemprops-ids}.
+
+A type item can be used by code in a translated C soure file or by a declaration of an external function or variable.
 Therefore, \code{items-used} first determines the external invoked functions and variables as described above, including
 the additional items in the argument file.
 
-Tags and typedef names are reduced by an analysis of type usage by reference. Every item can be
-associated with the tags and typedef names referenced in the types of all sub-items. For tags of 
-composite types and typedef names this usage relation is transitive. To determine the relevant tags 
-and typedef names defined in system include files, \code{items-used} starts with all initial items belonging
+Type items are reduced by an analysis of type usage by reference. Every item can be
+associated with the type items referenced in the types of all sub-items. This usage relation is transitive, because 
+in a definition of a composite type or typedef name, other type items can be referenced. To determine the relevant 
+type items defined in system include files, \code{items-used} starts with all initial items belonging
 to the Cogent compilation unit, together with all external invoked functions and the processed external variables. 
-It then determines all transitively used tags and typedef names (which all must be defined in system include files).
+It then determines all transitively used type items (which all must be defined in system include files).
 
-To further reduce external items, the types of external items are ``fully resolved'', i.e.~all
-typedef names occurring in them are transitively resolved and replaced by their definition. The exception are
-typedef names which are referenced by the initial items, they are preserved since they are needed anyways.
+To further reduce external items, external type name which are not directly used in the Cogent compilation unit are
+resolved, i.e.~always replaced by their definition (which may again reference external type items).
 
-For the resulting set of tags and typedefs the item identifiers are added to the output list. 
+For the resulting set of type items the item identifiers are added to the output list. 
 
 The initial toplevel items are collected with the help of the callback handler during analysis, as described in 
 Section~\ref{impl-ccode-read}. All toplevel items can be wrapped as a \code{DeclEvent}. The callback handler 
@@ -330,13 +344,14 @@ items which are local, have internal linkage, or are still contained in the resu
 This will avoid duplicate occurrences of items.
 
 All parameter declarations are ignored by the callback handler, since for every parameter declaration there must be 
-a \code{DeclEvent} for the containing function, which is processed by the handler. Function and global variable declarations 
+a \code{DeclEvent} for the containing function, which is processed by the handler and has the parameters as sub-items. 
+Function and global variable declarations 
 are also ignored, since they represent external functions and variables which are determined separately. Also,
 a function or variable declared in one source file may be defined in another source file of the Cogent compilation unit and thus 
 be not external. 
 
-Tags and typedef names defined in system include files are omitted, since they will be determined 
-using the type usage relation. To determine whether
+Type items defined in system include files are omitted, since they will be determined using the type usage relation. 
+To determine whether
 an item is defined in a system include file, the simple heuristics is used that the source file name is specified
 as an absolute pathname in the \code{nodeinfo}. System includes are typically accessed using absolute pathnames of the 
 form \code{/usr/include/...} (after being searched by cpp). If include paths are specified explicitly for Gencot, 
@@ -347,19 +362,18 @@ to make the heuristics work.
 After the language-c analysis phase the declarations of all invoked external functions are determined 
 as described above and added to the combined items determined by the callback handler. No duplicate items
 will result here since the combined symbol table contains every external declaration only once.
-External invoked composite type members are not included, since they will be added through the used types below. To invoke 
-a composite type member an object must exist which is an item with the composite type. The item
-identifier for the member will be listed when this item or a typedef referenced by it
-is processed.
+External invoked composite type members are not included, because they are sub-items of the composite type. To invoke 
+a composite type member an object must exist which is an item with the composite type, so the composite is always 
+a used type item.
 
-The resulting set of items is transitively completed by adding all items used by referencing them,
-as described above. This will add all required tags and typedef names defined in system include files.
-Duplicates could occur if an item is referenced
+The resulting set of items is transitively completed by adding all type items used by referencing them,
+as described above. This will add all required type items defined in system include files.
+Duplicates could occur if a type item is referenced
 by several different types, they must be detected and avoided. Since all toplevel items correspond to 
-syntactic entities in a source file, they can be identified and compared by their position and source file.
+syntactic entities in a source file, type items can be identified and compared by their position and source file.
 
-Finally, the tags and typedef names are reduced to those defined in a system include file using the same
-heuristics as above. Together with the names of the external invoked functions and variables their items
+Finally, the type items are reduced to those defined in a system include file using the same
+heuristics as above. Together with the item identifiers of the external invoked functions and variables their items
 identifiers are written to the output.
 
 \subsection{External Functions and Variables}
@@ -430,11 +444,11 @@ where the arguments are a file with the item property declarations (see
 Section~\ref{impl-itemprops}) and a file with the identifiers of the used external items as created 
 by \code{items-used} (see Section~\ref{impl-ccomps-itemprops}).
 
-The task of \code{gencot-exttypes} is to translate all tag and typedef name definitions listed in the 
+The task of \code{gencot-exttypes} is to translate all type item definitions listed in the 
 file of used external items. It parses and analyses
 all C source files specified in the input file name list and combines the resulting symbol tables as
-described in Section~\ref{impl-ccode-package}. The tag and typedef name definitions in the resulting
-table listed in the argument file are then translated.
+described in Section~\ref{impl-ccode-package}. The type item (struct/union, tagged enum, and typedef name) definitions 
+in the resulting table listed in the argument file are then translated.
 
 \subsubsection{Translating Type Definitions}
 
@@ -476,11 +490,11 @@ Together, \code{gencot-dvdtypes} processes
 
 For all derived array types two abstract generic type definitions must be generated
 (see Section~\ref{design-types-array}). However, only one such pair may be generated for every array \code{<size>}, 
-although array types with a specific size may be associated with several different items.
+although array types with a specific size may be associated with several different items and element types.
 
 For all derived function pointer types an abstract type definition or a type synonym for the fully resolved type 
 must be generated for encoding the function type used as its base type (see Section~\ref{design-types-pointer}).
-For fully resolved function types an additional type synonym definition must generated for the translated function type.
+For fully resolved function types an additional type synonym definition must be generated for the translated function type.
 
 Gencot first generates the translated Cogent type names for all derived array and function pointer types associated 
 with an item. Then it generates the corresponding definitions for every type name
@@ -541,7 +555,7 @@ It is invoked as:
 
 The filter processes as individual items all \code{DeclEvent}s in the source file which are function
 definitions or definitions for objects. The filter processes every definition of a composite type 
-with a tag and every type name definition in the source file as collective item. (The filter does not
+(with or without a tag) and every type name definition in the source file as collective item. (The filter does not
 process any derived pointer types as collective items.) The processing is done by the monadic action
 \begin{verbatim}
   transGlobals :: [DeclEvent] -> FTrav ItemProperties
@@ -549,11 +563,11 @@ process any derived pointer types as collective items.) The processing is done b
 defined in module \code{Gencot.Items.Translate}.
 
 For every item, if its declared type (in the case of a typedef name item its defining type) is
-a derived function, array, or pointer type or a tagless struct or union type, its sub-items according to the 
-type are processed recursively. For a tagged composite type item its members are processed recursively as sub-items.
+a derived function, array, or pointer type, its sub-items according to the 
+type are processed recursively. For a composite type item its members are processed recursively as sub-items.
 
-An item is processed as follows. If its declared type is primitive or an enum or a function pointer no output is generated 
-since properties are not 
+An item is processed as follows. If its declared or defined type is primitive or an enum or a function pointer no output 
+is generated since properties are not 
 supported or always ignored for it. Otherwise, if it is a parameter item or its declared type is not composite, a property
 declaration is generated for it (parameters of composite type may be affected by the Add-Result property, items of function
 type may be affected by the Heap-Use property, items of pointer or array type may be affected by the Read-Only property).
@@ -598,7 +612,7 @@ to generate default property declarations for them on standard output. The same 
 is used as by \code{items-gen}.
 
 The type of a processed item may involve an externally defined type name which is not in the list of used external items.
-This means that the type name is not used in the Cogent code and is resolved in the translation. In this case it is 
+This means that the type name is not used directly in the Cogent code and is resolved in the translation. In this case it is 
 also resolved by \code{items-externs} so that collective sub-items of the type name become individual sub-items of 
 the processed item, as described in Section~\ref{design-types-itemprops}.
 

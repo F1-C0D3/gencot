@@ -18,7 +18,5 @@ main = do
     putStrLn $ unlines lines
 
 constructFilter :: DeclEvent -> Bool
---constructFilter (TagEvent (EnumDef (EnumType (AnonymousRef _) _ _ _))) = False
---constructFilter (DeclEvent (Declaration _)) = False
 constructFilter _ = True
  

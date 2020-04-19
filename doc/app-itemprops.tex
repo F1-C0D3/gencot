@@ -29,13 +29,13 @@ Section~\ref{impl-all-items}).
 \subsection{Grouping Item Property Declarations in Files}
 \label{app-items-files}
 
-C items for which Gencot supports property declarations are types (tags and named types), functions and objects (``variables'').
+C items for which Gencot supports property declarations are types (struct/unions and named types), functions and objects (``variables'').
 Items may have sub-items (function parameters and results, array elements, pointer targets). 
 
-For tags and type names there is always a single definition (which also defines sub-items). For functions and objects there 
+For type items there is always a single definition (which also defines sub-items). For functions and objects there 
 can be declarations
 in addition to the single definition. The definition or declaration introduces a name for the item and it specifies its type.
-Afterwards, an item can be used any number of times (e.g. types can be used in other definitions and declarations, functions
+Afterwards, an item can be used any number of times (e.g. type items can be used in other definitions and declarations, functions
 can be invoked and objects can be read and written).
 
 The current version of Gencot uses the properties of such items only when translating the item's definition or declaration, not when 
@@ -54,7 +54,7 @@ Cogent compilation unit (command \code{gencot unit}, see Section~\ref{impl-all-g
 translation set and also external items declared and used in the translation set. Therefore it needs property declarations 
 for all these items. They can be retrieved by uniting all item property declaration files for the single C sources and adding
 property declarations for the external used items. If the Cogent compilation unit is described by the unit file \code{y.<e>} 
-(where the convention for the file extension \code{<e>} is \code{unit}), Gencot expects these item property declarations
+(where the convention for the file extension \code{<e>} is \code{unit}), Gencot expects all these item property declarations
 in an auxiliary file named \code{y.<e>-itemprops} (see Section~\ref{impl-all-gencot}).
 
 Since the properties in the \code{-itemprops} files may originate from several sources (default properties, manual specification, 
@@ -75,7 +75,7 @@ according to the parameter modification descriptions and then adding the propert
 way the file \code{y.ext-itemprops} should be generated.
 
 Gencot also supports item property declarations for a restricted form of type expressions (derived pointer types). These items
-are not explicitly defined, they are used by simply denoting the type expression. For this kind of items the properties are 
+are not explicitly defined, they are used by simply denoting the type expression. For this kind of type items the properties are 
 needed by Gencot for translating the item uses. 
 
 Gencot does not provide default item property declarations for these items, they must always be specified manually. Since they 
@@ -111,7 +111,7 @@ Section~\ref{app-parmod-extern}. The file contains entries for all functions def
 functions used in the translation set, and maybe additional functions which have been used to follow dependencies.
 
 Every function is an item, and every parameter is a sub-item of its function. Thus the information in the parameter modification
-description can be converted to property declarations for function parameter items. This is done using the command
+description can be converted to property declarations for function and parameter items. This is done using the command
 \begin{verbatim}
   parmod out <jfile>
 \end{verbatim}
@@ -194,5 +194,5 @@ to be used. The set of external items recognized by Gencot as used can be displa
 where \code{y.<e>} is the unit file describing the translation set.
 
 To generate default properties for additional external items, a list of the additional (toplevel) items can be 
-specified in the auxiliary file \code{y.<e>-manitems}. If present, this file is automatically read by \code{items extern}
+specified in the auxiliary file \code{y.<e>-manitems}. If present, this file is automatically read by \code{items unit}
 and default property declarations are generated for all items listed in it (and all items transitively used from them).

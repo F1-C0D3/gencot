@@ -396,11 +396,20 @@ Like all other input to the language-c parser their content must have been proce
 and need not be specified separately, usually only \code{.c} files need to be specified as input, after they have
 been processed as usual.
 
-In contrast to the single-file filters, the original file name is not required for the files input to a 
-Gencot processor. A processor only processes items which are external to all input files, whereas the original
-file name is needed for items which are defined in the input files. Therefore the list of input file names is
-sufficient and the input files may have arbitrary names which need not be related to the names of the original 
-\code{.c} files.
+If a processor only processes items which are external to all input files, the original file name is not required 
+for the files input to a Gencot processor. However, the processor \code{gencot-dvdtypes} also processes derived 
+types which are not external. In a derived type the original file name is only used for constructing the Cogent name
+and item identifier for tagless compound types. Currently the only case where tagless types are processed by 
+\code{gencot-dvdtypes} is when they occur in a derived function type. If it occurs as parameter type, it is mostly
+useless, because then the type has only prototype scope and is not available when the function is invoked. If, however,
+it is used as result type, a typedef name can be defined for it in another declarator of the same declaration and
+used anywhere in the program. Since this is a very unusual construction in a C program Gencot does not handle it.
+This will possibly result in wrong type names in the result of \code{gencot-dvdtypes} which must be manually corrected.
+
+It would be possible to provide a list of the original file names together with the list of files to be processed and
+use them as described in Section~\ref{impl-ccode-trav}. However, then it is only available in the userstate during 
+analysis for a single input file. After merging the semantic maps the content of the resulting map cannot be associated
+with the original file name any more. It would be necessary to preserve this association as a separate data structure.
 
 The utility function
 \begin{verbatim}
@@ -1086,8 +1095,7 @@ This is supported by defining in module \code{Gencot.Name} the class \code{FileN
     getFileName :: m String
 \end{verbatim}
 so that the method \code{getFileName} can be used to retrieve the source file name from all traversal monads of 
-this class. Based on this the monadic action \code{srcFileName} is defined to return the file name for a 
-\code{NodeInfo} value and replace it by the original source file name if it is equal to \code{<stdin>}.
+this class. 
 
 A second information is the set of external type names directly used in the Cogent compilation unit. All other 
 external type names are resolved during translation, as described in Section~\ref{design-modular}.

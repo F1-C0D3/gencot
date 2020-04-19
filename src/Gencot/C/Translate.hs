@@ -14,7 +14,7 @@ import Numeric (showInt, showOct, showHex, readFloat)
 
 import Gencot.C.Ast as GCA
 import Gencot.Origin (Origin,noOrigin,origin,mkOrigin,listOrigin,pairOrigin,maybeOrigin)
-import Gencot.Names (transTagName,transObjName,srcFileName,mapObjectName,mapIfUpper,mapNameToUpper,mapNameToLower)
+import Gencot.Names (transTagName,transObjName,getFileName,mapObjectName,mapIfUpper,mapNameToUpper,mapNameToLower)
 import Gencot.Traversal (FTrav)
 import Gencot.Util.Types (isAggregate,resolveTypedef)
 
@@ -46,12 +46,12 @@ transFunDef :: LC.CFunDef -> FTrav GCA.Func
 transFunDef (LC.CFunDef declspecs dclr _{-old parms-} stat ndef) = do
     checkDeclr "fundef" dclr 
     ds <- transDeclSpecs declspecs
-    fnam <- srcFileName ndef
+    fnam <- getFileName
     rd <- transDerivedDeclrs resdclrs
     ps <- transParams fdclr
     ms <- transStat stat
     let (GCA.Block bis _) = ms
-    return $ GCA.Func ds (mkMapId (const $ mapObjectName name lnk fnam) name) rd ps bis $ mkOrigin ndef
+    return $ GCA.Func ds (mkMapId (const $ mapObjectName name lnk fnam ndef) name) rd ps bis $ mkOrigin ndef
     where LC.CDeclr (Just name) (fdclr:resdclrs) asmname cattrs ndec = dclr
           lnk = if any isIntern declspecs then LCA.InternalLinkage else LCA.ExternalLinkage
           isIntern (CStorageSpec (CStatic _)) = True

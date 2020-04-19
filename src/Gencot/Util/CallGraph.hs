@@ -247,9 +247,7 @@ getCGInvoke (LC.CMember expr mid pointer _) alen = do
              let ctyp@(LCA.CompType sueref _ _ _ _) = getCompType typ dt
              case getMemberDecl ctyp mid of
                   Nothing -> return Nothing
-                  Just mdecl -> if isAnonymousRef sueref 
-                                   then return Nothing
-                                   else return $ Just (MemberInvoke ctyp mdecl alen)
+                  Just mdecl -> return $ Just (MemberInvoke ctyp mdecl alen)
 getCGInvoke (LC.CIndex expr _ _) alen = getCGInvoke expr alen
 getCGInvoke (LC.CUnary LC.CIndOp expr _) alen = getCGInvoke expr alen
 getCGInvoke _ _ = return Nothing

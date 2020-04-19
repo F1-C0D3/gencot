@@ -6,13 +6,13 @@ import Control.Monad (liftM,when)
 import Data.List (nub)
 
 import Language.C.Analysis as LCA
-import Language.C.Data.Ident (identToString,isAnonymousRef)
+import Language.C.Data.Ident (identToString)
 import Language.C.Analysis.DefTable (globalDefs)
 
 import Gencot.Input (getDeclEvents)
 import Gencot.Package (readPackageFromInput,getIdentInvocations,getOwnCallGraphs,foldTables,foldTypeCarrierSets)
-import Gencot.Util.Types (collectTypeCarriers,transCloseUsedCarriers,carriesNamedType,usedTypeNames,externTypeNames,isExtern, transCloseCarriers,usedCarriers)
-import Gencot.Items.Types (getItemAssocType,getExternalItemId,getTypedefItemId,getTagItemId,getEnumItemId)
+import Gencot.Util.Types (collectTypeCarriers,transCloseUsedCarriers,carriesNamedType,usedTypeNames,externTypeNames,isExtern)
+import Gencot.Items.Types (getItemAssocType,getToplevelItemId,getTypedefItemId,getTagItemId,getEnumItemId)
 import Gencot.Traversal (runWithTable)
 
 main :: IO ()
@@ -48,18 +48,18 @@ main = do
     putStrLn $ unlines $ map fst iats
 
 isExternNamedDef :: [String] -> LCA.DeclEvent -> Bool
-isExternNamedDef _ (LCA.TagEvent cd) = isExtern cd && (not $ isAnonymousRef $ LCA.sueRef cd)
+isExternNamedDef _ (LCA.TagEvent cd) = isExtern cd
 isExternNamedDef utn (LCA.TypeDefEvent td) = isExtern td && (elem (identToString $ LCA.identOfTypeDef td) utn)
 isExternNamedDef _ _ = False
 
 extDeclFilter :: [LCA.IdentDecl] -> [String] -> LCA.DeclEvent -> Bool
-extDeclFilter invks iids (LCA.DeclEvent decl@(LCA.Declaration _)) = invokedOrListed decl
-    where invokedOrListed decl = elem decl invks || elem (getExternalItemId decl) iids
+extDeclFilter invks iids e@(LCA.DeclEvent decl@(LCA.Declaration _)) = invokedOrListed decl
+    where invokedOrListed decl = elem decl invks || elem (getToplevelItemId e) iids
 extDeclFilter _ _ _ = False
 
 extTypeFilter :: [String] -> LCA.DeclEvent -> Bool
-extTypeFilter iids (LCA.TagEvent td@(LCA.CompDef (LCA.CompType sueref knd _ _ _))) = 
-    isExtern td && elem (getTagItemId sueref knd) iids
+extTypeFilter iids (LCA.TagEvent td@(LCA.CompDef ct)) = 
+    isExtern td && elem (getTagItemId ct "") iids
 extTypeFilter iids (LCA.TagEvent td@(LCA.EnumDef (LCA.EnumType sueref _ _ _))) = 
     isExtern td && elem (getEnumItemId sueref) iids
 extTypeFilter iids (LCA.TypeDefEvent td@(LCA.TypeDef idnam _ _ _)) = 

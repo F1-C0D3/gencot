@@ -126,7 +126,19 @@ if first all descriptions are merged, then the templates are merged into the res
 templates being the second argument to \code{parmod mergin}.
 
 When \code{parmod unit} has successfully been executed, the result must be iteratively completed in the same way 
-as in Section~\ref{app-parmod-defined}. Initially, however, the result of the first substep should be added 
+as in Section~\ref{app-parmod-defined}. 
+
+Initially, however, the file \code{parmod-system.json} should be added using command
+\begin{verbatim}
+  parmod replin <json-file> parmod-system.json
+\end{verbatim}
+This file is included in the Gencot distribution and contains completed descriptions for a number of 
+standard C system functions. In particular, it covers the five memory management functions, which are the 
+only functions for which the heap is always used and from which heap usage is then derived for other functions. 
+The command \code{parmod replin} replaces all templates in \code{<json-file>} by the description for the same function in
+\code{parmod-system.json}, if present there.
+
+Afterwards, the result of the first substep should be added 
 using \code{parmod addto}, since it may contain additional descriptions not needed in the first substep.
 All descriptions added this way are already fully confirmed and evaluated. Only if afterwards there are remaining 
 required invocations, the file must be iteratively completed as in the first substep. 

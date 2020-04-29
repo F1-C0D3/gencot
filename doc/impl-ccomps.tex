@@ -545,6 +545,10 @@ To support an easy manual declaration of item properties Gencot generates defaul
 items with an identifier. The declarations are either empty or declare the properties Read-Only and/or Add-Result, if they
 can be derived from the item's type. 
 
+The property Heap-Use is not set in default declarations. It could be set if a C memory management function such as \code{malloc} 
+is directly invoked by a function, however, the most relevant way to set the property is by transitive dependency among functions.
+This is implemented by the parameter modification mechanism (see Section~\ref{design-parmod-heap}) and therefore omitted here.
+
 \subsubsection{The filter \code{items-gen}}
 
 The filter \code{items-gen} is used to generate default item property declarations from a single C source file (\code{.h} or \code{.c}).

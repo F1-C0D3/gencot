@@ -24,7 +24,7 @@ Gencot uses a simpler semiautomatic approach. It detects all direct parameter mo
 parameter name automatically. It then generates a JSON description which lists all functions with their parameters
 and the information about the detected modification cases. The developer has to check this description and
 manually add additional cases of other parameter modifications. The resulting description is then used by
-Gencot to declare the Read-Only property for all unmodified parameters.
+Gencot to declare the Read-Only and remove the Add-Result property for all unmodified parameters.
 
 Parameter modifications are only relevant if the parameter is a pointer or if a pointer can be reached by the parameter
 and if at least one such pointer is not declared to have a \code{const} qualified referenced type. Gencot detects
@@ -120,3 +120,32 @@ used in the Cogent code. As described for items in Section~\ref{design-types-ite
 type are replaced by individual sub-items of the items declared to have that type. Gencot treats parameter modification 
 descriptions in the same way and uses different individual descriptions, if function items use a common function type name which 
 is resolved because it is external.
+
+\subsection{Heap Usage}
+\label{design-parmod-heap}
+
+Another information about function parameters needed by Gencot for the translation is whether the heap is used by the 
+function and must be passed in and out as parameter and result. This is specified to Gencot by the item property Heap-Use (see
+Section~\ref{design-types-itemprops}). Similar to parameter modification, heap use is transitive: a function uses the heap
+if it directly allocates or deallocates data, or if it invokes a function which uses the heap. The transitive heap
+use can be detected, when Gencot calculates the transitive closure of the function invocations. Therefore, Gencot
+extends the JSON descriptions to include information about the heap usage and uses it to declare Heap-Use properties.
+
+According to the C standard there is only a small fixed number of memory management functions: \code{malloc}, \code{calloc},
+\code{realloc}, \code{aligned\_alloc}, and \code{free}. Thus, Gencot can detect that a function directly needs the heap, when
+it invokes any of these five functions in its body. If it invokes no functions at all, it is clear that it does not use 
+the heap. 
+
+In all other cases, when a function only invokes other functions than memory management functions, heap usage cannot be
+decided locally, it depends on the heap usage of the invoked function. In this case \code{all} invocations are required
+for deciding heap usage. This potentially massively enlarges the number of relevant invocations in relation to those 
+described in Section~\ref{design-parmod-required}. This is treated by Gencot by giving the developer the possibility 
+to mark invocations as not relevant for heap use dependency. In this way the developer may manually prune invocation
+chains in order to reduce the number of source files to process. However, this must be done with the help of background
+knowledge, it cannot be done by locally inspecting the function body.
+
+For invoked function pointers, like parameter modification, heap usage must always be specified manually. The same holds
+basically for invocations of functions external to the <package>. However, to reduce manually specifying heap use, Gencot
+uses a list of standard system functions which are known to not use the heap. For these function the heap use information
+is entered automatically.
+

@@ -1245,6 +1245,32 @@ has the Read-Only property the bang operator is still preserved for the defined 
 The difference is that the bang operator is caused by the presence of the Read-Only property whereas the \code{MayNull}
 is caused by the absence of the Not-Null property.
 
+\subsubsection{The String Type}
+
+As described in Section~\ref{design-types-pointer}, the type \code{char*} may be translated to the Cogent type \code{String}.
+This is only done, if the Read-Only property is present for the corresponding item. Since \code{String} is not linear
+Gencot always omits the bang operator for type \code{String}.
+
+If a typedef name is defined in C for a type which is translated to type \code{String} the bang operator is also omitted
+for the translated typedef name. This is consistent with the case where typedef names are defined for other C types which
+are translated to Cogent nonlinear types, here the translated typedef name is also never banged.
+
+However, the current Gencot implementation cannot detect the case where a typedef name is indirectly defined for a type
+translated to \code{String}. In this case the bang operator is applied to the translated typedef name. As example, given
+the C definitions
+\begin{verbatim}
+  typedef const char *t1;
+  typedef t1 t2;
+\end{verbatim}
+the corresponding Cogent definitions will be
+\begin{verbatim}
+  type Cogent_t1 = String
+  type Cogent_t2 = t1
+\end{verbatim}
+and the type name \code{t1} will be translated as \code{Cogent\_t1} whereas \code{t2} will be translated as 
+\code{Cogent\_t2!}. Since the bang operator is ignored by Cogent and indirect type name definitions should occur seldom 
+in C, this should be acceptable.
+
 \subsubsection{Array Types}
 
 As described in Section~\ref{design-types-array}, the mapping of C array types depends on the type's context and may 

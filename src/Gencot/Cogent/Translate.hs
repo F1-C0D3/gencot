@@ -156,17 +156,21 @@ transGlobal (LCA.DeclEvent (LCA.EnumeratorDef (LCA.Enumerator idnam expr _ n))) 
 -- > type idnam = type
 -- where @type@ is constructed by translating @type-specifier@ and applying all derivations from the adjusted @declarator@.
 -- A MayNull application to @type@ is removed.
--- If @type@ is an array type, a Bang operator is also removed.
+-- If @type@ is an array type or translates to type String, a Bang operator is also removed.
 transGlobal (LCA.TypeDefEvent (LCA.TypeDef idnam typ _ n)) = do
     t <- transType False modifiat
     nt <- transTagIfNested iat n
-    let dt = if isArray typ then rmReadOnly $ rmMayNullThroughBang t else rmMayNullThroughBang t
+    let dt = if isArray typ || isString t then rmReadOnly $ rmMayNullThroughBang t else rmMayNullThroughBang t
     return $ wrapOrigin n (nt ++ [GenToplv (CS.TypeDec tn [] dt) noOrigin])
     where tn = mapNameToUpper idnam
           iat = getTypedefItemAssoc idnam typ
           modifiat = if isComposite typ then adjustItemAssocType iat else iat
         
 transGlobal _ = return $ [GenToplv (CS.Include "err-unexpected toplevel") noOrigin]
+
+isString (GenType (CS.TBang t) _) = isString t
+isString (GenType (CS.TCon "String" _ _) _) = True
+isString _ = False
 
 -- | Translate nested tag definitions in a member definition.
 -- The first argument is the ItemAssocType of the struct.
@@ -365,7 +369,7 @@ transType _ (_, (LCA.DirectType tnam _ _)) = do
 -- Otherwise translate to mapped name. Unboxed for struct, union, or function pointer, otherwise boxed.
 -- If the typedef name has the Not-Null property, omit or remove MayNull
 -- otherwise move a MayNull from the resolved type to the mapped name.
--- If the typedef name has the Read-Only property make the result banged.
+-- If the typedef name has the Read-Only property make the result banged, if the defining type is not String.
 transType rslv iat@(iid, (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _)) = do
     dt <- LCA.getDefTable
     srtn <- stopResolvTypeName idnam
@@ -375,7 +379,9 @@ transType rslv iat@(iid, (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _)) = d
     let nntyp = if rslv || ((isExternTypeDef dt idnam) && not srtn)
                   then rmMayNullIf safe rslvtyp
                   else addMayNullIfNot (safe || (not $ hasMayNull rslvtyp)) rtyp
-    return $ makeReadOnlyIf ro nntyp
+    {- The following isString test will not work, if rslvtyp is a type alias for String!
+       In this case a redundant bang operator will be appended. -}
+    return (if isString rslvtyp then nntyp else makeReadOnlyIf ro nntyp)
     where tn = mapNameToUpper idnam
           ub = if (isComposite typ) || (isFunPointer typ) then markUnbox else markBox
           rtyp = genType $ CS.TCon tn [] ub
@@ -403,6 +409,18 @@ transType rslv iat@(_, (LCA.PtrType t _ _)) | isArray t = do
     sub <- getRefSubItemAssoc iat
     typ <- transType rslv sub
     return $ makeReadOnlyIf ro $ addMayNullIfNot safe typ
+-- Derived pointer type for (unsigned) char type:
+-- If Read-Only property: translate to primitive type String
+-- Otherwise translate to normal pointer (to U8).
+transType rslv iat@(_, pt@(LCA.PtrType (LCA.DirectType (LCA.TyIntegral it) _ _) _ _)) | it == TyChar || it == TyUChar = do
+    safe <- isNotNullItem iat
+    ro <- isReadOnlyItem iat
+    if ro 
+       then return $ genType $ CS.TCon "String" [] markBox
+       else do
+           sub <- getRefSubItemAssoc iat
+           typ <- transType rslv sub
+           return $ makeReadOnlyIf ro $ addMayNullIfNot safe $ genType $ CS.TCon mapPtrDeriv [typ] markBox 
 -- Derived pointer type for other type t:
 -- Translate t. If unboxed and no function pointer make boxed, otherwise apply CPtr. Always boxed.
 -- If no Not-Null property: apply MayNull

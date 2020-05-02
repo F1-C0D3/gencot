@@ -77,8 +77,8 @@ The Gencot distribution consists of the following folders:
 \item[doc] a comprehensive documentation of Gencot design and implementation.
 \end{description}
 
-Gencot is a command line tool. To use it make sure that you can invoke the commands \code{gencot}, \code{auxcog} and
-\code{parmod} (e.g., by linking them in a folder in your command path or by adding the \code{bin} folder
+Gencot is a command line tool. To use it make sure that you can invoke the commands \code{gencot}, \code{auxcog},
+\code{parmod}, and \code{items} (e.g., by linking them in a folder in your command path or by adding the \code{bin} folder
 of the Gencot distribution to your command path).
 
 Additionally you have to set the environment variable \code{\$GENCOT\_HOME} to the root folder of the Gencot
@@ -136,27 +136,23 @@ It creates the file \code{all.cogent} and three files \code{all-externs.cogent},
 and \code{all-dvdtypes.cogent} where the latter two are empty and can be ignored for this example. File 
 \code{all-externs.cogent} contains
 \begin{verbatim}
-  cogent_puts : (MayNull (CPtr U8))! -> U32
+  cogent_puts : String -> U32
 \end{verbatim}
-which is also valid Cogent code, but uses the non-standard generic types \code{MayNull} and \code{CPtr}. File \code{all.cogent}
+which is also valid Cogent code and declares \code{cogent\_puts} as an abstract function. File \code{all.cogent}
 includes all generated Cogent files and is the main source file to be processed by the Cogent compiler.
 
 The command also creates the file \code{all-externs.ac} (Not yet implemented! Provided with the example).
 
 \item[Step 3:] (make all-edit)
 
-Now comes the part where your manual work is demanded. You have to translate the function bodies and you have to adapt
-some types. Open \code{hello.cogent} in a text editor, replace its content by
+Now comes the part where your manual work is demanded. You have to translate the function bodies.
+Open \code{hello.cogent} in a text editor, replace its content by
 \begin{verbatim}
   cogent_main : () -> U32
   cogent_main () =
          cogent_puts("Hello World"); 0
 \end{verbatim}
-and save. In \code{all-externs.cogent} replace the argument type by \code{String}:
-\begin{verbatim}
-  cogent_puts : String -> U32
-\end{verbatim}
-and save.
+and save. 
 
 Now you have a Cogent program which is equivalent to the original C program. It consists of several files,
 which are all included by \code{all.cogent}.
@@ -191,6 +187,7 @@ Clean up all generated files. If you like you can perform the steps again.
 \end{description}
 
 \chapter{C Program Structure}
+\label{struct}
 
 \section{Single Source File}
 \label{struct-single}
@@ -434,8 +431,10 @@ compile the original \code{cards.c} to yield \code{cards.o}, and link both files
 behave like the original C program.
 
 \chapter{Item Properties}
+\label{itemprops}
 
 \chapter{Preprocessor Directives}
+\label{directives}
 
 \end{document}
  

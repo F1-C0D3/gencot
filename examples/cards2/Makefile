@@ -1,7 +1,7 @@
 HFILES = cards.h rank.h
 CFILES = main.c cards.c rank.c
 UNITFILES = all-externs.cogent all-exttypes.cogent all-dvdtypes.cogent all.cogent
-EDITFILES = ed-all-externs.done ed-cards.done ed-rank.done ed-main.done
+EDITFILES = ed-cards.done ed-rank.done ed-main.done
 ACFILES = all-externs.ac $(CFILES:.c=-entry.ac)
 ACFILESPP = $(ACFILES:.ac=_pp.ac)
 ACFILESINF = $(ACFILES:.ac=_pp_inferred.c)
@@ -13,7 +13,7 @@ COGSRC = $(INCLFILES) $(COGFILES) $(UNITFILES)
 
 PCFILES = main.c rank.c
 PUNITFILES = part-externs.cogent part-exttypes.cogent part-dvdtypes.cogent part.cogent
-PEDITFILES = ed-part-externs.done ed-rank.done ed-main.done
+PEDITFILES = ed-rank.done ed-main.done
 PACFILES = part-externs.ac $(PCFILES:.c=-entry.ac)
 PACFILESPP = $(PACFILES:.ac=_pp.ac)
 PACFILESINF = $(PACFILES:.ac=_pp_inferred.c)
@@ -52,13 +52,13 @@ cards: $(OFILES)
 	gencot hfile $*.h
 
 # depends on $(INCLFILES) for comment transfer from declarations
-%.cogent: %.c $(INCLFILES)
+%.cogent: %.c %.c-itemprops $(INCLFILES)
 	gencot -I. cfile $*.c
 
-$(UNITFILES): all.unit $(CFILES)
+$(UNITFILES): all.unit all.unit-itemprops $(CFILES)
 	gencot -I. unit all.unit
 
-$(PUNITFILES): part.unit $(PCFILES)
+$(PUNITFILES): part.unit part.unit-itemprops $(PCFILES)
 	gencot -I. unit part.unit
 
 ed-cards.done: cards.cogent
@@ -66,20 +66,12 @@ ed-cards.done: cards.cogent
 	@touch ed-cards.done
 
 ed-rank.done: rank.cogent
-	sed -i -e "s/MayNull (CPtr U8)/String/;6,9d;s/case/if r ==/;10,35s/://;10,35s/return/then/;10,35s/;/ else/;37d;38s/return//;38s/;//;39,41d" rank.cogent
+	sed -i -e "6,9d;s/case/if r ==/;10,35s/://;10,35s/return/then/;10,35s/;/ else/;37d;38s/return//;38s/;//;39,41d" rank.cogent
 	@touch ed-rank.done
 
 ed-main.done: main.cogent
 	sed -i -e "6,7d;14d;s/return 0;/0/" main.cogent
 	@touch ed-main.done
-
-ed-all-externs.done: all-externs.cogent
-	sed -i -e "s/(MayNull (CPtr U8))\!/String/" all-externs.cogent
-	@touch ed-all-externs.done
-
-ed-part-externs.done: part-externs.cogent
-	sed -i -e "s/(MayNull (CPtr U8))\!/String/" part-externs.cogent
-	@touch ed-part-externs.done
 
 # Implicitly also generates $(ACFILESINF)
 all-gen.c all-gen.h: $(COGSRC) $(EDITFILES) $(ACFILES)

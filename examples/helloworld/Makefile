@@ -1,7 +1,7 @@
 HFILES = 
 CFILES = hello.c
 UNITFILES = all-externs.cogent all-exttypes.cogent all-dvdtypes.cogent all.cogent
-EDITFILES = ed-all-externs.done ed-hello.done
+EDITFILES = ed-hello.done
 ACFILES = all-externs.ac $(CFILES:.c=-entry.ac)
 ACFILESPP = $(ACFILES:.ac=_pp.ac)
 ACFILESINF = $(ACFILES:.ac=_pp_inferred.c)
@@ -19,7 +19,7 @@ all-c: all-gen.c all-gen.h all.c
 all-binary: all-hello
 all-run: run-all-hello
 
-.PHONY: clean run-hello run-cogent-hello ed-hello.cogent ed-all-externs.cogent
+.PHONY: clean run-hello run-cogent-hello ed-hello.cogent
 
 STDGUM=$(shell cogent --stdgum-dir)
 GENCOTC=$(GENCOT_HOME)/c
@@ -35,16 +35,12 @@ run-hello: hello
 %.cogent: %.c
 	gencot cfile $*.c
 
-$(UNITFILES): all.unit $(CFILES)
+$(UNITFILES): all.unit all.unit-itemprops $(CFILES)
 	gencot unit all.unit
 
 ed-hello.done: hello.cogent
 	sed -i -e "4,5d;7d;s/;/; 0/" hello.cogent
 	@touch ed-hello.done
-
-ed-all-externs.done: all-externs.cogent
-	sed -i -e "s/(MayNull (CPtr U8))\!/String/" all-externs.cogent
-	@touch ed-all-externs.done
 
 all-gen.c all-gen.h $(ACFILESINF): $(COGSRC) $(EDITFILES) $(ACFILES)
 	cogent -o all-gen -g all.cogent --infer-c-funcs="$(ACFILES)"

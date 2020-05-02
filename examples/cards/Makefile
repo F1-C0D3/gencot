@@ -1,7 +1,7 @@
 HFILES = cards.h rank.h
 CFILES = cards.c
 UNITFILES = all-externs.cogent all-exttypes.cogent all-dvdtypes.cogent all.cogent
-EDITFILES = ed-all-externs.done ed-cards.done
+EDITFILES = ed-cards.done
 ACFILES = all-externs.ac $(CFILES:.c=-entry.ac)
 ACFILESPP = $(ACFILES:.ac=_pp.ac)
 ACFILESINF = $(ACFILES:.ac=_pp_inferred.c)
@@ -33,20 +33,15 @@ run-cards: cards
 	gencot hfile $*.h
 
 # depends on $(INCLFILES) for comment transfer from declarations
-%.cogent: %.c $(INCLFILES)
+%.cogent: %.c %.c-itemprops $(INCLFILES)
 	gencot -I. cfile $*.c
 
-$(UNITFILES): all.unit $(CFILES)
+$(UNITFILES): all.unit all.unit-itemprops $(CFILES)
 	gencot -I. unit all.unit
 
 ed-cards.done: cards.cogent
 #	*todo*
-	sed -i -e "s/MayNull (CPtr U8)/String/" cards.cogent
 	@touch ed-cards.done
-
-ed-all-externs.done: all-externs.cogent
-	sed -i -e "s/(MayNull (CPtr U8))\!/String/" all-externs.cogent
-	@touch ed-all-externs.done
 
 all-gen.c all-gen.h $(ACFILESINF): $(COGSRC) $(EDITFILES) $(ACFILES)
 	cogent -o all-gen -g all.cogent $(COGPPARGS) --infer-c-funcs="$(ACFILES)"

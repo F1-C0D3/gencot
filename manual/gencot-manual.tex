@@ -161,7 +161,8 @@ which are all included by \code{all.cogent}.
 
 To see that it works, process \code{all.cogent} by the Cogent compiler. Enter the command
 \begin{verbatim}
-  cogent -o all-gen -g all.cogent --infer-c-funcs="all-externs.ac hello-entry.ac"
+  cogent -o all-gen -g all.cogent \
+      --infer-c-funcs="all-externs.ac hello-entry.ac"
 \end{verbatim}
 It creates the files \code{all-gen.c} and \code{all-gen.h} and two \code{\_pp\_inferred.c} files. 
 
@@ -430,8 +431,200 @@ compile the original \code{cards.c} to yield \code{cards.o}, and link both files
 \code{part-cogent-cards} (\code{make part-cogent-binary}). When executing this binary it should
 behave like the original C program.
 
-\chapter{Item Properties}
-\label{itemprops}
+\chapter{Translation of Types}
+\label{types}
+
+Gencot is able to translate most C types to a corresponding Cogent type. In this chapter we will look at the way 
+how Gencot does this.
+
+The goal of Gencot is to translate C types to ``binary compatible'' Cogent types. This means, if the type is 
+translated back to C by the Cogent compiler, it must have the same memory layout. This property is required
+for partial translation (see Section~\ref{struct-partial}): it must be possible to pass values between 
+translated Cogent parts and original C parts at runtime without need for conversion.
+
+\section{Automatic Type Translation}
+\label{types-auto}
+
+For every C type Gencot has a default way how to translate it to a binary compatible Cogent type. 
+
+\subsection{Example}
+\label{types-auto-example}
+
+To get a first impression, go to \code{examples/types}. The file \code{types.c} contains example type definitions
+for several different kinds of C types. Use Gencot to translate this file, as described in Section~\ref{struct-single} 
+(\code{make all-cogent}):
+\begin{verbatim}
+  gencot cfile types.c
+  gencot unit all.unit
+\end{verbatim}
+
+Now look at the generated file \code{types.cogent}. For every C type definition in \code{types.c} it contains 
+a Cogent type definition where the type expression on the right-hand side is the translation of the original C type.
+
+\subsection{Direct Types}
+\label{types-auto-direct}
+
+A C type is called a ``direct type'', if it is primitive, or an enumeration, a struct or a unit type.
+
+As you can see from the examples, primitive C types are directly translated to primitive Cogent types, if they are
+integral types. For floating point types an error specification is generated which is not a syntactically valid 
+Cogent type and will be signaled as an error by the Cogent compiler. Floating point types must be translated manually
+by the developer.
+
+Note that Gencot generates Cogent type names of the form \code{Cogent\_<name>} where \code{<name>} is the ``typedef
+name'' used in C. 
+
+Enumeration types are always translated to type \code{U32}. According to the C standard, enumeration types are always
+equivalent to type \code{int}, irrespective how many values are declared for them. Gencot additionally introduces
+a Cogent constant for every declared enumeration value. If the enum type has a tag, Gencot introduces an additional
+type alias of the form \code{Enum\_Cogent\_<tag>}.
+
+Structure types are translated to Cogent record types. If the struct type has a tag, Gencot introduces a type alias
+of the form \code{Struct\_Cogent\_<tag>}. For an anonymous struct (without a tag), Gencot instead introduces a type alias
+of the form \code{Struct<line>\_<file>} using the line number and source file name where the struct definition occurs.
+
+Although the struct type corresponds to an unboxed record type in Cogent, the type definition defines an alias for the 
+boxed record type instead. The unbox operator is applied to all \textit{references} to the type alias, as you can see 
+for the fields in the record \code{Struct\_Cogent\_line}.
+
+Union types are translated to abstract types, omitting the fields. Semantically, the corresponding Cogent types would
+be variant types, however, these are not binary compatible. Therefore Gencot leaves the translation of union types to
+the developer, it only generates type aliases in a similar way as for struct types.
+
+\subsection{Derived Types}
+\label{types-auto-derived}
+
+In C there are three kinds of types called ``derived types'': function types, pointer types, and array types.
+
+As you can see from the examples, C function types are directly translated to Cogent function types. Note that these
+are not binary compatible, however, this is not a problem since in C functions cannot occur in data structures (in
+contrast to function \textit{pointers}).
+
+In Cogent every function has a single value as parameter and a single value as result. Gencot wraps multiple parameters
+in a tuple and uses the unit value, if a C function has no parameter or no result value (specified as \code{void}).
+A C function declared to take a variable number of parameters (a ``variadic'' function) is translated as if the 
+additional parameters would always be a single value. The used pseudo type alias is not defined and will be signaled
+as an error by the Cogent compiler, this must be handled manually by the developer.
+
+The only pointer types directly supported by Cogent are boxed record types, which correspond to pointers to structs.
+Accordingly, pointers to a struct type are translated to boxed record types in Cogent. The difference from the translation
+of a struct type can be seen at the fields in the example \code{Struct\_Cogent\_sphere}: for the struct pointer no
+unbox operator is applied. 
+
+However, instead of an unbox operator, the generic type \code{MayNull} is applied to the referenced pointer type. In 
+Cogent, a value of a boxed record type must be guaranteed to be not \code{NULL}. Since this is not the case for an 
+arbitrary C pointer type, both are not strictly binary compatible. Gencot defines the generic type \code{MayNull}
+and applies it to all translated C pointer types. Gencot provides an abstract data type for \code{MayNull} which allows
+access to the record only after an explicit test whether the pointer is not \code{NULL}. Like the unbox operator,
+Gencot does not apply \code{MayNull} in the type definition, but instead to all references of the defined type alias.
+
+C pointer types where the base type is a primitive type, an enum type, or another pointer type, are translated with the
+help of the generic type \code{CPtr}. Gencot defines a corresponding abstract type with functions to access the 
+referenced value. Again, whenever such a type is used, the \code{MayNull} type is applied to it to care for \code{NULL} 
+values.
+
+C function pointers are treated in a different way by Gencot. Since there is no binary compatible Cogent type for them 
+(function type values are represented by integers numbering all known functions in Cogent), Gencot translates function pointer
+types to abstract Cogent types. To support a unique correspondence, the C function type expression is encoded into
+the name used for the abstract Cogent type. As an exercise, you may try to find out the encoding scheme by looking
+at the examples. The example defines function pointer types for all function types defined previously in the same example. 
+The additional example \code{Cogent\_funHigher\_t} shows that this also works for higher order functions: as specified by the 
+C standard, a parameter of function type is ``adjusted'' to function pointer type and translated accordingly by Gencot.
+
+Translated C function pointer types are always used with an unbox operator applied. Thus they behave in the same way as 
+primitive types in Cogent. This is correct, since although the values are pointers, they cannot be dereferenced in 
+a Cogent program. Instead, Gencot provides functions to convert between these pointers and values of the corresponding
+Cogent function type.
+
+Cogent provides means to represent arrays, but none of them is fully binary compatible with C arrays. Therefore Gencot
+translates all array types to abstract Cogent types and provides abstract functions to work with their values. Gencot
+uses generic types of the form \code{CArr<size>} where the array size (number of elements) is encoded into the type name.
+This works for all kinds of element types.
+
+Depending on its use, an array in C may be represented by a pointer to the first element or by the sequence of all elements.
+Accordingly, Gencot translates an array type either to the boxed abstract type (corresponding to pointer values) or it
+applies the unbox operator (corresponding to the sequence of elements). In the example this can be seen in the types 
+\code{Struct56\_types\_c} and \code{Cogent\_funArray\_t}: when used as a struct member, the array is used in its unboxed
+form and the sequence of elements is embedded in-place; when used as a function parameter, the array type is used in 
+its boxed form corresponding to a pointer, because according to the C standard the array type is ``adjusted'' to an array
+pointer type.
+
+Finally, the example shows that multidimensional arrays are translated to array-of-array. Again, the unboxed form is used
+since the elements of the inner array are directly embedded in the outer array.
+
+\subsection{Generated Abstract Types}
+\label{types-auto-gen}
+
+We have seen that Gencot uses some abstract types when it translates C ``derived types'' to Cogent. For some of them, like 
+\code{MayNull} and \code{CPtr}, the Gencot distribution includes their definitions. However, other abstract types
+depend on the translated C program: those used for array types and those used for function pointer types. Where
+are their definitions provided?
+
+Look at the file \code{all-dvdtypes.cogent} in \code{examples/types}. As described in Section~\ref{struct-single} it was 
+generated by the command
+\begin{verbatim}
+  gencot unit all.unit
+\end{verbatim}
+It contains all abstract type definitions required for translated derived C types. Note that for every array
+size used in the program a single type of the form \code{CArr<size>} is defined, even if several types of this
+size with different element types are used in C. You can also see that \code{CArr<size>} is actually not abstract, 
+instead the array is wrapped in a record for technical reasons.
+
+As a convenience, for every function pointer type alias a similar alias for the corresponding function type is 
+defined. This is intended to be used when converting between both.
+
+\subsection{Continuing the Example}
+
+To verify that the type definitions generated in Section~\ref{types-auto-example} can actually be processed by the 
+Cogent compiler, you may perform the following steps:
+
+\begin{description}
+\item[Step 1:] (make all-edit)
+
+Remove all type definitions generated from the floating point types and variadic function types 
+from the files \code{types.cogent} and \code{all-dvdtypes.cogent}
+
+\item[Step 2:] (make all-c)
+
+Now you can process \code{all.cogent} by the Cogent compiler. Enter the command
+\begin{verbatim}
+  cogent -o all-gen -g all.cogent \
+     --cogent-pp-args="-I$GENCOT_HOME/include" \
+     --infer-c-funcs="all-externs.ac types-entry.ac"
+\end{verbatim}
+It creates the files \code{all-gen.c} and \code{all-gen.h} and two (empty) \code{\_pp\_inferred.c} files. 
+
+The option \code{--cogent-pp-args} adds the directory \code{\$GENCOT\_HOME/include} to the include path
+used by Cogent. It is needed to load the definitions for the types \code{MayNull} and \code{CPtr} from
+the Gencot distribution. 
+
+The corresponding include directives can be found in the file \code{gencot.cogent}
+which is provided with the example. Whenever Gencot finds a file with this name in the current directory it 
+includes it in the generated file \code{all.cogent}. By adding include directives to \code{gencot.cogent}
+all types and functions predefined by Gencot can be made available.
+
+As usual, enter the command
+\begin{verbatim}
+  auxcog unit all.unit
+\end{verbatim}
+for postprocessing.
+
+\item[Step 3:] (make all-binary)
+
+Compile \code{all.c} with a C compiler to an object file, such as in 
+\begin{verbatim}
+  cc -c -I`cogent --stdgum-dir` -I$GENCOT_HOME/c all.c
+\end{verbatim}
+This should work and produce \code{all.o}, however, it is of no much interest,
+since Cogent does not translate most of our type definitions to C, because they are not used in functions.
+
+\item[Step 4:] (make clean)
+
+Clean up all generated files.
+\end{description}
+
+\section{Item Properties}
+\label{types-itemprops}
 
 \chapter{Preprocessor Directives}
 \label{directives}

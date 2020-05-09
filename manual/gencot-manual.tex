@@ -445,7 +445,7 @@ translated Cogent parts and original C parts at runtime without need for convers
 \section{Automatic Type Translation}
 \label{types-auto}
 
-For every C type Gencot has a default way how to translate it to a binary compatible Cogent type. 
+For every C type Gencot has a basic way how to automatically translate it to a binary compatible Cogent type. 
 
 \subsection{Example}
 \label{types-auto-example}
@@ -579,12 +579,12 @@ To verify that the type definitions generated in Section~\ref{types-auto-example
 Cogent compiler, you may perform the following steps:
 
 \begin{description}
-\item[Step 1:] (make all-edit)
+\item[Step 2:] (make all-edit)
 
 Remove all type definitions generated from the floating point types and variadic function types 
 from the files \code{types.cogent} and \code{all-dvdtypes.cogent}
 
-\item[Step 2:] (make all-c)
+\item[Step 3:] (make all-c)
 
 Now you can process \code{all.cogent} by the Cogent compiler. Enter the command
 \begin{verbatim}
@@ -609,7 +609,7 @@ As usual, enter the command
 \end{verbatim}
 for postprocessing.
 
-\item[Step 3:] (make all-binary)
+\item[Step 4:] (make all-binary)
 
 Compile \code{all.c} with a C compiler to an object file, such as in 
 \begin{verbatim}
@@ -618,13 +618,246 @@ Compile \code{all.c} with a C compiler to an object file, such as in
 This should work and produce \code{all.o}, however, it is of no much interest,
 since Cogent does not translate most of our type definitions to C, because they are not used in functions.
 
-\item[Step 4:] (make clean)
+\item[Step 5:] (make clean)
 
 Clean up all generated files.
 \end{description}
 
-\section{Item Properties}
-\label{types-itemprops}
+\section{Default Item Properties}
+\label{types-dfltprops}
+
+The basic way of Gencot's type translation can be affected with the help of ``item properties''. An item is 
+every unit in the C program which has a type (such as variables, functions, parameters, struct members, \ldots).
+Gencot identifies items by specific path names. Using these path names item properties can be declared outside
+the C program which affect how the item's type is translated by Gencot.
+
+Some item properties (the ``default properties'') are automatically derived from the C program. Instead of directly
+using the information for Gencot's type translation, it is externalized in the form of item property declarations. 
+Thus it is possible for the developer to modify it before it is used by Gencot.
+
+\subsection{Example}
+\label{types-dfltprops-example}
+
+To see how it works, go to \code{examples/items}. The file \code{items.h} contains example type definitions
+which demonstrate the impact of default item properties. Translate this file with Gencot, as described in 
+Section~\ref{struct-include} (\code{make h-cogent}): 
+\begin{verbatim}
+  gencot hfile items.h
+\end{verbatim}
+and save the resulting file \code{items-incl.cogent} as \code{items-incl-auto.cogent}. Now derive the default 
+properties for \code{items.h} with the command (\code{make h-itemprops}):
+\begin{verbatim}
+  items file items.h > items.h-itemprops
+\end{verbatim}
+and translate \code{items.h} again with the same command as above. 
+
+Now look at the generated file \code{items-incl.cogent}. You can see the effect of the default properties by 
+comparing it to the saved \code{items-incl-auto.cogent}. When Gencot translates a source file \code{x} it looks
+for a file named \code{x-itemprops} in the current directory. If it finds it, it uses it for its type translations.
+Therefore the two translation results differ.
+
+\subsection{Read-Only Types}
+\label{types-dfltprops-readonly}
+
+The first group of type definitions in \code{items.h} demonstrates the generation of read-only types in Cogent.
+If the base type of a pointer is \code{const} qualified in C, as for \code{intCP\_t} in the example, Gencot makes
+the translated type read-only. This works for all kinds of base types, such as structures (example: \code{coord3dCP\_t})
+and for all kinds of items, such as function parameters and results (examples: \code{funBinPtr\_t, funResPtr\_t}).
+
+But why does it not work for \code{sphereP\_t}, although its base type is \code{const} qualified? The reason is that 
+\code{struct sphere} contains a member \code{center} which is a pointer without \code{const} qualified base
+type. In Cogent a value comprises \textit{all} parts which can be transitively accessed following pointers. Gencot
+only translates a type as read-only if all these pointers have a \code{const} qualified base type and thus no part 
+of the Cogent value may be modified. This is demonstrated by \code{sphereCP\_t} in the example.
+
+Array types are treated like pointers: if the element type is \code{const} qualified (and also all transitively 
+accessible pointers and arrays), Gencot translates the array type as read-only. However, as described in 
+Section~\ref{types-auto-direct} for the unbox operator, for array types the bang operator is only applied to type 
+name references, not in the type definition. In the example you can see this for type \code{intCA\_t}, the read-only
+form occurs when it is used in the translated \code{funArrPar\_t}. The reason for this behavior is that translated 
+array types may also occur in the unboxed form, as in the translation of \code{arrstr\_t}, there the bang operator
+is omitted.
+
+The next group of type definitions shows a special case: a \code{const} qualified \code{char} pointer is translated 
+to the Cogent type \code{String}. (You have already seen this behavior in earlier examples, there the default item 
+property files have been provided with the example.)
+
+\subsection{Additional Function Results}
+\label{types-dfltprops-addresult}
+
+The last two groups show a feature provided for function types: for all parameters translated to a linear type (i.e.~a
+a type which is or transitively accesses a pointer or array without \code{const} qualified base type) an additional
+component is added to the result. It is assumed that such parameters will be modified by the function and the modified
+value must be explicitly returned in Cogent.
+
+For a funtion type the result type is changed to a tuple, if necessary, where the first component is the original 
+function result. For a function pointer type, this property is encoded in the type name (an \code{"M"} marks 
+``modifyable'' parameters, an \code{"R"} marks ``read-only'' parameters).
+
+\subsection{Processing the Item Property Files}
+\label{types-dfltprops-process}
+
+To use the item properties for Gencot's type translation you have to generate item property files before using the 
+\code{gencot} command to translate C sources. First, for every C source file \code{foo.h} or \code{foo.c} 
+to be translated by \code{gencot} process the file with the \code{items} command:
+\begin{verbatim}
+  items -I. file foo.h > foo.h-itemprops
+  items -I. file foo.c > foo.c-itemprops
+\end{verbatim}
+The include path option \code{-I} is required in all cases in which it is required for the \code{gencot} command as 
+described in Section~\ref{struct-include}. Here we assume that all included (non-system) files are in the current 
+directory.
+
+Additionally, properties may be required for external items. The default properties for all external items used in the 
+translated files are generated in file \code{part.ext-itemprops} with the command:
+\begin{verbatim}
+  items -I. unit part.unit > part.ext-itemprops
+\end{verbatim}
+where \code{part.unit} contains the names of all C source files or at least those files to be translated, as described 
+in Section~\ref{struct-partial}.
+
+For generating the additional Cogent sources with command \code{gencot unit} a file is required which contains properties
+for \code{all} items in all translated source files and external. This file is produced by mergin all the files created 
+before in a file named \code{part.unit-itemprops}. Merging two item property files is done by 
+\begin{verbatim}
+  items merge <f1>-itemprops <f2>-itemprops > <f3>-itemprops
+\end{verbatim}
+
+Together, the commands for creating all required item property files are:
+\begin{verbatim}
+  items -I. file foo.h > foo.h-itemprops
+  ... <other .h files> ...
+  items -I. file foo.c > foo.c-itemprops
+  ... <other .c files> ...
+  items -I. unit part.unit > part.ext-itemprops
+  cp part.ext-itemprops part.unit-itemprops
+  items merge part.unit-itemprops foo.h-itemprops > hfile
+  mv hfile part.unit-itemprops
+  ... <other .h-itemprops files> ...
+  items merge part.unit-itemprops foo.c-itemprops > hfile
+  mv hfile part.unit-itemprops  
+  ... <other .c-itemprops files> ...
+\end{verbatim}
+Note that you cannot output the result of \code{items merge} directly to \code{part.unit-itemprops},
+this would clear the file before it is read.
+
+\section{Manual Item Properties}
+\label{types-manprops}
+
+The developer can modify the way Gencot translates C types by manually adding or removing item properties. In the example
+look at the file \code{items.h-itemprops} which has been generated in Section~\ref{types-dfltprops-example}. Every line
+names an item by its path name and specifies properties for it. Every property has a two-letter code, \code{"ro"} specifies
+a read-only type, \code{"ar"} specifies an additional result for a function parameter. Note that, if both are specified 
+for an item, \code{"ro"} has higher priority and \code{"ar"} is ignored.
+
+It should be relatively straightforward to identify the items from their pathnames. A slash is used as separator, for struct 
+members a dot is used. Function parameters are identified by their position number, starting with position 1, if the name
+is not available. Function results are identified by \code{()}.
+
+As you can see, items are listed even if no properties are specified for them. This is a convenience for the developer. Gencot
+always lists the pathnames for \textit{all} items which occur in a C source file. The developer can then add properties for
+an item without first constructing its pathname.
+
+\subsection{Example}
+\label{types-manprops-example}
+
+Open the file \code{items.h-itemprops} in a text editor. Add the \code{ro} property for the type item \code{intP\_t} and
+remove the \code{ar} property from the first parameter of the type item \code{funLinPar1\_t} (\code{make dflt-edit}). Then 
+remove \code{items-incl.cogent} and translate \code{items.h} once more. Now the Cogent type \code{Cogent\_intP\_t} will
+be read-only and the Cogent type \code{Cogent\_funLinPar1\_t} will not have an additional result component anymore.
+
+In \code{examples/items} additionally
+generate the item property file for \code{items.c} with the command (\code{make c-itemprops}):
+\begin{verbatim}
+  items -I. file items.c > items.c-itemprops
+\end{verbatim}
+
+In file \code{items.c-itemprops} you can see how functions are identified as items. For static functions the file name where
+they are defined is prepended to the function name, so that the item identifier should be unique, even if the same name 
+is reused for static functions in different files.
+
+Next, generate the property file for all used external items with the command (\code{make e-itemprops}):
+\begin{verbatim}
+  items -I. unit part.unit > part.ext-itemprops
+\end{verbatim}
+
+Look at the file. It contains entries for the items \code{allocArr} and \code{allocInt} defined in file \code{alloc.c} (which 
+are extern, because this file is not listed in \code{part.unit}) and for the item \code{printf} declared in the system
+include file. From the declaration of \code{printf} the properties for the first parameter are derived as usual. Note that,
+as described in Section~\ref{struct-single} for the translation, only those external items are listed which are actually used in the 
+source files specified in \code{part.unit}.
+
+\subsection{Read-Only Property}
+\label{types-manprops-ro}
+
+The main application of manual read-only properties is the case where an item is actually not modified in the C program, 
+although it would be possible to do so according to its type. In this case a read-only property may be added to reflect
+the read-only behavior in the item's Cogent type.
+
+A typical case is that a function parameter is a pointer without \code{const} qualified base type, but the function 
+never modifies the data referenced by the pointer. Specifying the read-only property for the parameter item makes 
+the parameter's type read-only in Cogent.
+
+Another typical case is a pointer or array type \code{t} where the base type is \code{const} qualified but it transitively contains
+a pointer or array where this is not the case, because it has been forgotten in C or not considered relevant, although
+the referenced data will never be modified through this reference path. Specifying the read-only property for the type
+item \code{t} will translate it as read-only, corresponding to the intended semantics.
+
+Removing read-only properties generated by Gencot usually makes no sense. Such a property always means that the C semantics safely
+prevents any modification of the referenced data, making a read-only Cogent type the best choice for translation.
+
+\subsection{Add-Result Property}
+\label{types-manprops-ar}
+
+The main application of manual add-result properties is the case where no additional result for a parameter is required, although
+the parameter translates to a linear type. In this case the add-result property generated by Gencot should be removed 
+to suppress the additional result component.
+
+A typical case is when the parameter is already returned as the function result or as a part of it in C, as for the function
+\code{memcpy} in the C standard library. 
+
+Another case is when the function's semantics is to actually discard the parameter by deallocating the pointer. The most
+apparent example is the function \code{free} in the C standard library.
+
+Adding add-result properties usually makes no sense. Gencot generates them for all parameters of linear type, for all others
+an additional result component is of no use.
+
+\subsection{No-String Property}
+\label{types-manprops-ns}
+
+The no-string property is used to suppress the translation to the Cogent type \code{String}. It is never generated by Gencot
+and may be manually specified as \code{"ns"}, such as in 
+\begin{verbatim}
+  item-path-name: ns
+\end{verbatim}
+If the item has type \code{const char *} it is translated to type \code{(MayNull (CArr U8))!} instead of type \code{String}.
+For items of a type which is not translated to \code{String} the property is ignored.
+
+In the example, add the \code{ns} property for the type item \code{charCP\_t} (\code{make ns-edit}). Then 
+remove \code{items-incl.cogent} and translate \code{items.h} once more. Now the Cogent type \code{Cogent\_charCP\_t} will
+be defined as \code{(CArr U8)!} instead of \code{String} (as usual, the \code{MayNull} type is only applied to
+references to \code{Cogent\_charCP\_t}).
+
+\subsection{Not-Null Property}
+\label{types-manprops-nn}
+
+The not-null property is used to suppress the addition of Cogent type \code{MayNull} for translated pointer types (see 
+Section~\ref{types-auto-derived}). It is never generated by Gencot and may be manually specified as \code{"nn"}, such as in 
+\begin{verbatim}
+  item-path-name: nn
+\end{verbatim}
+If the item has type \code{int *} it is translated to type \code{CPtr U32} instead of type \code{MayNull (CPtr U32)}.
+For items which are no pointers the property is ignored.
+
+The not-null property can be used to express that an item's value is never \code{NULL} in the C program. A possible reason
+is that it is immediately initialized and every pointer to be assigned to it is tested to be not \code{NULL} before. 
+Thus the not-null property is used to statically remember this fact for the item in Cogent with the help of the Cogent
+type.
+
+In the example, add the \code{nn} property for the struct member item \code{sphereC.center} (\code{make nn-edit}). Then 
+remove \code{items-incl.cogent} and translate \code{items.h} once more. Now the Cogent type of field \code{center} in
+the Cogent record type \code{Struct\_Cogent\_sphereC} will be \code{Cogent\_coord3dCP\_t!} instead of 
+\code{(MayNull Cogent\_coord3dCP\_t)!}.
 
 \chapter{Preprocessor Directives}
 \label{directives}

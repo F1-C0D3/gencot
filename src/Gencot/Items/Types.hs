@@ -124,20 +124,15 @@ derivedItemIds _ = return $ []
 -- | A type with an associated item identifier.
 type ItemAssocType = (String,LCA.Type)
 
-isNotNullItem :: ItemAssocType -> FTrav Bool
-isNotNullItem (iid,t) = do
+isItemWithProperty :: String -> ItemAssocType -> FTrav Bool
+isItemWithProperty p (iid,t) = do
     dii <- derivedItemIds t
-    liftM or $ mapM (hasProperty "nn") $ ((indivItemIds iid) ++ dii)
+    liftM or $ mapM (hasProperty p) $ ((indivItemIds iid) ++ dii)
 
-isReadOnlyItem :: ItemAssocType -> FTrav Bool
-isReadOnlyItem (iid,t) = do
-    dii <- derivedItemIds t
-    liftM or $ mapM (hasProperty "ro") $ ((indivItemIds iid) ++ dii)
-
-isAddResultItem :: ItemAssocType -> FTrav Bool
-isAddResultItem (iid,t) = do
-    dii <- derivedItemIds t
-    liftM or $ mapM (hasProperty "ar") $ ((indivItemIds iid) ++ dii)
+isNotNullItem = isItemWithProperty "nn"
+isReadOnlyItem = isItemWithProperty "ro"
+isAddResultItem = isItemWithProperty "ar"
+isNoStringItem = isItemWithProperty "ns"
 
 -- | ItemAssocType for an individual (top-level) item.
 -- The second argument is the name of the main source file.

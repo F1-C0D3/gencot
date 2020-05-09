@@ -21,7 +21,7 @@ import Cogent.Util (ffmap)
 
 import Gencot.Origin (Origin,noOrigin,origin,mkOrigin,noComOrigin,mkBegOrigin,mkEndOrigin,prepOrigin,appdOrigin,isNested,toNoComOrigin)
 import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapNameToLower,mapPtrDeriv,mapPtrVoid,mapMayNull,mapArrDeriv,mapFunDeriv,arrDerivHasSize,arrDerivToUbox,mapUboxStep,rmUboxStep,mapMayNullStep,rmMayNullStepThroughRo,addMayNullStep,mapPtrStep,mapFunStep,mapIncFunStep,mapArrStep,mapModStep,mapRoStep,mapNamFunStep,getFileName)
-import Gencot.Items.Types (ItemAssocType,isNotNullItem,isReadOnlyItem,isAddResultItem,getTagItemAssoc,getIndividualItemAssoc,getTypedefItemAssoc,adjustItemAssocType,getMemberSubItemAssoc,getRefSubItemAssoc,getResultSubItemAssoc,getElemSubItemAssoc,getParamSubItemAssoc,getItemAssocType,getMemberItemAssocTypes,getSubItemAssocTypes,numberList)
+import Gencot.Items.Types (ItemAssocType,isNotNullItem,isReadOnlyItem,isAddResultItem,isNoStringItem,getTagItemAssoc,getIndividualItemAssoc,getTypedefItemAssoc,adjustItemAssocType,getMemberSubItemAssoc,getRefSubItemAssoc,getResultSubItemAssoc,getElemSubItemAssoc,getParamSubItemAssoc,getItemAssocType,getMemberItemAssocTypes,getSubItemAssocTypes,numberList)
 import Gencot.Cogent.Ast
 import Gencot.C.Translate (transStat,transExpr)
 import Gencot.Traversal (FTrav,markTagAsNested,isMarkedAsNested,hasProperty,stopResolvTypeName)
@@ -167,10 +167,6 @@ transGlobal (LCA.TypeDefEvent (LCA.TypeDef idnam typ _ n)) = do
           modifiat = if isComposite typ then adjustItemAssocType iat else iat
         
 transGlobal _ = return $ [GenToplv (CS.Include "err-unexpected toplevel") noOrigin]
-
-isString (GenType (CS.TBang t) _) = isString t
-isString (GenType (CS.TCon "String" _ _) _) = True
-isString _ = False
 
 -- | Translate nested tag definitions in a member definition.
 -- The first argument is the ItemAssocType of the struct.
@@ -410,14 +406,15 @@ transType rslv iat@(_, (LCA.PtrType t _ _)) | isArray t = do
     typ <- transType rslv sub
     return $ makeReadOnlyIf ro $ addMayNullIfNot safe typ
 -- Derived pointer type for (unsigned) char type:
--- If Read-Only property: translate to primitive type String
+-- If Read-Only property and not No-String property: translate to primitive type String
 -- Otherwise translate to normal pointer (to U8).
 transType rslv iat@(_, pt@(LCA.PtrType (LCA.DirectType (LCA.TyIntegral it) _ _) _ _)) | it == TyChar || it == TyUChar = do
-    safe <- isNotNullItem iat
     ro <- isReadOnlyItem iat
-    if ro 
+    ns <- isNoStringItem iat
+    if ro && (not ns)
        then return $ genType $ CS.TCon "String" [] markBox
        else do
+           safe <- isNotNullItem iat
            sub <- getRefSubItemAssoc iat
            typ <- transType rslv sub
            return $ makeReadOnlyIf ro $ addMayNullIfNot safe $ genType $ CS.TCon mapPtrDeriv [typ] markBox 
@@ -497,6 +494,19 @@ encodeType rslv iat@(_, (LCA.PtrType t _ _)) | isFunction t = do
     sub <- getRefSubItemAssoc iat
     tn <- encodeType rslv sub
     return (mapPtrStep ++ tn)
+-- Derived pointer type for (unsigned) char type:
+-- If Read-Only property and not No-String property: encode as "String"
+-- Otherwise encode as normal pointer (to U8).
+encodeType rslv iat@(_, pt@(LCA.PtrType (LCA.DirectType (LCA.TyIntegral it) _ _) _ _)) | it == TyChar || it == TyUChar = do
+    ro <- isReadOnlyItem iat
+    ns <- isNoStringItem iat
+    if ro && (not ns)
+       then return "String"
+       else do
+           safe <- isNotNullItem iat
+           sub <- getRefSubItemAssoc iat
+           tn <- encodeType rslv sub
+           return $ addReadOnlyStepIf ro $ addMayNullStepIfNot safe (mapPtrStep ++ tn)
 -- Derived pointer type for other type t:
 -- Encode t, for aggregate type remove unbox step, otherwise prepend pointer derivation step.
 -- If no Not-Null property, add MayNull step.
@@ -731,6 +741,11 @@ isUnboxed _ = False
 
 markBox = CCT.Boxed False CS.noRepE
 markUnbox = CCT.Unboxed
+
+isString :: GenType -> Bool
+isString (GenType (CS.TBang t) _) = isString t
+isString (GenType (CS.TCon "String" _ _) _) = True
+isString _ = False
 
 setOrigin :: LCN.NodeInfo -> GenType -> GenType
 setOrigin n t = (GenType (typeOfGT t) $ mkOrigin n)

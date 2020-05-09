@@ -58,3 +58,6 @@ typedef struct str5 { int m31; int m32; } str5_t, *pstr5_t;
 struct str5 *var_pstr5;
 str5_t *var_pstr5_t;
 pstr5_t var_pstr52_t;
+
+const char *strptr;
+

@@ -19,7 +19,7 @@ long_usage()
     echo 'Commands:'
     echo '  file   <cfile> <uitems> Create parmod description for all functions defined in C sourcefile <cfile>'
     echo '  close  <cfile> <uitems> Create parmod description for all functions declared for C sourcefile <cfile>'
-    echo '  unit   <ufile> <json>  Select descriptions from <json> for externals in unit described in <ufile>'
+    echo '  unit   <json>   Select descriptions from <json> for externals in unit'
     echo '  show   <json>   Display information about parmod description'
     echo '  idlist <json>   List function identifiers of parmod descriptions'
     echo '  diff   <json1> <json2>  Compare parmod descriptions in <json1> and <json2>'
@@ -34,11 +34,11 @@ long_usage()
     echo '  (addto|mergin|replin modify the first argument)'
     echo '  (out writes two files <json>-itemprops and <json>-omitprops)'
     echo 'A <uitems> file contains a list of used external toplevel item ids, each on a separate line.'
-    echo 'A <ufile> contains a list of <cfile> names, each on a separate line.'
     echo 'Options for commands file|close|unit: '
-    echo '  -I<dir>  Directory for searching C include files. Can be repeated, as for cpp. '
-    echo '  -G<dir>  Directory for searching Gencot auxiliary files. Only one can be given, default is "."'
-    echo '  -k   Keep directory with intermediate files and display it at the end.'
+    echo '  -I<dir>    Directory for searching C include files. Can be repeated, as for cpp. '
+    echo '  -G<dir>    Directory for searching Gencot auxiliary files. Only one can be given, default is "."'
+    echo '  -u<uname>  Name of unit. Default is "all"'
+    echo '  -k         Keep directory with intermediate files and display it at the end.'
 }
 
 short_usage()
@@ -48,7 +48,7 @@ short_usage()
 }
 
 # Parse options
-OPTS=$(getopt -o hkI:G: -n "$0" -- "$@")
+OPTS=$(getopt -o hku:I:G: -n "$0" -- "$@")
 
 if [ $? != 0 ]
 then
@@ -61,6 +61,8 @@ eval set -- "$OPTS"
 INCLPATH=''
 GENCOTDIR='.'
 KEEP=''
+UNITNAME='all'
+
 add_incl()
 {
     if [ "$1" = "." ] 
@@ -79,6 +81,7 @@ while true; do
     case "$1" in
         -h) long_usage; exit;;
         -k) KEEP='yes'; shift;;
+        -u) shift; UNITNAME="$1"; shift;;
         -I) shift; add_incl "$1"; shift;;
         -G) shift; GENCOTDIR="$1"; shift;;
         --) shift; break;;
@@ -95,7 +98,7 @@ CMD=$1
 case "$CMD" in
     file) PARSE='yes';REQARGS=2;;
     close) PARSE='yes';CLOSE='close';REQARGS=2;;
-    unit) PARSE='yes';REQARGS=2;;
+    unit) PARSE='yes';;
     show) ;;
     idlist) ;;
     diff) REQARGS=2;;
@@ -125,6 +128,8 @@ else
         exit
     fi
 fi
+
+UNITFILE=$UNITNAME.unit
 
 prepare_aux()
 {
@@ -183,18 +188,22 @@ fi
 
 if [ "$CMD" = "unit" ]
 then
-    UFILE=$1
-    UBASE=$(basename $UFILE)
-    UNAME=$(expr match $UBASE '\(.*\)[.][^.]*' '|' $UBASE)
-    MIFILE=$GENCOTDIR/$UNAME.unit-manitems
-    PMIFILE=$TMPDIR/$UNAME.unit-prcman
+    if [ -e $GENCOTDIR/$UNITFILE ]
+    then 
+        echo "Using unit file $UNITFILE" >&2
+    else
+        echo "Error: Unit file $UNITFILE not found."
+        exit
+    fi
+    MIFILE=$GENCOTDIR/$UNITFILE-manitems
+    PMIFILE=$TMPDIR/$UNITFILE-prcmanitems
     prepare_manitems $MIFILE $PMIFILE
-    for file in $(cat $1)
+    for file in $(cat $GENCOTDIR/$UNITFILE)
     do prepare_cfile $file
     done
     $BIN/items-used $PMIFILE < $TMPDIR/infiles > $TMPDIR/useditems
     $BIN/items-extfuns $TMPDIR/useditems < $TMPDIR/infiles | sort > $TMPDIR/extfunids
-    $BIN/$PRC filter $TMPDIR/extfunids < $2 | tee $TMPDIR/extfuns.json \
+    $BIN/$PRC filter $TMPDIR/extfunids < $1 | tee $TMPDIR/extfuns.json \
         | $BIN/$PRC funids | sort | diff - $TMPDIR/extfunids > $TMPDIR/extfunids.diff
     if [ -s $TMPDIR/extfunids.diff ]
     then

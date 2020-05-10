@@ -24,7 +24,7 @@ parmod.unit:
 	done
 
 parmod.extitems: parmod.unit
-	@$(IT) $(ABSINCL) used parmod.unit > parmod.extitems
+	@$(IT) $(ABSINCL) -u parmod used > parmod.extitems
 
 %-close.json: %.c parmod.extitems
 	@$(PM) $(ABSINCL) close $*.c parmod.extitems > $*-close.json
@@ -37,7 +37,7 @@ parmod-externs.json: close-json parmod.unit
 	@for f in $(foreach TST,$(TESTS),parmod-$(TST)-close.json); do \
 	  $(PM) mergin parmod-externs.tmp $$f; \
 	done
-	@$(PM) $(ABSINCL) unit parmod.unit parmod-externs.tmp > parmod-externs.json
+	@$(PM) $(ABSINCL) -u parmod unit parmod-externs.tmp > parmod-externs.json
 	@rm parmod-externs.tmp
 
 unit-regression: parmod-externs.json parmod-externs-expected.json

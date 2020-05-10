@@ -45,7 +45,7 @@ run-items: itemsbin
 	./itemsbin
 
 part.ext-itemprops: part.unit
-	items -I. unit part.unit > part.ext-itemprops
+	items -I. -u part unit > part.ext-itemprops
 
 part.unit-itemprops: $(IPFILES) part.ext-itemprops
 	cp part.ext-itemprops part.unit-itemprops
@@ -64,7 +64,7 @@ part.unit-itemprops: $(IPFILES) part.ext-itemprops
 	gencot -I. cfile $*.c
 
 $(UNITFILES): part.unit $(CFILES)
-	gencot -I. unit part.unit
+	gencot -I. -u part unit
 
 ed-items.done: items.cogent
 	sed -i -e "15,16d;17s/f(/f0(/;18s/->/./;19s/-}/(0, argv)/" items.cogent
@@ -87,7 +87,7 @@ part-gen.c part-gen.h $(ACFILESINF): $(COGSRC) $(EDITFILES) $(ACFILES)
 	cogent -o part-gen -g $(COGPPARGS) part.cogent --infer-c-funcs="$(ACFILES)"
 
 part.c part-macros.h $(ACFILESC): part-gen.c part-gen.h $(ACFILESINF) part.unit
-	auxcog unit part.unit
+	auxcog -u part unit
 
 part.o: part.c part-gen.c part-gen.h part-macros.h $(ACFILESC)
 	cc -c -I$(STDGUM) -I$(GENCOTC) part.c

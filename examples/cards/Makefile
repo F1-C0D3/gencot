@@ -37,7 +37,7 @@ run-cards: cards
 	gencot -I. cfile $*.c
 
 $(UNITFILES): all.unit all.unit-itemprops $(CFILES)
-	gencot -I. unit all.unit
+	gencot -I. unit
 
 ed-cards.done: cards.cogent
 #	*todo*
@@ -47,7 +47,7 @@ all-gen.c all-gen.h $(ACFILESINF): $(COGSRC) $(EDITFILES) $(ACFILES)
 	cogent -o all-gen -g all.cogent $(COGPPARGS) --infer-c-funcs="$(ACFILES)"
 
 all.c all-macros.h $(ACFILESC): all-gen.c all-gen.h $(ACFILESINF) all.unit
-	auxcog unit all.unit
+	auxcog unit
 
 all-cards: all.c all-gen.c all-gen.h all-macros.h $(ACFILESC)
 	cc -o all-cards -I$(STDGUM) -I$(GENCOTC) all.c

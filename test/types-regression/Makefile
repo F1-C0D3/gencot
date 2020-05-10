@@ -68,10 +68,10 @@ unit-expect-current: unit
 	done
 
 test.ext-dfltprops: test.unit test.unit-manitems
-	@$(IT) $(ABSINCL) unit test.unit > test.ext-dfltprops
+	@$(IT) $(ABSINCL) -u test unit > test.ext-dfltprops
 
 test.unit-extitems: test.unit test.unit-manitems 
-	@$(IT) $(ABSINCL) used test.unit > test.unit-extitems
+	@$(IT) $(ABSINCL) -u test used > test.unit-extitems
 
 %.c-dfltprops: %.c
 	@$(IT) $(ABSINCL) file $*.c > $*.c-dfltprops
@@ -104,4 +104,4 @@ test.unit:
 	@cat test.unit
 
 unit: test.unit test.unit-itemprops test.unit-manitems
-	@$(GC) $(ABSINCL) unit test.unit
+	@$(GC) $(ABSINCL) -u test unit

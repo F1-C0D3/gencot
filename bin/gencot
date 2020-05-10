@@ -9,26 +9,26 @@ fi
 
 BIN=$GENCOT_HOME/bin
 
-USAGE="Usage: $0 [-I<dir>] [-G<dir>] [-C<dir>] [-k] [check|config|hfile|cfile|unit|cgraph|help] <file>"
+USAGE="Usage: $0 [-I<dir>] [-G<dir>] [-C<dir>] [-u<uname>] [-k] [check|config|hfile|cfile|unit|cgraph|help] [<file>]"
 
 long_usage()
 {
     echo $USAGE
     echo 'Translate C source files to Cogent language.'
     echo 'Subcommands:'
-    echo '  check  <cfile>  Test C sourcefile <cfile> for parsability by Gencot'
+    echo '  check  <file>   Test C sourcefile <file> for parsability by Gencot'
     echo '  config <hfile>  Translate a C configuration include file to Cogent'
     echo '  hfile  <hfile>  Translate a C include file to Cogent'
     echo '  cfile  <cfile>  Translate a C source file to Cogent'
-    echo '  unit   <ufile>  Generate auxiliary Cogent files for unit described in <ufile>'
-    echo '  cgraph <ufile>  Print call graph for unit described in <ufile>'
+    echo '  unit            Generate auxiliary Cogent files for unit'
+    echo '  cgraph          Print call graph for unit'
     echo '  help            Display this help information'
-    echo 'A <ufile> contains a list of <cfile> names, each on a separate line.'
     echo 'Options: '
-    echo '  -I<dir>  Directory for searching C include files. Can be repeated, as for cpp. '
-    echo '  -G<dir>  Directory for searching Gencot auxiliary files. Only one can be given, default is "."'
-    echo '  -C<dir>  Directory for stored declaration comments. Default is "./comments"'
-    echo '  -k   Keep directory with intermediate files and display it at the end.'
+    echo '  -I<dir>    Directory for searching C include files. Can be repeated, as for cpp. '
+    echo '  -G<dir>    Directory for searching Gencot auxiliary files. Only one can be given, default is "."'
+    echo '  -C<dir>    Directory for stored declaration comments. Default is "./comments"'
+    echo '  -u<uname>  Name of unit. Default is "all"'
+    echo '  -k         Keep directory with intermediate files and display it at the end.'
 }
 
 short_usage()
@@ -38,7 +38,7 @@ short_usage()
 }
 
 # Parse options
-OPTS=$(getopt -o hkI:G:C: -n "$0" -- "$@")
+OPTS=$(getopt -o hku:I:G:C: -n "$0" -- "$@")
 
 if [ $? != 0 ]
 then
@@ -52,6 +52,8 @@ INCLPATH=''
 GENCOTDIR='.'
 COMMENTDIR='./comments'
 KEEP=''
+UNITNAME='all'
+
 add_incl()
 {
     if [ "$1" = "." ] 
@@ -70,6 +72,7 @@ while true; do
     case "$1" in
         -h) long_usage; exit;;
         -k) KEEP='yes'; shift;;
+        -u) shift; UNITNAME="$1"; shift;;
         -I) shift; add_incl "$1"; shift;;
         -G) shift; GENCOTDIR="$1"; shift;;
         -C) shift; COMMENTDIR="$1"; shift;;
@@ -79,16 +82,16 @@ done
 
 # Parse command
 REQARGS=1
-OPTARGS='yes'
+OPTARGS=''
 CMD=$1
 
 case "$CMD" in
-    check) OPTARGS='';;
+    check) ;;
     config) ;;
     hfile) ;;
     cfile) ;;
-    unit) ;;
-    cgraph) ;;
+    unit) REQARGS=0;;
+    cgraph) REQARGS=0;;
     help) long_usage; exit;;
     *) echo "unknown gencot subcommand: $1"; short_usage; exit;;
 esac
@@ -110,11 +113,24 @@ else
     fi
 fi
 
-CFILE=$1
-CBASE=$(basename $CFILE)
-CNAME=$(expr match $CBASE '\(.*\)[.][^.]*' '|' $CBASE)
+UNITFILE=$UNITNAME.unit
 
-IPMFILE=$CBASE-itemprops
+if [ $REQARGS -gt 0 ]
+then
+    CFILE=$1
+    CBASE=$(basename $CFILE)
+    CNAME=$(expr match $CBASE '\(.*\)[.][^.]*' '|' $CBASE)
+    IPMFILE=$CBASE-itemprops
+else
+    IPMFILE=$UNITFILE-itemprops
+    if [ -e $GENCOTDIR/$UNITFILE ]
+    then 
+        echo "Using unit file $UNITFILE" >&2
+    else
+        echo "Error: Unit file $UNITFILE not found."
+        exit
+    fi
+fi
 
 TMPDIR=$(mktemp -d)
 
@@ -223,12 +239,12 @@ process_comments()
 
 if [ "$CMD" = "unit" ]
 then
-    for file in $(cat $CFILE)
+    for file in $(cat $GENCOTDIR/$UNITFILE)
     do prepare_cfile $file
     done
-    MIFILE=$GENCOTDIR/$CNAME.unit-manitems
-    PMIFILE=$TMPDIR/$CNAME.unit-prcmanitems
-    EIFILE=$TMPDIR/$CNAME.unit-extitems
+    MIFILE=$GENCOTDIR/$UNITFILE-manitems
+    PMIFILE=$TMPDIR/$UNITFILE-prcmanitems
+    EIFILE=$TMPDIR/$UNITFILE-extitems
     if [ -e $MIFILE ]
     then
         $BIN/gencot-prclist < $MIFILE > $PMIFILE
@@ -238,21 +254,21 @@ then
     $BIN/items-used $PMIFILE < $TMPDIR/infiles > $EIFILE
     prepare_itemprops
     $BIN/gencot-externs $TMPDIR/$IPMFILE $EIFILE < $TMPDIR/infiles | $BIN/gencot-reporigs \
-        | $BIN/gencot-mrgcomments /dev/null > $TMPDIR/$CNAME-externs.cogent
+        | $BIN/gencot-mrgcomments /dev/null > $TMPDIR/$UNITNAME-externs.cogent
     $BIN/gencot-exttypes $TMPDIR/$IPMFILE $EIFILE < $TMPDIR/infiles | $BIN/gencot-reporigs \
         | $BIN/gencot-defcomments $COMMENTDIR \
-        | $BIN/gencot-mrgcomments /dev/null > $TMPDIR/$CNAME-exttypes.cogent
+        | $BIN/gencot-mrgcomments /dev/null > $TMPDIR/$UNITNAME-exttypes.cogent
     $BIN/gencot-dvdtypes $TMPDIR/$IPMFILE $EIFILE < $TMPDIR/infiles | $BIN/gencot-reporigs \
         | $BIN/gencot-defcomments $COMMENTDIR \
-        | $BIN/gencot-mrgcomments /dev/null > $TMPDIR/$CNAME-dvdtypes.cogent
-    cp $TMPDIR/$CNAME-externs.cogent $TMPDIR/$CNAME-exttypes.cogent $TMPDIR/$CNAME-dvdtypes.cogent .
-    $BIN/gencot-mainfile $CNAME < $CFILE > $CNAME.cogent
+        | $BIN/gencot-mrgcomments /dev/null > $TMPDIR/$UNITNAME-dvdtypes.cogent
+    cp $TMPDIR/$UNITNAME-externs.cogent $TMPDIR/$UNITNAME-exttypes.cogent $TMPDIR/$UNITNAME-dvdtypes.cogent .
+    $BIN/gencot-mainfile $UNITNAME < $GENCOTDIR/$UNITFILE > $UNITNAME.cogent
 elif [ "$CMD" = "cgraph" ]
 then
-    for file in $(cat $CFILE)
+    for file in $(cat $GENCOTDIR/$UNITFILE)
     do prepare_cfile $file
     done
-    $BIN/callgraph-print $CFILE < $TMPDIR/infiles
+    $BIN/callgraph-print $GENCOTDIR/$UNITFILE < $TMPDIR/infiles
 elif [ "$CMD" = "check" ]
 then 
     prepare_cfile $CFILE

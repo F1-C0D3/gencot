@@ -56,10 +56,10 @@ cards: $(OFILES)
 	gencot -I. cfile $*.c
 
 $(UNITFILES): all.unit all.unit-itemprops $(CFILES)
-	gencot -I. unit all.unit
+	gencot -I. unit
 
 $(PUNITFILES): part.unit part.unit-itemprops $(PCFILES)
-	gencot -I. unit part.unit
+	gencot -I. -u part unit
 
 ed-cards.done: cards.cogent
 #	*todo*
@@ -83,11 +83,11 @@ part-gen.c part-gen.h: $(PCOGSRC) $(PEDITFILES) $(PACFILES)
 
 # Implicitly also generates $(ACFILESC)
 all.c all-macros.h: all-gen.c all-gen.h $(ACFILESINF) all.unit
-	auxcog unit all.unit
+	auxcog unit
 
 # Implicitly also generates $(PACFILESC)
 part.c part-macros.h: part-gen.c part-gen.h $(PACFILESINF) part.unit
-	auxcog unit part.unit
+	auxcog -u part unit
 
 all-cards: all.c all-gen.c all-gen.h all-macros.h $(ACFILESC)
 	$(CC) -o all-cards -I$(STDGUM) -I$(GENCOTC) all.c

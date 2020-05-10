@@ -14,7 +14,7 @@ Cogent compiler.
 
 The overall synopsis of the \code{gencot} command is
 \begin{verbatim}
-  gencot <options> <subcommand> <file>
+  gencot <options> <subcommand> [<file>]
 \end{verbatim}
 
 The \code{gencot} command supports the following subcommands:
@@ -32,17 +32,15 @@ written to file \code{x-incl.cogent}
 in Section~\ref{impl-preprocessor-config}. If the source file name is \code{x.h} the result is
 written to file \code{x-incl.cogent}
 
-\item[\code{unit}] Generate additional Cogent files for the Cogent compilation unit described in the argument file.
+\item[\code{unit}] Generate additional Cogent files for the Cogent compilation unit.
 
-\item[\code{cgraph}] Print the call graph for the Cogent compilation unit described in the argument file.
+\item[\code{cgraph}] Print the call graph for the Cogent compilation unit.
 
 \end{description}
 
-The subcommands \code{unit} and \code{cgraph} expect as argument file a file containing the list of C source file names
-(one per line) which together constitute the Cogent compilation unit. As a convention it is recommended to use the 
-file name extension \code{".unit"} for these argument files.
-
-If the file has the name \code{x.<ext>} the subcommand \code{unit} generates the following additional files (see Section~\ref{design-files}):
+The input file \code{<file>} must be specified for the first four subcommands and it must be omitted for the latter two.
+The subcommands \code{unit} and \code{cgraph} use the ``unit name'' to determine the files to be processed.
+If the unit name is \code{x} the subcommand \code{unit} generates the following additional files (see Section~\ref{design-files}):
 \begin{itemize}
 \item \code{x.cogent}
 \item \code{x-externs.cogent}
@@ -59,6 +57,8 @@ are specified.
 \item[\code{-G}] Directory for searching Gencot auxiliary files. Only one can be given, default is \code{"."}.
 
 \item[\code{-C}] Directory for retrieving stored declaration comments. Default is \code{"./comments"}.
+
+\item[\code{-u}] The unit name. Default is \code{"all"}.
 
 \item[\code{-k}] Keep directory with intermediate files. This is only intended for debugging.
 
@@ -97,10 +97,14 @@ For all cases with the exception of the last two, additionally a file with name 
 is present. If both files are present the concatenation of them is used. In this way it is possible to specify common annotations 
 for all C sources and add specific annotations in the source file specific files.
 
-The subcommand \code{unit} uses corresponding auxiliary files for every file \code{x.c} listed in its argument file.
-Additionally, if the argument file name is \code{<file>} it uses the auxiliary file
+The subcommands \code{unit} and \code{cgraph} use corresponding auxiliary files for every file \code{x.c} processed by them.
+Additionally, if the unit name is \code{<uname>} they use the auxiliary files
 \begin{description}
-\item[\code{<file>-manitems}] Manually specified external items, as described in Section~\ref{impl-ccomps-items} as
+\item[\code{<uname>.unit}] The ``unit file''. It contains the list of C source file names
+(one per line) which together constitute the Cogent compilation unit. Only the original source files \code{x.c} must 
+be listed, include files \code{x.h} must not be listed. The commands process all files listed in the unit file
+together with all included files.
+\item[\code{<uname>.unit-manitems}] Manually specified external items, as described in Section~\ref{impl-ccomps-items} as
 input to the processor \code{items-used}.
 \end{description}
 
@@ -127,7 +131,7 @@ still applied to the single original source files, since they do not require add
 
 The overall synopsis of the \code{items} command is
 \begin{verbatim}
-  items <options> <subcommand> <file> [<file2>]
+  items <options> <subcommand> [<file>] [<file2>]
 \end{verbatim}
 
 The \code{items} command supports the following subcommands:
@@ -136,10 +140,9 @@ The \code{items} command supports the following subcommands:
 or include file \code{<file>}. 
 
 \item[\code{unit}] Create default property declarations for all external items used in the Cogent compilation 
-unit described in \code{<file>}. 
+unit. 
 
-\item[\code{used}] List external toplevel items used in the Cogent compilation 
-unit described in \code{<file>}. 
+\item[\code{used}] List external toplevel items used in the Cogent compilation unit. 
 
 \item[\code{merge}] Merge the declarations in \code{<file>} and \code{<file2>}. Two declarations for the 
 same item are combined by uniting the properties.
@@ -153,10 +156,10 @@ if their item is already present in \code{<file>}.
 
 All subcommands write their result to standard output.
 
-The subcommands \code{unit} and \code{used} expect the same kind of argument file as the subcommand \code{unit} 
-of the \code{gencot} command.
+For the subcommands \code{unit} and \code{used} no \code{<file>} must be specified, instead, they use the unit name
+in the same way as the subcommand \code{unit} of the \code{gencot} command.
 
-The \code{items} command supports the options \code{-I}, \code{-G}, \code{-k} with the same meaning as
+The \code{items} command supports the options \code{-I}, \code{-G}, \code{-u}, \code{-k} with the same meaning as
 for the \code{gencot} command.
 
 \subsubsection{Auxiliary Files}
@@ -190,8 +193,8 @@ The result is written to standard output.
 \code{<file>} in the file itself or in a file included by it. \code{<file2>} must be the list of used external toplevel item ids. 
 The result is written to standard output.
 
-\item[\code{unit}] Select entries from \code{<file2>} (a file in JSON format containing parameter modification
-descriptions) for all external functions used in the Cogent compilation unit described in \code{<file>}. 
+\item[\code{unit}] Select entries from \code{<file>} (a file in JSON format containing parameter modification
+descriptions) for all external functions used in the Cogent compilation unit. 
 The result is written to standard output.
 
 \item[\code{show}] Display on standard output information about the parameter modification description in \code{<file>}.
@@ -229,10 +232,10 @@ and \code{<file>-omitprops} (properties to be removed from the default propertie
 The subcommands \code{file} and \code{close} expect as its second argument file an item id list as 
 generated by the command \code{items used}.
 
-The subcommand \code{unit} expects the same kind of argument file as the subcommand \code{unit} 
+The subcommand \code{unit} expects no argument \code{<file>}, instead, it uses the unit name in the same way as the subcommand \code{unit} 
 of the \code{gencot} command.
 
-The \code{parmod} command supports the options \code{-I}, \code{-G}, \code{-k} with the same meaning as
+The \code{parmod} command supports the options \code{-I}, \code{-G}, \code{-u}, \code{-k} with the same meaning as
 for the \code{gencot} command. They are only used for the subcommands \code{file}, \code{close}, and \code{unit}.
 
 \subsubsection{Auxiliary Files}
@@ -258,19 +261,19 @@ sorting both lists and comparing them with \code{diff}. If the result is not emp
 
 The overall synopsis of the \code{auxcog} command is
 \begin{verbatim}
-  auxcog <options> <subcommand> <file>
+  auxcog <options> <subcommand> [<file>]
 \end{verbatim}
 
 The \code{auxcog} command supports the following subcommands:
 \begin{description}
-\item[\code{unit}] Generate additional C files for the Cogent compilation unit described in the argument file.
+\item[\code{unit}] Generate additional C files for the Cogent compilation unit.
 
 \item[\code{comments}] Remove comments from the Cogent source \code{<file>} and write the result to standard output.
 
 \end{description}
 
-The subcommand \code{unit} expect as its first argument \code{<file>} the same kind as the subcommand \code{unit} 
-of the \code{gencot} command. If the file has the name \code{x.<ext>} the following additional files are generated 
+The subcommand \code{unit} expect no argument \code{<file>}, instead, it uses the unit name in the same way as the subcommand \code{unit} 
+of the \code{gencot} command. If the unit name is \code{x} the following additional files are generated 
 (see Section~\ref{design-files}):
 \begin{itemize}
 \item \code{x.c}
@@ -278,7 +281,7 @@ of the \code{gencot} command. If the file has the name \code{x.<ext>} the follow
 \item \code{x-gencot.c} (only if \code{x-gencot\_pp\_inferred.c} is present)
 \item \code{x-externs.c}
 \end{itemize}
-and for all files \code{y.c} listed in \code{x.<ext>}:
+and for all files \code{y.c} listed in the unit file \code{x.unit}:
 \begin{itemize}
 \item \code{y-entry.c}
 \end{itemize}
@@ -287,10 +290,10 @@ The subcommand \code{comments} is mainly intended for testing the comment struct
 \code{gencot}. In rare cases it may happen that a closing comment delimiter and a subsequent opening comment delimiter
 are omitted, so that the Cogent compiler will not detect the wrong comment structure.
 
-The \code{auxcog} command supports the option \code{-I} with the same meaning as
-for the \code{gencot} command.
+The \code{auxcog} command supports the options \code{-I}, \code{-u} with the same meaning as
+the \code{gencot} command.
 
-The \code{auxcog} command does not use any auxiliary files.
+The \code{auxcog} command only uses the unit file \code{<uname>.unit} as auxiliary file.
 
 \subsubsection{Implementation}
 

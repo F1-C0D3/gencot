@@ -11,26 +11,26 @@ BIN=$GENCOT_HOME/bin
 PRC=$BIN/items-proc
 GEN=$BIN/items-gen
 
-USAGE="Usage: $0 [-k] [file|unit|used|merge|mergeto|omitfrom|help] <file> [<file>]"
+USAGE="Usage: $0 [-I<dir>] [-G<dir>] [-u<uname>] [-k] [file|unit|used|merge|mergeto|omitfrom|help] [<file>] [<file>]"
 
 long_usage()
 {
     echo $USAGE
     echo 'Manage Gencot item property declarations in text format.'
     echo 'Commands:'
-    echo '  file     <cfile>   Create default property declarations for all items defined in C sourcefile <cfile>'
-    echo '  unit     <ufile>   Create default property declarations for all external items in unit described in <ufile>'
-    echo '  used     <ufile>   List external toplevel items used by unit described in <ufile>'
+    echo '  file     <cfile>  Create default property declarations for all items defined in C sourcefile <cfile>'
+    echo '  unit              Create default property declarations for all external items in unit'
+    echo '  used              List external toplevel items used by unit'
     echo '  merge    <file1> <file2> Merge two declarations by uniting properties for each item'
     echo '  mergeto  <file1> <file2> Merge properties from <file2> to items in <file1>'
     echo '  omitfrom <file1> <file2> Omit properties in <file2> from items in <file1>'
-    echo '  help             Display this help information'
+    echo '  help              Display this help information'
     echo '  (all commands write the resulting property declarations or item list to stdout)'
-    echo 'A <ufile> contains a list of <cfile> names, each on a separate line.'
     echo 'Options: '
-    echo '  -I<dir>  Directory for searching C include files. Can be repeated, as for cpp. '
-    echo '  -G<dir>  Directory for searching Gencot auxiliary files. Only one can be given, default is "."'
-    echo '  -k   Keep directory with intermediate files and display it at the end.'
+    echo '  -I<dir>    Directory for searching C include files. Can be repeated, as for cpp. '
+    echo '  -G<dir>    Directory for searching Gencot auxiliary files. Only one can be given, default is "."'
+    echo '  -u<uname>  Name of unit. Default is "all"'
+    echo '  -k         Keep directory with intermediate files and display it at the end.'
 }
 
 short_usage()
@@ -40,7 +40,7 @@ short_usage()
 }
 
 # Parse options
-OPTS=$(getopt -o hkI:G: -n "$0" -- "$@")
+OPTS=$(getopt -o hku:I:G: -n "$0" -- "$@")
 
 if [ $? != 0 ]
 then
@@ -53,6 +53,8 @@ eval set -- "$OPTS"
 INCLPATH=''
 GENCOTDIR='.'
 KEEP=''
+UNITNAME='all'
+
 add_incl()
 {
     if [ "$1" == "." ] 
@@ -71,6 +73,7 @@ while true; do
     case "$1" in
         -h) long_usage; exit;;
         -k) KEEP='yes'; shift;;
+        -u) shift; UNITNAME="$1"; shift;;
         -I) shift; add_incl "$1"; shift;;
         -G) shift; GENCOTDIR="$1"; shift;;
         --) shift; break;;
@@ -78,17 +81,17 @@ while true; do
 done
 
 # Parse command
-REQARGS=1
+REQARGS=2
 OPTARGS=''
 CMD=$1
 
 case "$CMD" in
-    file) ;;
-    unit) ;;
-    used) ;;
-    merge) REQARGS=2;;
-    mergeto) REQARGS=2;;
-    omitfrom) REQARGS=2;;
+    file) REQARGS=1;;
+    unit) REQARGS=0;;
+    used) REQARGS=0;;
+    merge) ;;
+    mergeto) ;;
+    omitfrom) ;;
     help) long_usage; exit;;
     *) echo "unknown items command: $1"; short_usage; exit;;
 esac
@@ -106,6 +109,24 @@ else
     if [ "$REQARGS" != "$#" ]
     then
         echo "wrong number of arguments for items command ${CMD}: expected $REQARGS"
+        exit
+    fi
+fi
+
+UNITFILE=$UNITNAME.unit
+
+if [ "$REQARGS" = "1" ]
+then
+    CFILE=$1
+    CBASE=$(basename $CFILE)
+    CNAME=$(expr match $CBASE '\(.*\)[.][^.]*' '|' $CBASE)
+elif [ "$REQARGS" = "0" ]
+then
+    if [ -e $GENCOTDIR/$UNITFILE ]
+    then 
+        echo "Using unit file $UNITFILE" >&2
+    else
+        echo "Error: Unit file $UNITFILE not found."
         exit
     fi
 fi
@@ -179,20 +200,14 @@ then
     $BIN/gencot-prclist < $1 | $PRC omit $TMPDIR/hfile
 elif [ "$CMD" == "file" ]
 then
-    CFILE=$1
-    CBASE=$(basename $CFILE)
-    CNAME=$(expr match $CBASE '\(.*\)[.][^.]*' '|' $CBASE)
     prepare_cfile $CFILE
     $GEN $CBASE < $TMPDIR/$CNAME.in
 elif [ "$CMD" == "unit" -o "$CMD" == "used" ]
 then
-    UFILE=$1
-    UBASE=$(basename $UFILE)
-    UNAME=$(expr match $UBASE '\(.*\)[.][^.]*' '|' $UBASE)
-    MIFILE=$GENCOTDIR/$UNAME.unit-manitems
-    PMIFILE=$TMPDIR/$UNAME.unit-prcman
+    MIFILE=$GENCOTDIR/$UNITFILE-manitems
+    PMIFILE=$TMPDIR/$UNITFILE-prcmanitems
     prepare_manitems $MIFILE $PMIFILE
-    for file in $(cat $1)
+    for file in $(cat $GENCOTDIR/$UNITFILE)
     do prepare_cfile $file
     done
     if [ "$CMD" == "unit" ]

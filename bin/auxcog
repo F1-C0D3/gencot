@@ -9,20 +9,19 @@ fi
 
 BIN=$GENCOT_HOME/bin
 
-USAGE="Usage: $0 [-I<dir>] [unit|comments|help] <file>"
+USAGE="Usage: $0 [-I<dir>] [-u<unam>] [unit|comments|help] [<file>]"
 
 long_usage()
 {
     echo $USAGE
     echo 'Auxiliary processing for Cogent programs.'
     echo 'Commands:'
-    echo '  unit     <ufile>  Generate auxiliary C files for unit described in <ufile>'
-    echo '  comments <file>   Remove comments from Cogent source <file> and print to stdout'
-    echo '  help              Display this help information'
-    echo 'A <ufile> contains a list of C source file names, each on a separate line.'
-    echo 'The base name of a <ufile> must be the name of the corresponding Cogent compilation unit.'
+    echo '  unit             Generate auxiliary C files for unit described in <ufile>'
+    echo '  comments <file>  Remove comments from Cogent source <file> and print to stdout'
+    echo '  help             Display this help information'
     echo 'Options for command unit: '
-    echo '  -I<dir>  Directory for searching Cogent include files. Can be repeated, as for cpp. '
+    echo '  -I<dir>    Directory for searching Cogent include files. Can be repeated, as for cpp. '
+    echo '  -u<uname>  Name of unit. Default is "all"'
 }
 
 short_usage()
@@ -32,7 +31,7 @@ short_usage()
 }
  
 # Parse options
-OPTS=$(getopt -o hI: -n "$0" -- "$@")
+OPTS=$(getopt -o hu:I: -n "$0" -- "$@")
 
 if [ $? != 0 ]
 then
@@ -43,19 +42,24 @@ fi
 eval set -- "$OPTS"
 
 INCLS=''
+UNITNAME='all'
 
 while true; do
     case "$1" in
         -h) long_usage; exit;;
         -I) shift; INCLS="$INCLS -I $1"; shift;;
+        -u) shift; UNITNAME="$1"; shift;;
         --) shift; break;;
     esac
 done
 
+# Parse command
+REQARGS=1
+OPTARGS=''
 CMD=$1
 
 case "$CMD" in
-    unit) ;;
+    unit) REQARGS=0;;
     comments) ;;
     help) long_usage; exit;;
     *) echo "unknown auxcog command: $1"; short_usage; exit;;
@@ -63,31 +67,55 @@ esac
 
 shift
 
+if [ $OPTARGS ]
+then
+    if [ $REQARGS -gt $# ]
+    then
+        echo "wrong number of arguments for auxcog subcommand ${CMD}: expected at least $REQARGS"
+        exit
+    fi
+else
+    if [ "$REQARGS" != "$#" ]
+    then
+        echo "wrong number of arguments for auxcog subcommand ${CMD}: expected $REQARGS"
+        exit
+    fi
+fi
+
+UNITFILE=$UNITNAME.unit
+
+if [ "$REQARGS" = "0" ]
+then
+    if [ -e $UNITFILE ]
+    then 
+        echo "Using unit file $UNITFILE" >&2
+    else
+        echo "Error: Unit file $UNITFILE not found."
+        exit
+    fi
+fi
+
 if [ "$CMD" = "unit" ]
 then
-    UFILE=$1
-    UBASE=$(basename $UFILE)
-    UNAME=$(expr match $UBASE '\(.*\)[.][^.]*' '|' $UBASE)
-    
-    $BIN/auxcog-macros $INCLS $UNAME.cogent \
+    $BIN/auxcog-macros $INCLS $UNITNAME.cogent \
     | $BIN/auxcog-remcomments \
-    | $BIN/auxcog-numexpr > $UNAME-macros.h
+    | $BIN/auxcog-numexpr > $UNITNAME-macros.h
     
-    if [ -e $UNAME-gencot_pp_inferred.c ]
+    if [ -e $UNITNAME-gencot_pp_inferred.c ]
     then
-        $BIN/auxcog-genops $UNAME-gen.h < $UNAME-gencot_pp_inferred.c > $UNAME-gencot.c
+        $BIN/auxcog-genops $UNITNAME-gen.h < $UNITNAME-gencot_pp_inferred.c > $UNITNAME-gencot.c
     fi
-    $BIN/auxcog-genops $UNAME-gen.h < $UNAME-externs_pp_inferred.c > $UNAME-externs.c
-    for file in $(cat $UFILE)
+    $BIN/auxcog-genops $UNITNAME-gen.h < $UNITNAME-externs_pp_inferred.c > $UNITNAME-externs.c
+    for file in $(cat $UNITFILE)
     do
         fbase=$(basename $file)
         fnam=$(expr match $fbase '\(.*\)[.][^.]*' '|' $fbase)
         if [ $fnam != "additional_externs" ]
-        then $BIN/auxcog-genops $UNAME-gen.h < $fnam-entry_pp_inferred.c > $fnam-entry.c
+        then $BIN/auxcog-genops $UNITNAME-gen.h < $fnam-entry_pp_inferred.c > $fnam-entry.c
         fi
     done
     
-    $BIN/auxcog-mainfile $UNAME < $UFILE > $UNAME.c
+    $BIN/auxcog-mainfile $UNITNAME < $UNITFILE > $UNITNAME.c
 else
 # "$CMD" = "comments"
     $BIN/auxcog-remcomments < $1

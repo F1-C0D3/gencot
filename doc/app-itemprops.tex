@@ -94,12 +94,11 @@ file or include file \code{<file>} the command
 \end{verbatim}
 is used. The result should be stored in file \code{<file>-dfltprops}.
 
-To generate the default property declarations for the external items used by the Cogent compilation unit described in the 
-unit file \code{y.<e>} the command
+To generate the default property declarations for the external items used by the Cogent compilation unit the command
 \begin{verbatim}
-  items unit y.<e>
+  items unit
 \end{verbatim}
-is used. The result should be stored in file \code{y.ext-dfltprops}.
+is used. The result should be stored in file \code{<uname>.ext-dfltprops} where \code{<uname>} is the unit name. 
 
 \subsection{Transferring Parameter Modification Descriptions}
 \label{app-items-parmod}
@@ -173,9 +172,9 @@ For convenience for the developer Gencot supports empty lines and comment lines 
 \subsection{Property Declarations for a Cogent Compilation Unit}
 \label{app-items-unit}
 
-When processing a Cogent compilation unit described by the unit file \code{y.<e>} the item property declarations in file
-\code{y.<e>-itemprops} are used (see Section~\ref{app-items-files}). This file is built by simply merging all
-generated files \code{<file>-itemprops} and the file \code{y.ext-itemprops} iteratively using the command
+When processing a Cogent compilation unit described by the unit file \code{<uname>.unit} the item property declarations in file
+\code{<uname>.unit-itemprops} are used (see Section~\ref{app-items-files}). This file is built by simply merging all
+generated files \code{<file>-itemprops} and the file \code{<uname>.ext-itemprops} iteratively using the command
 \begin{verbatim}
   items merge
 \end{verbatim}
@@ -189,10 +188,9 @@ translation set, as described in Section~\ref{impl-ccomps-items}, and generates 
 for them and their sub-items. It may be necessary to process additional external items which are not used or are not recognized
 to be used. The set of external items recognized by Gencot as used can be displayed using the command
 \begin{verbatim}
-  items used y.<e>
+  items used
 \end{verbatim}
-where \code{y.<e>} is the unit file describing the translation set.
 
 To generate default properties for additional external items, a list of the additional (toplevel) items can be 
-specified in the auxiliary file \code{y.<e>-manitems}. If present, this file is automatically read by \code{items unit}
+specified in the auxiliary file \code{<uname>.unit-manitems}. If present, this file is automatically read by \code{items unit}
 and default property declarations are generated for all items listed in it (and all items transitively used from them).

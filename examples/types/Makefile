@@ -31,7 +31,7 @@ COGPPARGS = --cogent-pp-args="-I$(GENCOTI)"
 	gencot cfile $*.c
 
 $(UNITFILES): all.unit $(CFILES)
-	gencot unit all.unit
+	gencot unit
 
 ed-types.done: types.cogent
 	sed -i -e "9,10d;57d" types.cogent
@@ -45,7 +45,7 @@ all-gen.c all-gen.h $(ACFILESINF): $(COGSRC) $(EDITFILES) $(ACFILES)
 	cogent -o all-gen -g $(COGPPARGS) all.cogent --infer-c-funcs="$(ACFILES)"
 
 all.c all-macros.h $(ACFILESC): all-gen.c all-gen.h $(ACFILESINF) all.unit
-	auxcog unit all.unit
+	auxcog unit
 
 all.o: all.c all-gen.c all-gen.h all-macros.h $(ACFILESC)
 	cc -c -I$(STDGUM) -I$(GENCOTC) all.c

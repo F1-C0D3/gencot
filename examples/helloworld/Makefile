@@ -36,7 +36,7 @@ run-hello: hello
 	gencot cfile $*.c
 
 $(UNITFILES): all.unit all.unit-itemprops $(CFILES)
-	gencot unit all.unit
+	gencot unit
 
 ed-hello.done: hello.cogent
 	sed -i -e "4,5d;7d;s/;/; 0/" hello.cogent
@@ -46,7 +46,7 @@ all-gen.c all-gen.h $(ACFILESINF): $(COGSRC) $(EDITFILES) $(ACFILES)
 	cogent -o all-gen -g all.cogent --infer-c-funcs="$(ACFILES)"
 
 all.c all-macros.h $(ACFILESC): all-gen.c all-gen.h $(ACFILESINF) all.unit
-	auxcog unit all.unit
+	auxcog unit
 
 all-hello: all.c all-gen.c all-gen.h all-macros.h $(ACFILESC)
 	cc -o all-hello -I$(STDGUM) -I$(GENCOTC) all.c

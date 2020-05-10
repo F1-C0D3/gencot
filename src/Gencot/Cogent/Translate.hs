@@ -371,7 +371,8 @@ transType rslv iat@(iid, (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _)) = d
     srtn <- stopResolvTypeName idnam
     safe <- isNotNullItem iat
     ro <- isReadOnlyItem iat
-    rslvtyp <- transType rslv (iid,typ)
+    rslvtyp <- transType rslv (if srtn then getTypedefItemAssoc idnam typ else (iid,typ))
+--    _ <- if LCI.identToString idnam == "exttypc3" then error $ ("idnam exttypc3 found. iid: " ++ iid ++ " rslvtyp: " ++ (show rslvtyp)) else return ()
     let nntyp = if rslv || ((isExternTypeDef dt idnam) && not srtn)
                   then rmMayNullIf safe rslvtyp
                   else addMayNullIfNot (safe || (not $ hasMayNull rslvtyp)) rtyp

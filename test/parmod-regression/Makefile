@@ -23,14 +23,14 @@ parmod.unit:
 	  echo $$f >> parmod.unit; \
 	done
 
-parmod.extitems: parmod.unit
-	@$(IT) $(ABSINCL) -u parmod used > parmod.extitems
+parmod-external.items: parmod.unit
+	@$(IT) $(ABSINCL) -u parmod used
 
-%-close.json: %.c parmod.extitems
-	@$(PM) $(ABSINCL) close $*.c parmod.extitems > $*-close.json
+%-close.json: %.c parmod-external.items
+	@$(PM) $(ABSINCL) -u parmod close $*.c > $*-close.json
 
-%.json: %.c parmod.extitems
-	@$(PM) $(ABSINCL) file $*.c parmod.extitems > $*.json
+%.json: %.c parmod-external.items
+	@$(PM) $(ABSINCL) -u parmod file $*.c > $*.json
 
 parmod-externs.json: close-json parmod.unit
 	@echo '[]' > parmod-externs.tmp
@@ -59,6 +59,6 @@ unit-expect-current: parmod-externs.json
 
 %-clean:
 	-rm -f parmod-$*.json parmod-$*-close.json parmod-$*.o 
-	-rm -f parmod.unit parmod.extitems parmod-externs.json
+	-rm -f parmod.unit parmod-external.items parmod-externs.json
 	-rm -f parmod-$*.json-itemprops parmod-$*.json-omitprops
 

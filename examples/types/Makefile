@@ -1,8 +1,10 @@
+UNIT=all
+
 HFILES = 
 CFILES = types.c
-UNITFILES = all-externs.cogent all-exttypes.cogent all-dvdtypes.cogent all.cogent
-EDITFILES = ed-types.done ed-all-dvdtypes.done
-ACFILES = all-externs.ac $(CFILES:.c=-entry.ac)
+UNITFILES = $(UNIT)-externs.cogent $(UNIT)-exttypes.cogent $(UNIT)-dvdtypes.cogent $(UNIT).cogent
+EDITFILES = ed-types.done ed-$(UNIT)-dvdtypes.done
+ACFILES = $(UNIT)-externs.ac $(CFILES:.c=-entry.ac)
 ACFILESPP = $(ACFILES:.ac=_pp.ac)
 ACFILESINF = $(ACFILES:.ac=_pp_inferred.c)
 ACFILESC = $(ACFILES:.ac=.c)
@@ -10,12 +12,13 @@ OFILES = $(CFILES:.c=.o)
 COGFILES = $(CFILES:.c=.cogent)
 INCLFILES = $(HFILES:.h=-incl.cogent)
 COGSRC = $(INCLFILES) $(COGFILES) $(UNITFILES)
+INCLPATH =
 
 binary: $(OFILES)
-all-cogent: $(COGSRC)
-all-edit: $(EDITFILES)
-all-c: all-gen.c all-gen.h all.c
-all-binary: all.o
+cogent: $(COGSRC)
+edit: $(EDITFILES)
+c: $(UNIT)-gen.c $(UNIT)-gen.h $(UNIT).c
+cogent-binary: $(UNIT).o
 
 .PHONY: clean 
 
@@ -24,35 +27,54 @@ GENCOTC=$(GENCOT_HOME)/c
 GENCOTI=$(GENCOT_HOME)/include
 COGPPARGS = --cogent-pp-args="-I$(GENCOTI)"
 
-%-incl.cogent: %.h
+$(UNIT)-external.items: $(UNIT).unit
+ifeq ($(UNIT), all)
+	items $(INCLPATH) used
+else
+	items $(INCLPATH) -u $(UNIT) used
+endif
+
+%-incl.cogent: %.h $(UNIT)-external.items
+ifeq ($(UNIT), all)
 	gencot hfile $*.h
+else
+	gencot -u $(UNIT) hfile $*.h
+endif
 
-%.cogent: %.c
-	gencot cfile $*.c
+%.cogent: %.c $(UNIT)-external.items $(INCLFILES)
+ifeq ($(UNIT), all)
+	gencot $(INCLPATH) cfile $*.c
+else
+	gencot $(INCLPATH) -u $(UNIT) cfile $*.c
+endif
 
-$(UNITFILES): all.unit $(CFILES)
-	gencot unit
+$(UNITFILES): $(UNIT).unit $(UNIT)-external.items $(CFILES)
+ifeq ($(UNIT), all)
+	gencot $(INCLPATH) unit
+else
+	gencot $(INCLPATH) -u $(UNIT) unit
+endif
 
 ed-types.done: types.cogent
 	sed -i -e "9,10d;57d" types.cogent
 	@touch ed-types.done
 
-ed-all-dvdtypes.done: all-dvdtypes.cogent
-	sed -i -e "28,29d;31,32d" all-dvdtypes.cogent
-	@touch ed-all-dvdtypes.done
+ed-$(UNIT)-dvdtypes.done: $(UNIT)-dvdtypes.cogent
+	sed -i -e "28,29d;31,32d" $(UNIT)-dvdtypes.cogent
+	@touch ed-$(UNIT)-dvdtypes.done
 
-all-gen.c all-gen.h $(ACFILESINF): $(COGSRC) $(EDITFILES) $(ACFILES)
-	cogent -o all-gen -g $(COGPPARGS) all.cogent --infer-c-funcs="$(ACFILES)"
+$(UNIT)-gen.c $(UNIT)-gen.h $(ACFILESINF): $(COGSRC) $(EDITFILES) $(ACFILES)
+	cogent -o $(UNIT)-gen -g $(COGPPARGS) $(UNIT).cogent --infer-c-funcs="$(ACFILES)"
 
-all.c all-macros.h $(ACFILESC): all-gen.c all-gen.h $(ACFILESINF) all.unit
+$(UNIT).c $(UNIT)-macros.h $(ACFILESC): $(UNIT)-gen.c $(UNIT)-gen.h $(ACFILESINF) $(UNIT).unit
 	auxcog unit
 
-all.o: all.c all-gen.c all-gen.h all-macros.h $(ACFILESC)
-	cc -c -I$(STDGUM) -I$(GENCOTC) all.c
+$(UNIT).o: $(UNIT).c $(UNIT)-gen.c $(UNIT)-gen.h $(UNIT)-macros.h $(ACFILESC)
+	cc -c -I$(STDGUM) -I$(GENCOTC) $(UNIT).c
 
 clean:
-	-rm -f $(COGSRC)
+	-rm -f $(COGSRC) $(UNIT)-external.items
 	-rm -f $(EDITFILES)
-	-rm -f all-gen.c all-gen.h $(ACFILESPP) $(ACFILESINF)
-	-rm -f all.c all-macros.h $(ACFILESC)
-	-rm -f $(OFILES) all.o
+	-rm -f $(UNIT)-gen.c $(UNIT)-gen.h $(ACFILESPP) $(ACFILESINF)
+	-rm -f $(UNIT).c $(UNIT)-macros.h $(ACFILESC)
+	-rm -f $(OFILES) $(UNIT).o

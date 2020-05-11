@@ -1,35 +1,42 @@
+UNIT=part
+
 HFILES = items.h
+ifeq ($(UNIT), all)
 CFILES = items.c alloc.c
-PCFILES = items.c
-UNITFILES = part-externs.cogent part-exttypes.cogent part-dvdtypes.cogent part.cogent
+else
+CFILES = items.c
+endif
+
+UNITFILES = $(UNIT)-externs.cogent $(UNIT)-exttypes.cogent $(UNIT)-dvdtypes.cogent $(UNIT).cogent
 EDITFILES = ed-items.done
 PROPEDITFILES = ed-dflt-itemprops.done ed-ns-itemprops.done ed-nn-itemprops.done
-ACFILES = part-externs.ac $(PCFILES:.c=-entry.ac)
+ACFILES = $(UNIT)-externs.ac $(CFILES:.c=-entry.ac)
 ACFILESPP = $(ACFILES:.ac=_pp.ac)
 ACFILESINF = $(ACFILES:.ac=_pp_inferred.c)
 ACFILESC = $(ACFILES:.ac=.c)
 IPHFILES = $(HFILES:.h=.h-itemprops) 
-IPCFILES = $(PCFILES:.c=.c-itemprops)
+IPCFILES = $(CFILES:.c=.c-itemprops)
 IPFILES = $(IPHFILES) $(IPCFILES)
 OFILES = $(CFILES:.c=.o)
-COGFILES = $(PCFILES:.c=.cogent)
+COGFILES = $(CFILES:.c=.cogent)
 INCLFILES = $(HFILES:.h=-incl.cogent)
 COGSRC = $(INCLFILES) $(COGFILES) $(UNITFILES)
+INCLPATH = -I.
 
 binary: itemsbin
 run: run-items
-h-itemprops: $(IPHFILES)
-c-itemprops: $(IPCFILES)
-e-itemprops: part.ext-itemprops
+h-props: $(IPHFILES)
+c-props: $(IPCFILES)
+e-props: $(UNIT).ext-itemprops
 dflt-edit: ed-dflt-itemprops.done
 ns-edit: ed-ns-itemprops.done
 nn-edit: ed-nn-itemprops.done
 h-cogent: $(INCLFILES)
-part-itemprops: part.unit-itemprops
-part-cogent: $(COGSRC)
-part-edit: $(EDITFILES)
-part-c: part-gen.c part-gen.h part.c
-part-binary: part.o
+props: $(UNIT).unit-itemprops
+cogent: $(COGSRC)
+edit: $(EDITFILES)
+c: $(UNIT)-gen.c $(UNIT)-gen.h $(UNIT).c
+cogent-binary: $(UNIT).o
 
 .PHONY: clean 
 
@@ -44,27 +51,51 @@ itemsbin: $(OFILES)
 run-items: itemsbin
 	./itemsbin
 
-part.ext-itemprops: part.unit
-	items -I. -u part unit > part.ext-itemprops
+$(UNIT)-external.items: $(UNIT).unit
+ifeq ($(UNIT), all)
+	items $(INCLPATH) used
+else
+	items $(INCLPATH) -u $(UNIT) used
+endif
 
-part.unit-itemprops: $(IPFILES) part.ext-itemprops
-	cp part.ext-itemprops part.unit-itemprops
+$(UNIT).ext-itemprops: $(UNIT).unit $(UNIT)-external.items
+ifeq ($(UNIT), all)
+	items $(INCLPATH) unit > $(UNIT).ext-itemprops
+else
+	items $(INCLPATH) -u $(UNIT) unit > $(UNIT).ext-itemprops
+endif
+
+$(UNIT).unit-itemprops: $(IPFILES) $(UNIT).ext-itemprops
+	cp $(UNIT).ext-itemprops $(UNIT).unit-itemprops
 	for f in $(IPFILES); do \
-	  items merge $$f part.unit-itemprops > iprops; \
-	  mv iprops part.unit-itemprops; \
+	  items merge $$f $(UNIT).unit-itemprops > iprops; \
+	  mv iprops $(UNIT).unit-itemprops; \
 	done
 
 %-itemprops: %
-	items -I. file $* > $*-itemprops
+	items $(INCLPATH) file $* > $*-itemprops
 
-%-incl.cogent: %.h
+%-incl.cogent: %.h $(UNIT)-external.items
+ifeq ($(UNIT), all)
 	gencot hfile $*.h
+else
+	gencot -u $(UNIT) hfile $*.h
+endif
 
-%.cogent: %.c
-	gencot -I. cfile $*.c
+# depends on $(INCLFILES) for comment transfer from declarations
+%.cogent: %.c $(UNIT)-external.items $(INCLFILES)
+ifeq ($(UNIT), all)
+	gencot $(INCLPATH) cfile $*.c
+else
+	gencot $(INCLPATH) -u $(UNIT) cfile $*.c
+endif
 
-$(UNITFILES): part.unit $(CFILES)
-	gencot -I. -u part unit
+$(UNITFILES): $(UNIT).unit $(UNIT)-external.items $(CFILES)
+ifeq ($(UNIT), all)
+	gencot $(INCLPATH) unit
+else
+	gencot $(INCLPATH) -u $(UNIT) unit
+endif
 
 ed-items.done: items.cogent
 	sed -i -e "15,16d;17s/f(/f0(/;18s/->/./;19s/-}/(0, argv)/" items.cogent
@@ -83,21 +114,26 @@ ed-nn-itemprops.done: items.h-itemprops
 	sed -i -e "s/sphereC.center: ro/sphereC.center: ro nn/" items.h-itemprops
 	@touch ed-nn-itemprops.done
 
-part-gen.c part-gen.h $(ACFILESINF): $(COGSRC) $(EDITFILES) $(ACFILES)
-	cogent -o part-gen -g $(COGPPARGS) part.cogent --infer-c-funcs="$(ACFILES)"
+$(UNIT)-gen.c $(UNIT)-gen.h $(ACFILESINF): $(COGSRC) $(EDITFILES) $(ACFILES)
+	cogent -o $(UNIT)-gen -g $(COGPPARGS) $(UNIT).cogent --infer-c-funcs="$(ACFILES)"
 
-part.c part-macros.h $(ACFILESC): part-gen.c part-gen.h $(ACFILESINF) part.unit
-	auxcog -u part unit
+# Implicitly also generates $(ACFILESC)
+$(UNIT).c $(UNIT)-macros.h: $(UNIT)-gen.c $(UNIT)-gen.h $(ACFILESINF) $(UNIT).unit
+ifeq ($(UNIT), all)
+	auxcog unit
+else
+	auxcog -u $(UNIT) unit
+endif
 
-part.o: part.c part-gen.c part-gen.h part-macros.h $(ACFILESC)
-	cc -c -I$(STDGUM) -I$(GENCOTC) part.c
+$(UNIT).o: $(UNIT).c $(UNIT)-gen.c $(UNIT)-gen.h $(UNIT)-macros.h $(ACFILESC)
+	cc -c -I$(STDGUM) -I$(GENCOTC) $(UNIT).c
 
 clean:
 	-rm -rf comments
 	-rm -f itemsbin
-	-rm -f $(IPFILES) part.ext-itemprops part.unit-itemprops
-	-rm -f $(COGSRC)
+	-rm -f $(IPFILES) $(UNIT).ext-itemprops $(UNIT).unit-itemprops
+	-rm -f $(COGSRC) $(UNIT)-external.items
 	-rm -f $(EDITFILES) $(PROPEDITFILES)
-	-rm -f part-gen.c part-gen.h $(ACFILESPP) $(ACFILESINF)
-	-rm -f part.c part-macros.h $(ACFILESC)
-	-rm -f $(OFILES) part.o
+	-rm -f $(UNIT)-gen.c $(UNIT)-gen.h $(ACFILESPP) $(ACFILESINF)
+	-rm -f $(UNIT).c $(UNIT)-macros.h $(ACFILESC)
+	-rm -f $(OFILES) $(UNIT).o

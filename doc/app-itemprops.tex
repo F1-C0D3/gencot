@@ -27,7 +27,7 @@ The automatic parts of this step are executed with the help of the script comman
 Section~\ref{impl-all-items}).
 
 \subsection{Grouping Item Property Declarations in Files}
-\label{app-items-files}
+\label{app-itemprops-files}
 
 C items for which Gencot supports property declarations are types (struct/unions and named types), functions and objects (``variables'').
 Items may have sub-items (function parameters and results, array elements, pointer targets). 
@@ -85,7 +85,7 @@ of all single C source files and for the generation of the additional Cogent sou
 achieved by merging the properties in this file to all generated \code{-itemprops} files.
 
 \subsection{Generating Default Item Property Declarations}
-\label{app-items-default}
+\label{app-itemprops-default}
 
 The first step for using item property declarations is to generate the default property declarations. For a single C source 
 file or include file \code{<file>} the command
@@ -101,7 +101,7 @@ To generate the default property declarations for the external items used by the
 is used. The result should be stored in file \code{<uname>.ext-dfltprops} where \code{<uname>} is the unit name. 
 
 \subsection{Transferring Parameter Modification Descriptions}
-\label{app-items-parmod}
+\label{app-itemprops-parmod}
 
 If parameter modification descriptions are used as described in Section~\ref{app-parmod}, the result must be converted to item
 property declarations to be used by Gencot. The result consists of a single file \code{<jfile>} in JSON format containing 
@@ -136,7 +136,7 @@ is used. Its output should again be stored in an intermediate file \code{<file>-
 the result can directly be written to file \code{<file>-itemprops} and used for the translation by Gencot.
 
 \subsection{Adding Manually Specified Properties}
-\label{app-items-manual}
+\label{app-itemprops-manual}
 
 It is recommended to put manually specified item properties in separate files, grouped in the same way as the default 
 properties. For every file \code{<file>-dfltprops} a file \code{<file>-manprops} should be used. To create this file,
@@ -170,10 +170,10 @@ For convenience for the developer Gencot supports empty lines and comment lines 
 \code{-manprops} files. These lines are removed by the commands \code{items merge}, \code{items mergeto}, and \code{items omitfrom}.
 
 \subsection{Property Declarations for a Cogent Compilation Unit}
-\label{app-items-unit}
+\label{app-itemprops-unit}
 
 When processing a Cogent compilation unit described by the unit file \code{<uname>.unit} the item property declarations in file
-\code{<uname>.unit-itemprops} are used (see Section~\ref{app-items-files}). This file is built by simply merging all
+\code{<uname>.unit-itemprops} are used (see Section~\ref{app-itemprops-files}). This file is built by simply merging all
 generated files \code{<file>-itemprops} and the file \code{<uname>.ext-itemprops} iteratively using the command
 \begin{verbatim}
   items merge
@@ -181,16 +181,14 @@ generated files \code{<file>-itemprops} and the file \code{<uname>.ext-itemprops
 This command removes all duplicate item declarations which may originate from \code{common.types-manprops}.
 
 \subsection{Adding External Items}
-\label{app-items-extern}
+\label{app-itemprops-extern}
 
-The command \code{items unit} automatically reduces the known (declared) external items to those actually used in the
-translation set, as described in Section~\ref{impl-ccomps-items}, and generates default item property declarations only
+The command \code{items unit} only processes the external items listed in file \code{<uname>-external.items} which must be created
+by the command \code{items used} in advance. Command \code{items unit} generates default item property declarations only
 for them and their sub-items. It may be necessary to process additional external items which are not used or are not recognized
-to be used. The set of external items recognized by Gencot as used can be displayed using the command
-\begin{verbatim}
-  items used
-\end{verbatim}
+to be used. 
 
 To generate default properties for additional external items, a list of the additional (toplevel) items can be 
-specified in the auxiliary file \code{<uname>.unit-manitems}. If present, this file is automatically read by \code{items unit}
-and default property declarations are generated for all items listed in it (and all items transitively used from them).
+specified in the auxiliary file \code{<uname>.unit-manitems} (see Section~\ref{impl-all-items}). If present, this file is 
+automatically read by \code{items used} and the items listed in it (and all items transitively used from them) are added to 
+\code{<uname>-external.items} so that they are processed by \code{items unit}.

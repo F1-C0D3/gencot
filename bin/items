@@ -20,12 +20,12 @@ long_usage()
     echo 'Commands:'
     echo '  file     <cfile>  Create default property declarations for all items defined in C sourcefile <cfile>'
     echo '  unit              Create default property declarations for all external items in unit'
-    echo '  used              List external toplevel items used by unit'
+    echo '  used              List external toplevel items used by unit, output in <uname>-external.items'
     echo '  merge    <file1> <file2> Merge two declarations by uniting properties for each item'
     echo '  mergeto  <file1> <file2> Merge properties from <file2> to items in <file1>'
     echo '  omitfrom <file1> <file2> Omit properties in <file2> from items in <file1>'
     echo '  help              Display this help information'
-    echo '  (all commands write the resulting property declarations or item list to stdout)'
+    echo '  (all commands but used write the resulting property declarations to stdout)'
     echo 'Options: '
     echo '  -I<dir>    Directory for searching C include files. Can be repeated, as for cpp. '
     echo '  -G<dir>    Directory for searching Gencot auxiliary files. Only one can be given, default is "."'
@@ -204,18 +204,24 @@ then
     $GEN $CBASE < $TMPDIR/$CNAME.in
 elif [ "$CMD" == "unit" -o "$CMD" == "used" ]
 then
-    MIFILE=$GENCOTDIR/$UNITFILE-manitems
-    PMIFILE=$TMPDIR/$UNITFILE-prcmanitems
-    prepare_manitems $MIFILE $PMIFILE
+    EIFILE=$GENCOTDIR/$UNITNAME-external.items
     for file in $(cat $GENCOTDIR/$UNITFILE)
     do prepare_cfile $file
     done
     if [ "$CMD" == "unit" ]
     then
-        $BIN/items-used $PMIFILE < $TMPDIR/infiles > $TMPDIR/useditems
-        $BIN/items-externs $TMPDIR/useditems < $TMPDIR/infiles
+        if [ ! -e $EIFILE ]
+        then
+            echo "Warning: $EIFILE not found, assuming no external items." >&2
+            EIFILE=$TMPDIR/external.items
+            touch $EIFILE
+        fi
+        $BIN/items-externs $EIFILE < $TMPDIR/infiles
     else
-        $BIN/items-used $PMIFILE < $TMPDIR/infiles
+        MIFILE=$GENCOTDIR/$UNITFILE-manitems
+        PMIFILE=$TMPDIR/$UNITFILE-prcmanitems
+        prepare_manitems $MIFILE $PMIFILE
+        $BIN/items-used $PMIFILE < $TMPDIR/infiles > $EIFILE
     fi
 fi
 

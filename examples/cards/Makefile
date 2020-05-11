@@ -1,8 +1,10 @@
+UNIT=all
+
 HFILES = cards.h rank.h
 CFILES = cards.c
-UNITFILES = all-externs.cogent all-exttypes.cogent all-dvdtypes.cogent all.cogent
+UNITFILES = $(UNIT)-externs.cogent $(UNIT)-exttypes.cogent $(UNIT)-dvdtypes.cogent $(UNIT).cogent
 EDITFILES = ed-cards.done
-ACFILES = all-externs.ac $(CFILES:.c=-entry.ac)
+ACFILES = $(UNIT)-externs.ac $(CFILES:.c=-entry.ac)
 ACFILESPP = $(ACFILES:.ac=_pp.ac)
 ACFILESINF = $(ACFILES:.ac=_pp_inferred.c)
 ACFILESC = $(ACFILES:.ac=.c)
@@ -10,14 +12,15 @@ OFILES = $(CFILES:.c=.o)
 COGFILES = $(CFILES:.c=.cogent)
 INCLFILES = $(HFILES:.h=-incl.cogent)
 COGSRC = $(INCLFILES) $(COGFILES) $(UNITFILES)
+INCLPATH = -I.
 
 binary: cards
 run: run-cards
-all-cogent: $(COGSRC)
-all-edit: $(EDITFILES)
-all-c: all-gen.c all-gen.h all.c
-all-binary: all-cards
-all-run: run-all-cards
+cogent: $(COGSRC)
+edit: $(EDITFILES)
+c: $(UNIT)-gen.c $(UNIT)-gen.h $(UNIT).c
+cogent-binary: cogent-cards
+cogent-run: run-cogent-cards
 
 .PHONY: clean run-cards run-cogent-cards
 
@@ -29,37 +32,60 @@ COGPPARGS = --cogent-pp-args="-I$(GENCOTI)"
 run-cards: cards
 	./cards
 
-%-incl.cogent: %.h
+$(UNIT)-external.items: $(UNIT).unit
+ifeq ($(UNIT), all)
+	items $(INCLPATH) used
+else
+	items $(INCLPATH) -u $(UNIT) used
+endif
+
+%-incl.cogent: %.h $(UNIT)-external.items
+ifeq ($(UNIT), all)
 	gencot hfile $*.h
+else
+	gencot -u $(UNIT) hfile $*.h
+endif
 
 # depends on $(INCLFILES) for comment transfer from declarations
-%.cogent: %.c %.c-itemprops $(INCLFILES)
-	gencot -I. cfile $*.c
+%.cogent: %.c %.c-itemprops $(UNIT)-external.items $(INCLFILES)
+ifeq ($(UNIT), all)
+	gencot $(INCLPATH) cfile $*.c
+else
+	gencot $(INCLPATH) -u $(UNIT) cfile $*.c
+endif
 
-$(UNITFILES): all.unit all.unit-itemprops $(CFILES)
-	gencot -I. unit
+$(UNITFILES): $(UNIT).unit $(UNIT).unit-itemprops $(UNIT)-external.items $(CFILES)
+ifeq ($(UNIT), all)
+	gencot $(INCLPATH) unit
+else
+	gencot $(INCLPATH) -u $(UNIT) unit
+endif
 
 ed-cards.done: cards.cogent
 #	*todo*
 	@touch ed-cards.done
 
-all-gen.c all-gen.h $(ACFILESINF): $(COGSRC) $(EDITFILES) $(ACFILES)
-	cogent -o all-gen -g all.cogent $(COGPPARGS) --infer-c-funcs="$(ACFILES)"
+$(UNIT)-gen.c $(UNIT)-gen.h $(ACFILESINF): $(COGSRC) $(EDITFILES) $(ACFILES)
+	cogent -o $(UNIT)-gen -g $(UNIT).cogent $(COGPPARGS) --infer-c-funcs="$(ACFILES)"
 
-all.c all-macros.h $(ACFILESC): all-gen.c all-gen.h $(ACFILESINF) all.unit
+$(UNIT).c $(UNIT)-macros.h $(ACFILESC): $(UNIT)-gen.c $(UNIT)-gen.h $(ACFILESINF) $(UNIT).unit
+ifeq ($(UNIT), all)
 	auxcog unit
+else
+	auxcog -u $(UNIT) unit
+endif
 
-all-cards: all.c all-gen.c all-gen.h all-macros.h $(ACFILESC)
-	cc -o all-cards -I$(STDGUM) -I$(GENCOTC) all.c
+cogent-cards: $(UNIT).c $(UNIT)-gen.c $(UNIT)-gen.h $(UNIT)-macros.h $(ACFILESC)
+	cc -o cogent-cards -I$(STDGUM) -I$(GENCOTC) $(UNIT).c
 
-run-all-cards: all-cards
-	./all-cards
+run-cogent-cards: cogent-cards
+	./cogent-cards
 
 clean:
 	-rm -f cards
-	-rm -f $(COGSRC)
+	-rm -f $(COGSRC) $(UNIT)-external.items
 	-rm -rf comments
 	-rm -f $(EDITFILES)
-	-rm -f all-gen.c all-gen.h $(ACFILESPP) $(ACFILESINF)
-	-rm -f all.c all-macros.h $(ACFILESC)
-	-rm -f all-cards
+	-rm -f $(UNIT)-gen.c $(UNIT)-gen.h $(ACFILESPP) $(ACFILESINF)
+	-rm -f $(UNIT).c $(UNIT)-macros.h $(ACFILESC)
+	-rm -f cogent-cards

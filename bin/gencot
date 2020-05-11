@@ -239,19 +239,20 @@ process_comments()
 
 if [ "$CMD" = "unit" ]
 then
+    EIFILE=$GENCOTDIR/$UNITNAME-external.items
+    if [ ! -e $EIFILE ]
+    then
+        echo "Warning: $EIFILE not found, assuming no external items." >&2
+        EIFILE=$TMPDIR/external.items
+        touch $EIFILE
+    fi
+fi
+
+if [ "$CMD" = "unit" ]
+then
     for file in $(cat $GENCOTDIR/$UNITFILE)
     do prepare_cfile $file
     done
-    MIFILE=$GENCOTDIR/$UNITFILE-manitems
-    PMIFILE=$TMPDIR/$UNITFILE-prcmanitems
-    EIFILE=$TMPDIR/$UNITFILE-extitems
-    if [ -e $MIFILE ]
-    then
-        $BIN/gencot-prclist < $MIFILE > $PMIFILE
-    else
-        touch $PMIFILE
-    fi
-    $BIN/items-used $PMIFILE < $TMPDIR/infiles > $EIFILE
     prepare_itemprops
     $BIN/gencot-externs $TMPDIR/$IPMFILE $EIFILE < $TMPDIR/infiles | $BIN/gencot-reporigs \
         | $BIN/gencot-mrgcomments /dev/null > $TMPDIR/$UNITNAME-externs.cogent

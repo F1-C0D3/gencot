@@ -1,8 +1,18 @@
+UNIT=all
+
 HFILES = cards.h rank.h
+ifeq ($(UNIT), all)
 CFILES = main.c cards.c rank.c
-UNITFILES = all-externs.cogent all-exttypes.cogent all-dvdtypes.cogent all.cogent
 EDITFILES = ed-cards.done ed-rank.done ed-main.done
-ACFILES = all-externs.ac $(CFILES:.c=-entry.ac)
+COGOFILES = $(UNIT).o
+else 
+CFILES = main.c rank.c
+EDITFILES = ed-rank.done ed-main.done
+COGOFILES = $(UNIT).o cards.o
+endif
+
+UNITFILES = $(UNIT)-externs.cogent $(UNIT)-exttypes.cogent $(UNIT)-dvdtypes.cogent $(UNIT).cogent
+ACFILES = $(UNIT)-externs.ac $(CFILES:.c=-entry.ac)
 ACFILESPP = $(ACFILES:.ac=_pp.ac)
 ACFILESINF = $(ACFILES:.ac=_pp_inferred.c)
 ACFILESC = $(ACFILES:.ac=.c)
@@ -10,32 +20,17 @@ OFILES = $(CFILES:.c=.o)
 COGFILES = $(CFILES:.c=.cogent)
 INCLFILES = $(HFILES:.h=-incl.cogent)
 COGSRC = $(INCLFILES) $(COGFILES) $(UNITFILES)
-
-PCFILES = main.c rank.c
-PUNITFILES = part-externs.cogent part-exttypes.cogent part-dvdtypes.cogent part.cogent
-PEDITFILES = ed-rank.done ed-main.done
-PACFILES = part-externs.ac $(PCFILES:.c=-entry.ac)
-PACFILESPP = $(PACFILES:.ac=_pp.ac)
-PACFILESINF = $(PACFILES:.ac=_pp_inferred.c)
-PACFILESC = $(PACFILES:.ac=.c)
-PCOGFILES = $(PCFILES:.c=.cogent)
-PCOGSRC = $(INCLFILES) $(PCOGFILES) $(PUNITFILES)
+INCLPATH = -I.
 
 binary: cards
 run: run-cards
-all-cogent: $(COGSRC)
-all-edit: $(EDITFILES)
-all-c: all-gen.c all-gen.h all.c
-all-binary: all-cards
-all-run: run-all-cards
+cogent: $(COGSRC)
+edit: $(EDITFILES)
+c: $(UNIT)-gen.c $(UNIT)-gen.h $(UNIT).c
+cogent-binary: cogent-cards
+cogent-run: run-cogent-cards
 
-part-cogent: $(PCOGSRC)
-part-edit: $(PEDITFILES)
-part-c: part-gen.c part-gen.h part.c
-part-binary: part-cards
-part-run: run-part-cards
-
-.PHONY: clean run-cards run-all-cards run-part-cards
+.PHONY: clean run-cards run-cogent-cards
 
 STDGUM=$(shell cogent --stdgum-dir)
 GENCOTC=$(GENCOT_HOME)/c
@@ -48,18 +43,34 @@ run-cards: cards
 cards: $(OFILES)
 	$(CC) -o cards $(OFILES)
 
-%-incl.cogent: %.h
+$(UNIT)-external.items: $(UNIT).unit
+ifeq ($(UNIT), all)
+	items $(INCLPATH) used
+else
+	items $(INCLPATH) -u $(UNIT) used
+endif
+
+%-incl.cogent: %.h $(UNIT)-external.items
+ifeq ($(UNIT), all)
 	gencot hfile $*.h
+else
+	gencot -u $(UNIT) hfile $*.h
+endif
 
 # depends on $(INCLFILES) for comment transfer from declarations
-%.cogent: %.c %.c-itemprops $(INCLFILES)
-	gencot -I. cfile $*.c
+%.cogent: %.c %.c-itemprops $(UNIT)-external.items $(INCLFILES)
+ifeq ($(UNIT), all)
+	gencot $(INCLPATH) cfile $*.c
+else
+	gencot $(INCLPATH) -u $(UNIT) cfile $*.c
+endif
 
-$(UNITFILES): all.unit all.unit-itemprops $(CFILES)
-	gencot -I. unit
-
-$(PUNITFILES): part.unit part.unit-itemprops $(PCFILES)
-	gencot -I. -u part unit
+$(UNITFILES): $(UNIT).unit $(UNIT).unit-itemprops $(UNIT)-external.items $(CFILES)
+ifeq ($(UNIT), all)
+	gencot $(INCLPATH) unit
+else
+	gencot $(INCLPATH) -u $(UNIT) unit
+endif
 
 ed-cards.done: cards.cogent
 #	*todo*
@@ -74,41 +85,31 @@ ed-main.done: main.cogent
 	@touch ed-main.done
 
 # Implicitly also generates $(ACFILESINF)
-all-gen.c all-gen.h: $(COGSRC) $(EDITFILES) $(ACFILES)
-	cogent -o all-gen -g all.cogent $(COGPPARGS) --infer-c-funcs="$(ACFILES)"
-
-# Implicitly also generates $(PACFILESINF)
-part-gen.c part-gen.h: $(PCOGSRC) $(PEDITFILES) $(PACFILES)
-	cogent -o part-gen -g part.cogent $(COGPPARGS) --infer-c-funcs="$(PACFILES)"
+$(UNIT)-gen.c $(UNIT)-gen.h: $(COGSRC) $(EDITFILES) $(ACFILES)
+	cogent -o $(UNIT)-gen -g $(UNIT).cogent $(COGPPARGS) --infer-c-funcs="$(ACFILES)"
 
 # Implicitly also generates $(ACFILESC)
-all.c all-macros.h: all-gen.c all-gen.h $(ACFILESINF) all.unit
+$(UNIT).c $(UNIT)-macros.h: $(UNIT)-gen.c $(UNIT)-gen.h $(ACFILESINF) $(UNIT).unit
+ifeq ($(UNIT), all)
 	auxcog unit
+else
+	auxcog -u $(UNIT) unit
+endif
 
-# Implicitly also generates $(PACFILESC)
-part.c part-macros.h: part-gen.c part-gen.h $(PACFILESINF) part.unit
-	auxcog -u part unit
+$(UNIT).o: $(UNIT).c $(UNIT)-gen.c $(UNIT)-gen.h $(UNIT)-macros.h $(ACFILESC)
+	$(CC) -c -I$(STDGUM) -I$(GENCOTC) $(UNIT).c
 
-all-cards: all.c all-gen.c all-gen.h all-macros.h $(ACFILESC)
-	$(CC) -o all-cards -I$(STDGUM) -I$(GENCOTC) all.c
+cogent-cards: $(COGOFILES)
+	$(CC) -o cogent-cards $(COGOFILES)
 
-part.o: part.c part-gen.c part-gen.h part-macros.h $(PACFILESC)
-	$(CC) -c -I$(STDGUM) -I$(GENCOTC) part.c
-
-part-cards: part.o cards.o
-	$(CC) -o part-cards part.o cards.o
-
-run-all-cards: all-cards
-	./all-cards
-
-run-part-cards: part-cards
-	./part-cards
+run-cogent-cards: cogent-cards
+	./cogent-cards
 
 clean:
-	-rm -f cards $(OFILES) part.o
-	-rm -f $(COGSRC) $(PCOGSRC)
+	-rm -f cards $(OFILES) $(UNIT).o
+	-rm -f $(COGSRC) $(UNIT)-external.items
 	-rm -rf comments
-	-rm -f $(EDITFILES) $(PEDITFILES)
-	-rm -f all-gen.c all-gen.h $(ACFILESPP) $(ACFILESINF) part-gen.c part-gen.h $(PACFILESPP) $(PACFILESINF)
-	-rm -f all.c all-macros.h $(ACFILESC) part.c part-macros.h $(PACFILESC)
-	-rm -f all-cards part-cards
+	-rm -f $(EDITFILES)
+	-rm -f $(UNIT)-gen.c $(UNIT)-gen.h $(ACFILESPP) $(ACFILESINF)
+	-rm -f $(UNIT).c $(UNIT)-macros.h $(ACFILESC)
+	-rm -f cogent-cards

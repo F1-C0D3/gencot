@@ -17,8 +17,8 @@ long_usage()
     echo $USAGE
     echo 'Manage Gencot parameter modification descriptions in JSON format.'
     echo 'Commands:'
-    echo '  file   <cfile> <uitems> Create parmod description for all functions defined in C sourcefile <cfile>'
-    echo '  close  <cfile> <uitems> Create parmod description for all functions declared for C sourcefile <cfile>'
+    echo '  file   <cfile>  Create parmod description for all functions defined in C sourcefile <cfile>'
+    echo '  close  <cfile>  Create parmod description for all functions declared for C sourcefile <cfile>'
     echo '  unit   <json>   Select descriptions from <json> for externals in unit'
     echo '  show   <json>   Display information about parmod description'
     echo '  idlist <json>   List function identifiers of parmod descriptions'
@@ -33,7 +33,6 @@ long_usage()
     echo '  (file|close|unit|eval write the resulting parmod description to stdout)'
     echo '  (addto|mergin|replin modify the first argument)'
     echo '  (out writes two files <json>-itemprops and <json>-omitprops)'
-    echo 'A <uitems> file contains a list of used external toplevel item ids, each on a separate line.'
     echo 'Options for commands file|close|unit: '
     echo '  -I<dir>    Directory for searching C include files. Can be repeated, as for cpp. '
     echo '  -G<dir>    Directory for searching Gencot auxiliary files. Only one can be given, default is "."'
@@ -96,8 +95,8 @@ OPTARGS=''
 CMD=$1
 
 case "$CMD" in
-    file) PARSE='yes';REQARGS=2;;
-    close) PARSE='yes';CLOSE='close';REQARGS=2;;
+    file) PARSE='yes';;
+    close) PARSE='yes';CLOSE='close';;
     unit) PARSE='yes';;
     show) ;;
     idlist) ;;
@@ -186,6 +185,17 @@ then
     TMPDIR=$(mktemp -d)
 fi
 
+if [ "$CMD" = "unit" -o "$CMD" = "file" -o "$CMD" = "close" ]
+then
+    EIFILE=$GENCOTDIR/$UNITNAME-external.items
+    if [ ! -e $EIFILE ]
+    then
+        echo "Warning: $EIFILE not found, assuming no external items." >&2
+        EIFILE=$TMPDIR/external.items
+        touch $EIFILE
+    fi
+fi
+
 if [ "$CMD" = "unit" ]
 then
     if [ -e $GENCOTDIR/$UNITFILE ]
@@ -195,14 +205,10 @@ then
         echo "Error: Unit file $UNITFILE not found."
         exit
     fi
-    MIFILE=$GENCOTDIR/$UNITFILE-manitems
-    PMIFILE=$TMPDIR/$UNITFILE-prcmanitems
-    prepare_manitems $MIFILE $PMIFILE
     for file in $(cat $GENCOTDIR/$UNITFILE)
     do prepare_cfile $file
     done
-    $BIN/items-used $PMIFILE < $TMPDIR/infiles > $TMPDIR/useditems
-    $BIN/items-extfuns $TMPDIR/useditems < $TMPDIR/infiles | sort > $TMPDIR/extfunids
+    $BIN/items-extfuns $EIFILE < $TMPDIR/infiles | sort > $TMPDIR/extfunids
     $BIN/$PRC filter $TMPDIR/extfunids < $1 | tee $TMPDIR/extfuns.json \
         | $BIN/$PRC funids | sort | diff - $TMPDIR/extfunids > $TMPDIR/extfunids.diff
     if [ -s $TMPDIR/extfunids.diff ]
@@ -214,7 +220,7 @@ then
 elif [ $PARSE ]
 then 
     prepare_cfile $1
-    $BIN/parmod-gen $CBASE $2 $CLOSE < $TMPDIR/$CNAME.in
+    $BIN/parmod-gen $CBASE $EIFILE $CLOSE < $TMPDIR/$CNAME.in
 elif [ "$CMD" = "show" ]
 then
     #$BIN/$PRC check < $1

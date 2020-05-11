@@ -1,8 +1,10 @@
+UNIT=all
+
 HFILES = 
 CFILES = hello.c
-UNITFILES = all-externs.cogent all-exttypes.cogent all-dvdtypes.cogent all.cogent
+UNITFILES = $(UNIT)-externs.cogent $(UNIT)-exttypes.cogent $(UNIT)-dvdtypes.cogent $(UNIT).cogent
 EDITFILES = ed-hello.done
-ACFILES = all-externs.ac $(CFILES:.c=-entry.ac)
+ACFILES = $(UNIT)-externs.ac $(CFILES:.c=-entry.ac)
 ACFILESPP = $(ACFILES:.ac=_pp.ac)
 ACFILESINF = $(ACFILES:.ac=_pp_inferred.c)
 ACFILESC = $(ACFILES:.ac=.c)
@@ -10,16 +12,17 @@ OFILES = $(CFILES:.c=.o)
 COGFILES = $(CFILES:.c=.cogent)
 INCLFILES = $(HFILES:.h=-incl.cogent)
 COGSRC = $(INCLFILES) $(COGFILES) $(UNITFILES)
+INCLPATH =
 
 binary: hello
 run: run-hello
-all-cogent: $(COGSRC)
-all-edit: $(EDITFILES)
-all-c: all-gen.c all-gen.h all.c
-all-binary: all-hello
-all-run: run-all-hello
+cogent: $(COGSRC)
+edit: $(EDITFILES)
+c: $(UNIT)-gen.c $(UNIT)-gen.h $(UNIT).c
+cogent-binary: cogent-hello
+cogent-run: run-cogent-hello
 
-.PHONY: clean run-hello run-cogent-hello ed-hello.cogent
+.PHONY: clean run-hello run-cogent-hello
 
 STDGUM=$(shell cogent --stdgum-dir)
 GENCOTC=$(GENCOT_HOME)/c
@@ -29,35 +32,58 @@ COGPPARGS = --cogent-pp-args="-I$(GENCOTI)"
 run-hello: hello
 	./hello
 
-%-incl.cogent: %.h
+$(UNIT)-external.items: $(UNIT).unit
+ifeq ($(UNIT), all)
+	items $(INCLPATH) used
+else
+	items $(INCLPATH) -u $(UNIT) used
+endif
+
+%-incl.cogent: %.h $(UNIT)-external.items
+ifeq ($(UNIT), all)
 	gencot hfile $*.h
+else
+	gencot -u $(UNIT) hfile $*.h
+endif
 
-%.cogent: %.c
-	gencot cfile $*.c
+%.cogent: %.c $(UNIT)-external.items
+ifeq ($(UNIT), all)
+	gencot $(INCLPATH) cfile $*.c
+else
+	gencot $(INCLPATH) -u $(UNIT) cfile $*.c
+endif
 
-$(UNITFILES): all.unit all.unit-itemprops $(CFILES)
-	gencot unit
+$(UNITFILES): $(UNIT).unit $(UNIT).unit-itemprops $(UNIT)-external.items $(CFILES)
+ifeq ($(UNIT), all)
+	gencot $(INCLPATH) unit
+else
+	gencot $(INCLPATH) -u $(UNIT) unit
+endif
 
 ed-hello.done: hello.cogent
 	sed -i -e "4,5d;7d;s/;/; 0/" hello.cogent
 	@touch ed-hello.done
 
-all-gen.c all-gen.h $(ACFILESINF): $(COGSRC) $(EDITFILES) $(ACFILES)
-	cogent -o all-gen -g all.cogent --infer-c-funcs="$(ACFILES)"
+$(UNIT)-gen.c $(UNIT)-gen.h $(ACFILESINF): $(COGSRC) $(EDITFILES) $(ACFILES)
+	cogent -o $(UNIT)-gen -g $(UNIT).cogent --infer-c-funcs="$(ACFILES)"
 
-all.c all-macros.h $(ACFILESC): all-gen.c all-gen.h $(ACFILESINF) all.unit
+$(UNIT).c $(UNIT)-macros.h $(ACFILESC): $(UNIT)-gen.c $(UNIT)-gen.h $(ACFILESINF) $(UNIT).unit
+ifeq ($(UNIT), all)
 	auxcog unit
+else
+	auxcog -u $(UNIT) unit
+endif
 
-all-hello: all.c all-gen.c all-gen.h all-macros.h $(ACFILESC)
-	cc -o all-hello -I$(STDGUM) -I$(GENCOTC) all.c
+cogent-hello: $(UNIT).c $(UNIT)-gen.c $(UNIT)-gen.h $(UNIT)-macros.h $(ACFILESC)
+	cc -o cogent-hello -I$(STDGUM) -I$(GENCOTC) $(UNIT).c
 
-run-all-hello: all-hello
-	./all-hello
+run-cogent-hello: cogent-hello
+	./cogent-hello
 
 clean:
 	-rm -f hello
-	-rm -f $(COGSRC)
+	-rm -f $(COGSRC) $(UNIT)-external.items
 	-rm -f $(EDITFILES)
-	-rm -f all-gen.c all-gen.h $(ACFILESPP) $(ACFILESINF)
-	-rm -f all.c all-macros.h $(ACFILESC)
-	-rm -f all-hello
+	-rm -f $(UNIT)-gen.c $(UNIT)-gen.h $(ACFILESPP) $(ACFILESINF)
+	-rm -f $(UNIT).c $(UNIT)-macros.h $(ACFILESC)
+	-rm -f cogent-hello

@@ -4,7 +4,7 @@ IT=../../bin/items
 TESTS = prim enum struct union array func parmod pointer names const extrefs
 UNIT = externs exttypes dvdtypes
 ABSINCL = -I/home/teege/work/projekte/code/HoBit/devel/gencot/test/types-regression
-AUNIT = unit-extitems ext-dfltprops
+AUNIT = ext-dfltprops
 
 compile: $(foreach TST,$(TESTS),types-$(TST).o)
 
@@ -20,7 +20,7 @@ expect-current: $(foreach TST,$(TESTS),$(TST)-expect-current) unit-expect-curren
 
 clean:  $(foreach TST,$(TESTS),$(TST)-clean)
 	-rm -f test.unit test.cogent $(foreach U,$(UNIT),test-$(U).cogent)
-	-rm -f test.unit-extitems test.ext-dfltprops test.ext-itemprops test.unit-itemprops
+	-rm -f test-external.items test.ext-dfltprops test.ext-itemprops test.unit-itemprops
 
 types-pointer.c-itemprops: types-pointer.c-manprops types-pointer.c-dfltprops types-parmod.json-itemprops
 	@$(IT) mergeto types-pointer.c-dfltprops types-parmod.json-itemprops > types-pointer.c-hprops
@@ -47,7 +47,7 @@ types-const.c-itemprops: types-const.c-manprops types-const.c-dfltprops types-pa
 	@$(IT) merge common.types-manprops $*.c-h2props > $*.c-itemprops
 	@rm $*.c-hprops $*.c-h2props
 
-unit-regression: unit $(foreach U,$(UNIT),test-$(U)-expected.cogent) $(foreach U,$(AUNIT),test.$(U) test-expected.$(U))
+unit-regression: unit $(foreach U,$(UNIT),test-$(U)-expected.cogent) $(foreach U,$(AUNIT),test.$(U) test-expected.$(U)) test-external.items test-external-expected.items
 	-@for u in $(UNIT); do \
 	  echo "diff test-$$u.cogent test-$$u-expected.cogent"; \
 	  diff test-$$u.cogent test-$$u-expected.cogent; \
@@ -56,6 +56,7 @@ unit-regression: unit $(foreach U,$(UNIT),test-$(U)-expected.cogent) $(foreach U
 	  echo "diff test.$$u test-expected.$$u"; \
 	  diff test.$$u test-expected.$$u; \
 	done
+	-diff test-external.items test-external-expected.items
 
 unit-expect-current: unit
 	@for u in $(UNIT); do \
@@ -66,18 +67,19 @@ unit-expect-current: unit
 	  echo "cp test.$$u test-expected.$$u"; \
 	  cp test.$$u test-expected.$$u; \
 	done
+	cp test-external.items test-external-expected.items
 
-test.ext-dfltprops: test.unit test.unit-manitems
+test.ext-dfltprops: test.unit test.unit-manitems test-external.items
 	@$(IT) $(ABSINCL) -u test unit > test.ext-dfltprops
 
-test.unit-extitems: test.unit test.unit-manitems 
-	@$(IT) $(ABSINCL) -u test used > test.unit-extitems
+test-external.items: test.unit test.unit-manitems 
+	@$(IT) $(ABSINCL) -u test used
 
 %.c-dfltprops: %.c
 	@$(IT) $(ABSINCL) file $*.c > $*.c-dfltprops
 
-%.cogent: %.c %.c-itemprops
-	@$(GC) $(ABSINCL) cfile $*.c
+%.cogent: %.c %.c-itemprops test-external.items
+	@$(GC) $(ABSINCL) -u test cfile $*.c
 
 %-regression: types-%.cogent types-%-expected.cogent types-%.c-dfltprops types-%-expected.c-dfltprops
 	-diff types-$*.cogent types-$*-expected.cogent

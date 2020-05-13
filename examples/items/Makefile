@@ -27,7 +27,7 @@ binary: itemsbin
 run: run-items
 h-props: $(IPHFILES)
 c-props: $(IPCFILES)
-e-props: $(UNIT).ext-itemprops
+e-props: external-props
 dflt-edit: ed-dflt-itemprops.done
 ns-edit: ed-ns-itemprops.done
 nn-edit: ed-nn-itemprops.done
@@ -38,7 +38,7 @@ edit: $(EDITFILES)
 c: $(UNIT)-gen.c $(UNIT)-gen.h $(UNIT).c
 cogent-binary: $(UNIT).o
 
-.PHONY: clean 
+.PHONY: clean external-props
 
 STDGUM=$(shell cogent --stdgum-dir)
 GENCOTC=$(GENCOT_HOME)/c
@@ -58,15 +58,19 @@ else
 	items $(INCLPATH) -u $(UNIT) used
 endif
 
-$(UNIT).ext-itemprops: $(UNIT).unit $(UNIT)-external.items
+external-props: $(UNIT).unit $(UNIT)-external.items
 ifeq ($(UNIT), all)
-	items $(INCLPATH) unit > $(UNIT).ext-itemprops
+	items $(INCLPATH) unit
 else
-	items $(INCLPATH) -u $(UNIT) unit > $(UNIT).ext-itemprops
+	items $(INCLPATH) -u $(UNIT) unit
 endif
 
-$(UNIT).unit-itemprops: $(IPFILES) $(UNIT).ext-itemprops
-	cp $(UNIT).ext-itemprops $(UNIT).unit-itemprops
+$(UNIT).unit-itemprops: $(IPFILES) $(UNIT).unit $(UNIT)-external.items
+ifeq ($(UNIT), all)
+	items $(INCLPATH) unit > $(UNIT).unit-itemprops
+else
+	items $(INCLPATH) -u $(UNIT) unit > $(UNIT).unit-itemprops
+endif
 	for f in $(IPFILES); do \
 	  items merge $$f $(UNIT).unit-itemprops > iprops; \
 	  mv iprops $(UNIT).unit-itemprops; \
@@ -131,7 +135,7 @@ $(UNIT).o: $(UNIT).c $(UNIT)-gen.c $(UNIT)-gen.h $(UNIT)-macros.h $(ACFILESC)
 clean:
 	-rm -rf comments
 	-rm -f itemsbin
-	-rm -f $(IPFILES) $(UNIT).ext-itemprops $(UNIT).unit-itemprops
+	-rm -f $(IPFILES) $(UNIT).unit-itemprops
 	-rm -f $(COGSRC) $(UNIT)-external.items
 	-rm -f $(EDITFILES) $(PROPEDITFILES)
 	-rm -f $(UNIT)-gen.c $(UNIT)-gen.h $(ACFILESPP) $(ACFILESINF)

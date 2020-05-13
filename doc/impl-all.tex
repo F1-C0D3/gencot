@@ -90,7 +90,6 @@ following auxiliary files, if they exist:
 \item[\code{x.gencot-manmacros}] The Gencot manual macro list (see Section~\ref{design-preprocessor-macros}).
 \item[\code{x.gencot-macroconv}] The Gencot macro call conversion (see Section~\ref{design-preprocessor-macros}).
 \item[\code{x.gencot-macrodefs}] The Gencot macro translation for the processed file (see Section~\ref{design-preprocessor-macros}).
-\item[\code{x.<ext>-itemprops}] The item property declarations (see Section~\ref{impl-itemprops-decl}).
 \end{description}
 
 For all cases with the exception of the last two, additionally a file with name \code{common} instead of \code{x} ist used, when it
@@ -98,6 +97,9 @@ is present. If both files are present the concatenation of them is used. In this
 for all C sources and add specific annotations in the source file specific files.
 
 The subcommands \code{unit} and \code{cgraph} use corresponding auxiliary files for every file \code{x.c} processed by them.
+
+The subcommands \code{cfile}, \code{hfile}, \code{config}, and \code{unit} additionally use the auxiliary file named
+\code{<file>-itemprops} which must contain all relevant item property declarations (see Section~\ref{impl-itemprops-decl}).
 
 Another kind of auxiliary files describe the Cogent compilation unit. These files are required to be present 
 in the directory specified by the \code{-G} option. If they are not found, an error or a warning is signaled.
@@ -172,8 +174,10 @@ for the \code{gencot} command.
 
 \subsubsection{Auxiliary Files}
 
-The subcommand \code{file} uses the same auxiliary files as the subcommands \code{cfile} and \code{hfile} of \code{gencot}.
-The subcommand \code{unit} uses the same auxiliary files as the subcommand \code{unit} of \code{gencot}.
+The subcommand \code{file} uses the same auxiliary files as the subcommands \code{cfile} and \code{hfile} of \code{gencot} with
+the exception of \code{<file>-itemprops}.
+The subcommand \code{unit} uses the same auxiliary files as the subcommand \code{unit} of \code{gencot} with the exception
+of \code{<file>-itemprops}.
 The subcommand \code{used} uses the unit file \code{<uname>.unit} like subcommand \code{unit} and additionally
 the optional auxiliary file 
 \begin{description}
@@ -251,8 +255,10 @@ for the \code{gencot} command. They are only used for the subcommands \code{file
 
 \subsubsection{Auxiliary Files}
 
-The subcommands \code{file} and \code{close} use the same auxiliary files as the subcommands \code{cfile} and \code{hfile} of \code{gencot}.
-The subcommand \code{unit} uses the same auxiliary files as the subcommand \code{unit} of \code{gencot}.
+The subcommands \code{file} and \code{close} use the same auxiliary files as the subcommands \code{cfile} and \code{hfile} of \code{gencot} with 
+the exception of \code{<file>-itemprops}.
+The subcommand \code{unit} uses the same auxiliary files as the subcommand \code{unit} of \code{gencot} with the exception
+of \code{<file>-itemprops}.
 
 \subsubsection{Implementation}
 

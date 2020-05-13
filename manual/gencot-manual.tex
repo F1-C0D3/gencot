@@ -735,14 +735,14 @@ described in Section~\ref{struct-include}. Here we assume that all included (non
 directory.
 
 Additionally, properties may be required for external items. The default properties for all external items used in the 
-translated files are generated in file \code{all.ext-itemprops} with the command:
+translated files are generated in file \code{all.unit-itemprops} with the command:
 \begin{verbatim}
-  items -I. unit > all.ext-itemprops
+  items -I. unit > all.unit-itemprops
 \end{verbatim}
 
-For generating the additional Cogent sources with command \code{gencot unit} a file is required which contains properties
-for \code{all} items in all translated source files and external. This file is produced by mergin all the files created 
-before in a file named \code{all.unit-itemprops}. Merging two item property files is done by 
+For generating the additional Cogent sources with command \code{gencot unit} the file \code{all.unit-itemprops} must
+also contain properties for \code{all} items in all translated source files. These are provided by mergin all the files created 
+before in \code{all.unit-itemprops}. Merging two item property files is done by 
 \begin{verbatim}
   items merge <f1>-itemprops <f2>-itemprops > <f3>-itemprops
 \end{verbatim}
@@ -754,8 +754,7 @@ Together, the commands for creating all required item property files are:
   ... <other .h files> ...
   items -I. file foo.c > foo.c-itemprops
   ... <other .c files> ...
-  items -I. unit > all.ext-itemprops
-  cp all.ext-itemprops all.unit-itemprops
+  items -I. unit > all.unit-itemprops
   items merge all.unit-itemprops foo.h-itemprops > hfile
   mv hfile all.unit-itemprops
   ... <other .h-itemprops files> ...
@@ -801,12 +800,12 @@ In file \code{items.c-itemprops} you can see how functions are identified as ite
 they are defined is prepended to the function name, so that the item identifier should be unique, even if the same name 
 is reused for static functions in different files.
 
-Next, generate the property file for all used external items with the command (\code{make e-props}):
+Next, generate the default property declarations for all used external items with the command (\code{make e-props}):
 \begin{verbatim}
-  items -I. -u part unit > part.ext-itemprops
+  items -I. -u part unit
 \end{verbatim}
 
-Look at the file. It contains entries for the items \code{allocArr} and \code{allocInt} defined in file \code{alloc.c} (which 
+Look at the output. It lists entries for the items \code{allocArr} and \code{allocInt} defined in file \code{alloc.c} (which 
 are extern, because this file is not listed in \code{part.unit}) and for the item \code{printf} declared in the system
 include file. From the declaration of \code{printf} the properties for the first parameter are derived as usual. Note that,
 as described in Section~\ref{struct-single} for the translation, only those external items are listed which are actually used in the 

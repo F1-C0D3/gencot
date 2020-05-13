@@ -9,8 +9,9 @@ the file can include \code{.h} files, both in the package and standard C include
 To be translated by Gencot the C source file must first be prepared for being read by Gencot as described in
 Section~\ref{app-prep}. Then the parameter modification descriptions for all functions and function types defined 
 in the source file should be created and evaluated as described in Section~\ref{app-parmod-defined}. Afterwards,
-the default item properties must be generated as described in Section~\ref{app-itemprops}. They may be manually
-modified, if necessary.
+the item property declarations must be provided as described in Section~\ref{app-itemprops}.
+
+Finally, additional Cogent source files must be generated for the Cogent compilation unit.
 
 \subsection{Translating Normal C Sources}
 \label{app-transauto-normal}
@@ -29,6 +30,8 @@ An \code{.h} file is translated using the command
 where \code{file.h} is the file to be translated. The result of the translation is 
 stored as \code{file-incl.cogent} in the current directory.
 
+Note that the unit name must be specified with the \code{-u} option if it is not the default unit name \code{all}.
+
 \subsection{Translating Configuration Files}
 \label{app-transauto-config}
 
@@ -41,3 +44,16 @@ out'', i.e., they are preceded by \code{//}. If such a file is translated using 
 it is translated like a normal \code{.h} file, but before, all \code{//} comment starts at line beginnings are 
 removed, and afterwards the corresponding Cogent comment starts \code{-\relax-} are re-inserted before the definitions.
 
+\subsection{Generating Additional Cogent Sources}
+\label{app-transauto-unit}
+
+The additional Cogent sources \code{<uname>-dvdtypes.cogent}, \code{<uname>-exttypes.cogent}, \code{<uname>-externs.cogent}, 
+and \code{<uname>.cogent}, are generated using the command
+\begin{verbatim}
+  gencot [options] unit
+\end{verbatim}
+and stored in the current directory.
+
+The unit name \code{<uname>} must be specified with the \code{-u} option if it is not the default unit name \code{all}. The 
+unit file \code{<uname>.unit} must be present in the current directory (or the directory specified by the \code{-G} option)
+and it must contain the names of all \code{.c} files comprising the unit's translation base.

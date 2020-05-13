@@ -4,15 +4,16 @@ IT=../../bin/items
 TESTS = prim enum struct union array func parmod pointer names const extrefs
 UNIT = externs exttypes dvdtypes
 ABSINCL = -I/home/teege/work/projekte/code/HoBit/devel/gencot/test/types-regression
-AUNIT = ext-dfltprops
+AUNIT = unit-dfltprops
+PPROPS = types-parmod.json-itemprops types-parmod.json-omitprops
 
 compile: $(foreach TST,$(TESTS),types-$(TST).o)
 
 cogent: $(foreach TST,$(TESTS),types-$(TST).cogent) unit
 
-dfltprops: $(foreach TST,$(TESTS),types-$(TST).c-dfltprops) test.ext-dfltprops
+dfltprops: $(foreach TST,$(TESTS),types-$(TST).c-dfltprops) test.unit-dfltprops
 
-itemprops: $(foreach TST,$(TESTS),types-$(TST).c-itemprops) test.ext-itemprops
+itemprops: $(foreach TST,$(TESTS),types-$(TST).c-itemprops)
 
 regression: $(foreach TST,$(TESTS),$(TST)-regression) unit-regression
 
@@ -20,7 +21,7 @@ expect-current: $(foreach TST,$(TESTS),$(TST)-expect-current) unit-expect-curren
 
 clean:  $(foreach TST,$(TESTS),$(TST)-clean)
 	-rm -f test.unit test.cogent $(foreach U,$(UNIT),test-$(U).cogent)
-	-rm -f test-external.items test.ext-dfltprops test.ext-itemprops test.unit-itemprops
+	-rm -f test-external.items test.unit-dfltprops test.unit-itemprops
 
 types-pointer.c-itemprops: types-pointer.c-manprops types-pointer.c-dfltprops types-parmod.json-itemprops
 	@$(IT) mergeto types-pointer.c-dfltprops types-parmod.json-itemprops > types-pointer.c-hprops
@@ -34,14 +35,15 @@ types-const.c-itemprops: types-const.c-manprops types-const.c-dfltprops types-pa
 	@$(IT) merge types-const.c-h2props types-const.c-manprops > types-const.c-itemprops
 	@rm types-const.c-hprops types-const.c-h2props
 
-%.ext-itemprops: %.ext-dfltprops %.ext-manprops types-parmod.json-itemprops types-parmod.json-omitprops common.types-manprops
-	@$(IT) mergeto $*.ext-dfltprops types-parmod.json-itemprops > $*.ext-hprops
-	@$(IT) omitfrom $*.ext-hprops types-parmod.json-omitprops > $*.ext-h2props
-	@$(IT) mergeto $*.ext-h2props $*.ext-manprops > $*.ext-hprops
-	@$(IT) merge common.types-manprops $*.ext-hprops > $*.ext-itemprops
-	@rm $*.ext-hprops $*.ext-h2props
+types-extrefs.c-itemprops: types-extrefs.c-dfltprops $(PPROPS) common.types-manprops test.unit-dfltprops test.unit-manprops
+	@$(IT) merge types-extrefs.c-dfltprops test.unit-dfltprops > types-extrefs.c-hprops
+	@$(IT) mergeto types-extrefs.c-hprops types-parmod.json-itemprops > types-extrefs.c-h2props
+	@$(IT) omitfrom types-extrefs.c-h2props types-parmod.json-omitprops > types-extrefs.c-hprops
+	@$(IT) merge types-extrefs.c-hprops common.types-manprops > types-extrefs.c-h2props
+	@$(IT) merge types-extrefs.c-h2props test.unit-manprops > types-extrefs.c-itemprops
+	@rm types-extrefs.c-hprops types-extrefs.c-h2props
 
-%.c-itemprops: %.c-dfltprops types-parmod.json-itemprops types-parmod.json-omitprops common.types-manprops
+%.c-itemprops: %.c-dfltprops $(PPROPS) common.types-manprops
 	@$(IT) mergeto $*.c-dfltprops types-parmod.json-itemprops > $*.c-hprops
 	@$(IT) omitfrom $*.c-hprops types-parmod.json-omitprops > $*.c-h2props
 	@$(IT) merge common.types-manprops $*.c-h2props > $*.c-itemprops
@@ -69,8 +71,8 @@ unit-expect-current: unit
 	done
 	cp test-external.items test-external-expected.items
 
-test.ext-dfltprops: test.unit test.unit-manitems test-external.items
-	@$(IT) $(ABSINCL) -u test unit > test.ext-dfltprops
+test.unit-dfltprops: test.unit test-external.items
+	@$(IT) $(ABSINCL) -u test unit > test.unit-dfltprops
 
 test-external.items: test.unit test.unit-manitems 
 	@$(IT) $(ABSINCL) -u test used
@@ -93,7 +95,7 @@ test-external.items: test.unit test.unit-manitems
 	-rm -f types-$*.cogent types-$*.o types-$*.c-dfltprops types-$*.c-itemprops
 
 test.unit-itemprops: itemprops
-	@cp test.ext-itemprops test.unit-itemprops
+	@touch test.unit-itemprops
 	@for f in $(foreach TST,$(TESTS),types-$(TST).c-itemprops); do \
 	  $(IT) merge $$f test.unit-itemprops > iprops; \
 	  mv iprops test.unit-itemprops; \
@@ -105,5 +107,5 @@ test.unit:
 	done
 	@cat test.unit
 
-unit: test.unit test.unit-itemprops test.unit-manitems
+unit: test.unit test.unit-itemprops
 	@$(GC) $(ABSINCL) -u test unit

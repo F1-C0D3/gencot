@@ -237,7 +237,7 @@ process_comments()
         | eval $MRGCOMM > $TMPDIR/$CNAME.cogent
 }
 
-if [ "$CMD" = "unit" ]
+if [ "$CMD" = "unit" -o "$CMD" = "cfile" -o "$CMD" = "hfile" -o "$CMD" = "config" ]
 then
     EIFILE=$GENCOTDIR/$UNITNAME-external.items
     if [ ! -e $EIFILE ]
@@ -277,7 +277,7 @@ then
 else
     prepare_cfile $CFILE
     prepare_itemprops
-    $BIN/gencot-translate $CBASE $TMPDIR/$IPMFILE < $TMPDIR/$CNAME.in | $BIN/gencot-reporigs > $TMPDIR/$CNAME.out
+    $BIN/gencot-translate $CBASE $TMPDIR/$IPMFILE $EIFILE < $TMPDIR/$CNAME.in | $BIN/gencot-reporigs > $TMPDIR/$CNAME.out
     process_directives
     process_comments
     if [ "$CMD" = "cfile" ]

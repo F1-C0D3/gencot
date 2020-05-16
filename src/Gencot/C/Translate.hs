@@ -106,6 +106,7 @@ transStat (LC.CFor (Left mexpr) mcond mstep stat n) = do
     return $ GCA.For (Right me) mc ms s $ mkOrigin n
 transStat (LC.CFor (Right decl) mcond mstep stat n) = do
     LCA.enterBlockScope
+    LCA.analyseDecl True decl
     d <- transDecl decl
     mc <- mapM transExpr mcond
     ms <- mapM transExpr mstep

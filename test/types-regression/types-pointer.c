@@ -62,4 +62,7 @@ pstr5_t var_pstr52_t;
 const char *strptr;
 typedef const char *strp_t;
 strp_t strptr2;
+typedef const char *strp2_t;
+typedef strp2_t strp3_t;
+strp3_t strptr3;
 

@@ -1,0 +1,18 @@
+Most other commands expect the presence of the auxiliary file \code{<uname>-external.items}
+(see Sections~\ref{impl-all-gencot} and~\ref{impl-ccomps-items}).
+
+Therefore, after all sources in the translation set can be read by Gencot, the command
+\begin{verbatim}
+  items used
+\end{verbatim}
+must be used to create the list of used external items (see Section~\ref{impl-all-items}).
+
+If there are external items which must be processed, but are not detected automatically by Gencot,
+the auxiliary file \code{<uname>.unit-manitems} must be provided in advance. If present, this file is 
+automatically read by \code{items used} and the items listed in it (and all items transitively used 
+from them) are added to \code{<uname>-external.items}.
+
+If additionally required
+external items become known after C code has already been translated to Cogent, they must be 
+added to this file and the command \code{items used} and all following steps must be re-executed.
+

@@ -10,6 +10,7 @@ import Language.C.Data.Ident (identToString)
 
 import Gencot.Input (getDeclEvents)
 import Gencot.Items.Properties (readPropertiesFromFile)
+import Gencot.Items.Identifier (getTypedefNames)
 import Gencot.Package (readPackageFromInput_,foldTables)
 import Gencot.Traversal (runFTrav)
 import Gencot.Cogent.Output (prettyTopLevels)
@@ -24,16 +25,18 @@ main = do
         $ error "expected arguments: <item properties file name> <external items file name>"
     {- get item property map -}
     ipm <- readPropertiesFromFile $ head args
-    {- get list of external items to process -}
-    iids <- (liftM ((filter (not . null)) . lines)) $ readFile $ head $ tail args
+    {- get list of used external items to process -}
+    useditems <- (liftM ((filter (not . null)) . lines)) $ readFile $ head $ tail args
     {- parse and analyse C sources and get global definitions -}
     tables <- readPackageFromInput_
     {- combine symbol tables -}
     table <- foldTables tables
-    {- Get declarations of functions and objects listed in iids -}    
-    let extDecls = getDeclEvents (globalDefs table) (constructFilter iids)
+    {- Get declarations of functions and objects listed in useditems -}    
+    let extDecls = getDeclEvents (globalDefs table) (constructFilter useditems)
+    {- Determine type names used directly in the Cogent compilation unit -}
+    let unitTypeNames = getTypedefNames useditems
     {- translate external function declarations to Cogent abstract function definitions -}
-    absdefs <- runFTrav table ("",ipm,(False,[])) $ transGlobals extDecls
+    absdefs <- runFTrav table ("",ipm,(True,unitTypeNames)) $ transGlobals extDecls
     {- Output -}
     print $ prettyTopLevels absdefs
 

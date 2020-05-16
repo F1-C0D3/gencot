@@ -369,16 +369,20 @@ transType _ (_, (LCA.DirectType tnam _ _)) = do
 transType rslv iat@(iid, (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _)) = do
     dt <- LCA.getDefTable
     srtn <- stopResolvTypeName idnam
+    let rslvTypeName = (isExternTypeDef dt idnam) && not srtn
     safe <- isNotNullItem iat
     ro <- isReadOnlyItem iat
-    rslvtyp <- transType rslv (if srtn then getTypedefItemAssoc idnam typ else (iid,typ))
---    _ <- if LCI.identToString idnam == "exttypc3" then error $ ("idnam exttypc3 found. iid: " ++ iid ++ " rslvtyp: " ++ (show rslvtyp)) else return ()
-    let nntyp = if rslv || ((isExternTypeDef dt idnam) && not srtn)
+    let rslviat = (if not rslvTypeName then getTypedefItemAssoc idnam typ else (iid,typ))
+    rslvtyp <- transType rslv rslviat
+    let nntyp = if rslv || rslvTypeName
                   then rmMayNullIf safe rslvtyp
                   else addMayNullIfNot (safe || (not $ hasMayNull rslvtyp)) rtyp
-    {- The following isString test will not work, if rslvtyp is a type alias for String!
-       In this case a redundant bang operator will be appended. -}
-    return (if isString rslvtyp then nntyp else makeReadOnlyIf ro nntyp)
+    bang <- if ro then do
+        {- We need the fully resolved type to detect aliased String types -}
+                    rslvtypfull <- transType True rslviat
+                    return $ not $ isString rslvtypfull
+                  else return False
+    return (if bang then makeReadOnlyIf ro nntyp else nntyp)
     where tn = mapNameToUpper idnam
           ub = if (isComposite typ) || (isFunPointer typ) then markUnbox else markBox
           rtyp = genType $ CS.TCon tn [] ub

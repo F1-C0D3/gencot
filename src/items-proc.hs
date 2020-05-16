@@ -1,7 +1,7 @@
 module Main where
 
 import System.Environment (getArgs)
-import Control.Monad (when)
+import Control.Monad (when,liftM)
 
 import Gencot.Items.Properties (readPropertiesFromInput, readPropertiesFromFile, showProperties, combineProperties, omitProperties, getToplevelItemIds, filterItemsPrefixes)
 
@@ -26,7 +26,7 @@ main = do
              putStrLn $ unlines $ getToplevelItemIds ipm
          "filter" -> do
              when (length args == 1) $ error "filter: filename expected"
-             items <- readFile $ head $ tail args
-             putStrLn $ showProperties $ filterItemsPrefixes (lines items) ipm
+             items <- (liftM ((filter (not . null)) . lines)) (readFile $ head $ tail args)
+             putStrLn $ showProperties $ filterItemsPrefixes items ipm
          _ -> error $ "Unknown command: " ++ head args
  

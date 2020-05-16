@@ -33,12 +33,9 @@ main = do
     {- Determine type names used directly in the Cogent compilation unit -}
     let unitTypeNames = getTypedefNames useditems
     {- determine default properties for all used items in globals -}
-    ipm <- runFTrav table ("",empty,(True,unitTypeNames)) $ transGlobals $ getDeclEvents (globalDefs table) (usedFilter useditems)
+    ipm <- runFTrav table ("",empty,(True,unitTypeNames)) $ transGlobals usedExtDecls
     {- Output -}
     putStrLn $ showProperties ipm
-
-usedFilter :: [String] -> LCA.DeclEvent -> Bool
-usedFilter usedItems tc = elem (getToplevelItemId tc) usedItems
 
 usedDeclFilter :: [String] -> LCA.DeclEvent -> Bool
 usedDeclFilter usedItems e@(LCA.DeclEvent (LCA.Declaration _)) = elem (getToplevelItemId e) usedItems

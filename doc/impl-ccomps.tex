@@ -621,6 +621,11 @@ This means that the type name is not used directly in the Cogent code and is res
 also resolved by \code{items-externs} so that collective sub-items of the type name become individual sub-items of 
 the processed item, as described in Section~\ref{design-types-itemprops}.
 
+If a processed external function or object belongs to the <package> but is outside the Cogent compilation unit, it may
+have type subitems which are defined in an include file which is also used in the Cogent compilation unit. In this
+case the subitems are not extern, but still output by \code{items-externs}. They must be removed in a postprocessing
+step which recognizes them because they have no prefix in the list of used external items.
+
 \subsubsection{The processor \code{items-extfuns}}
 
 The processor \code{items-extfuns} is used to generate the list of identifiers of all used external items which 

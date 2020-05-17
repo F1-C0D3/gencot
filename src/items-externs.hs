@@ -29,14 +29,14 @@ main = do
     {- combine symbol tables -}
     table <- foldTables tables
     {- Get declarations of used external functions and objects -}
-    let usedExtDecls = getDeclEvents (globalDefs table) (usedDeclFilter useditems)
+    let usedExtToplvl = getDeclEvents (globalDefs table) (usedFilter useditems)
     {- Determine type names used directly in the Cogent compilation unit -}
     let unitTypeNames = getTypedefNames useditems
     {- determine default properties for all used items in globals -}
-    ipm <- runFTrav table ("",empty,(True,unitTypeNames)) $ transGlobals usedExtDecls
+    ipm <- runFTrav table ("",empty,(True,unitTypeNames)) $ transGlobals usedExtToplvl
     {- Output -}
     putStrLn $ showProperties ipm
 
-usedDeclFilter :: [String] -> LCA.DeclEvent -> Bool
-usedDeclFilter usedItems e@(LCA.DeclEvent (LCA.Declaration _)) = elem (getToplevelItemId e) usedItems
-usedDeclFilter _ _ = False
+usedFilter :: [String] -> LCA.DeclEvent -> Bool
+usedFilter usedItems tc = elem (getToplevelItemId tc) usedItems
+

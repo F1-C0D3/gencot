@@ -483,13 +483,20 @@ encodeType _ (_, (LCA.DirectType tnam _ _)) = do
 encodeType rslv iat@(iid, (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _)) = do
     dt <- LCA.getDefTable
     srtn <- stopResolvTypeName idnam
+    let rslvTypeName = (isExternTypeDef dt idnam) && not srtn
     safe <- isNotNullItem iat
     ro <- isReadOnlyItem iat
-    rslvtyp <- encodeType rslv (iid,typ)
-    let nntyp = if rslv || ((isExternTypeDef dt idnam) && not srtn)
+    let rslviat = (if not rslvTypeName then getTypedefItemAssoc idnam typ else (iid,typ))
+    rslvtyp <- encodeType rslv rslviat
+    let nntyp = if rslv || rslvTypeName
                 then rmMayNullStepIf safe rslvtyp
                 else addMayNullStepIfNot (safe || (not $ hasMayNullStep rslvtyp)) rtyp
-    return $ addReadOnlyStepIf ro nntyp
+    bang <- if ro then do
+        {- We need the fully resolved type to detect aliased String types -}
+                    rslvtypfull <- transType True rslviat
+                    return $ not $ isString rslvtypfull
+                  else return False
+    return (if bang then addReadOnlyStepIf ro nntyp else nntyp)
     where tn = mapNameToUpper idnam
           ustep = if isAggregate typ then mapUboxStep else ""
           rtyp = (ustep ++ tn)

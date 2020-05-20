@@ -57,13 +57,13 @@ UNITNAME='all'
 
 add_incl()
 {
-    if [ "$1" == "." ] 
+    if [ "$1" = "." ] 
     then INCL=""
     else INCL="$1"
     fi
     if [ -z "$INCLPATH" ]
     then INCLPATH=$1
-    elif [ "$INCLPATH" == "." ]
+    elif [ "$INCLPATH" = "." ]
     then INCLPATH=":$INCL"
     else INCLPATH="${INCLPATH}:$INCL"
     fi
@@ -186,29 +186,29 @@ then
     TMPDIR=$(mktemp -d)
 fi
 
-if [ "$CMD" == "merge" ]
+if [ "$CMD" = "merge" ]
 then
     $BIN/gencot-prclist < $2 > $TMPDIR/hfile
     $BIN/gencot-prclist < $1 | $PRC merge $TMPDIR/hfile
-elif [ "$CMD" == "mergeto" ]
+elif [ "$CMD" = "mergeto" ]
 then
     $BIN/gencot-prclist < $1 | tee $TMPDIR/target | $PRC idlist > $TMPDIR/idlist
     $BIN/gencot-prclist < $2 | $PRC filter $TMPDIR/idlist | $PRC merge $TMPDIR/target
-elif [ "$CMD" == "omitfrom" ]
+elif [ "$CMD" = "omitfrom" ]
 then
     $BIN/gencot-prclist < $2 > $TMPDIR/hfile
     $BIN/gencot-prclist < $1 | $PRC omit $TMPDIR/hfile
-elif [ "$CMD" == "file" ]
+elif [ "$CMD" = "file" ]
 then
     prepare_cfile $CFILE
     $GEN $CBASE < $TMPDIR/$CNAME.in
-elif [ "$CMD" == "unit" -o "$CMD" == "used" ]
+elif [ "$CMD" = "unit" -o "$CMD" = "used" ]
 then
     EIFILE=$GENCOTDIR/$UNITNAME-external.items
     for file in $(cat $GENCOTDIR/$UNITFILE)
     do prepare_cfile $file
     done
-    if [ "$CMD" == "unit" ]
+    if [ "$CMD" = "unit" ]
     then
         if [ ! -e $EIFILE ]
         then

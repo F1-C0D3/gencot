@@ -4,9 +4,61 @@ a C implementation for functions defined as abstract in Cogent.
 \subsection{Implementing Polymorphic Functions}
 \label{impl-operations-poly}
 
-are used in a program 
-this is not detected as error by the Cogent compiler. However, since Gencot does not provide implementations for such
-instances the resulting C program will not compile.
+If a basic function is implemented in Cogent, it is automatically available for all possible argument types, according
+to the Cogent definition of the argument types. 
+
+Basic functions which cannot be implemented in Cogent are defined as abstract in Cogent and are implemented in
+antiquoted C. Antiquotation is used to specify Cogent types, in particular, the argument types of polymorphic
+functions. Then the Cogent mechanism for creating all monomorphic instances used in a program.
+
+However, for some of the basic functions defined by Gencot the argument types are restricted in ways which cannot
+be expressed in Cogent. An example is the restriction to linear types. In Cogent the ``permissions'' \code{DS} express 
+the restriction that an argument type must be sharable and discardable, i.e., \textit{not} linear. But the opposite
+restriction cannot be expressed. 
+
+In such cases Gencot only provides function implementation instances for the restricted argument types. If the function
+is used with other argument types in a program this is not detected as error by the Cogent compiler. However, due to 
+the missing C implementation the resulting C program will not compile.
+
+\subsubsection{Genops}
+
+Additionally, there are cases where the Cogent antiquotation mechanism is not sufficient for generating the 
+monomorphic instances from a common polymorphic template. The antiquotation mechanism can replace Cogent type
+and type argument specifications by their translation to a C type, but it cannot generate other C code parts 
+depending on these types. This is required for several of the Gencot basic functions.
+
+To provide instances also for these functions, Gencot extends the Cogent antiquotation mechanism by a postprocessing
+mechanism called ``Genops''. It replaces specific code templates in the monomorphic function instances. The Genops
+templates are specified in the antiquoted C definition of the polymorphic function and contain an (antiquoted) 
+Cogent type. When Cogent generates the monomorphic instance it replaces the type in the template by the 
+corresponding C type. Afterwards, Genops reads the template, and expands it depending on the contained C type. 
+If the C type results from a Cogent type for which Gencot does not provide a function instance, Genops signals
+an error.
+
+The Genops template syntax is defined in a way that its insertion results in syntactically valid C code. Thus, 
+Cogent can read and process the antiquoted C code with embedded Genops templates as usual and the resulting 
+monomorphic instances are syntactically valid (plain) C code. Genops is implemented by reading the monomorphic 
+instances using a C parser, detecting and expanding the templates in the C AST, and outputting the result as C code.
+
+Genops templates have the form of a C function invocation
+\begin{verbatim}
+  gencotXXX((typ1) expr1, ...)
+\end{verbatim}
+where \code{XXX} names the template and \code{typ1} is an arbitrary C type embedded in the template, and \code{expr1}
+is an arbitrary C expression embedded in the template. Both \code{typ1} and \code{expr1} are read by Genops and are 
+used to determine the template expansion. If more than one type and/or expression is required, additional function
+arguments are used to specify them. If only a type is required, \code{0} is used as expression. If only an expression
+is required, the cast with the type is omitted. The Genops templates always expand to a C expression, thus they 
+are syntactically valid wherever the template may occur.
+
+\subsection{Implementing Default Values}
+\label{impl-operations-default}
+
+\subsection{Implementing Create and Dispose Functions}
+\label{design-operations-create}
+
+\subsection{Implementing Initialize and Clear Functions}
+\label{design-operations-init}
 
 \subsection{Implementing Pointer Types}
 \label{impl-operations-pointer}
@@ -28,4 +80,7 @@ instances the resulting C program will not compile.
 The \code{create} instance is implemented by simply allocating the
 required space on the heap, internally using the translation of type \code{\#(CArr<size> El)} to specify
 the amount of space. 
+
+\subsection{Implementing Explicitly Sized Array Types}
+\label{impl-operations-array}
 

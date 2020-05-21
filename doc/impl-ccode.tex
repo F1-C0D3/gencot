@@ -976,6 +976,11 @@ be used as origin marker information since they cannot represent begin and end m
 Gencot also reimplements the language-c-quote AST by copying its data types and replacing the \code{SrcLoc}
 values by \code{Origin} values. This is implemented in module \code{Gencot.C.Ast}.
 
+As described in Section~\ref{impl-ccode-gencog}, the extended Cogent AST uses only expressions and statements from
+this C AST for embedding C code. However, the wrapper functions are also generated using the C AST and they 
+need complete C function definitions and embedded antiquoted Cogent types. Therefore the complete 
+language-c-quote AST is reimplemented in \code{Gencot.C.Ast}.
+
 Together, this approach yields a similar structure as for the translation to Cogent: The Cogent AST is extended 
 by the structures in \code{Gencot.C.Ast} to represent function bodies and constant expressions. The function for
 translating from language-c AST to the Cogent AST is extended by the functions in \code{Gencot.C.Translate} to

@@ -605,27 +605,28 @@ from the C type information, as described in Section~\ref{design-types-readonly}
 has been declared for the parameter, as described in Section~\ref{design-types-itemprops}.
 
 For a parameter with linear type, the function can only be defined in Cogent if the parameter is not discarded,
-i.e. it must be part of the result. Gencot assumes the most simple handling of this case, where the result
+i.e. it must be part of the result. This can be achieved by specifying the Add-Result property for the 
+parameter (see Section~\ref{design-types-itemprops}). Gencot assumes the most simple handling of this case, where the result
 is a tuple consisting of the original result of the C function together with a component for every parameter
-of linear type. 
+with the Add-Result property. 
 
 A parameter of linear type may not be discarded in Cogent, but it may be passed to an abstract function which discards
 it. In this case the parameter must not be returned, although it has linear type. This can be specified by the 
-developer by declaring the Discard-Parameter property for the parameter (see Section~\ref{design-types-itemprops}).
+developer by omitting the Add-Result property for the parameter.
 
 Gencot uses the parameter types and declared properties to make parameter types readonly or
 add parameters to the function result, according to the following rules:
 \begin{itemize}
-\item If the C type of a parameter is not linear according to Section~\ref{design-types-readonly}, or if it
-has the Discard-Parameter property or the Result-Parameter property, it is translated as described before.
-\item Otherwise, if the parameter is readonly according to its type or has the Read-Only property
+\item If a parameter neither has the Read-Only property, nor the Add-Result property, it is translated as described before.
+\item Otherwise, if the parameter has the Read-Only property
 its translated type is made readonly by applying the
 bang operator \code{!}. For a single such parameter of type \code{r} the translation rule becomes
 \begin{verbatim}
   t(t1, ... r, ... tn) -> (T1, ... R!, ... Tn) -> T
 \end{verbatim}
-\item Otherwise, the function result is changed to a tuple and the parameter is added as component to that tuple.
-For a single such parameter of type \code{l} the translation rule becomes
+\item Otherwise, if the parameter has the Add-Result property, the function result is changed to a tuple and the 
+parameter is added as component to that tuple.
+For a single parameter of type \code{l} with the Add-Result property the translation rule becomes
 \begin{verbatim}
   t(t1, ... l, ... tn) -> (T1, ... L, ... Tn) -> (T,L)
 \end{verbatim}
@@ -637,26 +638,28 @@ are the parameters of linear type in their order as they occur in the parameter 
 If the Modification-Function property has been declared for a parameter (see Section~\ref{design-types-itemprops}), 
 the function type is translated according to the rule
 \begin{verbatim}
-  t(t1, ... l1, ... tn) -> (L1,(T1, ... ... Tn)) -> (L1,(T,L2,...,Lm))
+  t(t1, ... l1, ... tn) -> (L1,(T1, ... ... Tn)) -> (L1,(L2,...,Lm))
 \end{verbatim}
 where \code{l1} is the type of the first parameter for which the Modification-Function parameter has been declared, \code{L1}
-is its translation, and \code{L2,...,Lm} are the mapped types of all other parameter of linear type for which none of the 
-properties Read-Only, Discard-Parameter, or Result-Parameter has been declared. 
+is its translation, and \code{L2,...,Lm} are the mapped types of all parameters with the Add-Result
+property. If the parameter with the Modification-Function property also has the Add-Result property the result type 
+of the Cogent function becomes \code{(L1,(T,L2,...,Lm))} where \code{T} is the translation of the original result type \code{t}.
 
 The parameter type of
 the translated function is a pair where the second component is the tuple of all other parameter types with \code{L1}
-omitted and the result type is a pair where the second component is the tuple of the original result and all non-discarded
-parameters of linear type. If there are no parameters \code{L2,...,Lm} the result type has the form \code{(L1,T)}. If there
+omitted and the result type is a pair where the second component is the tuple of all 
+parameters with the Add-Result property and possibly the original result. If there are no parameters \code{L2,...,Lm} the result type 
+has the form \code{(L1,())} or \code{(L1,T)}. If there
 are only two parameters the parameter tuple has the form \code{(L1,T1)}. If \code{l1} is the only parameter the parameter tuple
-has the form \code{(L1,())}. If the parameter with the Modification-Function
-property also has the Result-Parameter property, the result type has the form \code{(L1,(L2,...,Lm))}.
+has the form \code{(L1,())}. 
 
 If the Heap-Use property has been declared for a function, its type is translated according to the rule
 \begin{verbatim}
   t(t1, ..., tn) -> (T1, ..., Tn,Heap) -> (T,Heap)
 \end{verbatim}
 i.e., the heap is appended to the parameter and result tuple. If the C result type is void the result type is \code{Heap}.
-If \code{n = 0} the parameter type is \code{Heap}.
+If \code{n = 0} the parameter type is \code{Heap}. Parameters with the Add-Result property are inserted before the \code{Heap}
+component.
 
 If additionally the Modification-Function property has been declared for a parameter the heap is added as last components \code{Tn} and
 and \code{Lm} in the additional tuple of the parameter and result pairs.

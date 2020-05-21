@@ -68,6 +68,7 @@ The generated Cogent function definition has the form
 where the \code{<compound statement>} is plain C code with substituted names.
 
 \subsection{Comments in Function Definitions}
+\label{design-fundefs-comments}
 
 A C function definition which is not old-style syntactically consists of a declaration with a single declarator
 and the compound statement for the body.
@@ -105,3 +106,105 @@ all comment units would be transferred. However, generating the corresponding or
 tree is much more complex than generating them for syntactical units for which the origin information is present
 in the syntax tree. Since the Gencot implementation generates the
 target code as an abstract syntax tree, the syntactical statement structure is preferred. 
+
+\subsection{Entry Wrappers}
+\label{design-fundefs-wrapper}
+
+The C function definitions are also used for generating the entry wrappers as described in Section~\ref{design-modular}.
+For every definition of a C function with external linkage an entry wrapper is generated in antiquoted C.
+
+The main task of the entry wrapper is to convert the seperate function arguments to an argument tuple which is passed
+to the corresponding Cogent function. If the C function has only one argument it is passed directly. If the C 
+function has no argument the unit value must be passed to the Cogent function.
+
+The entry wrapper has the same interface (name, arguments, argument types, result type) as the original C function.
+However, since the wrapper is a part of the Cogent compilation unit, the argument and result types used in the 
+original function definition are not available. They must be replaced by the binary compatible types generated 
+from their translation to Cogent types (see Section~\ref{design-types}). This is accomplished by using the Cogent
+types in antiquoted form.
+
+If the original C function definition has the signature
+\begin{verbatim}
+  <type0> fnam(<type1> arg1, ..., <typen> argn)
+\end{verbatim}
+the entry wrapper has the signature
+\begin{verbatim}
+  $ty:(<cogt0>) fnam($ty:(<cogt1>) arg1, ..., $ty:(<cogtn>) argn)
+\end{verbatim}
+where \code{<cogti>} is the translation of \code{<typei>} to Cogent. It would be possible to generate synthetic 
+parameter names for the wrapper, however, since the original parameter names must always be specified in the 
+original function definition, Gencot uses them in the wrapper signature for simplicity and better readability.
+
+If there is more than one function argument (\code{n > 1}), the wrapper must convert them to the C implementation
+of the Cogent tuple value used as argument for the Cogent function (see Section~\ref{design-types-function}).
+Cogent tuples are implemented as C struct types with members named \code{"p1"}, \code{"p2"}, \ldots in the order
+of the tuple components. Since tuple types are always unboxed, the C structs are allocated on the stack. Thus
+the body of an entry wrapper with \code{n > 1} has the form
+\begin{verbatim}
+  $ty:((<cogt1>,...,<cogtn>)) arg = 
+    {.p1=arg1,..., .pn=argn};
+  return cogent_fnam(arg);
+\end{verbatim}
+
+If \code{n = 1} no tuple needs to be constructed and the wrapper body has the form
+\begin{verbatim}
+  return cogent_fnam(arg1);
+\end{verbatim}
+
+If \code{n = 0} the C implementation of the Cogent unit value must be constructed. It is a C struct with 
+a single member named \code{"dummy"} of type \code{int}. The corresponding wrapper body has the form
+\begin{verbatim}
+  $ty:(()) arg = {.dummy=0};
+  return cogent_fnam(arg);
+\end{verbatim}
+
+If the C function has no result, i.e., \code{<type0>} is \code{void}, no result is returned by the entry
+wrapper. Then the last statement in its body has the form
+\begin{verbatim}
+  cogent_fnam(arg);
+\end{verbatim}
+
+If the C function has the Heap-Use property (see Section~\ref{design-types-itemprops}), a component of type
+\code{Heap} is added to the Cogent function's argument tuple and the result is converted to a tuple where the
+original result is the first component. In C the heap is accessed globally, therefore these components can 
+be ignored. However, the wrapper implementation has to take care of them. Type \code{Heap} is implemented by
+Gencot simply by the C type \code{int} and a \code{0} is passed as its value. The entry wrapper body for a
+function with Heap-Use property has the form
+\begin{verbatim}
+  $ty:((<cogt1>,...,<cogtn>,Heap)) arg = 
+    {.p1=arg1,..., .pn=argn, .pn+1=0};
+  return cogent_fnam(arg).p1;
+\end{verbatim}
+if \code{n > 0} and
+\begin{verbatim}
+  return cogent_fnam(0).p1;
+\end{verbatim}
+if \code{n = 0}.
+
+If atleast one of the C function arguments has the Add-Result property, the result is also converted to a tuple 
+whith the original result as its first component. In this case the last statement in the wrapper's body also 
+has the form
+\begin{verbatim}
+  return cogent_fnam(arg).p1;
+\end{verbatim}
+if the C function's result is not \code{void}.
+
+If a parameter has the Modification-Function property the argument and result of the Cogent functions are
+represented as pairs where the second component may be a tuple (see Section~\ref{design-types-function}). 
+The wrapper must rearrange the parameters and retrieve the original result. For example, if the C 
+function has 3 parameters, the second parameter has the Modification-Function property and the Add-Result 
+property, and the third parameter has the Add-Result property the Cogent function has type
+\begin{verbatim}
+  (<cogt2>, (<cogt1>, <cogt3>)) -> (<cogt2>, (<cogt0>, <cogt3>))
+\end{verbatim}
+and the entry wrapper body has the form
+\begin{verbatim}
+  $ty:((<cogt2>,(<cogt1>,<cogt3>))) arg = 
+    {.p1=arg2,.p2={.p1=arg1,.p2=arg3}};
+  return cogent_fnam(arg).p2.p1;
+\end{verbatim}
+
+Together, the information required to generate the entry wrapper is the same as that for translating the 
+function's type to Cogent: the argument types and the result type must be translated to Cogent and the
+function name must be mapped to determine the name of the Cogent function.
+

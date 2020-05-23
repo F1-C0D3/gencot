@@ -33,7 +33,7 @@ main = do
     {- Determine type names used directly in the Cogent compilation unit -}
     let unitTypeNames = getTypedefNames useditems
     {- determine default properties for all used items in globals -}
-    ipm <- runFTrav table ("",empty,(True,unitTypeNames)) $ transGlobals usedExtToplvl
+    ipm <- runFTrav table ("",[],empty,(True,unitTypeNames)) $ transGlobals usedExtToplvl
     {- Output -}
     putStrLn $ showProperties ipm
 

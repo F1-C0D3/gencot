@@ -153,10 +153,10 @@ trailing line comments.
 To safely detect C declarations and C definitions Gencot uses the language-c parser. 
 
 Only comments associated with declarations with external linkage are transferred to their definitions. For declarations
-with internal linkage the approach for transferring the comments does not work, since the declared names need not be
-unique in the <package>.
+with internal linkage the approach for transferring the comments would also work, since the mapped names are used for 
+the association, which are unique in the <package> even for declarations with internal linkage.
 
-Processing the decalaration comments is implemented by the following filter steps. 
+Processing the declaration comments is implemented by the following filter steps. 
 
 \subsubsection{Filter \code{gencot-deccomments}}
 
@@ -164,7 +164,7 @@ The filter \code{gencot-deccomments} parses the input. For every declaration it 
 \begin{verbatim}
   #DECL <name> <bline>
 \end{verbatim}
-where \code{<name>} is the name of the declared item, and \code{<bline>} is the original source line 
+where \code{<name>} is the mapped name of the declared item, and \code{<bline>} is the original source line 
 number where the declaration begins.
 
 The filter implementation is described in Section~\ref{impl-ccomps-decls}.

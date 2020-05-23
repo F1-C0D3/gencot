@@ -1,8 +1,8 @@
 {-# LANGUAGE PackageImports #-}
 module Gencot.Names where
 
-import Data.Char (isUpper)
-import Data.List (isPrefixOf,intercalate)
+import Data.Char (isUpper,toUpper,toLower)
+import Data.List (isPrefixOf,intercalate,lines,words,break,find)
 import System.FilePath (takeFileName, dropExtension)
 
 import Language.C.Data.Ident as LCI
@@ -15,40 +15,84 @@ import Language.C.Analysis.DefTable as LCD
 class (Monad m) => FileNameTrav m where
     getFileName :: m String
 
-mapName :: Bool -> LCI.Ident -> String
-mapName True (LCI.Ident s _ _) = 
-    if "mbedtls_" `isPrefixOf` s 
-       then "Se" ++ s
-       else if "MBEDTLS_" `isPrefixOf` s
-            then "SE" ++ s
-            else "Cogent_" ++ s
-mapName False (LCI.Ident s _ _) =
-    if "mbedtls_" `isPrefixOf` s 
-       then "se" ++ s
-       else if "MBEDTLS_" `isPrefixOf` s
-            then "se" ++ s
-            else "cogent_" ++ s
+type NamePrefixReplacement = (String, (String, String))
+type NamePrefixMap = [NamePrefixReplacement]
 
+class (FileNameTrav m) => MapNamesTrav m where
+    matchPrefix :: String -> m NamePrefixReplacement
+
+-- | Read a name prefix map from a file.
+readNameMapFromFile :: FilePath -> IO NamePrefixMap
+readNameMapFromFile file = do 
+    inp <- readFile file 
+    return $ parseNameMap inp
+
+-- | Parse the string representation of a name prefix map 
+-- It consists of a sequence of lines where each line specifies replacements for a prefix.
+-- Empty lines must be ignored. 
+parseNameMap :: String -> NamePrefixMap
+parseNameMap inp = map parseNameMapLine $ ((filter (not . null)) . lines) inp
+
+-- | Parse a single line of a name prefix map.
+-- If the line contains a single word it specifies a replacement for the empty prefix.
+-- Otherwise the first word is the prefix, the second word is the replacement, and all other words are ignored.
+parseNameMapLine :: String -> NamePrefixReplacement
+parseNameMapLine line = 
+    if length ws == 1 
+       then ("", readReplacements $ head ws)
+       else (head ws, readReplacements $ head $ tail ws)
+    where ws = words line
+
+-- A replacement has the form upper|lower[|...] (where the second bar and everything after it are ignored)
+-- or repl (which is converted to upper and lower by converting its first character).
+readReplacements :: String -> (String,String)
+readReplacements repl =
+    if null lower
+       then ((toUpper $ head upper) : (tail upper), (toLower $ head upper) : (tail upper))
+       else (upper, lower)
+    where (upper,rest) = break (== '|') repl
+          (lower,_) = break (== '|') rest
+
+lookupPrefix :: String -> NamePrefixMap -> NamePrefixReplacement
+lookupPrefix name npm =
+    case find (\(pre,_) -> pre `isPrefixOf` name) npm of
+         Nothing -> ("", ("Cogent_","cogent_"))
+         Just repl -> repl
+
+mapName :: MapNamesTrav f => Bool -> LCI.Ident -> f String
+mapName True (LCI.Ident s _ _) = do
+    (pre,(repl,_)) <- matchPrefix s
+    return (repl ++ (drop (length pre) s))
+mapName False (LCI.Ident s _ _) = do
+    (pre,(_,repl)) <- matchPrefix s
+    return (repl ++ (drop (length pre) s))
+
+mapNameToUpper :: MapNamesTrav f => LCI.Ident -> f String
 mapNameToUpper = mapName True
+
+mapNameToLower :: MapNamesTrav f => LCI.Ident -> f String
 mapNameToLower = mapName False
 
 mapInternal :: String -> LCI.Ident -> String
 mapInternal fnam (LCI.Ident s _ _) = "local_" ++ (dropExtension $ fnam) ++ "_" ++ s
 
-mapIfUpper :: LCI.Ident -> String
-mapIfUpper idnam = if (isUpper $ head s) || "_" `isPrefixOf` s then mapNameToLower idnam else s
+mapIfUpper ::MapNamesTrav f => LCI.Ident -> f String
+mapIfUpper idnam =
+    if (isUpper $ head s) || "_" `isPrefixOf` s then mapNameToLower idnam else return s
     where (Ident s _ _) = idnam
 
-transTagName :: (FileNameTrav f, MonadTrav f) => LCA.TypeName -> f String
-transTagName (LCA.TyComp (LCA.CompTypeRef (LCI.NamedRef idnam) kind _)) = 
-    return $ kindPrefix kind ++ "_" ++ mapNameToUpper idnam
+transTagName :: (MapNamesTrav f, MonadTrav f) => LCA.TypeName -> f String
+transTagName (LCA.TyComp (LCA.CompTypeRef (LCI.NamedRef idnam) kind _)) = do
+    upper <- mapNameToUpper idnam
+    return $ kindPrefix kind ++ "_" ++ upper
 transTagName (LCA.TyComp (LCA.CompTypeRef ref@(LCI.AnonymousRef unam) knd _)) = do
     table <- LCA.getDefTable
     let (Just (Right (LCA.CompDef (LCA.CompType _ _ _ _ n)))) = LCD.lookupTag ref table
     sfn <- getFileName
     return $ (kindPrefix knd ++ anonCompTypeName sfn n)
-transTagName (LCA.TyEnum (LCA.EnumTypeRef (LCI.NamedRef idnam) _)) = 
-    return $ "Enum_" ++ mapNameToUpper idnam
+transTagName (LCA.TyEnum (LCA.EnumTypeRef (LCI.NamedRef idnam) _)) = do
+    upper <- mapNameToUpper idnam
+    return $ "Enum_" ++ upper
 
 anonCompTypeName :: CNode a => String -> a -> String
 anonCompTypeName sfn n = 
@@ -57,20 +101,20 @@ anonCompTypeName sfn n =
 kindPrefix LCA.StructTag = "Struct"
 kindPrefix LCA.UnionTag  = "Union"
 
-transObjName :: (FileNameTrav f, MonadTrav f) => LCI.Ident -> f String
+transObjName :: (MapNamesTrav f, MonadTrav f) => LCI.Ident -> f String
 transObjName idnam = do
     mdecdef <- LCA.lookupObject idnam
     let (Just decdef) = mdecdef
     fnam <- getFileName 
     let lnk = LCA.declLinkage decdef
-    return $ case decdef of
-                  LCA.EnumeratorDef _ -> mapNameToLower idnam
-                  _ -> mapObjectName idnam lnk fnam decdef
+    case decdef of
+         LCA.EnumeratorDef _ -> mapNameToLower idnam
+         _ -> mapObjectName idnam lnk fnam decdef
 
-mapObjectName :: CNode a => LCI.Ident -> LCA.Linkage -> String -> a -> String
+mapObjectName :: (CNode a, MapNamesTrav f) => LCI.Ident -> LCA.Linkage -> String -> a -> f String
 mapObjectName idnam lnk fnam n = 
     case lnk of
-         LCA.InternalLinkage -> mapInternal (srcFileName fnam n) idnam
+         LCA.InternalLinkage -> return $ mapInternal (srcFileName fnam n) idnam
          LCA.ExternalLinkage -> mapNameToLower idnam
          LCA.NoLinkage -> mapIfUpper idnam
 

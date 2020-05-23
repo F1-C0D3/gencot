@@ -707,6 +707,39 @@ Names used in the target code are either mapped from a C identifier or introduce
 Section~\ref{design-names}. Different schemas are used depending on the kind of name to be generated.
 The schemas require different information as input.
 
+\subsubsection{Name Mapping Configuration}
+
+As described in Section~\ref{design-names} the general mapping schema is based on the replacement of 
+name prefixes and can be configured. The configuration is specified in a ``name prefix map'' file.
+It consists of a sequence of line, each line describes the mapping of a prefix in the form
+\begin{verbatim}
+  <prefix> <upper>|<lower>
+\end{verbatim}
+where \code{<prefix>} is the prefix to be replaced, \code{<upper>} is the replacement if the resulting 
+name must begin with an uppercase letter, and \code{<lower>} is the replacement if the resulting name 
+must begin with a lowercase letter. The prefix is separated by whitespace from the replacements, any remaining content 
+in the line is ignored. If the replacement specification does not contain a \code{"|"} it is used for
+both cases, converting the first letter to upper- or lowercase, as needed. If \code{<prefix>} is omitted
+the empty prefix is replaced, i.e., the replacement is prepended to the name. 
+
+If several lines are specified the prefixes are matched in the order of the lines and the first matching
+prefix is applied. Note that the empty prefix always matches, hence lines following it are ignored.
+Empty lines are always ignored, they do not prevent the use of subsequent lines.
+At the end Gencot automatically appends a line of the form
+\begin{verbatim}
+  cogent_
+\end{verbatim}
+which results in the default mapping described in Section~\ref{design-names} if no other line matches.
+
+The file content is read and converted to an internal representation of the form 
+\begin{verbatim}
+  type NamePrefixMap = [(String, (String, String))]
+\end{verbatim}
+which maps from the original prefix to the pair of replacements for uppercase and lowercase names.
+This representation is added to the monadic user state so that it is available during the monadic AST traversal
+(see Section~\ref{impl-ccode-trav}). A list is used instead a map so that the order of the map entries
+is preserved.
+
 \subsubsection{General Name Mapping}
 
 The general mapping scheme is applied whenever a Cogent name is generated from an existing C identifier.
@@ -714,11 +747,13 @@ Its purpose is to adjust the case, if necessary and to avoid conflicts between t
 the C identifier.
 
 As input this scheme only needs the C identifier and the required case for the Cogent name.
-It is implemented by the function
+It is implemented by the monadic action
 \begin{verbatim}
-  mapName :: Bool -> Ident -> String
+  mapName :: Bool -> Ident -> f String
 \end{verbatim}
-where the first argument specifies whether the name must be uppercase.
+where \code{f} is a \code{MapNamesTrav} and \code{MonadTrav} 
+(see Section~\ref{impl-ccode-trav}). The first argument specifies whether the name must be uppercase. 
+It uses the configuration from the user state to match and replace a prefix.
 
 \subsubsection{Cogent Type Names}
 
@@ -748,7 +783,7 @@ Together the function for translating struct/union/enum type references is
 \begin{verbatim}
   transTagName :: TypeName -> f String
 \end{verbatim}
-where \code{f} is a \code{FileNameTrav} and \code{MonadTrav} (see Section~\ref{impl-ccode-trav}).
+where \code{f} is the same as for \code{mapName}.
 
 If the definition itself is translated, it is already available and need not be retrieved from the map. 
 However, the user state is still needed to map the generic name \code{<stdin>} to the true source file 
@@ -780,7 +815,7 @@ names are translated see Section~\ref{impl-ccode-expr}.
 \begin{verbatim}
   transObjName :: Ident -> f String
 \end{verbatim}
-where \code{f} is a \code{FileNameTrav} and \code{MonadTrav} (see Section~\ref{impl-ccode-trav}).
+where \code{f} is the same as for \code{mapName}.
 
 Similar as for tags, the function is also used when translating a function definition, although the 
 definition is already available.
@@ -797,8 +832,9 @@ uppercase, the name is mapped to a lowercase Cogent name with the help of \code{
 otherwise it is used without change. Only the C name is required for that, in both cases it is
 available as a value of type \code{Ident}. The translation is implemented by the function
 \begin{verbatim}
-  mapIfUpper :: Ident -> String
+  mapIfUpper :: Ident -> f String
 \end{verbatim}
+where \code{f} is the same as for \code{mapName}.
 
 \subsection{Generating Origin Markers}
 \label{impl-ccode-origin}
@@ -1097,7 +1133,18 @@ This is supported by defining in module \code{Gencot.Name} the class \code{FileN
 so that the method \code{getFileName} can be used to retrieve the source file name from all traversal monads of 
 this class. 
 
-A second information is the set of external type names directly used in the Cogent compilation unit. All other 
+A second information is the name mapping configuration, as described in Section~\ref{impl-ccode-names}.
+It is used by all filters and processors which translate to Cogent. It is supported by the class 
+\begin{verbatim}
+  class (FileNameTrav m) => MapNamesTrav m where
+    matchPrefix :: String -> m (String, (String,String))
+\end{verbatim}
+The method \code{matchPrefix} returns for a name the first matching prefix together with the replacements. It 
+applies the default matching rule, so it always returns a result. The class is defined as subclass of 
+\code{FileNameTrav}, although the method does not use \code{getFileName}, because all clients of \code{matchPrefix}
+also use \code{getFileName}.
+
+Another information is the set of external type names directly used in the Cogent compilation unit. All other 
 external type names are resolved during translation, as described in Section~\ref{design-modular}.
 
 This is supported by defining in module \code{Gencot.Tranversal} the class \code{TypeNamesTrav} as
@@ -1120,21 +1167,23 @@ by language-c to identify both tagged and untagged struct/union/enum types.
 The utilities for the monadic traversal of the semantics map are defined in module \code{Gencot.Traversal}. 
 The main monadic type is defined as
 \begin{verbatim}
-  type FTrav = Trav (String,[SUERef],ItemProperties,(Bool,[String]))
+  type FTrav = Trav (String,NamePrefixMap,[SUERef],ItemProperties,(Bool,[String]))
 \end{verbatim}
 where \code{String} is the type used for storing the original C source file name in the user state,
+\code{NamePrefixMap} is the type for the name prefix map described in Section~\ref{impl-ccode-names},
 \code{ItemProperties} is the type for storing the item property map, the second component is the list for
 maintaining tag definitions processed as nested, and the last component is the list of directly used external type names 
 together with the flag for activating or deactivating the list. \code{FTrav} is an
 instance of \code{FileNameTrav} and \code{TypeNamesTrav}. As execution function for the monadic actions the functions
 \begin{verbatim}
-  runFTrav :: DefTable -> (String,ItemProperties,(Bool,[String])) -> FTrav a -> IO a
+  runFTrav :: DefTable -> (String,NamePrefixMap,ItemProperties,(Bool,[String])) -> FTrav a -> IO a
   runWithTable :: DefTable -> FTrav a -> IO a
 \end{verbatim}
-are defined. The first one takes the symbol table, the original C source file name, the item property map and
+are defined. The first one takes the symbol table, the original C source file name, the name prefix map, 
+the item property map and
 the list of directly used external type names as arguments to initialize the state. The tag definition list
 is always initialized as empty. The second 
-function leaves also the other three components empty and deactivated. The functions are themselves 
+function leaves also the other four components empty and deactivated. The functions are themselves 
 \code{IO} actions and print error messages generated during traversal to the standard output.
 
 In the monadic actions the symbol table can be accessed by actions defined in the modules 

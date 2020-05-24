@@ -51,7 +51,7 @@ readReplacements repl =
        then ((toUpper $ head upper) : (tail upper), (toLower $ head upper) : (tail upper))
        else (upper, lower)
     where (upper,rest) = break (== '|') repl
-          (lower,_) = break (== '|') rest
+          (lower,_) = if null rest then ("","") else break (== '|') $ tail rest
 
 lookupPrefix :: String -> NamePrefixMap -> NamePrefixReplacement
 lookupPrefix name npm =

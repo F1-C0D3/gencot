@@ -217,8 +217,8 @@ process_directives()
 {
     # input: $CFILE, $CNAME.out, $CNAME.ppconsts, $CNAME.gencot-manmacros, $CNAME.gencot-macrodefs, $CNAME.gencot-omitincl
     # output: $CNAME.ppcond
-    $BIN/gencot-preppconst < $TMPDIR/$CNAME.ppconsts \
-        | $BIN/gencot-prcppconst > $TMPDIR/$CNAME.prcppconst
+    $BIN/gencot-preppconst $TMPDIR/$NAMAPFILE < $TMPDIR/$CNAME.ppconsts \
+        | $BIN/gencot-prcppconst $TMPDIR/$NAMAPFILE > $TMPDIR/$CNAME.prcppconst
     eval $REMCOMM < $CFILE \
         | $BIN/gencot-selpp | $BIN/gencot-unline | tee $TMPDIR/$CNAME.ppsf \
         | $BIN/gencot-prcppflags $TMPDIR/$CNAME.gencot-manmacros > $TMPDIR/$CNAME.prcppflags

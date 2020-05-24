@@ -25,7 +25,7 @@ void nam2_fun(int);
 void nam3_fun(void);
 
 int names_fun2(int i, int J) { names_fun(5); return i+J; }
-int nam2_fun2(int i) { nam2_fun(5); return i+1; }
-int nam3_fun2(int i) { nam3_fun(); return i+1; }
+int nam2_fun2(int i) { nam2_fun(5); return i+NAM1_CONST; }
+int nam3_fun2(int i) { nam3_fun(); return i+NAM2_CONST; }
 
 size_t (*names_funp)(names_t names_p, nam2_t nam2_p, nam3_t nam3_p);

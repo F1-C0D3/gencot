@@ -14,6 +14,9 @@ import Gencot.C.Ast
 import Text.PrettyPrint.Mainland
 import Text.PrettyPrint.Mainland.Class
 
+showTopLevels :: [Definition] -> String
+showTopLevels defs = pretty 2000 $ pprList defs
+
 addOrig :: Origin -> Doc -> Doc
 addOrig (Origin sn en) doc =
     mark "#ORIGIN" sn fstLine

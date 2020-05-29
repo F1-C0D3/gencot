@@ -391,11 +391,11 @@ name of the original C source file, the item properties and the used external it
 The entry wrapper generation is implemented by the monadic action \code{genEntries} in the module 
 \code{Gencot.C.Generate}:
 \begin{verbatim}
-  genEntries :: DeclEvent -> FTrav [Func]
+  genEntries :: DeclEvent -> FTrav [Definition]
 \end{verbatim}
 The result is a sequence of C function definitions represented in the reimplemented language-c-quote AST
 in module \code{Gencot.C.Ast} (see Section~\ref{impl-ccode-expr}). It is output using the reimplemented 
-pretty printer from \code{Gencot.C.Output}.
+pretty printer from \code{Gencot.C.Output}, as described in Section~\ref{impl-ccode-anti}.
 
 Origin markers are added by wrapping every entry wrapper according to the start and end position of the 
 original C function definitions. This makes it possible to insert the conditional directives from the C source,

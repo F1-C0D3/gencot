@@ -1056,6 +1056,72 @@ An identifier for an enumerator is always mapped to lowercase, like preprocessor
 Identifiers for local variables may also occur in a declarator of a local object definition which defines 
 the name. They are also mapped depending on their linkage, as described above.
 
+\subsection{Generating Antiquoted C Code}
+\label{impl-ccode-anti}
+
+In addition to the Cogent code Gencot also generates antiquoted C code. This is implemented by generating 
+a C AST and then prettyprinting it. For this the reimplemented language-c-quote AST described in 
+Section~\ref{impl-ccode-expr} from module \code{Gencot.C.Ast} is used together with the reimplemented 
+prettyprinter from module Gencot.C.Output.
+
+\subsubsection{Embedding Cogent Code}
+
+The antiquotation feature from language-c-quote is originally intended to embed Haskell code in a C source.
+However, the Cogent compiler uses it to allow embedded Cogent code in some specific places.
+
+Antiquoted parts are represented in the language-c-quote AST (and its reimplementation) by alternative syntactic
+entities consisting of a single string containing the literate embedded code. The prettyprinter (and its 
+reimplementation) adds the antiquotation marker such as \code{\$ty:} and wraps it in parentheses, if necessary.
+
+To embed Cogent code which exists as a Cogent AST fragment, it must be prettyprinted with the Cogent prettyprinter
+and the resulting string must be added as an antiquoted entity to the C AST. Usually, the embedded Cogent code 
+is rather small, such as a single type. Therefore Gencot prettyprints it in a compact form without formatting or
+indentation. For a Cogent AST fragment \code{<cogent>} this is done by
+\begin{verbatim}
+  (displayS $ renderCompact $ pretty <cogent>) ""
+\end{verbatim}
+where all three functions are used from module \code{Text.PrettyPrint.ANSI.Leijen}. Function \code{pretty} is 
+the prettyprint function, \code{renderCompact} does the rendering in compact form, and \code{displayS} converts
+the result to the standard Haskell type \code{ShowS} which is \code{String -> String} and must be applied to
+the empty string to get the Cogent code rendered as a string.
+
+This functionality is provided by function 
+\begin{verbatim}
+  showCogent :: Pretty a => a -> String
+\end{verbatim}
+defined in module \code{Gencot.Cogent.Output}.
+
+\subsubsection{Origin Markers}
+
+Since the reimplemented language-c-quote AST is used, every syntactic entity has an associated origin information.
+
+Since the antiquoted C code is generated, normally no origin information is available and must be specified as
+empty. However, if there is a corresponding entity in a processed C source file it may be useful to specify 
+its origin and use it for inserting conditional preprocessor directives from the processed source file.
+
+\subsubsection{Outputting the Generated Code}
+
+The generated C AST is output using function \code{ppr} from module \code{Text.PrettyPrint.Mainland}. In case of 
+a list of C AST entities the function \code{pprList} is used instead. The resulting
+\code{Doc} must be rendered to a string with function \code{pretty} from the same module, then it can be 
+output with the standard Haskell function \code{putStrLn}. 
+
+As described in 
+Section~\ref{impl-ccode-expr} a large value must be specified as the document width to compensate for the 
+fast column increase caused by the hidden newlines. Therefore the standard rendering output actions defined
+by \code{Text.PrettyPrint.Mainland} such as \code{putDoc} cannot be used since they always set the document
+width to 80.
+
+Gencot defines in \code{Gencot.C.Output} the function
+\begin{verbatim}
+  showTopLevels :: [Definition] -> String
+  showTopLevels defs = pretty 2000 $ pprList defs
+\end{verbatim}
+which can be used to output a list \code{<antis>} of antiquoted C AST definitions by
+\begin{verbatim}
+  putStrLn $ showTopLevels <antis>
+\end{verbatim}
+
 \subsection{Traversing the C AST}
 \label{impl-ccode-trav}
 

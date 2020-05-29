@@ -37,6 +37,9 @@ instance Pretty GenToplv where
 prettyTopLevels :: [GenToplv] -> Doc
 prettyTopLevels tll = plain $ vsep $ fmap pretty tll
 
+showCogent :: Pretty a => a -> String
+showCogent cog = (displayS $ renderCompact $ pretty cog) ""
+
 instance Pretty GenType where
     pretty (GenType tr@(TRecord ts s) org) = addOrig org $ prettyGenRT tr 
     pretty (GenType tt@(TTuple ts) org) = addOrig org $ prettyGenRT tt

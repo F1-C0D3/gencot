@@ -33,7 +33,7 @@ main = do
     {- Determine type names used directly in the Cogent compilation unit -}
     let unitTypeNames = getTypedefNames useditems
     {- determine item ids of used external functions -}
-    iids <- runFTrav table ("",empty,(True,unitTypeNames)) $ functionsInGlobals $ getDeclEvents (globalDefs table) (usedFilter useditems)
+    iids <- runFTrav table ("",[],empty,(True,unitTypeNames)) $ functionsInGlobals $ getDeclEvents (globalDefs table) (usedFilter useditems)
     {- Output -}
     putStrLn $ unlines iids
 

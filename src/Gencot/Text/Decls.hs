@@ -8,8 +8,13 @@ import Language.C.Syntax.AST as LCS
 import qualified Language.C.Analysis as LCA
 
 import Gencot.Names (mapNameToLower)
+import Gencot.Traversal (FTrav)
 
-transDecl :: LCA.DeclEvent -> String
-transDecl (LCA.DeclEvent (LCA.Declaration (LCA.Decl (LCA.VarDecl (LCA.VarName nam _) _ _) n))) = 
-    "#DECL " ++ (mapNameToLower nam) ++ " " ++ (show (LCP.posRow (LCN.posOfNode n)))
-transDecl _ = ""
+transDecls :: [LCA.DeclEvent] -> FTrav [String]
+transDecls decls = mapM transDecl decls
+
+transDecl :: LCA.DeclEvent -> FTrav String
+transDecl (LCA.DeclEvent (LCA.Declaration (LCA.Decl (LCA.VarDecl (LCA.VarName nam _) _ _) n))) = do
+    lower <- mapNameToLower nam
+    return ("#DECL " ++ lower ++ " " ++ (show (LCP.posRow (LCN.posOfNode n))))
+transDecl _ = return ""

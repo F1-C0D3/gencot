@@ -371,10 +371,11 @@ used by \code{items-gen} to generate the default properties as described in Sect
 
 The filter \code{gencot-translate} is invoked as
 \begin{verbatim}
-  gencot-translate <source name> <item property file> <used external items file>
+  gencot-translate <source name> <aux-namap> <aux-props> <aux-items>
 \end{verbatim}
-where the arguments are the name of the original C source file, a file with the item property declarations (see 
-Section~\ref{impl-itemprops}) and a file with the identifiers of the used external items as created 
+where the arguments are the name of the original C source file, a file \code{<aux-namap>} with the name prefix map 
+(see Section~\ref{impl-ccode-names}), a file \code{<aux-props>} with the item property declarations (see 
+Section~\ref{impl-itemprops}) and a file \code{<aux-items>} with the identifiers of the used external items as created 
 by \code{items-used} (see Section~\ref{impl-ccomps-items}).
 
 \subsection{Entry Wrappers}
@@ -449,10 +450,11 @@ done for toplevel items, sub-items are not considered.
 
 The processor \code{gencot-externs} generates the Cogent abstract function definitions. It is invoked as
 \begin{verbatim}
-  gencot-externs <item properties file> <used external items file>
+  gencot-externs <aux-namap> <aux-props> <aux-items>
 \end{verbatim}
-where the arguments are a file with the item property declarations (see 
-Section~\ref{impl-itemprops}) and a file with the identifiers of the used external items as created 
+where the arguments are a file \code{<aux-namap>} with the name prefix map 
+(see Section~\ref{impl-ccode-names}), a file \code{<aux-props>} with the item property declarations (see 
+Section~\ref{impl-itemprops}) and a file \code{<aux-items>} with the identifiers of the used external items as created 
 by \code{items-used} (see Section~\ref{impl-ccomps-items}).
 
 The processor parses and analyses
@@ -475,11 +477,12 @@ The processor \code{gencot-externsac} generates the wrapper implementations in a
 The processor \code{gencot-exttypes} generates all Cogent type definitions which origin from a C system include file.
 It is invoked as
 \begin{verbatim}
-  gencot-exttypes <item properties file> <used external items file>
+  gencot-exttypes <aux-namap> <aux-props> <aux-items>
 \end{verbatim}
-where the arguments are a file with the item property declarations (see 
-Section~\ref{impl-itemprops}) and a file with the identifiers of the used external items as created 
-by \code{items-used} (see Section~\ref{impl-ccomps-itemprops}).
+where the arguments are a file \code{<aux-namap>} with the name prefix map 
+(see Section~\ref{impl-ccode-names}), a file \code{<aux-props>} with the item property declarations (see 
+Section~\ref{impl-itemprops}) and a file \code{<aux-items>} with the identifiers of the used external items as created 
+by \code{items-used} (see Section~\ref{impl-ccomps-items}).
 
 The task of \code{gencot-exttypes} is to translate all type item definitions listed in the 
 file of used external items. It parses and analyses
@@ -500,11 +503,12 @@ The same monadic action \code{transGlobals} is used as for \code{gencot-translat
 The processor \code{gencot-dvdtypes} generates all Cogent type definitions required for the derived types
 used in the C program. It is invoked as
 \begin{verbatim}
-  gencot-dvdtypes <item properties file> <used external items file>
+  gencot-dvdtypes <aux-namap> <aux-props> <aux-items>
 \end{verbatim}
-where the arguments are a file with the item property declarations (see 
-Section~\ref{impl-itemprops}) and a file with the identifiers of the used external items as created 
-by \code{items-used} (see Section~\ref{impl-ccomps-itemprops}).
+where the arguments are a file \code{<aux-namap>} with the name prefix map 
+(see Section~\ref{impl-ccode-names}), a file \code{<aux-props>} with the item property declarations (see 
+Section~\ref{impl-itemprops}) and a file \code{<aux-items>} with the identifiers of the used external items as created 
+by \code{items-used} (see Section~\ref{impl-ccomps-items}).
 
 A C derived type, is a pointer type, array type or function type. As described in 
 Section~\ref{design-types}, Gencot usually maps these types to parameterized Gencot types. The generic types \code{CPtr},
@@ -553,7 +557,13 @@ to be processed.
 The filter \code{gencot-deccomments} is used to provide the information about the positions of all declarations with
 external linkage in
 a translated file, as described in Section~\ref{impl-comments-decl}. This information is used to move declaration
-comments to the corresponding definitions, as described in Section~\ref{design-comments-decl}.
+comments to the corresponding definitions, as described in Section~\ref{design-comments-decl}. The filter 
+is invoked as
+\begin{verbatim}
+  gencot-deccomments <aux-namap>
+\end{verbatim}
+where the argument is a file \code{<aux-namap>} with the name prefix map (see Section~\ref{impl-ccode-names}).
+This file is required since the written information includes the mapped names of the declarations.
 
 Only global declarations are processed by this filter. Therefore the filter processes the list of \code{DeclEvents}
 returned by \code{getDeclEvents} (see Section~\ref{impl-ccode-read}). The predicate for filtering the list
@@ -567,13 +577,12 @@ replaces the declaration by the corresponding definitions in the semantic map, h
 by \code{gencot-deccomments}. However, it is assumed that in this case the documentation is assocatied with the definition
 and need not be moved from the declaration to the definition.
 
-For processing the declarations we do not need a monad since every declaration can be processed on its own. This is implemented
-by the function
+Processing the declarations is implemented by the monadic action
 \begin{verbatim}
-  transDecl :: DeclEvent -> String
+  transDecls :: [DeclEvent] -> FTrav [String]
 \end{verbatim}
-in module \code{Gencot.Text.Decls}. It is mapped over the list of \code{DeclEvents} and the resulting string list
-is output one string per line.
+in module \code{Gencot.Text.Decls}. A monadic action is required here for accessing the name prefix map.
+The resulting string list is output one string per line.
 
 \subsection{Item Properties}
 \label{impl-ccomps-itemprops}

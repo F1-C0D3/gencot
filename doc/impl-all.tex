@@ -101,6 +101,10 @@ The subcommands \code{unit} and \code{cgraph} use corresponding auxiliary files 
 The subcommands \code{cfile}, \code{hfile}, \code{config}, and \code{unit} additionally use the auxiliary file named
 \code{<file>-itemprops} which must contain all relevant item property declarations (see Section~\ref{impl-itemprops-decl}).
 
+These subcommands also use the auxiliary file \code{common.gencot-namap} which must contain the name prefix map, 
+as described in Section~\ref{impl-ccode-names}. No source file specific versions of the name prefix map are supported,
+since the map is used globally for all names translated to Cogent.
+
 Another kind of auxiliary files describe the Cogent compilation unit. These files are required to be present 
 in the directory specified by the \code{-G} option. If they are not found, an error or a warning is signaled.
 
@@ -175,9 +179,9 @@ for the \code{gencot} command.
 \subsubsection{Auxiliary Files}
 
 The subcommand \code{file} uses the same auxiliary files as the subcommands \code{cfile} and \code{hfile} of \code{gencot} with
-the exception of \code{<file>-itemprops}.
+the exception of \code{common.gencot-namap} and \code{<file>-itemprops}.
 The subcommand \code{unit} uses the same auxiliary files as the subcommand \code{unit} of \code{gencot} with the exception
-of \code{<file>-itemprops}.
+of \code{common.gencot-namap} and \code{<file>-itemprops}.
 The subcommand \code{used} uses the unit file \code{<uname>.unit} like subcommand \code{unit} and additionally
 the optional auxiliary file 
 \begin{description}
@@ -258,9 +262,9 @@ for the \code{gencot} command. They are only used for the subcommands \code{file
 \subsubsection{Auxiliary Files}
 
 The subcommands \code{file} and \code{close} use the same auxiliary files as the subcommands \code{cfile} and \code{hfile} of \code{gencot} with 
-the exception of \code{<file>-itemprops}.
+the exception of \code{common.gencot-namap} and \code{<file>-itemprops}.
 The subcommand \code{unit} uses the same auxiliary files as the subcommand \code{unit} of \code{gencot} with the exception
-of \code{<file>-itemprops}.
+of \code{common.gencot-namap} and \code{<file>-itemprops}.
 
 \subsubsection{Implementation}
 

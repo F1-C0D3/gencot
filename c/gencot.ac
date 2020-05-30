@@ -7,8 +7,9 @@ extern void *calloc(u64, u64);
 extern void free(void*);
 
 static $ty:a $id:defaultVal($ty:(()) arg) {
-  $ty:a res = gencotDefaultVal(sizeof($ty:a));  // sizeof is only used to embed a type name in a syntactically valid way
+  $ty:a res = gencotDefaultVal(($ty:a) 0);
   // $ty:a res = <defaultwert>;
+  // nur als initializer, da UNITVAL als mögliche Expansion!
   return res;
 }
 
@@ -337,7 +338,7 @@ static $ty:((arr,arg)) $id:modifyArr($ty:((arr, (idx,ChgFun el arg arg, arg))) a
 }
 
 static $ty:((arr,out)) $id:modifyArrDflt($ty:((arr, (idx,ChgFun el arg out, arg))) arg) {
-    $ty:((arr,out)) res = {.p1=arg.p1};
+    $ty:((arr,out)) res = {.p1=arg.p1,.p2=gencotDefaultVal(($ty:out) 0)};
     $ty:el * a = gencotArrayPointer(($ty:arr) arg.p1);
     if (arg.p2.p1 < gencotArraySize(($ty:arr) arg.p1)) {
       $ty:((el,arg)) elarg = {.p1=a[arg.p2.p1],.p2=arg.p2.p3};
@@ -345,7 +346,6 @@ static $ty:((arr,out)) $id:modifyArrDflt($ty:((arr, (idx,ChgFun el arg out, arg)
       a[arg.p2.p1] = h.p1;
       res.p2 = h.p2;
     }
-    else res.p2 = gencotDefaultVal(($ty:out) 0);
     return res;
 }
 
@@ -378,14 +378,13 @@ static $ty:((arr,arg)) $id:modrefArr($ty:((arr, (idx,ModFun pel arg arg, arg))) 
 }
 
 static $ty:((arr,out)) $id:modrefArrDflt($ty:((arr, (idx,ModFun pel arg out, arg))) arg) {
-    $ty:((arr,out)) res = {.p1=arg.p1};
+    $ty:((arr,out)) res = {.p1=arg.p1,.p2=gencotDefaultVal(($ty:out) 0)};
     $ty:pel a = gencotArrayPointer(($ty:arr) arg.p1);
     if (arg.p2.p1 < gencotArraySize(($ty:arr) arg.p1)) {
       $ty:((pel,arg)) elarg = {.p1=&a[arg.p2.p1],.p2=arg.p2.p3};
       $ty:((pel,out)) h = (($spec:(ModFun pel arg out)) arg.p2.p2) (elarg);
       res.p2 = h.p2;
     }
-    else res.p2 = gencotDefaultVal(($ty:out) 0);
     return res;
 }
 

@@ -46,6 +46,10 @@ exchngPtr : all(ptr,ref). (ptr,ref) -> (ptr,ref)
 --   out: type of the auxiliary output of change function
 modifyPtr: all(ptr,ref,arg,out). ChgPartFun ptr ref arg out
 
+-- Unwrap a wrapped pointer
+--   pref: the type of pointer to referenced value
+getrefPtr: all(pref). (CPtr #pref)! -> pref!
+
 {- C function pointers -}
 
 -- Type for mapping C pointers to complete function types

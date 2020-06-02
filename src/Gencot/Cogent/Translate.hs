@@ -145,8 +145,8 @@ transGlobal (LCA.DeclEvent odef@(LCA.ObjectDef (LCA.ObjDef _ _ n))) = do
 -- where @expr@ is the orginal C expression with mapped names.
 transGlobal (LCA.DeclEvent (LCA.EnumeratorDef (LCA.Enumerator idnam expr _ n))) = do
     e <- transExpr expr
+    en <- mapNameToLower idnam
     return $ [GenToplv (CS.ConstDef en (genType $ CS.TCon "U32" [] markUnbox) $ ConstExpr e) $ mkOrigin n]
-    where en = mapNameToLower idnam
 -- Translate a typedef of the form
 -- > typedef type-specifier declarator;
 -- where @declarator@ denotes a (derived type for an) identifier @idnam@.
@@ -161,9 +161,9 @@ transGlobal (LCA.TypeDefEvent (LCA.TypeDef idnam typ _ n)) = do
     t <- transType False modifiat
     nt <- transTagIfNested iat n
     let dt = if isArray typ || isString t then rmReadOnly $ rmMayNullThroughBang t else rmMayNullThroughBang t
+    tn <- mapNameToUpper idnam
     return $ wrapOrigin n (nt ++ [GenToplv (CS.TypeDec tn [] dt) noOrigin])
-    where tn = mapNameToUpper idnam
-          iat = getTypedefItemAssoc idnam typ
+    where iat = getTypedefItemAssoc idnam typ
           modifiat = if isComposite typ then adjustItemAssocType iat else iat
         
 transGlobal _ = return $ [GenToplv (CS.Include "err-unexpected toplevel") noOrigin]
@@ -273,7 +273,7 @@ genDerivedTypeDefs _ _ = return []
 extendExpr :: ItemAssocType -> RawExpr -> [LCA.ParamDecl] -> FTrav RawExpr
 extendExpr iat e pars = do
     arProps <- mapM shallAddResult $ map (getParamSubItemAssoc iat) (numberList pars)
-    let res = map (CS.RE . CS.Var . mapIfUpper . LCA.declIdent . snd) $ filter fst $ zip arProps pars
+    res <- mapM (\(_,d) -> do { vid <- mapIfUpper $ LCA.declIdent d; return $ CS.RE $ CS.Var vid}) $ filter fst $ zip arProps pars
     return $ mkRawExpr $ addres res e
     where addres res (CS.RE CS.Unitel) = res
           addres res e = e : res
@@ -319,7 +319,8 @@ transMember :: ItemAssocType -> LCA.MemberDecl -> FTrav (CCS.FieldName, (GenType
 transMember iat mdecl@(LCA.MemberDecl (LCA.VarDecl (LCA.VarName idnam _) _ _) _ n) = do
     t <- transType False miat
     let ut = if isArray mtyp then setUnboxed (rmReadOnly t) else t
-    return (mapIfUpper idnam, (setOrigin n ut, False))
+    mnam <- mapIfUpper idnam
+    return (mnam, (setOrigin n ut, False))
     where miat@(_,mtyp) = getMemberSubItemAssoc iat mdecl
 {- LCA.AnonBitField cannot occur since it is always replaced by aggBitfields -}
 
@@ -337,8 +338,9 @@ transParamNames variadic pars = do
 variadicParamName = GenIrrefPatn (CS.PVar "variadicCogentParameters") noOrigin
 
 transParamName :: LCA.ParamDecl -> FTrav GenIrrefPatn
-transParamName pd = 
-    return $ GenIrrefPatn (CS.PVar $ mapIfUpper $ LCA.declIdent pd) $ noComOrigin pd
+transParamName pd = do
+    pnam <- mapIfUpper $ LCA.declIdent pd
+    return $ GenIrrefPatn (CS.PVar $ pnam) $ noComOrigin pd
 
 -- | Translate a C type specification to a Cogent type.
 -- The C type is specified as an ItemAssocType, so that its item properties can be respected.
@@ -374,18 +376,18 @@ transType rslv iat@(iid, (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _)) = d
     ro <- isReadOnlyItem iat
     let rslviat = (if not rslvTypeName then getTypedefItemAssoc idnam typ else (iid,typ))
     rslvtyp <- transType rslv rslviat
+    tn <- mapNameToUpper idnam
     let nntyp = if rslv || rslvTypeName
                   then rmMayNullIf safe rslvtyp
-                  else addMayNullIfNot (safe || (not $ hasMayNull rslvtyp)) rtyp
+                  else addMayNullIfNot (safe || (not $ hasMayNull rslvtyp)) $ genType $ CS.TCon tn [] ub
     bang <- if ro then do
         {- We need the fully resolved type to detect aliased String types -}
                     rslvtypfull <- transType True rslviat
                     return $ not $ isString rslvtypfull
                   else return False
     return (if bang then makeReadOnlyIf ro nntyp else nntyp)
-    where tn = mapNameToUpper idnam
-          ub = if (isComposite typ) || (isFunPointer typ) then markUnbox else markBox
-          rtyp = genType $ CS.TCon tn [] ub
+    where ub = if (isComposite typ) || (isFunPointer typ) then markUnbox else markBox
+          
 -- Pointer to void:
 -- Translate to: CVoidPtr
 -- If no Not-Null property: MayNull CVoidPtr
@@ -488,18 +490,17 @@ encodeType rslv iat@(iid, (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _)) = 
     ro <- isReadOnlyItem iat
     let rslviat = (if not rslvTypeName then getTypedefItemAssoc idnam typ else (iid,typ))
     rslvtyp <- encodeType rslv rslviat
+    tn <- mapNameToUpper idnam
     let nntyp = if rslv || rslvTypeName
                 then rmMayNullStepIf safe rslvtyp
-                else addMayNullStepIfNot (safe || (not $ hasMayNullStep rslvtyp)) rtyp
+                else addMayNullStepIfNot (safe || (not $ hasMayNullStep rslvtyp)) (ustep ++ tn)
     bang <- if ro then do
         {- We need the fully resolved type to detect aliased String types -}
                     rslvtypfull <- transType True rslviat
                     return $ not $ isString rslvtypfull
                   else return False
     return (if bang then addReadOnlyStepIf ro nntyp else nntyp)
-    where tn = mapNameToUpper idnam
-          ustep = if isAggregate typ then mapUboxStep else ""
-          rtyp = (ustep ++ tn)
+    where ustep = if isAggregate typ then mapUboxStep else ""
 -- Derived pointer type for function type t:
 -- Encode t, prepend pointer derivation step.
 encodeType rslv iat@(_, (LCA.PtrType t _ _)) | isFunction t = do

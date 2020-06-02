@@ -114,6 +114,7 @@ else
 fi
 
 UNITFILE=$UNITNAME.unit
+NAMAPFILE=common.gencot-namap
 
 if [ $REQARGS -gt 0 ]
 then
@@ -165,6 +166,16 @@ prepare_aux()
     fi
 }
 
+prepare_namap()
+{
+    if [ -e $GENCOTDIR/$NAMAPFILE ]
+    then
+        cp $GENCOTDIR/$NAMAPFILE $TMPDIR
+    else
+        touch $TMPDIR/$NAMAPFILE
+    fi
+}
+
 prepare_itemprops()
 {
     if [ -e $GENCOTDIR/$IPMFILE ]
@@ -206,8 +217,8 @@ process_directives()
 {
     # input: $CFILE, $CNAME.out, $CNAME.ppconsts, $CNAME.gencot-manmacros, $CNAME.gencot-macrodefs, $CNAME.gencot-omitincl
     # output: $CNAME.ppcond
-    $BIN/gencot-preppconst < $TMPDIR/$CNAME.ppconsts \
-        | $BIN/gencot-prcppconst > $TMPDIR/$CNAME.prcppconst
+    $BIN/gencot-preppconst $TMPDIR/$NAMAPFILE < $TMPDIR/$CNAME.ppconsts \
+        | $BIN/gencot-prcppconst $TMPDIR/$NAMAPFILE > $TMPDIR/$CNAME.prcppconst
     eval $REMCOMM < $CFILE \
         | $BIN/gencot-selpp | $BIN/gencot-unline | tee $TMPDIR/$CNAME.ppsf \
         | $BIN/gencot-prcppflags $TMPDIR/$CNAME.gencot-manmacros > $TMPDIR/$CNAME.prcppflags
@@ -230,7 +241,7 @@ process_comments()
         then
             mkdir $COMMENTDIR
         fi
-        (cd $COMMENTDIR; $BIN/gencot-deccomments < $TMPDIR/$CNAME.in \
+        (cd $COMMENTDIR; $BIN/gencot-deccomments $TMPDIR/$NAMAPFILE < $TMPDIR/$CNAME.in \
             | $BIN/gencot-movcomments $TMPDIR/$CNAME.comm)
     fi
     $BIN/gencot-defcomments $COMMENTDIR < $TMPDIR/$CNAME.ppcond \
@@ -253,13 +264,14 @@ then
     for file in $(cat $GENCOTDIR/$UNITFILE)
     do prepare_cfile $file
     done
+    prepare_namap
     prepare_itemprops
-    $BIN/gencot-externs $TMPDIR/$IPMFILE $EIFILE < $TMPDIR/infiles | $BIN/gencot-reporigs \
+    $BIN/gencot-externs $TMPDIR/$NAMAPFILE $TMPDIR/$IPMFILE $EIFILE < $TMPDIR/infiles | $BIN/gencot-reporigs \
         | $BIN/gencot-mrgcomments /dev/null > $TMPDIR/$UNITNAME-externs.cogent
-    $BIN/gencot-exttypes $TMPDIR/$IPMFILE $EIFILE < $TMPDIR/infiles | $BIN/gencot-reporigs \
+    $BIN/gencot-exttypes $TMPDIR/$NAMAPFILE $TMPDIR/$IPMFILE $EIFILE < $TMPDIR/infiles | $BIN/gencot-reporigs \
         | $BIN/gencot-defcomments $COMMENTDIR \
         | $BIN/gencot-mrgcomments /dev/null > $TMPDIR/$UNITNAME-exttypes.cogent
-    $BIN/gencot-dvdtypes $TMPDIR/$IPMFILE $EIFILE < $TMPDIR/infiles | $BIN/gencot-reporigs \
+    $BIN/gencot-dvdtypes $TMPDIR/$NAMAPFILE $TMPDIR/$IPMFILE $EIFILE < $TMPDIR/infiles | $BIN/gencot-reporigs \
         | $BIN/gencot-defcomments $COMMENTDIR \
         | $BIN/gencot-mrgcomments /dev/null > $TMPDIR/$UNITNAME-dvdtypes.cogent
     cp $TMPDIR/$UNITNAME-externs.cogent $TMPDIR/$UNITNAME-exttypes.cogent $TMPDIR/$UNITNAME-dvdtypes.cogent .
@@ -276,8 +288,10 @@ then
     $BIN/gencot-check < $TMPDIR/$CNAME.in
 else
     prepare_cfile $CFILE
+    prepare_namap
     prepare_itemprops
-    $BIN/gencot-translate $CBASE $TMPDIR/$IPMFILE $EIFILE < $TMPDIR/$CNAME.in | $BIN/gencot-reporigs > $TMPDIR/$CNAME.out
+    $BIN/gencot-translate $CBASE $TMPDIR/$NAMAPFILE $TMPDIR/$IPMFILE $EIFILE < $TMPDIR/$CNAME.in \
+        | $BIN/gencot-reporigs > $TMPDIR/$CNAME.out
     process_directives
     process_comments
     if [ "$CMD" = "cfile" ]

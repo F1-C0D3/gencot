@@ -1,16 +1,41 @@
 #! /bin/sh
 
 # Substitute constant names in constant replacement bodies.
-# This is a filter from stdin to stdout.
+# This is a filter from stdin to stdout with an additional filename argument.
+# The argument file must contain the name prefix map used to map C identifiers to Cogent identifiers.
 
 awk \
 'function mapname(nam) { 
-   if (nam ~ /^MBEDTLS_/) res = "se" nam 
-   else if (nam ~ /^mbedtls_/) res = "se" nam 
-   else res = "cogent_" nam 
+   i = 0; found = 0
+   while ((i < numnpm) && (found == 0)) {
+     plen = length(prefix[++i])
+     if (prefix[i] == substr(nam,1,plen)) found = i 
+   }
+   if (found == 0) res = "cogent_" nam
+   else res = repl[found] substr(nam,1+length(prefix[found]))
    return res 
-} 
-BEGIN { 
+ } 
+ BEGIN { 
+   npm = ARGV[1]; delete ARGV[1] 
+   numnpm = 0 
+   while ((getline npr < npm) > 0) { 
+     num = split(npr, r) 
+     if (num != 0) {
+       if (num == 1) {
+         prefix[++numnpm] = ""
+         hrepl = r[1]
+       }
+       else {
+         prefix[++numnpm] = r[1]
+         hrepl = r[2]
+       }
+       num = split(hrepl, h, "\\|")
+       if (num == 0) repl[numnpm] = ""
+       else if (num == 1) repl[numnpm] = tolower(substr(h[1],1,1)) substr(h[1],2)
+       else repl[numnpm] = h[2]
+     }
+   }
+   close(npm) 
    lnr = 0 
    cont = 0 
    print "# 1 \"<mappings>\"" 
@@ -32,18 +57,30 @@ BEGIN {
    else if ($1 == "#") buf[lnr] = $0 
    else buf[lnr] = "" 
  } 
-END { 
-  lnrb = 0 
-  while (lnrb < lnr) print buf[++lnrb] 
-}' | cpp -nostdinc
+ END { 
+   lnrb = 0 
+   while (lnrb < lnr) print buf[++lnrb] 
+ }' $1 | cpp -nostdinc
 
 # documentation:
 # 
 # The output contains the masked constant definitions with line directives specifying the origin file and the 
 # line offset in that file. Constant names in replacement bodies have been substituted by cpp.
 #
+# From the name prefix map only the lowercase replacements are used, since only names of constants are mapped.
+# The name prefix map is stored in the arrays prefix and repl, indexed by consecutive integers starting with 1.
+# repl[i] is the (lowercase) replacement of prefix[i]. The number of map entries is stored in numnpm.
+#
 # Implementation in awk:
 # - Function mapname maps a macro name to a Cogent variable name, always starting with a lowercase letter.
+#   It does not use regex matching since the prefixes in the name prefix map are specified literally.
+#   Instead, the substring of the same length as the prefix is calculated and compared with the prefix.
+#   If no prefix from the name prefix map matches the default mapping is applied by prepending "cogent_".
+# - In the BEGIN rule the name prefix map file is read. Function split is used to split each line into words.
+#   Empty lines (0 words) are ignored. Lines with only one word specify a replacement for the empty prefix.
+#   In other lines the first word is the prefix, the second word is the replacement, all other words are ignored.
+#   The replacement is split at "|" separators using the regex "\\|". If it contains no separator its first
+#   character is converted to lowercase, otherwise the second part is used.
 # - lnr is a variable for counting line numbers. These are actual line numbers in the input, line directives
 #   are not reflected. The variable is only used for indexing the buf array.
 # - cont is a boolean variable which tells whether the next line is a continuation line for the

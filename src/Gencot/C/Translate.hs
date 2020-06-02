@@ -51,7 +51,8 @@ transFunDef (LC.CFunDef declspecs dclr _{-old parms-} stat ndef) = do
     ps <- transParams fdclr
     ms <- transStat stat
     let (GCA.Block bis _) = ms
-    return $ GCA.Func ds (mkMapId (const $ mapObjectName name lnk fnam ndef) name) rd ps bis $ mkOrigin ndef
+    onam <- mapObjectName name lnk fnam ndef
+    return $ GCA.Func ds (mkMapId (const onam) name) rd ps bis $ mkOrigin ndef
     where LC.CDeclr (Just name) (fdclr:resdclrs) asmname cattrs ndec = dclr
           lnk = if any isIntern declspecs then LCA.InternalLinkage else LCA.ExternalLinkage
           isIntern (CStorageSpec (CStatic _)) = True
@@ -163,7 +164,8 @@ transDecl (LC.CDecl specs divs n) | any isTypedef stor = do
           transDeclrToTypedef ((Just dclr@(LC.CDeclr (Just name) _ _ cattrs _)),_,_) = do
               d <- transDeclr dclr
               cs <- mapM transAttr cattrs
-              return $ GCA.Typedef (mkMapId mapNameToUpper name) d cs noOrigin
+              upper <- mkMapMId mapNameToUpper name
+              return $ GCA.Typedef upper d cs noOrigin
 transDecl (LC.CDecl specs divs n) = do
     ss <- transDeclSpecs specs
     it <- mapM transDeclrToInit divs
@@ -188,7 +190,8 @@ transMemberDecl (LC.CDecl specs divs n) = do
               --checkDeclr "field" dclr
               d <- transDeclr dclr
               me <- mapM transExpr mexpr
-              return $ GCA.Field (fmap (mkMapId mapIfUpper) mid) (Just d) me noOrigin
+              mfid <- mMapMId mapIfUpper mid
+              return $ GCA.Field mfid (Just d) me noOrigin
           transDeclrToField (Nothing,_,mexpr) = do
               me <- mapM transExpr mexpr
               return $ GCA.Field Nothing Nothing me noOrigin
@@ -203,7 +206,8 @@ transParamDecl (LC.CDecl specs (((Just dclr@(LC.CDeclr mid _ _ cattrs _)),Nothin
     checkDeclr "param" dclr
     ss <- transDeclSpecs specs
     d <- transDeclr dclr
-    return $ GCA.Param (fmap (mkMapId mapIfUpper) mid) ss d $ mkOrigin n
+    mpid <- mMapMId mapIfUpper mid
+    return $ GCA.Param mpid ss d $ mkOrigin n
 
 transDeclSpecs :: [LC.CDeclSpec] -> FTrav GCA.DeclSpec
 transDeclSpecs declspecs = 
@@ -250,7 +254,8 @@ transTypeSpecs ((LC.CEnumType enum@(LC.CEnum mid menums _ _) n):_) = do
 transTypeSpecs ss@((LC.CTypeDef ident n):_) = do
     t <- LCA.lookupTypeDef ident
     let ub = if isAggregate t then "#" else ""
-    return $ GCA.Tnamed (mkMapId ((ub ++) . mapNameToUpper) ident) [] $ listOrigin origin ss
+    upper <- mapNameToUpper ident
+    return $ GCA.Tnamed (GCA.Id (ub ++ upper) $ origin ident) [] $ listOrigin origin ss
 transTypeSpecs ss@((LC.CTypeOfExpr expr n):_) = do
     e <- transExpr expr
     return $ GCA.TtypeofExp e $ listOrigin origin ss
@@ -339,7 +344,8 @@ transEnum (LC.CEnum _ (Just vals) _ n) =
 transEnumerator :: (LC.Ident,Maybe LC.CExpr) -> FTrav GCA.CEnum
 transEnumerator enm@(name, mexpr) = do
     me <- mapM transExpr mexpr
-    return $ GCA.CEnum (mkMapId mapNameToLower name) me $ pairOrigin origin (maybeOrigin origin) enm
+    lower <- mkMapMId mapNameToLower name
+    return $ GCA.CEnum lower me $ pairOrigin origin (maybeOrigin origin) enm
 
 transDeclr :: LC.CDeclr -> FTrav GCA.Decl
 transDeclr dclr@(LC.CDeclr _ derived_declrs _ _ n) = transDerivedDeclrs derived_declrs
@@ -393,7 +399,8 @@ transDesignator (LC.CArrDesig expr n) = do
     e <- transExpr expr
     return $ GCA.IndexDesignator e $ mkOrigin n
 transDesignator (LC.CMemberDesig ident n) = do
-    return $ GCA.MemberDesignator (mkMapId mapIfUpper ident) $ mkOrigin n
+    did <- mkMapMId mapIfUpper ident
+    return $ GCA.MemberDesignator did $ mkOrigin n
 transDesignator (LC.CRangeDesig expr1 expr2 n) =
     error $ "Gencot unsupported C: CRangeDesig at " ++ show n
 
@@ -468,8 +475,8 @@ transExpr (LC.CCall expr args n) = do
     return $ GCA.FnCall e as $ mkOrigin n
 transExpr (LC.CMember expr ident isPtr n) = do
     e <- transExpr expr
+    i <- mkMapMId mapIfUpper ident
     return $ (if isPtr then GCA.PtrMember else GCA.Member) e i $ mkOrigin n
-    where i = mkMapId mapIfUpper ident
 transExpr (LC.CVar ident n) = do
     i <- transObjName ident
     return $ GCA.Var (mkMapId (const i) ident) $ mkOrigin n
@@ -612,6 +619,17 @@ mkId = mkMapId identToString
 
 mkMapId :: (LCI.Ident -> String) -> LCI.Ident -> GCA.Id
 mkMapId f idnam = GCA.Id (f idnam) $ origin idnam
+
+mkMapMId :: (LCI.Ident -> FTrav String) -> LCI.Ident -> FTrav GCA.Id
+mkMapMId f idnam = do
+    h <- f idnam
+    return $ GCA.Id h $ origin idnam
+
+mMapMId :: (LCI.Ident -> FTrav String) -> (Maybe LCI.Ident) -> FTrav (Maybe GCA.Id)
+mMapMId f Nothing = return Nothing
+mMapMId f (Just idnam) = do
+    h <- f idnam
+    return $ Just $ GCA.Id h $ origin idnam
 
 mId :: (Maybe String) -> (Maybe LCI.Ident) -> (Maybe GCA.Id)
 mId ms mo = (liftA2 mkMapId (fmap const ms) mo)

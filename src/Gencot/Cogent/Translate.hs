@@ -17,7 +17,6 @@ import Language.C.Syntax.AST as LCS
 import Cogent.Surface as CS
 import Cogent.Common.Syntax as CCS
 import Cogent.Common.Types as CCT
-import Cogent.Util (ffmap)
 
 import Gencot.Origin (Origin,noOrigin,origin,mkOrigin,noComOrigin,mkBegOrigin,mkEndOrigin,prepOrigin,appdOrigin,isNested,toNoComOrigin)
 import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapNameToLower,mapPtrDeriv,mapPtrVoid,mapMayNull,mapArrDeriv,mapFunDeriv,arrDerivHasSize,arrDerivToUbox,mapUboxStep,rmUboxStep,mapMayNullStep,rmMayNullStepThroughRo,addMayNullStep,mapPtrStep,mapFunStep,mapIncFunStep,mapArrStep,mapModStep,mapRoStep,mapNamFunStep,getFileName)
@@ -51,7 +50,7 @@ transGlobal (LCA.TagEvent def@(LCA.CompDef (LCA.CompType sueref LCA.StructTag me
            let iat = getTagItemAssoc def sfn
            ms <- mapM (transMember iat) aggmems
            nts <- liftM concat $ mapM (transMemTagIfNested iat) aggmems
-           return $ wrapOrigin n ([GenToplv (CS.TypeDec tn [] $ genType $ CS.TRecord ms markBox) noOrigin] ++ nts)
+           return $ wrapOrigin n ([GenToplv (CS.TypeDec tn [] $ genType $ CS.TRecord CCT.NonRec ms markBox) noOrigin] ++ nts)
     where typnam = LCA.TyComp $ LCA.CompTypeRef sueref LCA.StructTag n
           aggmems = aggBitfields mems
 -- If not yet translated as nested, translate a C union definition of the form
@@ -93,7 +92,7 @@ transGlobal de@(LCA.DeclEvent decl@(LCA.Declaration (LCA.Decl _ n))) | isComplet
 -- from nesttags:
 --    nt <- transTagIfNested dtyp n
     let typ = if isFunction dtyp then t else mkFunType t
-    return $ wrapOrigin n ({-nt ++ -}[GenToplv (CS.AbsDec f (CS.PT [] typ)) noOrigin])
+    return $ wrapOrigin n ({-nt ++ -}[GenToplv (CS.AbsDec f (CS.PT [] [] typ)) noOrigin])
     where idnam = LCA.declIdent decl
           dtyp = LCA.declType decl
 -- Translate a C function definition of the form
@@ -117,7 +116,7 @@ transGlobal (LCA.DeclEvent idecl@(LCA.FunctionDef fdef@(LCA.FunDef decl stat n))
     d <- extendExpr iat d pars
     s <- transStat stat
     LCA.leaveFunctionScope
-    return $ wrapOrigin n ({-nt ++ -}[GenToplv (CS.FunDef f (CS.PT [] t) [CS.Alt ps CCS.Regular $ FunBody d s]) noOrigin])
+    return $ wrapOrigin n ({-nt ++ -}[GenToplv (CS.FunDef f (CS.PT [] [] t) [CS.Alt ps CCS.Regular $ FunBody d s]) noOrigin])
     where idnam = LCA.declIdent idecl
           typ@(LCA.FunctionType (LCA.FunType res pars isVar) _) = LCA.declType idecl
 -- Translate a C object definition of the form
@@ -134,7 +133,7 @@ transGlobal (LCA.DeclEvent odef@(LCA.ObjectDef (LCA.ObjDef _ _ n))) = do
 -- from nesttags:
 --    nt <- transTagIfNested dtyp n
     let typ = if isFunction dtyp then t else mkFunType t
-    return $ wrapOrigin n ({-nt ++ -}[GenToplv (CS.AbsDec f (CS.PT [] typ)) noOrigin])
+    return $ wrapOrigin n ({-nt ++ -}[GenToplv (CS.AbsDec f (CS.PT [] [] typ)) noOrigin])
     where idnam = LCA.declIdent odef
           dtyp = LCA.declType odef
 -- Translate a C enumerator definition of the form
@@ -242,7 +241,7 @@ genDerivedTypeDefs :: String -> ItemAssocType -> FTrav [GenToplv]
 -- > type UArr... el
 genDerivedTypeDefs nam (_,(LCA.ArrayType _ _ _ _)) | arrDerivHasSize nam =
     return [tdef nam,adef $ arrDerivToUbox nam]
-    where tdef nam = GenToplv (CS.TypeDec nam ["el"] $ genType $ CS.TRecord [("arr", (ftyp nam, False))] markBox) noOrigin
+    where tdef nam = GenToplv (CS.TypeDec nam ["el"] $ genType $ CS.TRecord CCT.NonRec [("arr", (ftyp nam, False))] markBox) noOrigin
           ftyp nam = genType $ CS.TCon (arrDerivToUbox nam) [genType $ CS.TVar "el" False False] markUnbox
           adef nam = GenToplv (CS.AbsTypeDec nam ["el"] []) noOrigin
 -- For a derived function pointer type the name has the form @CFunPtr_enc@ or @CFunInc_enc@ where
@@ -738,21 +737,21 @@ mkRawExpr res = CS.RE $ CS.Tuple res
 
 setBoxed :: GenType -> GenType
 setBoxed (GenType (CS.TCon nam p _) o) = (GenType (CS.TCon nam p markBox) o)
-setBoxed (GenType (CS.TRecord fields _) o) = (GenType (CS.TRecord fields markBox) o)
+setBoxed (GenType (CS.TRecord rp fields _) o) = (GenType (CS.TRecord rp fields markBox) o)
 setBoxed (GenType (CS.TUnbox (GenType t _)) o) = (GenType t o)
 
 setUnboxed :: GenType -> GenType
 setUnboxed (GenType (CS.TCon nam p _) o) = (GenType (CS.TCon nam p markUnbox) o)
-setUnboxed (GenType (CS.TRecord fields _) o) = (GenType (CS.TRecord fields markUnbox) o)
+setUnboxed (GenType (CS.TRecord rp fields _) o) = (GenType (CS.TRecord rp fields markUnbox) o)
 setUnboxed (GenType t o) = (GenType (CS.TUnbox (GenType t noOrigin)) o)
 
 isUnboxed :: GenType -> Bool
 isUnboxed (GenType (CS.TCon _ _ CCT.Unboxed) _) = True
-isUnboxed (GenType (CS.TRecord _ CCT.Unboxed) _) = True
+isUnboxed (GenType (CS.TRecord _ _ CCT.Unboxed) _) = True
 isUnboxed (GenType (CS.TUnbox _) _) = True
 isUnboxed _ = False
 
-markBox = CCT.Boxed False CS.noRepE
+markBox = CCT.Boxed False Nothing
 markUnbox = CCT.Unboxed
 
 isString :: GenType -> Bool
@@ -768,7 +767,3 @@ remComment (GenType t o) = GenType t $ toNoComOrigin o
 
 errType :: String -> FTrav GenType
 errType s = return $ genType $ CS.TCon ("err-" ++ s) [] markUnbox
-
-stripOrigT :: GenType -> RawType
-stripOrigT = RT . fmap stripOrigT . ffmap (const $ CS.RE CS.Unitel) . typeOfGT
-

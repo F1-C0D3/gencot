@@ -417,9 +417,9 @@ static $ty:(pref!) $id:getrefPtr($ty:((CPtr #pref)!) arg) {
     return ($ty:(pref!)) arg;
 }
 
-static $ty:(#funptr) $id:toFunPtr($ty:fun arg) {
-    $ty:(#funptr) res = NULL;
-    gencotToFunptr(($ty:fun) arg, ($ty:(#funptr)) res);
+static $ty:(ufunptr) $id:toFunPtr($ty:fun arg) {
+    $ty:(ufunptr) res = NULL;
+    gencotToFunptr(($ty:fun) arg, ($ty:(ufunptr)) res);
     // switch (arg) {
     //   case FUN_ENUM_f1: res = &f1; break;
     //   ...
@@ -427,9 +427,9 @@ static $ty:(#funptr) $id:toFunPtr($ty:fun arg) {
     return res;
 }
 
-static $ty:(Result fun ()) $id:fromFunPtr($ty:(#funptr) arg) {
+static $ty:(Result fun ()) $id:fromFunPtr($ty:(ufunptr) arg) {
     $ty:(Result fun ()) res = {.Success=-1,.Error=UNITVAL};
-    gencotFromFunptr(($ty:(#funptr)) arg, ($ty:fun) res.Success);
+    gencotFromFunptr(($ty:(ufunptr)) arg, ($ty:fun) res.Success);
     // if (arg == &f1) res.Success = FUN_ENUM_f1;
     // else if (arg == &f2) res.Success = FUN_ENUM_f2;
     // ...

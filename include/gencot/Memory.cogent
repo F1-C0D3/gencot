@@ -55,12 +55,16 @@ type ClrFun vvt evt arg out = ModTypeFun vvt evt arg out
 -- Always successful.
 --   evt: type of empty values
 --   vvt: type of valid values
-initFull: all(evt,vvt). IniFun evt vvt #vvt ()
+--initFull: all(evt,vvt). IniFun evt vvt #vvt ()
+--  (Patch for Cogent Issue 306: use additional type variable for #vvt:)
+initFull: all(evt,vvt,uvvt). IniFun evt vvt uvvt ()
 
 -- Clearing function which returns the content as an unboxed value.
 --   vvt: type of valid values
 --   evt: type of empty values
-clearFull: all(evt,vvt). ClrFun vvt evt () #vvt
+--clearFull: all(evt,vvt). ClrFun vvt evt () #vvt
+--  (Patch for Cogent Issue 306: use additional type variable for #vvt:)
+clearFull: all(evt,vvt,uvvt). ClrFun vvt evt () uvvt
 
 -- Initialization function which allocates linear content on the heap.
 -- Content of primitive type is set to its default value using defaultVal.

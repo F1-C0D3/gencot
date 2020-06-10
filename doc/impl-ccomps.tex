@@ -77,8 +77,7 @@ file.
 
 If an external item is actually used (by invoking a function, accessing an object, or referencing a type) in the Cogent
 compilation unit, it must also be translated to Cogent so that it is known in the Cogent program. Functions are translated
-in the form of exit wrappers, objects are translated in the form of abstract access functions, and types are translated
-as usual.
+in the form of exit wrappers, objects and types are translated as usual.
 
 Usually, C programs know many external items without actually using them. To keep the resulting Cogent code as small 
 as possible, Gencot performs an automatic analysis to determine the external toplevel items which are actually used
@@ -406,9 +405,10 @@ Function pointers are invoked as described in Section~\ref{design-operations-fun
 which are sub-items of other items must be function pointers, exit wrappers are only generated for toplevel
 items, sub-items are not considered here.
 
-For a used external object (including invoked function pointers) Gencot generates a Cogent abstract function 
-definition for an access function without providing an implementation in antiquoted C. Again, this is only 
-done for toplevel items, sub-items are not considered.
+For a used external object (including invoked function pointers) with Const-Val property Gencot generates a 
+Cogent abstract function definition for an access function and provides an implementation in antiquoted C 
+together with the exit wrappers for external functions. Again, this is only done for toplevel items, sub-items 
+are not considered.
 
 \subsubsection{Processor \code{gencot-externs}}
 
@@ -433,7 +433,8 @@ The result is output using \code{prettyTopLevels} from module \code{Gencot.Cogen
 
 \subsubsection{Processor \code{gencot-externsac}}
 
-The processor \code{gencot-externsac} generates the wrapper implementations in antiquoted C code.
+The processor \code{gencot-externsac} generates the wrapper implementations and the implementations for 
+the access functions in antiquoted C code.
 
 \subsection{External Cogent Types}
 \label{impl-ccomps-exttypes}
@@ -582,10 +583,12 @@ type are processed recursively. For a composite type item its members are proces
 
 An item is processed as follows. If its declared or defined type is primitive or an enum or a function pointer no output 
 is generated since properties are not 
-supported or always ignored for it. Otherwise, if it is a parameter item or its declared type is not composite, a property
-declaration is generated for it (parameters of composite type may be affected by the Add-Result property, items of function
+supported or always ignored for it. Otherwise, if it is a parameter item, a global variable, or its declared type is 
+not composite, a property
+declaration is generated for it (parameters of composite type may be affected by the Add-Result property, global variables 
+of composite type may be affected by the Global-State property, items of function
 type may be affected by the Heap-Use property, items of pointer or array type may be affected by the Read-Only property).
-For non-parameter items of composite type no output is generated since properties are not 
+For non-parameter and non-global-variable items of composite type no output is generated since properties are not 
 supported or always ignored for them.
 
 If the non-function-pointer type of an item is intrinsically readonly, the Read-Only property is declared for it. If an 

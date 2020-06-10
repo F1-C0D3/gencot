@@ -6,6 +6,8 @@ import Data.List (nub,isPrefixOf,isInfixOf,intercalate,unlines)
 import Data.Map (Map,singleton,unions,toList,union)
 import Data.Maybe (catMaybes)
 
+import Data.Char (ord)
+
 import "language-c" Language.C as LC hiding (pretty,Pretty)
 import Language.C.Data.Ident as LCI
 import Language.C.Data.Node as LCN
@@ -20,7 +22,8 @@ import Cogent.Common.Types as CCT
 
 import Gencot.Origin (Origin,noOrigin,origin,mkOrigin,noComOrigin,mkBegOrigin,mkEndOrigin,prepOrigin,appdOrigin,isNested,toNoComOrigin)
 import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapNameToLower,mapPtrDeriv,mapPtrVoid,mapMayNull,mapArrDeriv,mapFunDeriv,arrDerivHasSize,arrDerivToUbox,mapUboxStep,rmUboxStep,mapMayNullStep,rmMayNullStepThroughRo,addMayNullStep,mapPtrStep,mapFunStep,mapIncFunStep,mapArrStep,mapModStep,mapRoStep,mapNamFunStep,getFileName)
-import Gencot.Items.Types (ItemAssocType,isNotNullItem,isReadOnlyItem,isAddResultItem,isNoStringItem,getTagItemAssoc,getIndividualItemAssoc,getTypedefItemAssoc,adjustItemAssocType,getMemberSubItemAssoc,getRefSubItemAssoc,getResultSubItemAssoc,getElemSubItemAssoc,getParamSubItemAssoc,getItemAssocType,getMemberItemAssocTypes,getSubItemAssocTypes,numberList)
+import Gencot.Items.Types (ItemAssocType,isNotNullItem,isReadOnlyItem,isAddResultItem,isNoStringItem,getGlobalStateSubItemIds,getGlobalStateProperty,getGlobalStateId,getTagItemAssoc,getIndividualItemAssoc,getTypedefItemAssoc,adjustItemAssocType,getMemberSubItemAssoc,getRefSubItemAssoc,getResultSubItemAssoc,getElemSubItemAssoc,getParamSubItemAssoc,getItemAssocType,getMemberItemAssocTypes,getSubItemAssocTypes,numberList)
+import Gencot.Items.Identifier (getObjFunName)
 import Gencot.Cogent.Ast
 import Gencot.C.Translate (transStat,transExpr)
 import Gencot.Traversal (FTrav,markTagAsNested,isMarkedAsNested,hasProperty,stopResolvTypeName)
@@ -92,7 +95,9 @@ transGlobal de@(LCA.DeclEvent decl@(LCA.Declaration (LCA.Decl _ n))) | isComplet
 -- from nesttags:
 --    nt <- transTagIfNested dtyp n
     let typ = if isFunction dtyp then t else mkFunType t
-    return $ wrapOrigin n ({-nt ++ -}[GenToplv (CS.AbsDec f (CS.PT [] [] typ)) noOrigin])
+    if isFunction dtyp -- suppress generation of access function
+       then return $ wrapOrigin n ({-nt ++ -}[GenToplv (CS.AbsDec f (CS.PT [] [] typ)) noOrigin])
+       else return $ []
     where idnam = LCA.declIdent decl
           dtyp = LCA.declType decl
 -- Translate a C function definition of the form
@@ -133,7 +138,7 @@ transGlobal (LCA.DeclEvent odef@(LCA.ObjectDef (LCA.ObjDef _ _ n))) = do
 -- from nesttags:
 --    nt <- transTagIfNested dtyp n
     let typ = if isFunction dtyp then t else mkFunType t
-    return $ wrapOrigin n ({-nt ++ -}[GenToplv (CS.AbsDec f (CS.PT [] [] typ)) noOrigin])
+    return $ [] --wrapOrigin n ({-nt ++ -}[GenToplv (CS.AbsDec f (CS.PT [] [] typ)) noOrigin])
     where idnam = LCA.declIdent odef
           dtyp = LCA.declType odef
 -- Translate a C enumerator definition of the form
@@ -438,7 +443,7 @@ transType rslv iat@(_, pt@(LCA.PtrType t _ _)) = do
                 else genType $ CS.TCon mapPtrDeriv [typ] markBox
     return $ makeReadOnlyIf ro $ addMayNullIfNot safe rtyp
 -- Complete derived function type: ret (p1,..,pn)
--- Translate to: Cogent function type (p1,..,pn) -> ret, then apply parmod description.
+-- Translate to: Cogent function type (p1,..,pn) -> ret, then apply properties.
 transType rslv iat@(_, (LCA.FunctionType (LCA.FunType ret pars variadic) _)) = do
     sub <- getResultSubItemAssoc iat
     r <- transType rslv sub
@@ -641,12 +646,18 @@ getTypedefName t = ""
 
 -- | Apply item properties to a mapped function type.
 -- The first parameter is the item associated type of the function.
--- For every parameter which has the Add-Result property and no Read-Only property its type is appended to the result type.
+-- First add all parameters with a Global-State property.
+-- Then for every parameter which has the Add-Result or Global-State property and no Read-Only property
+-- its type is appended to the result type.
 -- Comment markers are removed from these types to avoid duplication of comments.
 applyProperties :: ItemAssocType -> GenType -> FTrav GenType
 applyProperties iat@(_,(LCA.FunctionType (LCA.FunType _ pars _) _)) (GenType (CS.TFun pt rt) o) = do
     arProps <- mapM shallAddResult $ map (getParamSubItemAssoc iat) (numberList pars)
-    return $ GenType (CS.TFun pt (mkParType $ addPars rt $ map remComment $ map snd $ filter fst $ zip arProps ptl)) o 
+    gsiats <- makeGlobalStateItemAssocTypes iat
+    gstypes <- mapM makeGlobalStateType gsiats
+    let gsarProps = map shallAddResultGS gstypes
+    let arPars = map snd $ filter fst $ zip (arProps ++ gsarProps) (ptl ++ gstypes)
+    return $ GenType (CS.TFun (mkParType (ptl ++ gstypes)) (mkParType $ addPars rt $ map remComment $ arPars)) o 
     where addPars (GenType CS.TUnit _) ps = ps
           addPars r ps = r : ps
           ptl = ptlist pt
@@ -659,6 +670,26 @@ shallAddResult iat = do
     ar <- isAddResultItem iat
     ro <- isReadOnlyItem iat
     return (ar && (not ro))
+
+shallAddResultGS :: GenType -> Bool
+shallAddResultGS t = not $ isReadOnly t
+
+-- | Construct item assoc types for all parameters to be added by a Global-State property.
+-- The argument is the item associated type of the function. 
+-- The item names are taken from the declarations of the virtual items.
+-- As type the type void is used as a dummy, we only need the item associatd type to access its properties.
+makeGlobalStateItemAssocTypes :: ItemAssocType -> FTrav [ItemAssocType]
+makeGlobalStateItemAssocTypes fiat = do
+    gsids <- getGlobalStateSubItemIds fiat
+    return $ map (\iid -> (iid, LCA.DirectType LCA.TyVoid LCA.noTypeQuals LCA.noAttributes)) gsids
+
+-- | Determine the Cogent type from the item associated type of a global state parameter
+-- The type is ignored, the Cogent type is determined from the Global-State property only.
+makeGlobalStateType :: ItemAssocType -> FTrav GenType
+makeGlobalStateType iat@(iid,_) = do
+    ro <- isReadOnlyItem iat
+    gs <- getGlobalStateProperty iid
+    return $ makeReadOnlyIf ro $ genType $ CS.TCon ("GlobState" ++ (drop 2 gs)) [] $ markBox
 
 mkBoxedType :: String -> Origin -> GenType
 mkBoxedType nam = GenType (CS.TCon nam [] $ markBox)
@@ -753,6 +784,10 @@ isUnboxed _ = False
 
 markBox = CCT.Boxed False Nothing
 markUnbox = CCT.Unboxed
+
+isReadOnly :: GenType -> Bool
+isReadOnly (GenType (CS.TBang t) _) = True
+isReadOnly _ = False
 
 isString :: GenType -> Bool
 isString (GenType (CS.TBang t) _) = isString t

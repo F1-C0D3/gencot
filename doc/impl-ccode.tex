@@ -1213,11 +1213,15 @@ An error can be recorded in the monad using the action
 
 The item property map can be accessed by the monadic actions
 \begin{verbatim}
+  getItems :: (String -> [String] -> Bool) -> FTrav [String]
   getProperties :: String -> FTrav [String]
   hasProperty :: String -> String -> FTrav Bool
 \end{verbatim}
-where the last \code{String} argument is an item identifier. The first action returns the list of all properties declared 
-for the item, the second action tests whether the property named as first argument is declared for the item.
+where the last \code{String} argument is an item identifier.  The first action takes a predicate 
+on the item id and the property list as argument and returns the list of item ids for which the declaration satisfies
+the predicate. 
+The second action returns the list of all properties declared 
+for the item, the third action tests whether the property named as first argument is declared for the item.
 
 \subsection{Creating and Using the C Call Graph}
 \label{impl-ccode-callgraph}

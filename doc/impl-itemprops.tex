@@ -79,7 +79,9 @@ The parameters of a function are specified in either of the forms
     <item identifier> / <parameter name>
     <item identifier> / <position number>
 \end{verbatim}
-where the position number of the first parameter is 1.
+where the position number of the first parameter is 1. A virtual parameter with the Global-State property
+declared must always be specified in the former form with the parameter name. The position is automatically
+determined by Gencot when the parameter is added to the Cogent function.
 
 As an example, if \code{f\_t} is a typedef name for a function type with a parameter \code{par} 
 which is a pointer to an array of function pointers, the results of the function pointers in the
@@ -129,7 +131,8 @@ and translate enum types as described in Section~\ref{design-types-enum}.
 
 Generally, Gencot translates item associated types to Cogent. It translates functions as described in Section~\ref{design-fundefs}
 and it translates enum types, composite types and type definitions as described in Section~\ref{design-types}.
-Gencot translates global variables to an abstract access function, using the translated type of the variable.
+Gencot translates global variables with Const-Val property to an abstract access function, using the translated 
+type of the variable or a pointer to the variable.
 Gencot does not translate local variables, this must be done manually. To support the manual translation, 
 however, Gencot processes their types in the same way as for global variables, thus providing all prerequisites
 to use these types manually. Note, however, that local variables have no unique item identifier, thus no properties
@@ -157,8 +160,12 @@ Each property is identified by a two-letter code as follows:
 \item[No-String:] ns
 \item[Heap-Use:] hu
 \item[Add-Result:] ar
+\item[Global-State:] gs
 \item[Modification-Function:] mf
 \end{description}
+
+The numerical argument of Global-State properties is directly appended, such as in \code{gs5}. As an exception,
+the numerical argument 0 is omitted and the plain property identifier \code{gs} is used.
 
 \subsection{Item Property Declarations}
 \label{impl-itemprops-decl}
@@ -167,12 +174,14 @@ An item property declaration consists of a single text line which starts with an
 by an arbitrary number of property identifiers in arbitrary order, separated by space sequences.
 For better readability a colon may be appended to the item identifier.
 
-As an example, to declare properties for the parameters \code{p1, par2, param3} of a function pointer \code{myfunp}
-and the Heap-Use property for the function itself, four declarations are needed:
+As an example, to declare properties for the parameters \code{p1, par2, param3} of a function pointer \code{myfunp},
+introduce an additional parameter for a global variable, and declare the Heap-Use property for the function itself, 
+five declarations are needed:
 \begin{verbatim}
     myfunp/*/p1:     nn ro
     myfunp/*/par2:   ar mf
     myfunp/*/param3: ns
+    myfunp/*/gstate: gs3
     myfunp/*:        hu
 \end{verbatim}
 
@@ -190,6 +199,7 @@ arbitrary.
 
 The \code{ItemProperties} map is added as component to the user state of the \code{FTrav} monad. The monadic actions
 \begin{verbatim}
+  getItems :: (String -> [String] -> Bool) -> FTrav [String]
   getProperties :: String -> FTrav [String]
   hasProperty :: String -> String -> FTrav Bool
 \end{verbatim}

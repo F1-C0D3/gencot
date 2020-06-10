@@ -2,7 +2,7 @@
 module Gencot.Traversal where
 
 import Control.Monad (liftM)
-import Data.Map (Map,findWithDefault,empty)
+import Data.Map (Map,findWithDefault,empty,keys,filterWithKey)
 
 import Language.C.Analysis.DefTable (DefTable)
 import Language.C.Data.Ident (SUERef,Ident,identToString)
@@ -47,6 +47,11 @@ isMarkedAsNested :: SUERef -> FTrav Bool
 isMarkedAsNested ref = do
     (_,_,ntl,_,_) <- getUserState
     return $ elem ref ntl
+
+getItems :: (String -> [String] -> Bool) -> FTrav [String]
+getItems pred = do
+    (_,_,_,ipm,_) <- getUserState
+    return $ keys $ filterWithKey pred ipm
 
 getProperties :: String -> FTrav [String]
 getProperties iid = do

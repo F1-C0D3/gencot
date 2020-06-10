@@ -1,6 +1,6 @@
 module Gencot.Items.Properties where
 
-import Data.List (break,lines,words,union,intercalate,nub,(\\))
+import Data.List (break,lines,words,union,intercalate,nub,(\\),find,isPrefixOf)
 import Data.Map (Map,singleton,unions,unionWith,differenceWith,toAscList,keys,filterWithKey)
 import Data.Char (isSpace,isLetter)
 
@@ -35,7 +35,15 @@ parsePropertyLine line =
     singleton iid props
     where (ciid,rest) = break isSpace line -- ciid = <item id>[:], rest = <whitespace> <property> <whitespace> ...
           iid = if last ciid == ':' then init ciid else ciid -- iid = <item id>
-          props = nub $ words rest -- [<property>,...]
+          props = reduceGS $ nub $ words rest -- [<property>,...]
+
+-- | Reduce gs<i> properties to the first and omit all others.
+reduceGS :: [String] -> [String]
+reduceGS props = 
+    case firstGS of
+         Nothing -> props
+         (Just gs) -> filter (\w -> (not ("gs" `isPrefixOf` w)) || w == gs) props
+    where firstGS = find (\w -> "gs" `isPrefixOf` w) props
 
 -- | Output an item property map as a sequence of lines.
 -- Reverse of @parseProperties@

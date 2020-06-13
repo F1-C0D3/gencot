@@ -2,7 +2,7 @@
 module Gencot.Cogent.Translate where
 
 import Control.Monad (liftM,when)
-import Data.List (nub,isPrefixOf,isInfixOf,intercalate,unlines)
+import Data.List (nub,isPrefixOf,isInfixOf,intercalate,unlines,sortOn,sort)
 import Data.Map (Map,singleton,unions,toList,union)
 import Data.Maybe (catMaybes)
 
@@ -21,12 +21,12 @@ import Cogent.Common.Syntax as CCS
 import Cogent.Common.Types as CCT
 
 import Gencot.Origin (Origin,noOrigin,origin,mkOrigin,noComOrigin,mkBegOrigin,mkEndOrigin,prepOrigin,appdOrigin,isNested,toNoComOrigin)
-import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapNameToLower,mapPtrDeriv,mapPtrVoid,mapMayNull,mapArrDeriv,mapFunDeriv,arrDerivHasSize,arrDerivToUbox,mapUboxStep,rmUboxStep,mapMayNullStep,rmMayNullStepThroughRo,addMayNullStep,mapPtrStep,mapFunStep,mapIncFunStep,mapArrStep,mapModStep,mapRoStep,mapNamFunStep,getFileName)
+import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapNameToLower,mapPtrDeriv,mapPtrVoid,mapMayNull,mapArrDeriv,mapFunDeriv,arrDerivHasSize,arrDerivToUbox,mapUboxStep,rmUboxStep,mapMayNullStep,rmMayNullStepThroughRo,addMayNullStep,mapPtrStep,mapFunStep,mapIncFunStep,mapArrStep,mapModStep,mapRoStep,mapNamFunStep,getFileName,globStateType)
 import Gencot.Items.Types (ItemAssocType,isNotNullItem,isReadOnlyItem,isAddResultItem,isNoStringItem,getGlobalStateSubItemIds,getGlobalStateProperty,getGlobalStateId,getTagItemAssoc,getIndividualItemAssoc,getTypedefItemAssoc,adjustItemAssocType,getMemberSubItemAssoc,getRefSubItemAssoc,getResultSubItemAssoc,getElemSubItemAssoc,getParamSubItemAssoc,getItemAssocType,getMemberItemAssocTypes,getSubItemAssocTypes,numberList)
-import Gencot.Items.Identifier (getObjFunName)
+import Gencot.Items.Identifier (getObjFunName,getParamName)
 import Gencot.Cogent.Ast
 import Gencot.C.Translate (transStat,transExpr)
-import Gencot.Traversal (FTrav,markTagAsNested,isMarkedAsNested,hasProperty,stopResolvTypeName)
+import Gencot.Traversal (FTrav,markTagAsNested,isMarkedAsNested,hasProperty,stopResolvTypeName,setFunDef,clrFunDef)
 import Gencot.Util.Types (carriedTypes,isExtern,isCompOrFunc,isCompPointer,isNamedFunPointer,isFunPointer,isPointer,isAggregate,isFunction,isTypeDefRef,isComplete,isArray,isVoid,isTagRef,containsTypedefs,resolveTypedef,isComposite,isLinearType,isLinearParType,isReadOnlyType,isReadOnlyParType,isDerivedType,isExternTypeDef,wrapFunAsPointer,getTagDef)
 
 genType t = GenType t noOrigin
@@ -114,31 +114,42 @@ transGlobal (LCA.DeclEvent idecl@(LCA.FunctionDef fdef@(LCA.FunDef decl stat n))
     t <- transType False iat
 -- from nesttags:
 --    nt <- transTagIfNested typ n -- wirkt erst wenn transTagIfNested auch derived types verarbeitet
-    ps <- transParamNames isVar pars
+    ps <- transParamNames iat isVar pars
     LCA.enterFunctionScope
     LCA.defineParams LCN.undefNode decl
+    setFunDef fdef
     d <- dummyExpr res
     d <- extendExpr iat d pars
     s <- transStat stat
+    clrFunDef
     LCA.leaveFunctionScope
     return $ wrapOrigin n ({-nt ++ -}[GenToplv (CS.FunDef f (CS.PT [] [] t) [CS.Alt ps CCS.Regular $ FunBody d s]) noOrigin])
     where idnam = LCA.declIdent idecl
           typ@(LCA.FunctionType (LCA.FunType res pars isVar) _) = LCA.declType idecl
 -- Translate a C object definition of the form
 -- > typ name = expr;
--- (where type may be a derived type syntactically integrated in the name)
--- to a Cogent abstract function definition of the form
+-- (where typ may be a derived type syntactically integrated in the name).
+-- If it has a Global-State property a type synonym definition of the form
+-- > type GlobState<i> = typ*
+-- is generated for the type of pointer to the object. 
+-- If it has a Const-Val property a Cogent abstract function definition of the form
 -- > name :: () -> typ
--- for a parameterless access function
+-- for a parameterless access function is generated.
 transGlobal (LCA.DeclEvent odef@(LCA.ObjectDef (LCA.ObjDef _ _ n))) = do
     f <- transObjName idnam
     sfn <- getFileName
     let iat = getIndividualItemAssoc odef sfn
+    gs <- getGlobalStateProperty $ fst iat
+    tsyn <- if null gs 
+               then return $ []
+               else do
+                   pt <- transType False $ adjustItemAssocType iat
+                   return $ [GenToplv (CS.TypeDec (globStateType gs) [] $ rmMayNullIf True pt) noOrigin]
     t <- transType False iat
 -- from nesttags:
 --    nt <- transTagIfNested dtyp n
-    let typ = if isFunction dtyp then t else mkFunType t
-    return $ [] --wrapOrigin n ({-nt ++ -}[GenToplv (CS.AbsDec f (CS.PT [] [] typ)) noOrigin])
+    let afun = [] -- [GenToplv (CS.AbsDec f (CS.PT [] [] $ mkFunType t)) noOrigin]
+    return $ wrapOrigin n ({-nt ++ -} tsyn ++ afun)
     where idnam = LCA.declIdent odef
           dtyp = LCA.declType odef
 -- Translate a C enumerator definition of the form
@@ -272,13 +283,15 @@ genDerivedTypeDefs nam iat@(iid,pt@(LCA.PtrType _ _ _)) = do
           getName (GenType (CS.TCon nam _ _) _) = nam
 genDerivedTypeDefs _ _ = return []
 
--- | Extend a result expression according to the Add-Result properties of the function parameters.
+-- | Extend a result expression according to the Add-Result and Global-State properties of the function parameters.
 -- The first argument is the item associated type of the function.
 extendExpr :: ItemAssocType -> RawExpr -> [LCA.ParamDecl] -> FTrav RawExpr
 extendExpr iat e pars = do
     arProps <- mapM shallAddResult $ map (getParamSubItemAssoc iat) (numberList pars)
     res <- mapM (\(_,d) -> do { vid <- mapIfUpper $ LCA.declIdent d; return $ CS.RE $ CS.Var vid}) $ filter fst $ zip arProps pars
-    return $ mkRawExpr $ addres res e
+    gsn <- makeGlobalStateNames True iat
+    gse <- mapM (\n -> do { vid <- mapIfUpper $ LCI.Ident n 0 LCN.undefNode;  return $ CS.RE $ CS.Var vid}) gsn
+    return $ mkRawExpr $ addres (res ++ gse) e
     where addres res (CS.RE CS.Unitel) = res
           addres res e = e : res
 
@@ -328,19 +341,35 @@ transMember iat mdecl@(LCA.MemberDecl (LCA.VarDecl (LCA.VarName idnam _) _ _) _ 
     where miat@(_,mtyp) = getMemberSubItemAssoc iat mdecl
 {- LCA.AnonBitField cannot occur since it is always replaced by aggBitfields -}
 
-transParamNames :: Bool -> [LCA.ParamDecl] -> FTrav GenIrrefPatn
-transParamNames variadic [] = 
-    return $ if variadic then variadicParamName else GenIrrefPatn CS.PUnitel noOrigin
-transParamNames variadic [pd] = do
-    pn <- transParamName pd
-    return $ if variadic then GenIrrefPatn (CS.PTuple [pn, variadicParamName]) noOrigin else pn
-transParamNames variadic pars = do
+-- | Translate a sequence of parameter declarations to a pattern for binding the parameter names.
+-- The first argument is the item associated type of the function.
+-- The second argument tells whether the function is variadic.
+transParamNames :: ItemAssocType -> Bool -> [LCA.ParamDecl] -> FTrav GenIrrefPatn
+transParamNames fiat variadic pars = do
     ps <- mapM transParamName pars
-    let vps = if variadic then ps ++ [variadicParamName] else ps
-    return $ GenIrrefPatn (CS.PTuple vps) noOrigin
+    psgn <- makeGlobalStateNames False fiat
+    let psg = map (\nam -> GenIrrefPatn (CS.PVar $ nam) $ noOrigin) psgn
+    let vps = if variadic then ps ++ psg ++ [variadicParamName] else ps ++ psg
+    return $ if null vps 
+                then GenIrrefPatn CS.PUnitel noOrigin 
+                else case vps of
+                          [pn] -> pn
+                          _ -> GenIrrefPatn (CS.PTuple vps) noOrigin
 
 variadicParamName = GenIrrefPatn (CS.PVar "variadicCogentParameters") noOrigin
 
+-- | Get the names of virtual parameters with Global-State property
+-- sorted according to the property numerical arguments
+-- The first argument tells whether to omit parameters with Read-Only property.
+makeGlobalStateNames :: Bool -> ItemAssocType -> FTrav [String]
+makeGlobalStateNames noro fiat = do 
+    iats <- makeGlobalStateItemAssocTypes fiat
+    ros <- mapM isReadOnlyItem iats
+    gsps <- mapM getGlobalStateProperty (map fst iats)
+    let vpars = zip (map (getParamName .fst) iats) $ zip gsps ros
+    let rpars = if noro then filter (not . snd . snd) vpars else vpars
+    return $ map fst $ sortOn (fst . snd) rpars
+        
 transParamName :: LCA.ParamDecl -> FTrav GenIrrefPatn
 transParamName pd = do
     pnam <- mapIfUpper $ LCA.declIdent pd
@@ -654,7 +683,8 @@ applyProperties :: ItemAssocType -> GenType -> FTrav GenType
 applyProperties iat@(_,(LCA.FunctionType (LCA.FunType _ pars _) _)) (GenType (CS.TFun pt rt) o) = do
     arProps <- mapM shallAddResult $ map (getParamSubItemAssoc iat) (numberList pars)
     gsiats <- makeGlobalStateItemAssocTypes iat
-    gstypes <- mapM makeGlobalStateType gsiats
+    gsps <- mapM getGlobalStateProperty (map fst gsiats)
+    gstypes <- mapM makeGlobalStateType $ map fst $ sortOn snd $ zip gsiats gsps
     let gsarProps = map shallAddResultGS gstypes
     let arPars = map snd $ filter fst $ zip (arProps ++ gsarProps) (ptl ++ gstypes)
     return $ GenType (CS.TFun (mkParType (ptl ++ gstypes)) (mkParType $ addPars rt $ map remComment $ arPars)) o 
@@ -689,7 +719,7 @@ makeGlobalStateType :: ItemAssocType -> FTrav GenType
 makeGlobalStateType iat@(iid,_) = do
     ro <- isReadOnlyItem iat
     gs <- getGlobalStateProperty iid
-    return $ makeReadOnlyIf ro $ genType $ CS.TCon ("GlobState" ++ (drop 2 gs)) [] $ markBox
+    return $ makeReadOnlyIf ro $ genType $ CS.TCon (globStateType gs) [] $ markBox
 
 mkBoxedType :: String -> Origin -> GenType
 mkBoxedType nam = GenType (CS.TCon nam [] $ markBox)

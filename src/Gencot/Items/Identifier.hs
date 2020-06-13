@@ -157,3 +157,12 @@ getObjFunName :: String -> String
 getObjFunName iid =
     if null pst then iid else tail pst
     where (pre,pst) = break (== ':') iid
+
+-- | Retrieve a parameter name or position from a parameter item identifier.
+-- It is the suffix after the last slash.
+-- If the argument contains no slash the result is empty.
+getParamName :: String -> String
+getParamName iid = 
+    if null sis then ""
+                else drop ((last sis) + 1) iid
+    where sis = findIndices (== '/') iid

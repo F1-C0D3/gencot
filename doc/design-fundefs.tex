@@ -32,7 +32,10 @@ or parameter names. For all names with global scope Gencot has generated a Cogen
 These names are substituted in the C code of the function body by the corresponding mapped names so that the 
 mapping need not be done manually by the programmer.
 
-This does not include the mapping of derived types. Type derivation in C is done in declarators which refer
+Names with local scope (either local variables or types/tags) are also mapped by Gencot, both in their (local)
+definition and whenever they are used. 
+
+The mapping does not include the mapping of derived types. Type derivation in C is done in declarators which refer
 a common type specification in a declaration. In Cogent there is no similar concept, every declarator must be 
 translated to a separate declaration. This is not done due to the reasons described above. As result, a translated
 local declaration may have the form
@@ -52,7 +55,18 @@ to use uppercase parameter names in C, the Cogent function will normally use the
 If the function is variadic an additional last tuple component is added with a variable named
 \code{variadicCogentParameters}, mainly to inform the developer that manual action is required.
 
-If the C function body is directly written into the Cogent source file, it cannot be syntax checked by the 
+Global variables referenced in a function body are treated in a specific way. If the global variable has a 
+Global-State property (see Section~\ref{design-types-itemprops}) and a virtual parameter item with the same
+property has been declared for the function, the identifier of the global variable is replaced by the 
+mapped parameter name with the dereference operator applied. This corresponds to the intended purpose of the 
+Global-State properties: instead of accessing global variables directly from within a function, a pointer is 
+passed as parameter and the variable is accessed by dereferencing this pointer.
+
+If a global variable has the Const-Val property (see Section~\ref{design-types-itemprops}) its access is
+replaced by an invocation of the corresponding parameterless access function. If the global variable has 
+neither of these properties declared, Gencot simply uses its mapped name, this case must be handled manually.
+
+If the C function body would be directly written into the Cogent source file, it cannot be syntax checked by the 
 Cogent compiler. Therefore it is wrapped as a Cogent comment by adding a \code{-} sign immediately after the
 opening brace and before the closing brace.
 

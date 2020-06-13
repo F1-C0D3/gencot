@@ -833,6 +833,34 @@ available as a value of type \code{Ident}. The translation is implemented by the
 \end{verbatim}
 where \code{f} is the same as for \code{mapName}.
 
+\subsubsection{Replacing Names of Global Variables}
+
+As described in Section~\ref{design-fundefs-body}, accesses to global variables in a function body may 
+be replaced by an access to a parameter introduced by a Global-State parameter or by an invocation of an 
+access function, in case of a Const-Val property. To retrieve the properties of the global variable, its item
+identifier must be constructed. To do this, Gencot must determine whether the identifier of an object 
+used in a function body has local or global scope, since the item identifiers for the same C identifier
+are different in both cases (see Section~\ref{impl-itemprops-ids}).
+
+For variables the scope can be determined from the identifier's linkage.
+If it has global scope it must have either internal or external linkage. If it has local scope it must have no
+linkage. A locally declared variable with keyword \code{extern} has external linkage and only references a 
+definition outside the function body, thus it has global scope. A locally declared variable 
+with keyword \code{static} has no linkage, the keyword only specifies its storage class. Thus it has local scope
+and is never replaced by Gencot.
+
+For every name occurring in a C function body, which syntactically may be a global variable, Gencot looks up 
+its definition in the symbol table. If it has external or internal linkage Gencot constructs its item identifier
+and retrieves its declared properties. If a Global-State property has been declared, Gencot accesses the 
+function definition in the monadic user state (see Section~\ref{impl-ccode-trav}) and determines its virtual
+parameter items with Global-State properties. If one of them has the same Global-State property as the global
+variable its name is mapped, the C dereference operator \code{*} is applied to it, and the resulting expression
+is used instead of the variable name.
+
+Otherwise, if the Const-Val property has been declared for the variable, it is replaced by an invocation of the 
+parameterless access function. The function name is determined by mapping the variable name. Otherwise the 
+variable name is not replaced and only mapped to the Cogent naming scheme.
+
 \subsection{Generating Origin Markers}
 \label{impl-ccode-origin}
 
@@ -1164,22 +1192,27 @@ by language-c to identify both tagged and untagged struct/union/enum types.
 The utilities for the monadic traversal of the semantics map are defined in module \code{Gencot.Traversal}. 
 The main monadic type is defined as
 \begin{verbatim}
-  type FTrav = Trav (String,NamePrefixMap,[SUERef],ItemProperties,(Bool,[String]))
+  type FTrav = Trav (
+     String, NamePrefixMap, [SUERef], ItemProperties,
+     (Bool,[String]), Maybe FunDef)
 \end{verbatim}
 where \code{String} is the type used for storing the original C source file name in the user state,
 \code{NamePrefixMap} is the type for the name prefix map described in Section~\ref{impl-ccode-names},
-\code{ItemProperties} is the type for storing the item property map, the second component is the list for
-maintaining tag definitions processed as nested, and the last component is the list of directly used external type names 
-together with the flag for activating or deactivating the list. \code{FTrav} is an
+\code{ItemProperties} is the type for storing the item property map, the third component is the list for
+maintaining tag definitions processed as nested, the fifth component is the list of directly used external type names 
+together with the flag for activating or deactivating the list, and the last component is the function definition
+whenever traversing a function body. \code{FTrav} is an
 instance of \code{FileNameTrav} and \code{TypeNamesTrav}. As execution function for the monadic actions the functions
 \begin{verbatim}
-  runFTrav :: DefTable -> (String,NamePrefixMap,ItemProperties,(Bool,[String])) -> FTrav a -> IO a
+  runFTrav :: DefTable -> (
+     String, NamePrefixMap, ItemProperties, (Bool,[String]))
+    -> FTrav a -> IO a
   runWithTable :: DefTable -> FTrav a -> IO a
 \end{verbatim}
 are defined. The first one takes the symbol table, the original C source file name, the name prefix map, 
 the item property map and
 the list of directly used external type names as arguments to initialize the state. The tag definition list
-is always initialized as empty. The second 
+is always initialized as empty, the function definition is set to \code{Nothing}. The second 
 function leaves also the other four components empty and deactivated. The functions are themselves 
 \code{IO} actions and print error messages generated during traversal to the standard output.
 
@@ -1198,17 +1231,17 @@ then the struct/union/enum reference can be resolved by
 \begin{verbatim}
   lookupTag :: SUERef -> DefTable -> Maybe TagEntry
 \end{verbatim}
-To maintain the list of tag definitions processed as nested two monadic actions are defined:
-\begin{verbatim}
-  markTagAsNested :: SUERef -> FTrav ()
-  isMarkedAsNested :: SUERef -> FTrav Bool
-\end{verbatim}
-
 Additionally, there are actions to enter and leave a scope and actions for inserting definitions.
 
 An error can be recorded in the monad using the action
 \begin{verbatim}
   recordError :: Language.C.Data.Error.Error e => e -> m () 
+\end{verbatim}
+
+To maintain the list of tag definitions processed as nested two monadic actions are defined:
+\begin{verbatim}
+  markTagAsNested :: SUERef -> FTrav ()
+  isMarkedAsNested :: SUERef -> FTrav Bool
 \end{verbatim}
 
 The item property map can be accessed by the monadic actions
@@ -1222,6 +1255,13 @@ on the item id and the property list as argument and returns the list of item id
 the predicate. 
 The second action returns the list of all properties declared 
 for the item, the third action tests whether the property named as first argument is declared for the item.
+
+The current function definition can be maintained by the monadic actions
+\begin{verbatim}
+  getFunDef :: FTrav (Maybe FunDef)
+  setFunDef :: FunDef -> FTrav ()
+  clrFunDef :: FTrav ()
+\end{verbatim}
 
 \subsection{Creating and Using the C Call Graph}
 \label{impl-ccode-callgraph}

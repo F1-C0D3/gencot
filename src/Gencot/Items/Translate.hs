@@ -7,7 +7,7 @@ import Language.C.Analysis as LCA
 
 import Gencot.Items.Properties (ItemProperties)
 import Gencot.Items.Types (ItemAssocType,getItemAssocType,getMemberItemAssocTypes,getSubItemAssocTypes)
-import Gencot.Items.Identifier (defaultItemId,isParameterId,isEmbeddedId)
+import Gencot.Items.Identifier (defaultItemId,isToplevelObjectId,isParameterId,isEmbeddedId)
 import Gencot.Traversal (FTrav)
 import Gencot.Util.Types (isReadOnlyType,isLinearParType,isFunction,isPointer,isArray,isFunPointer,isComposite,isLeafType,resolveTypedef)
 
@@ -28,7 +28,7 @@ transGlobal tc = do
     iats <- liftM concat $ mapM getSubItemAssocTypes (iat : miats)
     let fiats = filter (\(iid,t) -> (not $ isLeafType $ resolveTypedef t) 
                                     && (not $ isFunPointer t) 
-                                    && ((isParameterId iid) || (not $ isComposite t))) iats
+                                    && ((isToplevelObjectId iid) || (isParameterId iid) || (not $ isComposite t))) iats
     dip <- mapM getDefaultProperies fiats
     return $ fromList dip
 

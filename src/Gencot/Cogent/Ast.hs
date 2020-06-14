@@ -17,10 +17,10 @@ data GenToplv = GenToplv {
     orgOfTL :: Origin
     }  deriving (Show)
 data GenIrrefPatn = GenIrrefPatn { 
-    irpatnOfGIP :: CS.IrrefutablePattern VarName GenIrrefPatn,
+    irpatnOfGIP :: CS.IrrefutablePattern VarName GenIrrefPatn GenExpr,
     orgOfIP :: Origin
     } deriving (Show)
 data GenType = GenType { 
-    typeOfGT :: CS.Type GenExpr GenType,
+    typeOfGT :: CS.Type GenExpr () GenType,
     orgOfT :: Origin
     } deriving (Show)

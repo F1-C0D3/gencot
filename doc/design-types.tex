@@ -15,6 +15,9 @@ and uses them when determining the Cogent type for the translated item.
 \subsubsection{Items}
 
 An item for which properties can be declared for Gencot may be every entity in the C program which has a declared type.
+An item may also be ``virtual'' in the sense that it is not an entity in the C program, but Gencot introduces 
+a corresponding translation in the Cogent program. An example are additional function parameters introduced 
+wih the help of virtual items.
 
 Items may be global, such as global variables and functions, or they may be sub-items of other items, such as a
 struct member or a function parameter. Sub-items are determined by the type of the main item. If that type is
@@ -136,13 +139,23 @@ Gencot supports declaring the following item properties.
 \item[Read-Only]
 
 The Read-Only property is supported for items of arbitrary type. If declared, the type of the translated item is
-made read-only by applying the Cogent bang operator \code{!} to it.
+made readonly by applying the Cogent bang operator \code{!} to it.
 
 Note, that for several types the Cogent bang operator has no effect, these cases are equivalent
 to ignoring the property.
 
-Note also that semantically the Read-Only property does not apply to the item iteself, but to the item's possible values.
-The item's value can still be replaced although the item has been declared as Read-Only.
+Note also that semantically the Read-Only property does not apply to the item itself, but to the item’s possible 
+values. The item’s value can still be replaced although the item has been declared as Read-Only.
+
+\item[Const-Val]
+
+The Const-Val property is only supported for global variables, i.e. for toplevel items which are neither types nor 
+functions. Semantically it means that the variable value never changes, the variable always has its initial value. 
+In this case Gencot translates the variable to a parameterless access function which returns the variable value. 
+
+The Const-Val property implies the Read-Only property but is stronger. If a global variable has a pointer type, 
+the Read-Only property means that the data referenced by the pointer cannot be modified, whereas the Const-Val 
+property means that additionally the variable value itself cannot be modified.
 
 \item[Not-Null]
 
@@ -173,6 +186,37 @@ If the function has a non-void result and at least one parameter has the Add-Res
 to a tuple type with the original result as first component followed by components for all parameters with the Add-Result
 property in the parameter order. If the function result is void the result tuple contains only the parameters with 
 Add-Result property. If there is only one such parameter the result consists only of the corresponding component.
+
+\item[Global-State]
+
+The Global-State property has an additional argument which must be an integer value greater or equal to zero.
+Every argument represents a distinct global variable in the C program. The property is supported for global 
+variables and for virtual parameter items. 
+
+A Global-State property declared for a global variable introduces an association between the variable and the 
+numerical argument of the property. If more than one Global-State property is declared for a global variable, only
+the first one is used, all others are ignored.
+
+If a Global-State property is declared for a parameter item, it must be a virtual item, i.e., the parameter may not 
+exist in the C program. A corresponding parameter is introduced by Gencot in the Cogent program for passing a pointer
+to the global variable to the function. The parameter type is determined from the type of the global variable 
+associated with the Global-State property according to its numerical argument.
+
+If two virtual parameters of the same function have a Global-State property declared, the properties must use different 
+numerical arguments. Two parameters with the same argument would correspond to two parameters for pointers to the 
+same global variable. This would introduce sharing for parameters of linear type and is forbidden in Cogent.
+
+The Global-State property implicitly includes the Add-Result property. A parameter introduced 
+by a Global-State property always has a linear type in Cogent. Since the global variable cannot be deallocated the parameter
+must never be discarded and always be returned as part of the function result. Thus Gencot automatically treats the 
+virtual parameter in the same way as a parameter with the Add-Result property.
+
+The Global-State property for virtual parameters can be combined with the Read-Only property. In this case the 
+parameter type is made readonly and the implicit effect of the Add-Result property is omitted.
+
+If a global variable has the Read-Only property it can still have a Global-State property for introducing virtual
+function parameters for it. Semantically, all these function parameters must have readonly type. This is not 
+guaranteed by Gencot, the parameter types are only made readonly if a Read-Only property is declared for them.
 
 \item[Modification-Function]
 
@@ -496,10 +540,9 @@ For additional information on possibilities how to specify the identifier see Se
 Whether a C array type is mapped to the boxed or unboxed form depends on its usage context.
 A C array type cannot be used as result type of a function. Thus, the remaining possible uses of a C array type are
 \begin{itemize}
-\item as type of a global variable. This is translated using an access function which returns the variable
-value as a pointer of the boxed type \code{CArr<size> El}. Since in Cogent boxed types
-can only be allocated on the heap, this means that the global array variable must be implemented by a global pointer
-for which the array is allocated on the heap.
+\item as type of a global variable. This is translated to function parameters for passing a pointer to the variable 
+and to an antiquoted C definition of the variable itself. The function parameters use the boxed type 
+\code{CArr<size> El}. The definition uses the unboxed type \code{\#(CArr<size> El)}.
 \item as type of a function parameter. In C this is ``adjusted'' to the pointer-to-element type. Since this
 is binary compatible with type \code{CArr<size> El}, this type is used as parameter type in Cogent. Alternatively 
 the adjusted type could be mapped, resulting in type \code{CPtr El} or \code{El} (in case of elements of unboxed 
@@ -598,11 +641,12 @@ Together the rules for mapping function types are
   t(t1,...,tn,...) -> (T1, ..., Tn, Variadic_Cogent_Parameters!) -> T
 \end{verbatim}
 
-\subsubsection{Linear and Readonly Parameter Types}
+\subsubsection{Item Properties Affecting Function Type Mapping}
 
-Like every other type, the type of a function parameter may be readonly because this property can be derived
-from the C type information, as described in Section~\ref{design-types-readonly}, or because the Read-Only property
+Like every other type, the type of a function parameter may be readonly because the Read-Only property
 has been declared for the parameter, as described in Section~\ref{design-types-itemprops}.
+
+\paragraph{Add-Result}
 
 For a parameter with linear type, the function can only be defined in Cogent if the parameter is not discarded,
 i.e. it must be part of the result. This can be achieved by specifying the Add-Result property for the 
@@ -635,6 +679,8 @@ For a single parameter of type \code{l} with the Add-Result property the transla
 If the result is modified to a tuple, the first component is the original function result and the remaining components
 are the parameters of linear type in their order as they occur in the parameter tuple.
 
+\paragraph{Modification-Function}
+
 If the Modification-Function property has been declared for a parameter (see Section~\ref{design-types-itemprops}), 
 the function type is translated according to the rule
 \begin{verbatim}
@@ -653,6 +699,8 @@ has the form \code{(L1,())} or \code{(L1,T)}. If there
 are only two parameters the parameter tuple has the form \code{(L1,T1)}. If \code{l1} is the only parameter the parameter tuple
 has the form \code{(L1,())}. 
 
+\paragraph{Heap-Use}
+
 If the Heap-Use property has been declared for a function, its type is translated according to the rule
 \begin{verbatim}
   t(t1, ..., tn) -> (T1, ..., Tn,Heap) -> (T,Heap)
@@ -663,6 +711,42 @@ component.
 
 If additionally the Modification-Function property has been declared for a parameter the heap is added as last components \code{Tn} and
 and \code{Lm} in the additional tuple of the parameter and result pairs.
+
+\paragraph{Global-State}
+
+If the Global-State property has been declared for a (virtual) parameter of the function, the function type is translated 
+according to the rule
+\begin{verbatim}
+  t(t1, ..., tn) -> (T1, ..., Tn,TG) -> (T,TG)
+\end{verbatim}
+where \code{TG} is the translated type of a pointer to the global variable associated with the Global-State property
+(see Section~\ref{design-types-itemprops}). It is added to the result in the same way is if the Add-Result property 
+had been declared for the parameter. If several virtual parameters are present with a declared Global-State property 
+they are ordered according to the numerical argument of the Global-State properties. 
+
+The function type which is extended this way may occur in a different C source file than the associated global variable.
+The additional parameter may even be used to only pass the global value through to other functions, then the global variable 
+is actually never accessed in the function body and neither its definition nor a declaration needs to be visible for
+the function. This implies that Gencot may not be able to determine the type of the global variable when it translates 
+the function type, and thus may not be able to determine type \code{TG}. 
+
+For this reason Gencot introduces for every global variable with a Global-State property a type synonym for the Cogent 
+type corresponding to a pointer to the variable. These type synonyms have the form
+\begin{verbatim}
+  GlobState<i>
+\end{verbatim}
+where \code{<i>} is the numerical argument of the Global-State property associated with the global variable. For 
+the numerical argument \code{0} it is omitted. Using the numerical argument, Gencot can always determine this type synonym
+from the Global-State property and use it as the type \code{TG}. 
+
+Gencot generates the type synonym definition in place of a translation of the global variable definition at the corresponding
+position in the Cogent file.
+
+If the function has the 
+Heap-Use property the additional parameter and result component are added before the \code{Heap} parameter.
+
+If additionally the Modification-Function property has been declared for a parameter the Global-State parameters are added 
+as last components (before the heap, if present) in the additional tuple of the parameter and result pairs.
 
 \subsection{Pointer Types}
 \label{design-types-pointer}
@@ -846,7 +930,7 @@ The \code{String} type in Cogent has the additional property, that it is not pos
 which are elements of the string. Therefore the item property No-String (see Section~\ref{design-types-itemprops})
 is used to modify the mapping. If it is declared for a C item of type \code{const char*} the item's type is
 mapped as a normal pointer type, i.e. to the Cogent type \code{(CPtr U8)!}. The bang operator is applied because
-the C type is intrinsically read-only according to Section~\ref{design-types-readonly}.
+the C type is intrinsically readonly according to Section~\ref{design-types-readonly}.
 
 Gencot also maps the type \code{char*} to type \code{String} for all items for which the property Read-Only has
 been declared. To prevent this, the property No-String can be added to the item.
@@ -1248,6 +1332,29 @@ has the Read-Only property the bang operator is still preserved for the defined 
 The difference is that the bang operator is caused by the presence of the Read-Only property whereas the \code{MayNull}
 is caused by the absence of the Not-Null property.
 
+\subsubsection{Global Variables}
+
+If a function accesses a global variable, a pointer to the variable is passed to the function, if specified using
+a Global-State property (see Section~\ref{design-types-itemprops}). In this case a \code{const} qualifier for the 
+variable's type becomes relevant, because it is now the base type of the function parameter. Moreover it means
+that the variable value is never modified and always has its initial value.
+
+Gencot exploits this as follows. If a global variable has a \code{const} qualified type and all contained pointers
+have a \code{const} qualified base type, the Const-Val property is set for the global variable item (see 
+Section~\ref{design-types-itemprops}). Note that in case of an array type a \code{const} qualified base type has the 
+same meaning as if the array type itself is \code{const} qualified. If the property is not removed by the developer, 
+Gencot translates the variable to a parameterless access function. The function's name is the mapped name of the variable.
+
+If the variable's type is a primitive type, an enum type, or a pointer type (including function pointers) the access 
+function returns a value of the mapped type (which is not banged). If the variable has a derived array type the 
+function returns a value of the readonly boxed mapped type, if it has a struct or union type the function returns a 
+value of the readonly corresponding boxed type. In both cases the result corresponds to a pointer to the variable.
+The readonly type prevents modifying the variable through this pointer.
+
+Additionally, a Global-State property can be declared for a variable with Const-Val property. Then function parameters
+can be introduced for passing pointers to the variable to functions. All these parameters must explicitly be
+declared Read-Only to prevent modifying the variable value through the pointer.
+
 \subsubsection{The String Type}
 
 As described in Section~\ref{design-types-pointer}, the type \code{char*} may be translated to the Cogent type \code{String}.
@@ -1261,45 +1368,40 @@ are translated to Cogent nonlinear types, here the translated typedef name is al
 \subsubsection{Array Types}
 
 As described in Section~\ref{design-types-array}, the mapping of C array types depends on the type's context and may 
-be a linear type or not. If an array type is mapped to a linear type, a \code{const} qualifier for the array type
-or its element type (which both has the same meaning in C) causes the mapped type to be readonly, if the array element 
-type is transitively readonly.
+be a linear type or not. The properties Const-Val and Read-Only for items with array type must be treated accordingly.
 
 An array type is mapped to a linear type if it is used as type of a global variable or a function parameter. In case of
-a global variable, such as
+a global variable with a Const-Val property, such as
 \begin{verbatim}
   const int gvar[5];
 \end{verbatim}
-Gencot translates the variable to an access function returning a pointer. The \code{const} qualifier causes the 
-result type of the access function to be readonly:
+Gencot translates the variable to an access function returning a readonly pointer:
 \begin{verbatim}
   cogent_gvar: () -> (Carr5 U32)!
 \end{verbatim}
-In case of a function parameter, such as
+In case of a function parameter with Read-Only property, such as
 \begin{verbatim}
   void f(const int p[5]);
 \end{verbatim}
 the parameter type is already ``adjusted'' to type \code{const int *p} in C and Gencot maps the parameter type 
-accordingly. Again, the \code{const} qualifier causes the parameter type to be readonly:
+accordingly. Here, the Read-Only property causes the parameter type to be readonly:
 \begin{verbatim}
   cogent_f: (Carr5 U32)! -> ()
 \end{verbatim}
 
-If an array type is used as base type of a derived pointer type the pointer type is mapped to a readonly type, as
-described above, if its base type is \code{const} qualified. Here the C rule must be taken into account that an array
-type is \code{const} qualified if its element type is \code{const} qualified. The same applies if an array type is used
-as element type of another array type (multidimensional array).
+If an array type is used as base type of a derived pointer type the pointer
+type is mapped to a readonly type, as described above, if its referenced subitem has a Read-Only property declared.
+The same applies if an array type is used as element type of another array type (multidimensional array) with
+a Read-Only property for the inner array item.
 
 If an array type is used as the type of a member of a composite type it is mapped to a record field with an unboxed type,
-hence a \code{const} qualifier is irrelevant. Since the current Cogent version has problems when bang and unbox operators
+hence a Read-Only property for the member is irrelevant. Since the current Cogent version has problems when bang and unbox operators
 are combined, Gencot omits the bang operator in this case. 
 
 If a typedef name is defined for an array type in C, the mapped typedef name is defined for the linear type in Cogent. 
 If the typedef name is used for a member of a composite type, the Cogent type must not be readonly, therefore it
-cannot be made readonly in the definition, even if in C the array type is \code{const} qualified in the definition.
-Instead, the mapped typedef name must be banged whenever no unbox operator is applied. If the array type is not 
-\code{const} qualified in the definition, the mapped typedef name must only be banged if the typedef name is \code{const}
-qualified in C and not used for a member of a composite type.
+cannot be made readonly in the definition, even if the typedef name has a Read-Only property.
+Instead, the mapped typedef name must be banged whenever no unbox operator is applied. 
 
 \subsubsection{Manual Readonly Types}
 

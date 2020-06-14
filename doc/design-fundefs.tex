@@ -32,7 +32,10 @@ or parameter names. For all names with global scope Gencot has generated a Cogen
 These names are substituted in the C code of the function body by the corresponding mapped names so that the 
 mapping need not be done manually by the programmer.
 
-This does not include the mapping of derived types. Type derivation in C is done in declarators which refer
+Names with local scope (either local variables or types/tags) are also mapped by Gencot, both in their (local)
+definition and whenever they are used. 
+
+The mapping does not include the mapping of derived types. Type derivation in C is done in declarators which refer
 a common type specification in a declaration. In Cogent there is no similar concept, every declarator must be 
 translated to a separate declaration. This is not done due to the reasons described above. As result, a translated
 local declaration may have the form
@@ -52,7 +55,18 @@ to use uppercase parameter names in C, the Cogent function will normally use the
 If the function is variadic an additional last tuple component is added with a variable named
 \code{variadicCogentParameters}, mainly to inform the developer that manual action is required.
 
-If the C function body is directly written into the Cogent source file, it cannot be syntax checked by the 
+Global variables referenced in a function body are treated in a specific way. If the global variable has a 
+Global-State property (see Section~\ref{design-types-itemprops}) and a virtual parameter item with the same
+property has been declared for the function, the identifier of the global variable is replaced by the 
+mapped parameter name with the dereference operator applied. This corresponds to the intended purpose of the 
+Global-State properties: instead of accessing global variables directly from within a function, a pointer is 
+passed as parameter and the variable is accessed by dereferencing this pointer.
+
+If a global variable has the Const-Val property (see Section~\ref{design-types-itemprops}) its access is
+replaced by an invocation of the corresponding parameterless access function. If the global variable has 
+neither of these properties declared, Gencot simply uses its mapped name, this case must be handled manually.
+
+If the C function body would be directly written into the Cogent source file, it cannot be syntax checked by the 
 Cogent compiler. Therefore it is wrapped as a Cogent comment by adding a \code{-} sign immediately after the
 opening brace and before the closing brace.
 
@@ -208,3 +222,46 @@ Together, the information required to generate the entry wrapper is the same as 
 function's type to Cogent: the argument types and the result type must be translated to Cogent and the
 function name must be mapped to determine the name of the Cogent function.
 
+\subsection{Object Definitions}
+\label{design-fundefs-object}
+
+Gencot processes object declarations with block-scope (``local variables'') as described in Section~\ref{design-fundefs-body} 
+by simply mapping the object name. 
+
+A toplevel (``external'') object definition (with ``file-scope'') either has an initializer or is a ``tentative definition''
+according to the C standard. Such an object definition defines a global variable. Gencot treats global variables
+as described in Section~\ref{design-modular}.
+
+If the global variable has a Global-State property (see Section~\ref{design-types-itemprops}) Gencot introduces a type 
+synonym of the form \code{GlobState<i>}. The type synonym definition is generated in the translated Cogent source 
+at the place where the object definition was in the C source and is marked with the corresponding origin. The 
+type synonym name is determined form the numerical argument of the Global-State property, the right-hand side of
+the type definition is the translation of the derived pointer type of the variable's type, translated according to
+Section~\ref{design-types}.
+
+If the global variable has the Const-Val property (see Section~\ref{design-types-itemprops}) Gencot introduces an abstract 
+parameterless access function in Cogent in the form
+\begin{verbatim}
+  <name> : () -> <type>
+\end{verbatim}
+where \code{<name>} is the mapped variable name and \code{<type>} is the translation of the variable's defined type.
+If the defined type is a struct, union, or array type, the translation of the derived pointer type is used instead,
+with a bang operator applied to make it readonly. The access function definition is generated in the translated Cogent source 
+at the place where the object definition was in the C source and is marked with the corresponding origin.
+
+Independent from its item properties, the object definition is translated to antiquoted C and added to the file 
+containing the entry wrappers. In this way all global variables are still present in the Cogent compilation unit.
+The translated definition uses as type the antiquoted Cogent type which results from translating the type specified 
+in the object definition. For an object with external linkage the name is the original name, so that the object can still
+be referred from outside the Cogent compilation unit, and the linkage is external. For an object with internal linkage
+the name is mapped as described in Section~\ref{design-names} so that it is unique in the Cogent compilation unit, and
+the linkage is internal. If an initializer is present in the original definition it is transferred to the antiquoted
+definition, mapping all referenced names of global variables with internal linkage.
+
+The entry wrappers and object definitions are placed in the antiquoted C file in the same order as the original function
+and object definitions. Additionally, all global variables are declared at the beginning of the file, so that entry
+wrappers defined before the variable can still pass a pointer to it to the wrapped Cogent function.
+
+If the global variable has the Const-Val property Gencot additionally creates an implementation of the access function
+in antiquoted C and puts it immediately after the variable definition. Depending on the variable's type it returns its
+value or a pointer to the variable. 

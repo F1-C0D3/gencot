@@ -41,7 +41,7 @@ showCogent :: Pretty a => a -> String
 showCogent cog = (displayS $ renderCompact $ pretty cog) ""
 
 instance Pretty GenType where
-    pretty (GenType tr@(TRecord ts s) org) = addOrig org $ prettyGenRT tr 
+    pretty (GenType tr@(TRecord rp ts s) org) = addOrig org $ prettyGenRT tr 
     pretty (GenType tt@(TTuple ts) org) = addOrig org $ prettyGenRT tt
     pretty (GenType t org) = addOrig org $ pretty t
 
@@ -51,8 +51,8 @@ instance TypeType GenType where
   isFun     (GenType t _) = isFun     t
   isAtomic  (GenType t _) = isAtomic  t
 
-prettyGenRT :: (Type GenExpr GenType) -> Doc
-prettyGenRT (TRecord ts s) = 
+prettyGenRT :: (Type GenExpr () GenType) -> Doc
+prettyGenRT (TRecord rp ts s) = 
     (if | s == Unboxed -> (typesymbol "#" <>)
         | readonly s -> (<> typesymbol "!")
         | otherwise -> id) $

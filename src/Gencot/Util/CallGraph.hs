@@ -110,6 +110,12 @@ markLocal :: LCD.DefTable -> CGFunInvoke -> CGFunInvoke
 markLocal table (fd,inv@(IdentInvoke idec _),_) = (fd,inv,(isLocal table idec,markPos idec fd))
 markLocal table (fd,inv@(MemberInvoke _ _ _),_) = (fd,inv,(False,0))
 
+-- | Test whether a declaration or definition is local in a function.
+-- The DefTable is assumed to contain only global (toplevel) declarations and definitions.
+-- We look up the declared or defined identifier in the table.
+-- If we do not find it, it must be local. 
+-- If we find it, we compare the tested declaration / definition with the found one.
+-- If they are the same, the identifier is global, otherwise it is local and shadows the global one.
 isLocal :: LCD.DefTable -> LCA.IdentDecl -> Bool
 isLocal table idec = case LCD.lookupIdent (LCA.declIdent idec) table of
                           Just (Right gdec) -> idec /= gdec

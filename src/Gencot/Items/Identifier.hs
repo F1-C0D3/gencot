@@ -2,7 +2,7 @@
 module Gencot.Items.Identifier where
 
 import Data.Char (isDigit,isLetter,isAlphaNum)
-import Data.List (break,elemIndex,dropWhileEnd,find,findIndices,isSuffixOf,isPrefixOf)
+import Data.List (break,elemIndex,dropWhileEnd,any,find,findIndices,isSuffixOf,isPrefixOf)
 
 -- | For an item identifier get the identifier of the toplevel item.
 -- This is always a prefix of the item identifier.
@@ -65,6 +65,11 @@ paramSubItemId item pos cid =
     where pnam = case cid of
                       "" -> ""
                       _ -> '-' : cid
+
+-- | Test an item id whether it is a toplevel object or function id.
+-- It is tested whether it contains no slash, dot, or bar.
+isToplevelObjectId :: String -> Bool
+isToplevelObjectId item = all (\c -> c /= '/' && c /= '.' && c /= '|') item
 
 -- | Test an item id whether it is a parameter id built using @paramSubItemId@.
 -- It is tested whether the last slash is followed by a digit and there is no dot after it.
@@ -145,3 +150,19 @@ getTypedefNames (iid : rest) =
     if "typedef|" `isPrefixOf` iid 
        then (drop 8 iid) : (getTypedefNames rest)
        else getTypedefNames rest
+
+-- | Retrieve an object or function name from a toplevel item identifier.
+-- For items with internal linkage the prefix must be removed.
+getObjFunName :: String -> String
+getObjFunName iid =
+    if null pst then iid else tail pst
+    where (pre,pst) = break (== ':') iid
+
+-- | Retrieve a parameter name or position from a parameter item identifier.
+-- It is the suffix after the last slash.
+-- If the argument contains no slash the result is empty.
+getParamName :: String -> String
+getParamName iid = 
+    if null sis then ""
+                else drop ((last sis) + 1) iid
+    where sis = findIndices (== '/') iid

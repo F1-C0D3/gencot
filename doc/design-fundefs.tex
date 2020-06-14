@@ -203,6 +203,29 @@ has the form
 \end{verbatim}
 if the C function's result is not \code{void}.
 
+If the C function has virtual parameters with Global-State properties declared in the item properties, references
+to the corresponding global variables are passed to these parameters by the entry wrapper. For a parameter with 
+Global-State property the corresponding variable is determined by searching all known toplevel items for an
+item with a Global-State property with the same numerical argument. Since every global variable must use a 
+different numerical argument, this search will result in a single toplevel item identifier. 
+
+If the function does not access the global variable and uses the virtual parameter only to pass the variable 
+reference to invoked function, it may be the case that the variable is not visible in the C source file, because
+it is neither defined nor declared there. However, the name used in (antiquoted) C for the variable can always 
+be constructed from the item identifier alone. No other information about the variable is needed to generate the 
+entry wrapper.
+
+Assume that a C function has two virtual parameters with Global-State properties with numerical arguments 
+\code{0} and \code{3}. The global variable associated with argument \code{0} has name \code{gvar} and external linkage,
+the global variable associated with argument \code{3} has name \code{table} and is defined in source file \code{scan.c}
+with internal linkage. Then the entry wrapper body has the form
+\begin{verbatim}
+  $ty:((<cogt1>,...,<cogtn>,GlobState,GlobState3)) arg = 
+    {.p1=arg1,..., .pn=argn, .pn+1=&gvar, .pn+2=&local_scan_table};
+  return cogent_fnam(arg).p1;
+\end{verbatim}
+
+
 If a parameter has the Modification-Function property the argument and result of the Cogent functions are
 represented as pairs where the second component may be a tuple (see Section~\ref{design-types-function}). 
 The wrapper must rearrange the parameters and retrieve the original result. For example, if the C 
@@ -259,7 +282,8 @@ the linkage is internal. If an initializer is present in the original definition
 definition, mapping all referenced names of global variables with internal linkage.
 
 The entry wrappers and object definitions are placed in the antiquoted C file in the same order as the original function
-and object definitions. Additionally, all global variables are declared at the beginning of the file, so that entry
+and object definitions. Additionally, all global variables are declared together with all external functions in a 
+file included before all entry wrapper files, so that entry
 wrappers defined before the variable can still pass a pointer to it to the wrapped Cogent function.
 
 If the global variable has the Const-Val property Gencot additionally creates an implementation of the access function

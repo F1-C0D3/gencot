@@ -41,5 +41,5 @@ main = do
 
 constructFilter :: DeclEvent -> Bool
 constructFilter (DeclEvent fdef@(FunctionDef _)) | declLinkage fdef == ExternalLinkage = True
+constructFilter (DeclEvent (ObjectDef _)) = True
 constructFilter _ = False
-

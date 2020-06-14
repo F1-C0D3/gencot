@@ -100,11 +100,9 @@ If the variable has internal linkage the definition uses the mapped name so that
 unit. 
 
 In the Cogent compilation unit the defined global variables are only accessed in 
-the entry wrapper functions. Therefore Gencot puts them into the files \code{x-entry.ac} at the beginning before 
-the entry wrapper definitions. For all global variables defined in \code{x.c} a definition is generated in 
-\code{x-entry.c}. These definitions are written in the same order as in the original C source and after all
-declarations of external global variables, because an initializer could use the value of a previously defined
-or external variable.
+the entry wrapper functions. Therefore Gencot puts them into the files \code{x-entry.ac} at the places where 
+their definition occurred in the original source. Additionally they are declared at the beginning of the file, 
+so that they can be accessed in entry wrappers defined before that position.
 
 \subsubsection{Predefined Gencot Types and Functions}
 

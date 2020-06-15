@@ -146,7 +146,7 @@ mkVar nam = (GCA.Var (mkId nam) noOrigin)
 
 -- | Generate i
 mkIConst :: Integer -> GCA.Exp
-mkIConst i = (GCA.Const (GCA.IntConst "" Signed i noOrigin) noOrigin)
+mkIConst i = (GCA.Const (GCA.IntConst (show i) Signed i noOrigin) noOrigin)
 
 -- | Generate $ty:(cogtyp)
 mkADec :: GenType -> GCA.DeclSpec

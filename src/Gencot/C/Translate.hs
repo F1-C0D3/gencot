@@ -9,7 +9,7 @@ import Language.C.Syntax.AST as LCS
 
 import Control.Applicative (liftA2)
 import Data.List (isPrefixOf,find)
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust,isNothing)
 import Data.Foldable (foldrM)
 import Numeric (showInt, showOct, showHex, readFloat)
 
@@ -17,7 +17,7 @@ import Gencot.C.Ast as GCA
 import Gencot.Origin (Origin,noOrigin,origin,mkOrigin,listOrigin,pairOrigin,maybeOrigin)
 import Gencot.Names (transTagName,transObjName,getFileName,mapObjectName,mapIfUpper,mapNameToUpper,mapNameToLower)
 import Gencot.Traversal (FTrav,getFunDef)
-import Gencot.Util.Types (isAggregate,resolveTypedef,isFunction)
+import Gencot.Util.Types (isAggregate,resolveTypedef,isFunction,safeDeclLinkage)
 import Gencot.Items.Types (getIndividualItemId,getIndividualItemAssoc,getGlobalStateProperty,getGlobalStateSubItemIds{-,isConstValItem-})
 import Gencot.Items.Identifier (getParamName)
 
@@ -662,7 +662,7 @@ getGlobalVarProperties ident = do
     case mdecl of
          Nothing -> return $ ("",False)
          Just decl -> do 
-             case LCA.declLinkage decl of
+             case safeDeclLinkage decl of
                   LCA.NoLinkage -> return $ ("",False)
                   _ -> if isFunction $ LCA.declType decl
                           then return $ ("",False)
@@ -670,11 +670,14 @@ getGlobalVarProperties ident = do
                               sfn <- getFileName
                               let iid = getIndividualItemId decl sfn
                               gs <- getGlobalStateProperty iid
-                              fdef <- getFunDef
-                              let fid = getIndividualItemAssoc (LCA.FunctionDef (fromJust fdef)) sfn
-                              pids <- getGlobalStateSubItemIds fid
-                              gsps <- mapM getGlobalStateProperty pids
-                              let gspar = maybe "" (getParamName . snd) $ find (\(gsp,_) -> gsp == gs) $ zip gsps pids
-                              cv <- return False -- isConstValItem iid
-                              return $ (gspar,cv)
+                              mfdef <- getFunDef
+                              case mfdef of
+                                   Nothing -> return $ ("",False)
+                                   Just fdef -> do
+                                       let fid = getIndividualItemAssoc (LCA.FunctionDef fdef) sfn
+                                       pids <- getGlobalStateSubItemIds fid
+                                       gsps <- mapM getGlobalStateProperty pids
+                                       let gspar = maybe "" (getParamName . snd) $ find (\(gsp,_) -> gsp == gs) $ zip gsps pids
+                                       cv <- return False -- isConstValItem iid
+                                       return $ (gspar,cv)
 

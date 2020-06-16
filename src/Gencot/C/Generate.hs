@@ -90,7 +90,10 @@ genBody fiat numpars idnam rIsVoid = do
         (GenType TUnit _) -> Nothing;
         (GenType (TTuple cogptypes) _) -> (Just $ mkMbAcc invk "p1");
         _ -> (Just invk) }
-    let rstat = if rIsVoid then mkSStm invk else mkRet $ fromJust rval
+    let rstat = if rIsVoid 
+                    then mkSStm invk 
+                    else if isNothing rval then error ("isNothing: " ++ f)
+                                           else mkRet $ fromJust rval
     return (if isNothing aval then [rstat] else [mkArgDef cogptyp $ fromJust aval , rstat])
     where ainits = map mkTInit numpars  -- [.p1=<pname1>,...]
 

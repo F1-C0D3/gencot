@@ -38,8 +38,31 @@ Installation
 
 Now you can use the commands
 
-    gencot,parmod,auxcog
+        gencot, items, parmod, auxcog
 which are located in `G/gencot/bin` (by adding this directory to the command search path or by specifying the path when the command is invoked).
+
+Note that this only builds the Gencot tool. If you also want to use the Cogent compiler you have to go to `G/gencot/cogent` and
+build it according to the description there.
+
+A quick check whether the installation was successful can be done as follows:
+
+- if only Gencot has been built:
+   Go to `G/gencot/examples/helloworld` and execute 
+
+       make cogent
+    It should run without apparent error messages.
+
+- if also the Cogent compiler has been built:
+   Go to `G/gencot/examples/helloworld` and execute
+
+       make c
+    It should run without apparent error messages.
+
+- if also a C compiler is available:
+   Go to `G/gencot/examples/helloworld` and execute 
+
+       make cogent-run
+    It should display "Hello World" in the last line.
 
 Introduction
 ------------

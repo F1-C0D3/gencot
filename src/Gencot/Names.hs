@@ -189,6 +189,9 @@ mapFileChar '.' = '_'
 mapFileChar '-' = '_'
 mapFileChar c = c
 
+globStateType :: String -> String
+globStateType gs = ("GlobState" ++ (drop 2 gs))
+
 fileName :: CNode a => a -> String
 fileName n =
     case LCN.fileOfNode n of

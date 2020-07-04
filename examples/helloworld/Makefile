@@ -82,7 +82,7 @@ run-cogent-hello: cogent-hello
 
 clean:
 	-rm -f hello
-	-rm -f $(COGSRC) $(UNIT)-external.items
+	-rm -f $(COGSRC) $(UNIT)-external.items hello-entry.ac
 	-rm -f $(EDITFILES)
 	-rm -f $(UNIT)-gen.c $(UNIT)-gen.h $(ACFILESPP) $(ACFILESINF)
 	-rm -f $(UNIT).c $(UNIT)-macros.h $(ACFILESC)

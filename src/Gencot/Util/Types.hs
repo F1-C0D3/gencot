@@ -509,3 +509,10 @@ hasMemberName nam dec =
          _ -> False
 
 typeIdent (LCA.TypeDefType (LCA.TypeDefRef ident _ _) _ _) = ident
+
+safeDeclLinkage :: (Declaration d) => d -> Linkage
+safeDeclLinkage decl = 
+    case declStorage decl of
+        NoStorage -> NoLinkage
+        _ -> declLinkage decl
+

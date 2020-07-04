@@ -294,9 +294,13 @@ else
         | $BIN/gencot-reporigs > $TMPDIR/$CNAME.out
     process_directives
     process_comments
+    $BIN/gencot-entries $CBASE $TMPDIR/$NAMAPFILE $TMPDIR/$IPMFILE $EIFILE < $TMPDIR/$CNAME.in | $BIN/gencot-reporigs \
+        | $BIN/gencot-mrgppcond $TMPDIR/$CNAME.ppsf \
+        | $BIN/gencot-mrgcomments /dev/null > $TMPDIR/$CNAME-entry.ac
     if [ "$CMD" = "cfile" ]
     then
         cp $TMPDIR/$CNAME.cogent .
+        cp $TMPDIR/$CNAME-entry.ac .
     else
         cp $TMPDIR/$CNAME.cogent ./$CNAME-incl.cogent
     fi

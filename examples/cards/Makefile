@@ -83,7 +83,7 @@ run-cogent-cards: cogent-cards
 
 clean:
 	-rm -f cards
-	-rm -f $(COGSRC) $(UNIT)-external.items
+	-rm -f $(COGSRC) $(UNIT)-external.items cards-entry.ac
 	-rm -rf comments
 	-rm -f $(EDITFILES)
 	-rm -f $(UNIT)-gen.c $(UNIT)-gen.h $(ACFILESPP) $(ACFILESINF)

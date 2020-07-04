@@ -136,7 +136,7 @@ clean:
 	-rm -rf comments
 	-rm -f itemsbin
 	-rm -f $(IPFILES) $(UNIT).unit-itemprops
-	-rm -f $(COGSRC) $(UNIT)-external.items
+	-rm -f $(COGSRC) $(UNIT)-external.items $(CFILES:.c=-entry.ac)
 	-rm -f $(EDITFILES) $(PROPEDITFILES)
 	-rm -f $(UNIT)-gen.c $(UNIT)-gen.h $(ACFILESPP) $(ACFILESINF)
 	-rm -f $(UNIT).c $(UNIT)-macros.h $(ACFILESC)

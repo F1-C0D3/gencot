@@ -73,7 +73,7 @@ $(UNIT).o: $(UNIT).c $(UNIT)-gen.c $(UNIT)-gen.h $(UNIT)-macros.h $(ACFILESC)
 	cc -c -I$(STDGUM) -I$(GENCOTC) $(UNIT).c
 
 clean:
-	-rm -f $(COGSRC) $(UNIT)-external.items
+	-rm -f $(COGSRC) $(UNIT)-external.items types-entry.ac
 	-rm -f $(EDITFILES)
 	-rm -f $(UNIT)-gen.c $(UNIT)-gen.h $(ACFILESPP) $(ACFILESINF)
 	-rm -f $(UNIT).c $(UNIT)-macros.h $(ACFILESC)

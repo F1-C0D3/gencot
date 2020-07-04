@@ -18,7 +18,7 @@ import Language.C.Analysis.NameSpaceMap (NameSpaceMap,nameSpaceMap,defGlobal,glo
 
 import Gencot.Input (readFromFile_,readFromFile,getOwnDeclEvents)
 import Gencot.Util.CallGraph (getCallGraph,CallGraph,getIdentInvokes)
-import Gencot.Util.Types (TypeSet,TypeCarrier,TypeCarrierSet,carrierInTable,occurringTypes,transCloseTypes,selInAllTypes,selInContained,isLeafType)
+import Gencot.Util.Types (TypeSet,TypeCarrier,TypeCarrierSet,carrierInTable,occurringTypes,transCloseTypes,selInAllTypes,selInContained,isLeafType,safeDeclLinkage)
 
 readPackageFromInput_ :: IO [DefTable]
 readPackageFromInput_ = do
@@ -91,12 +91,6 @@ combineIdentDecls m1 m2 = do
           gm2 = M.filter notInternal $ globalNames m2
           notInternal (Left _) = True
           notInternal (Right decl) = safeDeclLinkage decl /= InternalLinkage
-
-safeDeclLinkage :: (Declaration d) => d -> Linkage
-safeDeclLinkage decl = 
-    case declStorage decl of
-        NoStorage -> NoLinkage
-        _ -> declLinkage decl
 
 selIdentEntry :: Ident -> IdentEntry -> Maybe IdentEntry -> IO IdentEntry
 selIdentEntry k res Nothing = return res

@@ -3,6 +3,8 @@ module Gencot.Items.Types where
 
 import Control.Monad (liftM)
 import System.FilePath (takeExtension,takeFileName,takeBaseName)
+import Data.List (isPrefixOf,find)
+import Data.Maybe (fromMaybe)
 
 import Language.C.Data.Ident as LCI
 import Language.C.Data.Node as LCN
@@ -10,7 +12,7 @@ import Language.C.Analysis as LCA
 
 import Gencot.Items.Identifier (individualItemId,localItemId,paramItemId,typedefItemId,tagItemId,memberSubItemId,paramSubItemId,elemSubItemId,refSubItemId,resultSubItemId,indivItemIds)
 import Gencot.Names (getFileName,anonCompTypeName,srcFileName)
-import Gencot.Traversal (FTrav,hasProperty,stopResolvTypeName)
+import Gencot.Traversal (FTrav,hasProperty,stopResolvTypeName,getItems,getProperties)
 import Gencot.Util.Types (getTagDef,isExtern,isFunction,isExternTypeDef,TypeCarrier,TypeCarrierSet,mergeQualsTo)
 
 -- | Construct the identifier for an individual toplevel item.
@@ -133,6 +135,28 @@ isNotNullItem = isItemWithProperty "nn"
 isReadOnlyItem = isItemWithProperty "ro"
 isAddResultItem = isItemWithProperty "ar"
 isNoStringItem = isItemWithProperty "ns"
+
+-- | Retrieve all subitems with a gs property.
+-- This includes virtual parameter items not declared for the C function.
+getGlobalStateSubItemIds :: ItemAssocType -> FTrav [String]
+getGlobalStateSubItemIds (fid,_) = 
+    getItems (\iid plist -> (fidslash `isPrefixOf` iid) && any (\p -> "gs" `isPrefixOf` p) plist)
+    where fidslash = fid ++ "/"
+
+-- | Get the Global-State property for an item.
+-- If not present return the empty string.
+getGlobalStateProperty :: String -> FTrav String
+getGlobalStateProperty iid = do
+    props <- getProperties iid
+    return $ fromMaybe "" $ find (\p -> "gs" `isPrefixOf` p) props
+
+-- | Retrieve the item identifier of the toplevel item with the given gs property.
+-- If there is more than one, an arbitrary one is returned. 
+-- If there is none, the empty string is returned.
+getGlobalStateId :: String -> FTrav String
+getGlobalStateId gs = do
+    ids <- getItems (\iid plist -> (all (\c -> c /= '/' && c /= '.' && c /= '|') iid) && (elem gs plist))
+    return (if null ids then "" else head ids)
 
 -- | ItemAssocType for an individual (top-level) item.
 -- The second argument is the name of the main source file.

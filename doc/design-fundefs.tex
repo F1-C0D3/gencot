@@ -32,7 +32,10 @@ or parameter names. For all names with global scope Gencot has generated a Cogen
 These names are substituted in the C code of the function body by the corresponding mapped names so that the 
 mapping need not be done manually by the programmer.
 
-This does not include the mapping of derived types. Type derivation in C is done in declarators which refer
+Names with local scope (either local variables or types/tags) are also mapped by Gencot, both in their (local)
+definition and whenever they are used. 
+
+The mapping does not include the mapping of derived types. Type derivation in C is done in declarators which refer
 a common type specification in a declaration. In Cogent there is no similar concept, every declarator must be 
 translated to a separate declaration. This is not done due to the reasons described above. As result, a translated
 local declaration may have the form
@@ -52,7 +55,18 @@ to use uppercase parameter names in C, the Cogent function will normally use the
 If the function is variadic an additional last tuple component is added with a variable named
 \code{variadicCogentParameters}, mainly to inform the developer that manual action is required.
 
-If the C function body is directly written into the Cogent source file, it cannot be syntax checked by the 
+Global variables referenced in a function body are treated in a specific way. If the global variable has a 
+Global-State property (see Section~\ref{design-types-itemprops}) and a virtual parameter item with the same
+property has been declared for the function, the identifier of the global variable is replaced by the 
+mapped parameter name with the dereference operator applied. This corresponds to the intended purpose of the 
+Global-State properties: instead of accessing global variables directly from within a function, a pointer is 
+passed as parameter and the variable is accessed by dereferencing this pointer.
+
+If a global variable has the Const-Val property (see Section~\ref{design-types-itemprops}) its access is
+replaced by an invocation of the corresponding parameterless access function. If the global variable has 
+neither of these properties declared, Gencot simply uses its mapped name, this case must be handled manually.
+
+If the C function body would be directly written into the Cogent source file, it cannot be syntax checked by the 
 Cogent compiler. Therefore it is wrapped as a Cogent comment by adding a \code{-} sign immediately after the
 opening brace and before the closing brace.
 
@@ -68,6 +82,7 @@ The generated Cogent function definition has the form
 where the \code{<compound statement>} is plain C code with substituted names.
 
 \subsection{Comments in Function Definitions}
+\label{design-fundefs-comments}
 
 A C function definition which is not old-style syntactically consists of a declaration with a single declarator
 and the compound statement for the body.
@@ -105,3 +120,172 @@ all comment units would be transferred. However, generating the corresponding or
 tree is much more complex than generating them for syntactical units for which the origin information is present
 in the syntax tree. Since the Gencot implementation generates the
 target code as an abstract syntax tree, the syntactical statement structure is preferred. 
+
+\subsection{Entry Wrappers}
+\label{design-fundefs-wrapper}
+
+The C function definitions are also used for generating the entry wrappers as described in Section~\ref{design-modular}.
+For every definition of a C function with external linkage an entry wrapper is generated in antiquoted C.
+
+The main task of the entry wrapper is to convert the seperate function arguments to an argument tuple which is passed
+to the corresponding Cogent function. If the C function has only one argument it is passed directly. If the C 
+function has no argument the unit value must be passed to the Cogent function.
+
+The entry wrapper has the same interface (name, arguments, argument types, result type) as the original C function.
+However, since the wrapper is a part of the Cogent compilation unit, the argument and result types used in the 
+original function definition are not available. They must be replaced by the binary compatible types generated 
+from their translation to Cogent types (see Section~\ref{design-types}). This is accomplished by using the Cogent
+types in antiquoted form.
+
+If the original C function definition has the signature
+\begin{verbatim}
+  <type0> fnam(<type1> arg1, ..., <typen> argn)
+\end{verbatim}
+the entry wrapper has the signature
+\begin{verbatim}
+  $ty:(<cogt0>) fnam($ty:(<cogt1>) arg1, ..., $ty:(<cogtn>) argn)
+\end{verbatim}
+where \code{<cogti>} is the translation of \code{<typei>} to Cogent. It would be possible to generate synthetic 
+parameter names for the wrapper, however, since the original parameter names must always be specified in the 
+original function definition, Gencot uses them in the wrapper signature for simplicity and better readability.
+
+If there is more than one function argument (\code{n > 1}), the wrapper must convert them to the C implementation
+of the Cogent tuple value used as argument for the Cogent function (see Section~\ref{design-types-function}).
+Cogent tuples are implemented as C struct types with members named \code{"p1"}, \code{"p2"}, \ldots in the order
+of the tuple components. Since tuple types are always unboxed, the C structs are allocated on the stack. Thus
+the body of an entry wrapper with \code{n > 1} has the form
+\begin{verbatim}
+  $ty:((<cogt1>,...,<cogtn>)) arg = 
+    {.p1=arg1,..., .pn=argn};
+  return cogent_fnam(arg);
+\end{verbatim}
+
+If \code{n = 1} no tuple needs to be constructed and the wrapper body has the form
+\begin{verbatim}
+  return cogent_fnam(arg1);
+\end{verbatim}
+
+If \code{n = 0} the C implementation of the Cogent unit value must be constructed. It is a C struct with 
+a single member named \code{"dummy"} of type \code{int}. The corresponding wrapper body has the form
+\begin{verbatim}
+  $ty:(()) arg = {.dummy=0};
+  return cogent_fnam(arg);
+\end{verbatim}
+
+If the C function has no result, i.e., \code{<type0>} is \code{void}, no result is returned by the entry
+wrapper. Then the last statement in its body has the form
+\begin{verbatim}
+  cogent_fnam(arg);
+\end{verbatim}
+
+If the C function has the Heap-Use property (see Section~\ref{design-types-itemprops}), a component of type
+\code{Heap} is added to the Cogent function's argument tuple and the result is converted to a tuple where the
+original result is the first component. In C the heap is accessed globally, therefore these components can 
+be ignored. However, the wrapper implementation has to take care of them. Type \code{Heap} is implemented by
+Gencot simply by the C type \code{int} and a \code{0} is passed as its value. The entry wrapper body for a
+function with Heap-Use property has the form
+\begin{verbatim}
+  $ty:((<cogt1>,...,<cogtn>,Heap)) arg = 
+    {.p1=arg1,..., .pn=argn, .pn+1=0};
+  return cogent_fnam(arg).p1;
+\end{verbatim}
+if \code{n > 0} and
+\begin{verbatim}
+  return cogent_fnam(0).p1;
+\end{verbatim}
+if \code{n = 0}.
+
+If atleast one of the C function arguments has the Add-Result property, the result is also converted to a tuple 
+whith the original result as its first component. In this case the last statement in the wrapper's body also 
+has the form
+\begin{verbatim}
+  return cogent_fnam(arg).p1;
+\end{verbatim}
+if the C function's result is not \code{void}.
+
+If the C function has virtual parameters with Global-State properties declared in the item properties, references
+to the corresponding global variables are passed to these parameters by the entry wrapper. For a parameter with 
+Global-State property the corresponding variable is determined by searching all known toplevel items for an
+item with a Global-State property with the same numerical argument. Since every global variable must use a 
+different numerical argument, this search will result in a single toplevel item identifier. 
+
+If the function does not access the global variable and uses the virtual parameter only to pass the variable 
+reference to invoked function, it may be the case that the variable is not visible in the C source file, because
+it is neither defined nor declared there. However, the name used in (antiquoted) C for the variable can always 
+be constructed from the item identifier alone. No other information about the variable is needed to generate the 
+entry wrapper.
+
+Assume that a C function has two virtual parameters with Global-State properties with numerical arguments 
+\code{0} and \code{3}. The global variable associated with argument \code{0} has name \code{gvar} and external linkage,
+the global variable associated with argument \code{3} has name \code{table} and is defined in source file \code{scan.c}
+with internal linkage. Then the entry wrapper body has the form
+\begin{verbatim}
+  $ty:((<cogt1>,...,<cogtn>,GlobState,GlobState3)) arg = 
+    {.p1=arg1,..., .pn=argn, .pn+1=&gvar, .pn+2=&local_scan_table};
+  return cogent_fnam(arg).p1;
+\end{verbatim}
+
+
+If a parameter has the Modification-Function property the argument and result of the Cogent functions are
+represented as pairs where the second component may be a tuple (see Section~\ref{design-types-function}). 
+The wrapper must rearrange the parameters and retrieve the original result. For example, if the C 
+function has 3 parameters, the second parameter has the Modification-Function property and the Add-Result 
+property, and the third parameter has the Add-Result property the Cogent function has type
+\begin{verbatim}
+  (<cogt2>, (<cogt1>, <cogt3>)) -> (<cogt2>, (<cogt0>, <cogt3>))
+\end{verbatim}
+and the entry wrapper body has the form
+\begin{verbatim}
+  $ty:((<cogt2>,(<cogt1>,<cogt3>))) arg = 
+    {.p1=arg2,.p2={.p1=arg1,.p2=arg3}};
+  return cogent_fnam(arg).p2.p1;
+\end{verbatim}
+
+Together, the information required to generate the entry wrapper is the same as that for translating the 
+function's type to Cogent: the argument types and the result type must be translated to Cogent and the
+function name must be mapped to determine the name of the Cogent function.
+
+\subsection{Object Definitions}
+\label{design-fundefs-object}
+
+Gencot processes object declarations with block-scope (``local variables'') as described in Section~\ref{design-fundefs-body} 
+by simply mapping the object name. 
+
+A toplevel (``external'') object definition (with ``file-scope'') either has an initializer or is a ``tentative definition''
+according to the C standard. Such an object definition defines a global variable. Gencot treats global variables
+as described in Section~\ref{design-modular}.
+
+If the global variable has a Global-State property (see Section~\ref{design-types-itemprops}) Gencot introduces a type 
+synonym of the form \code{GlobState<i>}. The type synonym definition is generated in the translated Cogent source 
+at the place where the object definition was in the C source and is marked with the corresponding origin. The 
+type synonym name is determined form the numerical argument of the Global-State property, the right-hand side of
+the type definition is the translation of the derived pointer type of the variable's type, translated according to
+Section~\ref{design-types}.
+
+If the global variable has the Const-Val property (see Section~\ref{design-types-itemprops}) Gencot introduces an abstract 
+parameterless access function in Cogent in the form
+\begin{verbatim}
+  <name> : () -> <type>
+\end{verbatim}
+where \code{<name>} is the mapped variable name and \code{<type>} is the translation of the variable's defined type.
+If the defined type is a struct, union, or array type, the translation of the derived pointer type is used instead,
+with a bang operator applied to make it readonly. The access function definition is generated in the translated Cogent source 
+at the place where the object definition was in the C source and is marked with the corresponding origin.
+
+Independent from its item properties, the object definition is translated to antiquoted C and added to the file 
+containing the entry wrappers. In this way all global variables are still present in the Cogent compilation unit.
+The translated definition uses as type the antiquoted Cogent type which results from translating the type specified 
+in the object definition. For an object with external linkage the name is the original name, so that the object can still
+be referred from outside the Cogent compilation unit, and the linkage is external. For an object with internal linkage
+the name is mapped as described in Section~\ref{design-names} so that it is unique in the Cogent compilation unit, and
+the linkage is internal. If an initializer is present in the original definition it is transferred to the antiquoted
+definition, mapping all referenced names of global variables with internal linkage.
+
+The entry wrappers and object definitions are placed in the antiquoted C file in the same order as the original function
+and object definitions. Additionally, all global variables are declared together with all external functions in a 
+file included before all entry wrapper files, so that entry
+wrappers defined before the variable can still pass a pointer to it to the wrapped Cogent function.
+
+If the global variable has the Const-Val property Gencot additionally creates an implementation of the access function
+in antiquoted C and puts it immediately after the variable definition. Depending on the variable's type it returns its
+value or a pointer to the variable. 

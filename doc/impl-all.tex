@@ -22,8 +22,8 @@ The \code{gencot} command supports the following subcommands:
 \item[\code{check}] Test the specified C source file or include file for parsability by Gencot (see Section~\ref{app-prep} for how to 
 make a C source parsable, if necessary).
 
-\item[\code{cfile}] Translate the specified C source file to Cogent. If the source file name is \code{x.c} the result is
-written to file \code{x.cogent}
+\item[\code{cfile}] Translate the specified C source file to Cogent and generate the entry wrappers. If the source file name 
+is \code{x.c} the results are written to files \code{x.cogent} and \code{x-entry.ac}.
 
 \item[\code{hfile}] Translate the specified C include file to Cogent. If the source file name is \code{x.h} the result is
 written to file \code{x-incl.cogent}
@@ -120,6 +120,16 @@ be listed, include files \code{x.h} must not be listed.
 The first file is only used by the subcommands \code{unit} and \code{cgraph}. They process all files listed in the unit file
 together with all included files. The second file is used by all \code{gencot} subcommands with the exception of \code{check}.
 
+The subcommand \code{unit} also processes the following optional auxiliary files by generating include directives in the 
+main Cogent source \code{<uname>.cogent}, if these files exist:
+\begin{description}
+\item[\code{gencot-incl.cogent}] This file is intended for specifying include directives for the files
+where the Cogent types predefined by Gencot are defined (see Sections~\ref{design-types} and~\ref{design-operations}).
+The file names should be specified in the form \code{gencot/CPointer.cogent}. 
+\item[\code{<uname>-manabstr.cogent}] This file is intended for manually specifying additional abstract functions used 
+in the Cogent program.
+\end{description}
+
 \subsubsection{Implementation}
 
 **todo**
@@ -160,7 +170,7 @@ unit.
 same item are combined by uniting the properties.
 
 \item[\code{mergeto}] Add properties from \code{<file2>} to items in \code{<file>}. Properties are only added
-if their item is already present in \code{<file>}.
+if their toplevel item is already present in \code{<file>}.
 
 \item[\code{omitfrom}] Omit (remove) properties in \code{<file2>} from items in \code{<file>}. 
 

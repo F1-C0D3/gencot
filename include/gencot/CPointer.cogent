@@ -48,7 +48,9 @@ modifyPtr: all(ptr,ref,arg,out). ChgPartFun ptr ref arg out
 
 -- Unwrap a wrapped pointer
 --   pref: the type of pointer to referenced value
-getrefPtr: all(pref). (CPtr #pref)! -> pref!
+--getrefPtr: all(pref). (CPtr #pref)! -> pref!
+--  (Patch for Cogent Issue 306: use additional type variable for #pvar:)
+getrefPtr: all(pref,upref). (CPtr upref)! -> pref!
 
 {- C function pointers -}
 
@@ -65,12 +67,16 @@ getrefPtr: all(pref). (CPtr #pref)! -> pref!
 -- Convert from function to function pointer
 --   fun: function type
 --   funptr: function pointer type
-toFunPtr : all(fun,funptr). fun -> #funptr
+--toFunPtr : all(fun,funptr). fun -> #funptr
+--  (Patch for Cogent Issue 306: use type variable for #funptr)
+toFunPtr : all(fun,ufunptr). fun -> ufunptr
 
 -- Convert from function pointer to function
 --   fun: function type
 --   funptr: function pointer type
-fromFunPtr : all(fun,funptr). #funptr -> Result fun ()
+--fromFunPtr : all(fun,funptr). #funptr -> Result fun ()
+--  (Patch for Cogent Issue 306: use type variable for #funptr)
+fromFunPtr : all(fun,ufunptr). ufunptr -> Result fun ()
 
 -- Macros for specifying typed conversion function instances.
 --   enc: encoding of function type

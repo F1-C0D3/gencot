@@ -155,6 +155,10 @@ or other modification functions to its
 first argument. An abstract Cogent function is a modification function
 if the C implementation always returns the same pointer, without deallocating it in between.
 
+For generality we extend the types \code{ModTypeFun} and \code{ModFun} to non-pointer types \code{obj} and \code{res}. There
+they have the normal Cogent semantics and behave like the type \code{ChgFun} defined below. Note that the types \code{obj}
+and \code{res} may still be linear if they correspond to structures containing pointers.
+
 When the item property Modification-Function (see Section~\ref{design-types-itemprops}) has been declared for a C function, Gencot
 translates it to the form of a modification function, i.e. it arranges the parameter and result types to be pairs of the type
 of the first parameter of linear type and a tuple of all other relevant types. Gencot then uses a type of the form 
@@ -1121,8 +1125,8 @@ no instances of the polymorphic functions are provided by Gencot. However, imple
 this is possible by the developer determining the array size from the context. If several array types with 
 different unknown sizes have been mapped to the same abstract type, they must be disambiguished manually.
 
-Gencot only supports arrays which are allocated on the heap. In C, arrays can also be introduced by defining
-them as global or local variable, but Cogent has no language constructs which support this.
+Gencot only supports arrays which are allocated globally or on the heap. In C, arrays can also be introduced by defining
+them as local variable, but Cogent has no language constructs which support this.
 
 \subsubsection{Creating and Disposing Arrays}
 
@@ -1145,14 +1149,18 @@ Both functions also support multidimensional array types of the form \code{CArr<
 
 If an array is seen as a structured value, its elements are its parts.
 
-Since the actual array type is always abstract, all accesses to array elements must be performed using abstract functions.
+If Cogent builtin array types are used for mapping C array types, the general case for accessing array elements must be 
+performed using abstract functions. Only if the index value is statically known the builtin access operations can be used.
+If Cogent builtin array types are not used the actual array type is always abstract, then all accesses to array elements 
+must be performed using abstract functions. Gencot uses only abstract functions in both cases, in the current version
+it does not try to optimize accesses using statically known indexes for builtin array types.
 
 The type constructors for modification functions (see Section~\ref{design-operations-modify}) can be applied to 
 Gencot array types with the usual intended semantics. 
 
 Gencot provides no equivalent for single Cogent take and put operations for array elements. It would be
 necessary to statically encode the set of array indices for which the elements have been taken in the type expression,
-this is not feasible.
+this is not feasible (although Cogent builtin array types support it).
 
 \subsubsection{Initializing and Clearing Arrays}
 
@@ -1323,8 +1331,49 @@ functions, since that would always be
 a second use of the array of linear type. If several elements must be modified together, a specific modification function
 must be defined and used instead of \code{modifyArr} or \code{modrefArr}.
 
-For multidimensional array types of the form \code{An1An2...} the element type is again an array type and the access 
-functions work accordingly.
+For multidimensional array types of the form \code{CArr<n1> \#(CArr<n2> ...)} the element type is again an (unboxed) array type.
+When \code{getrefArr} and \code{modrefArr} are used for the access in the outer array all access functions described here
+can be used for the access in the inner array.
+
+\subsubsection{Working with Unboxed Arrays}
+
+For record types Cogent provides all operations required to work with unboxed values. For Gencot array types this is not the case. 
+If Cogent builtin array types are used for mapping C array types, element access is restricted to statically known index values,
+otherwise the array type is abstract and no operations are provided by Cogent. Therefore Gencot also defines and implements abstract
+functions for working with unboxed Gencot array types.
+
+The functions
+\begin{verbatim}
+  toArr : all(tup,arr). tup -> arr
+  fromArr : all(tup,arr). arr -> tup
+\end{verbatim}
+convert between tuples and unboxed arrays. The functions are only defined if type \code{arr} is an unboxed Gencot
+array type of size \code{n} and element type \code{el}, and \code{tup} is a Cogent tuple type with \code{n} components 
+of type \code{el}. 
+
+Function \code{toArr} constructs an unboxed array value from a tuple value, function \code{fromArr} returns the 
+tuple of all element values. Both functions can also be used for a linear element
+type \code{el}, since no elements are shared or discarded.
+
+For example, an unboxed array of 3 elements of type \code{U16} can be constructed by
+\begin{verbatim}
+  mkArr[(U16,U16,U16),#(CArr3 U16)] (1,2,3)
+\end{verbatim}
+
+Gencot does not support Gencot array types with taken elements other than empty-value types for boxed arrays. Therefore no
+initialization or clearing operations are applicable to unboxed Gencot array types.
+
+As for boxed Gencot array types Gencot only supports functions for accessing single elements of unboxed arrays. It supports the 
+functions \code{getArr}, \code{getArrChk}, \code{setArr}, \code{exchngArr}, \code{modifyArr}, and \code{modifyArrDflt}.
+The latter four functions return a modified copy of the array. As described in Section~\ref{design-operations-modify} 
+the \code{ModFun} type is interpreted accordingly for unboxed values. Note that
+an unboxed array may still be of linear type, if the elements are of linear type. Then all the type restrictions
+defined for the access functions are also required for the unboxed arrays. Together with these restrictions the semantics
+of these functions guarantees that elements of linear type are neither shared nor discarded.
+
+The \code{getref} and \code{modref} functions are not supported. They would return or pass a pointer to an element.
+Since unboxed Gencot arrays are stack allocated these would be pointers into the stack which are not supported by the 
+Isabelle C parser.
 
 \subsection{Explicitly Sized Arrays}
 \label{design-operations-eearray}

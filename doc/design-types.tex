@@ -367,8 +367,8 @@ with the unbox operator applied. The same holds for union types.
 A C array type \code{t[n]} has the semantics of a consecutive sequence of n instances of type \code{t}. A value
 of type \code{t[n]} is a pointer to the first element and therefore compatible to type \code{t*}.
 
-Basically, Cogent does not support accessing elements by an index value in an array. 
-This is an important security feature since the index value is computed at runtime and cannot be statically 
+Basically, Cogent does not support accessing elements by an index value in an array, if 
+the index value is computed at runtime. This is an important security feature since the index value cannot be statically 
 compared to the array length by the compiler. Therefore, a C array type can only be mapped to an abstract type 
 in Cogent, which prevents accessing its elements in Cogent code. Element access must be implemented externally 
 with the help of abstract functions.
@@ -377,21 +377,19 @@ The Cogent standard library includes three abstract data types for arrays (\code
 However, they cannot be used as a binary compatible replacement for C arrays, because they are implemented by 
 pointers to a \code{struct} containing the array length together with the pointer to the array elements. 
 Only if the C array pointer is contained in such a struct, it is possible to use the abstract data types. 
-In existing C code the array length is often present somewhere at runtime, but not in a single \code{struct}
+In existing C code the array length is often present somewhere at runtime, but not necessarily in a single \code{struct}
 directly before the array pointer.
 
-As of December 2018 there is an experimental Cogent array type written \code{T[n]}. It is binary compatible 
-with the C array type \code{t[n]}. It is not linear, however it only supports read access to the array elements, 
-the element values cannot be replaced. Thus it can be used as replacement for a pure abstract type, if the array 
-is never modified and if it does not contain any pointers (directly or indirectly). If it is modified, replacing
-elements can be implemented externally with the help of abstract functions.
+As of June 2020 there is an experimental Cogent builtin array type written \code{T[n]}. It is binary compatible 
+with the C array type \code{t[n]}. 
 
 In C the incomplete type \code{t[]} can be used in certain places. It may be completed statically, e.g. 
 when initialized. Then the number of elements is statically known and the type can be mapped like \code{t[n]}.
 If the number of elements is not statically known the type cannot be mapped to a Cogent array, it must be mapped 
 to an abstract type.
 
-Since the Cogent array type is still under development, the current version of Gencot does not use it for
+The Cogent builtin array type is still under development. Its compilation to C is not yet stable and the refinement proof has
+not yet been covered. Therefore the current version of Gencot does not use it for
 mapping C array types. Instead, all C array types are mapped to Cogent with the help of generated names for 
 abstract types.
 
@@ -412,7 +410,7 @@ occurring in the C program.
 
 A C array type \code{t[n]} has two slightly different meanings. When it is used for allocating space in memory,
 it is used to determine the required space as \code{n * sizeof(t)}. When it is used as declared type for an 
-identifier, it means that the identifier names a (constant) value of type \code{t*}, since C arrays are 
+identifier, it means that the identifier names a (constant) value of type \code{t*}, since in expression C arrays are 
 always represented by a pointer to the first element. In Cogent both cases must be supported. However, since 
 the first case corresponds to a nonlinear (unboxed) type and the second case corresponds to a linear type, 
 different Cogent types must be used. If the types are directly implemented by \code{t*} and \code{t[n]}, the 
@@ -438,6 +436,11 @@ typedef struct $id:(UArr<size> el) {
 } $id:(UArr<size> el);
 \end{verbatim}
 
+A drawback of this approach is that the type \code{\#(UArr<size> el)} is not considered to be linear if the element 
+type \code{el} is linear. For an abstract parameterized type Cogent considers the unboxed type always as nonlinear,
+independent of the actual type parameters. Thus an unboxed array of linear values could be shared or discarded 
+without being detected by the Cogent type checker.
+
 As described in Section~\ref{design-operations-create} Gencot provides for every mapped linear type a separate type
 for ``empty'' values. For a record type \code{R} the type \code{R take (..)} is used. However, the 
 \code{take} operator can normally not be applied to an abstract type. There are three possible approaches for mapped 
@@ -454,6 +457,7 @@ The second approach uses a wrapper struct also in Cogent:
 \end{verbatim}
 This makes it possible to use the Cogent take type operator for modelling empty-value array types.
 The drawback is that two different Cogent type names are required and that arrays are wrapped twice as struct.
+Also, the type \code{\#(CArr<size> el)} is still considered nonlinear for a linear element type, as above.
 
 The double wrapping could be avoided if type \code{UArr<size>} is directly implemented by the array type
 in C as in
@@ -483,7 +487,7 @@ implies that no single macro is possible if it uses \code{EVT}, and, in particul
 an unboxed array is the boxed array type (see Section~\ref{design-types-pointer}) this case must be distinguished 
 in Macros which apply \code{EVT} to a constructed pointer type.
 
-Therefore the decision in Gencot is to use the second approach. For every array \code{<size>} used in the C 
+Therefore the decision in early versions of Gencot is to use the second approach. For every array \code{<size>} used in the C 
 program the two generic Cogent types \code{CArr<size>} and \code{UArr<size>} are used where the latter is
 abstract and is defined in antiquoted C as described above.
 
@@ -574,11 +578,91 @@ specification \code{<size>}. Depending on the context of the C array type, addit
 where El is the result of mapping the element type \code{el} to a Cogent type. If the size specification
 is too complex (not a literal or single identifier) it is omitted and the type must be handled manually.
 
-In Cogent linear types (pointers) are only supported if they point to data on the heap. Otherwise the Isabelle 
-C parser will not accept the C code generated by Cogent. Therfore, whenever the boxed form is used for an array
-(i.e., whenever it is passed as parameter to a function or defined as a global variable) it must be allocated
-on the heap. If it is stack allocated in the C program this must be adapted manually by allocating and deallocating
-it on the heap in the Cogent program.
+In Cogent linear types (pointers) are not supported if they point to data on the stack. Otherwise the Isabelle 
+C parser will not accept the C code generated by Cogent. Therefore, whenever the boxed form is used for an array
+(i.e., whenever it is passed as parameter to a function or defined as a global variable) it must not be allocated
+on the stack. If it is stack allocated in the C program this must be adapted manually by allocating and deallocating
+it on the heap in the Cogent program or by any other solution.
+
+\subsubsection{Cogent Builtin Array Type}
+
+Here we document considerations for using the Cogent builtin array type for mapping C array types. They are based 
+upon the Cogent builtin array type implementation as of June 2020.
+
+The Cogent builtin array type has the form \code{El[n]} for the linear case and \code{El\#[n]} for the nonlinear
+case. The nonlinear case can alternatively be written as \code{\#(El[n])}, i.e., by applying the unbox type
+operator to the linear case. The array size \code{n} must be a constant expression of type \code{U32} which can be
+evaluated at compile time. As usual for \code{U32} modulo arithmetics is used so the result is never negative.
+The array size must not be \code{0}.
+
+Let \code{el} be the translation of the element type \code{El} to C. Cogent directly translates every occurrence
+of type \code{El[n]} to the C type \code{el*} and it translates every occurrence of type \code{El\#[n]} to the 
+C type \code{el[n]}. An exception are function result types, where \code{El\#[n]} is also translated to 
+\code{el*}. 
+
+Note that this translation schema is wrong, since for unboxed array types used as function parameter or result
+it translates them to pointer types. This has been posted to the Cogent github as Issue\#370.
+
+The builtin arrays are mainly treated similar to records where all fields have the same type. Elements can be 
+``taken'', resulting in a different type where the taken elements are specified by their index values. The 
+corresponding type operator is \code{@take(i1,...,in)}. Unboxed arrays can be constructed using an expression 
+of the form \code{[e1,...,en]} and they can be matched to patterns of the same form. For boxed arrays there 
+are put expressions and take patterns where elements can be specified by their index. 
+
+The major drawback is that it seems that all element indices must be specified as constant expressions which 
+can be evaluated at compile time so that their validity can be checked. This excludes many array use cases occurring
+in C programs. However, this can be alleviated by providing additional abstract functions which implement a 
+(guarded) access to array elements for arbitrary index values.
+
+For the Gencot type mapping the builtin array types can be used as follows.
+
+Since the unbox operator is available for array types it is not necessary to use different Cogent types for the 
+linear and the nonlinear case, C array types could normally be mapped to boxed array types, if they occur in 
+the nonlinear form the unbox operator can be applied.
+
+However, the empty-value type must be constructed in a different way, instead of the operator \code{take (..)} 
+an operator of the form \code{@take (0,1,2,n-1)} must be used (an operator of the form \code{@take (..)} seems
+to be intended but not yet implemented). Therefore it is not possible to define a common \code{EVT} macro for
+array and non-array types.
+
+Moreover, in the case of boxed array types \code{El[n]} the information about the array size \code{n} is not 
+preserved by the translation to C. As described in Section~\ref{impl-operations} the Genops mechanism for arrays 
+depends on the possibility to determine the array size from the C type. 
+
+For both reasons Gencot should also wrap array types in Cogent records when builtin array types are used. 
+The resulting form is
+\begin{verbatim}
+  type CArr<size> el = {arr: el#[<size>]}
+\end{verbatim}
+where the builtin array type is used instead of the abstract type \code{UArr<size> el}. This approach has the
+following consequences:
+\begin{itemize}
+\item Only one Cogent type name is required for every array size.
+\item Type \code{\#(CArr<size> el)} is now considered to be linear if the element type \code{el} is linear,
+because in this case the Cogent type checker recognizes the builtin array type \code{el\#[<size>]} as linear.
+\item No double wrapping is required, since Cogent translates take and put operations for unboxed arrays
+in a record as loops for assigning the single elements instead of the array as a whole. Note, however, that 
+an assignment of a wrapped array may be more efficient, but this should be a decision for the implementation
+of the builtin array types.
+\item Since only unboxed builtin array types are used, the information about the array size is always preserved
+by the translation to C and can be used by Genops.
+\item Since the unboxed array types are only used for record fields the error according to Issue\#370 is not 
+relevant.
+\end{itemize}
+
+Multidimensional C array types could now be translated using a multidimensional Cogent array type, such as 
+\code{el\#[<s1>]\#[<s2>]} (note that all dimensions must be unboxed). Cogent translates such types correctly back
+to a multidimensional C array type. However, this form does not correspond to the form \code{CArr<s1> \#(CArr<s2> el)}
+where both dimensions are wrapped. For consistency reasons the latter form is used by Gencot.
+
+If the \code{<size>} is specified by a preprocessor identifier there is another subtle difference to the approach 
+without builtin array types: in that approach the size information is only encoded in the abstract type name, 
+there the identifier is used. To access the actual size value Genops needs the preprocessor definition of that
+identifier. When using builtin array types the identifier is resolved by Cogent when it translates the builtin
+array type and the actual size value is specified in the C array type where it can directly be retrieved by Genops.
+
+For all these reasons Gencot switched to use Cogent builtin array types as described here for mapping C array types, 
+as soon as the builtin array types have been available and sufficiently stable in Cogent.
 
 \subsection{Function Types}
 \label{design-types-function}

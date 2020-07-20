@@ -204,7 +204,7 @@ as an awk script.
 \subsection{Generating Main Files}
 \label{impl-ocomps-main}
 
-The main files as described in Section~\ref{design-files} are \code{<package>.cogent} and \code{<package>.c}. They
+The main files as described in Section~\ref{design-files} are \code{<unit>.cogent} and \code{<unit>.c}. They
 contain include directives for all parts of the Cogent unit sources, the former for the Cogent sources, the latter 
 for the C sources resulting from translating the Cogent sources with the Cogent compiler.
 
@@ -217,50 +217,50 @@ code or after compiling Cogent back to C. For an application see Section~\ref{ap
 
 \subsubsection{Generating the Cogent Main File}
 
-The component \code{gencot-mainfile} generates the content of the Cogent main file \code{<package>.cogent}. 
+The component \code{gencot-mainfile} generates the content of the Cogent main file \code{<unit>.cogent}. 
 It is implemented as a shell script. It reads the list of
-\code{.c} files comprising the Cogent compilation unit as its input and it takes the package name \code{<package>}
+\code{.c} files comprising the Cogent compilation unit as its input and it takes the unit name \code{<unit>}
 as additional argument. The generated content is written to the standard output. 
 
 The component adds include directives for the following files:
 \begin{itemize}
 \item The file \code{gencot.cogent}, if it exists in the current directory. This file can be used to include standard 
 definitions provided by Gencot such as \code{gencot/Memory.cogent}.
-\item The files \code{<package>-externs.cogent}, \code{<package>-exttypes.cogent}, \code{<package>-dvdtypes.cogent}.
-\item The file \code{<package>-manabstr.cogent}, if it exists in the current directory. This file can be used to
+\item The files \code{<unit>-externs.cogent}, \code{<unit>-exttypes.cogent}, \code{<unit>-dvdtypes.cogent}.
+\item The file \code{<unit>-manabstr.cogent}, if it exists in the current directory. This file can be used to
 manually define additional abstract types and functions used in the translated program.
 \item The file \code{x.cogent} for every source file \code{x.c} specified as input.
 \end{itemize}
 
 \subsubsection{Generating the C Main File}
 
-The component \code{auxcog-mainfile} generates the content of the C main file \code{<package>.c}. 
+The component \code{auxcog-mainfile} generates the content of the C main file \code{<unit>.c}. 
 It is implemented as a shell script. It reads the list of
-\code{.c} files comprising the Cogent compilation unit as its input and it takes the package name \code{<package>}
+\code{.c} files comprising the Cogent compilation unit as its input and it takes the unit name \code{<unit>}
 as additional argument. The generated content is written to the standard output. 
 
 The component adds include directives for the following files:
 \begin{itemize}
-\item The file \code{gencot.h} for non-generic abstract standard types used by Gencot.
-\item The files \code{<package>-mapback.h} and \code{<package>-macros.h}, if they exist in the current directory.
+\item The file \code{<unit>-gencot.h} for non-generic abstract standard types used by Gencot.
+\item The files \code{<unit>-mapback.h} and \code{<unit>-macros.h}, if they exist in the current directory.
 They are used to make preprocessor constants from the Cogent program available in C.
-\item The files \code{<package>-dvdtypes.h} and \code{<package>-exttypes.h}, if they exist in the current directory. 
-They contain definitions for the non-generic abstract types defined in \code{<package>-dvdtypes.cogent} and 
-\code{<package>-dvdtypes.cogent}, respectively.
-\item The file \code{<package>-manabstr.h}, if it exists in the current directory. This file can be used to
-manually provide definitions for the non-generic abstract types defined in \code{<package>-manabstr.cogent}.
-\item The file \code{<package>-gen.c} which must be the result of the translation of \code{<package>.cogent}
+\item The files \code{<unit>-dvdtypes.h} and \code{<unit>-exttypes.h}, if they exist in the current directory. 
+They contain definitions for the non-generic abstract types defined in \code{<unit>-dvdtypes.cogent} and 
+\code{<unit>-dvdtypes.cogent}, respectively.
+\item The file \code{<unit>-manabstr.h}, if it exists in the current directory. This file can be used to
+manually provide definitions for the non-generic abstract types defined in \code{<unit>-manabstr.cogent}.
+\item The file \code{<unit>-gen.c} which must be the result of the translation of \code{<unit>.cogent}
 with the Cogent compiler.
-\item The file \code{<package>-externs.c} with the implementations of all exit wrappers.
-\item The file \code{<package>-gencot.c}, if it exists in the current directory. It contains the 
+\item The file \code{<unit>-externs.c} with the implementations of all exit wrappers.
+\item The file \code{<unit>-gencot.c}, if it exists in the current directory. It contains the 
 implementations of all generic abstract functions the program uses from the Gencot standard library.
-\item The file \code{<package>-manabstr.c}, if it exists in the current directory. This file can be used to
-manually provide implementations of the abstract functions defined in \code{<package>-manabstr.cogent}.
-\item The file \code{cogent-common.c} with implementations of functions defined in \code{gum/common/common.cogent}
+\item The file \code{<unit>-manabstr.c}, if it exists in the current directory. This file can be used to
+manually provide implementations of the abstract functions defined in \code{<unit>-manabstr.cogent}.
+\item The file \code{<unit>-cogent-common.c} with implementations of functions defined in \code{gum/common/common.cogent}
 but not implemented by Cogent.
 \item The file \code{x-entry.c} for every source file \code{x.c} specified as input. These files contain
 the implementations of the entry wrappers.
 \end{itemize}
 
-The files \code{<package>-*.c} and \code{*-entry.c} result from postprocessing the corresponding 
+The files \code{<unit>-*.c} and \code{*-entry.c} result from postprocessing the corresponding 
 \code{\_pp\_inferred.c} files by \code{auxcog}.

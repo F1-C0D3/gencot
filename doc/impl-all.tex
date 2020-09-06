@@ -167,12 +167,10 @@ unit.
 \item[\code{used}] List external toplevel items used in the Cogent compilation unit. 
 
 \item[\code{merge}] Merge the declarations in \code{<file>} and \code{<file2>}. Two declarations for the 
-same item are combined by uniting the properties.
+same item are combined by uniting the properties and removing negative properties.
 
-\item[\code{mergeto}] Add properties from \code{<file2>} to items in \code{<file>}. Properties are only added
+\item[\code{mergeto}] Add properties from \code{<file2>} to items in \code{<file>}. Properties are only added/removed
 if their toplevel item is already present in \code{<file>}.
-
-\item[\code{omitfrom}] Omit (remove) properties in \code{<file2>} from items in \code{<file>}. 
 
 \end{description}
 
@@ -257,9 +255,8 @@ parameter modification descriptions in JSON format. The result is written to \co
 \item[\code{eval}] Evaluate the parameter modification description in \code{<file>} as described in 
 Section~\ref{impl-parmod-eval}.  The resulting parameter modification description is written to standard output.
 
-\item[\code{out}] Convert the evaluated parameter modification description in \code{<file>} to item property declarations.
-The result is written to the two files \code{<file>-itemprops} (properties to be added to the default properties) 
-and \code{<file>-omitprops} (properties to be removed from the default properties).
+\item[\code{out}] Convert the evaluated parameter modification description in \code{<file>} to an property declarations.
+The result is written to the file \code{<file>-itemprops}.
 
 \end{description}
 

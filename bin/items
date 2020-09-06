@@ -11,7 +11,7 @@ BIN=$GENCOT_HOME/bin
 PRC=$BIN/items-proc
 GEN=$BIN/items-gen
 
-USAGE="Usage: $0 [-I<dir>] [-G<dir>] [-u<uname>] [-k] [file|unit|used|merge|mergeto|omitfrom|help] [<file>] [<file>]"
+USAGE="Usage: $0 [-I<dir>] [-G<dir>] [-u<uname>] [-k] [file|unit|used|merge|mergeto|help] [<file>] [<file>]"
 
 long_usage()
 {
@@ -23,7 +23,6 @@ long_usage()
     echo '  used              List external toplevel items used by unit, output in <uname>-external.items'
     echo '  merge    <file1> <file2> Merge two declarations by uniting properties for each item'
     echo '  mergeto  <file1> <file2> Merge properties from <file2> to items in <file1>'
-    echo '  omitfrom <file1> <file2> Omit properties in <file2> from items in <file1>'
     echo '  help              Display this help information'
     echo '  (all commands but used write the resulting property declarations to stdout)'
     echo 'Options: '
@@ -91,7 +90,6 @@ case "$CMD" in
     used) REQARGS=0;;
     merge) ;;
     mergeto) ;;
-    omitfrom) ;;
     help) long_usage; exit;;
     *) echo "unknown items command: $1"; short_usage; exit;;
 esac
@@ -194,10 +192,6 @@ elif [ "$CMD" == "mergeto" ]
 then
     $BIN/gencot-prclist < $1 | tee $TMPDIR/target | $PRC idlist > $TMPDIR/idlist
     $BIN/gencot-prclist < $2 | $PRC filter $TMPDIR/idlist | $PRC merge $TMPDIR/target
-elif [ "$CMD" == "omitfrom" ]
-then
-    $BIN/gencot-prclist < $2 > $TMPDIR/hfile
-    $BIN/gencot-prclist < $1 | $PRC omit $TMPDIR/hfile
 elif [ "$CMD" == "file" ]
 then
     prepare_cfile $CFILE

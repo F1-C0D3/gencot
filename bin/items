@@ -191,7 +191,8 @@ then
 elif [ "$CMD" == "mergeto" ]
 then
     $BIN/gencot-prclist < $1 | tee $TMPDIR/target | $PRC idlist > $TMPDIR/idlist
-    $BIN/gencot-prclist < $2 | $PRC filter $TMPDIR/idlist | $PRC merge $TMPDIR/target
+    $BIN/gencot-prclist < $2 | $PRC filter $TMPDIR/idlist > $TMPDIR/merge
+    $PRC merge $TMPDIR/merge < $TMPDIR/target 
 elif [ "$CMD" == "file" ]
 then
     prepare_cfile $CFILE

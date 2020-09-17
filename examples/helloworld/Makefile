@@ -8,6 +8,7 @@ ACFILES = $(UNIT)-externs.ac $(CFILES:.c=-entry.ac)
 ACFILESPP = $(ACFILES:.ac=_pp.ac)
 ACFILESINF = $(ACFILES:.ac=_pp_inferred.c)
 ACFILESC = $(ACFILES:.ac=.c)
+GENCOTFILES = $(UNIT)-gencot.h $(UNIT)-cogent-common.c 
 OFILES = $(CFILES:.c=.o)
 COGFILES = $(CFILES:.c=.cogent)
 INCLFILES = $(HFILES:.h=-incl.cogent)
@@ -24,7 +25,7 @@ cogent-run: run-cogent-hello
 
 .PHONY: clean run-hello run-cogent-hello
 
-STDGUM=$(shell cogent --stdgum-dir)
+STDGUM=$(shell cogent --libgum-dir)
 GENCOTC=$(GENCOT_HOME)/c
 GENCOTI=$(GENCOT_HOME)/include
 COGPPARGS = --cogent-pp-args="-I$(GENCOTI)"
@@ -74,7 +75,13 @@ else
 	auxcog -u $(UNIT) unit
 endif
 
-cogent-hello: $(UNIT).c $(UNIT)-gen.c $(UNIT)-gen.h $(UNIT)-macros.h $(ACFILESC)
+$(UNIT)-gencot.h:
+	@cp $(GENCOTC)/gencot.h $@
+
+$(UNIT)-cogent-common.c:
+	@cp $(GENCOTC)/cogent-common.c $@
+
+cogent-hello: $(UNIT).c $(UNIT)-gen.c $(UNIT)-gen.h $(UNIT)-macros.h $(GENCOTFILES) $(ACFILESC)
 	cc -o cogent-hello -I$(STDGUM) -I$(GENCOTC) $(UNIT).c
 
 run-cogent-hello: cogent-hello
@@ -85,5 +92,5 @@ clean:
 	-rm -f $(COGSRC) $(UNIT)-external.items hello-entry.ac
 	-rm -f $(EDITFILES)
 	-rm -f $(UNIT)-gen.c $(UNIT)-gen.h $(ACFILESPP) $(ACFILESINF)
-	-rm -f $(UNIT).c $(UNIT)-macros.h $(ACFILESC)
+	-rm -f $(UNIT).c $(UNIT)-macros.h $(GENCOTFILES) $(ACFILESC)
 	-rm -f cogent-hello

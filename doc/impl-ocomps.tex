@@ -111,11 +111,27 @@ does not remove comments, so it cannot be used for this task.
 
 The filter is implemented as an awk script.
 
+\subsection{Using Macros in Generated C Code}
+\label{impl-ocomps-macros}
+
+The components described here support the transferral of some preprocessor macro definitions from the Cogent source
+to the generated C source. This feature has been used when array types have been mapped to abstract Cogent types. 
+Since array types are now mapped to Cogent builtin array types, it is no more required and has been deprecated. For
+information reasons the concept is still documented here.
+
+Note that in a definition 
+\begin{verbatim}
+  type CArrX<id>X el = {arr: el#[<id>]}
+\end{verbatim}
+using a builtin array type the macro name \code{<id>} is still present in the type name on the left side, however, it
+will be expanded on the right side, so the numerical value of the array size is known and used by the Cogent compiler
+when it generates the C source.
+
 \subsubsection{\code{auxcog-macros}}
 
 Gencot array types may have the form \code{CArrX<id>X} where \code{<id>} is a preprocessor constant (parameterless macro) 
-identifier specifying the array size (see Section~\ref{design-types-array}). These types are generic in the element type 
-and are thus implemented in antiquoted C. The implementation has the form 
+identifier specifying the array size (see Section~\ref{design-types-array}). If these types are implemented using
+abstract types in Cogent, they must be implemented in antiquoted C. The implementation has the form 
 \begin{verbatim}
 typedef struct $id:(UArrX<id>X el) {
   $ty:el arr[<id>];
@@ -224,7 +240,7 @@ as additional argument. The generated content is written to the standard output.
 
 The component adds include directives for the following files:
 \begin{itemize}
-\item The file \code{gencot.cogent}, if it exists in the current directory. This file can be used to include standard 
+\item The file \code{gencot-incl.cogent}, if it exists in the current directory. This file can be used to include standard 
 definitions provided by Gencot such as \code{gencot/Memory.cogent}.
 \item The files \code{<package>-externs.cogent}, \code{<package>-exttypes.cogent}, \code{<package>-dvdtypes.cogent}.
 \item The file \code{<package>-manabstr.cogent}, if it exists in the current directory. This file can be used to
@@ -242,8 +258,6 @@ as additional argument. The generated content is written to the standard output.
 The component adds include directives for the following files:
 \begin{itemize}
 \item The file \code{gencot.h} for non-generic abstract standard types used by Gencot.
-\item The files \code{<package>-mapback.h} and \code{<package>-macros.h}, if they exist in the current directory.
-They are used to make preprocessor constants from the Cogent program available in C.
 \item The files \code{<package>-dvdtypes.h} and \code{<package>-exttypes.h}, if they exist in the current directory. 
 They contain definitions for the non-generic abstract types defined in \code{<package>-dvdtypes.cogent} and 
 \code{<package>-dvdtypes.cogent}, respectively.

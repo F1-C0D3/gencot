@@ -5,7 +5,7 @@ TESTS = prim enum struct union array func parmod pointer names const extrefs
 UNIT = externs exttypes dvdtypes
 ABSINCL = -I/home/teege/work/projekte/code/HoBit/devel/gencot/test/types-regression
 AUNIT = unit-dfltprops
-PPROPS = types-parmod.json-itemprops types-parmod.json-omitprops
+PPROPS = types-parmod.json-itemprops
 
 compile: $(foreach TST,$(TESTS),types-$(TST).o)
 
@@ -38,16 +38,14 @@ types-const.c-itemprops: types-const.c-manprops types-const.c-dfltprops types-pa
 types-extrefs.c-itemprops: types-extrefs.c-dfltprops $(PPROPS) common.types-manprops test.unit-dfltprops test.unit-manprops
 	@$(IT) merge types-extrefs.c-dfltprops test.unit-dfltprops > types-extrefs.c-hprops
 	@$(IT) mergeto types-extrefs.c-hprops types-parmod.json-itemprops > types-extrefs.c-h2props
-	@$(IT) omitfrom types-extrefs.c-h2props types-parmod.json-omitprops > types-extrefs.c-hprops
-	@$(IT) merge types-extrefs.c-hprops common.types-manprops > types-extrefs.c-h2props
-	@$(IT) merge types-extrefs.c-h2props test.unit-manprops > types-extrefs.c-itemprops
+	@$(IT) merge types-extrefs.c-h2props common.types-manprops > types-extrefs.c-hprops
+	@$(IT) merge types-extrefs.c-hprops test.unit-manprops > types-extrefs.c-itemprops
 	@rm types-extrefs.c-hprops types-extrefs.c-h2props
 
 %.c-itemprops: %.c-dfltprops $(PPROPS) common.types-manprops
 	@$(IT) mergeto $*.c-dfltprops types-parmod.json-itemprops > $*.c-hprops
-	@$(IT) omitfrom $*.c-hprops types-parmod.json-omitprops > $*.c-h2props
-	@$(IT) merge common.types-manprops $*.c-h2props > $*.c-itemprops
-	@rm $*.c-hprops $*.c-h2props
+	@$(IT) merge common.types-manprops $*.c-hprops > $*.c-itemprops
+	@rm $*.c-hprops
 
 unit-regression: unit $(foreach U,$(UNIT),test-$(U)-expected.cogent) $(foreach U,$(AUNIT),test.$(U) test-expected.$(U)) test-external.items test-external-expected.items
 	-@for u in $(UNIT); do \
@@ -80,19 +78,21 @@ test-external.items: test.unit test.unit-manitems
 %.c-dfltprops: %.c
 	@$(IT) $(ABSINCL) file $*.c > $*.c-dfltprops
 
-%.cogent: %.c %.c-itemprops test-external.items
+%.cogent %-entry.ac: %.c %.c-itemprops test-external.items
 	@$(GC) $(ABSINCL) -u test cfile $*.c
 
 %-regression: types-%.cogent types-%-expected.cogent types-%.c-dfltprops types-%-expected.c-dfltprops
 	-diff types-$*.cogent types-$*-expected.cogent
 	-diff types-$*.c-dfltprops types-$*-expected.c-dfltprops
+	-diff types-$*-entry.ac types-$*-entry-expected.ac
 
 %-expect-current: types-%.cogent types-%.c-dfltprops
 	cp types-$*.cogent types-$*-expected.cogent
 	cp types-$*.c-dfltprops types-$*-expected.c-dfltprops
+	cp types-$*-entry.ac types-$*-entry-expected.ac
 
 %-clean:
-	-rm -f types-$*.cogent types-$*.o types-$*.c-dfltprops types-$*.c-itemprops
+	-rm -f types-$*.cogent types-$*.o types-$*.c-dfltprops types-$*.c-itemprops types-$*-entry.ac
 
 test.unit-itemprops: itemprops
 	@touch test.unit-itemprops

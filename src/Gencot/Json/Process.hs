@@ -283,36 +283,20 @@ simplifyPar _ _ attr = attr
 
 -- | Convert a function description sequence to an item property map.
 -- The result type is equivalent to ItemProperties, we avoid importing Gencot.Util.Properties here.
-parmodsToProps :: Parmods -> M.Map String [String]
-parmodsToProps parmods = M.unions $ map parmodToProps parmods
+convertParmods :: Parmods -> M.Map String [String]
+convertParmods parmods = M.unions $ map convertParmod parmods
 
-parmodToProps :: Parmod -> M.Map String [String]
-parmodToProps jso =
+convertParmod :: Parmod -> M.Map String [String]
+convertParmod jso =
     M.unions $ map mkmap $ getFAttrs isParam jso
     where respar = getFunResult jso
           mkmap (fnam,pnam,(JSString js)) = 
               case fromJSString js of
-                   "yes" -> if pnam == respar then M.empty else M.singleton (mkparnam fnam pnam) ["ar"]
-                   "no" -> M.singleton (mkparnam fnam pnam) ["ro"]
+                   "yes" -> M.singleton (mkparnam fnam pnam) [if pnam == respar then "-ar" else "ar"]
+                   "no" -> M.singleton (mkparnam fnam pnam) ["ro", "-ar"]
+                   "discarded" -> M.singleton (mkparnam fnam pnam) ["-ar"]
                    "readonly" -> M.singleton (mkparnam fnam pnam) ["ro"]
                    _ -> M.empty
           mkparnam fnam pnam =
               fnam ++ "/" ++ (if elem '-' pnam then tail $ snd $ break ('-' ==) pnam else pnam)
 
--- | Convert a function description sequence to an item property map of properties to be omitted from the default.
--- The result type is equivalent to ItemProperties, we avoid importing Gencot.Util.Properties here.
-parmodsToOmitProps :: Parmods -> M.Map String [String]
-parmodsToOmitProps parmods = M.unions $ map parmodToOmitProps parmods
-
-parmodToOmitProps :: Parmod -> M.Map String [String]
-parmodToOmitProps jso =
-    M.unions $ map mkmap $ getFAttrs isParam jso
-    where respar = getFunResult jso
-          mkmap (fnam,pnam,(JSString js)) = 
-              case fromJSString js of
-                   "yes" -> if pnam == respar then M.singleton (mkparnam fnam pnam) ["ar"] else M.empty
-                   "discarded" -> M.singleton (mkparnam fnam pnam) ["ar"]
-                   "no" -> M.singleton (mkparnam fnam pnam) ["ar"]
-                   _ -> M.empty
-          mkparnam fnam pnam =
-              fnam ++ "/" ++ (if elem '-' pnam then tail $ snd $ break ('-' ==) pnam else pnam)

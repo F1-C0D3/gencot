@@ -185,6 +185,14 @@ five declarations are needed:
     myfunp/*:        hu
 \end{verbatim}
 
+When item property declarations are merged (see Section~\ref{impl-ocomps-items}) property specfication can be negative
+be prepending a minus sign \code{-} (without separating spaces):
+\begin{verbatim}
+    mystruct.m1:     nn -ro
+\end{verbatim}
+Upon merging a negative property suppresses the property for the item, independent where it is specified. Thus negative
+propertiy specifications have higher priority than normal ones.
+
 \subsection{Internal Representation}
 \label{impl-itemprops-internal}
 
@@ -192,10 +200,12 @@ When used the textual form is converted to an internal Haskell representation of
 \begin{verbatim}
   type ItemProperties = Map String [String]
 \end{verbatim}
-defined in module \code{Gencot.Util.Properties}. It maps item property identifiers to the list of identifiers of declared properties.
+defined in module \code{Gencot.Util.Properties}. It maps item property identifiers to the list of identifiers of 
+declared properties (including the minus sign for negative properties.
 If several declarations for the same item are present in the textual form they are combined by uniting the 
 declared properties. Repeated property specifications are removed, the order of the properties in the list is
-arbitrary.
+arbitrary. Negative properties and corresponding normal properties are not normalized, they can coexist in the
+same list.
 
 The \code{ItemProperties} map is added as component to the user state of the \code{FTrav} monad. The monadic actions
 \begin{verbatim}
@@ -203,4 +213,5 @@ The \code{ItemProperties} map is added as component to the user state of the \co
   getProperties :: String -> FTrav [String]
   hasProperty :: String -> String -> FTrav Bool
 \end{verbatim}
-are defined in \code{Gencot.Traversal} for accessing the item properties.
+are defined in \code{Gencot.Traversal} for accessing the item properties. The actions \code{getProperties} and 
+\code{hasProperty} treat negative properties literally and do not interprete them.

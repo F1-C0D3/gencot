@@ -11,10 +11,6 @@ then
 fi
 
 if [ -e gencot-incl.cogent ]; then echo "#include \"gencot-incl.cogent\""; echo ""; fi
-echo "#include \"$1-externs.cogent\""
-echo "#include \"$1-exttypes.cogent\""
-echo "#include \"$1-dvdtypes.cogent\""
-if [ -e $1-manabstr.cogent ]; then echo "#include \"$1-manabstr.cogent\""; fi
 echo ""
 for file in $(cat /dev/stdin)
 do
@@ -22,3 +18,8 @@ do
     fnam=$(expr match $fbase '\(.*\)[.][^.]*' '|' $fbase)
     if [ $fnam != "additional_externs" ]; then echo "#include \"$fnam.cogent\""; fi
 done
+echo ""
+echo "#include \"$1-externs.cogent\""
+echo "#include \"$1-exttypes.cogent\""
+echo "#include \"$1-dvdtypes.cogent\""
+if [ -e $1-manabstr.cogent ]; then echo "#include \"$1-manabstr.cogent\""; fi

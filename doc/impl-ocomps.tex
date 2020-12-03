@@ -240,11 +240,14 @@ The component adds include directives for the following files:
 \begin{itemize}
 \item The file \code{gencot-incl.cogent}, if it exists in the current directory. This file can be used to include standard 
 definitions provided by Gencot such as \code{gencot/Memory.cogent}.
+\item The file \code{x.cogent} for every source file \code{x.c} specified as input.
 \item The files \code{<unit>-externs.cogent}, \code{<unit>-exttypes.cogent}, \code{<unit>-dvdtypes.cogent}.
 \item The file \code{<unit>-manabstr.cogent}, if it exists in the current directory. This file can be used to
 manually define additional abstract types and functions used in the translated program.
-\item The file \code{x.cogent} for every source file \code{x.c} specified as input.
 \end{itemize}
+
+The files \code{x.cogent} must be included first, because they may contain definitions of preprocessor macros
+which may also be used in the remaining files.
 
 \subsubsection{Generating the C Main File}
 

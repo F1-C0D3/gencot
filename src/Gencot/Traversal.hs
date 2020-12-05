@@ -3,10 +3,11 @@ module Gencot.Traversal where
 
 import Control.Monad (liftM)
 import Data.Map (Map,findWithDefault,empty,keys,filterWithKey)
+import Data.Functor.Identity (Identity)
 
 import Language.C.Analysis.DefTable (DefTable)
 import Language.C.Data.Ident (SUERef,Ident,identToString)
-import Language.C.Analysis.TravMonad (Trav,runTrav,travErrors,withDefTable,getUserState,modifyUserState,getDefTable)
+import Language.C.Analysis.TravMonad (TravT,runTrav,travErrors,withDefTable,getUserState,modifyUserState,getDefTable)
 import Language.C.Analysis.SemRep (FunDef)
 
 import Gencot.Input (showWarnings,errorOnLeft)
@@ -20,7 +21,7 @@ import Gencot.Items.Properties (ItemProperties)
 -- The fourth component is the item property map from item ids to property string lists
 -- The fifth component is the list of type names where to stop resolving external types together with a flag whether to use the list
 -- The sixth component is the definition of the current function while traversing a function body
-type FTrav = Trav (String,NamePrefixMap,[SUERef],ItemProperties,(Bool,[String]),Maybe FunDef)
+type FTrav = TravT (String,NamePrefixMap,[SUERef],ItemProperties,(Bool,[String]),Maybe FunDef) Identity
 
 runFTrav :: DefTable -> (String,NamePrefixMap,ItemProperties,(Bool,[String])) -> FTrav a -> IO a
 runFTrav table (f,npm,ipm,tds) action = do

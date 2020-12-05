@@ -46,7 +46,7 @@ Gencot uses the following processors of this kind:
 processes externally referenced typedefs, tag definitions and enum constant definitions.
 \item[\code{gencot-dvdtypes}] generates the content to be put in the file \code{<package>-dvdtypes.cogent}. It 
 processes derived types.
-\item[\code{gencot-dvdtypesah}] generates the content to be put in the file \code{<package>-dvdtypes.ah}. It 
+\item[\code{gencot-dvdtypesh}] generates the content to be put in the file \code{<package>-dvdtypes.h}. It 
 processes derived types.
 \item[\code{gencot-externs}] generates the abstract function definitions of the exit wrappers to be put in the file 
 \code{<package>-externs.cogent}. It processes the declarations of externally referenced functions and variables.
@@ -575,7 +575,22 @@ Generating the type definitions for derived array and function pointer types is 
 in module \code{Gencot.Cogent.Translate}, where the list of \code{DeclEvent}s corresponds to the items
 to be processed.
 
-\subsubsection{Processor \code{gencot-dvdtypesah}}
+In the type definitions for derived array types the array size must be specified as a Cogent expression. However, only
+restricted forms of expressions which can be evaluated at compile time are allowed here (e.g., no function application).
+These expressions have the same syntax in C and in Cogent, therefore the current Gencot version does not translate them 
+to Cogent. Instead, it only translates them from the language-c AST to language-c-quote AST, as described for function 
+bodies in Section~\ref{impl-ccode-expr}. 
+
+The only identifiers which may occur in an array size expression are preprocessor macros, usually representing constant
+values in C. It would be possible to map these names to Cogent, as it is done in function bodies, since Gencot introduces
+a Cogent constant for every preprocessor constant. However, these constants may have types other than \code{U32}, such as 
+\code{U8} or \code{U16}, which is not allowed in array size expressions (not even when using the upcast operator). Since
+the original preprocessor constants are still defined in the generated Cogent code, the names are not mapped in array 
+size expressions. This implies, however, that the generated type definitions must be placed in the Cogent source
+after all preprocessor constant definitions. This is achieved by including the output of \code{gencot-dvdtypes} after
+that of \code{gencot-translate} in the generated main Cogent source file (see Section~\ref{impl-ocomps-main}).
+
+\subsubsection{Processor \code{gencot-dvdtypesh}}
 
 \subsection{Declarations}
 \label{impl-ccomps-decls}

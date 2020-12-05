@@ -517,6 +517,25 @@ transExpr (LC.CGenericSelection expr assoc_list n) =
     error $ "Gencot unsupported C: CGenericSelection at " ++ show n
 transExpr (LC.CBuiltinExpr builtin) = transBuiltin builtin
 
+-- | Special translation of Expr to be used as Cogent array size expressions.
+-- Names are not mapped to Cogent form.
+-- Reduced expression structure supported.
+transArrSizeExpr :: LC.CExpr -> FTrav GCA.Exp
+transArrSizeExpr (LC.CBinary op expr1 expr2 n) = do
+    e1 <- transArrSizeExpr expr1
+    e2 <- transArrSizeExpr expr2
+    return $ GCA.BinOp (tBinaryOp op) e1 e2 $ mkOrigin n
+transArrSizeExpr (LC.CUnary op expr n) = do
+    e <- transArrSizeExpr expr
+    return $ GCA.UnOp (tUnaryOp op) e $ mkOrigin n
+transArrSizeExpr (LC.CVar ident n) = do
+    return $ GCA.Var (mkId ident) $ mkOrigin n
+transArrSizeExpr (LC.CConst constant) = do
+    c <- transConst constant
+    return $ GCA.Const c noOrigin
+transArrSizeExpr e =
+    error $ "Unsupported array size expression: " ++ show e
+
 transBuiltin :: LC.CBuiltin -> FTrav GCA.Exp
 transBuiltin (LC.CBuiltinVaArg expr ty_name n) = do
     e <- transExpr expr

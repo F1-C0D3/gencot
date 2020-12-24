@@ -134,6 +134,10 @@ mapArrDeriv _ = "CArrXX"
 arrDerivHasSize :: String -> Bool
 arrDerivHasSize nam = nam /= "CArrXX"
 
+-- | Convert an array type name CArr<size> to the component name arr<size>
+arrDerivCompNam :: String -> String
+arrDerivCompNam ('C' : 'A' : rest) = 'a' : rest
+
 arrDerivToUbox :: String -> String
 arrDerivToUbox ('C' : rest) = "U" ++ rest
 

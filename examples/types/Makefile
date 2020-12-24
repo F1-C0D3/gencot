@@ -61,7 +61,7 @@ ed-types.done: types.cogent
 	@touch ed-types.done
 
 ed-$(UNIT)-dvdtypes.done: $(UNIT)-dvdtypes.cogent
-	sed -i -e "21,22d;24,25d" $(UNIT)-dvdtypes.cogent
+	sed -i -e "24,25d;27,28d" $(UNIT)-dvdtypes.cogent
 	@touch ed-$(UNIT)-dvdtypes.done
 
 $(UNIT)-gen.c $(UNIT)-gen.h $(ACFILESINF): $(COGSRC) $(EDITFILES) $(ACFILES)

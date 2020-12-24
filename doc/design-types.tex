@@ -435,7 +435,7 @@ depends on the possibility to determine the array size from the C type.
 
 For both reasons Gencot wrap builtin array types in Cogent records. The resulting form is
 \begin{verbatim}
-  type CArr<size> el = {arr: el#[<size>]}
+  type CArr<size> el = {arr<size>: el#[<size>]}
 \end{verbatim}
 This approach has the following consequences:
 \begin{itemize}
@@ -451,6 +451,12 @@ implementation of the builtin array types.
 \item Since only unboxed builtin array types are used, the information about the array size is always preserved
 by the translation to C and can be used by Genops.
 \end{itemize}
+
+The \code{<size>} specification is made a part of the component name \code{name<size>} to force the records on the 
+right hand side to be different. This is not necessary, however, as of December 2020, Cogent otherwise considers the record types
+to be equivalent for all sizes. When it generates the shallow embedding it selects one of them and uses the corresponding 
+identifier \code{CArr<size>} for all array sizes. Since the size is ignored in the shallow embedding this is correct, but it
+is more readable if distinct identifiers are used.
 
 Multidimensional C array types could now be translated using a multidimensional Cogent array type, such as 
 \code{el\#[<s1>]\#[<s2>]} (note that all dimensions must be unboxed). Cogent translates such types back
@@ -505,7 +511,7 @@ source code. An example usage is
   #define SECT 5
   #endif
   #define SIZE 3*SECT
-  type CArrXSIZEX el = {arr: el#[SIZE]; }
+  type CArrXSIZEX el = {arrXSIZEX: el#[SIZE]; }
 \end{verbatim}
 It defines the generic type \code{CArrXSIZEX} to have either 60 or 15 elements, depending on the preprocessor flag \code{LARGE}.
 For additional information on possibilities how to specify the identifier see Section~\ref{impl-ocomps-cogent}.
@@ -609,7 +615,7 @@ is instable for such types and cannot process all applications. Therefore this a
 
 The second approach uses a wrapper struct in the same way as for the builtin array solution:
 \begin{verbatim}
-  type CArr<size> el = {arr: #(UArr<size> el)}
+  type CArr<size> el = {arr<size>: #(UArr<size> el)}
   type UArr<size> el
 \end{verbatim}
 This makes it possible to use the Cogent take type operator for modelling empty-value array types.

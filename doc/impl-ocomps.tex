@@ -119,10 +119,10 @@ information reasons the concept is still documented here.
 
 Note that in a definition 
 \begin{verbatim}
-  type CArrX<id>X el = {arr: el#[<id>]}
+  type CArrX<id>X el = {arrX<id>X: el#[<id>]}
 \end{verbatim}
-using a builtin array type the macro name \code{<id>} is still present in the type name on the left side, however, it
-will be expanded on the right side, so the numerical value of the array size is known and used by the Cogent compiler
+using a builtin array type the macro name \code{<id>} is still present in the type name on the left side, however, its
+second occurrence on the right side will be expanded, so the numerical value of the array size is known and used by the Cogent compiler
 when it generates the C source.
 
 \subsubsection{\code{auxcog-macros}}
@@ -132,7 +132,7 @@ identifier specifying the array size (see Section~\ref{design-types-array}). If 
 abstract types in Cogent, they must be implemented in antiquoted C. The implementation has the form 
 \begin{verbatim}
 typedef struct $id:(UArrX<id>X el) {
-  $ty:el arr[<id>];
+  $ty:el arrX<id>X[<id>];
 } $id:(UArrX<id>X el);
 \end{verbatim}
 where the identifier \code{<id>} occurs as size specification in the C array type. Cogent translates this antiquoted 

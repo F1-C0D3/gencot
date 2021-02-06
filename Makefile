@@ -1,6 +1,6 @@
 all: build links
 
-build: check deccm pmgen pmprc trans entrs extns exttp dvdtp cgrph dmpca itprc itgen ituse itext itefs
+build: check deccm pmgen pmprc trans entrs extns exttp dvdtp cgrph dmpca itprc itgen ituse itext itefs actis actif
 
 CHECK = gencot-check
 TRANS = gencot-translate
@@ -18,6 +18,8 @@ ITGEN = items-gen
 ITUSE = items-used
 ITEXT = items-externs
 ITEFS = items-extfuns
+ACTIS = auxcog-ctypstruct
+ACTIF = auxcog-ctypfunc
 
 check: 
 	cabal new-build $(CHECK)
@@ -67,7 +69,13 @@ itext:
 itefs: 
 	cabal new-build $(ITEFS)
 
-links: bin/$(CHECK) bin/$(DECCM) bin/$(PMGEN) bin/$(PMPRC) bin/$(TRANS) bin/$(ENTRS) bin/$(EXTNS) bin/$(EXTTP) bin/$(DVDTP) bin/$(CGRPH) bin/$(DMPCA) bin/$(ITPRC) bin/$(ITGEN) bin/$(ITUSE) bin/$(ITEXT) bin/$(ITEFS)
+actis: 
+	cabal new-build $(ACTIS)
+
+actif: 
+	cabal new-build $(ACTIF)
+
+links: bin/$(CHECK) bin/$(DECCM) bin/$(PMGEN) bin/$(PMPRC) bin/$(TRANS) bin/$(ENTRS) bin/$(EXTNS) bin/$(EXTTP) bin/$(DVDTP) bin/$(CGRPH) bin/$(DMPCA) bin/$(ITPRC) bin/$(ITGEN) bin/$(ITUSE) bin/$(ITEXT) bin/$(ITEFS) bin/$(ACTIS) bin/$(ACTIF)
 
 bin/$(CHECK):
 	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(CHECK)/build/$(CHECK)/$(CHECK) .)
@@ -116,3 +124,9 @@ bin/$(ITEXT):
 
 bin/$(ITEFS):
 	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(ITEFS)/build/$(ITEFS)/$(ITEFS) .)
+
+bin/$(ACTIS):
+	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(ACTIS)/build/$(ACTIS)/$(ACTIS) .)
+
+bin/$(ACTIF):
+	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(ACTIF)/build/$(ACTIF)/$(ACTIF) .)

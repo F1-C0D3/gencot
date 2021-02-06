@@ -13,7 +13,7 @@ Prerequisites
 
 Gencot assumes a Unix environment and the Haskell platform. It consists of a collection of Haskell programs and (Bourne) shell scripts which use standard Unix commands such as awk, sed, and others.
 
-For installation you need the Haskell compiler and the Cabal build system.
+For installation you need the Haskell compiler (currently only ghc version 8.6.5 works!) and the Cabal build system.
 
 Installation
 ------------

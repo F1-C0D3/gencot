@@ -49,12 +49,14 @@ unit-expect-current: $(UFILES)
 
 %-regression: $(BASE)-%.cogent $(BASE)-%-expected.cogent
 	-diff $(BASE)-$*.cogent $(BASE)-$*-expected.cogent
+	-diff $(BASE)-$*-entry.ac $(BASE)-$*-entry-expected.ac
 
 %-expect-current: $(BASE)-%.cogent
 	cp $(BASE)-$*.cogent $(BASE)-$*-expected.cogent
+	cp $(BASE)-$*-entry.ac $(BASE)-$*-entry-expected.ac
 
 %-clean:
-	-rm -f $(BASE)-$*.cogent $(BASE)-$*.o
+	-rm -f $(BASE)-$*.cogent $(BASE)-$*.o $(BASE)-$*-entry.ac
 
 all.unit: 
 	@for f in $(foreach TST,$(TESTS),$(BASE)-$(TST).c); do \

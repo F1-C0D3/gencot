@@ -16,6 +16,7 @@ ACFILES = $(UNIT)-externs.ac $(CFILES:.c=-entry.ac)
 ACFILESPP = $(ACFILES:.ac=_pp.ac)
 ACFILESINF = $(ACFILES:.ac=_pp_inferred.c)
 ACFILESC = $(ACFILES:.ac=.c)
+GENCOTFILES = $(UNIT)-gencot.h $(UNIT)-cogent-common.c 
 OFILES = $(CFILES:.c=.o)
 COGFILES = $(CFILES:.c=.cogent)
 INCLFILES = $(HFILES:.h=-incl.cogent)
@@ -32,7 +33,7 @@ cogent-run: run-cogent-cards
 
 .PHONY: clean run-cards run-cogent-cards
 
-STDGUM=$(shell cogent --stdgum-dir)
+STDGUM=$(shell cogent --libgum-dir)
 GENCOTC=$(GENCOT_HOME)/c
 GENCOTI=$(GENCOT_HOME)/include
 COGPPARGS = --cogent-pp-args="-I$(GENCOTI)"
@@ -96,7 +97,13 @@ else
 	auxcog -u $(UNIT) unit
 endif
 
-$(UNIT).o: $(UNIT).c $(UNIT)-gen.c $(UNIT)-gen.h $(UNIT)-macros.h $(ACFILESC)
+$(UNIT)-gencot.h:
+	@cp $(GENCOTC)/gencot.h $@
+
+$(UNIT)-cogent-common.c:
+	@cp $(GENCOTC)/cogent-common.c $@
+
+$(UNIT).o: $(UNIT).c $(UNIT)-gen.c $(UNIT)-gen.h $(UNIT)-macros.h $(GENCOTFILES) $(ACFILESC)
 	$(CC) -c -I$(STDGUM) -I$(GENCOTC) $(UNIT).c
 
 cogent-cards: $(COGOFILES)
@@ -111,5 +118,5 @@ clean:
 	-rm -rf comments
 	-rm -f $(EDITFILES)
 	-rm -f $(UNIT)-gen.c $(UNIT)-gen.h $(ACFILESPP) $(ACFILESINF)
-	-rm -f $(UNIT).c $(UNIT)-macros.h $(ACFILESC)
+	-rm -f $(UNIT).c $(UNIT)-macros.h $(GENCOTFILES) $(ACFILESC)
 	-rm -f cogent-cards

@@ -310,15 +310,15 @@ static $ty:(Result el! ()) $id:getArrChk($ty:((arr!,idx)) arg) {
 
 static $ty:((arr,())) $id:setArr($ty:((arr,(idx,el))) arg) {
     $ty:((arr,())) res = {.p1=arg.p1,.p2=UNITVAL};
-    $ty:el * a = gencotArrayPointer(($ty:arr) arg.p1);
-    if (arg.p2.p1 < gencotArraySize(($ty:arr) arg.p1)) a[arg.p2.p1] = arg.p2.p2;
+    $ty:el * a = gencotArrayPointer(($ty:arr) res.p1);
+    if (arg.p2.p1 < gencotArraySize(($ty:arr) res.p1)) a[arg.p2.p1] = arg.p2.p2;
     return res;
 }
 
 static $ty:((arr,(idx,el))) $id:exchngArr($ty:((arr,(idx,el))) arg) {
     $ty:((arr,(idx,el))) res = {.p1=arg.p1,.p2=arg.p2};
-    $ty:el * a = gencotArrayPointer(($ty:arr) arg.p1);
-    if (arg.p2.p1 < gencotArraySize(($ty:arr) arg.p1)) {
+    $ty:el * a = gencotArrayPointer(($ty:arr) res.p1);
+    if (arg.p2.p1 < gencotArraySize(($ty:arr) res.p1)) {
       res.p2.p2 = a[arg.p2.p1];
       a[arg.p2.p1] = arg.p2.p2;
     }
@@ -327,8 +327,8 @@ static $ty:((arr,(idx,el))) $id:exchngArr($ty:((arr,(idx,el))) arg) {
 
 static $ty:((arr,arg)) $id:modifyArr($ty:((arr, (idx,ChgFun el arg arg, arg))) arg) {
     $ty:((arr,arg)) res = {.p1=arg.p1,.p2=arg.p2.p3};
-    $ty:el * a = gencotArrayPointer(($ty:arr) arg.p1);
-    if (arg.p2.p1 < gencotArraySize(($ty:arr) arg.p1)) {
+    $ty:el * a = gencotArrayPointer(($ty:arr) res.p1);
+    if (arg.p2.p1 < gencotArraySize(($ty:arr) res.p1)) {
       $ty:((el,arg)) elarg = {.p1=a[arg.p2.p1],.p2=arg.p2.p3};
       elarg = (($spec:(ChgFun el arg arg)) arg.p2.p2) (elarg);
       a[arg.p2.p1] = elarg.p1;
@@ -339,8 +339,8 @@ static $ty:((arr,arg)) $id:modifyArr($ty:((arr, (idx,ChgFun el arg arg, arg))) a
 
 static $ty:((arr,out)) $id:modifyArrDflt($ty:((arr, (idx,ChgFun el arg out, arg))) arg) {
     $ty:((arr,out)) res = {.p1=arg.p1,.p2=gencotDefaultVal(($ty:out) 0)};
-    $ty:el * a = gencotArrayPointer(($ty:arr) arg.p1);
-    if (arg.p2.p1 < gencotArraySize(($ty:arr) arg.p1)) {
+    $ty:el * a = gencotArrayPointer(($ty:arr) res.p1);
+    if (arg.p2.p1 < gencotArraySize(($ty:arr) res.p1)) {
       $ty:((el,arg)) elarg = {.p1=a[arg.p2.p1],.p2=arg.p2.p3};
       $ty:((el,out)) h = (($spec:(ChgFun el arg out)) arg.p2.p2) (elarg);
       a[arg.p2.p1] = h.p1;

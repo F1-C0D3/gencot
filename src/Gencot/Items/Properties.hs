@@ -2,6 +2,7 @@ module Gencot.Items.Properties where
 
 import Data.List (break,lines,words,union,intercalate,nub,(\\),find,isPrefixOf)
 import Data.Map (Map,singleton,unions,unionWith,differenceWith,toAscList,keys,filterWithKey)
+import qualified Data.Map as M (map)
 import Data.Char (isSpace,isLetter)
 
 import Gencot.Items.Identifier (toplevelItemId)
@@ -29,13 +30,13 @@ parseProperties inp =
     unions $ map parsePropertyLine $ ((filter (any isLetter)) . lines) inp
 
 -- | Parse a property specification for a single item.
--- It has the form <item id>[:] <whitespace> <property> <whitespace> ...
+-- It has the form <item id>[:] <whitespace> [-]<property> <whitespace> ...
 parsePropertyLine :: String -> ItemProperties
 parsePropertyLine line =
     singleton iid props
-    where (ciid,rest) = break isSpace line -- ciid = <item id>[:], rest = <whitespace> <property> <whitespace> ...
+    where (ciid,rest) = break isSpace line -- ciid = <item id>[:], rest = <whitespace> [-]<property> <whitespace> ...
           iid = if last ciid == ':' then init ciid else ciid -- iid = <item id>
-          props = reduceGS $ nub $ words rest -- [<property>,...]
+          props = reduceGS $ nub $ words rest -- [[-]<property>,...]
 
 -- | Reduce gs<i> properties to the first and omit all others.
 reduceGS :: [String] -> [String]
@@ -59,12 +60,10 @@ showPropertyLine (iid,props) =
 -- | Combine two property maps. 
 -- If an item occurs in both maps its declared properties are united.
 combineProperties :: ItemProperties -> ItemProperties -> ItemProperties
-combineProperties ipm1 ipm2 = unionWith union ipm1 ipm2
-
--- | Subtract a property map.
--- If an item occurs in both maps the properties in @ipm2@ are omitted from those in @ipm1@
-omitProperties :: ItemProperties -> ItemProperties -> ItemProperties
-omitProperties ipm1 ipm2 = differenceWith (\ps1 ps2 -> Just (ps1 \\ ps2)) ipm1 ipm2
+combineProperties ipm1 ipm2 = 
+    differenceWith (\ps1 ps2 -> Just (ps1 \\ ps2)) (unionWith union ipm1 (selpositive ipm2)) (selnegative ipm2)
+    where selpositive ipm = M.map (filter (\w -> (not ("-" `isPrefixOf` w)))) ipm
+          selnegative ipm = M.map (\l -> map tail $ filter (\w -> ("-" `isPrefixOf` w)) l) ipm
 
 -- | List of all toplevel item ids used in a property map.
 getToplevelItemIds :: ItemProperties -> [String]

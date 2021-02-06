@@ -46,9 +46,6 @@ unit-regression: parmod-externs.json parmod-externs-expected.json
 unit-expect-current: parmod-externs.json
 	cp parmod-externs.json parmod-externs-expected.json
 
-%.json-itemprops %.json-omitprops: %.json
-	@$(PM) out $*.json
-
 %-regression: parmod-%.json parmod-%-expected.json parmod-%-close.json parmod-%-close-expected.json
 	-diff parmod-$*.json parmod-$*-expected.json
 	-diff parmod-$*-close.json parmod-$*-close-expected.json
@@ -60,5 +57,4 @@ unit-expect-current: parmod-externs.json
 %-clean:
 	-rm -f parmod-$*.json parmod-$*-close.json parmod-$*.o 
 	-rm -f parmod.unit parmod-external.items parmod-externs.json
-	-rm -f parmod-$*.json-itemprops parmod-$*.json-omitprops
 

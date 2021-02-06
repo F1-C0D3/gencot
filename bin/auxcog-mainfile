@@ -10,9 +10,9 @@ then
     exit 1
 fi
 
-echo "#include \"gencot.h\""
-if [ -e $1-mapback.h ]; then echo "#include \"$1-mapback.h\""; fi
-if [ -e $1-macros.h ]; then echo "#include \"$1-macros.h\""; fi
+echo "#include \"$1-gencot.h\""
+#if [ -e $1-mapback.h ]; then echo "#include \"$1-mapback.h\""; fi
+#if [ -e $1-macros.h ]; then echo "#include \"$1-macros.h\""; fi
 if [ -e $1-dvdtypes.h ]; then echo "#include \"$1-dvdtypes.h\""; fi
 if [ -e $1-exttypes.h ]; then echo "#include \"$1-exttypes.h\""; fi
 if [ -e $1-manabstr.h ]; then echo "#include \"$1-manabstr.h\""; fi
@@ -22,7 +22,7 @@ echo ""
 echo "#include \"$1-externs.c\""
 if [ -e $1-gencot.c ]; then echo "#include \"$1-gencot.c\""; fi
 if [ -e $1-manabstr.c ]; then echo "#include \"$1-manabstr.c\""; fi
-echo "#include \"cogent-common.c\""
+echo "#include \"$1-cogent-common.c\""
 for file in $(cat /dev/stdin)
 do
     fbase=$(basename $file)

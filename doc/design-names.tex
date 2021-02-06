@@ -114,26 +114,23 @@ To be able to process every source file independently from all other source file
 a unique generic type name for every C array type. Derived types may syntactically occur at many places in a C program, so
 it is not feasible to generate the name from a position in the source file.
 
-For C array types its size (the number of elements) may be part of the derived type specification. Gencot uses two seperate generic
-type names for every size for which an array type is used in the C program. If the size is specified by a literal the names
-have the form
+For C array types its size (the number of elements) may be part of the derived type specification. Gencot uses a seperate generic
+type name for every size for which an array type is used in the C program. If the size is specified by a literal the name
+has the form
 \begin{verbatim}
   CArr<size>
-  UArr<size>
 \end{verbatim}
-where \code{<size>} is the literal size specification. If the size is specified by a single identifier the names have the form
+where \code{<size>} is the literal size specification. If the size is specified by a single identifier the name has the form
 \begin{verbatim}
   CArrX<size>X
-  UArrX<size>X
 \end{verbatim}
 where \code{X} is a letter not occurring in the identifier.
-In all other cases (also if no size is specified) the predefined names
+In all other cases (also if no size is specified) the predefined name
 \begin{verbatim}
   CArrXX
-  UArrXX
 \end{verbatim}
-are used which may lead to name conflicts in Cogent and must be handled manually. 
+is used which may lead to name conflicts in Cogent and must be handled manually. 
 
 Note that the generated Cogent type names could still cause conflicts with mapped type names. These conflicts can be
-avoided if no configured mapping prefix starts with one of the \code{<kind>} strings
-or the strings \code{"CArr"}, \code{"UArr"} used for mapping C array types, or any other predefined type used by Gencot.
+avoided if no configured mapping prefix starts with the \code{<kind>} strings
+or the string \code{"CArr"} used for mapping C array types, or any other predefined type used by Gencot.

@@ -32,7 +32,7 @@ long_usage()
     echo '  help            Display this help information'
     echo '  (file|close|unit|eval write the resulting parmod description to stdout)'
     echo '  (addto|mergin|replin modify the first argument)'
-    echo '  (out writes two files <json>-itemprops and <json>-omitprops)'
+    echo '  (out writes file <json>-itemprops)'
     echo 'Options for commands file|close|unit: '
     echo '  -I<dir>    Directory for searching C include files. Can be repeated, as for cpp. '
     echo '  -G<dir>    Directory for searching Gencot auxiliary files. Only one can be given, default is "."'
@@ -293,7 +293,6 @@ then
 elif [ "$CMD" == "out" ]
 then
     $BIN/$PRC out < $1 > $1-itemprops
-    $BIN/$PRC omit < $1 > $1-omitprops
 fi
 
 if [ "$CMD" != "idlist" -a "$CMD" != "out" ]

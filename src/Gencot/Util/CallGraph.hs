@@ -5,6 +5,7 @@ import Data.List as L (findIndex)
 import Data.Set as S (Set,empty,union,unions,insert,filter,toList,fromList,map,member,delete)
 import Data.Foldable (foldlM,find)
 import Control.Monad (liftM,liftM2)
+import Data.Functor.Identity (Identity)
 
 import "language-c" Language.C as LC
 import Language.C.Data.Ident as LCI
@@ -13,7 +14,7 @@ import Language.C.Data.Position as LCP
 import Language.C.Syntax.AST as LCS
 import qualified Language.C.Analysis as LCA
 import qualified Language.C.Analysis.DefTable as LCD
-import Language.C.Analysis.TravMonad (MonadTrav,Trav,runTrav,travErrors,getUserState)
+import Language.C.Analysis.TravMonad (MonadTrav,TravT,runTrav,travErrors,getUserState)
 
 import Gencot.Names (FileNameTrav,getFileName)
 import Gencot.Traversal (FTrav,runWithTable,TypeNamesTrav,stopResolvTypeName)
@@ -262,7 +263,7 @@ getCGInvoke _ _ = return Nothing
 -- The first component is the name of the C source file, or "" if several source files are processed
 -- The second component is the call graph.
 -- The third component is the list of type names where to stop resolving external types together with a flag whether to use the list
-type CTrav = Trav (String,CallGraph,(Bool,[String]))
+type CTrav = TravT (String,CallGraph,(Bool,[String])) Identity
 
 runCTrav :: CallGraph -> LCD.DefTable -> (String,(Bool,[String])) -> CTrav a -> IO a
 runCTrav cg table (f,tds) action = do

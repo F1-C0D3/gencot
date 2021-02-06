@@ -21,11 +21,11 @@ import Cogent.Common.Syntax as CCS
 import Cogent.Common.Types as CCT
 
 import Gencot.Origin (Origin,noOrigin,origin,mkOrigin,noComOrigin,mkBegOrigin,mkEndOrigin,prepOrigin,appdOrigin,isNested,toNoComOrigin)
-import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapNameToLower,mapPtrDeriv,mapPtrVoid,mapMayNull,mapArrDeriv,mapFunDeriv,arrDerivHasSize,arrDerivToUbox,mapUboxStep,rmUboxStep,mapMayNullStep,rmMayNullStepThroughRo,addMayNullStep,mapPtrStep,mapFunStep,mapIncFunStep,mapArrStep,mapModStep,mapRoStep,mapNamFunStep,getFileName,globStateType)
+import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapNameToLower,mapPtrDeriv,mapPtrVoid,mapMayNull,mapArrDeriv,mapFunDeriv,arrDerivHasSize,arrDerivCompNam,arrDerivToUbox,mapUboxStep,rmUboxStep,mapMayNullStep,rmMayNullStepThroughRo,addMayNullStep,mapPtrStep,mapFunStep,mapIncFunStep,mapArrStep,mapModStep,mapRoStep,mapNamFunStep,getFileName,globStateType)
 import Gencot.Items.Types (ItemAssocType,isNotNullItem,isReadOnlyItem,isAddResultItem,isNoStringItem,getGlobalStateSubItemIds,getGlobalStateProperty,getGlobalStateId,getTagItemAssoc,getIndividualItemAssoc,getTypedefItemAssoc,adjustItemAssocType,getMemberSubItemAssoc,getRefSubItemAssoc,getResultSubItemAssoc,getElemSubItemAssoc,getParamSubItemAssoc,getItemAssocType,getMemberItemAssocTypes,getSubItemAssocTypes,numberList)
 import Gencot.Items.Identifier (getObjFunName,getParamName)
 import Gencot.Cogent.Ast
-import Gencot.C.Translate (transStat,transExpr)
+import Gencot.C.Translate (transStat,transExpr,transArrSizeExpr)
 import Gencot.Traversal (FTrav,markTagAsNested,isMarkedAsNested,hasProperty,stopResolvTypeName,setFunDef,clrFunDef)
 import Gencot.Util.Types (carriedTypes,isExtern,isCompOrFunc,isCompPointer,isNamedFunPointer,isFunPointer,isPointer,isAggregate,isFunction,isTypeDefRef,isComplete,isArray,isVoid,isTagRef,containsTypedefs,resolveTypedef,isComposite,isLinearType,isLinearParType,isReadOnlyType,isReadOnlyParType,isDerivedType,isExternTypeDef,wrapFunAsPointer,getTagDef)
 
@@ -252,14 +252,13 @@ genDerivedTypeNames tc = do
 genDerivedTypeDefs :: String -> ItemAssocType -> FTrav [GenToplv]
 -- For a derived array type the name has the form @CArr<size>@, @CArrX<size>X@ or @CArrXX@.
 -- The last case is ignored.
--- For the other cases two generic type defintions are generated of the form
--- > type CArr... el = { arr: #(UArr... el) }
--- > type UArr... el
-genDerivedTypeDefs nam (_,(LCA.ArrayType _ _ _ _)) | arrDerivHasSize nam =
-    return [tdef nam,adef $ arrDerivToUbox nam]
-    where tdef nam = GenToplv (CS.TypeDec nam ["el"] $ genType $ CS.TRecord CCT.NonRec [("arr", (ftyp nam, False))] markBox) noOrigin
-          ftyp nam = genType $ CS.TCon (arrDerivToUbox nam) [genType $ CS.TVar "el" False False] markUnbox
-          adef nam = GenToplv (CS.AbsTypeDec nam ["el"] []) noOrigin
+-- For the other cases a generic type defintion is generated of the form
+-- > type CArr... el = { arr...: el#[<size>] }
+genDerivedTypeDefs nam (_,(LCA.ArrayType _ as _ _)) | arrDerivHasSize nam = do
+    e <- transArrSizeExpr $ getSizeExpr as
+    let atyp = genType $ CS.TArray (genType $ CS.TVar "el" False False) (ConstExpr e) markUnbox []
+    return [GenToplv (CS.TypeDec nam ["el"] $ genType $ CS.TRecord CCT.NonRec [(arrDerivCompNam nam, (atyp, False))] markBox) noOrigin]
+    where getSizeExpr (LCA.ArraySize _ e) = e -- arrDerivHasSize implies that only this case may occur for the array size as.
 -- For a derived function pointer type the name has the form @CFunPtr_enc@ or @CFunInc_enc@ where
 -- @enc@ is an encoded C type. First we determine the corresponding type where all typedef names are resolved.
 -- If that is different from @nam@ then @nam@ contains typedef names. In that case generate a type synonym definition

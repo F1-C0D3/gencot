@@ -311,11 +311,10 @@ in JSON format. The monadic action
   transGlobals :: [DeclEvent] -> CTrav Parmods
 \end{verbatim}
 translates a sequence of global declarations and definitions (see Section~\ref{impl-ccode-read}) to a sequence of
-function descriptions. It translates all definitions and declarations of functions and of objects with function pointer
-type or function pointer array type. It translates all type name definitions for a function type, a function pointer type, 
-or a function pointer array type.
-For every definition of a compound struct or union type it translates all members with function pointer type or function 
-pointer array type.
+function descriptions. It specifically handles types which syntactically include a function type (called ``SIFT'' type here).
+It translates all definitions and declarations of functions and of objects with a SIFT type. It also translates all type 
+name definitions for a SIFT type.
+For every definition of a compound struct or union type it translates all members with a SIFT type.
 All other \code{DeclEvent}s are ignored.
 
 Module \code{Gencot.Json.Process} defines functions for reading and processing parameter modification descriptions in JSON format.
@@ -351,5 +350,6 @@ property map (see Section~\ref{impl-itemprops-internal}) with declarations of th
 The parameter modification description must have been evaluated as described in Section~\ref{impl-parmod-eval}. The 
 resulting single parameter description values are translated to properties as follows: the description \code{"yes"}
 is translated to the Add-Result property, the descriptions \code{"readonly"} and \code{"no"} are translated to the 
-Read-Only Property. For the remaining descriptions \code{"nonlinear"} and \code{"discarded"} and the \code{f\_result}
-attribute no property is declared. The Heap-Use property is declared, if \code{"f\_heap"} has the value \code{"yes"}.
+Read-Only Property. The descriptions \code{"no"} and \code{"discarded"} and the \code{f\_result}
+attribute are translated to a negative Add-Result property. For the remaining description \code{"nonlinear"} no property is declared.
+The Heap-Use property is declared, if \code{"f\_heap"} has the value \code{"yes"}.

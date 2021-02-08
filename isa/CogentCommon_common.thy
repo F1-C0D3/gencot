@@ -10,8 +10,6 @@ fun seq32_simple_imp :: "nat \<Rightarrow> ('acc \<Rightarrow> 'acc) \<Rightarro
 axiomatization where seq32_simple_def[simp]: 
   "\<And>(acc::'acc) (f::'acc \<Rightarrow> 'acc). step \<noteq> 0 \<Longrightarrow> seq32_simple (Seq32SimpleParam.make frm to step f acc) = seq32_simple_imp (unat ((to - frm + step) div step)) f acc"
 
-thm seq32_simple_imp.simps
-
 fun seq32_imp :: "nat \<Rightarrow> 32 word \<Rightarrow> 32 word \<Rightarrow> ('acc, 'obsv, 'rbrk) Seq32_body \<Rightarrow> 'acc \<Rightarrow> 'obsv \<Rightarrow> ('acc, 'rbrk) LRR\<^sub>T" where
   "seq32_imp cnt idx step f acc obsv = 
     (if cnt = 0 then RR.make acc (Iterate ())

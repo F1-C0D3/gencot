@@ -230,7 +230,12 @@ Section~\ref{impl-ocomps-main}). It generates the Isabelle theory to be stored i
 and writes it to standard output.
 
 The filter determines the theories to be imported from the entries \code{"gencot: <name>"} in the Gencot standard
-components list. From its input it determines the array sizes for which locale interpretations must be created.
+components list. These entries name the standard include files which are part of the Gencot distribution. Since 
+some of them have no corresponding theory, since they do not define abstract functions, \code{auxcog-embedding}
+has an internal list of the existing theories and generates imports only for those entries where a corresponding 
+theory exists.
+
+From its input the filter determines the array sizes for which locale interpretations must be created.
 
 The filter is implemented as an awk script.
 

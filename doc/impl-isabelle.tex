@@ -49,6 +49,18 @@ Together, the Gencot shallow embedding for a program \code{X} is made available 
 \code{X\_Shallow\_Embedding.thy}. This file structure is designed with the goal to reduce modifications and program 
 specific parts, which must be generated, to an absolute minimum.
 
+The predefined files \code{GencotTypes.thy}, \code{Gencot\_TTT.thy} and \code{CogentCommon\_ttt.thy} are provided in 
+directory \code{isa} in the Gencot distribution. However, they cannot be loaded directly from there by Isabelle, 
+since they depend on the program specific file \code{ShallowShared.thy} and no complete session can be defined for 
+them in the Gencot distribution. For a complete shallow embedding which can be loaded by Isabelle the predefined
+files must be copied from the Gencot distribution to the directory where the other files have been generated. Then 
+a session can be defined for them in a \code{ROOT} file there.
+
+It would be possible to determine from the imports in \code{X\_Shallow\_Embedding.thy} exactly those predefined
+files which are needed for a specific shallow embedding. However, transitive imports among the predefined files
+must be taken into account. Therefore a simpler solution is to always copy all predefined theory files to a 
+specific shallow embedding, independent of which are actually needed.
+
 \subsection{Generating Refinement Proofs}
 \label{impl-isabelle-refine}
 

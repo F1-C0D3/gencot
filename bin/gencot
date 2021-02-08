@@ -275,7 +275,13 @@ then
         | $BIN/gencot-defcomments $COMMENTDIR \
         | $BIN/gencot-mrgcomments /dev/null > $TMPDIR/$UNITNAME-dvdtypes.cogent
     cp $TMPDIR/$UNITNAME-externs.cogent $TMPDIR/$UNITNAME-exttypes.cogent $TMPDIR/$UNITNAME-dvdtypes.cogent .
-    $BIN/gencot-mainfile $UNITNAME < $GENCOTDIR/$UNITFILE > $UNITNAME.cogent
+    if [ -e $GENCOTDIR/common.gencot-std ]
+    then 
+        cp $GENCOTDIR/common.gencot-std $TMPDIR
+    else
+        touch $TMPDIR/common.gencot-std
+    fi
+    $BIN/gencot-mainfile $UNITNAME $TMPDIR/common.gencot-std < $GENCOTDIR/$UNITFILE > $UNITNAME.cogent
 elif [ "$CMD" = "cgraph" ]
 then
     for file in $(cat $GENCOTDIR/$UNITFILE)

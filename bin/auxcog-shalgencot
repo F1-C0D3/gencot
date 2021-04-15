@@ -17,6 +17,11 @@ awk \
    cfile = ARGV[1]; delete ARGV[1]
    gencot_theories = "Default Memory MayNull CPointer CArray ESArray"
    common_theories = "common"
+   nr_sizes = 0
+   nr_funs = split("getArr setArr modifyArr modifyArrDflt", funs)
+   nr_afuns = split("siz vld elm upd", afuns)
+   nr_lems = split("sizArr vldArr updArr updArrFrame eqArr", lems)
+   opts[1] = "[simp]"; opts[2] = "[simp]"
  } 
 {
   if ($1 == "theory" && NF == 2) {
@@ -40,15 +45,34 @@ awk \
     printf("begin\n\n")
   } else if ($1 == "type_synonym" && substr($3,1,4) == "CArr") {
     size = substr($3,5,length($3)-12)
-    printf("interpretation CArrFuns%s: CArrFuns arr%s\\<^sub>f CArr%s.make .\n", size, size, size)
-    printf("adhoc_overloading getArr CArrFuns%s.getArrFxd\n", size)
-    printf("  and setArr CArrFuns%s.setArrFxd\n", size)
-    printf("  and modifyArrDflt CArrFuns%s.modifyArrDfltFxd\n", size)
+    nr_sizes += 1
+    sizes[nr_sizes] = size
+    printf("interpretation CArrFuns%s: CArrFuns arr%s\\<^sub>f CArr%s.make\n", size, size, size)
+    printf("  by (unfold_locales, unfold CArr%s.make_def, auto)\n", size)
+    printf("adhoc_overloading %s CArrFuns%s.%sFxd\n", funs[1], size, funs[1])
+    for (i=2; i <= nr_funs; i++) printf("  and %s CArrFuns%s.%sFxd\n", funs[i], size, funs[i])
+    for (i=1; i <= nr_afuns; i++) printf("  and %s CArrFuns%s.%sFxd\n", afuns[i], size, afuns[i])
     printf("\n")
   }
 }
 END {
-  if (exited == "") print "end"
+  if (exited == "") {
+    if (nr_sizes > 0) {
+      for (i=1; i<=nr_lems; i++) {
+        printf("lemmas %s%s =\n", lems[i], opts[i])
+        for (j=1; j<=nr_sizes; j++) printf("  CArrFuns%s.%s\n", sizes[j], lems[i])
+      }
+      printf("\n")
+      for (i=1; i<=nr_funs; i++) {
+        printf("lemmas %sValid =\n", funs[i])
+        for (j=1; j<=nr_sizes; j++) printf("  CArrFuns%s.%sValid\n", sizes[j], funs[i])
+        printf("lemmas %sInvalid =\n", funs[i])
+        for (j=1; j<=nr_sizes; j++) printf("  CArrFuns%s.%sInvalid\n", sizes[j], funs[i])
+      }
+      printf("\n")
+    }
+    print "end"
+  }
 }' $1
 
 # documentation:
@@ -68,29 +92,41 @@ END {
 # - the output theory contains for every type synonym definition of the form
 #     type_synonym 'el CArr<size>\<^sub>T = ...
 #   in the input theory a locale interpretation of the form
-#     interpretation CArrFuns<size>: CArrFuns arr<size>\<^sub>f CArr<size>.make .
+#     interpretation CArrFuns<size>: CArrFuns arr<size>\<^sub>f CArr<size>.make
+#       by (unfold_locales, unfold CArr<size>.make_def, auto)
 #   and an adhoc overloading of the form
 #     adhoc_overloading getArr CArrFuns<size>.getArrFxd
 #       and setArr CArrFuns<size>.setArrFxd
 #       ...
-#   for all Gencot array operations.
+#   for all Gencot array operations and the abstracted array operations siz, vld, elm, upd,
+#   and lemma collections of the form
+#     lemmas <lem> = CArrFuns<size1>.<lem> CArrFuns<size2>.<lem> ...
+#   for all <sizei>, and all following lemmas <lem>:
+#     sizArr, vldArr, updArr, updArrFrame, eqArr, <fun>Valid, <fun>Invalid
+#   for all Gencot array functions <fun>. For some lemma collections the simp option is set.
 #
-# The list of theories which can be imported are specified by the string variables 
+# The list of theories which can be imported is specified by the string variables 
 # gencot_theories and common_thories as a sequence of words separated by blanks.
+# The list of array functions is specified in the array funs of length nr_funs,
+# the list of array lemmas is specified in the array lems of length nr_lems.
+# The array opts contains option specifications to be added to the corresponding entries of lems.
 #
 # The input is read until a line of the form "theory <name>" is found. Using the <name>, the tup-suffix
 # is determined and the output theory header is generated. The argument file is read using getline to 
 # generate the corresponding imports.
 # 
 # Then the rest of the input is read and for each matching type synonym definition the 
-# interpretation and adhoc overloading is generated.
+# interpretation and adhoc overloading is generated and the size is stored in the array sizes,
+# counting the entries in nr_sizes.
 # 
-# In the END rule the theory is finished by an "end".
+# In the END rule if nr_sizes is not 0 the lemma collections are generated and the theory is finished by an "end".
 #
 # Implementation in awk:
-# - The theory lists gencot_theories and common_thories are defined in the BEGIN rule.
 # - The filename argument for the comment file must be copied and removed from the argument list ARGV
 #   to prevent its processing as normal input to awk. The argument file is explicitly read by getline.
+# - The theory lists gencot_theories and common_thories are defined in the BEGIN rule.
+# - The function and lemma arrays are filled in the BEGIN rule by splitting a string of words.
+# - The used opts array entries are specified explicitly in the BEGIN rule.
 # - Since in '...' the ' cannot be escaped, we avoid using it in match expressions and print it 
 #   by reusing parts of the input.
 # - To test whether an entry from the argument file is a member of a theory list the awk builtin function

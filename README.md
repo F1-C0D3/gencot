@@ -42,7 +42,9 @@ Now you can use the commands
 which are located in `G/gencot/bin` (by adding this directory to the command search path or by specifying the path when the command is invoked).
 
 Note that this only builds the Gencot tool. If you also want to use the Cogent compiler you have to go to `G/gencot/cogent` and
-build it according to the description there.
+build it as described there. For full support of all Gencot features build it using
+
+        make INSTALL_FLAGS='--flags="+builtin-arrays -docgent -refinement-types -haskell-backend"'
 
 A quick check whether the installation was successful can be done as follows:
 

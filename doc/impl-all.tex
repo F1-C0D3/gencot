@@ -343,6 +343,8 @@ as specified for \code{<file>}. In the output directory the following files are 
 \item \code{ShallowShared\_Tuples.thy}
 \item \code{X\_Shallow\_Gencot\_Tuples.thy}
 \item file \code{GencotTypes.thy} and all files \code{Y\_Tuples.thy} in directory \code{isa} in the Gencot distribution
+\item \code{X\_Shallow\_Gencot\_Lemmas.thy}
+\item all files \code{Y\_Lemmas.thy} in directory \code{isa} in the Gencot distribution
 \end{itemize}
 
 The subcommand \code{refine} expects as \code{<file>} a file named \code{X\_ShallowShared.thy} which has been generated
@@ -381,12 +383,14 @@ are searched in the directories specified by the \code{-I} options.
 
 **todo**
 
-The subcommand \code{shallow} is implemented by applying the filters \code{auxcog-shalshared} and \code{auxcog-shargencot} to 
+The subcommand \code{shallow} is implemented by applying the filters \code{auxcog-shalshared}, \code{auxcog-shalgencot},
+and \code{auxcog-lemmgencot} to 
 the content of file \code{X\_ShallowShared\_Tuples.thy} to generate the modified file \code{X\_ShallowShared\_Tuples.thy}
-and the file \code{X\_Shallow\_Gencot\_Tuples.thy}. The file \code{X\_Shallow\_Desugar\_Tuples.thy} is directly modified using
+and the files \code{X\_Shallow\_Gencot\_Tuples.thy} and \code{X\_Shallow\_Gencot\_Lemmas.thy}. 
+The file \code{X\_Shallow\_Desugar\_Tuples.thy} is directly modified using
 \code{sed} (only replacing the theory import). The remaining files are simply copied from the Gencot distribution.
 
-The subcommand \code{refine} is implemented by applying the filters \code{auxcog-shalshared} and \code{auxcog-shargencot} to 
+The subcommand \code{refine} is implemented by applying the filters \code{auxcog-shalshared} and \code{auxcog-shalgencot} to 
 the content of file \code{X\_ShallowShared.thy} to generate the modified file \code{X\_ShallowShared.thy}
 and the file \code{X\_Shallow\_Gencot.thy}. The file \code{X\_Shallow\_Desugar.thy} is directly modified using
 \code{sed} (only replacing the theory import). The remaining files are simply copied from the Gencot distribution.

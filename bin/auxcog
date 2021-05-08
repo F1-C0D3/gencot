@@ -167,13 +167,13 @@ then
 elif [ "$CMD" = "shallow" ]
 then
     fbase=$(basename $1)
-    $BIN/auxcog-shalshared $TMPDIR/ctypstruct < $1 > $OUTPUTDIR/$fbase
     prfnam=$(expr match $fbase '\(.*\)_ShallowShared_Tuples.thy')
     if [ $prfnam = "" ]
     then
         echo "Wrong input file $fbase. Must have the form <proofname>_ShallowShared_Tuples.thy."
         exit 1
     fi
+    $BIN/auxcog-shalshared $TMPDIR/ctypstruct < $1 > $OUTPUTDIR/$fbase
     srcdir=$(dirname $1)
     sed -e "s/imports \"${prfnam}_ShallowShared_Tuples\"/imports \"${prfnam}_Shallow_Gencot_Tuples\"/ " \
       $srcdir/${prfnam}_Shallow_Desugar_Tuples.thy > $OUTPUTDIR/${prfnam}_Shallow_Desugar_Tuples.thy
@@ -189,19 +189,32 @@ then
 elif [ "$CMD" = "refine" ]
 then
     fbase=$(basename $1)
-    $BIN/auxcog-shalshared $TMPDIR/ctypstruct < $1 > $OUTPUTDIR/$fbase
-    prfnam=$(expr match $fbase '\(.*\)_ShallowShared.thy')
+    prfnam=$(expr match $fbase '\(.*\)_ShallowShared_Tuples.thy')
+    if [ X$prfnam = "X" ]
+    then
+        echo "Wrong input file $fbase. Must have the form <proofname>_ShallowShared_Tuples.thy."
+        exit 1
+    fi
     srcdir=$(dirname $1)
+    $BIN/auxcog-shalshared $TMPDIR/ctypstruct < $1 > $OUTPUTDIR/$fbase
+    $BIN/auxcog-shalshared $TMPDIR/ctypstruct < $srcdir/${prfnam}_ShallowShared.thy > $OUTPUTDIR/${prfnam}_ShallowShared.thy
+    sed -e "s/imports \"${prfnam}_ShallowShared_Tuples\"/imports \"${prfnam}_Shallow_Gencot_Tuples\"/ " \
+      $srcdir/${prfnam}_Shallow_Desugar_Tuples.thy > $OUTPUTDIR/${prfnam}_Shallow_Desugar_Tuples.thy
     sed -e "s/imports \"${prfnam}_ShallowShared\"/imports \"${prfnam}_Shallow_Gencot\"/ " \
       $srcdir/${prfnam}_Shallow_Desugar.thy > $OUTPUTDIR/${prfnam}_Shallow_Desugar.thy
+    echo "theory ShallowShared_Tuples" > $OUTPUTDIR/ShallowShared_Tuples.thy
+    echo "  imports \"${prfnam}_ShallowShared_Tuples\"" >> $OUTPUTDIR/ShallowShared_Tuples.thy
+    echo "begin end" >> $OUTPUTDIR/ShallowShared_Tuples.thy
     echo "theory ShallowShared" > $OUTPUTDIR/ShallowShared.thy
     echo "  imports \"${prfnam}_ShallowShared\"" >> $OUTPUTDIR/ShallowShared.thy
     echo "begin end" >> $OUTPUTDIR/ShallowShared.thy
     cp $GENCOT_HOME/isa/GencotTypes.thy $OUTPUTDIR
-    $BIN/auxcog-shalgencot $TMPDIR/common.gencot-std < $1 > $OUTPUTDIR/${prfnam}_Shallow_Gencot.thy
+    $BIN/auxcog-shalgencot $TMPDIR/common.gencot-std < $1 > $OUTPUTDIR/${prfnam}_Shallow_Gencot_Tuples.thy
+    $BIN/auxcog-shalgencot $TMPDIR/common.gencot-std < $srcdir/${prfnam}_ShallowShared.thy > $OUTPUTDIR/${prfnam}_Shallow_Gencot.thy
+    cp $GENCOT_HOME/isa/*_Tuples.thy $OUTPUTDIR
     for fil in $GENCOT_HOME/isa/Gencot_* $GENCOT_HOME/isa/CogentCommon_*
     do 
-        if [ X$(expr match $fil '\(.*\)_Tuples.thy') = "X" ]
+        if [ "X$(expr match $fil '\(.*\)_Tuples.thy')" = "X" -a "X$(expr match $fil '\(.*\)_Lemmas.thy')" = "X" ]
         then
             cp $fil $OUTPUTDIR
         fi

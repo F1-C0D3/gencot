@@ -342,12 +342,15 @@ Together, the list for processing the code is prepared from the symbol table \co
   sortBy compEvent $ listGlobals $ filterGlobalDecls globalsFilter $ globalDefs table
 \end{verbatim}
 
-All this preprocessing is implemented in module \code{Gencot.Input}. It provides the function
+All this preprocessing is implemented in module \code{Gencot.Input}. It provides the functions
 \begin{verbatim}
+  getOwnDeclEvents :: GlobalDecls -> (DeclEvent -> Bool) -> [DeclEvent]
   getDeclEvents :: GlobalDecls -> (DeclEvent -> Bool) -> [DeclEvent]
 \end{verbatim}
-It performs the preprocessing and returns the list of \code{DeclEvent}s to be processed.
-As its second argument it expects a predicate for filtering the content of \code{<stdin>} to the
+The first one reduces the declarations to those directly in the input file, the second also returns
+declarations from included files. 
+Both perform the preprocessing and return the list of \code{DeclEvent}s to be processed.
+As its second argument they expect a filter predicate for restricting the declarations to the
 \code{DeclEvent}s to be processed by the specific Gencot component.
 
 \subsection{Reading Packages}

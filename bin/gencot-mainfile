@@ -3,14 +3,33 @@
 # Generate the main Cogent source file.
 # Input is a list of C source file names, output is the content of the main Cogent source file.
 # As additional string argument the name used for the Cogent compilation unit must be specified.
+# As additional file argument the specified file must contain a sequence of lines of the form
+#   <id>: <id>
 
-if [ $# != 1 ]
+if [ $# != 2 ]
 then
-    echo "gencot-mainfile: unit name expected as argument"
+    echo "gencot-mainfile: unit name and a file name expected as arguments"
     exit 1
 fi
 
-if [ -e gencot-incl.cogent ]; then echo "#include \"gencot-incl.cogent\""; echo ""; fi
+KND=1
+PRC=''
+for comp in $(cat $2)
+do
+    if [ $KND ]
+    then
+        PRC=''
+        if [ $comp = "gencot:" ]; then PRC=1; fi
+        if [ $comp = "common:" ]; then PRC=2; fi
+        KND=''
+    else
+        if [ "$PRC" == 1 ]; then echo "#include \"gencot/$comp.cogent\""; fi
+        if [ "$PRC" == 2 ]; then echo "include <gum/common/$comp.cogent>"; fi
+        KND=1
+    fi
+done
+
+#if [ -e gencot-incl.cogent ]; then echo "#include \"gencot-incl.cogent\""; echo ""; fi
 echo ""
 for file in $(cat /dev/stdin)
 do

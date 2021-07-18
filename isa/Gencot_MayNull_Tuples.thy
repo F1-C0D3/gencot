@@ -1,5 +1,5 @@
-theory Gencot_MayNull
-  imports ShallowShared
+theory Gencot_MayNull_Tuples
+  imports ShallowShared_Tuples
 begin
 
 axiomatization where null_def[simp]: "null () = option.None" 

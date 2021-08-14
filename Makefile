@@ -1,6 +1,6 @@
 all: build links
 
-build: check deccm pmgen pmprc trans entrs extns exttp dvdtp cgrph dmpca itprc itgen ituse itext itefs actis actif
+build: check deccm pmgen pmprc trans entrs extns exttp dvdtp cgrph dmpca itprc itgen ituse itext itefs actis actif acgop
 
 CHECK = gencot-check
 TRANS = gencot-translate
@@ -20,6 +20,7 @@ ITEXT = items-externs
 ITEFS = items-extfuns
 ACTIS = auxcog-ctypstruct
 ACTIF = auxcog-ctypfunc
+ACGOP = auxcog-genops
 
 check: 
 	cabal new-build $(CHECK)
@@ -75,7 +76,10 @@ actis:
 actif: 
 	cabal new-build $(ACTIF)
 
-links: bin/$(CHECK) bin/$(DECCM) bin/$(PMGEN) bin/$(PMPRC) bin/$(TRANS) bin/$(ENTRS) bin/$(EXTNS) bin/$(EXTTP) bin/$(DVDTP) bin/$(CGRPH) bin/$(DMPCA) bin/$(ITPRC) bin/$(ITGEN) bin/$(ITUSE) bin/$(ITEXT) bin/$(ITEFS) bin/$(ACTIS) bin/$(ACTIF)
+acgop: 
+	cabal new-build $(ACGOP)
+
+links: bin/$(CHECK) bin/$(DECCM) bin/$(PMGEN) bin/$(PMPRC) bin/$(TRANS) bin/$(ENTRS) bin/$(EXTNS) bin/$(EXTTP) bin/$(DVDTP) bin/$(CGRPH) bin/$(DMPCA) bin/$(ITPRC) bin/$(ITGEN) bin/$(ITUSE) bin/$(ITEXT) bin/$(ITEFS) bin/$(ACTIS) bin/$(ACTIF) bin/$(ACGOP)
 
 bin/$(CHECK):
 	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(CHECK)/build/$(CHECK)/$(CHECK) .)
@@ -130,3 +134,6 @@ bin/$(ACTIS):
 
 bin/$(ACTIF):
 	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(ACTIF)/build/$(ACTIF)/$(ACTIF) .)
+
+bin/$(ACGOP):
+	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(ACGOP)/build/$(ACGOP)/$(ACGOP) .)

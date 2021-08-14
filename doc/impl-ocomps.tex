@@ -1,10 +1,16 @@
-The following auxiliary Gencot components exist which do not process C source code:
+The following auxiliary Gencot components exist which do not parse C source code:
 \begin{description}
 \item[\code{parmod-proc}] processes parameter modification descriptions in JSON format (see Section~\ref{impl-parmod}).
 \item[\code{items-proc}] processes item property declarations in text format (see Section~\ref{impl-itemprops}).
-\item[\code{auxcog-macros}] processes Cogent source code to select macro definitions.
-\item[\code{auxcog-mapback}] processes Cogent source code to map Cogent constants back to preprocessor constants.
+\item[\code{auxcog-remcomments}] processes Cogent source code to remove all comments.
+\item[\code{auxcog-macros}] (deprecated) processes Cogent source code to select macro definitions.
+\item[\code{auxcog-numexpr}] (deprecated) processes Cogent source code to translate numerical expressions to C.
+\item[\code{auxcog-mapback}] (deprecated) processes Cogent source code to map Cogent constants back to preprocessor constants.
 \item[\code{gencot-prclist}] processes list files to remove comments.
+\item[\code{auxcog-shalgencot}] processes an Isabelle theory for generating an additional Isabelle theory.
+\item[\code{auxcog-shalshared}] postprocesses an Isabelle theory for adapting type definitions.
+\item[\code{auxcog-lemmgencot}] processes an Isabelle theory for generating an additional Isabelle theory.
+\item[\code{auxcog-genops}] processes a text file for expanding all Genops templates (see Section~\ref{impl-operations}).
 \end{description}
 
 \subsection{Parameter Modification Descriptions}
@@ -263,6 +269,23 @@ This filter works similar as \code{auxcog-shalgencot}. It generates the Isabelle
 representation in \code{X\_Shallow\_Gencot.thy}.
 
 The filter is implemented as an awk script.
+
+\subsection{Processing Genops Templates}
+\label{impl-ocomps-genops}
+
+The component for implementing the Genops mechanism described in Section~\ref{impl-operations-poly} processes C code but
+is not implemented using a C parser, therefore it is described here. Genops is implemented by the filter \code{auxcog-genops}.
+It takes as input a single C source file which is the result of processing an antiquoted C file by the Cogent compiler
+using \code{--infer-c-funcs}. However, the input is not parsed as C code, it can be arbitrary text. The filter processes
+all embedded Genops templates as described in Section~\ref{impl-operations} and replaces them by the result. It also 
+processes the \code{genopsInitClearDefinitions} marker and replaces it by the definitions of all required initialization
+and clearing functions, as described in Section~\ref{impl-operations-init}. The modified C code is written to the output.
+
+The filter takes as additional arguments the names of two files containing the struct type information and the function
+type information as described in Section~\ref{impl-ctypinfo}. 
+
+The filter is implemented as a Haskell program, the Genops specific functions are implemented in module
+\code{Gencot.Text.Genops}. To extend Genops by additional templates, implement their expansion there.
 
 \subsection{Generating Main Files}
 \label{impl-ocomps-main}

@@ -33,32 +33,98 @@ templates are specified in the antiquoted C definition of the polymorphic functi
 Cogent type. When Cogent generates the monomorphic instance it replaces the type in the template by the 
 corresponding C type. Afterwards, Genops reads the template, and expands it depending on the contained C type. 
 If the C type results from a Cogent type for which Gencot does not provide a function instance, Genops signals
-an error.
+an error. The required information about the generated C types is accessed by reading the struct and function type
+information described in Section~\ref{impl-ctypinfo-repr}.
 
 The Genops template syntax is defined in a way that its insertion results in syntactically valid C code. Thus, 
 Cogent can read and process the antiquoted C code with embedded Genops templates as usual and the resulting 
 monomorphic instances are syntactically valid (plain) C code. Genops is implemented by reading the monomorphic 
-instances using a C parser, detecting and expanding the templates in the C AST, and outputting the result as C code.
+instances, detecting and expanding the templates, and outputting the result again as valid C code.
 
 Genops templates have the form of a C function invocation
 \begin{verbatim}
-  gencotXXX((typ1) expr1, ...)
+  genopsTemplate("XXX",(typ1) expr1, "genopsEnd")
 \end{verbatim}
 where \code{XXX} names the template and \code{typ1} is an arbitrary C type embedded in the template, and \code{expr1}
 is an arbitrary C expression embedded in the template. Both \code{typ1} and \code{expr1} are read by Genops and are 
 used to determine the template expansion. If more than one type and/or expression is required, additional function
-arguments are used to specify them. If only a type is required, \code{0} is used as expression. If only an expression
-is required, the cast with the type is omitted. The Genops templates always expand to a C expression, thus they 
-are syntactically valid wherever the template may occur.
+arguments are used to specify them, each but the last followed by the string \code{"genopsNext"}. If only a type is 
+required, \code{0} is used as expression. If only an expression is required, the cast with the type is omitted. The Genops 
+templates always expand to a C expression, thus they are syntactically valid wherever the template may occur.
+
+The syntax of the templates is selected for simple parsing, so that it is not required to use a parser for C types and 
+expressions. It is assumed that the \code{typi} and \code{expri} in the template do not contain the strings \code{"genopsNext"}
+and \code{"genopsEnd"}, so they can be separated by searching for these strings. All templates can be found by searching for 
+\code{genopsTemplate}. The \code{typi} and \code{expri} can be separated because the \code{typi} generated from Cogent 
+types never contain parantheses (see Section~\ref{impl-ctypinfo}).
+
+Using a C parser is avoided because the result of processing an antiquoted C file by Cogent is usually only a fragment of
+a C program which contains types but not their definitions. The C syntax is not context free and a C parser needs to 
+know which identifiers name types and which name values, therefore the files could not be parsed without additional information
+from the rest of the program.
 
 \subsection{Implementing Default Values}
 \label{impl-operations-default}
 
+Default values are specified using the abstract polymorphic function \code{defaultVal} (see Section~\ref{design-operations-default}).
+This function is implemented with the help of the Genops template
+\begin{verbatim}
+  genopsTemplate("DefaultVal",(typ) 0, "genopsEnd")
+\end{verbatim}
+where \code{typ} is the type for which to generate the default value. The Genops mechanism replaces this template by the value
+as specified in Section~\ref{design-operations-default}.
+
+The Cogent type is determined by its translation as C type \code{typ}. The primitive numerical types are translated to \code{u8},
+\code{u16}, \code{u32}, \code{u64}, the unit type is translated to \code{unit\_t}, the type \code{String} is translated to \code{char*}.
+Gencot function pointer types are represented by abstract types with names of the form \code{CFunPtr\_...} and have the same name when
+translated to C.
+Tuple types, unboxed record types, and variant types, are translated to types \code{tNN} which are described in the struct type 
+information (see Section~\ref{impl-ctypinfo-repr}). Unboxed Gencot array types are implemented as specific unboxed record types and thus
+have the same form. Tuple and record types are treated in the same way. Variant types are recognized by the first member having 
+type \code{tag\_t}. Gencot array types are recognized as double wrapper records with a member of array type.
+
+Default values for aggregate types (structs and arrays, including the unit type which is translated to a struct type \code{unit\_t})
+are implemented with the help of C initializers. For these types the 
+\code{"DefaultVal"} template expands to an initializer expression, it may thus only be used in an object definition. The initializer 
+only specifies a value for the first member or element, according to the C standard this causes the remaining members or elements to
+be initialized according to the C default initialization, which corresponds to the Gencot default values as specified in 
+Section~\ref{design-operations-default}. This also applies to objects of automatic storage duration, which are not initialized when
+no initializer is provided. So the template can be used to initialize a local stack-allocated variable in a function to the default 
+value and use it to copy the value elsewhere.
+
 \subsection{Implementing Create and Dispose Functions}
-\label{design-operations-create}
+\label{impl-operations-create}
 
 \subsection{Implementing Initialize and Clear Functions}
-\label{design-operations-init}
+\label{impl-operations-init}
+
+The functions \code{initFull} and \code{clearFull} are implemented in antiquoted C by moving the boxed value from stack
+to heap and back in a single C assignment.
+
+The functions \code{initHeap}, \code{clearHeap}, \code{initSimp}, and \code{clearSimp} must be implemented by treating
+each component of a struct type and each element of an array type separately. This is done with the help of type specific
+functions for initializing and clearing, which are generated automatically. They are invoked by two Genops templates:
+\begin{verbatim}
+  genopsTemplate("InitStruct",(typ) expr, "genopsEnd")
+  genopsTemplate("ClearStruct",(typ) expr, "genopsEnd")
+\end{verbatim}
+In the first case \code{typ} must be the translation of a Gencot empty-value type, in the second case it must be the translation 
+of a Gencot valid-value type. In both cases \code{expr} must be an expression for a value of type \code{typ}. The templates
+expand to an invocation of a generated function which initializes or clears this value as described in 
+Section~\ref{design-operations-init}.
+
+For every type \code{t} occurring as \code{typ} in an \code{"InitStruct"} template, and also for every pointer type \code{t} which 
+transitively occurs in a component or element of \code{typ}, Genops generates a C function \code{gencotInitStruct\_t} which implements
+the initialization. Analogously Genops generates C functions \code{gencotClearStruct\_t} for the \code{"ClearStruct"} templates.
+
+The generated function definitions must be placed at toplevel before the first occurrence of the corresponding template. Since
+Genops does not parse the C file it uses a marker, which must be manually inserted, to determine that position. The marker has 
+the form
+\begin{verbatim}
+  int genopsInitClearDefinitions;
+\end{verbatim}
+and is replaced by the sequence of all generated function definitions. The function definitions are ordered so that functions
+for components or elements of a type precede the function for the type and can be invoked there.
 
 \subsection{Implementing Pointer Types}
 \label{impl-operations-pointer}
@@ -68,6 +134,14 @@ are syntactically valid wherever the template may occur.
 
 \subsection{Implementing MayNull}
 \label{impl-operations-null}
+
+The functions of the abstract data type defined in Section~\ref{design-operations-null} are implemented in antiquoted
+C, no Genops templates are required. 
+
+The function \code{isNull} and the part access operation functions could be implemented in Cogent, but they are also 
+defined as abstract and implemented in antiquoted C, for efficiency reasons. The implementation of \code{modifyNullDflt}
+uses the Genops template \code{"DefaultVal"} (see Section~\ref{impl-operations-default}) to generate the default value
+for type \code{out}.
 
 \subsection{Implementing Record Types}
 \label{impl-operations-record}
@@ -81,6 +155,21 @@ The \code{create} instance is implemented by simply allocating the
 required space on the heap, internally using the translation of type \code{\#(CArr<size> El)} to specify
 the amount of space. 
 
+\subsubsection{Initializing and Accessing Arrays}
+
+All abstract functions for initializing and accessing arrays defined in Section~\ref{design-operations-array} are implemented
+in antiquoted C using the following two Genops templates:
+\begin{verbatim}
+  genopsTemplate("ArrayPointer",(typ) expr,"genopsEnd")
+  genopsTemplate("ArraySize",(typ) expr,"genopsEnd")
+\end{verbatim}
+In both templates the \code{typ} must be the translation of a Gencot array type \code{CArr<size> El}. In the first template \code{expr}
+must be an expression of type \code{typ}, which denotes a wrapper record according to Section~\ref{design-types-array}.
+The template is expanded to an expression for the corresponding C array (pointer to the first element), which is constructed by 
+accessing the array in the wrapper record. In the second template \code{expr} is arbitrary and is ignored by Genops, by convention it 
+should also be an expression of type \code{typ} as in the first case. The template is expanded to the size of all arrays of type 
+\code{typ}, specified as a numerical literal.
+
 \subsection{Implementing Explicitly Sized Array Types}
-\label{impl-operations-array}
+\label{impl-operations-esarray}
 

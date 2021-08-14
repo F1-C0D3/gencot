@@ -6,8 +6,10 @@ extern void *malloc(u64);
 extern void *calloc(u64, u64);
 extern void free(void*);
 
+int genopsInitClearDefinitions; // Genops replaces this line by all struct/array initialization and clearing functions
+
 static $ty:a $id:defaultVal($ty:(()) arg) {
-  $ty:a res = gencotDefaultVal(($ty:a) 0);
+  $ty:a res = genopsTemplate("DefaultVal",($ty:a) 0,"genopsEnd");
   // $ty:a res = <defaultwert>;
   // nur als initializer, da UNITVAL als mögliche Expansion!
   return res;
@@ -42,7 +44,7 @@ static $ty:((evt,#vvt)) $id:clearFull($ty:((vvt,())) arg) {
 
 static $ty:(Result (vvt,Heap) (evt,Heap)) $id:initHeap($ty:((evt,Heap)) arg) {
     $ty:(Result (vvt,Heap) (evt,Heap)) res = {.tag=TAG_ENUM_Error,.Success=arg,.Error=arg};
-    if (gencotInitStruct(($ty:evt) arg.p1)) res.tag = TAG_ENUM_Success;
+    if (genopsTemplate("InitStruct",($ty:evt) arg.p1,"genopsEnd")) res.tag = TAG_ENUM_Success;
     // gencotInitStruct_$ty:evt(arg.p1)
     return res;
 }
@@ -120,14 +122,14 @@ static $ty:(Result (vvt,Heap) (evt,Heap)) $id:initHeap($ty:((evt,Heap)) arg) {
 
 static $ty:((evt,Heap)) $id:clearHeap($ty:((vvt,Heap)) arg) {
     $ty:((evt,Heap)) res = arg;
-    gencotClearStruct(($ty:vvt) arg.p1);
+    genopsTemplate("ClearStruct",($ty:vvt) arg.p1,"genopsEnd");
     // gencotClearStruct_$ty:vvt(arg.p1);
     return res;
 }
 
 static $ty:((vvt,())) $id:initSimp($ty:((evt,())) arg) {
     $ty:((vvt,())) res = arg;
-    gencotInitStruct(($ty:evt) arg.p1);
+    genopsTemplate("InitStruct",($ty:evt) arg.p1,"genopsEnd");
     // gencotInitStruct_$ty:evt(arg.p1)
     return res;
 }
@@ -199,7 +201,7 @@ static $ty:((MayNull a,arg)) $id:modifyNull($ty:((MayNull a, (ModFun a arg arg, 
 }
 
 static $ty:((MayNull a,out)) $id:modifyNullDflt($ty:((MayNull a, (ModFun a arg out, arg))) arg) {
-    $ty:((MayNull a,out)) res = {.p1 = arg.p1, .p2 = gencotDefaultVal(($ty:out) 0)};
+    $ty:((MayNull a,out)) res = {.p1 = arg.p1, .p2 = genopsTemplate("DefaultVal",($ty:out) 0,"genopsEnd")};
     if (arg.p1 != NULL) {
         $ty:((a,arg)) h = {.p1 = arg.p1, .p2 = arg.p2.p2};
         $ty:((a,out)) h2 = (($spec:(ModFun a arg out)) arg.p2.p1) (h);
@@ -211,10 +213,10 @@ static $ty:((MayNull a,out)) $id:modifyNullDflt($ty:((MayNull a, (ModFun a arg o
 
 static $ty:((vvt,out)) $id:initEltsParCmb($ty:((evt,(IniFun epe vpe arg out, arg, (out,out)->out))) arg) {
     $ty:((vvt,out)) res = {.p1=($ty:vvt)arg.p1};
-    $ty:epe a = gencotArrayPointer(($ty:evt) arg.p1);
+    $ty:epe a = genopsTemplate("ArrayPointer",($ty:evt) arg.p1,"genopsEnd");
     $ty:((epe,arg)) elarg = {.p2=arg.p2.p2};
     $ty:((out,out)) acc;
-    for (int i = 0; i < gencotArraySize(($ty:vvt) arg.p1); i++) {
+    for (int i = 0; i < genopsTemplate("ArraySize",($ty:vvt) arg.p1,"genopsEnd"); i++) {
       elarg.p1 = ($ty:epe) &(a[i]);
       $ty:((vpe,out)) h = (($spec:(IniFun epe vpe arg out)) arg.p2.p1) (elarg);
       if (i == 0) acc.p1 = h.p2; else {
@@ -228,10 +230,10 @@ static $ty:((vvt,out)) $id:initEltsParCmb($ty:((evt,(IniFun epe vpe arg out, arg
 
 static $ty:((evt,out)) $id:clearEltsParCmb($ty:((vvt,(ClrFun vpe epe arg out, arg, (out,out)->out))) arg) {
     $ty:((evt,out)) res = {.p1=($ty:evt)arg.p1};
-    $ty:vpe a = gencotArrayPointer(($ty:vvt) arg.p1);
+    $ty:vpe a = genopsTemplate("ArrayPointer",($ty:vvt) arg.p1,"genopsEnd");
     $ty:((vpe,arg)) elarg = {.p2=arg.p2.p2};
     $ty:((out,out)) acc;
-    for (int i = 0; i < gencotArraySize(($ty:vvt) arg.p1); i++) {
+    for (int i = 0; i < genopsTemplate("ArraySize",($ty:vvt) arg.p1,"genopsEnd"); i++) {
       elarg.p1 = ($ty:vpe) &(a[i]);
       $ty:((epe,out)) h = (($spec:(ClrFun vpe epe arg out)) arg.p2.p1) (elarg);
       if (i == 0) acc.p1 = h.p2; else {
@@ -245,9 +247,9 @@ static $ty:((evt,out)) $id:clearEltsParCmb($ty:((vvt,(ClrFun vpe epe arg out, ar
 
 static $ty:((vvt,())) $id:initEltsPar($ty:((evt,(IniFun epe vpe arg (), arg))) arg) {
     $ty:((vvt,())) res = {.p1=($ty:vvt)arg.p1,.p2=UNITVAL};
-    $ty:epe a = gencotArrayPointer(($ty:evt) arg.p1);
+    $ty:epe a = genopsTemplate("ArrayPointer",($ty:evt) arg.p1,"genopsEnd");
     $ty:((epe,arg)) elarg = {.p2=arg.p2.p2};
-    for (int i = 0; i < gencotArraySize(($ty:vvt) arg.p1); i++) {
+    for (int i = 0; i < genopsTemplate("ArraySize",($ty:vvt) arg.p1,"genopsEnd"); i++) {
       elarg.p1 = ($ty:epe) &(a[i]);
       $ty:((vpe,())) h = (($spec:(IniFun epe vpe arg ())) arg.p2.p1) (elarg);
     }
@@ -256,9 +258,9 @@ static $ty:((vvt,())) $id:initEltsPar($ty:((evt,(IniFun epe vpe arg (), arg))) a
 
 static $ty:((evt,())) $id:clearEltsPar($ty:((vvt,(ClrFun vpe epe arg (), arg))) arg) {
     $ty:((evt,())) res = {.p1=($ty:evt)arg.p1,.p2=UNITVAL};
-    $ty:vpe a = gencotArrayPointer(($ty:vvt) arg.p1);
+    $ty:vpe a = genopsTemplate("ArrayPointer",($ty:vvt) arg.p1,"genopsEnd");
     $ty:((vpe,arg)) elarg = {.p2=arg.p2.p2};
-    for (int i = 0; i < gencotArraySize(($ty:vvt) arg.p1); i++) {
+    for (int i = 0; i < genopsTemplate("ArraySize",($ty:vvt) arg.p1,"genopsEnd"); i++) {
       elarg.p1 = ($ty:vpe) &(a[i]);
       $ty:((epe,())) h = (($spec:(ClrFun vpe epe arg ())) arg.p2.p1) (elarg);
     }
@@ -267,9 +269,9 @@ static $ty:((evt,())) $id:clearEltsPar($ty:((vvt,(ClrFun vpe epe arg (), arg))) 
 
 static $ty:((vvt,arg)) $id:initEltsSeq($ty:((evt,(IniFun epe vpe arg arg, arg))) arg) {
     $ty:((vvt,arg)) res = {.p1=($ty:vvt)arg.p1};
-    $ty:epe a = gencotArrayPointer(($ty:evt) arg.p1);
+    $ty:epe a = genopsTemplate("ArrayPointer",($ty:evt) arg.p1,"genopsEnd");
     $ty:((epe,arg)) elarg = {.p2=arg.p2.p2};
-    for (int i = 0; i < gencotArraySize(($ty:vvt) arg.p1); i++) {
+    for (int i = 0; i < genopsTemplate("ArraySize",($ty:vvt) arg.p1,"genopsEnd"); i++) {
       elarg.p1 = ($ty:epe) &(a[i]);
       $ty:((vpe,arg)) h = (($spec:(IniFun epe vpe arg arg)) arg.p2.p1) (elarg);
       elarg.p2 = h.p2;
@@ -280,9 +282,9 @@ static $ty:((vvt,arg)) $id:initEltsSeq($ty:((evt,(IniFun epe vpe arg arg, arg)))
 
 static $ty:((evt,arg)) $id:clearEltsSeq($ty:((vvt,(ClrFun vpe epe arg arg, arg))) arg) {
     $ty:((evt,arg)) res = {.p1=($ty:evt)arg.p1};
-    $ty:vpe a = gencotArrayPointer(($ty:vvt) arg.p1);
+    $ty:vpe a = genopsTemplate("ArrayPointer",($ty:vvt) arg.p1,"genopsEnd");
     $ty:((vpe,arg)) elarg = {.p2=arg.p2.p2};
-    for (int i = 0; i < gencotArraySize(($ty:vvt) arg.p1); i++) {
+    for (int i = 0; i < genopsTemplate("ArraySize",($ty:vvt) arg.p1,"genopsEnd"); i++) {
       elarg.p1 = ($ty:vpe) &(a[i]);
       $ty:((epe,arg)) h = (($spec:(ClrFun vpe epe arg arg)) arg.p2.p1) (elarg);
       elarg.p2 = h.p2;
@@ -292,15 +294,15 @@ static $ty:((evt,arg)) $id:clearEltsSeq($ty:((vvt,(ClrFun vpe epe arg arg, arg))
 }
 
 static $ty:(el!) $id:getArr($ty:((arr!,idx)) arg) {
-    $ty:el * a = gencotArrayPointer(($ty:arr) arg.p1);
-    if (arg.p2 < gencotArraySize(($ty:arr) arg.p1)) return a[arg.p2];
+    $ty:el * a = genopsTemplate("ArrayPointer",($ty:arr) arg.p1,"genopsEnd");
+    if (arg.p2 < genopsTemplate("ArraySize",($ty:arr) arg.p1,"genopsEnd")) return a[arg.p2];
     else return a[0];
 }
 
 static $ty:(Result el! ()) $id:getArrChk($ty:((arr!,idx)) arg) {
     $ty:(Result el! ()) res = {.Error=UNITVAL};
-    $ty:el * a = gencotArrayPointer(($ty:arr) arg.p1);
-    if (arg.p2 < gencotArraySize(($ty:arr) arg.p1)) {
+    $ty:el * a = genopsTemplate("ArrayPointer",($ty:arr) arg.p1,"genopsEnd");
+    if (arg.p2 < genopsTemplate("ArraySize",($ty:arr) arg.p1,"genopsEnd")) {
       res.tag = TAG_ENUM_Success;
       res.Success = a[arg.p2];
     }
@@ -310,15 +312,15 @@ static $ty:(Result el! ()) $id:getArrChk($ty:((arr!,idx)) arg) {
 
 static $ty:((arr,())) $id:setArr($ty:((arr,(idx,el))) arg) {
     $ty:((arr,())) res = {.p1=arg.p1,.p2=UNITVAL};
-    $ty:el * a = gencotArrayPointer(($ty:arr) res.p1);
-    if (arg.p2.p1 < gencotArraySize(($ty:arr) res.p1)) a[arg.p2.p1] = arg.p2.p2;
+    $ty:el * a = genopsTemplate("ArrayPointer",($ty:arr) res.p1,"genopsEnd");
+    if (arg.p2.p1 < genopsTemplate("ArraySize",($ty:arr) res.p1,"genopsEnd")) a[arg.p2.p1] = arg.p2.p2;
     return res;
 }
 
 static $ty:((arr,(idx,el))) $id:exchngArr($ty:((arr,(idx,el))) arg) {
     $ty:((arr,(idx,el))) res = {.p1=arg.p1,.p2=arg.p2};
-    $ty:el * a = gencotArrayPointer(($ty:arr) res.p1);
-    if (arg.p2.p1 < gencotArraySize(($ty:arr) res.p1)) {
+    $ty:el * a = genopsTemplate("ArrayPointer",($ty:arr) res.p1,"genopsEnd");
+    if (arg.p2.p1 < genopsTemplate("ArraySize",($ty:arr) res.p1,"genopsEnd")) {
       res.p2.p2 = a[arg.p2.p1];
       a[arg.p2.p1] = arg.p2.p2;
     }
@@ -327,8 +329,8 @@ static $ty:((arr,(idx,el))) $id:exchngArr($ty:((arr,(idx,el))) arg) {
 
 static $ty:((arr,arg)) $id:modifyArr($ty:((arr, (idx,ChgFun el arg arg, arg))) arg) {
     $ty:((arr,arg)) res = {.p1=arg.p1,.p2=arg.p2.p3};
-    $ty:el * a = gencotArrayPointer(($ty:arr) res.p1);
-    if (arg.p2.p1 < gencotArraySize(($ty:arr) res.p1)) {
+    $ty:el * a = genopsTemplate("ArrayPointer",($ty:arr) res.p1,"genopsEnd");
+    if (arg.p2.p1 < genopsTemplate("ArraySize",($ty:arr) res.p1,"genopsEnd")) {
       $ty:((el,arg)) elarg = {.p1=a[arg.p2.p1],.p2=arg.p2.p3};
       elarg = (($spec:(ChgFun el arg arg)) arg.p2.p2) (elarg);
       a[arg.p2.p1] = elarg.p1;
@@ -338,9 +340,9 @@ static $ty:((arr,arg)) $id:modifyArr($ty:((arr, (idx,ChgFun el arg arg, arg))) a
 }
 
 static $ty:((arr,out)) $id:modifyArrDflt($ty:((arr, (idx,ChgFun el arg out, arg))) arg) {
-    $ty:((arr,out)) res = {.p1=arg.p1,.p2=gencotDefaultVal(($ty:out) 0)};
-    $ty:el * a = gencotArrayPointer(($ty:arr) res.p1);
-    if (arg.p2.p1 < gencotArraySize(($ty:arr) res.p1)) {
+    $ty:((arr,out)) res = {.p1=arg.p1,.p2=genopsTemplate("DefaultVal",($ty:out) 0,"genopsEnd")};
+    $ty:el * a = genopsTemplate("ArrayPointer",($ty:arr) res.p1,"genopsEnd");
+    if (arg.p2.p1 < genopsTemplate("ArraySize",($ty:arr) res.p1,"genopsEnd")) {
       $ty:((el,arg)) elarg = {.p1=a[arg.p2.p1],.p2=arg.p2.p3};
       $ty:((el,out)) h = (($spec:(ChgFun el arg out)) arg.p2.p2) (elarg);
       a[arg.p2.p1] = h.p1;
@@ -350,15 +352,15 @@ static $ty:((arr,out)) $id:modifyArrDflt($ty:((arr, (idx,ChgFun el arg out, arg)
 }
 
 static $ty:(pel!) $id:getrefArr($ty:((arr!,idx)) arg) {
-    $ty:pel a = gencotArrayPointer(($ty:arr) arg.p1);
-    if (arg.p2 < gencotArraySize(($ty:arr) arg.p1)) return &a[arg.p2];
+    $ty:pel a = genopsTemplate("ArrayPointer",($ty:arr) arg.p1,"genopsEnd");
+    if (arg.p2 < genopsTemplate("ArraySize",($ty:arr) arg.p1,"genopsEnd")) return &a[arg.p2];
     else return &a[0];
 }
 
 static $ty:(Result pel! ()) $id:getrefArrChk($ty:((arr!,idx)) arg) {
     $ty:(Result pel! ()) res = {.Error=UNITVAL};
-    $ty:pel a = gencotArrayPointer(($ty:arr) arg.p1);
-    if (arg.p2 < gencotArraySize(($ty:arr) arg.p1)) {
+    $ty:pel a = genopsTemplate("ArrayPointer",($ty:arr) arg.p1,"genopsEnd");
+    if (arg.p2 < genopsTemplate("ArraySize",($ty:arr) arg.p1,"genopsEnd")) {
       res.tag = TAG_ENUM_Success;
       res.Success = &a[arg.p2];
     }
@@ -368,8 +370,8 @@ static $ty:(Result pel! ()) $id:getrefArrChk($ty:((arr!,idx)) arg) {
 
 static $ty:((arr,arg)) $id:modrefArr($ty:((arr, (idx,ModFun pel arg arg, arg))) arg) {
     $ty:((arr,arg)) res = {.p1=arg.p1,.p2=arg.p2.p3};
-    $ty:pel a = gencotArrayPointer(($ty:arr) arg.p1);
-    if (arg.p2.p1 < gencotArraySize(($ty:arr) arg.p1)) {
+    $ty:pel a = genopsTemplate("ArrayPointer",($ty:arr) arg.p1,"genopsEnd");
+    if (arg.p2.p1 < genopsTemplate("ArraySize",($ty:arr) arg.p1,"genopsEnd")) {
       $ty:((pel,arg)) elarg = {.p1=&a[arg.p2.p1],.p2=arg.p2.p3};
       elarg = (($spec:(ModFun pel arg arg)) arg.p2.p2) (elarg);
       res.p2 = elarg.p2;
@@ -378,9 +380,9 @@ static $ty:((arr,arg)) $id:modrefArr($ty:((arr, (idx,ModFun pel arg arg, arg))) 
 }
 
 static $ty:((arr,out)) $id:modrefArrDflt($ty:((arr, (idx,ModFun pel arg out, arg))) arg) {
-    $ty:((arr,out)) res = {.p1=arg.p1,.p2=gencotDefaultVal(($ty:out) 0)};
-    $ty:pel a = gencotArrayPointer(($ty:arr) arg.p1);
-    if (arg.p2.p1 < gencotArraySize(($ty:arr) arg.p1)) {
+    $ty:((arr,out)) res = {.p1=arg.p1,.p2=genopsTemplate("DefaultVal",($ty:out) 0,"genopsEnd")};
+    $ty:pel a = genopsTemplate("ArrayPointer",($ty:arr) arg.p1,"genopsEnd");
+    if (arg.p2.p1 < genopsTemplate("ArraySize",($ty:arr) arg.p1,"genopsEnd")) {
       $ty:((pel,arg)) elarg = {.p1=&a[arg.p2.p1],.p2=arg.p2.p3};
       $ty:((pel,out)) h = (($spec:(ModFun pel arg out)) arg.p2.p2) (elarg);
       res.p2 = h.p2;
@@ -419,7 +421,7 @@ static $ty:(pref!) $id:getrefPtr($ty:((CPtr #pref)!) arg) {
 
 static $ty:(ufunptr) $id:toFunPtr($ty:fun arg) {
     $ty:(ufunptr) res = NULL;
-    gencotToFunptr(($ty:fun) arg, ($ty:(ufunptr)) res);
+    genopsTemplate("ToFunptr",($ty:fun) arg, "genopsNext", ($ty:(ufunptr)) res,"genopsEnd");
     // switch (arg) {
     //   case FUN_ENUM_f1: res = &f1; break;
     //   ...
@@ -429,7 +431,7 @@ static $ty:(ufunptr) $id:toFunPtr($ty:fun arg) {
 
 static $ty:(Result fun ()) $id:fromFunPtr($ty:(ufunptr) arg) {
     $ty:(Result fun ()) res = {.Success=-1,.Error=UNITVAL};
-    gencotFromFunptr(($ty:(ufunptr)) arg, ($ty:fun) res.Success);
+    genopsTemplate("FromFunptr",($ty:(ufunptr)) arg, "genopsNext", ($ty:fun) res.Success,"genopsEnd");
     // if (arg == &f1) res.Success = FUN_ENUM_f1;
     // else if (arg == &f2) res.Success = FUN_ENUM_f2;
     // ...
@@ -439,13 +441,13 @@ static $ty:(Result fun ()) $id:fromFunPtr($ty:(ufunptr) arg) {
 }
 
 static $ty:esa $id:toExplicitSize($ty:arr arg) {
-    $ty:esa res = {.p1= gencotArrayPointer(($ty:arr) arg),.p2= gencotArraySize(($ty:arr) arg)};
+    $ty:esa res = {.p1= genopsTemplate("ArrayPointer",($ty:arr) arg,"genopsEnd"),.p2= genopsTemplate("ArraySize",($ty:arr) arg,"genopsEnd")};
     return res;
 }
 
 static $ty:(Result arr esa) $id:toFixedSize($ty:esa arg) {
     $ty:(Result arr esa) res = {.Success=NULL,.Error=arg};
-    if (arg.p2 == gencotArraySize(($ty:arr) res.Success)) {
+    if (arg.p2 == genopsTemplate("ArraySize",($ty:arr) res.Success,"genopsEnd")) {
       res.tag = TAG_ENUM_Success;
       res.Success = ($ty:arr) arg.p1;
     }
@@ -454,13 +456,13 @@ static $ty:(Result arr esa) $id:toFixedSize($ty:esa arg) {
 }
 
 static $ty:(esa!) $id:rotoExplicitSize($ty:(arr!) arg) {
-    $ty:(esa!) res = {.p1= gencotArrayPointer(($ty:(arr!)) arg),.p2= gencotArraySize(($ty:(arr!)) arg)};
+    $ty:(esa!) res = {.p1= genopsTemplate("ArrayPointer",($ty:(arr!)) arg,"genopsEnd"),.p2= genopsTemplate("ArraySize",($ty:(arr!)) arg,"genopsEnd")};
     return res;
 }
 
 static $ty:(Result arr! esa!) $id:rotoFixedSize($ty:(esa!) arg) {
     $ty:(Result arr! esa!) res = {.Success=NULL,.Error=arg};
-    if (arg.p2 == gencotArraySize(($ty:(arr!)) res.Success)) {
+    if (arg.p2 == genopsTemplate("ArraySize",($ty:(arr!)) res.Success,"genopsEnd")) {
       res.tag = TAG_ENUM_Success;
       res.Success = ($ty:arr) arg.p1;
     }

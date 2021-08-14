@@ -46,8 +46,8 @@ a default value for such types.
 
 For a regular tuple (which has no component of linear or readonly type) the default value is the tuple of default values. For a
 regular unboxed record it is the record where all fields have their default value. For a regular variant type it is
-the default value of the first (in the C implementation) variant. If Dargent is not used, the first variant in C is
-that with the lexicographically smallest constructor name.
+the default value of the first (in the C implementation) variant. For a regular unboxed Gencot array type it is the 
+array of default value elements.
 
 Gencot defines the polymorphic abstract function
 \begin{verbatim}
@@ -687,7 +687,7 @@ pointer safely exists and the functions need not handle the case where it does n
 \subsection{Function Pointer Types}
 \label{design-operations-function}
 
-As described in Section~\ref{design-types-function}, function pointer types are mapped by Gencot to abstract types of the form 
+As described in Section~\ref{design-types-pointer}, function pointer types are mapped by Gencot to abstract types of the form 
 \code{CFunPtr\_EncFuntyp} where \code{EncFuntyp} encodes a C function type, or \code{CFunInc\_EncRestyp} where \code{EncRestyp}
 encodes the C result type. They are not covered by Gencot pointer types since they behave differently.
 

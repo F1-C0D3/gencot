@@ -1,7 +1,8 @@
 {-# LANGUAGE PackageImports #-}
 module Gencot.Text.CTypInfo where
 
-import Data.List (intercalate)
+import Data.List (intercalate,break,words)
+import Data.Map (Map,empty,singleton,unions,union)
 
 import Language.C.Data.Ident as LCI
 import Language.C.Data.Node as LCN
@@ -61,3 +62,38 @@ procCase (LCS.CBlockStmt (LCS.CCase _ (LCS.CReturn (Just e) _) _)) = procCall e
 procCase (LCS.CBlockStmt (LCS.CDefault (LCS.CReturn (Just e) _) _)) = procCall e
 procCase _ = "error"
 
+-- | Read struct types information.
+-- Returns a map from type names to member list with member id and member type
+readStructsFromFile :: FilePath -> IO (Map String [(String,String)])
+readStructsFromFile file = do 
+    inp <- readFile file 
+    return $ readStructs $ filter (not . null) $ lines inp
+
+-- | Read function types information.
+-- Returns a map from type names to argument and result type and list of functions belonging to the type
+readFuntypsFromFile :: FilePath -> IO (Map String (String,String,[String]))
+readFuntypsFromFile file = do 
+    inp <- readFile file 
+    return $ readFuntyps $ filter (not . null) $ lines inp
+
+readStructs :: [String] -> Map String [(String,String)]
+readStructs structs = unions (unitType:(map readStruct structs))
+
+unitType = singleton "unit_t" [("dummy","u32")]
+
+readStruct :: String -> Map String [(String,String)]
+readStruct struct = singleton (head ws) (map (remcolon . break (== ':')) (tail ws))
+    where ws = words struct
+          remcolon (a,b) = (a,tail b)
+
+readFuntyps :: [String] -> Map String (String,String,[String])
+readFuntyps [] = empty
+readFuntyps (fline:rest) = readftyps rest empty fline [] 
+
+readftyps :: [String] -> Map String (String,String,[String]) -> String -> [String] -> Map String (String,String,[String])
+readftyps [] m fline funs = union m (singleton ftyp (atyp,rtyp,funs))
+    where [ftyp,atyp,rtyp] = words fline
+readftyps (l:rest) m fline funs =
+    if length ws == 1 then readftyps rest m fline ((head ws):funs)
+                      else readftyps rest (readftyps [] m fline (reverse funs)) l []
+    where ws = words l

@@ -19,8 +19,8 @@ awk \
    common_theories = "common"
    nr_sizes = 0
    nr_funs = split("getArr setArr modifyArr modifyArrDflt", funs)
-   nr_afuns = split("siz vld elm upd", afuns)
-   nr_lems = split("sizArr vldArr updArr updArrFrame eqArr", lems)
+   nr_afuns = split("siz vld elm elm_update elm_modified arr_fill", afuns)
+   nr_lems = split("sizArr vldArr elmUpdElm elmUpdDistrib elmElmUpd elmElmUpdFrame elmArrFill eqArr eqElmUpd eqArrFill elm_modified_def", lems)
    opts[1] = "[simp]"; opts[2] = "[simp]"
  } 
 {
@@ -45,8 +45,8 @@ awk \
     size = substr($3,5,length($3)-12)
     nr_sizes += 1
     sizes[nr_sizes] = size
-    printf("interpretation CArrLems%s: CArrLems arr%s\\<^sub>f CArr%s.make\n", size, size, size)
-    printf("  by (unfold_locales, unfold CArr%s.make_def, auto)\n", size)
+    printf("interpretation CArrLems%s: CArrLems arr%s\\<^sub>T\\<^sub>f CArr%s.make\n", size, size, size)
+    printf("  by (unfold_locales, unfold CArr%s.make_def arr%s\\<^sub>T\\<^sub>f_def, auto)\n", size,size)
     printf("adhoc_overloading %s CArrLems%s.%sFxd\n", afuns[1], size, afuns[1])
     for (i=2; i <= nr_afuns; i++) printf("  and %s CArrLems%s.%sFxd\n", afuns[i], size, afuns[i])
     printf("\n")
@@ -61,10 +61,10 @@ END {
       }
       printf("\n")
       for (i=1; i<=nr_funs; i++) {
-        printf("lemmas %sValid =\n", funs[i])
-        for (j=1; j<=nr_sizes; j++) printf("  CArrLems%s.%sValid\n", sizes[j], funs[i])
-        printf("lemmas %sInvalid =\n", funs[i])
-        for (j=1; j<=nr_sizes; j++) printf("  CArrLems%s.%sInvalid\n", sizes[j], funs[i])
+        printf("lemmas sem_%s =\n", funs[i])
+        for (j=1; j<=nr_sizes; j++) printf("  CArrLems%s.sem_%s\n", sizes[j], funs[i])
+        printf("lemmas errsem_%s =\n", funs[i])
+        for (j=1; j<=nr_sizes; j++) printf("  CArrLems%s.errsem_%s\n", sizes[j], funs[i])
       }
       printf("\n")
     }
@@ -88,16 +88,18 @@ END {
 #     type_synonym 'el CArr<size>\<^sub>T = ...
 #   in the input theory a locale interpretation of the form
 #     interpretation CArrLems<size>: CArrLems arr<size>\<^sub>f CArr<size>.make
-#       by (unfold_locales, unfold CArr<size>.make_def, auto)
+#       by (unfold_locales, unfold CArr<size>.make_def
+#       arr<size>\<^sub>T\<^sub>f_def, auto)
 #   and an adhoc overloading of the form
 #     adhoc_overloading siz CArrLems<size>.sizFxd
 #       and vld CArrLems<size>.vldFxd
 #       ...
-#   for all abstracted array operations siz, vld, elm, upd,
+#   for all abstracted array operations siz, vld, elm, elm_update, elm_modified, arr_fill,
 #   and lemma collections of the form
 #     lemmas <lem> = CArrLems<size1>.<lem> CArrLems<size2>.<lem> ...
 #   for all <sizei>, and all following lemmas <lem>:
-#     sizArr, vldArr, updArr, updArrFrame, eqArr, <fun>Valid, <fun>Invalid
+#     sizArr, vldArr, elmUpdElm, elmUpdDistrib, elmElmUpd, elmElmUpdFrame, elmArrFill, 
+#     eqArr, eqElmUpd, eqArrFill, elm_modified_def, sem_<fun>, errsem_<fun>
 #   for all Gencot array functions <fun>. For some lemma collections the simp option is set.
 #
 # The list of theories which can be imported is specified by the string variables 

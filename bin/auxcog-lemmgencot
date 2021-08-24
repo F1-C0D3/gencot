@@ -18,9 +18,9 @@ awk \
    gencot_theories = "CArray"
    common_theories = "common"
    nr_sizes = 0
-   nr_funs = split("getArr setArr modifyArr modifyArrDflt", funs)
+   nr_funs = split("getArr setArr modifyArr modifyArrDflt modrefArr modrefArrDflt", funs)
    nr_afuns = split("siz vld elm elm_update elm_modified arr_fill", afuns)
-   nr_lems = split("sizArr vldArr elmUpdElm elmUpdDistrib elmElmUpd elmElmUpdFrame elmArrFill eqArr eqElmUpd eqArrFill elm_modified_def", lems)
+   nr_lems = split("sizArr vldArr elm_commUpd_elm elm_distUpd elm_sameUpd elmElmUpd elmElmUpdFrame elmArrFill eqArr eqElmUpd eqArrFill elm_modified_def", lems)
    opts[1] = "[simp]"; opts[2] = "[simp]"
  } 
 {
@@ -61,7 +61,7 @@ END {
       }
       printf("\n")
       for (i=1; i<=nr_funs; i++) {
-        printf("lemmas sem_%s =\n", funs[i])
+        printf("lemmas sem_%s[sem] =\n", funs[i])
         for (j=1; j<=nr_sizes; j++) printf("  CArrLems%s.sem_%s\n", sizes[j], funs[i])
         printf("lemmas errsem_%s =\n", funs[i])
         for (j=1; j<=nr_sizes; j++) printf("  CArrLems%s.errsem_%s\n", sizes[j], funs[i])
@@ -100,7 +100,8 @@ END {
 #   for all <sizei>, and all following lemmas <lem>:
 #     sizArr, vldArr, elmUpdElm, elmUpdDistrib, elmElmUpd, elmElmUpdFrame, elmArrFill, 
 #     eqArr, eqElmUpd, eqArrFill, elm_modified_def, sem_<fun>, errsem_<fun>
-#   for all Gencot array functions <fun>. For some lemma collections the simp option is set.
+#   for all Gencot array functions <fun>. For some lemma collections the [simp] option is set.
+#   For all lemma collections sem_<fun> the [sem] option is set.
 #
 # The list of theories which can be imported is specified by the string variables 
 # gencot_theories and common_thories as a sequence of words separated by blanks.

@@ -180,7 +180,10 @@ then
     cp $srcdir/${prfnam}_ShallowConsts_Desugar_Tuples.thy $OUTPUTDIR
     echo "theory ShallowShared_Tuples" > $OUTPUTDIR/ShallowShared_Tuples.thy
     echo "  imports \"${prfnam}_ShallowShared_Tuples\"" >> $OUTPUTDIR/ShallowShared_Tuples.thy
-    echo "begin end" >> $OUTPUTDIR/ShallowShared_Tuples.thy
+    echo "begin" >> $OUTPUTDIR/ShallowShared_Tuples.thy
+    echo "ML \\<open>structure sem = Named_Thms (val name = Binding.name \"sem\" val description = \"\")\\<close>" >> $OUTPUTDIR/ShallowShared_Tuples.thy
+    echo "setup \\<open> sem.setup \\<close>" >> $OUTPUTDIR/ShallowShared_Tuples.thy
+    echo "end" >> $OUTPUTDIR/ShallowShared_Tuples.thy
     cp $GENCOT_HOME/isa/GencotTypes.thy $OUTPUTDIR
     $BIN/auxcog-shalgencot $TMPDIR/common.gencot-std < $OUTPUTDIR/$fbase > $OUTPUTDIR/${prfnam}_Shallow_Gencot_Tuples.thy
     $BIN/auxcog-lemmgencot $TMPDIR/common.gencot-std < $OUTPUTDIR/$fbase > $OUTPUTDIR/${prfnam}_Shallow_Gencot_Lemmas.thy

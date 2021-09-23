@@ -180,10 +180,13 @@ then
     cp $srcdir/${prfnam}_ShallowConsts_Desugar_Tuples.thy $OUTPUTDIR
     echo "theory ShallowShared_Tuples" > $OUTPUTDIR/ShallowShared_Tuples.thy
     echo "  imports \"${prfnam}_ShallowShared_Tuples\"" >> $OUTPUTDIR/ShallowShared_Tuples.thy
-    echo "begin end" >> $OUTPUTDIR/ShallowShared_Tuples.thy
+    echo "begin" >> $OUTPUTDIR/ShallowShared_Tuples.thy
+    echo "ML \\<open>structure sem = Named_Thms (val name = Binding.name \"sem\" val description = \"\")\\<close>" >> $OUTPUTDIR/ShallowShared_Tuples.thy
+    echo "setup \\<open> sem.setup \\<close>" >> $OUTPUTDIR/ShallowShared_Tuples.thy
+    echo "end" >> $OUTPUTDIR/ShallowShared_Tuples.thy
     cp $GENCOT_HOME/isa/GencotTypes.thy $OUTPUTDIR
-    $BIN/auxcog-shalgencot $TMPDIR/common.gencot-std < $1 > $OUTPUTDIR/${prfnam}_Shallow_Gencot_Tuples.thy
-    $BIN/auxcog-lemmgencot $TMPDIR/common.gencot-std < $1 > $OUTPUTDIR/${prfnam}_Shallow_Gencot_Lemmas.thy
+    $BIN/auxcog-shalgencot $TMPDIR/common.gencot-std < $OUTPUTDIR/$fbase > $OUTPUTDIR/${prfnam}_Shallow_Gencot_Tuples.thy
+    $BIN/auxcog-lemmgencot $TMPDIR/common.gencot-std < $OUTPUTDIR/$fbase > $OUTPUTDIR/${prfnam}_Shallow_Gencot_Lemmas.thy
     cp $GENCOT_HOME/isa/*_Tuples.thy $OUTPUTDIR
     cp $GENCOT_HOME/isa/*_Lemmas.thy $OUTPUTDIR
 elif [ "$CMD" = "refine" ]
@@ -209,7 +212,7 @@ then
     echo "  imports \"${prfnam}_ShallowShared\"" >> $OUTPUTDIR/ShallowShared.thy
     echo "begin end" >> $OUTPUTDIR/ShallowShared.thy
     cp $GENCOT_HOME/isa/GencotTypes.thy $OUTPUTDIR
-    $BIN/auxcog-shalgencot $TMPDIR/common.gencot-std < $1 > $OUTPUTDIR/${prfnam}_Shallow_Gencot_Tuples.thy
+    $BIN/auxcog-shalgencot $TMPDIR/common.gencot-std < $OUTPUTDIR/$fbase > $OUTPUTDIR/${prfnam}_Shallow_Gencot_Tuples.thy
     $BIN/auxcog-shalgencot $TMPDIR/common.gencot-std < $srcdir/${prfnam}_ShallowShared.thy > $OUTPUTDIR/${prfnam}_Shallow_Gencot.thy
     cp $GENCOT_HOME/isa/*_Tuples.thy $OUTPUTDIR
     for fil in $GENCOT_HOME/isa/Gencot_* $GENCOT_HOME/isa/CogentCommon_*

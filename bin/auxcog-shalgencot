@@ -18,7 +18,7 @@ awk \
    gencot_theories = "Default Memory MayNull CPointer CArray ESArray"
    common_theories = "common"
    nr_sizes = 0
-   nr_funs = split("getArr setArr modifyArr modifyArrDflt", funs)
+   nr_funs = split("getArr setArr modifyArr modifyArrDflt modrefArr modrefArrDflt", funs)
  } 
 {
   if ($1 == "theory" && NF == 2) {
@@ -44,7 +44,10 @@ awk \
     size = substr($3,5,length($3)-12)
     nr_sizes += 1
     sizes[nr_sizes] = size
-    printf("interpretation CArrFuns%s: CArrFuns arr%s\\<^sub>f CArr%s.make .\n", size, size, size)
+    fixtyp = substr($5,2,length($5)-1) " " $6 " " $7
+    printf("definition arr%s\\<^sub>T\\<^sub>f :: \"%s CArr%s\\<^sub>T \\<Rightarrow> %s \"\n",size,$2,size,fixtyp)
+    printf("  where \"arr%s\\<^sub>T\\<^sub>f arr \\<equiv> arr%s\\<^sub>f arr\"\n",size,size)
+    printf("interpretation CArrFuns%s: CArrFuns arr%s\\<^sub>T\\<^sub>f CArr%s.make .\n", size, size, size)
     printf("adhoc_overloading %s CArrFuns%s.%sFxd\n", funs[1], size, funs[1])
     for (i=2; i <= nr_funs; i++) printf("  and %s CArrFuns%s.%sFxd\n", funs[i], size, funs[i])
     printf("\n")
@@ -71,9 +74,12 @@ END {
 #   in the argument file for which id is in common_theories the theory CogentCommon_id with the tup-suffix 
 #   appended.
 # - the output theory contains for every type synonym definition of the form
-#     type_synonym 'el CArr<size>\<^sub>T = ...
-#   in the input theory a locale interpretation of the form
-#     interpretation CArrFuns<size>: CArrFuns arr<size>\<^sub>f CArr<size>.make .
+#     type_synonym 'el CArr<size>\<^sub>T = "<fixtyp> CArr<size>"
+#   in the input theory a definition of the form 
+#     definition arr<size>\<^sub>T\<^sub>f :: "'el CArr<size>\<^sub>T \<Rightarrow> <fixtyp>"
+#       where "arr<size>\<^sub>T\<^sub>f arr \<equiv> arr<size>\<^sub>f arr"
+#   and a locale interpretation of the form
+#     interpretation CArrFuns<size>: CArrFuns arr<size>\<^sub>T\<^sub>f CArr<size>.make .
 #   and an adhoc overloading of the form
 #     adhoc_overloading getArr CArrFuns<size>.getArrFxd
 #       and setArr CArrFuns<size>.setArrFxd

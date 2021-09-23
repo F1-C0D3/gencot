@@ -3,6 +3,13 @@ theory Gencot_CArray_Tuples
     Gencot_Default_Tuples
 begin
 
+text \<open>Declare pointer referencing / dereferencing functions for modrefArr.
+These must be overloaded for every type which occurs as element type of an array.\<close>
+
+consts
+  toPtr :: "'el \<Rightarrow> 'pel"
+  frPtr :: "'pel \<Rightarrow> 'el"
+
 text \<open>Define the array functions for fixed lists\<close>
 
 definition getArr' :: "('n::len, 'el) FixedList \<Rightarrow> 'idx::len word \<Rightarrow> 'el"
@@ -31,6 +38,20 @@ definition modifyArrDflt' :: "('n::len, 'el) FixedList \<Rightarrow> 'idx::len w
       else let l = Rep_FixedList lst; elm = nth l (unat idx); chres = chf(elm, inp)
         in (Abs_FixedList (list_update l (unat idx) (fst chres)), snd chres)"
 
+definition modrefArr' :: "('n::len, 'el) FixedList \<Rightarrow> 'idx::len word \<Rightarrow> ('pel \<times> 'arg \<Rightarrow> 'pel \<times> 'arg) \<Rightarrow> 'arg \<Rightarrow> ('n, 'el) FixedList \<times> 'arg"
+  where
+    "modrefArr' lst idx chf inp \<equiv> 
+      if unat idx >= LENGTH('n) then (lst, inp)
+      else let l = Rep_FixedList lst; elm = nth l (unat idx); chres = chf(toPtr elm, inp)
+        in (Abs_FixedList (list_update l (unat idx) (frPtr (fst chres))), snd chres)"
+
+definition modrefArrDflt' :: "('n::len, 'el) FixedList \<Rightarrow> 'idx::len word \<Rightarrow> ('pel \<times> 'arg \<Rightarrow> 'pel \<times> 'out) \<Rightarrow> 'arg \<Rightarrow> ('n, 'el) FixedList \<times> 'out"
+  where
+    "modrefArrDflt' lst idx chf inp \<equiv> 
+      if unat idx >= LENGTH('n) then (lst, defaultVal ())
+      else let l = Rep_FixedList lst; elm = nth l (unat idx); chres = chf(toPtr elm, inp)
+        in (Abs_FixedList (list_update l (unat idx) (frPtr (fst chres))), snd chres)"
+
 text \<open>For every actual wrapper record the following locale will be interpreted.
       It takes the wrapper record access and constructor as parameters.
       The locale defines specific array functions for the wrapper record.\<close>
@@ -51,6 +72,12 @@ definition modifyArrFxd :: "'arr \<times> ('m::len) word \<times> ('el \<times> 
 definition modifyArrDfltFxd :: "'arr \<times> ('m::len) word \<times> ('el \<times> 'arg \<Rightarrow> 'el \<times> 'out) \<times> 'arg \<Rightarrow> 'arr \<times> 'out"
   where "modifyArrDfltFxd arg \<equiv> let (arr, idx, chf, inp) = arg;
     (reslst,res) = modifyArrDflt' (fld arr) idx chf inp in (wrp reslst, res)"
+definition modrefArrFxd :: "'arr \<times> ('m::len) word \<times> ('pel \<times> 'arg \<Rightarrow> 'pel \<times> 'arg) \<times> 'arg \<Rightarrow> 'arr \<times> 'arg"
+  where "modrefArrFxd arg \<equiv> let (arr, idx, chf, inp) = arg; 
+    (reslst,res) = modrefArr' (fld arr) idx chf inp in (wrp reslst, res)"
+definition modrefArrDfltFxd :: "'arr \<times> ('m::len) word \<times> ('pel \<times> 'arg \<Rightarrow> 'pel \<times> 'out) \<times> 'arg \<Rightarrow> 'arr \<times> 'out"
+  where "modrefArrDfltFxd arg \<equiv> let (arr, idx, chf, inp) = arg;
+    (reslst,res) = modrefArrDflt' (fld arr) idx chf inp in (wrp reslst, res)"
 
 end
 

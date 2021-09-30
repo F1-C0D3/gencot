@@ -47,7 +47,7 @@ processTemplate structs _ (nam,[typ],_) | nam == "DefaultVal" = processDefaultVa
 processTemplate structs _ (nam,[typ],[expr]) | nam == "InitStruct" = processInitStruct nam structs typ expr
 processTemplate structs _ (nam,[typ],[expr]) | nam == "ClearStruct" = processClearStruct nam structs typ expr
 processTemplate structs _ (nam,[typ],[expr]) | nam == "ArrayPointer" = processArrayPointer nam structs typ expr
-processTemplate structs _ (nam,[typ],_) | nam == "ArraySize" = processArraySize nam structs typ
+processTemplate structs _ (nam,[typ],[expr]) | nam == "ArraySize" = processArraySize nam structs typ expr
 processTemplate _ _ (nam,_,_) = errTmpl nam "unknown template name"
 
 errTmpl nam mess = concat ["genopsTemplateError(",nam,":",mess,")"]
@@ -108,17 +108,21 @@ processClearStruct nam structs typ expr = ""
 
 processArrayPointer :: String -> (Map String [(String,String)]) -> String -> String -> String
 processArrayPointer nam structs typ expr =
-    if isNothing err
-       then concat ["(",expr,")",acc,mid,".data"]
-       else errTmpl nam (fromJust err)
+    if isJust err
+       then errTmpl nam (fromJust err)
+       else if mid == "" 
+               then concat ["(",expr,").p1"]  -- explicitly sized array
+               else concat ["(",expr,")",acc,mid,".data"]  -- C array
     where (err,mid,_) = getArrayType typ structs
           acc = if last typ == '*' then "->" else "."
 
-processArraySize :: String -> (Map String [(String,String)]) -> String -> String
-processArraySize nam structs typ =
-    if isNothing err
-       then res
-       else errTmpl nam (fromJust err)
+processArraySize :: String -> (Map String [(String,String)]) -> String -> String -> String
+processArraySize nam structs typ expr =
+    if isJust err
+       then errTmpl nam (fromJust err)
+       else if res == ""
+               then concat ["(",expr,").p2"]  -- explicitly sized array
+               else res  -- C array
     where (err,res) = getArraySize typ structs
 
 getArrayType :: String -> (Map String [(String,String)]) -> (Maybe String,String,String)
@@ -126,9 +130,16 @@ getArrayType typ structs =
     if isNothing tt 
        then (Just ("unknown struct type "++t),"","")
        else let ttl = fromJust tt
-            in if length ttl /= 1
-                  then (Just ("type "++t++" must have only one member"),"","")
-                  else (Nothing, fst $ head ttl, snd $ head ttl)
+            in if length ttl == 1
+                  then (Nothing, fst $ head ttl, snd $ head ttl)
+                  else if length ttl /= 2
+                          then (Just ("type "++t++" must have atmost two members"),"","")
+                          else let p1 = fst $ head ttl
+                                   p2 = fst $ head $ tail ttl
+                                   u64 = snd $ head $ tail ttl
+                               in if p1 == "p1" && p2 == "p2" && u64 == "u64" && s == ""
+                                     then (Nothing, "", "")
+                                     else (Just ("no explicitly sized array type: " ++typ),"","")
     where (t,s) = break (== '*') typ
           tt = structs !? t
 
@@ -136,16 +147,18 @@ getArraySize :: String -> (Map String [(String,String)]) -> (Maybe String,String
 getArraySize typ structs =
     if isJust err
        then (err,"")
-       else let tt = structs !? mtp
-            in if isNothing tt
-                  then (Just ("unknown struct type "++mtp),"")
-                  else let ttl = fromJust tt
-                       in if length ttl /= 1
-                             then (Just ("type "++mtp++" must have only one member"),"")
-                             else let (mmid,mmtp) = head ttl
-                                  in if mmid /= "data"
-                                        then (Just ("member of type "++mtp++" must be named \"data\""),"")
-                                        else getSize mmtp
+       else if mtp == ""
+               then (Nothing, "")
+               else let tt = structs !? mtp
+                    in if isNothing tt
+                          then (Just ("unknown struct type "++mtp),"")
+                          else let ttl = fromJust tt
+                               in if length ttl /= 1
+                                     then (Just ("type "++mtp++" must have only one member"),"")
+                                     else let (mmid,mmtp) = head ttl
+                                          in if mmid /= "data"
+                                                then (Just ("member of type "++mtp++" must be named \"data\""),"")
+                                                else getSize mmtp
     where (err,_,mtp) = getArrayType typ structs
           getSize mmtp = 
               let (_,h) = break (== '[') mmtp

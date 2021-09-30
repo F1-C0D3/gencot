@@ -36,6 +36,8 @@ awk \
     fstbeg = ""
   } else if ($1 == "typedecl" && $3 == "MayNull") {
     printf("type_synonym %s MayNull = \"%s option\"\n", $2, $2)
+  } else if ($1 == "typedecl" && $3 == "CArrPtr") {
+    printf("type_synonym %s CArrPtr = \"%s list\"\n", $2, $2)
   } else if ($1 == "type_synonym" && substr($3,1,4) == "CArr" && $6 == "list") {
     size = substr($3,5,length($3)-12)
     nn = ""
@@ -65,6 +67,10 @@ awk \
 #     typedecl 'a MayNull
 #   is replaced by
 #     type_synonym 'a MayNull = "'a option"
+# - every line
+#     typedecl 'pel CArrPtr
+#   is replaced by
+#     type_synonym 'pel CArrPtr = "'pel list"
 # - every line of the form
 #     type_synonym 'el CArr<size>\<^sub>T = "'el list CArr<size>"
 #   is replaced by

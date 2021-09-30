@@ -5,16 +5,27 @@
 
 #include "CArray.cogent"
 
+-- Array pointer wrapper type.
+--   pel: element pointer type
+-- abstract due to a bug in the Cogent compiler (issue #332)
+-- if abstract will hide non-escapeability of type pel
+type CArrPtr pel -- = { arr_no_access: #pel }
+
 -- Explicitly sized array type.
 -- Implemented by a pair of an element pointer and the size.
 --   pel: element pointer type
-type CArrES pel = (pel, U64)
+type CArrES pel = (CArrPtr pel, U64)
 
 -- Macro for constructing an explicitly sized array type.
 --   knd: one of U or empty. Specifies the kind of element type. 
 --     Must be U for an unboxed type representing a C struct, union, or array type, otherwise empty.
 --   el: the element type for which to construct the explicitly sized array type.
 #define CAES(knd,el) CArrES (CPTR(knd,el))
+
+-- Macro for constructing an explicitly sized array of type CArrES pel.
+--   p: element pointer of type CArrPtr pel 
+--   s: number of elements pointed to by p
+#define MKCAES(p,s) (p,s)
 
 {- Conversions -}
 
@@ -59,15 +70,11 @@ rofromCAES: all(arr,aes). aes! -> Result arr! aes!
 #define EVT_CAES(knd,el) CArrES (EVT(CPTR(knd,el)))
 
 -- Creating an empty value of an explicitly sized empty-value array type by allocating memory for 
--- a specified number of elements for it and returning a pointer to the allocated space 
--- together with the number of elements.
+-- a specified number of elements for it and returning the pair of the pointer to the allocated space 
+-- and the number of elements.
 -- In case of error only the heap is returned
---   evp: the empty-value pointer type for the array elements.
-createCAES: all(evp). (U64, Heap) -> Result ((evp,U64),Heap) Heap
-
--- Disposing a value of an explicitly sized empty-value array type by deallocating its memory.
---   evp: the empty-value pointer type for the array elements.
-disposeCAES: all(evp). ((evp,U64),Heap) -> Heap
+--   evp: the empty-value explicitly sized array type.
+createCAES: all(evp). (U64, Heap) -> Result (evp,Heap) Heap
 
 {- Initialization and Clearing -}
 

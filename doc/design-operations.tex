@@ -1388,45 +1388,46 @@ To use this in a safe way, the number of array elements must be known.
 Gencot provides support for this kind of working with arrays, if the number of elements is specified explicitly as
 an integer value. Basically, the element pointer and the element size are combined to a pair. The corresponding type is called
 an ``explicitly sized array'' type. Gencot uses the generic type \code{CArrES}
-to construct types for explicitly sized arrays, such as \code{CArrES PEl} for an explicitly sized array with elements
-of type \code{El}, where \code{PEl} is the type of pointers to the elements. 
+to construct types for explicitly sized arrays, such as \code{CArrES El} for an explicitly sized array with elements
+of type \code{El}. 
 
 For the Isabelle shallow embedding the direct use of an element pointer in the pair would correspond to a pair 
 consisting of the first element and the size. Thus, explicitly sized arrays would be considered equal, if they have the
-same size and the same first element. To prevent this, the pointer is marked by the generic type \code{CArrPtr}. As described
+same size and the same first element. To prevent this, the element pointer type is replaced by the type \code{(CArrPtr El)}
+where \code{CArrPtr} is a specific generic type introduced for this purpose. As described
 in Section~\ref{design-types-pointer} for the marker type \code{MayNull}, defining \code{CArrPtr} as an abstract type can 
-lead to violation of the Cogent type system guarantees, therefore it is defined like \code{MayNull} using a wrapper 
+lead to violation of the Cogent type system guarantees, therefore it is defined like \code{CPtr} using a wrapper 
 record:
 \begin{verbatim}
-  type CArrPtr pel = { arr_no_access: #pel }
+  type CArrPtr el = { arr: el }
 \end{verbatim}
-Due to the Cogent bug it is temporarily defined as abstract.
+
+Like \code{CPtr} this definition maps to a C type which is binary compatible to pointer to type \code{el} in C. In the 
+shallow embedding it is mapped to type \code{list}. Based on this type definition it would be possible to access the 
+first array element in Cogent, but it is not intended to be used in this way and will lead to code which cannot be verified.
+
+Note that if \code{CArrPtr} is instead used as a marker type for the pointer type, the situation would 
+be more complex: for a primitive element type an array pointer type would have the form \code{(CArrPtr (CPtr U32))},
+for a struct element type \code{r} it would have the form \code{(CArrPtr Cogent\_Struct\_r)}. Both forms have to be treated 
+differently in the shallow embedding.
 
 The corresponding type definition for explicitly typed arrays is
 \begin{verbatim}
-  type CArrES pel = (CArrPtr pel, U64)
+  type CArrES el = (CArrPtr el, U64)
 \end{verbatim}
-In the translation to C code the wrapper type \code{CArrPtr} is simply removed, in the shallow embedding it is mapped to 
-type \code{list}.
 
-As for \code{MayNull} the type \code{(CArrPtr pel)} is not readonly if \code{pel} is readonly, it must be explicitly
-made readonly by applying the bang operator: \code{(CArrPtr pel)!} or \code{(CArrES pel)!}.
-
-Since the type argument must be the pointer-to-element type Gencot provides in \code{include/gencot/ESArray.cogent}
-the preprocessor macro
+In the same way as the macro \code{CARR} for fixed-sized arrays (see Section~\ref{design-types-array} Gencot provides in 
+\code{include/gencot/ESArray.cogent} the preprocessor macro
 \begin{verbatim}
   CAES(<ek>,el)
 \end{verbatim}
 where \code{<ek>} describes the kind of element type as for the macro \code{CPTR} (see Section~\ref{design-types-pointer}),
-i.e. it is \code{U} if \code{el} is an unboxed type and it is empty otherwise.
+i.e. it is \code{U} if \code{el} is an unboxed type and it is empty otherwise. The form \code{CAES(,El)} expands to
+\code{CArrES El}, the form \code{CAES(U,El)} expands to \code{CArrES \#El}.
 
 For every instance of type \code{CArrES} Gencot provides operations as described in the following sections.
 
-Note that it is not possible to convert a value of a type \code{pel} to type \code{CArrPtr pel}, although in C both values 
-are the same. However, in the first case it points to a single element, in the second case it points to a sequence of elements,
-which is logically different.
-
-Whenever a pointer \code{p} of type \code{(CArrPtr pel)} to an element is given in a program and an expression \code{s} 
+Whenever a pointer \code{p} of type \code{(CArrPtr el)} to an element is given in a program and an expression \code{s} 
 is known which specifies the corresponding number of elements in the sequence, the corresponding explicitly sized array value 
 can be constructed manually as \code{(p,s)} in Cogent. To make this construction more explicit, Gencot provides in 
 \code{include/gencot/ESArray.cogent} the preprocessor macro
@@ -1457,11 +1458,11 @@ Cogent, Gencot provides the following preprocessor macros in \code{include/genco
 where \code{<size>} is the number of elements in the fixed size array type, \code{<ek>} is the kind of element type as above, 
 and \code{El} is the element type. As example, the macro call \code{TOCAES(8,,U32)} expands to
 \begin{verbatim}
-  toCAES[CArr8 U32,CArrES (CPtr U32)]
+  toCAES[CArr8 U32,CArrES U32]
 \end{verbatim}
 and the macro call \code{ROFROMCAES(5,,CPtr U16)} expands to
 \begin{verbatim}
-  rofromCAES[CArrES (CPtr (CPtr U16)),CArr5 (CPtr U16)]
+  rofromCAES[CArrES (CPtr U16),CArr5 (CPtr U16)]
 \end{verbatim}
 
 Function \code{toCAES} returns the pair of the pointer to the first array element and the constant known size, this
@@ -1470,8 +1471,9 @@ If they are equal it returns the element pointer, otherwise it returns an error 
 
 \subsubsection{Creating and Disposing Explicitly Sized Arrays}
 
-The empty-value type corresponding to an explicitly sized array type \code{(CArrPtr PEl,U64)} is the type \code{(CArrPtr EVT(PEl),U64)}.
-The \code{EVT} macro here must be applied to type \code{PEl} because it cannot be applied to the abstract type \code{(CArrPtr PEl)}.
+The empty-value type corresponding to an explicitly sized array type \code{(CArrES El)} cannot be constructed by 
+\code{EVT(CArrES El)}, because that would take all fields from the \textit{pair}, including the size, which must be present
+also for the empty-value type. Instead, Gencot uses the type \code{(EVT(CArrPtr El),U64)} as empty-value type for explicitly sized arrays.
 For specifying the empty-value type Gencot provides the preprocessor macro
 \begin{verbatim}
   EVT_CAES(<ek>,El)

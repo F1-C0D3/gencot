@@ -5,25 +5,23 @@
 
 #include "CArray.cogent"
 
--- Array pointer wrapper type.
---   pel: element pointer type
--- abstract due to a bug in the Cogent compiler (issue #332)
--- if abstract will hide non-escapeability of type pel
-type CArrPtr pel -- = { arr_no_access: #pel }
+-- Array pointer type.
+--   el: element type
+type CArrPtr el = { arr: el }
 
 -- Explicitly sized array type.
 -- Implemented by a pair of an element pointer and the size.
---   pel: element pointer type
-type CArrES pel = (CArrPtr pel, U64)
+--   el: element type
+type CArrES el = (CArrPtr el, U64)
 
 -- Macro for constructing an explicitly sized array type.
 --   knd: one of U or empty. Specifies the kind of element type. 
 --     Must be U for an unboxed type representing a C struct, union, or array type, otherwise empty.
 --   el: the element type for which to construct the explicitly sized array type.
-#define CAES(knd,el) CArrES (CPTR(knd,el))
+#define CAES(knd,el) CArrES Gencot_APPFUN(Gencot_ID(knd)altUBOX,el)
 
--- Macro for constructing an explicitly sized array of type CArrES pel.
---   p: element pointer of type CArrPtr pel 
+-- Macro for constructing an explicitly sized array of type CArrES el.
+--   p: element pointer of type CArrPtr el 
 --   s: number of elements pointed to by p
 #define MKCAES(p,s) (p,s)
 
@@ -67,7 +65,7 @@ rofromCAES: all(arr,aes). aes! -> Result arr! aes!
 --   knd: one of U or empty. Specifies the kind of element type. 
 --     Must be U for an unboxed type representing a C struct, union, or array type, otherwise empty.
 --   el: element type
-#define EVT_CAES(knd,el) CArrES (EVT(CPTR(knd,el)))
+#define EVT_CAES(knd,el) (EVT(CArrPtr Gencot_APPFUN(Gencot_ID(knd)altUBOX,el)), U64)
 
 -- Creating an empty value of an explicitly sized empty-value array type by allocating memory for 
 -- a specified number of elements for it and returning the pair of the pointer to the allocated space 

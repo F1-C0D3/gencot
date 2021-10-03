@@ -111,7 +111,7 @@ processArrayPointer nam structs typ expr =
     if isJust err
        then errTmpl nam (fromJust err)
        else if mid == "" 
-               then concat ["(",expr,").p1"]  -- explicitly sized array
+               then concat ["&(",expr,").p1->arr"]  -- explicitly sized array
                else concat ["(",expr,")",acc,mid,".data"]  -- C array
     where (err,mid,_) = getArrayType typ structs
           acc = if last typ == '*' then "->" else "."

@@ -13,12 +13,12 @@ definition getArrES :: "'el CArrES\<^sub>T \<times> 'idx::len word \<Rightarrow>
       in if unat idx >= unat len then hd lst
          else (nth lst (unat idx))"
 
-definition setArrES :: "'el CArrES\<^sub>T \<times> 'idx::len word \<times> 'el \<Rightarrow> 'el CArrES\<^sub>T"
+definition setArrES :: "'el CArrES\<^sub>T \<times> 'idx::len word \<times> 'el \<Rightarrow> 'el CArrES\<^sub>T \<times> unit"
   where
     "setArrES arg \<equiv> 
       let ((lst,len),idx,elm) = arg
-      in if unat idx >= unat len then (lst,len)
-         else ((list_update lst (unat idx) elm),len)"
+      in if unat idx >= unat len then ((lst,len),())
+         else (((list_update lst (unat idx) elm),len),())"
 
 definition modifyArrES :: "'el CArrES\<^sub>T \<times> 'idx::len word \<times> ('el \<times> 'arg \<Rightarrow> 'el \<times> 'arg) \<times> 'arg \<Rightarrow> 'el CArrES\<^sub>T \<times> 'arg"
   where

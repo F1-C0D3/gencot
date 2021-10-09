@@ -170,15 +170,11 @@ values must be chosen by the developer so that it can represent all sizes which 
   getCArrChk_tt_El : (CArr_tt_El!,UNN) -> Result El! ()
   setCArr_tt_El : ModFun CArr_tt_El (UNN,El) ()
   exchngCArr_tt_El : ModFun CArr_tt_El (UNN,El) (UNN,El)
-  modifyCArr_tt_El : all(arg). 
-    ModFun CArr_tt_El (UNN, ChgFun El arg arg, arg) arg
-  modifyCArrDflt_tt_El : all(arg:<D,out:<DSE). 
+  modifyCArr_tt_El : all(arg,out). 
     ModFun CArr_tt_El (UNN, ChgFun El arg out, arg) out
   getrefCArr_tt_El : (CArr_tt_El!,UNN) -> CPTR(<knd>,El)!
   getrefCArrChk_tt_El : (CArr_tt_El!,UNN) -> Result CPTR(<knd>,El)! ()
-  modrefCArr_tt_El : all(arg). 
-    ModFun CArr_tt_El (UNN, ModFun CPTR(<knd>,El) arg arg, arg) arg
-  modrefCArrDflt_tt_El : all(arg:<D,out:<DSE). 
+  modrefCArr_tt_El : all(arg,out). 
     ModFun CArr_tt_El (UNN, ModFun CPTR(<knd>,El) arg out, arg) out
 \end{verbatim}
 where \code{setCArray\_tt\_El} can only be defined if the element type \code{El} is discardable. All these functions

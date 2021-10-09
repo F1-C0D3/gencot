@@ -465,7 +465,8 @@ cause a relevant performance reduction. Therefore an alternative form should be 
 part's value directly, using a default if the part does not exist. It should only be used if it is clear from the
 context that the part exists. A possible choice for the default value is \code{defaultVal} (defined in 
 Section~\ref{design-operations-default}), however that is restricted to parts of regular type, therefore other 
-solutions are required for other types.
+solutions are required for other types. A better choice can be to use another part which safely exists as default 
+value, since that has the expected type and no restrictions apply.
 
 An alternative to the function \code{get} would be a function which takes a modifyable structure and returns the structure
 together with the element. However, this would be cumbersome in many applications and misleading for proofs, since 
@@ -500,7 +501,12 @@ return a value of type \code{O}, although the part change function is never exec
 function \code{get} there are two possibilities: returning a variant value or a default value. A third
 possibility here is to use the same type \code{A} as additional input and result to the part change
 function. Then, if the part change function is not executed, its additional input can be returned
-as result. This works even for linear types \code{A} since this way the value is not discarded.
+as result. This works even for linear types \code{A} since this way the value is not discarded. However,
+this approach makes chaining cumbersome, since the rest of the chain is passed as additional input and
+must therefore also be returned as result. A fourth
+possibility is to change a part which safely exists instead. Thus the part change function is executed and
+consumes its input and produces its output in the normal way. This is the most flexible approach, it allows
+arbitrary types as additional input and result to the part change function.
 
 If the part's type \code{S} is not linear, it can be efficiently accessed using a pointer to it.
 Gencot supports this with the following two operations:
@@ -516,7 +522,7 @@ to values of type \code{S}. The function cannot be implemented in Cogent and is 
 operator \code{\&}. The operation is safe since both the structure and the result type are readonly. The shared
 memory used by both can neither be modified through the structure nor through the resulting pointer. 
 
-If the part does not safely exist, the situation is similat to function \code{get}. However, now the result 
+If the part does not safely exist, the situation is similar to function \code{get}. However, now the result 
 type \code{PS} is always linear, so \code{defaultVal} cannot be used to provide a default value.
 
 The function \code{modref} has functionality \code{ModPartFun T PS A O} where \code{A} and \code{O} are
@@ -1260,6 +1266,8 @@ passing it from one invocation of the element function to the next, counting it 
 
 All operations for accessing parts of a structured value are nontrivial for the elements of an array. Since elements are 
 specified by an index value a specified element need not exist, this case must be handled by the part access operations.
+The general approach here is to use the property that Gencot array types are never empty and the element at index 0 safely
+exists and can be used as default if the given index is invalid.
 
 Gencot provides polymorphic functions for all six operations with alternatives for the case where the element does not 
 exist:
@@ -1268,24 +1276,19 @@ exist:
   getArrChk : all(arr,idx,el). (arr!,idx) -> Result el! ()
   setArr : all(arr,idx,el:<D). ModFun arr (idx,el) ()
   exchngArr : all(arr,idx,el). ModFun arr (idx,el) (idx,el)
-  modifyArr : all(arr,idx,el,arg). 
-    ModFun arr (idx, ChgFun el arg arg, arg) arg
-  modifyArrDflt : all(arr,idx,el,arg:<D,out:<DSE). 
+  modifyArr : all(arr,idx,el,arg,out). 
     ModFun arr (idx, ChgFun el arg out, arg) out
   getrefArr : all(arr,idx,pel). (arr!,idx) -> pel!
   getrefArrChk : all(arr,idx,pel). (arr!,idx) -> Result pel! ()
-  modrefArr : all(arr,idx,pel,arg). 
-    ModFun arr (idx, ModFun pel arg arg, arg) arg
-  modrefArrDflt : all(arr,idx,pel,arg:<D,out:<DSE). 
+  modrefArr : all(arr,idx,pel,arg,out). 
     ModFun arr (idx, ModFun pel arg out, arg) out
 \end{verbatim}
 The type variable \code{arr} denotes the array type, \code{idx} denotes the index type,
 \code{el} denotes the array element type, and \code{pel} denotes the type of pointers to elements. 
 
-Instances of these functions are only defined if \code{arr} is a Gencot array type. Type \code{idx}
+Instances of these functions are defined if \code{arr} is a Gencot array type. Type \code{idx}
 must be one of \code{U8, U16, U32, U64} according to the \code{<size>} of the array. Types \code{el} and
-\code{pel} must be as determined by \code{arr}. \code{arg} and \code{out} may be arbitrary types
-only constrained as specified above.
+\code{pel} must be as determined by \code{arr}. \code{arg} and \code{out} may be arbitrary types.
 
 Function \code{getArr} retrieves the indexed element as readonly. If the element does not exist because
 the specified index is not in the range \code{0..<size>-1} the function returns the element with 
@@ -1309,22 +1312,19 @@ index is not in the range \code{0..<size>-1} both functions work as described in
 
 Function \code{modifyArr} changes the element at the specified position by applying the element change function
 to it. If the specified
-index is not in the range \code{0..<size>-1} the function returns the unmodified array together with the additional input
-value for the element change function. This corresponds to the third solution described in Section~\ref{design-operations-parts}
-and requires that the types of additional input and result are the same. Since this may prevent the use of some element
-change functions an alternative is provided by the function \code{modifyArrDflt} which discards the additional
-input and returns the default value \code{defaultVal[out] ()}. This allows different types for input and result, however,
-the required constraints apply to these types.
+index is not in the range \code{0..<size>-1} the function instead applies the element change function to the element
+with index \code{0}. This corresponds to the fourth solution described in Section~\ref{design-operations-parts}
+and supports arbitrary types of additional input and result. 
 
 Function \code{getrefArr} returns a pointer to the element in the array without copying the element. This is safe since 
 both the array and the result type are readonly. If the element does not exist it behaves like \code{getArr}, returning 
 a pointer to the element with index \code{0}. The alternative function \code{getrefArrChk} is provided and returns the 
 corresponding variant value.
 
-Functions \code{modrefArr} and \code{modrefArrDflt} work like \code{modifyArr} and \code{modifyArrDflt} but use an
-element modification function and pass a pointer to the element to it, so that the element is modified in-place.
+Function \code{modrefArr} works like \code{modifyArr} but uses an
+element modification function and passes a pointer to the element to it, so that the element is modified in-place.
 
-The types of \code{modifyArr}, \code{modifyArrDflt}, \code{modrefArr}, and \code{modrefArrDflt} are similar to a 
+The types of \code{modifyArr} and \code{modrefArr} are similar to a 
 \code{ChgPartFun} or \code{ModPartFun}, but differ because in addition to the 
 element function and its argument the element index must be passed as argument.
 
@@ -1361,7 +1361,7 @@ Gencot does not support Gencot array types with taken elements other than empty-
 initialization or clearing operations are applicable to unboxed Gencot array types.
 
 As for boxed Gencot array types Gencot only supports functions for accessing single elements of unboxed arrays. It supports the 
-functions \code{getArr}, \code{getArrChk}, \code{setArr}, \code{exchngArr}, \code{modifyArr}, and \code{modifyArrDflt}.
+functions \code{getArr}, \code{getArrChk}, \code{setArr}, \code{exchngArr}, and \code{modifyArr}.
 The latter four functions return a modified copy of the array. As described in Section~\ref{design-operations-modify} 
 the \code{ModFun} type is interpreted accordingly for unboxed values. Note that
 an unboxed array may still be of linear type, if the elements are of linear type. Then all the type restrictions
@@ -1420,6 +1420,10 @@ The corresponding type definition for explicitly typed arrays is
 \begin{verbatim}
   type CArrES el = (CArrPtr el, U64)
 \end{verbatim}
+
+To be able to define the functions \code{getArr}, \code{modifyArr}, and \code{modrefArr} in the same way as for fixed size
+arrays, explicitly sized arrays must not be empty, i.e., the size must not be \code{0}. This property must be proven for 
+all uses of explicitly sized arrays.
 
 In the same way as the macro \code{CARR} for fixed-sized arrays (see Section~\ref{design-types-array} Gencot provides in 
 \code{include/gencot/CArray.cogent} the preprocessor macro

@@ -327,27 +327,15 @@ static $ty:((arr,(idx,el))) $id:exchngArr($ty:((arr,(idx,el))) arg) {
     return res;
 }
 
-static $ty:((arr,arg)) $id:modifyArr($ty:((arr, (idx,ChgFun el arg arg, arg))) arg) {
-    $ty:((arr,arg)) res = {.p1=arg.p1,.p2=arg.p2.p3};
+static $ty:((arr,out)) $id:modifyArr($ty:((arr, (idx,ChgFun el arg out, arg))) arg) {
+    $ty:((arr,out)) res = {.p1=arg.p1};
     $ty:el * a = genopsTemplate("ArrayPointer",($ty:arr) res.p1,"genopsEnd");
-    if (arg.p2.p1 < genopsTemplate("ArraySize",($ty:arr) res.p1,"genopsEnd")) {
-      $ty:((el,arg)) elarg = {.p1=a[arg.p2.p1],.p2=arg.p2.p3};
-      elarg = (($spec:(ChgFun el arg arg)) arg.p2.p2) (elarg);
-      a[arg.p2.p1] = elarg.p1;
-      res.p2 = elarg.p2;
-    }
-    return res;
-}
-
-static $ty:((arr,out)) $id:modifyArrDflt($ty:((arr, (idx,ChgFun el arg out, arg))) arg) {
-    $ty:((arr,out)) res = {.p1=arg.p1,.p2=genopsTemplate("DefaultVal",($ty:out) 0,"genopsEnd")};
-    $ty:el * a = genopsTemplate("ArrayPointer",($ty:arr) res.p1,"genopsEnd");
-    if (arg.p2.p1 < genopsTemplate("ArraySize",($ty:arr) res.p1,"genopsEnd")) {
-      $ty:((el,arg)) elarg = {.p1=a[arg.p2.p1],.p2=arg.p2.p3};
-      $ty:((el,out)) h = (($spec:(ChgFun el arg out)) arg.p2.p2) (elarg);
-      a[arg.p2.p1] = h.p1;
-      res.p2 = h.p2;
-    }
+    $ty:idx i = 0;
+    if (arg.p2.p1 < genopsTemplate("ArraySize",($ty:arr) res.p1,"genopsEnd")) i = arg.p2.p1;
+    $ty:((el,arg)) elarg = {.p1=a[i],.p2=arg.p2.p3};
+    $ty:((el,out)) elres = (($spec:(ChgFun el arg out)) arg.p2.p2) (elarg);
+    a[i] = elres.p1;
+    res.p2 = elres.p2;
     return res;
 }
 
@@ -368,25 +356,14 @@ static $ty:(Result pel! ()) $id:getrefArrChk($ty:((arr!,idx)) arg) {
     return res;
 }
 
-static $ty:((arr,arg)) $id:modrefArr($ty:((arr, (idx,ModFun pel arg arg, arg))) arg) {
-    $ty:((arr,arg)) res = {.p1=arg.p1,.p2=arg.p2.p3};
+static $ty:((arr,out)) $id:modrefArr($ty:((arr, (idx,ModFun pel arg out, arg))) arg) {
+    $ty:((arr,out)) res = {.p1=arg.p1};
     $ty:pel a = genopsTemplate("ArrayPointer",($ty:arr) arg.p1,"genopsEnd");
-    if (arg.p2.p1 < genopsTemplate("ArraySize",($ty:arr) arg.p1,"genopsEnd")) {
-      $ty:((pel,arg)) elarg = {.p1=&a[arg.p2.p1],.p2=arg.p2.p3};
-      elarg = (($spec:(ModFun pel arg arg)) arg.p2.p2) (elarg);
-      res.p2 = elarg.p2;
-    }
-    return res;
-}
-
-static $ty:((arr,out)) $id:modrefArrDflt($ty:((arr, (idx,ModFun pel arg out, arg))) arg) {
-    $ty:((arr,out)) res = {.p1=arg.p1,.p2=genopsTemplate("DefaultVal",($ty:out) 0,"genopsEnd")};
-    $ty:pel a = genopsTemplate("ArrayPointer",($ty:arr) arg.p1,"genopsEnd");
-    if (arg.p2.p1 < genopsTemplate("ArraySize",($ty:arr) arg.p1,"genopsEnd")) {
-      $ty:((pel,arg)) elarg = {.p1=&a[arg.p2.p1],.p2=arg.p2.p3};
-      $ty:((pel,out)) h = (($spec:(ModFun pel arg out)) arg.p2.p2) (elarg);
-      res.p2 = h.p2;
-    }
+    $ty:idx i = 0;
+    if (arg.p2.p1 < genopsTemplate("ArraySize",($ty:arr) arg.p1,"genopsEnd")) i = arg.p2.p1;
+    $ty:((pel,arg)) elarg = {.p1=&a[i],.p2=arg.p2.p3};
+    $ty:((pel,out)) elres = (($spec:(ModFun pel arg out)) arg.p2.p2) (elarg);
+    res.p2 = elres.p2;
     return res;
 }
 

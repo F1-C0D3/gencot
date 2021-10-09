@@ -173,21 +173,13 @@ setArr : all(arr,idx,el:<D). ModFun arr (idx,el) ()
 exchngArr : all(arr,idx,el). ModFun arr (idx,el) (idx,el)
 
 -- Change element at index in array using a change function for elements
--- For invalid index do nothing and return element function input
---   arr: the array type
---   idx: the array index type
---   el: the array element type
---   arg: type of additional input and output for element change function
-modifyArr : all(arr,idx,el,arg). ModFun arr (Tup3 idx (ChgFun el arg arg) arg) arg
-
--- Change element at index in array using a change function for elements
--- For invalid index do nothing and return default result for element function
+-- For invalid index change element at index 0 instead
 --   arr: the array type
 --   idx: the array index type
 --   el: the array element type
 --   arg: type of additional input for element function
 --   out: type of additional output of element function
-modifyArrDflt : all(arr,idx,el,arg:<D,out:<DSE). ModFun arr (Tup3 idx (ChgFun el arg out) arg) out
+modifyArr : all(arr,idx,el,arg,out). ModFun arr (Tup3 idx (ChgFun el arg out) arg) out
 
 -- Return pointer to element at index in readonly array
 -- For invalid index return pointer to element with index 0.
@@ -204,21 +196,13 @@ getrefArr : all(arr,idx,pel). (arr!,idx) -> pel!
 getrefArrChk : all(arr,idx,pel). (arr!,idx) -> Result pel! ()
 
 -- Modify element at index in array using a modification function for element pointers
--- For invalid index do nothing and return element function input
---   arr: the array type
---   idx: the array index type
---   pel: the type of pointer to array elements
---   arg: type of additional input and output for element change function
-modrefArr : all(arr,idx,pel,arg). ModFun arr (Tup3 idx (ModFun pel arg arg) arg) arg
-
--- Modify element at index in array using a modification function for element pointers
--- For invalid index do nothing and return default result for element function
+-- For invalid index modify element at index 0 instead
 --   arr: the array type
 --   idx: the array index type
 --   pel: the type of pointer to array elements
 --   arg: type of additional input for element function
 --   out: type of additional output of element function
-modrefArrDflt : all(arr,idx,pel,arg:<D,out:<DSE). ModFun arr (Tup3 idx (ModFun pel arg out) arg) out
+modrefArr : all(arr,idx,pel,arg,out). ModFun arr (Tup3 idx (ModFun pel arg out) arg) out
 
 {- Conversions -}
 

@@ -373,11 +373,11 @@ For example, the function call \code{f(5,s->a[i]->x,z)} can be translated by fir
 for the function call is
 \begin{verbatim}
   (v,s) = let (s,v) = 
-    modrefFld_a(s,(modifyArrDflt,(i,modifyFld_x,(f,(5,z)))))
+    modrefFld_a(s,(modifyArr,(i,modifyFld_x,(f,(5,z)))))
     in (v,s)
 \end{verbatim}
-Here function \code{modifyArrDflt} must be used since the additional input and output of \code{f} have different types.
-If index \code{i} is invalid \code{f} is never applied and a default value is used instead of its result.
+If index \code{i} is invalid, according to the definition of \code{modifyArr} the function call \code{f(5,s->a[0]->x,z)} 
+is executed instead.
 
 Again, if the chain logically starts with member accesses, that part of the chain can be translated using take and put operations.
 
@@ -1323,7 +1323,7 @@ compatible, if the element pointer is also accessed outside the Cogent compilati
 A binary compatible solution can be achieved in a similar way as for struct members. The first prerequisite for it is
 to allocate the array on the heap.
 
-Then the polymorphic functions \code{getrefArr}, \code{getrefArrChk}, \code{modrefArr}, and \code{modrefArrDflt}
+Then the polymorphic functions \code{getrefArr}, \code{getrefArrChk}, and \code{modrefArr}
 (see Section~\ref{design-operations-array}) can be used for working with pointers to elements.
 
 \subsubsection{Address of Function}

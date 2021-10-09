@@ -1411,13 +1411,18 @@ be more complex: for a primitive element type an array pointer type would have t
 for a struct element type \code{r} it would have the form \code{(CArrPtr Cogent\_Struct\_r)}. Both forms have to be treated 
 differently in the shallow embedding.
 
+As a C pointer, the pointer may be \code{NULL}. To express this, the type \code{MayNull} (see Section~\ref{design-types-pointer})
+may be applied to \code{CArrPtr el}. However, in explicitly sized arrays it is always assumed that the pointer is not \code{NULL}.
+If an arbitrary pointer is used to construct an explicitly sized array it should have type \code{MayNull (CArrPtr el)} and should
+be tested with \code{notNull} before.
+
 The corresponding type definition for explicitly typed arrays is
 \begin{verbatim}
   type CArrES el = (CArrPtr el, U64)
 \end{verbatim}
 
 In the same way as the macro \code{CARR} for fixed-sized arrays (see Section~\ref{design-types-array} Gencot provides in 
-\code{include/gencot/ESArray.cogent} the preprocessor macro
+\code{include/gencot/CArray.cogent} the preprocessor macro
 \begin{verbatim}
   CAES(<ek>,el)
 \end{verbatim}
@@ -1430,7 +1435,7 @@ For every instance of type \code{CArrES} Gencot provides operations as described
 Whenever a pointer \code{p} of type \code{(CArrPtr el)} to an element is given in a program and an expression \code{s} 
 is known which specifies the corresponding number of elements in the sequence, the corresponding explicitly sized array value 
 can be constructed manually as \code{(p,s)} in Cogent. To make this construction more explicit, Gencot provides in 
-\code{include/gencot/ESArray.cogent} the preprocessor macro
+\code{include/gencot/CArray.cogent} the preprocessor macro
 \begin{verbatim}
   MKCAES(p,s)
 \end{verbatim}
@@ -1442,13 +1447,13 @@ Gencot provides support for converting array values between explicitly sized arr
 \code{CArr<size> El}. It supports the polymorphic abstract functions
 \begin{verbatim}
   toCAES: all(arr,aes). arr -> aes
-  fromCAES: all(aes,arr). aes -> Result arr aes
+  fromCAES: all(aes,arr). aes -> arr
   rotoCAES: all(arr,aes). arr! -> aes!
-  rofromCAES: all(aes,arr). aes! -> Result arr! aes!
+  rofromCAES: all(aes,arr). aes! -> arr!
 \end{verbatim}
 where \code{arr} is the fixed size array type and \code{aes} is the explicitly sized array type. Gencot provides instances
-for all cases where \code{arr} and \code{aes} have the same element type. Since this contraint cannot be represented in
-Cogent, Gencot provides the following preprocessor macros in \code{include/gencot/ESArray.cogent}:
+for all cases where \code{arr} and \code{aes} have the same element type. Since this constraint cannot be represented in
+Cogent, Gencot provides the following preprocessor macros in \code{include/gencot/CArray.cogent}:
 \begin{verbatim}
   TOCAES(<size>,<ek>,El)
   FROMCAES(<size>,<ek>,El)
@@ -1466,8 +1471,12 @@ and the macro call \code{ROFROMCAES(5,,CPtr U16)} expands to
 \end{verbatim}
 
 Function \code{toCAES} returns the pair of the pointer to the first array element and the constant known size, this
-always succeeds. Function \code{fromCAES} compares the explicit size in the argument to the known fixed size of the result.
-If they are equal it returns the element pointer, otherwise it returns an error value with the original input.
+always succeeds. Function \code{fromCAES} simply returns the casted pointer. This may be wrong, so in the shallow embedding
+it must be proven that the sizes are the same. An alternative would be to define \code{fromCAES} so that it compares the 
+explicit size in the argument to the known fixed size of the result and, if they are equal it returns the element pointer, 
+otherwise it returns an error value with the original input. However, the original input is linear and cannot be discarded
+and in the context of the invocation, the linear value of the fixed size array must be consumed, therefore such a definition
+would be very difficult to be used in Cogent.
 
 \subsubsection{Creating and Disposing Explicitly Sized Arrays}
 

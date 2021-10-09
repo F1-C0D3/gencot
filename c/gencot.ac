@@ -440,34 +440,22 @@ static $ty:(Result fun ()) $id:fromFunPtr($ty:(ufunptr) arg) {
     return res;
 }
 
-static $ty:esa $id:toExplicitSize($ty:arr arg) {
-    $ty:esa res = {.p1= genopsTemplate("ArrayPointer",($ty:arr) arg,"genopsEnd"),.p2= genopsTemplate("ArraySize",($ty:arr) arg,"genopsEnd")};
+static $ty:aes $id:toCAES($ty:afs arg) {
+    $ty:aes res = {.p1= genopsTemplate("ArrayPointer",($ty:afs) arg,"genopsEnd"),.p2= genopsTemplate("ArraySize",($ty:afs) arg,"genopsEnd")};
     return res;
 }
 
-static $ty:(Result arr esa) $id:toFixedSize($ty:esa arg) {
-    $ty:(Result arr esa) res = {.Success=NULL,.Error=arg};
-    if (arg.p2 == genopsTemplate("ArraySize",($ty:arr) res.Success,"genopsEnd")) {
-      res.tag = TAG_ENUM_Success;
-      res.Success = ($ty:arr) arg.p1;
-    }
-    else res.tag = TAG_ENUM_Error;
+static $ty:afs $id:fromCAES($ty:aes arg) {
+    return genopsTemplate("ArrayPointer",($ty:afs) arg,"genopsEnd");
+}
+
+static $ty:(aes!) $id:rotoCAES($ty:(afs!) arg) {
+    $ty:(aes!) res = {.p1= genopsTemplate("ArrayPointer",($ty:(afs!)) arg,"genopsEnd"),.p2= genopsTemplate("ArraySize",($ty:(afs!)) arg,"genopsEnd")};
     return res;
 }
 
-static $ty:(esa!) $id:rotoExplicitSize($ty:(arr!) arg) {
-    $ty:(esa!) res = {.p1= genopsTemplate("ArrayPointer",($ty:(arr!)) arg,"genopsEnd"),.p2= genopsTemplate("ArraySize",($ty:(arr!)) arg,"genopsEnd")};
-    return res;
-}
-
-static $ty:(Result arr! esa!) $id:rotoFixedSize($ty:(esa!) arg) {
-    $ty:(Result arr! esa!) res = {.Success=NULL,.Error=arg};
-    if (arg.p2 == genopsTemplate("ArraySize",($ty:(arr!)) res.Success,"genopsEnd")) {
-      res.tag = TAG_ENUM_Success;
-      res.Success = ($ty:arr) arg.p1;
-    }
-    else res.tag = TAG_ENUM_Error;
-    return res;
+static $ty:(afs!) $id:rofromCAES($ty:(aes!) arg) {
+    return genopsTemplate("ArrayPointer",($ty:(afs!)) arg,"genopsEnd");
 }
 
 static $ty:(Result ((evp,U64),Heap) Heap) $id:createCAES($ty:((U64, Heap)) arg) {
@@ -481,9 +469,3 @@ static $ty:(Result ((evp,U64),Heap) Heap) $id:createCAES($ty:((U64, Heap)) arg) 
     return res;
 
 }
-
-static $ty:(Heap) $id:disposeCAES($ty:(((evp,U64),Heap)) arg) {
-    free(arg.p1.p1);
-    return arg.p2;
-}
-

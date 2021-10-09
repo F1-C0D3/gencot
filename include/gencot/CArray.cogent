@@ -7,6 +7,7 @@
 #include "CPointer.cogent"
 #include "Tuples.cogent"
 
+{- Fixed size array types -}
 -- Type for mapping C array types with too complex size or no size
 --   el: element type
 type CArrXX el
@@ -20,7 +21,44 @@ type CArrXX el
 #define altUBOX(el) (el)
 #define UaltUBOX(el) #(el)
 
-{- Initialization and Clearing Arrays -}
+{- explicitly sized array types -}
+
+-- Array pointer type.
+--   el: element type
+type CArrPtr el = { arr: el }
+
+-- Explicitly sized array type.
+-- Implemented by a pair of an element pointer and the size.
+--   el: element type
+type CArrES el = (CArrPtr el, U64)
+
+-- Macro for constructing an explicitly sized array type.
+--   knd: one of U or empty. Specifies the kind of element type. 
+--     Must be U for an unboxed type representing a C struct, union, or array type, otherwise empty.
+--   el: the element type for which to construct the explicitly sized array type.
+#define CAES(knd,el) CArrES Gencot_APPFUN(Gencot_ID(knd)altUBOX,el)
+
+-- Macro for constructing an explicitly sized array of type CArrES el.
+--   p: element pointer of type CArrPtr el 
+--   s: number of elements pointed to by p
+#define MKCAES(p,s) (p,s)
+
+{- Creating Explicitly Sized Arrays -}
+
+-- Macro for generating the empty-value type for a valid-value explicitly sized array type CAES(knd,el).
+--   knd: one of U or empty. Specifies the kind of element type. 
+--     Must be U for an unboxed type representing a C struct, union, or array type, otherwise empty.
+--   el: element type
+#define EVT_CAES(knd,el) (EVT(CArrPtr Gencot_APPFUN(Gencot_ID(knd)altUBOX,el)), U64)
+
+-- Creating an empty value of an explicitly sized empty-value array type by allocating memory for 
+-- a specified number of elements for it and returning the pair of the pointer to the allocated space 
+-- and the number of elements.
+-- In case of error only the heap is returned
+--   evp: the empty-value explicitly sized array type.
+createCAES: all(evp). (U64, Heap) -> Result (evp,Heap) Heap
+
+{- Initializing and Clearing Arrays -}
 
 -- Initialize or clear an array by applying an initialization
 -- or clearing function to all elements, passing a pointer to the element.
@@ -47,7 +85,7 @@ initEltsSeq: all(evt,vvt,epe,vpe,arg). IniFun evt vvt (IniFun epe vpe arg arg, a
 clearEltsSeq: all(vvt,evt,vpe,epe,arg). ClrFun vvt evt (ClrFun vpe epe arg arg, arg) arg
 
 -- Macros for specifying typed instances of the element initialization and clearing functions
--- and their function types.
+-- and their function types for fixed size arrays
 --   func: one of ParCmb, Par, Seq
 --   size: number of array elements
 --   knd: kind of element type.
@@ -69,6 +107,40 @@ clearEltsSeq: all(vvt,evt,vpe,epe,arg). ClrFun vvt evt (ClrFun vpe epe arg arg, 
   ClrFun (CARR(size,knd,el)) (EVT(CARR(size,knd,el))) \
          (ClrFun (CPTR(knd,el)) (EVT(CPTR(knd,el))) (arg) Gencot_ARRELOUT(func,arg,out), \
          (arg) Gencot_OPTARRCMB(func,out)) Gencot_ARRELOUT(func,arg,out)
+
+-- Macros for specifying typed instances of the general initialization and clearing functions
+-- and their types for explicitly sized arrays.
+--   func: one of Heap, Simp
+--   knd: one of U or empty. Specifies the kind of element type. 
+--     Must be U for an unboxed type representing a C struct, union, or array type, otherwise empty.
+--   el: element type
+#define INIT_CAES(func,knd,el) Gencot_MKFUNNAME(init,func)[EVT_CAES(knd,el),CAES(knd,el)]
+#define CLEAR_CAES(func,knd,el) Gencot_MKFUNNAME(clear,func)[CAES(knd,el),EVT_CAES(knd,el)]
+#define INITTYPE_CAES(func,knd,el) Gencot_OPTTRNS(func)IniFun (EVT_CAES(knd,el)) (CAES(knd,el)) Gencot_IELARGOUT(func,)
+#define CLEARTYPE_CAES(func,knd,el) ClrFun CAES(knd,el) EVT_CAES(knd,el) Gencot_CELARGOUT(func,)
+
+-- Macros for specifying typed instances of the per-element initialization and clearing functions
+-- and their function types for explicitly sized arrays.
+--   func: one of ParCmb, Par, Seq
+--   knd: one of U or empty. Specifies the kind of element type. 
+--     Must be U for an unboxed type representing a C struct, union, or array type, otherwise empty.
+--   el: element type
+--   arg: type of additional input to the element function
+--   out: type of additional output from the element function (ignored for func = Simp,Seq)
+#define INITelts_CAES(func,knd,el,arg,out) \
+  Gencot_MKFUNNAME(initElts,func)[EVT_CAES(knd,el),CAES(knd,el),\
+                                 EVT(CPTR(knd,el)),CPTR(knd,el),Gencot_OPTOUT(func,arg,out)]
+#define CLEARelts_CAES(func,knd,el,arg,out) \
+  Gencot_MKFUNNAME(clearElts,func)[CAES(knd,el),EVT_CAES(knd,el),\
+                                  CPTR(knd,el),EVT(CPTR(knd,el)),Gencot_OPTOUT(func,arg,out)]
+#define INITTYPEelts_CAES(func,knd,el,arg,out) \
+  IniFun (EVT_CAES(knd,el)) (CAES(knd,el)) \
+         (IniFun (EVT(CPTR(knd,el))) (CPTR(knd,el)) arg Gencot_ARRELOUT(func,arg,out), \
+         arg Gencot_OPTARRCMB(func,out)) Gencot_ARRELOUT(func,arg,out)
+#define CLEARTYPEelts_CAES(func,knd,el,arg,out) \
+  ClrFun CAES(knd,el) EVT_CAES(knd,el) \
+         (ClrFun (CPTR(knd,el)) (EVT(CPTR(knd,el))) arg Gencot_ARRELOUT(func,arg,out), \
+         arg Gencot_OPTARRCMB(func,out)) Gencot_ARRELOUT(func,arg,out)
 
 {- Accessing Single Array Elements -}
 
@@ -147,5 +219,39 @@ modrefArr : all(arr,idx,pel,arg). ModFun arr (Tup3 idx (ModFun pel arg arg) arg)
 --   arg: type of additional input for element function
 --   out: type of additional output of element function
 modrefArrDflt : all(arr,idx,pel,arg:<D,out:<DSE). ModFun arr (Tup3 idx (ModFun pel arg out) arg) out
+
+{- Conversions -}
+
+-- Convert from fixed size array type to explicitly sized array type.
+--   afs: the fixed size array type
+--   aes: the explicitly sized array type
+toCAES: all(afs,aes). afs -> aes
+
+-- Convert from explicitly sized array type to fixed size array type.
+-- It must be proven that the size fits.
+--   afs: the fixed size array type
+--   aes: the explicitly sized array type
+fromCAES: all(afs,aes). aes -> afs
+
+-- Convert from readonly fixed size array type to explicitly sized array type.
+--   afs: the fixed size array type
+--   aes: the explicitly sized array type
+rotoCAES: all(afs,aes). afs! -> aes!
+
+-- Convert from readonly explicitly sized array type to fixed size array type.
+-- It must be proven that the size fits.
+--   afs: the fixed size array type
+--   aes: the explicitly sized array type
+rofromCAES: all(afs,aes). aes! -> afs!
+
+-- Macro for specifying typed instances of the conversion functions
+--   size: number of elements in the fixed size array type
+--   knd: one of U or empty. Specifies the kind of element type. 
+--     Must be U for an unboxed type representing a C struct, union, or array type, otherwise empty.
+--   el: element type
+#define TOCAES(size,knd,el) toCAES[CARR(size,knd,el),CAES(knd,el)]
+#define FROMCAES(size,knd,el) fromCAES[CARR(size,knd,el),CAES(knd,el)]
+#define ROTOCAES(size,knd,el) rotoCAES[CARR(size,knd,el),CAES(knd,el)]
+#define ROFROMCAES(size,knd,el) rofromCAES[CARR(size,knd,el),CAES(knd,el)]
 
 #endif {- GENCOT_CARRAY -}

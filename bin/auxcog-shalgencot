@@ -18,7 +18,7 @@ awk \
    gencot_theories = "Default Memory MayNull CPointer CArray"
    common_theories = "common"
    nr_sizes = 0
-#    nr_funs = split("getArr setArr modifyArr modrefArr", funs)
+   nr_funs = split("getArr setArr modifyArr modrefArr", funs)
  } 
 {
   if ($1 == "theory" && NF == 2) {
@@ -40,6 +40,9 @@ awk \
     close(cfile) 
     printf("  \"HOL-Library.Adhoc_Overloading\"\n")
     printf("begin\n\n")
+    printf("adhoc_overloading %s %sES\n", funs[1], funs[1])
+    for (i=2; i <= nr_funs; i++) printf("  and %s %sES\n", funs[i], funs[i])
+    printf("\n")
   } else if ($1 == "type_synonym" && substr($3,1,4) == "CArr" && $7 == "FixedList") {
     size = substr($3,5,length($3)-12)
     nr_sizes += 1
@@ -50,6 +53,8 @@ awk \
     printf("interpretation CArrFuns%s: CArrFuns arr%s\\<^sub>T\\<^sub>f CArr%s.make .\n", size, size, size)
     printf("adhoc_overloading %s CArrFuns%s.%sFxd\n", funs[1], size, funs[1])
     for (i=2; i <= nr_funs; i++) printf("  and %s CArrFuns%s.%sFxd\n", funs[i], size, funs[i])
+    printf("  and toCAES CArrFuns%s.toCAESFxd\n", size)
+    printf("  and fromCAES CArrFuns%s.fromCAESFxd\n", size)
     printf("\n")
   }
 }
@@ -73,6 +78,11 @@ END {
 #     common: id
 #   in the argument file for which id is in common_theories the theory CogentCommon_id with the tup-suffix 
 #   appended.
+# - the output theory contains an adhoc overloading of the form
+#     adhoc_overloading getArr getArrES
+#       and setArr setArrES
+#       ...
+#   for all Gencot array operations.
 # - the output theory contains for every type synonym definition of the form
 #     type_synonym 'el CArr<size>\<^sub>T = "<fixtyp> CArr<size>"
 #   in the input theory a definition of the form 
@@ -84,11 +94,11 @@ END {
 #     adhoc_overloading getArr CArrFuns<size>.getArrFxd
 #       and setArr CArrFuns<size>.setArrFxd
 #       ...
-#   for all Gencot array operations.
+#   for all Gencot array operations and the operations toCAES, fromCAES.
 #
 # The list of theories which can be imported is specified by the string variables 
 # gencot_theories and common_thories as a sequence of words separated by blanks.
-# The list of array functions is specified in the array funs of length nr_funs,
+# The list of array operations is specified in the array funs of length nr_funs,
 #
 # The input is read until a line of the form "theory <name>" is found. Using the <name>, the tup-suffix
 # is determined and the output theory header is generated. The argument file is read using getline to 

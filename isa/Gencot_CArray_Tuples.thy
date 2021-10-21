@@ -1,6 +1,7 @@
 theory Gencot_CArray_Tuples
   imports ShallowShared_Tuples
     Gencot_Default_Tuples
+  "HOL-Library.Adhoc_Overloading"
 begin
 
 text \<open>Declare pointer referencing / dereferencing functions for modrefArr.
@@ -69,6 +70,10 @@ definition toCAESFxd :: "'arr \<Rightarrow> 'el CArrES\<^sub>T"
   where "toCAESFxd arr \<equiv> toCAES' (fld arr)"
 definition fromCAESFxd :: "'el CArrES\<^sub>T \<Rightarrow> 'arr"
   where "fromCAESFxd aes \<equiv> wrp (fromCAES' aes)"
+definition rotoCAESFxd :: "'arr \<Rightarrow> 'el CArrES\<^sub>T"
+  where "rotoCAESFxd arr \<equiv> toCAES' (fld arr)"
+definition rofromCAESFxd :: "'el CArrES\<^sub>T \<Rightarrow> 'arr"
+  where "rofromCAESFxd aes \<equiv> wrp (fromCAES' aes)"
 
 end
 
@@ -103,5 +108,10 @@ definition modrefArrES :: "'el CArrES\<^sub>T \<times> ('idx::len word \<times> 
           i = (if unat idx < unat len then (unat idx) else 0);
           elm = nth lst i; chres = chf(toPtr elm, inp)
       in ((list_update lst i (frPtr (fst chres)),len), snd chres)"
+
+adhoc_overloading getArr getArrES
+  and setArr setArrES
+  and modifyArr modifyArrES
+  and modrefArr modrefArrES
 
 end

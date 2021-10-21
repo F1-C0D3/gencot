@@ -19,9 +19,10 @@ awk \
    common_theories = "common"
    nr_sizes = 0
    nr_funs = split("getArr setArr modifyArr modrefArr", funs)
-   nr_afuns = split("siz vld elm elm_update elm_modified arr_fill", afuns)
-   nr_lems = split("sizArr vldArr elm_commUpd_elm elm_distUpd elm_sameUpd elmElmUpd elmElmUpdFrame elmArrFill eqArr eqElmUpd eqArrFill elm_modified_def", lems)
-   opts[1] = "[simp]"; opts[2] = "[simp]"
+   nr_afuns = split("siz vld elm elm_update elm_modified elms_fill", afuns)
+   nr_lems = split("unfold elm_commUpd_elm elm_distUpd elm_sameUpd eqArr eqElmUpd eqElmsFill elm_modified_def", lems)
+   nr_cfuns = split("toCAES fromCAES", cfuns)
+   nr_clems = split("inverse apply", clems)
  } 
 {
   if ($1 == "theory" && NF == 2) {
@@ -41,10 +42,6 @@ awk \
     }
     close(cfile) 
     printf("begin\n\n")
-    printf("adhoc_overloading %s %sES\n", afuns[1], afuns[1])
-    for (i=2; i <= nr_afuns-1; i++) printf("  and %s %sES\n", afuns[i], afuns[i])
-    printf("  and %s_n %s_nES\n", afuns[nr_afuns], afuns[nr_afuns])
-    printf("\n")
   } else if ($1 == "type_synonym" && substr($3,1,4) == "CArr" && $7 == "FixedList") {
     size = substr($3,5,length($3)-12)
     nr_sizes += 1
@@ -60,15 +57,27 @@ END {
   if (exited == "") {
     if (nr_sizes > 0) {
       for (i=1; i<=nr_lems; i++) {
-        printf("lemmas %s%s = %sES\n", lems[i], opts[i], lems[i])
+        printf("lemmas %sFxd =\n", lems[i])
         for (j=1; j<=nr_sizes; j++) printf("  CArrLems%s.%s\n", sizes[j], lems[i])
       }
       printf("\n")
       for (i=1; i<=nr_funs; i++) {
-        printf("lemmas sem_%s[sem] = sem_%sES\n", funs[i], funs[i])
+        printf("lemmas sem_%sFxd[sem] =\n", funs[i])
         for (j=1; j<=nr_sizes; j++) printf("  CArrLems%s.sem_%s\n", sizes[j], funs[i])
-        printf("lemmas errsem_%s = errsem_%sES\n", funs[i], funs[i])
+        printf("lemmas errsem_%sFxd =\n", funs[i])
         for (j=1; j<=nr_sizes; j++) printf("  CArrLems%s.errsem_%s\n", sizes[j], funs[i])
+      }
+      printf("\n")
+      for (i=1; i<=nr_clems; i++) {
+        for (k=1; k<=nr_cfuns; k++) {
+          printf("lemmas %s_%s =\n", cfuns[k], clems[i])
+          for (j=1; j<=nr_sizes; j++) printf("  CArrLems%s.%s_%s\n", sizes[j], cfuns[k], clems[i])
+        }
+      }
+      printf("\n")
+      for (i=1; i<=nr_cfuns; i++) {
+        printf("lemmas sem_%s[sem] =\n", cfuns[i])
+        for (j=1; j<=nr_sizes; j++) printf("  CArrLems%s.sem_%s\n", sizes[j], cfuns[i])
       }
       printf("\n")
     }
@@ -88,12 +97,6 @@ END {
 #   in the argument file for which id is in gencot_theories the theory Gencot_id_Lemmas, and for every line
 #     common: id
 #   in the argument file for which id is in common_theories the theory CogentCommon_id_Lemmas.
-# - the output theory contains an adhoc overloading of the form
-#     adhoc_overloading siz sizES
-#       and vld vldES
-#       ...
-#   for all abstracted array operations siz, vld, elm, elm_update, elm_modified, arr_fill
-#   where the last operation is modified to arr_fill_n.
 # - the output theory contains for every type synonym definition of the form
 #     type_synonym 'el CArr<size>\<^sub>T = ...
 #   in the input theory a locale interpretation of the form
@@ -104,21 +107,28 @@ END {
 #     adhoc_overloading siz CArrLems<size>.sizFxd
 #       and vld CArrLems<size>.vldFxd
 #       ...
-#   for all abstracted array operations siz, vld, elm, elm_update, elm_modified, arr_fill,
+#   for all abstracted array operations siz, vld, elm, elm_update, elm_modified, elms_fill,
 #   and lemma collections of the form
-#     lemmas <lem> = <lem>ES CArrLems<size1>.<lem> CArrLems<size2>.<lem> ...
+#     lemmas <lem>Fxd = CArrLems<size1>.<lem> CArrLems<size2>.<lem> ...
 #   for all <sizei>, and all following lemmas <lem>:
-#     sizArr, vldArr, elmUpdElm, elmUpdDistrib, elmElmUpd, elmElmUpdFrame, elmArrFill, 
-#     eqArr, eqElmUpd, eqArrFill, elm_modified_def, sem_<fun>, errsem_<fun>
-#   for all Gencot array functions <fun>. For some lemma collections the [simp] option is set.
-#   For all lemma collections sem_<fun> the [sem] option is set.
+#     unfold elm_commUpd_elm, elm_distUpd, elm_sameUpd, eqArr, eqElmUpd, eqElmsFill, elm_modified_def,
+#     sem_<fun>, errsem_<fun>
+#   for all Gencot array functions <fun>.
+#   and lemma collections of the form
+#     lemmas <lem> = CArrLems<size1>.<lem> CArrLems<size2>.<lem> ...
+#   for all <sizei>, and all following lemmas <lem>:
+#     <cfun>_inverse, <cfun>_apply, sem_<cfun>
+#   for all Gencot array conversions <cfun>.
+#
+#   For all lemma collections sem_<fun>, sem_<cfun> the [sem] option is set.
 #
 # The list of theories which can be imported is specified by the string variables 
 # gencot_theories and common_thories as a sequence of words separated by blanks.
 # The list of array functions is specified in the array funs of length nr_funs,
 # the list of abstracted array functions is specified in the array afuns of length nr_afuns,
 # the list of array lemmas is specified in the array lems of length nr_lems.
-# The array opts contains attribute specifications to be added to the corresponding entries of lems.
+# The list of array conversions is specified in the array cfuns of length nr_cfuns,
+# the list of array conversion lemmas is specified in the array clems of length nr_clems.
 #
 # The input is read until a line of the form "theory <name>" is found. Using the <name>, the tup-suffix
 # is determined and the output theory header is generated. The argument file is read using getline to 
@@ -135,7 +145,6 @@ END {
 #   to prevent its processing as normal input to awk. The argument file is explicitly read by getline.
 # - The theory lists gencot_theories and common_thories are defined in the BEGIN rule.
 # - The function and lemma arrays are filled in the BEGIN rule by splitting a string of words.
-# - The used opts array entries are specified explicitly in the BEGIN rule.
 # - Since in '...' the ' cannot be escaped, we avoid using it in match expressions and print it 
 #   by reusing parts of the input.
 # - To test whether an entry from the argument file is a member of a theory list the awk builtin function

@@ -13,7 +13,7 @@ Prerequisites
 
 Gencot assumes a Unix environment and the Haskell platform. It consists of a collection of Haskell programs and (Bourne) shell scripts which use standard Unix commands such as awk, sed, and others.
 
-For installation you need the Haskell compiler (currently only ghc version 8.6.5 works!) and the Cabal build system.
+For installation you need the Haskell compiler (the latest tested ghc version is 8.10.4) and the Cabal build system.
 
 Installation
 ------------
@@ -44,7 +44,7 @@ which are located in `G/gencot/bin` (by adding this directory to the command sea
 Note that this only builds the Gencot tool. If you also want to use the Cogent compiler you have to go to `G/gencot/cogent` and
 build it as described there. For full support of all Gencot features build it using
 
-        make INSTALL_FLAGS='--flags="+builtin-arrays -docgent -refinement-types -haskell-backend"'
+        make INSTALL_FLAGS='--flags="+builtin-arrays"'
 
 A quick check whether the installation was successful can be done as follows:
 

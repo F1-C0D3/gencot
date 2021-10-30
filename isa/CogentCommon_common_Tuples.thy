@@ -50,4 +50,27 @@ axiomatization where seq32_def:
      seq32 \<lparr>Seq32Param.frm\<^sub>f=frm, to\<^sub>f=to, step\<^sub>f=step, f\<^sub>f=f, acc\<^sub>f=acc, obsv\<^sub>f=obsv\<rparr> \<equiv> 
        seq32_imp (seq32_cnt frm to step) f acc frm step obsv"
 
+text \<open>seq64\<close>
+
+text \<open>Analogous to seq32.\<close>
+
+definition seq64_cnt :: "64 word \<Rightarrow> 64 word \<Rightarrow> 64 word \<Rightarrow> nat" where
+  "seq64_cnt frm to step \<equiv> ((unat to)-(unat frm)+(unat step)-1) div (unat step)"
+
+definition seq64_term :: "64 word \<Rightarrow> 64 word \<Rightarrow> bool" where 
+  "seq64_term to step \<equiv> (step > 0) \<and> ((unat to) + (unat step) \<le> 2 ^ LENGTH(64))"
+
+fun seq64_imp :: "nat \<Rightarrow> ('acc, 'obsv, 'rbrk) Seq64_body \<Rightarrow> 'acc \<Rightarrow> 64 word \<Rightarrow> 64 word \<Rightarrow> 'obsv \<Rightarrow> ('acc, 'rbrk) LRR\<^sub>T" where
+    "seq64_imp 0 f acc frm step obsv = (acc, Iterate())" |
+    "seq64_imp (Suc n) f acc frm step obsv = 
+       (let (acc, lres) = seq64_imp n f acc frm step obsv
+        in case lres of
+          Break _ \<Rightarrow> (acc, lres) |
+          Iterate _ \<Rightarrow> f \<lparr>Seq32_bodyParam.acc\<^sub>f = acc, obsv\<^sub>f = obsv, idx\<^sub>f = frm + (of_nat n)*step \<rparr>)"
+
+axiomatization where seq64_def: 
+  "\<And>(acc::'acc) (obsv::'obsv) (f::('acc, 'obsv, 'rbrk) Seq64_body). seq64_term to step \<Longrightarrow> 
+     seq64 \<lparr>Seq32Param.frm\<^sub>f=frm, to\<^sub>f=to, step\<^sub>f=step, f\<^sub>f=f, acc\<^sub>f=acc, obsv\<^sub>f=obsv\<rparr> \<equiv> 
+       seq64_imp (seq64_cnt frm to step) f acc frm step obsv"
+
 end

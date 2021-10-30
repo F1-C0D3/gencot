@@ -24,6 +24,7 @@ Additionally we define derived functions as abbreviations for typical use cases.
 consts
   vld :: "'arr \<Rightarrow> nat \<Rightarrow> bool"
   elm_modified :: "nat \<Rightarrow> ('el \<Rightarrow> 'el \<Rightarrow> bool) \<Rightarrow> 'arr \<Rightarrow> 'arr \<Rightarrow> bool"
+  elms_list :: "'arr \<Rightarrow> 'el list"
 
 subsection "Fixed Sized Arrays"
 
@@ -67,6 +68,8 @@ definition vldFxd :: "'arr \<Rightarrow> nat \<Rightarrow> bool"
 definition elm_modifiedFxd :: "nat \<Rightarrow> ('el \<Rightarrow> 'el \<Rightarrow> bool) \<Rightarrow> 'arr \<Rightarrow> 'arr \<Rightarrow> bool"
   where elm_modified_def: "elm_modifiedFxd i m a1 a2 \<equiv> 
     m (elmFxd i a1) (elmFxd i a2) \<and> (\<forall>j \<noteq> i. vldFxd a1 j \<longrightarrow> elmFxd j a1 = elmFxd j a2)"
+definition elms_listFxd :: "'arr \<Rightarrow> 'el list"
+  where elms_list_def: "elms_listFxd s \<equiv> [ elmFxd i s . i \<leftarrow> [0..< sizFxd s]]"
 
 text \<open>Arrays are never empty.\<close>
 lemma arrNotNil: "\<forall>x::'arr .  lstFxd x \<noteq> []"
@@ -226,6 +229,9 @@ definition elm_modifiedPtr :: "nat \<Rightarrow> ('el \<Rightarrow> 'el \<Righta
   where "elm_modifiedPtr i m a1 a2 \<equiv> 
     m (elmPtr i a1) (elmPtr i a2) \<and> (\<forall>j \<noteq> i. vldPtr a1 j \<longrightarrow> elmPtr j a1 = elmPtr j a2)"
 lemmas elm_modified_defPtr = elm_modifiedPtr_def
+definition elms_listPtr :: "'el CArrPtr\<^sub>T \<Rightarrow> 'el list"
+  where "elms_listPtr s \<equiv> [ elmPtr i s . i \<leftarrow> [0..< sizPtr s]]"
+lemmas elms_list_defPtr = elms_listPtr_def
 
 adhoc_overloading siz sizPtr
   and vld vldPtr
@@ -233,6 +239,7 @@ adhoc_overloading siz sizPtr
   and elm_update elm_updatePtr
   and elm_modified elm_modifiedPtr
   and elms_fill_n elms_fill_nPtr
+  and elms_list elms_listPtr
 
 definition fst_modified :: "('a \<Rightarrow> 'a \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'b) \<Rightarrow> ('a \<times> 'b) \<Rightarrow> bool"
   where "fst_modified m x1 x2 \<equiv> 
@@ -330,6 +337,9 @@ definition elm_modifiedES :: "nat \<Rightarrow> ('el \<Rightarrow> 'el \<Rightar
   where "elm_modifiedES i m a1 a2 \<equiv> 
     m (elmES i a1) (elmES i a2) \<and> (\<forall>j \<noteq> i. vldES a1 j \<longrightarrow> elmES j a1 = elmES j a2)"
 lemmas elm_modified_defES = elm_modifiedES_def
+definition elms_listES :: "'el CArrES\<^sub>T \<Rightarrow> 'el list"
+  where "elms_listES s \<equiv> [ elmES i s . i \<leftarrow> [0..< sizES s]]"
+lemmas elms_list_defES = elms_listES_def
 
 adhoc_overloading siz sizES
   and vld vldES
@@ -337,6 +347,7 @@ adhoc_overloading siz sizES
   and elm_update elm_updateES
   and elm_modified elm_modifiedES
   and elms_fill_n elms_fill_nES
+  and elms_list elms_listES
 
 text \<open>Wellformedness implies nonempty and size limit\<close>
 

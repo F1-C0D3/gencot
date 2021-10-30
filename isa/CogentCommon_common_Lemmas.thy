@@ -62,5 +62,34 @@ lemma seq32_induct:
   apply(rule_tac P=P  in seq32_imp_induct)
   by auto
 
+text \<open>Induction rule for seq64:\<close>
+
+text \<open>Analogous to seq32.\<close>
+
+lemma seq64_imp_induct:
+  "P 0 (acc, Iterate()) obsv \<Longrightarrow> 
+   (\<And>a i r. i < n \<Longrightarrow> 
+      (P i (a,Iterate()) obsv \<longrightarrow> 
+           P (Suc i) (f \<lparr>Seq32_bodyParam.acc\<^sub>f=a, obsv\<^sub>f=obsv, idx\<^sub>f=frm+(of_nat i)*step\<rparr>) obsv)
+    \<and> (P i (a,Break r) obsv \<longrightarrow> P (Suc i) (a,Break r) obsv)) \<Longrightarrow> 
+   P n (seq64_imp n f acc frm step obsv) obsv"
+  apply(induct n)
+   apply(simp add:split_def)
+  apply(case_tac "seq64_imp n f acc frm step obsv")
+  apply(case_tac b)
+  by auto
+
+lemma seq64_induct:   
+  "seq64_term to step \<Longrightarrow> 
+   P 0 (acc,Iterate()) obsv \<Longrightarrow> 
+   (\<And>a i r. i < (seq64_cnt frm to step) \<Longrightarrow> 
+       (P i (a,Iterate()) obsv \<longrightarrow>
+           P (Suc i) (f \<lparr>Seq32_bodyParam.acc\<^sub>f=a, obsv\<^sub>f = obsv, idx\<^sub>f=frm+(of_nat i)*step \<rparr>) obsv)
+     \<and> (P i (a,Break r) obsv \<longrightarrow> P (Suc i) (a,Break r) obsv)) \<Longrightarrow>
+   P (seq64_cnt frm to step) (seq64 \<lparr>Seq32Param.frm\<^sub>f=frm, to\<^sub>f=to, step\<^sub>f=step, f\<^sub>f=f, acc\<^sub>f=acc, obsv\<^sub>f = obsv \<rparr>) obsv"
+  for f::"('acc, 'obsv, 'rbrk) Seq64_body" and acc::'acc and obsv::'obsv
+  apply(unfold seq64_def)
+  apply(rule_tac P=P  in seq64_imp_induct)
+  by auto
 
 end

@@ -13,73 +13,28 @@ definitions are ignored.
 \subsection{Function Bodies}
 \label{design-fundefs-body}
 
-In C the function body consists of a compound statement which is specified in imperative programming style. In Cogent
-the function body consists of an expression which is specified in functional programming style with additional 
-restrictions which are crucial for proving properties of the Cogent program. Therefore Gencot does not try
-to translate function bodies, this must be done by a human programmer.
+In C the function body consists of a compound statement. In Cogent
+the function body consists of an expression. Gencot partially translates the C code to Cogent code as described 
+in Section~\ref{design-cstats}.
 
-It would be possible, however, to translate C declarations embedded in the body. These may be type definitions
-and definitions for local variables. However, there are no good choices for the generated target code. Type
-definitions cannot be local in an expression in Cogent, they must be moved to the toplevel where they may cause
-conflicts. Local variable definitions could be translated to Cogent variable bindings in let-expressions, however,
-C assignments cannot be translated for them. Also, the resulting mixture of C code and Cogent code is expected 
-to be quite confusing to the programmer who has to do the manual translation. Therefore, no declarations in 
-function bodies are processed by Gencot.
-
-The only processing done for function bodies is the substitution of names occurring free in the body. These may
-be names with global scope (for types, functions, tags, global variables, enum constants or preprocessor constants)
-or parameter names. For all names with global scope Gencot has generated a Cogent definition using a mapped name.
-These names are substituted in the C code of the function body by the corresponding mapped names so that the 
-mapping need not be done manually by the programmer.
-
-Names with local scope (either local variables or types/tags) are also mapped by Gencot, both in their (local)
-definition and whenever they are used. 
-
-The mapping does not include the mapping of derived types. Type derivation in C is done in declarators which refer
-a common type specification in a declaration. In Cogent there is no similar concept, every declarator must be 
-translated to a separate declaration. This is not done due to the reasons described above. As result, a translated
-local declaration may have the form
-\begin{verbatim}
-  Struct_s1 a, *b, c[5];
-\end{verbatim}
-although the Cogent types for \code{a, b, c} would be \code{\#Struct\_s1}, \code{Struct\_s1}, and 
-\code{\#(CArr5 Struct\_s1)}, respectively. This translation for the derived types must be done manually.
-
-Additionally, the function parameter names usually occur free in the function body. To make them apparent to
-the programmer, Gencot generates a Cogent pattern for the (single) parameter of the Cogent function which 
+As described in Section~\ref{design-types-function} Gencot translates all C functions to Cogent functions with
+a single parameter. If the C function has more than one parameter it is a tuple of the C parameters. To make it
+possible to use the original C parameter names in the translated function body
+Gencot generates a Cogent pattern for the parameter of the Cogent function which 
 consists of a tuple of variables with the names generated from the C parameter names. As described in 
 Section~\ref{design-names} the C parameter names are only mapped if they are uppercase, otherwise they are
-translated to Cogent unmodified. If they are mapped they are substituted in the body. Since it is very unusual
+translated to Cogent unmodified. Since it is very unusual
 to use uppercase parameter names in C, the Cogent function will normally use the original C parameter names.
 
 If the function is variadic an additional last tuple component is added with a variable named
 \code{variadicCogentParameters}, mainly to inform the developer that manual action is required.
 
-Global variables referenced in a function body are treated in a specific way. If the global variable has a 
-Global-State property (see Section~\ref{design-types-itemprops}) and a virtual parameter item with the same
-property has been declared for the function, the identifier of the global variable is replaced by the 
-mapped parameter name with the dereference operator applied. This corresponds to the intended purpose of the 
-Global-State properties: instead of accessing global variables directly from within a function, a pointer is 
-passed as parameter and the variable is accessed by dereferencing this pointer.
-
-If a global variable has the Const-Val property (see Section~\ref{design-types-itemprops}) its access is
-replaced by an invocation of the corresponding parameterless access function. If the global variable has 
-neither of these properties declared, Gencot simply uses its mapped name, this case must be handled manually.
-
-If the C function body would be directly written into the Cogent source file, it cannot be syntax checked by the 
-Cogent compiler. Therefore it is wrapped as a Cogent comment by adding a \code{-} sign immediately after the
-opening brace and before the closing brace.
-
-To yield a correct Cogent function, a dummy result expression is generated. Gencot generates the expression
-depending on the result type, as described in Section~\ref{design-operations-dummy}. 
-
 The generated Cogent function definition has the form
 \begin{verbatim}
   <name> :: (<ptype1>, ..., <ptypen>) -> <restype>
-  <name> (<pname1>, ..., <pnamen>) = <dummy result>
-  {- <compound statement> -}
+  <name> (<pname1>, ..., <pnamen>) = 
+    <translated C function body>
 \end{verbatim}
-where the \code{<compound statement>} is plain C code with substituted names.
 
 \subsection{Comments in Function Definitions}
 \label{design-fundefs-comments}
@@ -105,21 +60,10 @@ Hence, comments associated with parameter declarations in C are moved to the par
 
 \subsubsection{Function Body}
 
-To preserve comments embedded in the C function body it is also considered as a structured source code part. Its 
-subpart structure corresponds to the syntactic structure of the C AST. Since in the target code only identifiers 
-are substituted, the target code
-structure is the same as that of the source code. The structure is only used for identifying and re-inserting
-the transferrable comments and preprocessor directives. Note that this works only if the conditional directive 
-structure is compatible with the syntactic structure, i.e., a group must always contain a complete syntactical
-unit such as a statement, expression or declaration, which is the usual case in C code in practice.
-
-An alternative approach would be to treat all nonempty source code lines as subparts of a function body, resulting
-in a flat sequence structure of single lines. The advantage is that it is always compatible to the conditional 
-directive structure and
-all comment units would be transferred. However, generating the corresponding origin markers in an abstract syntax
-tree is much more complex than generating them for syntactical units for which the origin information is present
-in the syntax tree. Since the Gencot implementation generates the
-target code as an abstract syntax tree, the syntactical statement structure is preferred. 
+Gencot inserts origin markers in the Cogent code generated for the function body. It also inserts them in embedded 
+untranslated C code. Thus, comments and preprocessor directives will be reinserted into the code. However, since the
+structure of the Cogent code may substantially differ from that of the C code, comments and directives may be misplaced 
+or omitted, this must be checked and handled manually.
 
 \subsection{Entry Wrappers}
 \label{design-fundefs-wrapper}
@@ -248,8 +192,7 @@ function name must be mapped to determine the name of the Cogent function.
 \subsection{Object Definitions}
 \label{design-fundefs-object}
 
-Gencot processes object declarations with block-scope (``local variables'') as described in Section~\ref{design-fundefs-body} 
-by simply mapping the object name. 
+Gencot processes object declarations with block-scope (``local variables'') as described in Section~\ref{design-cstats-general}. 
 
 A toplevel (``external'') object definition (with ``file-scope'') either has an initializer or is a ``tentative definition''
 according to the C standard. Such an object definition defines a global variable. Gencot treats global variables

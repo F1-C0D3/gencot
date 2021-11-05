@@ -2,7 +2,7 @@
 {-# LANGUAGE PackageImports #-}
 module Gencot.Cogent.Output where
 
-import Cogent.Surface (TopLevel(FunDef), IrrefutablePattern, Type(TRecord,TTuple))
+import Cogent.Surface (TopLevel(FunDef), Expr, Pattern, IrrefutablePattern, Type(TRecord,TTuple))
 import Cogent.Common.Syntax (VarName)
 import Cogent.Common.Types (Sigil(Unboxed),readonly)
 import Cogent.PrettyPrint
@@ -56,8 +56,8 @@ prettyGenRT (TRecord rp ts s) =
     (if | s == Unboxed -> (typesymbol "#" <>)
         | readonly s -> (<> typesymbol "!")
         | otherwise -> id) $
-        recordGen (map (\(_,(b,_)) -> orgOfT b) ts) (map (\(a,(b,_)) -> (fieldname a <+> symbol ":" <+> pretty (typeOfGT b))) ts)
-prettyGenRT (TTuple ts) = tupledGen (map orgOfT ts) (map (pretty.typeOfGT) ts)
+        recordGen (map (\(_,(b,_)) -> orgOfGT b) ts) (map (\(a,(b,_)) -> (fieldname a <+> symbol ":" <+> pretty (typeOfGT b))) ts)
+prettyGenRT (TTuple ts) = tupledGen (map orgOfGT ts) (map (pretty.typeOfGT) ts)
 
 recordGen os = encloseSepGen os (lbrace <> space) (space <> rbrace) (comma <> space)
 tupledGen os = encloseSepGen os (lparen <> space) (space <> rparen) (comma <> space)
@@ -70,6 +70,14 @@ encloseSepGen os left right sep ds
         _   -> align left <> (hcat (zipWith addOrig os (zipWith (<>) (empty : repeat sep) ds)) <> right)
 --        _   -> align left <> (hcat (zipWith addOrig os (zipWith (<>) ds ((replicate ((length ds) - 1) sep) ++ [right]))))
 
+instance PatnType GenPatn where
+  isPVar  (GenPatn p _) = isPVar p
+  prettyP (GenPatn p _) = prettyP p
+  prettyB (GenPatn p _,mt,e) = prettyB (p,mt,e)
+
+instance Pretty GenPatn where
+    pretty (GenPatn p org) = addOrig org $ pretty p
+
 instance Pretty GenIrrefPatn where
     pretty (GenIrrefPatn t org) = addOrig org $ pretty t
 
@@ -78,7 +86,13 @@ instance PatnType GenIrrefPatn where
   prettyP (GenIrrefPatn p _) = prettyP p
   prettyB (GenIrrefPatn p _,mt,e) = prettyB (p,mt,e)
 
+instance Prec GenExpr where
+  prec (GenExpr e _ _) = prec e
+
+instance ExprType GenExpr where
+  isVar (GenExpr e _ _) = isVar e
+
 instance Pretty GenExpr where
-  pretty (ConstExpr e) = (string . (TPM.pretty 2000) . ppr) e
-  pretty (FunBody d s) = (pretty d) <$> ((string . (TPM.pretty 2000) . pprCommented) s)
+  pretty (GenExpr e org Nothing) = addOrig org $ pretty e
+  pretty (GenExpr e org (Just s)) = addOrig org ((pretty e) <$> ((string . (TPM.pretty 2000) . pprCommented) s))
 

@@ -3,24 +3,30 @@ module Gencot.Cogent.Ast where
 
 import "language-c" Language.C
 
-import Cogent.Surface as CS (TopLevel, IrrefutablePattern, Type, RawExpr)
+import Cogent.Surface as CS (TopLevel, Expr, Pattern, IrrefutablePattern, Type)
 import Cogent.Common.Syntax (VarName)
 
 import Gencot.Origin (Origin)
-import Gencot.C.Ast as LQ (Exp,Stm)
-
-data GenExpr = ConstExpr LQ.Exp
-             | FunBody CS.RawExpr LQ.Stm deriving (Show)
+import Gencot.C.Ast as LQ (Stm)
 
 data GenToplv = GenToplv { 
     toplOfGTL :: CS.TopLevel GenType GenIrrefPatn GenExpr,
-    orgOfTL :: Origin
-    }  deriving (Show)
+    orgOfGTL :: Origin
+    } deriving (Show)
+data GenExpr = GenExpr {
+    exprOfGE :: CS.Expr GenType GenPatn GenIrrefPatn () GenExpr,
+    orgOfGE :: Origin,
+    ccdOfGE :: Maybe LQ.Stm
+    } deriving (Show)
+data GenPatn = GenPatn { 
+    patnOfGP :: CS.Pattern GenIrrefPatn,
+    orgOfGP :: Origin
+    } deriving (Show)
 data GenIrrefPatn = GenIrrefPatn { 
     irpatnOfGIP :: CS.IrrefutablePattern VarName GenIrrefPatn GenExpr,
-    orgOfIP :: Origin
+    orgOfGIP :: Origin
     } deriving (Show)
 data GenType = GenType { 
     typeOfGT :: CS.Type GenExpr () GenType,
-    orgOfT :: Origin
+    orgOfGT :: Origin
     } deriving (Show)

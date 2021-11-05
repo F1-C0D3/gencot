@@ -25,11 +25,13 @@ import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapName
 import Gencot.Items.Types (ItemAssocType,isNotNullItem,isReadOnlyItem,isAddResultItem,isNoStringItem,getGlobalStateSubItemIds,getGlobalStateProperty,getGlobalStateId,getTagItemAssoc,getIndividualItemAssoc,getTypedefItemAssoc,adjustItemAssocType,getMemberSubItemAssoc,getRefSubItemAssoc,getResultSubItemAssoc,getElemSubItemAssoc,getParamSubItemAssoc,getItemAssocType,getMemberItemAssocTypes,getSubItemAssocTypes,numberList)
 import Gencot.Items.Identifier (getObjFunName,getParamName)
 import Gencot.Cogent.Ast
-import Gencot.C.Translate (transStat,transExpr,transArrSizeExpr)
+import qualified Gencot.C.Ast as LQ (Stm(Exp),Exp)
+import qualified Gencot.C.Translate as C (transStat,transExpr,transArrSizeExpr)
 import Gencot.Traversal (FTrav,markTagAsNested,isMarkedAsNested,hasProperty,stopResolvTypeName,setFunDef,clrFunDef)
 import Gencot.Util.Types (carriedTypes,isExtern,isCompOrFunc,isCompPointer,isNamedFunPointer,isFunPointer,isPointer,isAggregate,isFunction,isTypeDefRef,isComplete,isArray,isVoid,isTagRef,containsTypedefs,resolveTypedef,isComposite,isLinearType,isLinearParType,isReadOnlyType,isReadOnlyParType,isDerivedType,isExternTypeDef,wrapFunAsPointer,getTagDef)
 
 genType t = GenType t noOrigin
+genExpr e = GenExpr e noOrigin Nothing
 
 -- | Translate a sequence of C "external" (global) declarations to a sequence of Cogent toplevel definitions.
 transGlobals :: [LCA.DeclEvent] -> FTrav [GenToplv]
@@ -104,9 +106,9 @@ transGlobal de@(LCA.DeclEvent decl@(LCA.Declaration (LCA.Decl _ n))) | isComplet
 -- > rt name(parlist) { stmt }
 -- to a Cogent function definition of the form
 -- > name :: (partypes) -> rt
--- > name (parnames) = dummy {- stmt -}
--- where @partypes@, @rt@, and @dummy@ are modified according to a parameter modification description
--- and stmt is translated by mapping all non-local names.
+-- > name (parnames) = expr
+-- where @expr@ is the translation of @stmt@ and
+-- @partypes@, @rt@, and @expr@ are modified according to a parameter modification description.
 transGlobal (LCA.DeclEvent idecl@(LCA.FunctionDef fdef@(LCA.FunDef decl stat n))) = do
     f <- transObjName idnam
     sfn <- getFileName
@@ -118,12 +120,11 @@ transGlobal (LCA.DeclEvent idecl@(LCA.FunctionDef fdef@(LCA.FunDef decl stat n))
     LCA.enterFunctionScope
     LCA.defineParams LCN.undefNode decl
     setFunDef fdef
-    d <- dummyExpr res
-    d <- extendExpr iat d pars
-    s <- transStat stat
+    e <- transStat stat
+    e <- extendExpr iat e pars
     clrFunDef
     LCA.leaveFunctionScope
-    return $ wrapOrigin n ({-nt ++ -}[GenToplv (CS.FunDef f (CS.PT [] [] t) [CS.Alt ps CCS.Regular $ FunBody d s]) noOrigin])
+    return $ wrapOrigin n ({-nt ++ -}[GenToplv (CS.FunDef f (CS.PT [] [] t) [CS.Alt ps CCS.Regular e]) noOrigin])
     where idnam = LCA.declIdent idecl
           typ@(LCA.FunctionType (LCA.FunType res pars isVar) _) = LCA.declType idecl
 -- Translate a C object definition of the form
@@ -156,12 +157,12 @@ transGlobal (LCA.DeclEvent odef@(LCA.ObjectDef (LCA.ObjDef _ _ n))) = do
 -- > name = expr;
 -- to a Cogent constant definition of the form
 -- > name :: U32
--- > name = expr
--- where @expr@ is the orginal C expression with mapped names.
+-- > name = exp
+-- where @exp@ is the translation of expr.
 transGlobal (LCA.DeclEvent (LCA.EnumeratorDef (LCA.Enumerator idnam expr _ n))) = do
     e <- transExpr expr
     en <- mapNameToLower idnam
-    return $ [GenToplv (CS.ConstDef en (genType $ CS.TCon "U32" [] markUnbox) $ ConstExpr e) $ mkOrigin n]
+    return $ [GenToplv (CS.ConstDef en (genType $ CS.TCon "U32" [] markUnbox) e) $ mkOrigin n]
 -- Translate a typedef of the form
 -- > typedef type-specifier declarator;
 -- where @declarator@ denotes a (derived type for an) identifier @idnam@.
@@ -255,8 +256,8 @@ genDerivedTypeDefs :: String -> ItemAssocType -> FTrav [GenToplv]
 -- For the other cases a generic type defintion is generated of the form
 -- > type CArr... el = { arr...: el#[<size>] }
 genDerivedTypeDefs nam (_,(LCA.ArrayType _ as _ _)) | arrDerivHasSize nam = do
-    e <- transArrSizeExpr $ getSizeExpr as
-    let atyp = genType $ CS.TArray (genType $ CS.TVar "el" False False) (ConstExpr e) markUnbox []
+    e <- transExpr $ getSizeExpr as
+    let atyp = genType $ CS.TArray (genType $ CS.TVar "el" False False) e markUnbox []
     return [GenToplv (CS.TypeDec nam ["el"] $ genType $ CS.TRecord CCT.NonRec [(arrDerivCompNam nam, (atyp, False))] markBox) noOrigin]
     where getSizeExpr (LCA.ArraySize _ e) = e -- arrDerivHasSize implies that only this case may occur for the array size as.
 -- For a derived function pointer type the name has the form @CFunPtr_enc@ or @CFunInc_enc@ where
@@ -284,14 +285,14 @@ genDerivedTypeDefs _ _ = return []
 
 -- | Extend a result expression according to the Add-Result and Global-State properties of the function parameters.
 -- The first argument is the item associated type of the function.
-extendExpr :: ItemAssocType -> RawExpr -> [LCA.ParamDecl] -> FTrav RawExpr
+extendExpr :: ItemAssocType -> GenExpr -> [LCA.ParamDecl] -> FTrav GenExpr
 extendExpr iat e pars = do
     arProps <- mapM shallAddResult $ map (getParamSubItemAssoc iat) (numberList pars)
-    res <- mapM (\(_,d) -> do { vid <- mapIfUpper $ LCA.declIdent d; return $ CS.RE $ CS.Var vid}) $ filter fst $ zip arProps pars
+    res <- mapM (\(_,d) -> do { vid <- mapIfUpper $ LCA.declIdent d; return $ genExpr $ CS.Var vid}) $ filter fst $ zip arProps pars
     gsn <- makeGlobalStateNames True iat
-    gse <- mapM (\n -> do { vid <- mapIfUpper $ LCI.Ident n 0 LCN.undefNode;  return $ CS.RE $ CS.Var vid}) gsn
-    return $ mkRawExpr $ addres (res ++ gse) e
-    where addres res (CS.RE CS.Unitel) = res
+    gse <- mapM (\n -> do { vid <- mapIfUpper $ LCI.Ident n 0 LCN.undefNode;  return $ genExpr $ CS.Var vid}) gsn
+    return $ mkGenExpr $ addres (res ++ gse) e
+    where addres res (GenExpr CS.Unitel _ _) = res
           addres res e = e : res
 
 aggBitfields :: [LCA.MemberDecl] -> [LCA.MemberDecl]
@@ -760,6 +761,20 @@ arraySizeType (LCA.ArraySize _ (LCS.CConst (LCS.CIntConst ci _))) =
           i = LC.getCInteger ci
 arraySizeType _ = genType $ CS.TCon "U32" [] markBox
 
+transStat :: LC.CStat -> FTrav GenExpr
+transStat s = do
+    s' <- C.transStat s
+    return $ dummyExpr s' "Function body translation not yet implemented"
+
+transExpr :: LC.CExpr -> FTrav GenExpr
+transExpr e = do
+    e' <- C.transExpr e
+    return $ dummyExpr (LQ.Exp (Just e') noOrigin) "Expression translation not yet implemented"
+
+dummyExpr :: LQ.Stm -> String -> GenExpr
+dummyExpr s mes = GenExpr (CS.App (genExpr $ CS.Var "gencotDummy") (genExpr $ CS.StringLit mes) False) noOrigin (Just s)
+
+{-
 dummyExpr :: LCA.Type -> FTrav RawExpr
 dummyExpr (LCA.DirectType TyVoid _ _) = 
     return $ CS.RE CS.Unitel
@@ -776,12 +791,7 @@ dummyExpr (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _) = return $
     where rtyp = resolveTypedef typ
 dummyExpr _ = do
     return $ dummyApp "gencotDummy"
-
-dummyAppExpr :: CS.RawExpr -> CS.RawExpr
-dummyAppExpr fun = CS.RE $ CS.App fun (CS.RE CS.Unitel) False
-
-dummyApp :: String -> CS.RawExpr
-dummyApp fnam = dummyAppExpr $ CS.RE $ CS.Var fnam
+-}
 
 -- | Construct a function's parameter type from the sequence of translated C parameter types.
 -- The result is either the unit type, a single type, or a tuple type (for more than 1 parameter).
@@ -790,10 +800,17 @@ mkParType [] = genType CS.TUnit
 mkParType [gt] = gt
 mkParType gts = genType $ CS.TTuple gts 
 
+mkGenExpr :: [GenExpr] -> GenExpr
+mkGenExpr [] = genExpr CS.Unitel
+mkGenExpr [re] = re
+mkGenExpr res = genExpr $ CS.Tuple res
+
+{-
 mkRawExpr :: [RawExpr] -> RawExpr
 mkRawExpr [] = CS.RE CS.Unitel
 mkRawExpr [re] = re
 mkRawExpr res = CS.RE $ CS.Tuple res
+-}
 
 setBoxed :: GenType -> GenType
 setBoxed (GenType (CS.TCon nam p _) o) = (GenType (CS.TCon nam p markBox) o)

@@ -27,6 +27,7 @@ import Gencot.Items.Identifier (getObjFunName,getParamName)
 import Gencot.Cogent.Ast
 import qualified Gencot.C.Ast as LQ (Stm(Exp),Exp)
 import qualified Gencot.C.Translate as C (transStat,transExpr,transArrSizeExpr)
+import Gencot.C.Pretrans (pretransStat, pretransExpr)
 import Gencot.Traversal (FTrav,markTagAsNested,isMarkedAsNested,hasProperty,stopResolvTypeName,setFunDef,clrFunDef)
 import Gencot.Util.Types (carriedTypes,isExtern,isCompOrFunc,isCompPointer,isNamedFunPointer,isFunPointer,isPointer,isAggregate,isFunction,isTypeDefRef,isComplete,isArray,isVoid,isTagRef,containsTypedefs,resolveTypedef,isComposite,isLinearType,isLinearParType,isReadOnlyType,isReadOnlyParType,isDerivedType,isExternTypeDef,wrapFunAsPointer,getTagDef)
 
@@ -120,7 +121,7 @@ transGlobal (LCA.DeclEvent idecl@(LCA.FunctionDef fdef@(LCA.FunDef decl stat n))
     LCA.enterFunctionScope
     LCA.defineParams LCN.undefNode decl
     setFunDef fdef
-    e <- transStat stat
+    e <- transStat $ pretransStat stat
     e <- extendExpr iat e pars
     clrFunDef
     LCA.leaveFunctionScope
@@ -160,7 +161,7 @@ transGlobal (LCA.DeclEvent odef@(LCA.ObjectDef (LCA.ObjDef _ _ n))) = do
 -- > name = exp
 -- where @exp@ is the translation of expr.
 transGlobal (LCA.DeclEvent (LCA.EnumeratorDef (LCA.Enumerator idnam expr _ n))) = do
-    e <- transExpr expr
+    e <- transExpr $ pretransExpr expr
     en <- mapNameToLower idnam
     return $ [GenToplv (CS.ConstDef en (genType $ CS.TCon "U32" [] markUnbox) e) $ mkOrigin n]
 -- Translate a typedef of the form
@@ -256,7 +257,7 @@ genDerivedTypeDefs :: String -> ItemAssocType -> FTrav [GenToplv]
 -- For the other cases a generic type defintion is generated of the form
 -- > type CArr... el = { arr...: el#[<size>] }
 genDerivedTypeDefs nam (_,(LCA.ArrayType _ as _ _)) | arrDerivHasSize nam = do
-    e <- transExpr $ getSizeExpr as
+    e <- transExpr $ pretransExpr $ getSizeExpr as
     let atyp = genType $ CS.TArray (genType $ CS.TVar "el" False False) e markUnbox []
     return [GenToplv (CS.TypeDec nam ["el"] $ genType $ CS.TRecord CCT.NonRec [(arrDerivCompNam nam, (atyp, False))] markBox) noOrigin]
     where getSizeExpr (LCA.ArraySize _ e) = e -- arrDerivHasSize implies that only this case may occur for the array size as.

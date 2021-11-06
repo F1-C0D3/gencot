@@ -79,20 +79,20 @@ There are different auxiliary files for different purposes. The \code{gencot} sc
 a predefined naming scheme. These files are searched in the directory specified by the \code{-G} option. All auxiliary files
 are optional, if a file is not found it is assumed that no corresponding annotations are needed.
 
-When processing a file \code{x.<ext>} where \code{<ext>} is \code{c} or \code{h}, the \code{gencot} command uses the 
-following auxiliary files, if they exist:
+When processing a file \code{x.<ext>} where \code{<ext>} is \code{c} or \code{h}, let \code{y} be \code{x-incl} when \code{<ext>}
+is \code{h} and \code{x} otherwise. The \code{gencot} command uses the following auxiliary files, if they exist:
 \begin{description}
-\item[\code{x.gencot-addincl}] The content of this file is prepended to the processed file before processing.
-\item[\code{x.gencot-noincl}] List of ignored include files, as described in Section~\ref{impl-ccode-include}.
-\item[\code{x.gencot-omitincl}] The Gencot include omission list (see Section~\ref{design-preprocessor-incl}).
-\item[\code{x.gencot-ppretain}] The Gencot directive retainment list (see Section~\ref{design-preprocessor-config}).
-\item[\code{x.gencot-chsystem}] The content of this file is inserted immediately after the last system include directive.
-\item[\code{x.gencot-manmacros}] The Gencot manual macro list (see Section~\ref{design-preprocessor-macros}).
-\item[\code{x.gencot-macroconv}] The Gencot macro call conversion (see Section~\ref{design-preprocessor-macros}).
-\item[\code{x.gencot-macrodefs}] The Gencot macro translation for the processed file (see Section~\ref{design-preprocessor-macros}).
+\item[\code{y.gencot-addincl}] The content of this file is prepended to the processed file before processing.
+\item[\code{y.gencot-noincl}] List of ignored include files, as described in Section~\ref{impl-ccode-include}.
+\item[\code{y.gencot-omitincl}] The Gencot include omission list (see Section~\ref{design-preprocessor-incl}).
+\item[\code{y.gencot-ppretain}] The Gencot directive retainment list (see Section~\ref{design-preprocessor-config}).
+\item[\code{y.gencot-chsystem}] The content of this file is inserted immediately after the last system include directive.
+\item[\code{y.gencot-manmacros}] The Gencot manual macro list (see Section~\ref{design-preprocessor-macros}).
+\item[\code{y.gencot-macroconv}] The Gencot macro call conversion (see Section~\ref{design-preprocessor-macros}).
+\item[\code{y.gencot-macrodefs}] The Gencot macro translation for the processed file (see Section~\ref{design-preprocessor-macros}).
 \end{description}
 
-For all cases with the exception of the last two, additionally a file with name \code{common} instead of \code{x} ist used, when it
+For all cases with the exception of the last, additionally a file with name \code{common} instead of \code{y} ist used, when it
 is present. If both files are present the concatenation of them is used. In this way it is possible to specify common annotations 
 for all C sources and add specific annotations in the source file specific files.
 

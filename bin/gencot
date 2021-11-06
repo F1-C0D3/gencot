@@ -148,20 +148,20 @@ fi
 
 prepare_aux()
 {
-    if [ -e $GENCOTDIR/$1.gencot-$2 ] 
+    if [ -e $GENCOTDIR/$1.gencot-$3 ] 
     then
-        if [ -e $GENCOTDIR/common.gencot-$2 ]
+        if [ -e $GENCOTDIR/common.gencot-$3 ]
         then
-            cat $GENCOTDIR/common.gencot-$2 $GENCOTDIR/$1.gencot-$2 > $TMPDIR/$1.gencot-$2
+            cat $GENCOTDIR/common.gencot-$3 $GENCOTDIR/$1.gencot-$3 > $TMPDIR/$2.gencot-$3
         else
-            cp $GENCOTDIR/$1.gencot-$2 $TMPDIR/$1.gencot-$2
+            cp $GENCOTDIR/$1.gencot-$3 $TMPDIR/$2.gencot-$3
         fi
     else
-        if [ -e $GENCOTDIR/common.gencot-$2 ]
+        if [ -e $GENCOTDIR/common.gencot-$3 ]
         then
-            cp $GENCOTDIR/common.gencot-$2 $TMPDIR/$1.gencot-$2
+            cp $GENCOTDIR/common.gencot-$3 $TMPDIR/$2.gencot-$3
         else
-            touch $TMPDIR/$1.gencot-$2
+            touch $TMPDIR/$2.gencot-$3
         fi
     fi
 }
@@ -193,9 +193,19 @@ prepare_cfile()
     FILE=$1
     BASE=$(basename $FILE)
     NAME=$(expr match $BASE '\(.*\)[.][^.]*' '|' $BASE)
+    if [ "$CMD" = "hfile" -o "$CMD" = "config" ]
+    then
+        AUXNAME=$NAME-incl
+    else
+        AUXNAME=$NAME
+    fi
     for aux in addincl omitincl noincl manmacros macroconv ppretain chsystem
-    do prepare_aux $NAME $aux
+    do prepare_aux $AUXNAME $NAME $aux
     done
+    if [ -e $GENCOTDIR/$AUXNAME.gencot-macrodefs ]
+    then
+        cp $GENCOTDIR/$AUXNAME.gencot-macrodefs $TMPDIR/$NAME.gencot-macrodefs
+    fi
     if [ "$CMD" = "config" ]
     then
         $BIN/gencot-preconfig < $FILE > $TMPDIR/$NAME.gi
@@ -224,7 +234,7 @@ process_directives()
         | $BIN/gencot-prcppflags $TMPDIR/$CNAME.gencot-manmacros > $TMPDIR/$CNAME.prcppflags
     $BIN/gencot-prcppincl $TMPDIR/$CNAME.gencot-omitincl < $TMPDIR/$CNAME.ppsf > $TMPDIR/$CNAME.prcppincl
     $BIN/gencot-mrgpp $TMPDIR/$CNAME.prcppconst < $TMPDIR/$CNAME.out \
-        | $BIN/gencot-mrgpp $GENCOTDIR/$CNAME.gencot-macrodefs \
+        | $BIN/gencot-mrgpp $TMPDIR/$CNAME.gencot-macrodefs \
         | $BIN/gencot-mrgpp $TMPDIR/$CNAME.prcppflags \
         | $BIN/gencot-mrgpp $TMPDIR/$CNAME.prcppincl \
         | $BIN/gencot-mrgppcond $TMPDIR/$CNAME.ppsf > $TMPDIR/$CNAME.ppcond

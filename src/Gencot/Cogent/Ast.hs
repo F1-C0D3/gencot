@@ -3,7 +3,7 @@ module Gencot.Cogent.Ast where
 
 import "language-c" Language.C
 
-import Cogent.Surface as CS (TopLevel, Expr, Pattern, IrrefutablePattern, Type)
+import Cogent.Surface as CS (TopLevel, Expr, Pattern, IrrefutablePattern, Type, Binding)
 import Cogent.Common.Syntax (VarName)
 
 import Gencot.Origin (Origin)
@@ -30,3 +30,5 @@ data GenType = GenType {
     typeOfGT :: CS.Type GenExpr () GenType,
     orgOfGT :: Origin
     } deriving (Show)
+
+type GenBnd = Binding GenType GenPatn GenIrrefPatn GenExpr

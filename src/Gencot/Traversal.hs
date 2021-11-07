@@ -23,6 +23,9 @@ import Gencot.Items.Properties (ItemProperties)
 -- The sixth component is the definition of the current function while traversing a function body
 type FTrav = TravT (String,NamePrefixMap,[SUERef],ItemProperties,(Bool,[String]),Maybe FunDef) Identity
 
+instance MonadFail FTrav where
+  fail = error "FTrav monad failed"
+
 runFTrav :: DefTable -> (String,NamePrefixMap,ItemProperties,(Bool,[String])) -> FTrav a -> IO a
 runFTrav table (f,npm,ipm,tds) action = do
     (res,state) <- errorOnLeft "Error during translation" $ 

@@ -686,12 +686,16 @@ Together, Gencot uses types equivalent to the following definitions to represent
     GenIrrefPatn Origin (IrrefutablePattern VarName GenIrrefPatn GenExpr)
   data GenType = 
     GenType Origin (Type GenExpr () GenType)
+  type GenBnd = Binding GenType GenPatn GenIrrefPatn GenExpr
 \end{verbatim}
 The second parameter of \code{Type} and the fourth parameter of \code{Expr} have been added in 2020 for representing 
 Dargent layout information. Gencot does not generate that and uses the unit type instead.
 
 Type \code{Stm} is the type for C statements as defined by the language-c-quote AST 
 (see Section~\ref{impl-ccode-expr}), used to optionally embed C code in the Cogent AST.
+
+The type \code{GenBnd} is defined as an abbreviation, since it is used as intermediate representation for translating 
+C statements and expressions (see Section~\ref{impl-ccode-cstats}).
 
 All five wrapper types are defined as instances of class \code{Pretty}, basically by applying the Cogent prettyprint
 functionality to the wrapped Cogent AST type.
@@ -961,7 +965,7 @@ When both markers have different line numbers or if an \code{\#ENDORIG} marker f
 marker the first marker and the code before it are output and the buffers are filled until the next marker
 has been read.
 
-\subsection{Generating Expressions}
+\subsection{Generating C Expressions}
 \label{impl-ccode-expr}
 
 For outputting the Cogent AST the prettyprint functionality must be extended to 
@@ -1115,6 +1119,52 @@ An identifier for an enumerator is always mapped to lowercase, like preprocessor
 
 Identifiers for local variables may also occur in a declarator of a local object definition which defines 
 the name. They are also mapped depending on their linkage, as described above.
+
+\subsection{Translating C Statements and Expressions}
+\label{impl-ccode-cstats}
+
+C statements and expressions are translated to intermediate Cogent bindings and finally to Cogent expressions 
+as described in Section~\ref{design-cstats}. Gencot directly uses the datastructure for representing bindings 
+in the extended Cogent AST, described in Section~\ref{impl-ccode-gencog}. Although it would be possible
+to define a specific data structure which is more adequate for the intermediate processing, this approach has
+the advantage of higher flexibility, the possibility of using the Cogent prettyprinter for debugging output
+and no need to transform between representations.
+
+However, only a subset of the AST for bindings is used. Of the datatype \code{Binding} only the variant 
+\code{Binding} is used, the variant \code{BindingAlts} is not used since it is intended for refutable patterns 
+to distinguish cases. The optional type and the list of banged variables in the \code{Binding} variant are not used.
+As irrefutable pattern always a tuple of vaiables is used, it has the form
+\begin{verbatim}
+  PTuple [PVar v1, ..., PVar vn]
+\end{verbatim}
+where the \code{vi} are string constants for the variable names. For simplicity we use this form also if 
+\code{n} is 1, this case is simplified to the form \code{PVar v1} only in the final step.
+
+\subsubsection{Translating C Expressions}
+
+Gencot uses a common monadic action 
+\begin{verbatim}
+  bindExpr :: CExpr -> FTrav GenBnd
+\end{verbatim}
+to translate all expressions, both with and without side effects. 
+
+As variable for the expression value it always uses the variable named \code{v'}. Due to the prime character this is
+a valid identifier in Cogent but not in C, so it cannot collide with any other variable taken and mapped from the C
+code.
+
+An expression \code{e} without side effect is translated to the binding
+\begin{verbatim}
+  (v') = expr
+\end{verbatim}
+where \code{expr} is the translation of \code{e} to a Cogent expression. If \code{e} has side effects the affected 
+variables are added to the binding in arbitrary order as described in Section~\ref{design-cstats-expr}.
+
+If Gencot cannot translate an expression the rhs of the binding is a dummy expression as described in 
+Section~\ref{design-cstats-dummy}. The lhs may still contain additional variables, if Gencot detects that the expression
+modifies these C variables.
+
+\subsubsection{Translating C Statements}
+
 
 \subsection{Generating Antiquoted C Code}
 \label{impl-ccode-anti}

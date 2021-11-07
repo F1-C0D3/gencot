@@ -122,7 +122,7 @@ transGlobal (LCA.DeclEvent idecl@(LCA.FunctionDef fdef@(LCA.FunDef decl stat n))
     LCA.defineParams LCN.undefNode decl
     setFunDef fdef
     e <- transStat $ pretransStat stat
-    e <- extendExpr iat e pars
+--    e <- extendExpr iat e pars
     clrFunDef
     LCA.leaveFunctionScope
     return $ wrapOrigin n ({-nt ++ -}[GenToplv (CS.FunDef f (CS.PT [] [] t) [CS.Alt ps CCS.Regular e]) noOrigin])
@@ -763,17 +763,28 @@ arraySizeType (LCA.ArraySize _ (LCS.CConst (LCS.CIntConst ci _))) =
 arraySizeType _ = genType $ CS.TCon "U32" [] markBox
 
 transStat :: LC.CStat -> FTrav GenExpr
-transStat s = do
-    s' <- C.transStat s
-    return $ dummyExpr s' "Function body translation not yet implemented"
+transStat s = mkDummyStatExpr s "Function body translation not yet implemented"
 
 transExpr :: LC.CExpr -> FTrav GenExpr
 transExpr e = do
-    e' <- C.transExpr e
-    return $ dummyExpr (LQ.Exp (Just e') noOrigin) "Expression translation not yet implemented"
+    b <- bindExpr e
+    return $ bindingExpr b
 
-dummyExpr :: LQ.Stm -> String -> GenExpr
-dummyExpr s mes = GenExpr (CS.App (genExpr $ CS.Var "gencotDummy") (genExpr $ CS.StringLit mes) False) noOrigin (Just s)
+mkDummyStatExpr :: LC.CStat -> String -> FTrav GenExpr
+mkDummyStatExpr s mes = do
+    s' <- C.transStat s
+    return $ dummyStatExpr s' mes
+    
+mkDummyExpExpr :: LC.CExpr -> String -> FTrav GenExpr
+mkDummyExpExpr e mes = do
+    e' <- C.transExpr e
+    return $ dummyExpExpr e' mes
+    
+dummyStatExpr :: LQ.Stm -> String -> GenExpr
+dummyStatExpr s mes = GenExpr (CS.App (genExpr $ CS.Var "gencotDummy") (genExpr $ CS.StringLit mes) False) noOrigin (Just s)
+
+dummyExpExpr :: LQ.Exp -> String -> GenExpr
+dummyExpExpr e mes = (dummyStatExpr (LQ.Exp (Just e) noOrigin) mes)
 
 {-
 dummyExpr :: LCA.Type -> FTrav RawExpr
@@ -793,6 +804,47 @@ dummyExpr (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _) = return $
 dummyExpr _ = do
     return $ dummyApp "gencotDummy"
 -}
+
+exprVal = "v'"
+
+getPVarName (PVar s) = s
+getPVarName _ = ""
+
+mkBinding :: [String] -> GenExpr -> GenBnd
+mkBinding vs e =
+    CS.Binding (GenIrrefPatn (CS.PTuple (map (\v -> GenIrrefPatn v noOrigin) (map CS.PVar vs))) noOrigin) Nothing e []
+
+mkExpBinding :: [String] -> GenExpr -> GenBnd
+mkExpBinding vs e = mkBinding (exprVal : vs) e
+
+bindingVars :: GenBnd -> [String]
+bindingVars (CS.Binding (GenIrrefPatn (CS.PTuple l) _) _ _ _) = map (getPVarName . irpatnOfGIP) l
+bindingVars _ = []
+
+bindingExpr :: GenBnd -> GenExpr
+bindingExpr (CS.Binding _ _ e _) = e
+bindingExpr _ = genExpr CS.Unitel
+
+bindExpr :: LC.CExpr -> FTrav GenBnd
+bindExpr (LC.CConst (LC.CIntConst i _)) = 
+    return $ mkExpBinding [] $ genExpr $ CS.IntLit $ LC.getCInteger i
+bindExpr e@(LC.CConst (LC.CCharConst c _)) = 
+    if length ch == 1 
+       then return $ mkExpBinding [] $ genExpr $ CS.CharLit $ head ch
+       else do
+           de <- mkDummyExpExpr e "Multi character constants not supported"
+           return $ mkExpBinding [] $de
+    where ch = LC.getCChar c
+bindExpr e@(LC.CConst (LC.CFloatConst _ _)) = do
+    de <- mkDummyExpExpr e "Float literals not supported"
+    return $ mkExpBinding [] de
+bindExpr (LC.CConst (LC.CStrConst s _)) = 
+    return $ mkExpBinding [] $ genExpr $ CS.StringLit $ LC.getCString s
+bindExpr (LC.CVar nam _) =
+    return $ mkExpBinding [] $ genExpr $ CS.Var $ LC.identToString nam
+bindExpr e = do
+    de <- mkDummyExpExpr e "Translation of expression not yet implemented"
+    return $ mkExpBinding [] de
 
 -- | Construct a function's parameter type from the sequence of translated C parameter types.
 -- The result is either the unit type, a single type, or a tuple type (for more than 1 parameter).

@@ -1133,37 +1133,280 @@ and no need to transform between representations.
 However, only a subset of the AST for bindings is used. Of the datatype \code{Binding} only the variant 
 \code{Binding} is used, the variant \code{BindingAlts} is not used since it is intended for refutable patterns 
 to distinguish cases. The optional type and the list of banged variables in the \code{Binding} variant are not used.
-As irrefutable pattern always a tuple of vaiables is used, it has the form
-\begin{verbatim}
-  PTuple [PVar v1, ..., PVar vn]
-\end{verbatim}
-where the \code{vi} are string constants for the variable names. For simplicity we use this form also if 
-\code{n} is 1, this case is simplified to the form \code{PVar v1} only in the final step.
+
+The irrefutable patterns in the bindings are usually nested tuples of variables, built from the constructors
+\code{PTuple} and \code{PVar}. Related to struct and array accesses also \code{take} patterns are used constructed 
+by \code{PTake} and \code{PArrayTake}.
+
+The translation produces Cogent code in a simple and straightforward manner. The resulting code is highly inefficient 
+and large, it is intended for being improved in postprocessing steps.
 
 \subsubsection{Translating C Expressions}
 
+In C an expression can not only have side effects, side effects can even be sequenced, i.e., the result of a side
+effect can be observed and used for another side effect, for example by using the comma operator. To cover sequenced 
+side effects, Gencot uses binding lists as intermediate representation for expressions. The meaning is that the 
+rest of a list is evaluated in the context established by the first binding. 
+
+Related to accessing components of struct and array values Gencot uses \code{take} and \code{put} operations in Cogent.
+Components accessed by a \code{take} operations must usually be put back after use. Therefore Gencot uses a second
+list of bindings called ``putback list'' in addition to the main binding list. 
+
 Gencot uses a common monadic action 
 \begin{verbatim}
-  bindExpr :: CExpr -> FTrav GenBnd
+  bindExpr :: CExpr -> FTrav ([GenBnd],[GenBnd])
 \end{verbatim}
-to translate all expressions, both with and without side effects. 
+to translate every expression to a pair consisting of the main binding list and the putback list, irrespective whether 
+it has side effects or not.
 
-As variable for the expression value it always uses the variable named \code{v'}. Due to the prime character this is
+As variable for the expression value Gencot uses variables named \code{v<n>'}. Due to the prime character this is
 a valid identifier in Cogent but not in C, so it cannot collide with any other variable taken and mapped from the C
-code.
+code. The \code{<n>} is a natural number increased for each (sub)expression so that the variables for all expression 
+values are distinct. Note that, since expression values can only be used once at the position where the expression 
+is syntactically placed, every expression variable will also be used only once and could be reused afterwards for 
+other expressions. However, the value of an expression is not always used before another expression is evaluated,
+therefore the value variables are constructed so that they are unique. Only if in the construction of an expression
+one or more value variables are used the variable with the lowest number is reused for binding the expression value.
 
-An expression \code{e} without side effect is translated to the binding
+The last binding in the main binding list for an expression \code{e} has the form
 \begin{verbatim}
-  (v') = expr
+  (v<n>',v1..) = expr
 \end{verbatim}
-where \code{expr} is the translation of \code{e} to a Cogent expression. If \code{e} has side effects the affected 
-variables are added to the binding in arbitrary order as described in Section~\ref{design-cstats-expr}.
+where \code{expr} is the translation of \code{e} to a Cogent expression for a tuple value, possibly using variables bound 
+in preceding bindings. 
 
-If Gencot cannot translate an expression the rhs of the binding is a dummy expression as described in 
-Section~\ref{design-cstats-dummy}. The lhs may still contain additional variables, if Gencot detects that the expression
-modifies these C variables.
+The term \code{v1..} abbreviates 
+the sequence \code{v1},...,\code{vn} of the mapped names of all C identifiers affected by side effects of \code{e}, their values 
+are specified in the corresponding components of the tuple value of \code{expr}. Often, \code{expr} will be a tuple 
+expression of the same size as the pattern, but in some cases not (e.g., for function calls or dummy expressions). 
+The variables \code{v1}, ..., \code{vn} are called ``side effect targets'' and occur in the pattern in arbitrary order.
+
+Every binding in the main list binds in \code{v1..} atleast the side effect targets bound in \code{v1..} of the previous binding. Thus 
+the variables \code{v1..} in the last binding are all side effect targets bound in the main list. This makes it 
+easier to determine the objects affected by an expression. The putback list may also introduce side effect targets. Since 
+putback lists are usually short Gencot does not collect side effect targets in their last element. Together, the side effect 
+targets of the translated expression can be determined as the union of the side effect targets in the last element of the 
+main list and all side effect targets bound in the putback list.
+
+If Gencot cannot translate an expression it translates it to a single binding where the rhs is a dummy expression as described in 
+Section~\ref{design-cstats-dummy}. The lhs may still contain side effect targets, if Gencot detects that the expression
+modifies these C objects.
+
+\paragraph{Dealing with Subexpressions}
+
+An expression with subexpressions is translated to a main binding list which first binds the subexpressions to value
+variables and then uses these variables in the last binding as replacement for the subexpressions. The subexpressions 
+are translated to binding sequence pairs using \code{bindExpr}.
+
+The C standard defines ``sequence points'' for subexpression groups in some expressions. This means that side effects 
+occurring in subexpressions before the sequence point are observable in subexpressions after the sequence point. Otherwise
+subexpressions are ``unsequenced'', then the semantics is undefined if their side effects overlap (either the target of 
+one can be observed in another subexpression or side effects in two subexpressions have common targets). 
+
+Gencot does not translate expressions where side effects of unsequenced subexpressions overlap for an object determined 
+by the same identifier in C. Otherwise it translates every group of unsequenced subexpressions to a main binding list 
+and concatenates these lists according to the sequencing of the groups, adding the side effect targets \code{v1..} in 
+the last binding of a previous list to all bindings in the following list, unless they are rebound there.
+
+The main binding lists of unsequenced subexpressions are concatenated in arbitrary order. Because the subexpressions have no 
+overlapping side effect targets, the side effect targets are all distinct and the targets in the last binding of a previous list
+are added to all bindings in the following lists. As described above, the value variables are constructed so that they are 
+distinct for all subexpressions. Together, no variable will be rebound by concatenating the lists. 
+
+Note that it is not sufficient to use value variables numbered from 1 to \code{n} for \code{n} subexpressions. The same variables
+could be used for subexpressions of the subexpressions and would be rebound when the lists are concatenated.
+
+Note also that there can be overlapping side effects for struct components, array elements, and objects accessed through
+shared pointers. These overlapping side effects are not determined by Gencot, the resulting translation corresponds to
+one possible semantics of the C program resulting from the specific sequencing used for the unsequenced subexpressions. 
+If unwanted, such situations must be detected and corrected manually.
+
+The putback lists of all subexpressions are separately concatenated to yield the putback list of the translated expression.
+The concatenation is done in the opposite order of the concatenation of the main lists, so that components which are taken
+first are put back last. The side effect targets are transferred in the concatenated putback lists as in the main lists,
+so that the set of side effect targets increases monotonically in the putback list.
+
+\paragraph{Accessing Struct Members and Array Elements}
+
+The most general way of accessing struct members and array elements in Cogent is the \code{take} operation. It separates
+the member or element from its container data structure and binds both to variables. Since the \code{take} operation 
+syntactically is a pattern, the access expressions can be represented by a binding list, like all other expressions.
+
+In general the \code{take} operation modifies the type of the container value. To restore it the component must 
+be re-inserted after being used or replaced which is done by a \code{put} operation. A \code{put} operation is a Cogent
+expression which returns the reassembled container. Gencot binds it to the same variable which has been used 
+to bind the remaining container in the \code{take} operation. The resulting binding is added to the putback list.
+Its pattern consists of the single variable bound to the \code{put} expression.
+
+The variable for the container and the variable to which the component has been
+bound by the \code{take} operation are used by the \code{put} operation for the reassembling. Therefore both variables cannot
+be value variables since they may be used more than once. Gencot uses variable names of the form \code{r<n>'} for this 
+purpose, called component variables. They are distinct from all value variables and due to the prime character from all 
+mapped C identifiers. The \code{<n>} is a natural number increased for each \code{take} operation so that the variables 
+for all taken components are distinct.
+
+If the container is an array, the \code{put} operation needs to use the element index. In the \code{take} operation it is
+available as a value variable which can be reused before the \code{put} operation. Therefore the index is bound to an 
+additional variable of the form \code{i<n>'} where \code{<n>} is the same number as for the component variable. These
+variables are called index variables.
+
+Between the \code{take} and \code{put} bindings for a component variable it may be rebound. This way it is possible to translate
+side effects modifying the component and thus its container. In such a rebinding the component variable is placed in the 
+tuple pattern immediately after the value variable, before all side effect targets, if present. Unlike the side effect
+targets the set of component variables does not increase monotonically in subsequent bindings, a component variable is
+only present in the binding pattern if it is actually rebound. The reason is that it is not necessary to determine modifications
+to component variables in a binding list, since they are handled automatically (by the \code{put} operations).
+
+In C the container is always specified by a subexpression of the component access expression. This subexpression is translated 
+by Gencot as described above, resulting in a main binding list which ends in a binding of the container to a value
+variable \code{v<n>'}. When translating the access expression, this list is modified by replacing the last binding by 
+a \code{take} operation binding (transferring all side effect targets) followed by a binding of the new component variable
+to the (reused) value variable \code{v<n>'}. The corresponding \code{put} operation binding is prepended to the putback list. The 
+\code{take} operation is constructed according to the expression which has been bound to \code{v<n>'} by the subexpression, 
+there are three possible cases.
+
+In the first case the container is specified in C by an identifier. Then the identifier is mapped to a Cogent variable 
+which is bound to \code{v<n>'}. This variable is used to bind the remaining container value in the \code{take} operation and, in 
+the putback list, to bind the reassembled container (where it is a side effect target). 
+
+In the second case the container is specified by a subexpression for a component of another, larger container. Then
+the value variable \code{v<n>'} is bound to the corresponding component variable. This component variable is used to bind the remaining 
+container value in the \code{take} operation and, in the putback list, to bind the reassembled container.
+
+In the third case the container is specified by any other C expression which is a subexpression of the translated expression, 
+hence the expression bound to \code{v<n>'} is neither a mapped C identifier nor a component variable. In C the container can 
+only be accessed afterwards if it is shared by another C object which will lead to invalid Cogent code. Therefore Gencot does
+not bind the remaining container to a variable (uses \code{\_} instead) and does not add a corresponding \code{put} operation
+binding to the putback list, the container is ``discarded''.
+
+It may happen that an expression accesses several components of the same container or even the same component several times.
+Gencot translates every access using a new \code{take} operation and a new component variable. Usually this will lead to 
+invalid Cogent code, it is detected and simplified in later stages.
+
+A struct member access \code{e.m} has only one subexpression \code{e} for denoting the struct. If the last binding in its 
+main list has the form
+\begin{verbatim}
+  (v<n>',v1..) = (expr,v1..)
+\end{verbatim}
+it is replaced by the bindings
+\begin{verbatim}
+  (<v>{m=r<k>'},v1..) = (expr,v1..)
+  (v<n>',v1..) = (r<k>',v1..)
+\end{verbatim}
+where \code{<v>} is a variable or \code{\_} depending on \code{expr} as described above and \code{r<k>'} is a new component
+variable. If \code{<v>} is not \code{\_} the binding
+\begin{verbatim}
+  (<v>) = (<v>{m=r<n>'})
+\end{verbatim}
+is prepended to the putback list.
+
+An array element access \code{e1[e2]} has two unsequenced subexpressions \code{e1}, \code{e2} for denoting the array and the index value.
+The array access is translated by first concatenating the main binding list for \code{e1} after \code{e2}. If the last binding in this
+list has the form
+\begin{verbatim}
+  (v<n>',v1..) = (expr,v1..)
+\end{verbatim}
+it is replaced by the bindings
+\begin{verbatim}
+  (<v> @{@v<l>'=r<k>'},i<k>',v1..) = (expr,v<l>',v1..)
+  (v<n>',v1..) = (r<k>',v1..)
+\end{verbatim}
+and the binding 
+\begin{verbatim}
+  (<v>) = (<v> @{@i<k>'=r<k>'})
+\end{verbatim}
+is prepended to the putback list, where \code{<v>}, \code{r<k>'} are as above, \code{v<l>'} is the value variable used for
+binding the value of \code{e2}, and \code{i<k>'} is the index variable corresponding to \code{r<k>'}.
+
+\paragraph{Translating Pointer Dereferences}
+
+A pointer dereference is denoted in C by an application of the unary operator \code{*} to a subexpression which evaluates to
+a pointer value. Depending on the type of the referenced value (container, function, other) and whether they can be \code{NULL}, 
+pointers are treated differently by Gencot (see Section~\ref{design-types-pointer}). 
+
+In the first translation step Gencot does not take the type into account and translates all pointer dereferences as if the 
+pointer type would be translated to a type \code{(CPtr T)} by accessing the \code{cont} component. That is, an expression
+\code{*e} is translated by \code{bindExpr} as \code{e.cont} to a pair of binding lists involving a \code{take} and a \code{put}
+operation as described for struct member accesses. This translation is modified in later stages.
+
+The C operator \code{->} is a combination of a pointer dereference and a struct component access. In this case the dereferenced 
+pointer is always a pointer to a struct type. In Cogent the \code{take} and \code{put} operations can be used for structs and
+struct pointers in the same way, therefore Gencot ignores the pointer dereference and translates an expression \code{e->m}
+in the same way as \code{e.m}. The differences related to the type of \code{e} are taken into account in later stages.
+
+\paragraph{Translating the Address Operator}
+
+The address operator \code{\&} is used in C to determine a pointer to an object. Gencot does not translate expressions which
+apply the address operator to a subexpression, this must be done manually (see Section~\ref{app-transfunction-addrop}).
+
+\paragraph{Translating Function Calls}
+
+A function call has all actual arguments as subexpressions, these are treated as usual. If the function is specified directly 
+by its name \code{f} it is translated by appending the binding
+\begin{verbatim}
+  (v<n>',v1..) = (f(v<n1>',..,v<nm>'),v1..)
+\end{verbatim}
+to the concatenated main lists of all argument subexpressions. If the function is specified by any other subexpression it is
+bound to a value variable and that variable is used to specify the function on the rhs.
+
+Depending on its type and on item properties for the function and its arguments, the function may take additional arguments and
+it may return a tuple with additional results. Also, the function may be variadic or incomplete. All these issues are not taken into
+account here, they are handled in later translation stages.
+
+\paragraph{Translating lvalue Expressions}
+
+In C the targets of side effects are denoted by ``lvalue expressions'' which occur as subexpressions in assignment expressions and
+in increment/decrement expressions. An lvalue expression has the same form as any other expression and is only determined by its 
+position as subexpression in the surrounding expression. However, expressions which may occur as valid lvalue expressions are 
+restricted mainly to variables, container component accesses, and pointer dereferences.
+
+Gencot translates lvalue subexpressions in the same way as other subexpressions to a pair of binding lists using \code{bindExpr}.
+As described above, for all cases where the subexpression is a valid lvalue expression, the main binding list ends with a binding
+of the form
+\begin{verbatim}
+  (v<n>',v1..) = (v,v1..)
+\end{verbatim}
+where \code{v} is a variable, either a mapped C object identifier, or a component variable. To use the subexpression as an lvalue
+in the translated expression its main list is concatenated after the main lists of all other subexpressions, then the last 
+binding of this list is replaced by a binding
+\begin{verbatim}
+  (v<n>',v,v1..) = (expr,expr,v1..)
+\end{verbatim}
+where \code{expr} is the new value assigned as side effect by the translated expression (and also its result, therefore it is 
+additionally bound to the (reused) value variable \code{v<n>'}. If \code{v} is a side effect target it 
+is omitted from \code{v1..}.
+
+As an example, for the assignment expression \code{x = 5} the concatenated main binding lists for the subexpressions yield the
+list 
+\begin{verbatim}
+  (v2') = (5)
+  (v1') = (x)
+\end{verbatim}
+which is modified by replacing the last binding to the list
+\begin{verbatim}
+  (v2') = (5)
+  (v1',x) = (v2',v2')
+\end{verbatim}
+for the translated assignment expression.
+
+The translation of \code{a[i].m = 0} yields the main binding list
+\begin{verbatim}
+  (v3') = (0)
+  (v2') = (i)
+  (a @{@v2'=r1'},i1') = (a,v2')
+  (r1'{m=r2'}) = (r1')
+  (v1',r2') = (v3',v3')
+\end{verbatim}
+and the putback list
+\begin{verbatim}
+  (r1') = (r1'{m=r2'})
+  (a) = (a @{@i1'=r1'})
+\end{verbatim}
 
 \subsubsection{Translating C Statements}
+
+
+
 
 
 \subsection{Generating Antiquoted C Code}

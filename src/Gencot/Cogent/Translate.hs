@@ -2,7 +2,7 @@
 module Gencot.Cogent.Translate where
 
 import Control.Monad (liftM,when)
-import Data.List (nub,isPrefixOf,isInfixOf,intercalate,unlines,sortOn,sort)
+import Data.List (nub,isPrefixOf,isInfixOf,intercalate,unlines,sortOn,sort,intersect)
 import Data.Map (Map,singleton,unions,toList,union)
 import Data.Maybe (catMaybes)
 
@@ -25,10 +25,10 @@ import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapName
 import Gencot.Items.Types (ItemAssocType,isNotNullItem,isReadOnlyItem,isAddResultItem,isNoStringItem,getGlobalStateSubItemIds,getGlobalStateProperty,getGlobalStateId,getTagItemAssoc,getIndividualItemAssoc,getTypedefItemAssoc,adjustItemAssocType,getMemberSubItemAssoc,getRefSubItemAssoc,getResultSubItemAssoc,getElemSubItemAssoc,getParamSubItemAssoc,getItemAssocType,getMemberItemAssocTypes,getSubItemAssocTypes,numberList)
 import Gencot.Items.Identifier (getObjFunName,getParamName)
 import Gencot.Cogent.Ast
+import Gencot.Cogent.Bindings (BindsPair,leadVar,mkBodyExpr,mkPlainExpr,mkEmptyBindsPair,mkDummyExprBindsPair,mkDummyStatBindsPair,mkIntLitBindsPair,mkCharLitBindsPair,mkStringLitBindsPair,mkValVarBindsPair,mkOpBindsPair,mkIfBindsPair,mkExpBindsPair,mkRetBindsPair,concatBindsPairs)
 import qualified Gencot.C.Ast as LQ (Stm(Exp),Exp)
 import qualified Gencot.C.Translate as C (transStat,transExpr,transArrSizeExpr)
-import Gencot.C.Pretrans (pretransStat, pretransExpr)
-import Gencot.Traversal (FTrav,markTagAsNested,isMarkedAsNested,hasProperty,stopResolvTypeName,setFunDef,clrFunDef)
+import Gencot.Traversal (FTrav,markTagAsNested,isMarkedAsNested,hasProperty,stopResolvTypeName,setFunDef,clrFunDef,getValCounter,getCmpCounter,resetVarCounters,resetValCounter)
 import Gencot.Util.Types (carriedTypes,isExtern,isCompOrFunc,isCompPointer,isNamedFunPointer,isFunPointer,isPointer,isAggregate,isFunction,isTypeDefRef,isComplete,isArray,isVoid,isTagRef,containsTypedefs,resolveTypedef,isComposite,isLinearType,isLinearParType,isReadOnlyType,isReadOnlyParType,isDerivedType,isExternTypeDef,wrapFunAsPointer,getTagDef)
 
 genType t = GenType t noOrigin
@@ -121,7 +121,7 @@ transGlobal (LCA.DeclEvent idecl@(LCA.FunctionDef fdef@(LCA.FunDef decl stat n))
     LCA.enterFunctionScope
     LCA.defineParams LCN.undefNode decl
     setFunDef fdef
-    e <- transStat $ pretransStat stat
+    e <- transBody stat
 --    e <- extendExpr iat e pars
     clrFunDef
     LCA.leaveFunctionScope
@@ -161,7 +161,7 @@ transGlobal (LCA.DeclEvent odef@(LCA.ObjectDef (LCA.ObjDef _ _ n))) = do
 -- > name = exp
 -- where @exp@ is the translation of expr.
 transGlobal (LCA.DeclEvent (LCA.EnumeratorDef (LCA.Enumerator idnam expr _ n))) = do
-    e <- transExpr $ pretransExpr expr
+    e <- transExpr expr
     en <- mapNameToLower idnam
     return $ [GenToplv (CS.ConstDef en (genType $ CS.TCon "U32" [] markUnbox) e) $ mkOrigin n]
 -- Translate a typedef of the form
@@ -257,7 +257,7 @@ genDerivedTypeDefs :: String -> ItemAssocType -> FTrav [GenToplv]
 -- For the other cases a generic type defintion is generated of the form
 -- > type CArr... el = { arr...: el#[<size>] }
 genDerivedTypeDefs nam (_,(LCA.ArrayType _ as _ _)) | arrDerivHasSize nam = do
-    e <- transExpr $ pretransExpr $ getSizeExpr as
+    e <- transExpr $ getSizeExpr as
     let atyp = genType $ CS.TArray (genType $ CS.TVar "el" False False) e markUnbox []
     return [GenToplv (CS.TypeDec nam ["el"] $ genType $ CS.TRecord CCT.NonRec [(arrDerivCompNam nam, (atyp, False))] markBox) noOrigin]
     where getSizeExpr (LCA.ArraySize _ e) = e -- arrDerivHasSize implies that only this case may occur for the array size as.
@@ -762,13 +762,134 @@ arraySizeType (LCA.ArraySize _ (LCS.CConst (LCS.CIntConst ci _))) =
           i = LC.getCInteger ci
 arraySizeType _ = genType $ CS.TCon "U32" [] markBox
 
-transStat :: LC.CStat -> FTrav GenExpr
-transStat s = mkDummyStatExpr s "Function body translation not yet implemented"
+{- Translating function bodies -}
+{- --------------------------- -}
+
+transBody :: LC.CStat -> FTrav GenExpr
+transBody s = do
+    resetVarCounters
+    bp <- bindStat s
+    return $ mkBodyExpr $ bp
 
 transExpr :: LC.CExpr -> FTrav GenExpr
 transExpr e = do
-    b <- bindExpr e
-    return $ bindingExpr b
+    bp <- bindExpr e
+    return $ mkPlainExpr $ bp
+
+bindStat :: LC.CStat -> FTrav BindsPair
+bindStat s@(LC.CExpr Nothing _) =
+    insertStatSrc s $ mkExpBindsPair mkEmptyBindsPair
+bindStat s@(LC.CExpr (Just e) _) = do
+    resetValCounter
+    bpe <- bindExpr e
+    insertStatSrc s $ mkExpBindsPair bpe
+bindStat s@(LC.CReturn Nothing _) =
+    insertStatSrc s $ mkRetBindsPair Nothing mkEmptyBindsPair
+bindStat s@(LC.CReturn (Just e) _) = do
+    resetValCounter
+    bpe <- bindExpr e
+    insertStatSrc s $ mkRetBindsPair (Just $ leadVar bpe) bpe
+bindStat s@(LC.CCompound lbls bis _) =
+    if not $ null lbls
+       then insertStatSrc s $ mkDummyStatBindsPair "Local labels not supported in compound statement"
+       else bindBlockItems bis
+bindStat s = 
+    insertStatSrc s $ mkDummyStatBindsPair "Translation of statement not yet implemented"
+
+bindBlockItems :: [LC.CBlockItem] -> FTrav BindsPair
+bindBlockItems [] = return $ mkExpBindsPair mkEmptyBindsPair
+bindBlockItems [bi] = bindBlockItem bi
+bindBlockItems bis = insertStatSrc (LC.CCompound [] bis LCN.undefNode) $ mkDummyStatBindsPair "Translation of nontrivial blocks not yet implemented"
+
+bindBlockItem :: LC.CBlockItem -> FTrav BindsPair
+bindBlockItem (LC.CBlockStmt s) = bindStat s
+bindBlockItem (LC.CBlockDecl d) = return $ mkDummyStatBindsPair "Translation of declarations not yet implemented"
+
+bindExpr :: LC.CExpr -> FTrav BindsPair
+bindExpr e@(LC.CConst (LC.CIntConst i _)) = do
+    cnt <- getValCounter
+    insertExprSrc e $ mkIntLitBindsPair cnt $ LC.getCInteger i
+bindExpr e@(LC.CConst (LC.CCharConst c _)) = do
+    cnt <- getValCounter
+    insertExprSrc e $ 
+        if length ch == 1 
+           then mkCharLitBindsPair cnt $ head ch
+           else mkDummyExprBindsPair cnt "Multi character constants not supported"
+    where ch = LC.getCChar c
+bindExpr e@(LC.CConst (LC.CFloatConst _ _)) = do
+    cnt <- getValCounter
+    insertExprSrc e $ mkDummyExprBindsPair cnt "Float literals not supported"
+bindExpr e@(LC.CConst (LC.CStrConst s _)) = do
+    cnt <- getValCounter
+    insertExprSrc e $ mkStringLitBindsPair cnt $ LC.getCString s
+bindExpr e@(LC.CVar nam _) = do
+    v <- transObjName nam
+    cnt <- getValCounter
+    insertExprSrc e $ mkValVarBindsPair cnt v
+bindExpr e@(LC.CUnary LC.CNegOp e1 _) = do
+    -- not i -> if i==0 then 1 else 0
+    bp1 <- bindExpr e1
+    cnt <- getValCounter
+    let c0 = mkIntLitBindsPair cnt 0
+    cnt <- getValCounter
+    let c1 = mkIntLitBindsPair cnt 1
+    insertExprSrc e $ mkIfBindsPair (mkOpBindsPair "==" [bp1,c0]) c1 c0
+bindExpr e@(LC.CUnary op e1 _) | elem op [LC.CPlusOp,LC.CMinOp,LC.CCompOp] = do
+    bp1 <- bindExpr e1
+    insertExprSrc e $ mkOpBindsPair (transUnOp op) [bp1]
+bindExpr e@(LC.CBinary LC.CLndOp e1 e2 _) = do
+    -- e1 && e2 -> if e1 then e2 else 0
+    bp1 <- bindExpr e1
+    bp2 <- bindExpr e2
+    cnt <- getValCounter
+    let c0 = mkIntLitBindsPair cnt 0
+    insertExprSrc e $ mkIfBindsPair bp1 bp2 c0
+bindExpr e@(LC.CBinary LC.CLorOp e1 e2 _) = do
+    -- e1 || e2 -> if e1 then 1 else e2
+    bp1 <- bindExpr e1
+    bp2 <- bindExpr e2
+    cnt <- getValCounter
+    let c1 = mkIntLitBindsPair cnt 1
+    insertExprSrc e $ mkIfBindsPair bp1 c1 bp2
+bindExpr e@(LC.CBinary op e1 e2 _) = do
+    bp1 <- bindExpr e1
+    bp2 <- bindExpr e2
+    insertExprSrc e $ mkOpBindsPair (transBinOp op) [bp1,bp2]
+bindExpr e@(LC.CCond e1 (Just e2) e3 _) = do
+    bp1 <- bindExpr e1
+    bp2 <- bindExpr e2
+    bp3 <- bindExpr e3
+    insertExprSrc e $ mkIfBindsPair bp1 bp2 bp3
+bindExpr e@(LC.CComma es _) = do
+    bps <- mapM bindExpr es
+    insertExprSrc e $ concatBindsPairs bps
+bindExpr e = do
+    cnt <- getValCounter
+    insertExprSrc e $ mkDummyExprBindsPair cnt "Translation of expression not yet implemented"
+
+-- | Add a statement source to the final binding in the main list
+insertStatSrc :: LC.CStat -> BindsPair -> FTrav BindsPair
+insertStatSrc src bp = do
+    src' <- C.transStat src
+    return $ insertSrc src' bp
+
+-- | Add an expression source to the final binding in the main list
+-- The expression is inserted as an expression statement.
+insertExprSrc :: LC.CExpr -> BindsPair -> FTrav BindsPair
+insertExprSrc src bp = do
+    src' <- C.transExpr src
+    return $ insertSrc (LQ.Exp (Just src') noOrigin) bp
+
+-- | Add a source to the final binding in the main list
+insertSrc :: LQ.Stm -> BindsPair -> BindsPair
+insertSrc src (main,putback) =
+    ((CS.Binding ip t (GenExpr e o (Just src)) v) : tail main,putback)
+    where (CS.Binding ip t (GenExpr e o _) v) = head main
+
+
+
+
+
 
 mkDummyStatExpr :: LC.CStat -> String -> FTrav GenExpr
 mkDummyStatExpr s mes = do
@@ -807,44 +928,90 @@ dummyExpr _ = do
 
 exprVal = "v'"
 
+exprValN :: Int -> String
+exprValN n = "v" ++ (show n) ++ "'"
+
 getPVarName (PVar s) = s
 getPVarName _ = ""
 
-mkBinding :: [String] -> GenExpr -> GenBnd
-mkBinding vs e =
-    CS.Binding (GenIrrefPatn (CS.PTuple (map (\v -> GenIrrefPatn v noOrigin) (map CS.PVar vs))) noOrigin) Nothing e []
+-- construct (v1,..,vn) = (e1,..,en)
+mkBinding :: [String] -> [GenExpr] -> GenBnd
+mkBinding vs es =
+    CS.Binding 
+        (GenIrrefPatn (CS.PTuple (map (\v -> GenIrrefPatn v noOrigin) (map CS.PVar vs))) noOrigin) Nothing 
+        (genExpr $ CS.Tuple es) []
 
-mkExpBinding :: [String] -> GenExpr -> GenBnd
-mkExpBinding vs e = mkBinding (exprVal : vs) e
+-- construct (v',v1,..,vn) = (e,e1,..,en)
+mkExpBinding :: [String] -> GenExpr -> [GenExpr] -> GenBnd
+mkExpBinding vs e es = mkBinding (exprVal : vs) (e:es)
+
+-- from (v',vi1,..,vini) = ei for i=1..m construct ((v1',v11,..,v1n1),..,(vm',vm1,..,vmnm)) = (e1,..,em)
+-- if ni = 0 or ei = (ei0,ei1,..,eini) flatten that part
+--concExpBinding :: [GenBnd] -> GenBnd
+--concExpBinding bs = 
 
 bindingVars :: GenBnd -> [String]
 bindingVars (CS.Binding (GenIrrefPatn (CS.PTuple l) _) _ _ _) = map (getPVarName . irpatnOfGIP) l
 bindingVars _ = []
 
-bindingExpr :: GenBnd -> GenExpr
-bindingExpr (CS.Binding _ _ e _) = e
-bindingExpr _ = genExpr CS.Unitel
+-- Tuple pattern or variable, if tuple of size 1
+bindingPatn :: GenBnd -> GenIrrefPatn
+bindingPatn (CS.Binding (GenIrrefPatn (CS.PTuple [gip]) _) _ _ _) = gip
+bindingPatn (CS.Binding gip _ _ _) = gip
 
-bindExpr :: LC.CExpr -> FTrav GenBnd
-bindExpr (LC.CConst (LC.CIntConst i _)) = 
-    return $ mkExpBinding [] $ genExpr $ CS.IntLit $ LC.getCInteger i
-bindExpr e@(LC.CConst (LC.CCharConst c _)) = 
-    if length ch == 1 
-       then return $ mkExpBinding [] $ genExpr $ CS.CharLit $ head ch
-       else do
-           de <- mkDummyExpExpr e "Multi character constants not supported"
-           return $ mkExpBinding [] $de
-    where ch = LC.getCChar c
-bindExpr e@(LC.CConst (LC.CFloatConst _ _)) = do
-    de <- mkDummyExpExpr e "Float literals not supported"
-    return $ mkExpBinding [] de
-bindExpr (LC.CConst (LC.CStrConst s _)) = 
-    return $ mkExpBinding [] $ genExpr $ CS.StringLit $ LC.getCString s
-bindExpr (LC.CVar nam _) =
-    return $ mkExpBinding [] $ genExpr $ CS.Var $ LC.identToString nam
-bindExpr e = do
-    de <- mkDummyExpExpr e "Translation of expression not yet implemented"
-    return $ mkExpBinding [] de
+-- Tuple expr or expr, if tuple of size 1
+bindingExpr :: GenBnd -> GenExpr
+bindingExpr (CS.Binding _ _ (GenExpr (CS.Tuple [e]) _ _) _) = e
+bindingExpr (CS.Binding _ _ e _) = e
+
+-- mkVarTuple constructs: [v1,..,vn] from the variable names
+mkVarTuple :: [String] -> [GenExpr]
+mkVarTuple ns = map (genExpr . CS.Var ) ns
+
+-- mkValRef constructs: v'
+mkValRef :: GenExpr
+mkValRef = genExpr $ CS.Var exprVal
+
+-- mkValRefs n constructs: [v1',...,vn']
+mkValRefs :: Int -> [GenExpr]
+mkValRefs n = mkVarTuple $ map exprValN $ take n $ iterate (1 +) 1 
+
+-- renameVal i changes v' to vi' and (v',v1,..,vn) to (vi',v1,..,vn)
+renameVal :: Int -> GenIrrefPatn -> GenIrrefPatn
+renameVal i (GenIrrefPatn (CS.PTuple ((GenIrrefPatn (CS.PVar _) o):gips)) o') = 
+    (GenIrrefPatn (CS.PTuple ((GenIrrefPatn (CS.PVar (exprValN i)) o):gips)) o')
+renameVal i (GenIrrefPatn (CS.PVar _) o) =
+    (GenIrrefPatn (CS.PVar (exprValN i)) o)
+
+fvGB :: GenBnd -> [CCS.VarName]
+fvGB b = [] -- TODO using conversion to raw and CS.fvB
+
+
+transUnOp :: LC.CUnaryOp -> CCS.OpName
+transUnOp LC.CPlusOp = "+"
+transUnOp LC.CMinOp  = "-"
+transUnOp LC.CCompOp = "complement"
+transUnOp LC.CNegOp  = "not"
+
+transBinOp :: LC.CBinaryOp -> CCS.OpName
+transBinOp LC.CMulOp = "*"
+transBinOp LC.CDivOp = "/"
+transBinOp LC.CRmdOp = "%"
+transBinOp LC.CAddOp = "+"
+transBinOp LC.CSubOp = "-"
+transBinOp LC.CShlOp = "<<"
+transBinOp LC.CShrOp = ">>"
+transBinOp LC.CLeOp  = "<"
+transBinOp LC.CGrOp  = ">"
+transBinOp LC.CLeqOp = "<="
+transBinOp LC.CGeqOp = ">="
+transBinOp LC.CEqOp  = "=="
+transBinOp LC.CNeqOp = "/="
+transBinOp LC.CAndOp = ".&."
+transBinOp LC.CXorOp = ".^."
+transBinOp LC.COrOp  = ".|."
+transBinOp LC.CLndOp = "&&"
+transBinOp LC.CLorOp = "||"
 
 -- | Construct a function's parameter type from the sequence of translated C parameter types.
 -- The result is either the unit type, a single type, or a tuple type (for more than 1 parameter).

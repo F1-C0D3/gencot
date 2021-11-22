@@ -1,0 +1,313 @@
+{-# LANGUAGE PackageImports #-}
+module Gencot.Cogent.Bindings where
+
+import Data.List (union,nub)
+
+import Cogent.Surface as CS
+import Cogent.Common.Syntax as CCS
+
+import Gencot.Cogent.Ast
+import Gencot.Origin (noOrigin)
+    
+prime = '\''
+
+ctlVar = "c"++[prime]
+
+cmpVar :: Int -> CCS.VarName
+cmpVar n = "r"++(show n)++[prime]
+
+valVar :: Int -> CCS.VarName
+valVar 0 = "v"++[prime]
+valVar n = "v"++(show n)++[prime]
+
+-- A pair of main and putback binding lists.
+-- The main list is represented in reverse order.
+type BindsPair = ([GenBnd],[GenBnd])
+
+-- | Convert a binding list pair for an expression to a binding list pair for a statement. 
+etosBindsPair :: BindsPair -> BindsPair
+etosBindsPair (main,putback) =
+    ((mkVarBinding ctlVar mkFfnExpr) : main, putback)
+
+-- | Select side effect targets from a binding list pair.
+sideEffectTargets :: BindsPair -> [CCS.VarName]
+sideEffectTargets (main,putback) =
+    sideEffectFilter $ union (boundVars main) (boundVars putback)
+
+-- | Select side effect targets from a list of variable names.
+sideEffectFilter :: [CCS.VarName] -> [CCS.VarName]
+sideEffectFilter vs =
+    filter (\v -> (last v) /= prime) vs 
+
+-- | Variable names from a tuple pattern of variables or a single variable pattern.
+tupleVars :: GenIrrefPatn -> [CCS.VarName]
+tupleVars (GenIrrefPatn (CS.PVar v) _) = [v]
+tupleVars (GenIrrefPatn (CS.PTuple pvs) _) =
+    map (\(GenIrrefPatn (CS.PVar v) _) -> v) pvs
+
+-- | Variable names bound in a binding list
+boundVars :: [GenBnd] -> [CCS.VarName]
+boundVars bs = 
+    nub $ concat $ map (\(CS.Binding ip _ _ _) -> tupleVars ip) bs
+
+-- | The first variable bound in the final binding of the main list.
+leadVar :: BindsPair -> CCS.VarName
+leadVar (main,_) = head $ tupleVars ip
+    where (CS.Binding ip _ _ _) = head main
+
+boundExpr :: GenBnd -> GenExpr
+boundExpr (CS.Binding _ _ e _) = e
+
+-- Construct Binding List Pairs
+-------------------------------
+
+mkEmptyBindsPair :: BindsPair
+mkEmptyBindsPair = ([],[])
+
+-- | Construct a binding list pair from a single binding.
+mkSingleBindsPair :: GenBnd -> BindsPair
+mkSingleBindsPair b = ([b],[])
+
+-- | Single binding v<n>' = gencotDummy msg
+mkDummyExprBindsPair :: Int -> String -> BindsPair
+mkDummyExprBindsPair n msg = mkSingleBindsPair $ mkVarBinding (valVar n) $ mkDummyExpr msg
+
+-- | Single binding c' = gencotDummy msg
+mkDummyStatBindsPair :: String -> BindsPair
+mkDummyStatBindsPair msg = mkSingleBindsPair $ mkVarBinding ctlVar $ mkDummyExpr msg
+
+-- | Single binding v<n>' = i
+mkIntLitBindsPair :: Int -> Integer -> BindsPair
+mkIntLitBindsPair n i = mkSingleBindsPair $ mkVarBinding (valVar n) $ mkIntLitExpr i
+
+-- | Single binding v<n>' = c
+mkCharLitBindsPair :: Int -> Char -> BindsPair
+mkCharLitBindsPair n i = mkSingleBindsPair $ mkVarBinding (valVar n) $ mkCharLitExpr i
+
+-- | Single binding v<n>' = s
+mkStringLitBindsPair :: Int -> String -> BindsPair
+mkStringLitBindsPair n s = mkSingleBindsPair $ mkVarBinding (valVar n) $ mkStringLitExpr s
+
+-- | Single binding v<n>' = v
+mkValVarBindsPair :: Int -> CCS.VarName -> BindsPair
+mkValVarBindsPair n v = mkSingleBindsPair $ mkVarBinding (valVar n) $ mkVarExpr v
+
+-- | Operator application v<n>' = op [bp...]
+mkOpBindsPair :: CCS.OpName -> [BindsPair] -> BindsPair
+mkOpBindsPair op bps =
+    addBinding (mkVarBinding (head vs) $ mkOpExpr op (map mkVarExpr vs)) $ concatBindsPairs bps
+    where vs = map leadVar bps 
+
+-- | Conditional v<n>' = if bp1 then bp2 else bp3
+mkIfBindsPair :: BindsPair -> BindsPair -> BindsPair -> BindsPair
+mkIfBindsPair bp0 bp1 bp2 =
+    addBinding (mkVarsBinding (v0 : set) (mkIfExpr (mkVarExpr v0) e1 e2)) bp
+    where set1 = sideEffectTargets bp1
+          set2 = sideEffectTargets bp2
+          v0 = leadVar bp0
+          set = union set1 set2
+          (bp1l,e1) = if null set1 then ([bp1],mkVarTupleExpr (leadVar bp1 : set))
+                                   else ([],boundExpr $ cmbExtBinds set bp1)
+          (bp2l,e2) = if null set2 then ([bp2],mkVarTupleExpr (leadVar bp2 : set))
+                                   else ([],boundExpr $ cmbExtBinds set bp2)
+          bp = concatBindsPairs (bp0 : (bp1l ++ bp2l))
+
+-- | Turn binding list pair to statement by appending c' = (C1,c2,me)
+mkStatBindsPair :: Bool -> Bool -> Maybe GenExpr -> BindsPair -> BindsPair
+mkStatBindsPair c1 c2 me bp = addBinding (mkVarBinding ctlVar $ mkCtrlTupleExpr c1 c2 me) bp
+
+-- | Expression statement: c' = (False, False, None)
+mkExpBindsPair :: BindsPair -> BindsPair
+mkExpBindsPair bp = mkStatBindsPair False False Nothing bp
+
+-- | Return statement: c' = (True, True, Some v<n>') or (True, True, Some ())
+mkRetBindsPair :: Maybe CCS.VarName -> BindsPair -> BindsPair
+mkRetBindsPair Nothing bp = mkStatBindsPair True True (Just mkUnitExpr) bp
+mkRetBindsPair (Just v) bp = mkStatBindsPair True True (Just $ mkVarExpr v) bp
+
+-- | Add binding to the main list
+addBinding :: GenBnd -> BindsPair -> BindsPair
+addBinding b (main,putback) = (b : main,putback)
+
+-- | Concatenate binding list pairs in order.
+-- The first binding list pair is evaluated first and putback last.
+concatBindsPairs :: [BindsPair] -> BindsPair
+concatBindsPairs bps = (concat mains,concat putbacks)
+    where (mains,putbacks) = unzip $ reverse bps
+
+-- Construct Bindings
+---------------------
+
+-- construct p = expr
+mkBinding :: GenIrrefPatn -> GenExpr -> GenBnd
+mkBinding ip e = CS.Binding ip Nothing e []
+
+-- construct (p1,..,pn) = expr or p1 = expr
+mkTupleBinding :: [GenIrrefPatn] -> GenExpr -> GenBnd
+mkTupleBinding ps e = mkBinding (mkTuplePattern ps) e
+
+-- construct (v1,..,vn) = expr or v1 = expr
+mkVarsBinding :: [CCS.VarName] -> GenExpr -> GenBnd
+mkVarsBinding vs e = mkTupleBinding (map mkVarPattern vs) e
+
+-- construct v = expr
+mkVarBinding :: CCS.VarName -> GenExpr -> GenBnd
+mkVarBinding v e = mkBinding (mkVarPattern v) e
+
+-- construct (v1,..,vn) = (e1,..,en)
+mkVarsTupleBinding :: [CCS.VarName] -> [GenExpr] -> GenBnd
+mkVarsTupleBinding [v] [e] = mkVarBinding v e
+mkVarsTupleBinding vs es = mkVarsBinding vs $ mkTupleExpr es
+
+-- replace p in (p,p1,...,pn) = expr or p = expr
+replaceLeadPatn :: GenIrrefPatn -> GenBnd -> GenBnd
+replaceLeadPatn ip (CS.Binding (GenIrrefPatn (CS.PTuple ps) _) _ e _) = mkTupleBinding (ip : tail ps) e
+replaceLeadPatn ip' (CS.Binding ip _ e _) = mkBinding ip' e
+
+-- | Combine all bindings in a binding list pair to a single binding.
+cmbBinds :: BindsPair -> GenBnd
+cmbBinds bp = cmbExtBinds (sideEffectTargets bp) bp
+
+-- | Combine all bindings in a binding list pair to a single binding with given side effect targets.
+cmbExtBinds :: [CCS.VarName] -> BindsPair -> GenBnd
+cmbExtBinds vs bp@(main,putback) = 
+    mkVarsBinding vs' $ mkLetExpr bs $ mkVarTupleExpr vs'
+    where vs' = (leadVar bp : vs)
+          bs = (reverse main) ++ putback
+
+-- Construct Patterns
+---------------------
+
+genIrrefPatn p = GenIrrefPatn p noOrigin
+
+mkWildcardPattern :: GenIrrefPatn
+mkWildcardPattern = genIrrefPatn CS.PUnderscore
+
+mkVarPattern :: CCS.VarName -> GenIrrefPatn
+mkVarPattern = genIrrefPatn . CS.PVar
+
+mkCtrlPattern :: GenIrrefPatn
+mkCtrlPattern = mkVarPattern ctlVar
+
+mkValPattern :: Int -> GenIrrefPatn
+mkValPattern = mkVarPattern . valVar
+
+mkTuplePattern :: [GenIrrefPatn] -> GenIrrefPatn
+mkTuplePattern [ip] = ip
+mkTuplePattern ips = genIrrefPatn $ CS.PTuple ips
+
+-- Construct Expressions
+------------------------
+
+genExpr e = GenExpr e noOrigin Nothing
+
+-- construct ()
+mkUnitExpr :: GenExpr
+mkUnitExpr = genExpr CS.Unitel
+
+-- construct i
+mkIntLitExpr :: Integer -> GenExpr
+mkIntLitExpr = genExpr . CS.IntLit
+
+-- construct c
+mkCharLitExpr :: Char -> GenExpr
+mkCharLitExpr = genExpr . CS.CharLit
+
+-- construct s
+mkStringLitExpr :: String -> GenExpr
+mkStringLitExpr = genExpr . CS.StringLit
+
+-- construct v
+mkVarExpr :: CCS.VarName -> GenExpr
+mkVarExpr = genExpr . CS.Var
+
+-- construct (e1,..,en) or e1
+mkTupleExpr :: [GenExpr] -> GenExpr
+mkTupleExpr [e] = e
+mkTupleExpr es = genExpr $ CS.Tuple es
+
+-- construct e1 op e2 or op e1
+mkOpExpr :: CCS.OpName -> [GenExpr] -> GenExpr
+mkOpExpr op es = genExpr $ CS.PrimOp op es
+
+-- construct control tuple value
+mkCtrlTupleExpr :: Bool -> Bool -> Maybe GenExpr -> GenExpr
+mkCtrlTupleExpr c1 c2 me = 
+    mkTupleExpr [genExpr $ CS.BoolLit c1, genExpr $ CS.BoolLit c2,
+        case me of
+             Nothing -> genExpr $ CS.Con "None" []
+             Just e -> genExpr $ CS.Con "Some" [e] ]
+
+-- construct (False,False,None)
+mkFfnExpr :: GenExpr
+mkFfnExpr = mkCtrlTupleExpr True True Nothing
+
+-- construct (v1,...,vn) or v1
+mkVarTupleExpr :: [CCS.VarName] -> GenExpr
+mkVarTupleExpr vs = mkTupleExpr $ map mkVarExpr vs
+
+-- construct ((False,False,None),v1,...,vn) or (False,False,None)
+mkFfnVarTupleExpr :: [CCS.VarName] -> GenExpr
+mkFfnVarTupleExpr [] = mkFfnExpr
+mkFfnVarTupleExpr vs = mkTupleExpr (mkFfnExpr : map mkVarExpr vs)
+
+-- replace e1 in (e1,...,en) or e1
+replaceLeadExpr :: GenExpr -> GenExpr -> GenExpr
+replaceLeadExpr e (GenExpr (CS.Tuple es) o src) = GenExpr (CS.Tuple (e : tail es)) o src
+replaceLeadExpr e _ = e
+
+-- construct f () or f e1 or f (e1,..,en)
+mkAppExpr :: CCS.FunName -> [GenExpr] -> GenExpr
+mkAppExpr f es = genExpr $ CS.App (genExpr $ CS.Var f) (arg es) False
+    where arg [] = mkUnitExpr
+          arg [e] = e
+          arg es = mkTupleExpr es
+
+-- construct f () or f e1 or f (e1,..,en)
+mkTypedAppExpr :: CCS.FunName -> [Maybe GenType] -> [GenExpr] -> GenExpr
+mkTypedAppExpr f ts es = genExpr $ CS.App (genExpr $ CS.TLApp f ts [] NoInline) (arg es) False
+    where arg [] = mkUnitExpr
+          arg [e] = e
+          arg es = mkTupleExpr es
+
+-- construct let b1 and ... and bn in e
+mkLetExpr :: [GenBnd] -> GenExpr -> GenExpr
+mkLetExpr bs e =
+    genExpr $ CS.Let bs e
+
+-- construct if e0 then e1 else e2
+mkIfExpr :: GenExpr -> GenExpr -> GenExpr -> GenExpr
+mkIfExpr e0 e1 e2 = genExpr $ CS.If e0 [] e1 e2
+
+-- construct e | C1 v11 .. v1n1 -> e1 | ... | Ck vk1 .. vknk -> ek
+mkMatchExpr :: GenExpr -> [(CCS.TagName,[CCS.VarName],GenExpr)] -> GenExpr
+mkMatchExpr e as = genExpr $ CS.Match e [] $ map mkAlt as
+    where mkAlt (tag,vars,e) = CS.Alt (GenPatn (CS.PCon tag $ map mkVarPattern vars) noOrigin) CCS.Regular e
+
+-- construct let (_,_,res') = expr in res' | None -> defaultVal() | Some v -> v
+mkBodyExpr :: BindsPair -> GenExpr
+mkBodyExpr bp = mkLetExpr [replaceLeadPatn lp $ cmbBinds bp] mtch
+    where lp = mkTuplePattern [mkWildcardPattern,mkWildcardPattern,mkVarPattern "res'"]
+          mtch = mkMatchExpr (mkVarExpr "res'") 
+                   [("None",[],mkAppExpr "defaultVal" []),
+                    ("Some",["v"],mkVarExpr "v")]
+
+-- construct let ... in v<n>'
+mkPlainExpr :: BindsPair -> GenExpr
+mkPlainExpr (main,putback) = 
+    if not $ null putback
+       then toDummyExpr e $ mkDummyExpr "No putback obligations supported in plain expression."
+       else 
+       if (length vs) > 1
+          then toDummyExpr e $ mkDummyExpr "No side effects supported in plain expression."
+          else mkLetExpr (reverse main) $ mkVarExpr $ head vs
+    where (CS.Binding ip _ e _) = head main
+          vs = tupleVars ip
+
+-- construct (gencotDummy msg)
+mkDummyExpr :: String -> GenExpr
+mkDummyExpr msg = mkAppExpr "gencotDummy" [mkStringLitExpr msg]
+
+-- turn expression to dummy, preserving origin and source
+toDummyExpr :: GenExpr -> GenExpr -> GenExpr
+toDummyExpr (GenExpr e o src) (GenExpr dummy _ _) = (GenExpr dummy o src) 

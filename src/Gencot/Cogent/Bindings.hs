@@ -58,6 +58,18 @@ leadVar (main,_) = head $ tupleVars ip
 boundExpr :: GenBnd -> GenExpr
 boundExpr (CS.Binding _ _ e _) = e
 
+-- | The first expression bound in the final binding of the main list, which must be a variable.
+lvalVar :: BindsPair -> Maybe CCS.VarName
+lvalVar (main,_) = 
+    case e of
+         (GenExpr (CS.Tuple es) _ _) -> 
+            case head es of
+                 (GenExpr (CS.Var v) _ _) -> Just v
+                 _ -> Nothing
+         (GenExpr (CS.Var v) _ _) -> Just v
+         _ -> Nothing
+    where (CS.Binding _ _ e _) = head main
+
 -- Construct Binding List Pairs
 -------------------------------
 
@@ -98,7 +110,25 @@ mkOpBindsPair op bps =
     addBinding (mkVarBinding (head vs) $ mkOpExpr op (map mkVarExpr vs)) $ concatBindsPairs bps
     where vs = map leadVar bps 
 
--- | Conditional v<n>' = if bp1 then bp2 else bp3
+-- | Assignment v<n>' = v<n>' op v<k>', (v<n>',v) = (v<n>',v<n>') or (v,v<n>')
+-- The first argument is True for a postfix inc/dec operator, otherwise false.
+-- The second argument is empty for a plain assignment, otherwise the operator op to be used.
+-- The third argument is the lvalue BindsPair.
+-- The fourth argument is the operator argument BindsPair or the assigned BindsPair for a plain assignment. 
+mkAssBindsPair :: Bool -> CCS.OpName -> BindsPair -> BindsPair -> BindsPair
+mkAssBindsPair post op bpl bpr =
+    case lvalVar bpl of 
+         Nothing -> mkSingleBindsPair $ mkVarBinding vl $ mkDummyExpr "Unsupported lvalue in assignment"
+         Just v -> let e = mkVarExpr v
+                       lval = mkVarsTupleBinding [vl,v] [if post then e else el, el]
+                   in addBinding lval $ addBinding (mkVarBinding vl er') $ concatBindsPairs [bpr,bpl]
+    where vl = leadVar bpl
+          vr = leadVar bpr
+          el = mkVarExpr vl
+          er = mkVarExpr vr
+          er' = if null op then er else mkOpExpr op [el,er]
+
+-- | Conditional v<n>' = if bp1 then bp2 else bp3$ head bps
 mkIfBindsPair :: BindsPair -> BindsPair -> BindsPair -> BindsPair
 mkIfBindsPair bp0 bp1 bp2 =
     addBinding (mkVarsBinding (v0 : set) (mkIfExpr (mkVarExpr v0) e1 e2)) bp

@@ -1376,15 +1376,14 @@ of the form
   (v<n>',v1..) = (v,v1..)
 \end{verbatim}
 where \code{v} is a variable, either a mapped C object identifier, or a component variable. To use the subexpression as an lvalue
-in the translated expression its main list is concatenated after the main lists of all other subexpressions, then the last 
-binding of this list is replaced by a binding
+in the translated expression its main list is concatenated after the main lists of all other subexpressions, then the binding
 \begin{verbatim}
-  (v<n>',v,v1..) = (expr,expr,v1..)
+  (v<n>',v) = (v<k>',v<k>')
 \end{verbatim}
-where \code{expr} is the new value assigned as side effect by the translated expression (and also its result, therefore it is 
-additionally bound to the (reused) value variable \code{v<n>'}. If \code{v} is a side effect target it 
-is omitted from \code{v1..}. Note that this is the only case where a value variable can be used twice, if \code{expr} is a 
-value variable, however, it is always used in the same binding.
+is appended to its main list
+where \code{v<k>'} is the value variable bound by the binding list pair corresponding to the new value assigned as side effect
+(and also the result of the expression, therefore it is additionally bound to the (reused) value variable \code{v<n>'}. 
+Note that this is the only case where a value variable can be used twice, however, it is always used in the same binding.
 
 As an example, for the assignment expression \code{x = 5} the concatenated main binding lists for the subexpressions yield the
 list 
@@ -1411,6 +1410,44 @@ and the putback list
 \begin{verbatim}
   r1' = r1'{m=r2'}
   a = a @{@i1'=r1'}
+\end{verbatim}
+
+\subsubsection{Translating Expressions with Side Effects}
+
+C Expressions with side effects are assignments and application of increment/decrement operators. The lvalue subexpression is always 
+translated as described in the previous section. The cases differ in how the value variable \code{v<k>'} for the new value is 
+determined.
+
+For an assignment expression there are two subexpressions, the subexpression \code{e1} for the lvalue and the subexpression \code{e2}
+for the rhs. Let \code{v<n>'} be the value variable bound in the binding list pair for \code{e1} and \code{v<k>'} be that for \code{e2}.
+The binding list pair for the assignment expression is constructed by appending the list pair for \code{e1} after that for \code{e2}.
+Then an additional binding is appended to the main list which is
+\begin{verbatim}
+  v<n>' = v<k>'
+\end{verbatim}
+for a plain assignment \code{e1 = e2} and has the form
+\begin{verbatim}
+  v<n>' = v<n>' + v<k>'
+\end{verbatim}
+for an assignment with an operator, such as \code{e1 += e2}. After that the binding for the lvalue 
+\begin{verbatim}
+  (v<n>',v) = (v<n>',v<n>')
+\end{verbatim}
+is appended to the main list, where \code{v} is the variable to be set by the lvalue, as described in the previous section.
+
+For an increment/decrement operator such as \code{e++} there is only one subexpression \code{e}. Let \code{v<n>'} be the value variable bound in 
+the bindings list pair for \code{e}. An additional binding list pair for the literal \code{1} is constructed and prepended to that for \code{e}.
+If it binds the value variable \code{v<k>'} the additinal binding appended to the main list of \code{e} is
+\begin{verbatim}
+  v<n>' = v<n>' + v<k>'
+\end{verbatim}
+Then for a postfix increment/decrement operator, such as \code{e++} the binding for the lvalue is
+\begin{verbatim}
+  (v<n>',v) = (v,v<n>')
+\end{verbatim}
+and for a prefix increment/decrement operator, such as \code{++e} it is
+\begin{verbatim}
+  (v<n>',v) = (v<n>',v<n>')
 \end{verbatim}
 
 \subsubsection{Conditional Evaluation}

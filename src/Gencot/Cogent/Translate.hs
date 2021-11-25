@@ -25,7 +25,7 @@ import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapName
 import Gencot.Items.Types (ItemAssocType,isNotNullItem,isReadOnlyItem,isAddResultItem,isNoStringItem,getGlobalStateSubItemIds,getGlobalStateProperty,getGlobalStateId,getTagItemAssoc,getIndividualItemAssoc,getTypedefItemAssoc,adjustItemAssocType,getMemberSubItemAssoc,getRefSubItemAssoc,getResultSubItemAssoc,getElemSubItemAssoc,getParamSubItemAssoc,getItemAssocType,getMemberItemAssocTypes,getSubItemAssocTypes,numberList)
 import Gencot.Items.Identifier (getObjFunName,getParamName)
 import Gencot.Cogent.Ast
-import Gencot.Cogent.Bindings (BindsPair,leadVar,mkBodyExpr,mkPlainExpr,mkEmptyBindsPair,mkDummyExprBindsPair,mkDummyStatBindsPair,mkIntLitBindsPair,mkCharLitBindsPair,mkStringLitBindsPair,mkValVarBindsPair,mkOpBindsPair,mkIfBindsPair,mkExpBindsPair,mkRetBindsPair,concatBindsPairs)
+import Gencot.Cogent.Bindings (BindsPair,leadVar,lvalVar,mkBodyExpr,mkPlainExpr,mkEmptyBindsPair,mkDummyExprBindsPair,mkDummyStatBindsPair,mkIntLitBindsPair,mkCharLitBindsPair,mkStringLitBindsPair,mkValVarBindsPair,mkOpBindsPair,mkAssBindsPair,mkIfBindsPair,mkExpBindsPair,mkRetBindsPair,concatBindsPairs)
 import qualified Gencot.C.Ast as LQ (Stm(Exp),Exp)
 import qualified Gencot.C.Translate as C (transStat,transExpr,transArrSizeExpr)
 import Gencot.Traversal (FTrav,markTagAsNested,isMarkedAsNested,hasProperty,stopResolvTypeName,setFunDef,clrFunDef,getValCounter,getCmpCounter,resetVarCounters,resetValCounter)
@@ -769,12 +769,12 @@ transBody :: LC.CStat -> FTrav GenExpr
 transBody s = do
     resetVarCounters
     bp <- bindStat s
-    return $ mkBodyExpr $ bp
+    return $ cleanSrc $ mkBodyExpr $ bp
 
 transExpr :: LC.CExpr -> FTrav GenExpr
 transExpr e = do
     bp <- bindExpr e
-    return $ mkPlainExpr $ bp
+    return $ cleanSrc $ mkPlainExpr $ bp
 
 bindStat :: LC.CStat -> FTrav BindsPair
 bindStat s@(LC.CExpr Nothing _) =
@@ -837,6 +837,12 @@ bindExpr e@(LC.CUnary LC.CNegOp e1 _) = do
 bindExpr e@(LC.CUnary op e1 _) | elem op [LC.CPlusOp,LC.CMinOp,LC.CCompOp] = do
     bp1 <- bindExpr e1
     insertExprSrc e $ mkOpBindsPair (transUnOp op) [bp1]
+bindExpr e@(LC.CUnary op e1 _) | elem op [LC.CPreIncOp,LC.CPreDecOp,LC.CPostIncOp,LC.CPostDecOp] = do
+    bp1 <- bindExpr e1
+    cnt <- getValCounter
+    let bp2 = mkIntLitBindsPair cnt 1
+    insertExprSrc e $ mkAssBindsPair post (transUnOp op) bp1 bp2
+    where post = elem op [LC.CPostIncOp,LC.CPostDecOp]
 bindExpr e@(LC.CBinary LC.CLndOp e1 e2 _) = do
     -- e1 && e2 -> if e1 then e2 else 0
     bp1 <- bindExpr e1
@@ -855,6 +861,10 @@ bindExpr e@(LC.CBinary op e1 e2 _) = do
     bp1 <- bindExpr e1
     bp2 <- bindExpr e2
     insertExprSrc e $ mkOpBindsPair (transBinOp op) [bp1,bp2]
+bindExpr e@(LC.CAssign op e1 e2 _) = do
+    bp1 <- bindExpr e1
+    bp2 <- bindExpr e2
+    insertExprSrc e $ mkAssBindsPair False (transAssOp op) bp1 bp2
 bindExpr e@(LC.CCond e1 (Just e2) e3 _) = do
     bp1 <- bindExpr e1
     bp2 <- bindExpr e2
@@ -890,104 +900,14 @@ insertSrc src (main,putback) =
 
 
 
-
-mkDummyStatExpr :: LC.CStat -> String -> FTrav GenExpr
-mkDummyStatExpr s mes = do
-    s' <- C.transStat s
-    return $ dummyStatExpr s' mes
-    
-mkDummyExpExpr :: LC.CExpr -> String -> FTrav GenExpr
-mkDummyExpExpr e mes = do
-    e' <- C.transExpr e
-    return $ dummyExpExpr e' mes
-    
-dummyStatExpr :: LQ.Stm -> String -> GenExpr
-dummyStatExpr s mes = GenExpr (CS.App (genExpr $ CS.Var "gencotDummy") (genExpr $ CS.StringLit mes) False) noOrigin (Just s)
-
-dummyExpExpr :: LQ.Exp -> String -> GenExpr
-dummyExpExpr e mes = (dummyStatExpr (LQ.Exp (Just e) noOrigin) mes)
-
-{-
-dummyExpr :: LCA.Type -> FTrav RawExpr
-dummyExpr (LCA.DirectType TyVoid _ _) = 
-    return $ CS.RE CS.Unitel
-dummyExpr (LCA.DirectType (LCA.TyComp _) _ _) = do
-    return $ dummyApp "gencotDummy"
-dummyExpr (LCA.DirectType _ _ _) = do
-    return $ CS.RE $ CS.IntLit 0
-dummyExpr (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _) = return $
-    case rtyp of
-         (LCA.DirectType (LCA.TyComp _) _ _) -> dummyApp "gencotDummy"
-         (LCA.DirectType TyVoid _ _) -> CS.RE CS.Unitel
-         (LCA.DirectType _ _ _) -> CS.RE $ CS.IntLit 0
-         _ -> dummyApp "gencotDummy"
-    where rtyp = resolveTypedef typ
-dummyExpr _ = do
-    return $ dummyApp "gencotDummy"
--}
-
-exprVal = "v'"
-
-exprValN :: Int -> String
-exprValN n = "v" ++ (show n) ++ "'"
-
-getPVarName (PVar s) = s
-getPVarName _ = ""
-
--- construct (v1,..,vn) = (e1,..,en)
-mkBinding :: [String] -> [GenExpr] -> GenBnd
-mkBinding vs es =
-    CS.Binding 
-        (GenIrrefPatn (CS.PTuple (map (\v -> GenIrrefPatn v noOrigin) (map CS.PVar vs))) noOrigin) Nothing 
-        (genExpr $ CS.Tuple es) []
-
--- construct (v',v1,..,vn) = (e,e1,..,en)
-mkExpBinding :: [String] -> GenExpr -> [GenExpr] -> GenBnd
-mkExpBinding vs e es = mkBinding (exprVal : vs) (e:es)
-
--- from (v',vi1,..,vini) = ei for i=1..m construct ((v1',v11,..,v1n1),..,(vm',vm1,..,vmnm)) = (e1,..,em)
--- if ni = 0 or ei = (ei0,ei1,..,eini) flatten that part
---concExpBinding :: [GenBnd] -> GenBnd
---concExpBinding bs = 
-
-bindingVars :: GenBnd -> [String]
-bindingVars (CS.Binding (GenIrrefPatn (CS.PTuple l) _) _ _ _) = map (getPVarName . irpatnOfGIP) l
-bindingVars _ = []
-
--- Tuple pattern or variable, if tuple of size 1
-bindingPatn :: GenBnd -> GenIrrefPatn
-bindingPatn (CS.Binding (GenIrrefPatn (CS.PTuple [gip]) _) _ _ _) = gip
-bindingPatn (CS.Binding gip _ _ _) = gip
-
--- Tuple expr or expr, if tuple of size 1
-bindingExpr :: GenBnd -> GenExpr
-bindingExpr (CS.Binding _ _ (GenExpr (CS.Tuple [e]) _ _) _) = e
-bindingExpr (CS.Binding _ _ e _) = e
-
--- mkVarTuple constructs: [v1,..,vn] from the variable names
-mkVarTuple :: [String] -> [GenExpr]
-mkVarTuple ns = map (genExpr . CS.Var ) ns
-
--- mkValRef constructs: v'
-mkValRef :: GenExpr
-mkValRef = genExpr $ CS.Var exprVal
-
--- mkValRefs n constructs: [v1',...,vn']
-mkValRefs :: Int -> [GenExpr]
-mkValRefs n = mkVarTuple $ map exprValN $ take n $ iterate (1 +) 1 
-
--- renameVal i changes v' to vi' and (v',v1,..,vn) to (vi',v1,..,vn)
-renameVal :: Int -> GenIrrefPatn -> GenIrrefPatn
-renameVal i (GenIrrefPatn (CS.PTuple ((GenIrrefPatn (CS.PVar _) o):gips)) o') = 
-    (GenIrrefPatn (CS.PTuple ((GenIrrefPatn (CS.PVar (exprValN i)) o):gips)) o')
-renameVal i (GenIrrefPatn (CS.PVar _) o) =
-    (GenIrrefPatn (CS.PVar (exprValN i)) o)
-
 fvGB :: GenBnd -> [CCS.VarName]
 fvGB b = [] -- TODO using conversion to raw and CS.fvB
 
-
 transUnOp :: LC.CUnaryOp -> CCS.OpName
+transUnOp LC.CPreIncOp = "+"
+transUnOp LC.CPreDecOp = "-"
+transUnOp LC.CPostIncOp = "+"
+transUnOp LC.CPostDecOp = "-"
 transUnOp LC.CPlusOp = "+"
 transUnOp LC.CMinOp  = "-"
 transUnOp LC.CCompOp = "complement"
@@ -1012,6 +932,27 @@ transBinOp LC.CXorOp = ".^."
 transBinOp LC.COrOp  = ".|."
 transBinOp LC.CLndOp = "&&"
 transBinOp LC.CLorOp = "||"
+
+transAssOp :: LC.CAssignOp -> CCS.OpName
+transAssOp LC.CAssignOp = ""
+transAssOp LC.CMulAssOp = "*"
+transAssOp LC.CDivAssOp = "/"
+transAssOp LC.CRmdAssOp = "%"
+transAssOp LC.CAddAssOp = "+"
+transAssOp LC.CSubAssOp = "-"
+transAssOp LC.CShlAssOp = "<<"
+transAssOp LC.CShrAssOp = ">>"
+transAssOp LC.CAndAssOp = ".&."
+transAssOp LC.CXorAssOp = ".^."
+transAssOp LC.COrAssOp = ".|."
+
+-- | Remove source from all but dummy expressions
+cleanSrc :: GenExpr -> GenExpr
+cleanSrc (GenExpr e o Nothing) = GenExpr (fmap cleanSrc e) o Nothing
+cleanSrc (GenExpr e o (Just src)) =
+    case e of
+         CS.App (GenExpr (CS.Var "gencotDummy") _ _) _ _ -> GenExpr (fmap cleanSrc e) o (Just src)
+         _ -> GenExpr (fmap cleanSrc e) o Nothing
 
 -- | Construct a function's parameter type from the sequence of translated C parameter types.
 -- The result is either the unit type, a single type, or a tuple type (for more than 1 parameter).

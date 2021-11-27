@@ -1292,40 +1292,34 @@ container is bound in the \code{take} operation is rebound between the \code{tak
 so that the \code{put} operation would possibly overwrite the rebinding. This situation is also detected and handled in 
 later translation stages.
 
-A struct member access \code{e.m} has only one subexpression \code{e} for denoting the struct. If the last binding in its 
-main list has the form
+A struct member access \code{e.m} has only one subexpression \code{e} for denoting the struct. The following two additional 
+bindings are appended to its main list
 \begin{verbatim}
-  (v<n>',v1..) = (expr,v1..)
+  <v>{m=r<k>'} = v<n>'
+  v<n>' = r<k>'
 \end{verbatim}
-it is replaced by the bindings
+where \code{v<n>'} is the value variable bound in the binding list pair for \code{e}, \code{<v>} is a variable or \code{\_} 
+depending on the expression bound to \code{v<n>'} in the binding list pair for \code{e} as described above, and \code{r<k>'} 
+is a new component variable. If \code{<v>} is not \code{\_} the binding
 \begin{verbatim}
-  (<v>{m=r<k>'},v1..) = (expr,v1..)
-  (v<n>',v1..) = (r<k>',v1..)
-\end{verbatim}
-where \code{<v>} is a variable or \code{\_} depending on \code{expr} as described above and \code{r<k>'} is a new component
-variable. If \code{<v>} is not \code{\_} the binding
-\begin{verbatim}
-  <v> = <v>{m=r<n>'}
+  <v> = <v>{m=r<k>'}
 \end{verbatim}
 is prepended to the putback list.
 
 An array element access \code{e1[e2]} has two unsequenced subexpressions \code{e1}, \code{e2} for denoting the array and the index value.
-The array access is translated by first concatenating the main binding list for \code{e1} after \code{e2}. If the last binding in this
-list has the form
+The array access is translated by first concatenating the main binding list for \code{e1} after \code{e2}. Then the following two additional 
+bindings are appended to the resulting main list
 \begin{verbatim}
-  (v<n>',v1..) = (expr,v1..)
+  (<v> @{@v<l>'=r<k>'},i<k>') = (v<n>',v<l>')
+  v<n>' = r<k>'
 \end{verbatim}
-it is replaced by the bindings
-\begin{verbatim}
-  (<v> @{@v<l>'=r<k>'},i<k>',v1..) = (expr,v<l>',v1..)
-  (v<n>',v1..) = (r<k>',v1..)
-\end{verbatim}
-and the binding 
+where \code{v<n>'} is the value variable bound in the binding list pair for \code{e1}, \code{v<l>'} is the value variable used for
+binding the value of \code{e2}, \code{i<k>'} is the index variable corresponding to \code{r<k>'}, and \code{<v>} and \code{r<k>'} 
+are as above. If \code{<v>} is not \code{\_} the binding
 \begin{verbatim}
   <v> = <v> @{@i<k>'=r<k>'}
 \end{verbatim}
-is prepended to the putback list, where \code{<v>}, \code{r<k>'} are as above, \code{v<l>'} is the value variable used for
-binding the value of \code{e2}, and \code{i<k>'} is the index variable corresponding to \code{r<k>'}.
+is prepended to the putback list.
 
 \subsubsection{Translating Pointer Dereferences}
 

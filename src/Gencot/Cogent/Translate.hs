@@ -25,7 +25,7 @@ import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapName
 import Gencot.Items.Types (ItemAssocType,isNotNullItem,isReadOnlyItem,isAddResultItem,isNoStringItem,getGlobalStateSubItemIds,getGlobalStateProperty,getGlobalStateId,getTagItemAssoc,getIndividualItemAssoc,getTypedefItemAssoc,adjustItemAssocType,getMemberSubItemAssoc,getRefSubItemAssoc,getResultSubItemAssoc,getElemSubItemAssoc,getParamSubItemAssoc,getItemAssocType,getMemberItemAssocTypes,getSubItemAssocTypes,numberList)
 import Gencot.Items.Identifier (getObjFunName,getParamName)
 import Gencot.Cogent.Ast
-import Gencot.Cogent.Bindings (BindsPair,leadVar,lvalVar,mkBodyExpr,mkPlainExpr,mkEmptyBindsPair,mkDummyExprBindsPair,mkDummyStatBindsPair,mkIntLitBindsPair,mkCharLitBindsPair,mkStringLitBindsPair,mkValVarBindsPair,mkOpBindsPair,mkAssBindsPair,mkIfBindsPair,mkExpBindsPair,mkRetBindsPair,concatBindsPairs)
+import Gencot.Cogent.Bindings (BindsPair,leadVar,lvalVar,mkBodyExpr,mkPlainExpr,mkEmptyBindsPair,mkDummyExprBindsPair,mkDummyStatBindsPair,mkIntLitBindsPair,mkCharLitBindsPair,mkStringLitBindsPair,mkValVarBindsPair,mkMemBindsPair,mkIdxBindsPair,mkOpBindsPair,mkAppBindsPair,mkAssBindsPair,mkIfBindsPair,mkExpBindsPair,mkRetBindsPair,concatBindsPairs)
 import qualified Gencot.C.Ast as LQ (Stm(Exp),Exp)
 import qualified Gencot.C.Translate as C (transStat,transExpr,transArrSizeExpr)
 import Gencot.Traversal (FTrav,markTagAsNested,isMarkedAsNested,hasProperty,stopResolvTypeName,setFunDef,clrFunDef,getValCounter,getCmpCounter,resetVarCounters,resetValCounter)
@@ -826,6 +826,16 @@ bindExpr e@(LC.CVar nam _) = do
     v <- transObjName nam
     cnt <- getValCounter
     insertExprSrc e $ mkValVarBindsPair cnt v
+bindExpr e@(LC.CMember e1 nam arrow _) = do
+    bp1 <- bindExpr e1
+    m <- mapIfUpper nam
+    cnt <- getCmpCounter
+    insertExprSrc e $ mkMemBindsPair cnt m bp1
+bindExpr e@(LC.CIndex e1 e2 _) = do
+    bp1 <- bindExpr e1
+    bp2 <- bindExpr e2
+    cnt <- getCmpCounter
+    insertExprSrc e $ mkIdxBindsPair cnt bp1 bp2
 bindExpr e@(LC.CUnary LC.CNegOp e1 _) = do
     -- not i -> if i==0 then 1 else 0
     bp1 <- bindExpr e1
@@ -861,6 +871,17 @@ bindExpr e@(LC.CBinary op e1 e2 _) = do
     bp1 <- bindExpr e1
     bp2 <- bindExpr e2
     insertExprSrc e $ mkOpBindsPair (transBinOp op) [bp1,bp2]
+bindExpr e@(LC.CCall (LC.CVar nam _) [] _) = do
+    cnt <- getValCounter
+    f <- transObjName nam
+    insertExprSrc e $ mkAppBindsPair f cnt []
+bindExpr e@(LC.CCall (LC.CVar nam _) es _) = do
+    bps <- mapM bindExpr es
+    f <- transObjName nam
+    insertExprSrc e $ mkAppBindsPair f 0 bps
+bindExpr e@(LC.CCall _ _ _) = do
+    cnt <- getValCounter
+    insertExprSrc e $ mkDummyExprBindsPair cnt "Translation of function expression not yet implemented"
 bindExpr e@(LC.CAssign op e1 e2 _) = do
     bp1 <- bindExpr e1
     bp2 <- bindExpr e2

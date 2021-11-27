@@ -35,7 +35,7 @@ unit-regression: unit $(foreach U,$(UNIT),test-$(U)-expected.cogent) $(foreach U
 	done
 	-diff test-external.items test-external-expected.items
 
-unit-expect-current: unit
+unit-expect-current: unit test.unit-dfltprops
 	@for u in $(UNIT); do \
 	  echo "cp test-$$u.cogent test-$$u-expected.cogent"; \
 	  cp test-$$u.cogent test-$$u-expected.cogent; \

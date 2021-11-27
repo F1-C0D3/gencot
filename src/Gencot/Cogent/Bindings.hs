@@ -2,6 +2,7 @@
 module Gencot.Cogent.Bindings where
 
 import Data.List (union,nub)
+import Data.Maybe (catMaybes)
 
 import Cogent.Surface as CS
 import Cogent.Common.Syntax as CCS
@@ -15,6 +16,9 @@ ctlVar = "c"++[prime]
 
 cmpVar :: Int -> CCS.VarName
 cmpVar n = "r"++(show n)++[prime]
+
+idxVar :: Int -> CCS.VarName
+idxVar n = "i"++(show n)++[prime]
 
 valVar :: Int -> CCS.VarName
 valVar 0 = "v"++[prime]
@@ -39,11 +43,13 @@ sideEffectFilter :: [CCS.VarName] -> [CCS.VarName]
 sideEffectFilter vs =
     filter (\v -> (last v) /= prime) vs 
 
--- | Variable names from a tuple pattern of variables or a single variable pattern.
+-- | All variable names occurring in a pattern.
 tupleVars :: GenIrrefPatn -> [CCS.VarName]
-tupleVars (GenIrrefPatn (CS.PVar v) _) = [v]
-tupleVars (GenIrrefPatn (CS.PTuple pvs) _) =
-    map (\(GenIrrefPatn (CS.PVar v) _) -> v) pvs
+tupleVars ip = case irpatnOfGIP ip of
+                    CS.PVar v -> [v]
+                    CS.PTuple pvs -> concat $ map tupleVars pvs
+                    CS.PTake v fs -> v : (concat $ map (tupleVars . snd) $ catMaybes fs)
+                    CS.PArrayTake v fs -> v : (concat $ map (tupleVars . snd) fs)
 
 -- | Variable names bound in a binding list
 boundVars :: [GenBnd] -> [CCS.VarName]
@@ -58,15 +64,15 @@ leadVar (main,_) = head $ tupleVars ip
 boundExpr :: GenBnd -> GenExpr
 boundExpr (CS.Binding _ _ e _) = e
 
--- | The first expression bound in the final binding of the main list, which must be a variable.
+-- | The first expression bound in the final binding of the main list, if it is a variable.
 lvalVar :: BindsPair -> Maybe CCS.VarName
 lvalVar (main,_) = 
-    case e of
-         (GenExpr (CS.Tuple es) _ _) -> 
-            case head es of
-                 (GenExpr (CS.Var v) _ _) -> Just v
+    case exprOfGE e of
+         (CS.Tuple es) -> 
+            case exprOfGE $ head es of
+                 (CS.Var v) -> Just v
                  _ -> Nothing
-         (GenExpr (CS.Var v) _ _) -> Just v
+         (CS.Var v) -> Just v
          _ -> Nothing
     where (CS.Binding _ _ e _) = head main
 
@@ -104,11 +110,48 @@ mkStringLitBindsPair n s = mkSingleBindsPair $ mkVarBinding (valVar n) $ mkStrin
 mkValVarBindsPair :: Int -> CCS.VarName -> BindsPair
 mkValVarBindsPair n v = mkSingleBindsPair $ mkVarBinding (valVar n) $ mkVarExpr v
 
+-- | Member (field) access <v>{f=r<k>’} = v<n>' and v<n>’ = r<k>’
+--   with putback <v> = <v>{f=r<k>’}
+mkMemBindsPair :: Int -> CCS.FieldName -> BindsPair -> BindsPair
+mkMemBindsPair n f bp = 
+    if rv == "_" then mainbp else addPutback (mkVarBinding rv $ mkRecPutExpr rv cmp f) mainbp
+    where cmp = cmpVar n
+          vv = leadVar bp
+          rv = case lvalVar bp of 
+                    Just v -> v
+                    Nothing -> "_"
+          mainbp = addBinding (mkVarBinding vv $ mkVarExpr cmp) $ 
+                     addBinding (mkBinding (mkRecTakePattern rv cmp f) $ mkVarExpr vv) bp
+
+-- | Array access (<v> @{@v<l>’=r<k>’},i<k>') = (v<n>',v<l>') and v<n>’ = r<k>’
+--   with putback <v> = <v> @{@i<k>'=r<k>’}
+mkIdxBindsPair :: Int -> BindsPair -> BindsPair -> BindsPair
+mkIdxBindsPair n bp1 bp2 = 
+    if rv == "_" then mainbp else addPutback (mkVarBinding rv $ mkArrPutExpr rv cmp idx) mainbp
+    where cmp = cmpVar n
+          idx = idxVar n
+          v1 = leadVar bp1
+          v2 = leadVar bp2
+          rv = case lvalVar bp1 of 
+                    Just v -> v
+                    Nothing -> "_"
+          mainbp = addBinding (mkVarBinding v1 $ mkVarExpr cmp) $ 
+                     addBinding (mkBinding (mkArrTakePattern rv cmp idx v2) $ mkVarTupleExpr [v1,v2]) $ concatBindsPairs [bp2,bp1]
+
 -- | Operator application v<n>' = op [bp...]
 mkOpBindsPair :: CCS.OpName -> [BindsPair] -> BindsPair
 mkOpBindsPair op bps =
     addBinding (mkVarBinding (head vs) $ mkOpExpr op (map mkVarExpr vs)) $ concatBindsPairs bps
     where vs = map leadVar bps 
+
+-- | Function application v<n>' = f (bp...)
+-- If the function has arguments the value variable of the first argument is reused.
+-- Otherwise a new value variable is introduced.
+mkAppBindsPair :: CCS.FunName -> Int -> [BindsPair] -> BindsPair
+mkAppBindsPair f n bps =
+    addBinding (mkVarBinding v $ mkAppExpr f (map mkVarExpr vs)) $ concatBindsPairs bps
+    where vs = map leadVar bps
+          v = if null vs then valVar n else (head vs)
 
 -- | Assignment v<n>' = v<n>' op v<k>', (v<n>',v) = (v<n>',v<n>') or (v,v<n>')
 -- The first argument is True for a postfix inc/dec operator, otherwise false.
@@ -158,6 +201,10 @@ mkRetBindsPair (Just v) bp = mkStatBindsPair True True (Just $ mkVarExpr v) bp
 -- | Add binding to the main list
 addBinding :: GenBnd -> BindsPair -> BindsPair
 addBinding b (main,putback) = (b : main,putback)
+
+-- | Add binding to the putback list
+addPutback :: GenBnd -> BindsPair -> BindsPair
+addPutback b (main,putback) = (main, b : putback)
 
 -- | Concatenate binding list pairs in order.
 -- The first binding list pair is evaluated first and putback last.
@@ -225,6 +272,14 @@ mkValPattern = mkVarPattern . valVar
 mkTuplePattern :: [GenIrrefPatn] -> GenIrrefPatn
 mkTuplePattern [ip] = ip
 mkTuplePattern ips = genIrrefPatn $ CS.PTuple ips
+
+-- construct v1{m=v2}
+mkRecTakePattern :: CCS.VarName -> CCS.VarName -> CCS.FieldName -> GenIrrefPatn
+mkRecTakePattern v1 v2 m = genIrrefPatn $ CS.PTake v1 [Just (m, mkVarPattern v2)]
+
+-- construct (v1 @{@v4=v2},v3)
+mkArrTakePattern :: CCS.VarName -> CCS.VarName -> CCS.VarName -> CCS.VarName -> GenIrrefPatn
+mkArrTakePattern v1 v2 v3 v4 = mkTuplePattern [genIrrefPatn $ CS.PArrayTake v1 [(mkVarExpr v4,mkVarPattern v2)], mkVarPattern v3]
 
 -- Construct Expressions
 ------------------------
@@ -304,6 +359,14 @@ mkTypedAppExpr f ts es = genExpr $ CS.App (genExpr $ CS.TLApp f ts [] NoInline) 
 mkLetExpr :: [GenBnd] -> GenExpr -> GenExpr
 mkLetExpr bs e =
     genExpr $ CS.Let bs e
+
+-- construct v1{f=v2}
+mkRecPutExpr :: CCS.VarName -> CCS.VarName -> CCS.FieldName -> GenExpr
+mkRecPutExpr v1 v2 f = genExpr $ CS.Put (mkVarExpr v1) [Just (f,mkVarExpr v2)]
+
+-- construct v1 @{@v3=v2}
+mkArrPutExpr :: CCS.VarName -> CCS.VarName -> CCS.FieldName -> GenExpr
+mkArrPutExpr v1 v2 v3 = genExpr $ CS.ArrayPut (mkVarExpr v1) [(mkVarExpr v3,mkVarExpr v2)]
 
 -- construct if e0 then e1 else e2
 mkIfExpr :: GenExpr -> GenExpr -> GenExpr -> GenExpr

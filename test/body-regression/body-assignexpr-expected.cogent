@@ -433,6 +433,39 @@ cogent_fas8 s =
    in res'
       | None -> defaultVal ()
       | Some v -> v
+cogent_fas9 : #Struct_Cogent_as1 -> U32
+cogent_fas9 s =
+   let ((_, _, res')
+       , s) = let v1' = 1
+      and v' = s
+      and s { m1 = r0' } = v'
+      and v' = r0'
+      and v' = v' + v1'
+      and (v', r0') = (v', v')
+      and c' = (True, True, Some v')
+      and s = s { m1 = r0' }
+      in (c', s)
+   in res'
+      | None -> defaultVal ()
+      | Some v -> v
+cogent_fas10 : #Struct_Cogent_as2 -> U32
+cogent_fas10 s =
+   let ((_, _, res')
+       , s) = let v1' = 1
+      and v' = s
+      and s { m4 = r0' } = v'
+      and v' = r0'
+      and r0' { m1 = r1' } = v'
+      and v' = r1'
+      and v' = v' + v1'
+      and (v', r1') = (v', v')
+      and c' = (True, True, Some v')
+      and r0' = r0' { m1 = r1' }
+      and s = s { m4 = r0' }
+      in (c', s)
+   in res'
+      | None -> defaultVal ()
+      | Some v -> v
 
 type Cogent_aa1 = CArr5 U32
 type Cogent_aa2 =
@@ -671,6 +704,408 @@ cogent_faa10 a =
       and a = a @{ @i1' = r1' }
       and a = a @{ @i0' = r0' }
       in (c', a)
+   in res'
+      | None -> defaultVal ()
+      | Some v -> v
+cogent_faa11 : Cogent_aa1 -> ( U32, Cogent_aa1 )
+cogent_faa11 a =
+   let ((_, _, res')
+       , a) = let v2' = 1
+      and v1' = 3
+      and v' = a
+      and (a @{ @v1' = r0' }
+          , i0') = (v', v1')
+      and v' = r0'
+      and v' = v' + v2'
+      and (v', r0') = (v', v')
+      and c' = (True, True, Some v')
+      and a = a @{ @i0' = r0' }
+      in (c', a)
+   in res'
+      | None -> defaultVal ()
+      | Some v -> v
+cogent_faa12 : Cogent_aa2 -> ( U32, Cogent_aa2 )
+cogent_faa12 a =
+   let ((_, _, res')
+       , a) = let v2' = 1
+      and v1' = 3
+      and v' = a
+      and (a @{ @v1' = r0' }
+          , i0') = (v', v1')
+      and v' = r0'
+      and r0' { m1 = r1' } = v'
+      and v' = r1'
+      and v' = v' + v2'
+      and (v', r1') = (v', v')
+      and c' = (True, True, Some v')
+      and r0' = r0' { m1 = r1' }
+      and a = a @{ @i0' = r0' }
+      in (c', a)
+   in res'
+      | None -> defaultVal ()
+      | Some v -> v
+cogent_faa13 : ( Cogent_aa1, U32 ) -> ( U32, Cogent_aa1 )
+cogent_faa13 (a
+             , v) =
+   let ((_, _, res')
+       , a
+       , v) = let v2' = 1
+      and v1' = v
+      and v1' = v1' + v2'
+      and (v1', v) = (v, v1')
+      and v' = a
+      and (a @{ @v1' = r0' }
+          , i0') = (v', v1')
+      and v' = r0'
+      and c' = (True, True, Some v')
+      and a = a @{ @i0' = r0' }
+      in (c', a, v)
+   in res'
+      | None -> defaultVal ()
+      | Some v -> v
+cogent_faa14 : ( Cogent_aa1, U32 ) -> ( U32, Cogent_aa1 )
+cogent_faa14 (a
+             , v) =
+   let ((_, _, res')
+       , a
+       , v) = let v2' = 1
+      and v1' = v
+      and v1' = v1' + v2'
+      and (v1', v) = (v1', v1')
+      and v' = a
+      and (a @{ @v1' = r0' }
+          , i0') = (v', v1')
+      and v' = r0'
+      and c' = (True, True, Some v')
+      and a = a @{ @i0' = r0' }
+      in (c', a, v)
+   in res'
+      | None -> defaultVal ()
+      | Some v -> v
+
+type Struct_Cogent_as3 = { m5 : U32, m6 : MayNull Struct_Cogent_as1 }
+type Cogent_aa3 =
+   CArr5 (MayNull (CPtr U32))
+cogent_fap1 : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
+cogent_fap1 (p
+            , v) =
+   let ((_, _, res')
+       , v
+       , p) = let v1' = p
+      and p { cont = r0' } = v1'
+      and v1' = r0'
+      and v' = v
+      and v' = v1'
+      and (v', v) = (v', v')
+      and v2' = v
+      and c' = (True, True, Some v2')
+      and p = p { cont = r0' }
+      in (c', v, p)
+   in res'
+      | None -> defaultVal ()
+      | Some v -> v
+cogent_fap2 : ( MayNull Struct_Cogent_as1, U32 ) -> ( U32, MayNull Struct_Cogent_as1 )
+cogent_fap2 (p
+            , v) =
+   let ((_, _, res')
+       , v
+       , p) = let v1' = p
+      and p { cont = r0' } = v1'
+      and v1' = r0'
+      and r0' { m1 = r1' } = v1'
+      and v1' = r1'
+      and v' = v
+      and v' = v1'
+      and (v', v) = (v', v')
+      and v2' = v
+      and c' = (True, True, Some v2')
+      and r0' = r0' { m1 = r1' }
+      and p = p { cont = r0' }
+      in (c', v, p)
+   in res'
+      | None -> defaultVal ()
+      | Some v -> v
+cogent_fap3 : ( MayNull Struct_Cogent_as1, U32 ) -> ( U32, MayNull Struct_Cogent_as1 )
+cogent_fap3 (p
+            , v) =
+   let ((_, _, res')
+       , v
+       , p) = let v1' = p
+      and p { m1 = r0' } = v1'
+      and v1' = r0'
+      and v' = v
+      and v' = v1'
+      and (v', v) = (v', v')
+      and v2' = v
+      and c' = (True, True, Some v2')
+      and p = p { m1 = r0' }
+      in (c', v, p)
+   in res'
+      | None -> defaultVal ()
+      | Some v -> v
+cogent_fap4 : ( MayNull Struct_Cogent_as3, U32 ) -> ( U32, MayNull Struct_Cogent_as3 )
+cogent_fap4 (p
+            , v) =
+   let ((_, _, res')
+       , v
+       , p) = let v1' = p
+      and p { m6 = r0' } = v1'
+      and v1' = r0'
+      and r0' { cont = r1' } = v1'
+      and v1' = r1'
+      and r1' { m1 = r2' } = v1'
+      and v1' = r2'
+      and v' = v
+      and v' = v1'
+      and (v', v) = (v', v')
+      and v2' = v
+      and c' = (True, True, Some v2')
+      and r1' = r1' { m1 = r2' }
+      and r0' = r0' { cont = r1' }
+      and p = p { m6 = r0' }
+      in (c', v, p)
+   in res'
+      | None -> defaultVal ()
+      | Some v -> v
+cogent_fap5 : ( MayNull Struct_Cogent_as3, U32 ) -> ( U32, MayNull Struct_Cogent_as3 )
+cogent_fap5 (p
+            , v) =
+   let ((_, _, res')
+       , v
+       , p) = let v1' = p
+      and p { m6 = r0' } = v1'
+      and v1' = r0'
+      and r0' { m1 = r1' } = v1'
+      and v1' = r1'
+      and v' = v
+      and v' = v1'
+      and (v', v) = (v', v')
+      and v2' = v
+      and c' = (True, True, Some v2')
+      and r0' = r0' { m1 = r1' }
+      and p = p { m6 = r0' }
+      in (c', v, p)
+   in res'
+      | None -> defaultVal ()
+      | Some v -> v
+cogent_fap6 : ( Cogent_aa3, U32 ) -> ( U32, Cogent_aa3 )
+cogent_fap6 (p
+            , v) =
+   let ((_, _, res')
+       , v
+       , p) = let v2' = 3
+      and v1' = p
+      and (p @{ @v2' = r0' }
+          , i0') = (v1', v2')
+      and v1' = r0'
+      and r0' { cont = r1' } = v1'
+      and v1' = r1'
+      and v' = v
+      and v' = v1'
+      and (v', v) = (v', v')
+      and v3' = v
+      and c' = (True, True, Some v3')
+      and r0' = r0' { cont = r1' }
+      and p = p @{ @i0' = r0' }
+      in (c', v, p)
+   in res'
+      | None -> defaultVal ()
+      | Some v -> v
+cogent_fap7 : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
+cogent_fap7 p =
+   let ((_, _, res')
+       , p) = let v1' = 42
+      and v' = p
+      and p { cont = r0' } = v'
+      and v' = r0'
+      and v' = v1'
+      and (v', r0') = (v', v')
+      and v2' = p
+      and p { cont = r1' } = v2'
+      and v2' = r1'
+      and c' = (True, True, Some v2')
+      and p = p { cont = r1' }
+      and p = p { cont = r0' }
+      in (c', p)
+   in res'
+      | None -> defaultVal ()
+      | Some v -> v
+cogent_fap8 : MayNull Struct_Cogent_as1 -> ( U32, MayNull Struct_Cogent_as1 )
+cogent_fap8 p =
+   let ((_, _, res')
+       , p) = let v1' = 42
+      and v' = p
+      and p { cont = r0' } = v'
+      and v' = r0'
+      and r0' { m1 = r1' } = v'
+      and v' = r1'
+      and v' = v1'
+      and (v', r1') = (v', v')
+      and v2' = p
+      and p { cont = r2' } = v2'
+      and v2' = r2'
+      and r2' { m1 = r3' } = v2'
+      and v2' = r3'
+      and c' = (True, True, Some v2')
+      and r2' = r2' { m1 = r3' }
+      and p = p { cont = r2' }
+      and r0' = r0' { m1 = r1' }
+      and p = p { cont = r0' }
+      in (c', p)
+   in res'
+      | None -> defaultVal ()
+      | Some v -> v
+cogent_fap9 : MayNull Struct_Cogent_as1 -> ( U32, MayNull Struct_Cogent_as1 )
+cogent_fap9 p =
+   let ((_, _, res')
+       , p) = let v1' = 42
+      and v' = p
+      and p { m1 = r0' } = v'
+      and v' = r0'
+      and v' = v1'
+      and (v', r0') = (v', v')
+      and v2' = p
+      and p { m1 = r1' } = v2'
+      and v2' = r1'
+      and c' = (True, True, Some v2')
+      and p = p { m1 = r1' }
+      and p = p { m1 = r0' }
+      in (c', p)
+   in res'
+      | None -> defaultVal ()
+      | Some v -> v
+cogent_fap10 : MayNull Struct_Cogent_as3 -> ( U32, MayNull Struct_Cogent_as3 )
+cogent_fap10 p =
+   let ((_, _, res')
+       , p) = let v1' = 42
+      and v' = p
+      and p { m6 = r0' } = v'
+      and v' = r0'
+      and r0' { cont = r1' } = v'
+      and v' = r1'
+      and r1' { m1 = r2' } = v'
+      and v' = r2'
+      and v' = v1'
+      and (v', r2') = (v', v')
+      and v2' = p
+      and p { m6 = r3' } = v2'
+      and v2' = r3'
+      and r3' { cont = r4' } = v2'
+      and v2' = r4'
+      and r4' { m1 = r5' } = v2'
+      and v2' = r5'
+      and c' = (True, True, Some v2')
+      and r4' = r4' { m1 = r5' }
+      and r3' = r3' { cont = r4' }
+      and p = p { m6 = r3' }
+      and r1' = r1' { m1 = r2' }
+      and r0' = r0' { cont = r1' }
+      and p = p { m6 = r0' }
+      in (c', p)
+   in res'
+      | None -> defaultVal ()
+      | Some v -> v
+cogent_fap11 : MayNull Struct_Cogent_as3 -> ( U32, MayNull Struct_Cogent_as3 )
+cogent_fap11 p =
+   let ((_, _, res')
+       , p) = let v1' = 42
+      and v' = p
+      and p { m6 = r0' } = v'
+      and v' = r0'
+      and r0' { m1 = r1' } = v'
+      and v' = r1'
+      and v' = v1'
+      and (v', r1') = (v', v')
+      and v2' = p
+      and p { m6 = r2' } = v2'
+      and v2' = r2'
+      and r2' { m1 = r3' } = v2'
+      and v2' = r3'
+      and c' = (True, True, Some v2')
+      and r2' = r2' { m1 = r3' }
+      and p = p { m6 = r2' }
+      and r0' = r0' { m1 = r1' }
+      and p = p { m6 = r0' }
+      in (c', p)
+   in res'
+      | None -> defaultVal ()
+      | Some v -> v
+cogent_fap12 : Cogent_aa3 -> ( U32, Cogent_aa3 )
+cogent_fap12 p =
+   let ((_, _, res')
+       , p) = let v2' = 42
+      and v1' = 3
+      and v' = p
+      and (p @{ @v1' = r0' }
+          , i0') = (v', v1')
+      and v' = r0'
+      and r0' { cont = r1' } = v'
+      and v' = r1'
+      and v' = v2'
+      and (v', r1') = (v', v')
+      and v4' = 3
+      and v3' = p
+      and (p @{ @v4' = r2' }
+          , i2') = (v3', v4')
+      and v3' = r2'
+      and r2' { cont = r3' } = v3'
+      and v3' = r3'
+      and c' = (True, True, Some v3')
+      and r2' = r2' { cont = r3' }
+      and p = p @{ @i2' = r2' }
+      and r0' = r0' { cont = r1' }
+      and p = p @{ @i0' = r0' }
+      in (c', p)
+   in res'
+      | None -> defaultVal ()
+      | Some v -> v
+cogent_fap13 : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
+cogent_fap13 p =
+   let ((_, _, res')
+       , p) = let v1' = 1
+      and v' = p
+      and p { cont = r0' } = v'
+      and v' = r0'
+      and v' = v' + v1'
+      and (v', r0') = (r0', v')
+      and c' = (True, True, Some v')
+      and p = p { cont = r0' }
+      in (c', p)
+   in res'
+      | None -> defaultVal ()
+      | Some v -> v
+cogent_fap14 : MayNull Struct_Cogent_as1 -> ( U32, MayNull Struct_Cogent_as1 )
+cogent_fap14 p =
+   let ((_, _, res')
+       , p) = let v1' = 1
+      and v' = p
+      and p { m1 = r0' } = v'
+      and v' = r0'
+      and v' = v' + v1'
+      and (v', r0') = (r0', v')
+      and c' = (True, True, Some v')
+      and p = p { m1 = r0' }
+      in (c', p)
+   in res'
+      | None -> defaultVal ()
+      | Some v -> v
+cogent_fap15 : Cogent_aa3 -> ( U32, Cogent_aa3 )
+cogent_fap15 p =
+   let ((_, _, res')
+       , p) = let v2' = 1
+      and v1' = 3
+      and v' = p
+      and (p @{ @v1' = r0' }
+          , i0') = (v', v1')
+      and v' = r0'
+      and v' = v' + v2'
+      and (v', r0') = (r0', v')
+      and r0' { cont = r1' } = v'
+      and v' = r1'
+      and c' = (True, True, Some v')
+      and r0' = r0' { cont = r1' }
+      and p = p @{ @i0' = r0' }
+      in (c', p)
    in res'
       | None -> defaultVal ()
       | Some v -> v

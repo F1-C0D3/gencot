@@ -793,6 +793,18 @@ bindStat s@(LC.CCompound lbls bis _) =
     if not $ null lbls
        then insertStatSrc s $ mkDummyStatBindsPair "Local labels not supported in compound statement"
        else bindBlockItems bis
+bindStat s@(LC.CIf e s1 Nothing _) = do
+    resetValCounter
+    bpe <- bindExpr e
+    bps1 <- bindStat s1
+    let bps2 = mkExpBindsPair mkEmptyBindsPair
+    insertStatSrc s $ mkIfBindsPair bpe bps1 bps2
+bindStat s@(LC.CIf e s1 (Just s2) _) = do
+    resetValCounter
+    bpe <- bindExpr e
+    bps1 <- bindStat s1
+    bps2 <- bindStat s2
+    insertStatSrc s $ mkIfBindsPair bpe bps1 bps2
 bindStat s = 
     insertStatSrc s $ mkDummyStatBindsPair "Translation of statement not yet implemented"
 
@@ -844,6 +856,10 @@ bindExpr e@(LC.CUnary LC.CNegOp e1 _) = do
     cnt <- getValCounter
     let c1 = mkIntLitBindsPair cnt 1
     insertExprSrc e $ mkIfBindsPair (mkOpBindsPair "==" [bp1,c0]) c1 c0
+bindExpr e@(LC.CUnary LC.CIndOp e1 _) = do
+    bp1 <- bindExpr e1
+    cnt <- getCmpCounter
+    insertExprSrc e $ mkMemBindsPair cnt "cont" bp1
 bindExpr e@(LC.CUnary op e1 _) | elem op [LC.CPlusOp,LC.CMinOp,LC.CCompOp] = do
     bp1 <- bindExpr e1
     insertExprSrc e $ mkOpBindsPair (transUnOp op) [bp1]

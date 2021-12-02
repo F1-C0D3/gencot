@@ -61,6 +61,9 @@ leadVar :: BindsPair -> CCS.VarName
 leadVar (main,_) = head $ tupleVars ip
     where (CS.Binding ip _ _ _) = head main
 
+isStatBindsPair :: BindsPair -> Bool
+isStatBindsPair bp = (leadVar bp) == ctlVar
+
 boundExpr :: GenBnd -> GenExpr
 boundExpr (CS.Binding _ _ e _) = e
 
@@ -171,18 +174,21 @@ mkAssBindsPair post op bpl bpr =
           er = mkVarExpr vr
           er' = if null op then er else mkOpExpr op [el,er]
 
--- | Conditional v<n>' = if bp1 then bp2 else bp3$ head bps
+-- | Conditional v<n>' = if bp1 then bp2 else bp3
 mkIfBindsPair :: BindsPair -> BindsPair -> BindsPair -> BindsPair
 mkIfBindsPair bp0 bp1 bp2 =
-    addBinding (mkVarsBinding (v0 : set) (mkIfExpr (mkVarExpr v0) e1 e2)) bp
+    addBinding (mkVarsBinding (resVar : set) (mkIfExpr (mkVarExpr v0) e1 e2)) bp
     where set1 = sideEffectTargets bp1
           set2 = sideEffectTargets bp2
           v0 = leadVar bp0
+          resVar = if isStatBindsPair bp1 then ctlVar else v0
           set = union set1 set2
-          (bp1l,e1) = if null set1 then ([bp1],mkVarTupleExpr (leadVar bp1 : set))
-                                   else ([],boundExpr $ cmbExtBinds set bp1)
-          (bp2l,e2) = if null set2 then ([bp2],mkVarTupleExpr (leadVar bp2 : set))
-                                   else ([],boundExpr $ cmbExtBinds set bp2)
+          (bp1l,e1) = if null set1 && not (isStatBindsPair bp1)
+                         then ([bp1],mkVarTupleExpr (leadVar bp1 : set))
+                         else ([],boundExpr $ cmbExtBinds set bp1)
+          (bp2l,e2) = if null set2 && not (isStatBindsPair bp2)
+                         then ([bp2],mkVarTupleExpr (leadVar bp2 : set))
+                         else ([],boundExpr $ cmbExtBinds set bp2)
           bp = concatBindsPairs (bp0 : (bp1l ++ bp2l))
 
 -- | Turn binding list pair to statement by appending c' = (C1,c2,me)

@@ -1201,8 +1201,6 @@ If the last binding of the main list binds the value variable \code{v<n>'} the r
 \end{verbatim}
 where \code{b1}, ... , \code{bk} is the concatenation of the main and putback list and the \code{v1..} are all side
 effect targets from both lists. Binding list pairs are usually only combined when their code is evaluated conditionally.
-If the binding lists result from translating a C statement (see below), the control variable \code{c'} occurs instead of the value 
-variable \code{v<n>'}. 
 
 \subsubsection{Dealing with Subexpressions}
 
@@ -1382,23 +1380,23 @@ Note that this is the only case where a value variable can be used twice, howeve
 As an example, for the assignment expression \code{x = 5} the concatenated main binding lists for the subexpressions yield the
 list 
 \begin{verbatim}
-  v2' = 5
-  v1' = x
+  v1' = 5
+  v' = x
 \end{verbatim}
 which is modified by replacing the last binding to the list
 \begin{verbatim}
-  v2' = 5
-  (v1',x) = (v2',v2')
+  v1' = 5
+  (v',x) = (v1',v1')
 \end{verbatim}
 for the translated assignment expression.
 
 The translation of \code{a[i].m = 0} yields the main binding list
 \begin{verbatim}
-  v3' = 0
-  v2' = i
-  (a @{@v2'=r1'},i1') = (a,v2')
+  v2' = 0
+  v1' = i
+  (a @{@v1'=r1'},i1') = (a,v1')
   r1'{m=r2'} = r1'
-  (v1',r2') = (v3',v3')
+  (v',r2') = (v2',v2')
 \end{verbatim}
 and the putback list
 \begin{verbatim}
@@ -1482,28 +1480,28 @@ expression in the corresponding condition branch is replaced by the tuple \code{
 
 As an example, the expression \code{x \&\& (v = i)} is translated to
 \begin{verbatim}
-  v1' = x
-  v4' = 0
-  (v1',v) = 
-    if v1' then 
-      let (v2',v) = 
-        let v3' = i 
-        and (v2',v) = (v3',v3') 
-        in (v2',v) 
-      in (v2',v)
-    else (v4',v)
+  v' = x
+  v3' = 0
+  (v',v) = 
+    if v' then 
+      let (v1',v) = 
+        let v2' = i 
+        and (v1',v) = (v2',v2') 
+        in (v1',v) 
+      in (v1',v)
+    else (v3',v)
 \end{verbatim}
-which will be simplified to \code{(v1',v) = if x then (i,i) else (0,v)} in later stages,
+which will be simplified to \code{(v',v) = if x then (i,i) else (0,v)} in later stages,
 whereas the expression \code{(v = i) \&\& x} is translated to
 \begin{verbatim}
-  v2' = i
-  (v1',v) = (v2',v2')
-  v3' = x
-  v4' = 0
-  v1' = 
-    if v1' then v3' else v4'
+  v1' = i
+  (v',v) = (v1',v1')
+  v2' = x
+  v3' = 0
+  v' = 
+    if v' then v2' else v3'
 \end{verbatim}
-which will be simplified to \code{(v = i) and (v1' = i \&\& x)} in later stages.
+which will be simplified to \code{(v = i) and (v' = i \&\& x)} in later stages.
 
 \subsubsection{General Translation of C Statements}
 
@@ -1522,56 +1520,102 @@ all statements. Gencot uses the name \code{c'} for the control variable, it is a
 all other variables used in the translation.
 
 The approach described in Section~\ref{design-cstats-stat} always converts the bindings which result from expression 
-translation to Cogent expressions before they are used as part of a translated statement. This would mean that taken
-container components are put back locally in every translated expression. To support reuse of taken components the 
-Gencot implementation postpones their putback in some situations. As in expression translation this is possible if
-there are no conditional evaluations in a statement. Conditional evaluation is caused by conditional statements, switch
-statements, loops and jump statements, but a sequence of simple statements involves no conditional evaluation (if not 
-caused by conditional expressions or sequential logical operators) and can benefit from postponed putback.
-
-To support postponed putback Gencot also translates C statements to a pair of binding lists, consisting of a main list
-and a separate putback list. Note that putback lists are constructed in a way that they never access value variables.
-Therefore it is possible to collect putback lists from several statements, although the value variables are reused
-in every statement. Since component variables are accessed in putback lists, Gencot never reuses component variables
+translation to Cogent expressions before they are used as part of a translated statement. This means that taken
+container components are put back locally in every translated expression. Gencot tries to reuse taken components even 
+over several sequential statements. However, this is only possible if no jumps occur, which is detected by the value
+of the control variable, which requires a static analysis of the control variable values. This analysis is not done
+during the initial translation, it is left for a later phase. Therefore reuse of taken components cannot be implemented
+in the initial translation phase. However, to prepare for reusing taken components, Gencot never reuses component variables
 in different statements of the same function body.
+
+As a consequence, the \code{take} and \code{put} bindings need not be separated in the translation of a statement.
+This implies that a translated statement can always be represented by a single binding.
 
 Gencot uses a common monadic action 
 \begin{verbatim}
-  bindStat :: CStat -> FTrav ([GenBnd],[GenBnd])
+  bindStat :: CStat -> FTrav GenBnd
 \end{verbatim}
-to translate every statement to a pair consisting of the main binding list and the putback list.
-
-The last binding in the main list of a translated statement always has the form
+to translate every statement to a binding of the form
 \begin{verbatim}
   (c',v1..) = expr
 \end{verbatim}
 with side effect targets \code{v1..}. The expression \code{expr} covers the effect on the control variable and 
 all side effects of the translated statement.
 
-If Gencot cannot translate a statement it translates it to a single binding where the rhs is a dummy expression as described in 
+If Gencot cannot translate a statement it translates it to a binding where the rhs is a dummy expression as described in 
 Section~\ref{design-cstats-dummy}. The lhs contains the control variable and may still contain side effect targets, if 
 Gencot detects that the statement modifies these C objects.
 
 \subsubsection{Expression Statements and Null Statements}
 
-An expression statement has the form \code{e;}. Its translation is that of \code{e}, with the binding
+An expression statement has the form \code{e;}. It is translated by translating \code{e} to a binding list pair and 
+combining it by \code{cmbBinds} to a binding \code{(v<n>',v1..) = expr}. Then the translation of the expression statement
+is the binding
 \begin{verbatim}
-  c' = (False,False,None)
+  (c',v1..) = let (v<n>',v1..) = expr
+  in ((False,False,None),v1..)
 \end{verbatim}
-appended to its main list.
+which discards the value \code{v<n>'} of \code{e}.
 
-A null statement has the form of a single semicolon \code{;} and is translated to a main list with the single
+A null statement has the form of a single semicolon \code{;} and is translated to the
 binding
 \begin{verbatim}
   c' = (False,False,None)
 \end{verbatim}
-and an empty putback list.
 
 \subsubsection{Jump Statements}
-**todo**
+
+A jump statement is a \code{return} statement, \code{break} statement, \code{continue} statement, or \code{goto} statement.
+Gencot does not translate \code{goto} statements.
+
+For a \code{return} statement the expression is translated to a binding list pair by \code{bindExpr}. If the expression has been
+omitted a binding list pair with a single binding
+\begin{verbatim}
+  v' = ()
+\end{verbatim}
+in its main list and an empty putback list is generated instead. Then the resulting binding list pair is combined by \code{cmbBinds}
+to a binding \code{(v<n>',v1..) = expr} and the translation of the return statement
+is the binding
+\begin{verbatim}
+  (c',v1..) = let (v<n>',v1..) = expr
+  in ((True,True,Some v<n>'),v1..)
+\end{verbatim}
+
+A \code{break} statement is translated to the binding
+\begin{verbatim}
+  c' = (True,True,None)
+\end{verbatim}
+
+A C \code{continue} statement is translated to the binding
+\begin{verbatim}
+  c' = (True,False,None)
+\end{verbatim}
 
 \subsubsection{Selection Statements}
-**todo**
+
+A selection statement is a conditional statement or a switch statement.
+
+A conditional statement of the form \code{if (e) s1 else s2} is translated similar to a conditional expression.
+First the subexpression \code{e} is translated to a binding list pair and combined by \code{cmbBinds} to a binding 
+\code{(v<n>',v1..) = expr}. The substatements are translated to bindings \code{(c',x1..) = expr1} and \code{(c',y1..) = expr2}. 
+Let \code{z1..} be the union of the side effect targets \code{v1..}, \code{x1..}, and \code{y1..} in some order. The conditional
+statement is translated to the binding
+\begin{verbatim}
+  (c',z1..) = let (v<n>',v1..) = expr
+  in if v<n>' 
+     then let (c',x1..) = expr1 in (c',z1..)
+     else let (c',y1..) = expr2 in (c',z1..)
+\end{verbatim}
+
+For a conditional statement of the form \code{if (e) s1} the expression \code{e} and statement \code{s1} are translated as
+above. Let \code{z1..} be the union of the side effect targets \code{v1..} and \code{x1..} in some order. The conditional
+statement is translated to the binding
+\begin{verbatim}
+  (c',z1..) = let (v<n>',v1..) = expr
+  in if v<n>' 
+     then let (c',x1..) = expr1 in (c',z1..)
+     else ((False,False,None),z1..)
+\end{verbatim}
 
 \subsubsection{Iteration Statements}
 **todo**
@@ -1581,23 +1625,15 @@ and an empty putback list.
 A local declaration is a declaration which occurs as syntactical part of a compound statement. Gencot only translates 
 local object declarations, it does not translate local type definitions and static assertions.
 
-An object declaration introduces one or more names for C objects. The names shadow existing names in their scope, which
-starts at the declaration and ends at the end of the next surrounding compound statement. In Section~\ref{design-cstats-general}
-object declarations have been reduced to statements and no specific treatment was necessary. The reason is that there
-every scope of a declared local name was translated to an own Cogent expression which automatically is the scope for 
-variables bound in it. 
-
-Due to postponed putback in the Gencot translation described here a shadowed name may be used after the scope of
-a local name, therefore both must be separated. This is done by translating the scope of a local object declaration
-always to a separate Cogent expression so that all putbacks for \code{take} operations are in the same scope.
+An object declaration introduces one or more names for C objects. The names must not yet be defined in the surrounding
+compound statement and they shadow existing names of outer surrounding compound statements. 
 
 Since the scope of a local declaration consists of the statements after it in the surrounding compound statement this is
-an issue for the translation of compound statements. Otherwise, a local object declaration is translated to a pair
-of binding lists in the same way as a statement, with two exceptions. First, the main list is extended by a binding
-for exactly the variables introduced by the object declaration (either to the value of a translated initialzer or
+an issue for the translation of compound statements. Otherwise, a local object declaration is translated to a binding
+in the same way as a statement, with two exceptions. First, the side effect targets of the binding
+are exactly the variables introduced by the object declaration (either for the value of a translated initialzer or
 to a default value, as described in Section~\ref{design-cstats-general}. No control variable is bound, since a declaration
-cannot contain (jump) statements. The rest of the main list consists, as usual, of the sequenced main list of all 
-subexpressions occurring in the initializers. Second, the initializers for struct and array
+cannot contain (jump) statements. Second, the initializers for struct and array
 types cannot occur in a statement, Gencot provides special translation for them as part of the translation of local declarations.
 
 \subsubsection{Compound Statements}
@@ -1605,19 +1641,24 @@ types cannot occur in a statement, Gencot provides special translation for them 
 Compound statements are conceptionally grouped right-associatively. Thus a compound statement is either empty, or a single statement
 or declaration (at the end), or it is a statement or declaration followed by a compound statement.
 
-An empty compound statement is translated like a null statement to a main list with the single
+An empty compound statement is translated like a null statement to a
 binding
 \begin{verbatim}
   c' = (False,False,None)
 \end{verbatim}
-and an empty putback list.
 
 For a single statement or declaration the translation of the compound statement is identical to that of the statement or
 declaration.
 
-A statement \code{s1} followed by a compound statement \code{s2} is translated as follows.
-
-** todo **
+A statement \code{s1} followed by a compound statement \code{s2} is translated as follows. Both statements are translated 
+to bindings \code{(c',x1..) = expr1} and \code{(c',y1..) = expr2}. Let \code{z1..} be the union of the side effect targets 
+\code{x1..} and \code{y1..} in some order. The compound statement is translated to the binding
+\begin{verbatim}
+  (c',z1..) = let ((cc',cb',res'),x1..) = expr1
+  in if cc' 
+     then ((cc',cb',res'),z1..)
+     else let (c',x2..) = expr2 in (c',z1..)
+\end{verbatim}
 
 A declaration \code{d} followed by a compound statement \code{s2} is translated as follows.
 
@@ -1625,8 +1666,8 @@ A declaration \code{d} followed by a compound statement \code{s2} is translated 
 
 \subsubsection{Function Bodies}
 
-A C function body is always a compound statement. It is translated by \code{bindStat} and combined to a single
-binding by \code{cmbBinds} of the form
+A C function body is always a compound statement. It is translated by \code{bindStat} to a 
+binding of the form
 \begin{verbatim}
   (c',v1..) = expr
 \end{verbatim}

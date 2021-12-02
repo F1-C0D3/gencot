@@ -29,6 +29,8 @@ int fas5(struct as1 s) { return s.m1 = 42,s.m1; }
 int fas6(struct as2 s) { return s.m4.m1 = 42,s.m4.m1; }
 int fas7(struct as1 s) { return s.m1++; }
 int fas8(struct as2 s) { return s.m4.m1++; }
+int fas9(struct as1 s) { return ++s.m1; }
+int fas10(struct as2 s) { return ++s.m4.m1; }
 
 typedef int aa1[5];
 typedef struct as1 aa2[5];
@@ -42,6 +44,28 @@ int faa7(aa2 a) { return a[3].m1 = 42,a[3].m1; }
 int faa8(aa1 a) { return a[3]++; }
 int faa9(aa2 a) { return a[3].m1++; }
 int faa10(aa1 a) { return a[a[2]]++; }
+int faa11(aa1 a) { return ++a[3]; }
+int faa12(aa2 a) { return ++a[3].m1; }
+int faa13(aa1 a, int v) { return a[v++]; }
+int faa14(aa1 a, int v) { return a[++v]; }
+
+struct as3 { int m5; struct as1 *m6; };
+typedef int *aa3[5];
+int fap1(int *p, int v) { return v = *p,v; }
+int fap2(struct as1 *p, int v) { return v = (*p).m1,v; }
+int fap3(struct as1 *p, int v) { return v = p->m1,v; }
+int fap4(struct as3 *p, int v) { return v = (*p->m6).m1,v; }
+int fap5(struct as3 *p, int v) { return v = p->m6->m1,v; }
+int fap6(aa3 p, int v) { return v = *(p[3]),v; }
+int fap7(int *p) { return *p = 42,*p; }
+int fap8(struct as1 *p) { return (*p).m1 = 42,(*p).m1; }
+int fap9(struct as1 *p) { return p->m1 = 42,p->m1; }
+int fap10(struct as3 *p) { return (*p->m6).m1 = 42, (*p->m6).m1; }
+int fap11(struct as3 *p) { return p->m6->m1 = 42, p->m6->m1; }
+int fap12(aa3 p) { return *(p[3]) = 42,*(p[3]); }
+int fap13(int *p) { return (*p)++; }
+int fap14(struct as1 *p) { return p->m1++; }
+int fap15(aa3 p) { return *(p[3])++; }
 
 int fam1(int v1, int v2) { return (v1 = 17) + (v2 = 4); }
 int fam2(int v1, int v2) { return (v1 = 17) + (v2 = 4),v1; }
@@ -54,3 +78,4 @@ int fam8(int v1, int v2, int v3) { return fam6((v1 = 17), (v2 = 4), (v3 = 0))+v1
 int fam9(int v1, int v2, int v3) { return ((v1 = 17)?(v2 = 4):(v3 = 0))+v3; }
 int fam10(int v1, int v2, int v3) { return v3 = (v1 = 17)?(v2 = 4):(v3 = 0),v1+v2+v3; }
 int fam11(int v1, int v2, int v3) { return ((v1 = 17)?(v2 = 4):(v3 = 0))+v1+v2+v3; }
+

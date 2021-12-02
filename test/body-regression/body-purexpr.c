@@ -48,3 +48,12 @@ int fa2(a1 a) { return a[3] + a[1]; }
 int fa3(a1 a) { return a[a[2]]; }
 int fa4(a2 a) { return a[3].m1; }
 int fa5(a2 a) { return a[a[2].m2].m1; }
+
+struct s3 { int m5; struct s1 *m6; };
+typedef int *a3[5];
+int fp1(int *p) { return *p; }
+int fp2(struct s1 *p) { return (*p).m1; }
+int fp3(struct s1 *p) { return p->m1; }
+int fp4(struct s3 *p) { return (*p->m6).m1; }
+int fp5(struct s3 *p) { return p->m6->m1; }
+int fp6(a3 p) { return *(p[3]); }

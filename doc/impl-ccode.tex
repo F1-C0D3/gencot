@@ -1622,47 +1622,90 @@ statement is translated to the binding
 
 \subsubsection{Local Declarations}
 
-A local declaration is a declaration which occurs as syntactical part of a compound statement. Gencot only translates 
-local object declarations, it does not translate local type definitions and static assertions.
+Local declarations are declarations which occur as an item in a compound statement. Gencot only translates local object declarations, 
+it does not translate local type definitions and static assertions. 
 
-An object declaration introduces one or more names for C objects. The names must not yet be defined in the surrounding
-compound statement and they shadow existing names of outer surrounding compound statements. 
+A local object declaration consists of a sequence of declarators. Every declarator declares a single object identifier and may 
+specify an initializer for the object's initial value. An initializer is either an expression or an initializer for an aggregate or
+union type. Gencot translates every initializer in the same way as an expression to a binding list pair.
 
-Since the scope of a local declaration consists of the statements after it in the surrounding compound statement this is
-an issue for the translation of compound statements. Otherwise, a local object declaration is translated to a binding
-in the same way as a statement, with two exceptions. First, the side effect targets of the binding
-are exactly the variables introduced by the object declaration (either for the value of a translated initialzer or
-to a default value, as described in Section~\ref{design-cstats-general}. No control variable is bound, since a declaration
-cannot contain (jump) statements. Second, the initializers for struct and array
-types cannot occur in a statement, Gencot provides special translation for them as part of the translation of local declarations.
+A declarator is translated to a pair consisting of a variable name and a binding. The variable name is the declared identifier
+mapped to a Cogent name, as described in Section~\ref{impl-ccode-names}. If the declarator has an initializer the binding
+results from combining its binding list pair by \code{cmbBinds}. Otherwise the binding \code{v' = defaultVal ()} is used.
+
+A local object declaration is translated to the sequence of the translations of all declarators.
 
 \subsubsection{Compound Statements}
 
-Compound statements are conceptionally grouped right-associatively. Thus a compound statement is either empty, or a single statement
-or declaration (at the end), or it is a statement or declaration followed by a compound statement.
+Compound statements are blocks which contain a sequence of block items which are statements or (local) declarations. Block items 
+are conceptionally grouped right-associatively. Thus a block item sequence is either empty, or a single block item
+(at the end), or it is a block item followed by a block item sequence.
 
-An empty compound statement is translated like a null statement to a
+A declaration declares identifiers which have the rest of the block as their scope. Thus the scope is always the block item sequence
+which begins with the declaration and ends at the end of the block. The declared object identifiers can occur as side
+effect targets in their scope, but the side effects can only be observed in the scope and must not be propagated outside it.
+
+A declaration may consist of several declarators. Every declarator declares a single identifier which has the following declarators
+and the block after the declaration as its scope. Thus, conceptually, the declarators can be considered to be the block items instead
+of the declarations. 
+
+If a declarator has an initializer, the initializer is not part of the scope of the declared identifier. A declarator may redeclare 
+an identifier which has been declared outside of the block associated with the declarator, in this case the identifier is shadowed
+in the scope of the redeclared identifier. 
+
+Gencot translates every block item sequence to a Cogent binding of the same form as that for a statement. It covers the effect to 
+the control variable and it covers all side effects to variables not declared in the sequence. 
+
+The translation of a compound statement is the translation of its block item sequence.
+
+An empty block item sequence is translated like a sequence with a single null statement to the
 binding
 \begin{verbatim}
   c' = (False,False,None)
 \end{verbatim}
 
-For a single statement or declaration the translation of the compound statement is identical to that of the statement or
-declaration.
+For a block item sequence consisting of a single statement the translation of the sequence is identical to that of the statement.
 
-A statement \code{s1} followed by a compound statement \code{s2} is translated as follows. Both statements are translated 
+A block item sequence consisting of a statement \code{s} followed by a nonempty sequence \code{bis} is translated as follows. First
+\code{s} and \code{bis} are translated 
 to bindings \code{(c',x1..) = expr1} and \code{(c',y1..) = expr2}. Let \code{z1..} be the union of the side effect targets 
-\code{x1..} and \code{y1..} in some order. The compound statement is translated to the binding
+\code{x1..} and \code{y1..} in some order. The block item sequence is translated to the binding
 \begin{verbatim}
   (c',z1..) = let ((cc',cb',res'),x1..) = expr1
   in if cc' 
      then ((cc',cb',res'),z1..)
-     else let (c',x2..) = expr2 in (c',z1..)
+     else let (c',y1..) = expr2 in (c',z1..)
 \end{verbatim}
 
-A declaration \code{d} followed by a compound statement \code{s2} is translated as follows.
+A block item sequence consisting of a single declaration is translated by appending a null statement.
 
-** todo **
+A block item sequence consisting of a declaration \code{d} followed by a nonempty sequence \code{bis} is translated by translating 
+the declaration to a sequence of pairs of a variable and a binding. The sequence \code{bis} is translated to a binding. Then 
+these parts are combined starting with the last pair and the binding.
+
+As described above a pair consists of a variable \code{v} which corresponds to the declared identifier and a binding 
+\code{(v<n>',v1..) = expr1} which corresponds to the initializer. It is combined with a binding \code{(c',y1..) = expr2} as follows. 
+Let \code{z1..} be the union of \code{v1..} and \code{y1..}. Let \code{u1..} be \code{z1..} without \code{v}. Then the
+combined binding is
+\begin{verbatim}
+  (c',z1..) = 
+    let (v<n>',v1..) = expr1
+    and (c',u1..) = 
+      let v = v<n>'
+      and (c',y1..) = expr2
+      in (c',u1..)
+    in (c',z1..)
+\end{verbatim}
+This translation also accounts for the case that \code{v} is a side effect target of its own initializer so that the side effect is
+correctly applied to a shadowed instance of \code{v}. Otherwise \code{u1..} and \code{z1..} are the same and the binding will be
+simplified in later stages to the binding
+\begin{verbatim}
+  (c',z1..) = 
+    let (v<n>',v1..) = expr1
+    and v = v<n>'
+    and (c',y1..) = expr2
+    in (c',z1..)
+\end{verbatim}
 
 \subsubsection{Function Bodies}
 

@@ -36,7 +36,7 @@ etosBindsPair (main,putback) =
 -- | Select side effect targets from a binding list pair.
 sideEffectTargets :: BindsPair -> [CCS.VarName]
 sideEffectTargets (main,putback) =
-    sideEffectFilter $ union (boundVars main) (boundVars putback)
+    sideEffectFilter $ union (boundVarsList main) (boundVarsList putback)
 
 -- | Select side effect targets from a list of variable names.
 sideEffectFilter :: [CCS.VarName] -> [CCS.VarName]
@@ -51,10 +51,13 @@ tupleVars ip = case irpatnOfGIP ip of
                     CS.PTake v fs -> v : (concat $ map (tupleVars . snd) $ catMaybes fs)
                     CS.PArrayTake v fs -> v : (concat $ map (tupleVars . snd) fs)
 
+-- | Variable names bound in a binding
+boundVars :: GenBnd -> [CCS.VarName]
+boundVars (CS.Binding ip _ _ _) = tupleVars ip
+
 -- | Variable names bound in a binding list
-boundVars :: [GenBnd] -> [CCS.VarName]
-boundVars bs = 
-    nub $ concat $ map (\(CS.Binding ip _ _ _) -> tupleVars ip) bs
+boundVarsList :: [GenBnd] -> [CCS.VarName]
+boundVarsList bs = nub $ concat $ map boundVars bs
 
 -- | The first variable bound in the final binding of the main list.
 leadVar :: BindsPair -> CCS.VarName
@@ -90,12 +93,12 @@ mkSingleBindsPair :: GenBnd -> BindsPair
 mkSingleBindsPair b = ([b],[])
 
 -- | Single binding v<n>' = gencotDummy msg
-mkDummyExprBindsPair :: Int -> String -> BindsPair
-mkDummyExprBindsPair n msg = mkSingleBindsPair $ mkVarBinding (valVar n) $ mkDummyExpr msg
+mkDummyBindsPair :: Int -> String -> BindsPair
+mkDummyBindsPair n msg = mkSingleBindsPair $ mkVarBinding (valVar n) $ mkDummyExpr msg
 
--- | Single binding c' = gencotDummy msg
-mkDummyStatBindsPair :: String -> BindsPair
-mkDummyStatBindsPair msg = mkSingleBindsPair $ mkVarBinding ctlVar $ mkDummyExpr msg
+-- | Single binding v<n>' = ()
+mkUnitBindsPair :: Int -> BindsPair
+mkUnitBindsPair n = mkSingleBindsPair $ mkVarBinding (valVar n) $ mkUnitExpr
 
 -- | Single binding v<n>' = i
 mkIntLitBindsPair :: Int -> Integer -> BindsPair
@@ -177,32 +180,18 @@ mkAssBindsPair post op bpl bpr =
 -- | Conditional v<n>' = if bp1 then bp2 else bp3
 mkIfBindsPair :: BindsPair -> BindsPair -> BindsPair -> BindsPair
 mkIfBindsPair bp0 bp1 bp2 =
-    addBinding (mkVarsBinding (resVar : set) (mkIfExpr (mkVarExpr v0) e1 e2)) bp
+    addBinding (mkVarsBinding (v0 : set) (mkIfExpr (mkVarExpr v0) e1 e2)) bp
     where set1 = sideEffectTargets bp1
           set2 = sideEffectTargets bp2
           v0 = leadVar bp0
-          resVar = if isStatBindsPair bp1 then ctlVar else v0
           set = union set1 set2
-          (bp1l,e1) = if null set1 && not (isStatBindsPair bp1)
+          (bp1l,e1) = if null set1
                          then ([bp1],mkVarTupleExpr (leadVar bp1 : set))
                          else ([],boundExpr $ cmbExtBinds set bp1)
-          (bp2l,e2) = if null set2 && not (isStatBindsPair bp2)
+          (bp2l,e2) = if null set2
                          then ([bp2],mkVarTupleExpr (leadVar bp2 : set))
                          else ([],boundExpr $ cmbExtBinds set bp2)
           bp = concatBindsPairs (bp0 : (bp1l ++ bp2l))
-
--- | Turn binding list pair to statement by appending c' = (C1,c2,me)
-mkStatBindsPair :: Bool -> Bool -> Maybe GenExpr -> BindsPair -> BindsPair
-mkStatBindsPair c1 c2 me bp = addBinding (mkVarBinding ctlVar $ mkCtrlTupleExpr c1 c2 me) bp
-
--- | Expression statement: c' = (False, False, None)
-mkExpBindsPair :: BindsPair -> BindsPair
-mkExpBindsPair bp = mkStatBindsPair False False Nothing bp
-
--- | Return statement: c' = (True, True, Some v<n>') or (True, True, Some ())
-mkRetBindsPair :: Maybe CCS.VarName -> BindsPair -> BindsPair
-mkRetBindsPair Nothing bp = mkStatBindsPair True True (Just mkUnitExpr) bp
-mkRetBindsPair (Just v) bp = mkStatBindsPair True True (Just $ mkVarExpr v) bp
 
 -- | Add binding to the main list
 addBinding :: GenBnd -> BindsPair -> BindsPair
@@ -224,6 +213,10 @@ concatBindsPairs bps = (concat mains,concat putbacks)
 -- construct p = expr
 mkBinding :: GenIrrefPatn -> GenExpr -> GenBnd
 mkBinding ip e = CS.Binding ip Nothing e []
+
+-- | Single binding c' = gencotDummy msg
+mkDummyBinding :: String -> GenBnd
+mkDummyBinding msg = mkVarBinding ctlVar $ mkDummyExpr msg
 
 -- construct (p1,..,pn) = expr or p1 = expr
 mkTupleBinding :: [GenIrrefPatn] -> GenExpr -> GenBnd
@@ -247,7 +240,33 @@ replaceLeadPatn :: GenIrrefPatn -> GenBnd -> GenBnd
 replaceLeadPatn ip (CS.Binding (GenIrrefPatn (CS.PTuple ps) _) _ e _) = mkTupleBinding (ip : tail ps) e
 replaceLeadPatn ip' (CS.Binding ip _ e _) = mkBinding ip' e
 
+-- | Null statement: c' = (False, False, None)
+mkNullBinding :: GenBnd
+mkNullBinding = mkVarBinding ctlVar $ mkCtlTupleExpr False False Nothing
+
+-- | Expression statement: (c',v1..) = let ... in ((False, False, None),v1..)
+mkExpBinding :: BindsPair -> GenBnd
+mkExpBinding bp = mkVarsBinding (ctlVar : vs) $ mkLetExpr [cmbBinds bp] $ mkCtlVarTupleExpr False False Nothing vs
+    where vs = sideEffectTargets bp
+
+-- | Return statement: (c',v1..) = let ... in (True, True, Some v<n>')
+mkRetBinding :: BindsPair -> GenBnd
+mkRetBinding bp = mkVarsBinding (ctlVar : vs) $ mkLetExpr [cmbBinds bp] $ mkCtlVarTupleExpr True True (Just $ mkVarExpr v) vs
+    where v = leadVar bp
+          vs = sideEffectTargets bp
+
+-- | Conditional v<n>' = if bp1 then bp2 else bp3
+mkIfBinding :: BindsPair -> GenBnd -> GenBnd -> GenBnd
+mkIfBinding bp b1 b2 =
+    mkVarsBinding vs $ mkLetExpr [cmbBinds bp] $ mkIfExpr (mkVarExpr (leadVar bp)) e1 e2
+    where set1 = sideEffectFilter $ boundVars b1
+          set2 = sideEffectFilter $ boundVars b2
+          vs = ctlVar : (union set1 set2)
+          e1 = mkLetExpr [b1] $ mkVarTupleExpr vs
+          e2 = mkLetExpr [b2] $ mkVarTupleExpr vs
+
 -- | Combine all bindings in a binding list pair to a single binding.
+-- (v<n>',v1..) = let ... in (v<n>',v1..)
 cmbBinds :: BindsPair -> GenBnd
 cmbBinds bp = cmbExtBinds (sideEffectTargets bp) bp
 
@@ -321,17 +340,22 @@ mkTupleExpr es = genExpr $ CS.Tuple es
 mkOpExpr :: CCS.OpName -> [GenExpr] -> GenExpr
 mkOpExpr op es = genExpr $ CS.PrimOp op es
 
--- construct control tuple value
-mkCtrlTupleExpr :: Bool -> Bool -> Maybe GenExpr -> GenExpr
-mkCtrlTupleExpr c1 c2 me = 
+-- construct control tuple value (c1, c2, Some me) or (c1,c2,None)
+mkCtlTupleExpr :: Bool -> Bool -> Maybe GenExpr -> GenExpr
+mkCtlTupleExpr c1 c2 me = 
     mkTupleExpr [genExpr $ CS.BoolLit c1, genExpr $ CS.BoolLit c2,
         case me of
              Nothing -> genExpr $ CS.Con "None" []
              Just e -> genExpr $ CS.Con "Some" [e] ]
 
+-- construct (<control tuple>,v1,...,vn) or <control tuple>
+mkCtlVarTupleExpr :: Bool -> Bool -> Maybe GenExpr -> [CCS.VarName] -> GenExpr
+mkCtlVarTupleExpr c1 c2 me [] = mkCtlTupleExpr c1 c2 me
+mkCtlVarTupleExpr c1 c2 me vs = mkTupleExpr ((mkCtlTupleExpr c1 c2 me) : (map mkVarExpr vs))
+
 -- construct (False,False,None)
 mkFfnExpr :: GenExpr
-mkFfnExpr = mkCtrlTupleExpr True True Nothing
+mkFfnExpr = mkCtlTupleExpr True True Nothing
 
 -- construct (v1,...,vn) or v1
 mkVarTupleExpr :: [CCS.VarName] -> GenExpr
@@ -384,8 +408,8 @@ mkMatchExpr e as = genExpr $ CS.Match e [] $ map mkAlt as
     where mkAlt (tag,vars,e) = CS.Alt (GenPatn (CS.PCon tag $ map mkVarPattern vars) noOrigin) CCS.Regular e
 
 -- construct let (_,_,res') = expr in res' | None -> defaultVal() | Some v -> v
-mkBodyExpr :: BindsPair -> GenExpr
-mkBodyExpr bp = mkLetExpr [replaceLeadPatn lp $ cmbBinds bp] mtch
+mkBodyExpr :: GenBnd -> GenExpr
+mkBodyExpr b = mkLetExpr [replaceLeadPatn lp b] mtch
     where lp = mkTuplePattern [mkWildcardPattern,mkWildcardPattern,mkVarPattern "res'"]
           mtch = mkMatchExpr (mkVarExpr "res'") 
                    [("None",[],mkAppExpr "defaultVal" []),

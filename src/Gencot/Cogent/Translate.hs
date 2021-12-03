@@ -25,7 +25,7 @@ import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapName
 import Gencot.Items.Types (ItemAssocType,isNotNullItem,isReadOnlyItem,isAddResultItem,isNoStringItem,getGlobalStateSubItemIds,getGlobalStateProperty,getGlobalStateId,getTagItemAssoc,getIndividualItemAssoc,getTypedefItemAssoc,adjustItemAssocType,getMemberSubItemAssoc,getRefSubItemAssoc,getResultSubItemAssoc,getElemSubItemAssoc,getParamSubItemAssoc,getItemAssocType,getMemberItemAssocTypes,getSubItemAssocTypes,numberList)
 import Gencot.Items.Identifier (getObjFunName,getParamName)
 import Gencot.Cogent.Ast
-import Gencot.Cogent.Bindings (BindsPair,leadVar,lvalVar,mkBodyExpr,mkPlainExpr,mkEmptyBindsPair,mkDummyExprBindsPair,mkDummyStatBindsPair,mkIntLitBindsPair,mkCharLitBindsPair,mkStringLitBindsPair,mkValVarBindsPair,mkMemBindsPair,mkIdxBindsPair,mkOpBindsPair,mkAppBindsPair,mkAssBindsPair,mkIfBindsPair,mkExpBindsPair,mkRetBindsPair,concatBindsPairs)
+import Gencot.Cogent.Bindings (BindsPair,leadVar,lvalVar,mkBodyExpr,mkPlainExpr,mkEmptyBindsPair,mkDummyBindsPair,mkUnitBindsPair,mkIntLitBindsPair,mkCharLitBindsPair,mkStringLitBindsPair,mkValVarBindsPair,mkMemBindsPair,mkIdxBindsPair,mkOpBindsPair,mkAppBindsPair,mkAssBindsPair,mkIfBindsPair,concatBindsPairs,mkDummyBinding,mkNullBinding,mkExpBinding,mkRetBinding,mkIfBinding)
 import qualified Gencot.C.Ast as LQ (Stm(Exp),Exp)
 import qualified Gencot.C.Translate as C (transStat,transExpr,transArrSizeExpr)
 import Gencot.Traversal (FTrav,markTagAsNested,isMarkedAsNested,hasProperty,stopResolvTypeName,setFunDef,clrFunDef,getValCounter,getCmpCounter,resetVarCounters,resetValCounter)
@@ -768,54 +768,53 @@ arraySizeType _ = genType $ CS.TCon "U32" [] markBox
 transBody :: LC.CStat -> FTrav GenExpr
 transBody s = do
     resetVarCounters
-    bp <- bindStat s
-    return $ cleanSrc $ mkBodyExpr $ bp
+    b <- bindStat s
+    return $ cleanSrc $ mkBodyExpr b
 
 transExpr :: LC.CExpr -> FTrav GenExpr
 transExpr e = do
     bp <- bindExpr e
     return $ cleanSrc $ mkPlainExpr $ bp
 
-bindStat :: LC.CStat -> FTrav BindsPair
+bindStat :: LC.CStat -> FTrav GenBnd
 bindStat s@(LC.CExpr Nothing _) =
-    insertStatSrc s $ mkExpBindsPair mkEmptyBindsPair
+    insertStatSrc s mkNullBinding
 bindStat s@(LC.CExpr (Just e) _) = do
     resetValCounter
     bpe <- bindExpr e
-    insertStatSrc s $ mkExpBindsPair bpe
+    insertStatSrc s $ mkExpBinding bpe
 bindStat s@(LC.CReturn Nothing _) =
-    insertStatSrc s $ mkRetBindsPair Nothing mkEmptyBindsPair
+    insertStatSrc s $ mkRetBinding $ mkUnitBindsPair 0
 bindStat s@(LC.CReturn (Just e) _) = do
     resetValCounter
     bpe <- bindExpr e
-    insertStatSrc s $ mkRetBindsPair (Just $ leadVar bpe) bpe
+    insertStatSrc s $ mkRetBinding bpe
 bindStat s@(LC.CCompound lbls bis _) =
     if not $ null lbls
-       then insertStatSrc s $ mkDummyStatBindsPair "Local labels not supported in compound statement"
+       then insertStatSrc s $ mkDummyBinding "Local labels not supported in compound statement"
        else bindBlockItems bis
 bindStat s@(LC.CIf e s1 Nothing _) = do
     resetValCounter
     bpe <- bindExpr e
-    bps1 <- bindStat s1
-    let bps2 = mkExpBindsPair mkEmptyBindsPair
-    insertStatSrc s $ mkIfBindsPair bpe bps1 bps2
+    bs1 <- bindStat s1
+    let bs2 = mkNullBinding
+    insertStatSrc s $ mkIfBinding bpe bs1 bs2
 bindStat s@(LC.CIf e s1 (Just s2) _) = do
     resetValCounter
     bpe <- bindExpr e
-    bps1 <- bindStat s1
-    bps2 <- bindStat s2
-    insertStatSrc s $ mkIfBindsPair bpe bps1 bps2
+    bs1 <- bindStat s1
+    bs2 <- bindStat s2
+    insertStatSrc s $ mkIfBinding bpe bs1 bs2
 bindStat s = 
-    insertStatSrc s $ mkDummyStatBindsPair "Translation of statement not yet implemented"
+    insertStatSrc s $ mkDummyBinding "Translation of statement not yet implemented"
 
-bindBlockItems :: [LC.CBlockItem] -> FTrav BindsPair
-bindBlockItems [] = return $ mkExpBindsPair mkEmptyBindsPair
-bindBlockItems [bi] = bindBlockItem bi
-bindBlockItems bis = insertStatSrc (LC.CCompound [] bis LCN.undefNode) $ mkDummyStatBindsPair "Translation of nontrivial blocks not yet implemented"
-
-bindBlockItem :: LC.CBlockItem -> FTrav BindsPair
-bindBlockItem (LC.CBlockStmt s) = bindStat s
-bindBlockItem (LC.CBlockDecl d) = return $ mkDummyStatBindsPair "Translation of declarations not yet implemented"
+bindBlockItems :: [LC.CBlockItem] -> FTrav GenBnd
+bindBlockItems [] = return mkNullBinding
+bindBlockItems [(LC.CBlockStmt s)] = bindStat s
+bindBlockItems ((LC.CBlockStmt s) : bis) = 
+    insertStatSrc (LC.CCompound [] bis LCN.undefNode) $ mkDummyBinding "Translation of nontrivial blocks not yet implemented"
+bindBlockItems ((LC.CBlockDecl d) : bis) = 
+    insertStatSrc (LC.CCompound [] bis LCN.undefNode) $ mkDummyBinding "Translation of declarations not yet implemented"
 
 bindExpr :: LC.CExpr -> FTrav BindsPair
 bindExpr e@(LC.CConst (LC.CIntConst i _)) = do
@@ -826,11 +825,11 @@ bindExpr e@(LC.CConst (LC.CCharConst c _)) = do
     insertExprSrc e $ 
         if length ch == 1 
            then mkCharLitBindsPair cnt $ head ch
-           else mkDummyExprBindsPair cnt "Multi character constants not supported"
+           else mkDummyBindsPair cnt "Multi character constants not supported"
     where ch = LC.getCChar c
 bindExpr e@(LC.CConst (LC.CFloatConst _ _)) = do
     cnt <- getValCounter
-    insertExprSrc e $ mkDummyExprBindsPair cnt "Float literals not supported"
+    insertExprSrc e $ mkDummyBindsPair cnt "Float literals not supported"
 bindExpr e@(LC.CConst (LC.CStrConst s _)) = do
     cnt <- getValCounter
     insertExprSrc e $ mkStringLitBindsPair cnt $ LC.getCString s
@@ -897,7 +896,7 @@ bindExpr e@(LC.CCall (LC.CVar nam _) es _) = do
     insertExprSrc e $ mkAppBindsPair f 0 bps
 bindExpr e@(LC.CCall _ _ _) = do
     cnt <- getValCounter
-    insertExprSrc e $ mkDummyExprBindsPair cnt "Translation of function expression not yet implemented"
+    insertExprSrc e $ mkDummyBindsPair cnt "Translation of function expression not yet implemented"
 bindExpr e@(LC.CAssign op e1 e2 _) = do
     bp1 <- bindExpr e1
     bp2 <- bindExpr e2
@@ -912,26 +911,23 @@ bindExpr e@(LC.CComma es _) = do
     insertExprSrc e $ concatBindsPairs bps
 bindExpr e = do
     cnt <- getValCounter
-    insertExprSrc e $ mkDummyExprBindsPair cnt "Translation of expression not yet implemented"
+    insertExprSrc e $ mkDummyBindsPair cnt "Translation of expression not yet implemented"
 
--- | Add a statement source to the final binding in the main list
-insertStatSrc :: LC.CStat -> BindsPair -> FTrav BindsPair
-insertStatSrc src bp = do
+-- | Add a statement source to the binding
+insertStatSrc :: LC.CStat -> GenBnd -> FTrav GenBnd
+insertStatSrc src (CS.Binding ip t (GenExpr e o _) v) = do
     src' <- C.transStat src
-    return $ insertSrc src' bp
+    return $ (CS.Binding ip t (GenExpr e o (Just src')) v)
 
 -- | Add an expression source to the final binding in the main list
 -- The expression is inserted as an expression statement.
 insertExprSrc :: LC.CExpr -> BindsPair -> FTrav BindsPair
-insertExprSrc src bp = do
+insertExprSrc src (main,putback) = do
     src' <- C.transExpr src
-    return $ insertSrc (LQ.Exp (Just src') noOrigin) bp
-
--- | Add a source to the final binding in the main list
-insertSrc :: LQ.Stm -> BindsPair -> BindsPair
-insertSrc src (main,putback) =
-    ((CS.Binding ip t (GenExpr e o (Just src)) v) : tail main,putback)
+    let srcstat = (LQ.Exp (Just src') noOrigin)
+    return $ ((CS.Binding ip t (GenExpr e o (Just srcstat)) v) : tail main,putback)
     where (CS.Binding ip t (GenExpr e o _) v) = head main
+
 
 
 

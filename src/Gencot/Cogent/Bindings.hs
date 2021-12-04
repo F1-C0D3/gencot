@@ -1,7 +1,7 @@
 {-# LANGUAGE PackageImports #-}
 module Gencot.Cogent.Bindings where
 
-import Data.List (union,nub)
+import Data.List (union,nub,delete)
 import Data.Maybe (catMaybes)
 
 import Cogent.Surface as CS
@@ -13,6 +13,10 @@ import Gencot.Origin (noOrigin)
 prime = '\''
 
 ctlVar = "c"++[prime]
+ctl1Var = "cc"++[prime]
+ctl2Var = "cb"++[prime]
+ctl3Var = "cr"++[prime]
+ctlVarTuple = [ctl1Var,ctl2Var,ctl3Var]
 
 cmpVar :: Int -> CCS.VarName
 cmpVar n = "r"++(show n)++[prime]
@@ -99,6 +103,10 @@ mkDummyBindsPair n msg = mkSingleBindsPair $ mkVarBinding (valVar n) $ mkDummyEx
 -- | Single binding v<n>' = ()
 mkUnitBindsPair :: Int -> BindsPair
 mkUnitBindsPair n = mkSingleBindsPair $ mkVarBinding (valVar n) $ mkUnitExpr
+
+-- | Single binding v<n>' = defaultVal ()
+mkDefaultBindsPair :: Int -> BindsPair
+mkDefaultBindsPair n = mkSingleBindsPair $ mkVarBinding (valVar n) $ mkAppExpr "defaultVal" []
 
 -- | Single binding v<n>' = i
 mkIntLitBindsPair :: Int -> Integer -> BindsPair
@@ -255,7 +263,7 @@ mkRetBinding bp = mkVarsBinding (ctlVar : vs) $ mkLetExpr [cmbBinds bp] $ mkCtlV
     where v = leadVar bp
           vs = sideEffectTargets bp
 
--- | Conditional v<n>' = if bp1 then bp2 else bp3
+-- | Conditional statement (c',z1..) = let (v<n>',v1..) = expr in if v<n>' then let b1 in (c',z1..) else let b2 in (c',z1..)
 mkIfBinding :: BindsPair -> GenBnd -> GenBnd -> GenBnd
 mkIfBinding bp b1 b2 =
     mkVarsBinding vs $ mkLetExpr [cmbBinds bp] $ mkIfExpr (mkVarExpr (leadVar bp)) e1 e2
@@ -264,6 +272,28 @@ mkIfBinding bp b1 b2 =
           vs = ctlVar : (union set1 set2)
           e1 = mkLetExpr [b1] $ mkVarTupleExpr vs
           e2 = mkLetExpr [b2] $ mkVarTupleExpr vs
+
+-- | Statement in Sequence (c',z1..) = let b in if cc' then ((cc',...),z1..) else let bs in (c',z1..)
+mkSeqBinding :: GenBnd -> GenBnd -> GenBnd
+mkSeqBinding b bs =
+    mkVarsBinding vs $ mkLetExpr [replaceLeadPatn mkCtlTuplePattern b] $ 
+      mkIfExpr (mkVarExpr ctl1Var) e' $ mkLetExpr [bs] $ e
+    where set1 = sideEffectFilter $ boundVars b
+          set2 = sideEffectFilter $ boundVars bs
+          vs = ctlVar : (union set1 set2)
+          e = mkVarTupleExpr vs
+          e' = replaceLeadExpr (mkVarTupleExpr ctlVarTuple) e
+
+-- | Declarator in Sequence 
+-- (c’,z1..) = let (v<n>’,v1..) = expr and (c’,u1..) = let v = v<n>’ and b in (c’,u1..) in (c’,z1..)
+mkDecBinding :: CCS.VarName -> BindsPair -> GenBnd -> GenBnd
+mkDecBinding v bp b = 
+    mkVarsBinding vs $ mkLetExpr [cmbBinds bp, mkVarsBinding vs' e] $ mkVarTupleExpr vs
+    where set1 = sideEffectTargets bp
+          set2 = sideEffectFilter $ boundVars b
+          vs = ctlVar : (union set1 set2)
+          vs' = delete v vs
+          e = mkLetExpr [mkVarBinding v $ mkVarExpr $ leadVar bp, b] $ mkVarTupleExpr vs'
 
 -- | Combine all bindings in a binding list pair to a single binding.
 -- (v<n>',v1..) = let ... in (v<n>',v1..)
@@ -297,6 +327,10 @@ mkValPattern = mkVarPattern . valVar
 mkTuplePattern :: [GenIrrefPatn] -> GenIrrefPatn
 mkTuplePattern [ip] = ip
 mkTuplePattern ips = genIrrefPatn $ CS.PTuple ips
+
+-- construct (cc',cb',cr')
+mkCtlTuplePattern :: GenIrrefPatn
+mkCtlTuplePattern = mkTuplePattern $ map mkVarPattern ctlVarTuple
 
 -- construct v1{m=v2}
 mkRecTakePattern :: CCS.VarName -> CCS.VarName -> CCS.FieldName -> GenIrrefPatn
@@ -407,11 +441,11 @@ mkMatchExpr :: GenExpr -> [(CCS.TagName,[CCS.VarName],GenExpr)] -> GenExpr
 mkMatchExpr e as = genExpr $ CS.Match e [] $ map mkAlt as
     where mkAlt (tag,vars,e) = CS.Alt (GenPatn (CS.PCon tag $ map mkVarPattern vars) noOrigin) CCS.Regular e
 
--- construct let (_,_,res') = expr in res' | None -> defaultVal() | Some v -> v
+-- construct let (_,_,cr') = expr in cr' | None -> defaultVal() | Some v -> v
 mkBodyExpr :: GenBnd -> GenExpr
 mkBodyExpr b = mkLetExpr [replaceLeadPatn lp b] mtch
-    where lp = mkTuplePattern [mkWildcardPattern,mkWildcardPattern,mkVarPattern "res'"]
-          mtch = mkMatchExpr (mkVarExpr "res'") 
+    where lp = mkTuplePattern [mkWildcardPattern,mkWildcardPattern,mkVarPattern ctl3Var]
+          mtch = mkMatchExpr (mkVarExpr ctl3Var) 
                    [("None",[],mkAppExpr "defaultVal" []),
                     ("Some",["v"],mkVarExpr "v")]
 

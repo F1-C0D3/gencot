@@ -25,9 +25,9 @@ import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapName
 import Gencot.Items.Types (ItemAssocType,isNotNullItem,isReadOnlyItem,isAddResultItem,isNoStringItem,getGlobalStateSubItemIds,getGlobalStateProperty,getGlobalStateId,getTagItemAssoc,getIndividualItemAssoc,getTypedefItemAssoc,adjustItemAssocType,getMemberSubItemAssoc,getRefSubItemAssoc,getResultSubItemAssoc,getElemSubItemAssoc,getParamSubItemAssoc,getItemAssocType,getMemberItemAssocTypes,getSubItemAssocTypes,numberList)
 import Gencot.Items.Identifier (getObjFunName,getParamName)
 import Gencot.Cogent.Ast
-import Gencot.Cogent.Bindings (BindsPair,leadVar,lvalVar,mkBodyExpr,mkPlainExpr,mkEmptyBindsPair,mkDummyBindsPair,mkUnitBindsPair,mkIntLitBindsPair,mkCharLitBindsPair,mkStringLitBindsPair,mkValVarBindsPair,mkMemBindsPair,mkIdxBindsPair,mkOpBindsPair,mkAppBindsPair,mkAssBindsPair,mkIfBindsPair,concatBindsPairs,mkDummyBinding,mkNullBinding,mkExpBinding,mkRetBinding,mkIfBinding)
-import qualified Gencot.C.Ast as LQ (Stm(Exp),Exp)
-import qualified Gencot.C.Translate as C (transStat,transExpr,transArrSizeExpr)
+import Gencot.Cogent.Bindings (BindsPair,leadVar,lvalVar,mkBodyExpr,mkPlainExpr,mkEmptyBindsPair,mkDummyBindsPair,mkUnitBindsPair,mkDefaultBindsPair,mkIntLitBindsPair,mkCharLitBindsPair,mkStringLitBindsPair,mkValVarBindsPair,mkMemBindsPair,mkIdxBindsPair,mkOpBindsPair,mkAppBindsPair,mkAssBindsPair,mkIfBindsPair,concatBindsPairs,mkDummyBinding,mkNullBinding,mkExpBinding,mkRetBinding,mkIfBinding,mkSeqBinding,mkDecBinding)
+import qualified Gencot.C.Ast as LQ (Stm(Exp,Block),Exp)
+import qualified Gencot.C.Translate as C (transStat,transExpr,transArrSizeExpr,transBlockItem)
 import Gencot.Traversal (FTrav,markTagAsNested,isMarkedAsNested,hasProperty,stopResolvTypeName,setFunDef,clrFunDef,getValCounter,getCmpCounter,resetVarCounters,resetValCounter)
 import Gencot.Util.Types (carriedTypes,isExtern,isCompOrFunc,isCompPointer,isNamedFunPointer,isFunPointer,isPointer,isAggregate,isFunction,isTypeDefRef,isComplete,isArray,isVoid,isTagRef,containsTypedefs,resolveTypedef,isComposite,isLinearType,isLinearParType,isReadOnlyType,isReadOnlyParType,isDerivedType,isExternTypeDef,wrapFunAsPointer,getTagDef)
 
@@ -789,10 +789,13 @@ bindStat s@(LC.CReturn (Just e) _) = do
     resetValCounter
     bpe <- bindExpr e
     insertStatSrc s $ mkRetBinding bpe
-bindStat s@(LC.CCompound lbls bis _) =
-    if not $ null lbls
-       then insertStatSrc s $ mkDummyBinding "Local labels not supported in compound statement"
-       else bindBlockItems bis
+bindStat s@(LC.CCompound lbls bis _) = do
+    LCA.enterBlockScope
+    res <- if not $ null lbls
+              then insertStatSrc s $ mkDummyBinding "Local labels not supported in compound statement"
+              else bindBlockItems bis
+    LCA.leaveBlockScope
+    return res
 bindStat s@(LC.CIf e s1 Nothing _) = do
     resetValCounter
     bpe <- bindExpr e
@@ -811,11 +814,44 @@ bindStat s =
 bindBlockItems :: [LC.CBlockItem] -> FTrav GenBnd
 bindBlockItems [] = return mkNullBinding
 bindBlockItems [(LC.CBlockStmt s)] = bindStat s
-bindBlockItems ((LC.CBlockStmt s) : bis) = 
-    insertStatSrc (LC.CCompound [] bis LCN.undefNode) $ mkDummyBinding "Translation of nontrivial blocks not yet implemented"
-bindBlockItems ((LC.CBlockDecl d) : bis) = 
-    insertStatSrc (LC.CCompound [] bis LCN.undefNode) $ mkDummyBinding "Translation of declarations not yet implemented"
+bindBlockItems bis@((LC.CBlockStmt s) : bis1) = do
+    b <- bindStat s
+    bs <- bindBlockItems bis1
+    insertBlockItemsSrc bis $ mkSeqBinding b bs
+bindBlockItems ((LC.CBlockDecl d) : bis) = do
+    LCA.analyseDecl True d
+    bindDecl d bis
 
+bindDecl :: LC.CDecl -> [LC.CBlockItem] -> FTrav GenBnd
+bindDecl dc@(LC.CDecl _ _ _) bis = 
+    bindDeclrs dc bis
+bindDecl sa@(LC.CStaticAssert _ _ _) bis = 
+    insertBlockItemsSrc ((LC.CBlockDecl sa) : bis) $ mkDummyBinding "Static assertions not supported"
+
+-- | We treat a declaration with a sequence of declarators as a sequence of declarations with a single declarator and replicate the specifiers
+bindDeclrs :: LC.CDecl -> [LC.CBlockItem] -> FTrav GenBnd
+bindDeclrs (LC.CDecl specs [] _) bis = bindBlockItems bis
+bindDeclrs d@(LC.CDecl specs (dc : dcs) n) bis = do
+    bs <- bindDeclrs (LC.CDecl specs dcs n) bis
+    (v,bp) <- bindDeclr specs dc
+    insertBlockItemsSrc ((LC.CBlockDecl d) : bis) $ mkDecBinding v bp bs
+
+bindDeclr :: [LC.CDeclSpec] -> (Maybe LC.CDeclr, Maybe LC.CInit, Maybe LC.CExpr) -> FTrav (CCS.VarName,BindsPair)
+bindDeclr _ (Just (LC.CDeclr (Just nam) _ _ _ _),mi,me) = do
+    v <- transObjName nam
+    bp <- bindInit mi
+    return (v,bp)
+bindDeclr _ _ = return ("",mkEmptyBindsPair)
+
+bindInit :: Maybe LC.CInit -> FTrav BindsPair
+bindInit Nothing = do
+    cnt <- getValCounter
+    return $ mkDefaultBindsPair cnt
+bindInit (Just (LC.CInitExpr e _)) = bindExpr e
+bindInit (Just (LC.CInitList il _)) = do
+    cnt <- getValCounter
+    return $ mkDummyBindsPair cnt "Non-scalar initializers not yet implemented"
+    
 bindExpr :: LC.CExpr -> FTrav BindsPair
 bindExpr e@(LC.CConst (LC.CIntConst i _)) = do
     cnt <- getValCounter
@@ -913,7 +949,7 @@ bindExpr e = do
     cnt <- getValCounter
     insertExprSrc e $ mkDummyBindsPair cnt "Translation of expression not yet implemented"
 
--- | Add a statement source to the binding
+-- | Add a statement source to a binding
 insertStatSrc :: LC.CStat -> GenBnd -> FTrav GenBnd
 insertStatSrc src (CS.Binding ip t (GenExpr e o _) v) = do
     src' <- C.transStat src
@@ -928,8 +964,10 @@ insertExprSrc src (main,putback) = do
     return $ ((CS.Binding ip t (GenExpr e o (Just srcstat)) v) : tail main,putback)
     where (CS.Binding ip t (GenExpr e o _) v) = head main
 
-
-
+-- | Add a block item sequence source to a binding
+-- The sequence is inserted as a compound statement
+insertBlockItemsSrc :: [LC.CBlockItem] -> GenBnd -> FTrav GenBnd
+insertBlockItemsSrc src b = insertStatSrc (LC.CCompound [] src LCN.undefNode) b
 
 
 

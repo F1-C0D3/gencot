@@ -1,419 +1,1203 @@
 cogent_sv1 : () -> ()
 cogent_sv1 () =
-   let (_
-       , _
-       , res') = let c' = (False
-                          , False
-                          , None)
-      in c'
-   in res'
+   let (_, _, cr') = (False
+                     , False
+                     , None)
+   in cr'
       | None -> defaultVal ()
       | Some v -> v
 cogent_sv2 : U32 -> ()
 cogent_sv2 i =
-   let (_
-       , _
-       , res') = let c' = (False
-                          , False
-                          , None)
-      in c'
-   in res'
+   let (_, _, cr') = (False
+                     , False
+                     , None)
+   in cr'
       | None -> defaultVal ()
       | Some v -> v
 cogent_sv3 : () -> ()
 cogent_sv3 () =
-   let (_
-       , _
-       , res') = let c' = (False
-                          , False
-                          , None)
-      in c'
-   in res'
+   let (_, _, cr') = (False
+                     , False
+                     , None)
+   in cr'
       | None -> defaultVal ()
       | Some v -> v
 cogent_sv4 : () -> ()
 cogent_sv4 () =
    let (_
        , _
-       , res') = let c' = (True
-                          , True
-                          , Some ())
-      in c'
-   in res'
+       , cr') = let v' = let v' = ()
+         in v'
+      in (True, True, Some v')
+   in cr'
       | None -> defaultVal ()
       | Some v -> v
 
 cogent_se1 : U32 -> U32
 cogent_se1 i =
-   let (_, _, res') = let v' = i
-      and c' = (True, True, Some v')
-      in c'
-   in res'
+   let (_
+       , _
+       , cr') = let v' = let v' = i
+         in v'
+      in (True, True, Some v')
+   in cr'
       | None -> defaultVal ()
       | Some v -> v
 cogent_se2 : U32 -> U32
 cogent_se2 i =
-   let (_, _, res') = let v' = i
-      and v1' = 5
-      and v' = v' + v1'
-      and v2' = i
-      and v' = v' * v2'
-      and c' = (True, True, Some v')
-      in c'
-   in res'
+   let (_
+       , _
+       , cr') = let v' = let v' = i
+         and v1' = 5
+         and v' = v' + v1'
+         and v2' = i
+         and v' = v' * v2'
+         in v'
+      in (True, True, Some v')
+   in cr'
       | None -> defaultVal ()
       | Some v -> v
 cogent_se3 : U32 -> U32
 cogent_se3 i =
-   let (_
-       , _
-       , res') = let c' = gencotDummy "Translation of nontrivial blocks not yet implemented"
-         {-
-             i++;
-             return i;
-         -}
-      in c'
-   in res'
+   let ((_, _, cr'), i) = let ((cc'
+                               , cb'
+                               , cr')
+                              , i) = let (v', i) = let v1' = 1
+            and v' = i
+            and v' = v' + v1'
+            and (v', i) = (i, v')
+            in (v', i)
+         in ((False, False, None), i)
+      in if cc'
+         then ((cc', cb', cr'), i)
+         else
+            let c' = let v' = let v' = i
+                  in v'
+               in (True, True, Some v')
+            in (c', i)
+   in cr'
       | None -> defaultVal ()
       | Some v -> v
 cogent_se4 : U32 -> U32
 cogent_se4 i =
-   let (_
-       , _
-       , res') = let c' = gencotDummy "Translation of nontrivial blocks not yet implemented"
-         {-
-             i++;
-             i = 5;
-             return i;
-         -}
-      in c'
-   in res'
+   let ((_, _, cr'), i) = let ((cc'
+                               , cb'
+                               , cr')
+                              , i) = let (v', i) = let v1' = 1
+            and v' = i
+            and v' = v' + v1'
+            and (v', i) = (i, v')
+            in (v', i)
+         in ((False, False, None), i)
+      in if cc'
+         then ((cc', cb', cr'), i)
+         else let (c', i) = let ((cc'
+                                 , cb'
+                                 , cr')
+                                , i) = let (v', i) = let v1' = 5
+                     and v' = i
+                     and v' = v1'
+                     and (v', i) = (v', v')
+                     in (v', i)
+                  in ((False, False, None), i)
+               in if cc'
+                  then ((cc', cb', cr'), i)
+                  else
+                     let c' = let v' = let v' = i
+                           in v'
+                        in (True, True, Some v')
+                     in (c', i)
+            in (c', i)
+   in cr'
       | None -> defaultVal ()
       | Some v -> v
 cogent_se5 : U32 -> U32
 cogent_se5 i =
-   let (_
-       , _
-       , res') = let c' = gencotDummy "Translation of nontrivial blocks not yet implemented"
-         {-
-             i++;
-             return ++i;
-         -}
-      in c'
-   in res'
+   let ((_, _, cr'), i) = let ((cc'
+                               , cb'
+                               , cr')
+                              , i) = let (v', i) = let v1' = 1
+            and v' = i
+            and v' = v' + v1'
+            and (v', i) = (i, v')
+            in (v', i)
+         in ((False, False, None), i)
+      in if cc'
+         then ((cc', cb', cr'), i)
+         else let (c', i) = let (v'
+                                , i) = let v1' = 1
+                  and v' = i
+                  and v' = v' + v1'
+                  and (v', i) = (v', v')
+                  in (v', i)
+               in ((True, True, Some v'), i)
+            in (c', i)
+   in cr'
       | None -> defaultVal ()
       | Some v -> v
 
 cogent_si1 : ( U32, U32 ) -> U32
 cogent_si1 (i
            , j) =
-   let (_, _, res') = let v' = i
-      and v1' = 0
-      and v' = v' == v1'
-      and c' = if v'
-         then let v' = j
-            and c' = (True, True, Some v')
+   let (_
+       , _
+       , cr') = let v' = let v' = i
+         and v1' = 0
+         and v' = v' == v1'
+         in v'
+      in if v'
+         then
+            let c' = let v' = let v' = j
+                  in v'
+               in (True, True, Some v')
             in c'
-         else let v' = i
-            and c' = (True, True, Some v')
+         else
+            let c' = let v' = let v' = i
+                  in v'
+               in (True, True, Some v')
             in c'
-      in c'
-   in res'
+   in cr'
       | None -> defaultVal ()
       | Some v -> v
 cogent_si2 : ( U32, U32 ) -> U32
 cogent_si2 (i
            , j) =
-   let (_
-       , _
-       , res') = let c' = gencotDummy "Translation of nontrivial blocks not yet implemented"
-         {-
-             if (i == 0)
-                 return j;
-             return i;
-         -}
-      in c'
-   in res'
+   let (_, _, cr') = let (cc'
+                         , cb'
+                         , cr') = let v' = let v' = i
+            and v1' = 0
+            and v' = v' == v1'
+            in v'
+         in if v'
+            then
+               let c' = let v' = let v' = j
+                     in v'
+                  in (True, True, Some v')
+               in c'
+            else let c' = (False
+                          , False
+                          , None)
+               in c'
+      in if cc'
+         then (cc', cb', cr')
+         else
+            let c' = let v' = let v' = i
+                  in v'
+               in (True, True, Some v')
+            in c'
+   in cr'
       | None -> defaultVal ()
       | Some v -> v
 cogent_si3 : ( U32, U32 ) -> U32
 cogent_si3 (i
            , j) =
-   let (_
-       , _
-       , res') = let c' = gencotDummy "Translation of nontrivial blocks not yet implemented"
-         {-
-             if (i == 0)
-                 i = 10;
-             else
-                 i += j;
-             return i;
-         -}
-      in c'
-   in res'
+   let ((_, _, cr'), i) = let ((cc'
+                               , cb'
+                               , cr')
+                              , i) = let v' = let v' = i
+            and v1' = 0
+            and v' = v' == v1'
+            in v'
+         in if v'
+            then let (c', i) = let (v'
+                                   , i) = let v1' = 10
+                     and v' = i
+                     and v' = v1'
+                     and (v', i) = (v', v')
+                     in (v', i)
+                  in ((False, False, None), i)
+               in (c', i)
+            else let (c', i) = let (v'
+                                   , i) = let v1' = j
+                     and v' = i
+                     and v' = v' + v1'
+                     and (v', i) = (v', v')
+                     in (v', i)
+                  in ((False, False, None), i)
+               in (c', i)
+      in if cc'
+         then ((cc', cb', cr'), i)
+         else
+            let c' = let v' = let v' = i
+                  in v'
+               in (True, True, Some v')
+            in (c', i)
+   in cr'
       | None -> defaultVal ()
       | Some v -> v
 cogent_si4 : ( U32, U32 ) -> U32
 cogent_si4 (i
            , j) =
-   let (_
-       , _
-       , res') = let c' = gencotDummy "Translation of nontrivial blocks not yet implemented"
-         {-
-             if (i == 0)
-                 i = 10;
-             else if (j == 0)
-                 j = i;
-             else
-                 i += j;
-             return i + j;
-         -}
-      in c'
-   in res'
+   let ((_, _, cr')
+       , i
+       , j) = let ((cc', cb', cr')
+                  , i
+                  , j) = let v' = let v' = i
+            and v1' = 0
+            and v' = v' == v1'
+            in v'
+         in if v'
+            then let (c', i) = let (v'
+                                   , i) = let v1' = 10
+                     and v' = i
+                     and v' = v1'
+                     and (v', i) = (v', v')
+                     in (v', i)
+                  in ((False, False, None), i)
+               in (c', i, j)
+            else let (c'
+                     , j
+                     , i) = let v' = let v' = j
+                     and v1' = 0
+                     and v' = v' == v1'
+                     in v'
+                  in if v'
+                     then let (c', j) = let (v'
+                                            , j) = let v1' = i
+                              and v' = j
+                              and v' = v1'
+                              and (v', j) = (v', v')
+                              in (v', j)
+                           in ((False, False, None), j)
+                        in (c', j, i)
+                     else let (c', i) = let (v'
+                                            , i) = let v1' = j
+                              and v' = i
+                              and v' = v' + v1'
+                              and (v', i) = (v', v')
+                              in (v', i)
+                           in ((False, False, None), i)
+                        in (c', j, i)
+               in (c', i, j)
+      in if cc'
+         then ((cc', cb', cr'), i, j)
+         else
+            let c' = let v' = let v' = i
+                  and v1' = j
+                  and v' = v' + v1'
+                  in v'
+               in (True, True, Some v')
+            in (c', i, j)
+   in cr'
       | None -> defaultVal ()
       | Some v -> v
 cogent_si5 : ( U32, U32 ) -> U32
 cogent_si5 (i
            , j) =
-   let (_
-       , _
-       , res') = let c' = gencotDummy "Translation of nontrivial blocks not yet implemented"
-         {-
-             if (i == 0) {
-                 if (j == 0)
-                     i = 10;
-                 else
-                     j += 10;
-             } else if (j == 0)
-                 j = i;
-             else
-                 i += j;
-             return i + j;
-         -}
-      in c'
-   in res'
+   let ((_, _, cr')
+       , i
+       , j) = let ((cc', cb', cr')
+                  , i
+                  , j) = let v' = let v' = i
+            and v1' = 0
+            and v' = v' == v1'
+            in v'
+         in if v'
+            then let (c'
+                     , i
+                     , j) = let v' = let v' = j
+                     and v1' = 0
+                     and v' = v' == v1'
+                     in v'
+                  in if v'
+                     then let (c', i) = let (v'
+                                            , i) = let v1' = 10
+                              and v' = i
+                              and v' = v1'
+                              and (v', i) = (v', v')
+                              in (v', i)
+                           in ((False, False, None), i)
+                        in (c', i, j)
+                     else let (c', j) = let (v'
+                                            , j) = let v1' = 10
+                              and v' = j
+                              and v' = v' + v1'
+                              and (v', j) = (v', v')
+                              in (v', j)
+                           in ((False, False, None), j)
+                        in (c', i, j)
+               in (c', i, j)
+            else let (c'
+                     , j
+                     , i) = let v' = let v' = j
+                     and v1' = 0
+                     and v' = v' == v1'
+                     in v'
+                  in if v'
+                     then let (c', j) = let (v'
+                                            , j) = let v1' = i
+                              and v' = j
+                              and v' = v1'
+                              and (v', j) = (v', v')
+                              in (v', j)
+                           in ((False, False, None), j)
+                        in (c', j, i)
+                     else let (c', i) = let (v'
+                                            , i) = let v1' = j
+                              and v' = i
+                              and v' = v' + v1'
+                              and (v', i) = (v', v')
+                              in (v', i)
+                           in ((False, False, None), i)
+                        in (c', j, i)
+               in (c', i, j)
+      in if cc'
+         then ((cc', cb', cr'), i, j)
+         else
+            let c' = let v' = let v' = i
+                  and v1' = j
+                  and v' = v' + v1'
+                  in v'
+               in (True, True, Some v')
+            in (c', i, j)
+   in cr'
       | None -> defaultVal ()
       | Some v -> v
 cogent_si6 : ( U32, U32 ) -> U32
 cogent_si6 (i
            , j) =
-   let (_
-       , _
-       , res') = let c' = gencotDummy "Translation of nontrivial blocks not yet implemented"
-         {-
-             if (i == 0) {
-                 if (j == 0)
-                     i = 10;
-                 else
-                     return j += 10;
-             } else if (j == 0)
-                 return j = i;
-             else
-                 i += j;
-             return i + j;
-         -}
-      in c'
-   in res'
+   let ((_, _, cr')
+       , i
+       , j) = let ((cc', cb', cr')
+                  , i
+                  , j) = let v' = let v' = i
+            and v1' = 0
+            and v' = v' == v1'
+            in v'
+         in if v'
+            then let (c'
+                     , i
+                     , j) = let v' = let v' = j
+                     and v1' = 0
+                     and v' = v' == v1'
+                     in v'
+                  in if v'
+                     then let (c', i) = let (v'
+                                            , i) = let v1' = 10
+                              and v' = i
+                              and v' = v1'
+                              and (v', i) = (v', v')
+                              in (v', i)
+                           in ((False, False, None), i)
+                        in (c', i, j)
+                     else let (c', j) = let (v'
+                                            , j) = let v1' = 10
+                              and v' = j
+                              and v' = v' + v1'
+                              and (v', j) = (v', v')
+                              in (v', j)
+                           in ((True, True, Some v'), j)
+                        in (c', i, j)
+               in (c', i, j)
+            else let (c'
+                     , j
+                     , i) = let v' = let v' = j
+                     and v1' = 0
+                     and v' = v' == v1'
+                     in v'
+                  in if v'
+                     then let (c', j) = let (v'
+                                            , j) = let v1' = i
+                              and v' = j
+                              and v' = v1'
+                              and (v', j) = (v', v')
+                              in (v', j)
+                           in ((True, True, Some v'), j)
+                        in (c', j, i)
+                     else let (c', i) = let (v'
+                                            , i) = let v1' = j
+                              and v' = i
+                              and v' = v' + v1'
+                              and (v', i) = (v', v')
+                              in (v', i)
+                           in ((False, False, None), i)
+                        in (c', j, i)
+               in (c', i, j)
+      in if cc'
+         then ((cc', cb', cr'), i, j)
+         else
+            let c' = let v' = let v' = i
+                  and v1' = j
+                  and v' = v' + v1'
+                  in v'
+               in (True, True, Some v')
+            in (c', i, j)
+   in cr'
       | None -> defaultVal ()
       | Some v -> v
 cogent_si8 : ( U32, U32 ) -> U32
 cogent_si8 (i
            , j) =
-   let (_
-       , _
-       , res') = let c' = gencotDummy "Translation of nontrivial blocks not yet implemented"
-         {-
-             if (i == 0)
-                 j++;
-             else
-                 i++;
-             j = 2 * j;
-             return 2 * i;
-         -}
-      in c'
-   in res'
+   let ((_, _, cr')
+       , j
+       , i) = let ((cc', cb', cr')
+                  , j
+                  , i) = let v' = let v' = i
+            and v1' = 0
+            and v' = v' == v1'
+            in v'
+         in if v'
+            then let (c', j) = let (v'
+                                   , j) = let v1' = 1
+                     and v' = j
+                     and v' = v' + v1'
+                     and (v', j) = (j, v')
+                     in (v', j)
+                  in ((False, False, None), j)
+               in (c', j, i)
+            else let (c', i) = let (v'
+                                   , i) = let v1' = 1
+                     and v' = i
+                     and v' = v' + v1'
+                     and (v', i) = (i, v')
+                     in (v', i)
+                  in ((False, False, None), i)
+               in (c', j, i)
+      in if cc'
+         then ((cc', cb', cr'), j, i)
+         else let (c', j) = let ((cc'
+                                 , cb'
+                                 , cr')
+                                , j) = let (v', j) = let v1' = 2
+                     and v2' = j
+                     and v1' = v1' * v2'
+                     and v' = j
+                     and v' = v1'
+                     and (v', j) = (v', v')
+                     in (v', j)
+                  in ((False, False, None), j)
+               in if cc'
+                  then ((cc', cb', cr'), j)
+                  else
+                     let c' = let v' = let v' = 2
+                           and v1' = i
+                           and v' = v' * v1'
+                           in v'
+                        in (True, True, Some v')
+                     in (c', j)
+            in (c', j, i)
+   in cr'
       | None -> defaultVal ()
       | Some v -> v
 cogent_si9 : ( U32, U32 ) -> U32
 cogent_si9 (i
            , j) =
-   let (_
-       , _
-       , res') = let c' = gencotDummy "Translation of nontrivial blocks not yet implemented"
-         {-
-             if (i == 0)
-                 j++;
-             else
-                 i++;
-             i = 2 * j;
-             return 2 * j;
-         -}
-      in c'
-   in res'
+   let ((_, _, cr')
+       , j
+       , i) = let ((cc', cb', cr')
+                  , j
+                  , i) = let v' = let v' = i
+            and v1' = 0
+            and v' = v' == v1'
+            in v'
+         in if v'
+            then let (c', j) = let (v'
+                                   , j) = let v1' = 1
+                     and v' = j
+                     and v' = v' + v1'
+                     and (v', j) = (j, v')
+                     in (v', j)
+                  in ((False, False, None), j)
+               in (c', j, i)
+            else let (c', i) = let (v'
+                                   , i) = let v1' = 1
+                     and v' = i
+                     and v' = v' + v1'
+                     and (v', i) = (i, v')
+                     in (v', i)
+                  in ((False, False, None), i)
+               in (c', j, i)
+      in if cc'
+         then ((cc', cb', cr'), j, i)
+         else let (c', i) = let ((cc'
+                                 , cb'
+                                 , cr')
+                                , i) = let (v', i) = let v1' = 2
+                     and v2' = j
+                     and v1' = v1' * v2'
+                     and v' = i
+                     and v' = v1'
+                     and (v', i) = (v', v')
+                     in (v', i)
+                  in ((False, False, None), i)
+               in if cc'
+                  then ((cc', cb', cr'), i)
+                  else
+                     let c' = let v' = let v' = 2
+                           and v1' = j
+                           and v' = v' * v1'
+                           in v'
+                        in (True, True, Some v')
+                     in (c', i)
+            in (c', j, i)
+   in cr'
       | None -> defaultVal ()
       | Some v -> v
 
 cogent_sc1 : ( U32, U32 ) -> U32
 cogent_sc1 (i
            , j) =
-   let (_
-       , _
-       , res') = let c' = gencotDummy "Translation of nontrivial blocks not yet implemented"
-         {-
-             i += 2 * j;
-             j += 2 * i;
-             i = i + j;
-             return j * i;
-         -}
-      in c'
-   in res'
+   let ((_, _, cr')
+       , i
+       , j) = let ((cc', cb', cr')
+                  , i) = let (v', i) = let v1' = 2
+            and v2' = j
+            and v1' = v1' * v2'
+            and v' = i
+            and v' = v' + v1'
+            and (v', i) = (v', v')
+            in (v', i)
+         in ((False, False, None), i)
+      in if cc'
+         then ((cc', cb', cr'), i, j)
+         else let (c', j, i) = let ((cc'
+                                    , cb'
+                                    , cr')
+                                   , j) = let (v', j) = let v1' = 2
+                     and v2' = i
+                     and v1' = v1' * v2'
+                     and v' = j
+                     and v' = v' + v1'
+                     and (v', j) = (v', v')
+                     in (v', j)
+                  in ((False, False, None), j)
+               in if cc'
+                  then ((cc', cb', cr'), j, i)
+                  else let (c', i) = let ((cc'
+                                          , cb'
+                                          , cr')
+                                         , i) = let (v', i) = let v1' = i
+                              and v2' = j
+                              and v1' = v1' + v2'
+                              and v' = i
+                              and v' = v1'
+                              and (v', i) = (v', v')
+                              in (v', i)
+                           in ((False, False, None), i)
+                        in if cc'
+                           then ((cc', cb', cr'), i)
+                           else
+                              let c' = let v' = let v' = j
+                                    and v1' = i
+                                    and v' = v' * v1'
+                                    in v'
+                                 in (True, True, Some v')
+                              in (c', i)
+                     in (c', j, i)
+            in (c', i, j)
+   in cr'
       | None -> defaultVal ()
       | Some v -> v
 cogent_sc2 : ( U32, U32 ) -> U32
 cogent_sc2 (i
            , j) =
-   let (_
-       , _
-       , res') = let c' = gencotDummy "Translation of nontrivial blocks not yet implemented"
-         {-
-             i += 2 * j;
-             if (i > 13) {
-                 j += 2 * i;
-                 i += 2 * j;
-             } else {
-                 i++;
-                 j--;
-             }
-             if (j == 0)
-                 j = 15;
-             i += j;
-             return i;
-         -}
-      in c'
-   in res'
+   let ((_, _, cr')
+       , i
+       , j) = let ((cc', cb', cr')
+                  , i) = let (v', i) = let v1' = 2
+            and v2' = j
+            and v1' = v1' * v2'
+            and v' = i
+            and v' = v' + v1'
+            and (v', i) = (v', v')
+            in (v', i)
+         in ((False, False, None), i)
+      in if cc'
+         then ((cc', cb', cr'), i, j)
+         else let (c', j, i) = let ((cc'
+                                    , cb'
+                                    , cr')
+                                   , j
+                                   , i) = let v' = let v' = i
+                     and v1' = 13
+                     and v' = v' > v1'
+                     in v'
+                  in if v'
+                     then let (c', j, i) = let ((cc'
+                                                , cb'
+                                                , cr')
+                                               , j) = let (v', j) = let v1' = 2
+                                 and v2' = i
+                                 and v1' = v1' * v2'
+                                 and v' = j
+                                 and v' = v' + v1'
+                                 and (v', j) = (v', v')
+                                 in (v', j)
+                              in ((False, False, None), j)
+                           in if cc'
+                              then ((cc', cb', cr'), j, i)
+                              else let (c', i) = let (v'
+                                                     , i) = let v1' = 2
+                                       and v2' = j
+                                       and v1' = v1' * v2'
+                                       and v' = i
+                                       and v' = v' + v1'
+                                       and (v', i) = (v', v')
+                                       in (v', i)
+                                    in ((False, False, None), i)
+                                 in (c', j, i)
+                        in (c', j, i)
+                     else let (c', i, j) = let ((cc'
+                                                , cb'
+                                                , cr')
+                                               , i) = let (v', i) = let v1' = 1
+                                 and v' = i
+                                 and v' = v' + v1'
+                                 and (v', i) = (i, v')
+                                 in (v', i)
+                              in ((False, False, None), i)
+                           in if cc'
+                              then ((cc', cb', cr'), i, j)
+                              else let (c', j) = let (v'
+                                                     , j) = let v1' = 1
+                                       and v' = j
+                                       and v' = v' - v1'
+                                       and (v', j) = (j, v')
+                                       in (v', j)
+                                    in ((False, False, None), j)
+                                 in (c', i, j)
+                        in (c', j, i)
+               in if cc'
+                  then ((cc', cb', cr'), j, i)
+                  else let (c', j, i) = let ((cc'
+                                             , cb'
+                                             , cr')
+                                            , j) = let v' = let v' = j
+                              and v1' = 0
+                              and v' = v' == v1'
+                              in v'
+                           in if v'
+                              then let (c', j) = let (v'
+                                                     , j) = let v1' = 15
+                                       and v' = j
+                                       and v' = v1'
+                                       and (v', j) = (v', v')
+                                       in (v', j)
+                                    in ((False, False, None), j)
+                                 in (c', j)
+                              else let c' = (False
+                                            , False
+                                            , None)
+                                 in (c', j)
+                        in if cc'
+                           then ((cc', cb', cr'), j, i)
+                           else let (c', i) = let ((cc'
+                                                   , cb'
+                                                   , cr')
+                                                  , i) = let (v'
+                                                             , i) = let v1' = j
+                                       and v' = i
+                                       and v' = v' + v1'
+                                       and (v', i) = (v', v')
+                                       in (v', i)
+                                    in ((False, False, None), i)
+                                 in if cc'
+                                    then ((cc', cb', cr'), i)
+                                    else
+                                       let c' = let v' = let v' = i
+                                             in v'
+                                          in (True, True, Some v')
+                                       in (c', i)
+                              in (c', j, i)
+                     in (c', j, i)
+            in (c', i, j)
+   in cr'
       | None -> defaultVal ()
       | Some v -> v
 
 cogent_sd1 : ( U32, U32 ) -> U32
 cogent_sd1 (i
            , j) =
-   let (_
-       , _
-       , res') = let c' = gencotDummy "Translation of nontrivial blocks not yet implemented"
-         {-
-             i += 2 * j;
-             
-             U32 k = j + 7;
-             
-             j += i + k;
-             k += j + i;
-             return k;
-         -}
-      in c'
-   in res'
+   let ((_, _, cr')
+       , i
+       , j
+       , k) = let ((cc', cb', cr')
+                  , i) = let (v', i) = let v1' = 2
+            and v2' = j
+            and v1' = v1' * v2'
+            and v' = i
+            and v' = v' + v1'
+            and (v', i) = (v', v')
+            in (v', i)
+         in ((False, False, None), i)
+      in if cc'
+         then ((cc', cb', cr'), i, j, k)
+         else let (c'
+                  , j
+                  , k) = let v1' = let v1' = j
+                  and v2' = 7
+                  and v1' = v1' + v2'
+                  in v1'
+               and (c', j) = let k = v1'
+                  and (c', j, k) = let ((cc'
+                                        , cb'
+                                        , cr')
+                                       , j) = let (v', j) = let v1' = i
+                           and v2' = k
+                           and v1' = v1' + v2'
+                           and v' = j
+                           and v' = v' + v1'
+                           and (v', j) = (v', v')
+                           in (v', j)
+                        in ((False, False, None), j)
+                     in if cc'
+                        then ((cc', cb', cr'), j, k)
+                        else let (c', k) = let ((cc'
+                                                , cb'
+                                                , cr')
+                                               , k) = let (v', k) = let v1' = j
+                                    and v2' = i
+                                    and v1' = v1' + v2'
+                                    and v' = k
+                                    and v' = v' + v1'
+                                    and (v', k) = (v', v')
+                                    in (v', k)
+                                 in ((False, False, None), k)
+                              in if cc'
+                                 then ((cc', cb', cr'), k)
+                                 else
+                                    let c' = let v' = let v' = k
+                                          in v'
+                                       in (True, True, Some v')
+                                    in (c', k)
+                           in (c', j, k)
+                  in (c', j)
+               in (c', j, k)
+            in (c', i, j, k)
+   in cr'
       | None -> defaultVal ()
       | Some v -> v
 cogent_sd2 : ( U32, U32 ) -> U32
 cogent_sd2 (i
            , j) =
-   let (_
-       , _
-       , res') = let c' = gencotDummy "Translation of nontrivial blocks not yet implemented"
-         {-
-             i += 2 * j;
-             {
-                 U32 i = j + 7;
-                 
-                 j += i + i;
-                 i += j + i;
-             }
-             return i;
-         -}
-      in c'
-   in res'
+   let ((_, _, cr')
+       , i
+       , j) = let ((cc', cb', cr')
+                  , i) = let (v', i) = let v1' = 2
+            and v2' = j
+            and v1' = v1' * v2'
+            and v' = i
+            and v' = v' + v1'
+            and (v', i) = (v', v')
+            in (v', i)
+         in ((False, False, None), i)
+      in if cc'
+         then ((cc', cb', cr'), i, j)
+         else let (c', j, i) = let ((cc'
+                                    , cb'
+                                    , cr')
+                                   , j
+                                   , i) = let v3' = let v3' = j
+                     and v4' = 7
+                     and v3' = v3' + v4'
+                     in v3'
+                  and (c', j) = let i = v3'
+                     and (c', j, i) = let ((cc'
+                                           , cb'
+                                           , cr')
+                                          , j) = let (v', j) = let v1' = i
+                              and v2' = i
+                              and v1' = v1' + v2'
+                              and v' = j
+                              and v' = v' + v1'
+                              and (v', j) = (v', v')
+                              in (v', j)
+                           in ((False, False, None), j)
+                        in if cc'
+                           then ((cc', cb', cr'), j, i)
+                           else let (c', i) = let (v'
+                                                  , i) = let v1' = j
+                                    and v2' = i
+                                    and v1' = v1' + v2'
+                                    and v' = i
+                                    and v' = v' + v1'
+                                    and (v', i) = (v', v')
+                                    in (v', i)
+                                 in ((False, False, None), i)
+                              in (c', j, i)
+                     in (c', j)
+                  in (c', j, i)
+               in if cc'
+                  then ((cc', cb', cr'), j, i)
+                  else
+                     let c' = let v' = let v' = i
+                           in v'
+                        in (True, True, Some v')
+                     in (c', j, i)
+            in (c', i, j)
+   in cr'
       | None -> defaultVal ()
       | Some v -> v
 cogent_sd3 : ( U32, U32 ) -> U32
 cogent_sd3 (i
            , j) =
-   let (_
-       , _
-       , res') = let c' = gencotDummy "Translation of nontrivial blocks not yet implemented"
-         {-
-             i += 2 * j;
-             {
-                 U32 k = j + 7;
-                 
-                 j += i + k;
-                 k = 15;
-             }
-             i += j + i;
-             return i;
-         -}
-      in c'
-   in res'
+   let ((_, _, cr')
+       , i
+       , j
+       , k) = let ((cc', cb', cr')
+                  , i) = let (v', i) = let v1' = 2
+            and v2' = j
+            and v1' = v1' * v2'
+            and v' = i
+            and v' = v' + v1'
+            and (v', i) = (v', v')
+            in (v', i)
+         in ((False, False, None), i)
+      in if cc'
+         then ((cc', cb', cr'), i, j, k)
+         else let (c'
+                  , j
+                  , k
+                  , i) = let ((cc', cb', cr')
+                             , j
+                             , k) = let v2' = let v2' = j
+                     and v3' = 7
+                     and v2' = v2' + v3'
+                     in v2'
+                  and (c', j) = let k = v2'
+                     and (c', j, k) = let ((cc'
+                                           , cb'
+                                           , cr')
+                                          , j) = let (v', j) = let v1' = i
+                              and v2' = k
+                              and v1' = v1' + v2'
+                              and v' = j
+                              and v' = v' + v1'
+                              and (v', j) = (v', v')
+                              in (v', j)
+                           in ((False, False, None), j)
+                        in if cc'
+                           then ((cc', cb', cr'), j, k)
+                           else let (c', k) = let (v'
+                                                  , k) = let v1' = 15
+                                    and v' = k
+                                    and v' = v1'
+                                    and (v', k) = (v', v')
+                                    in (v', k)
+                                 in ((False, False, None), k)
+                              in (c', j, k)
+                     in (c', j)
+                  in (c', j, k)
+               in if cc'
+                  then ((cc', cb', cr'), j, k, i)
+                  else let (c', i) = let ((cc'
+                                          , cb'
+                                          , cr')
+                                         , i) = let (v', i) = let v1' = j
+                              and v2' = i
+                              and v1' = v1' + v2'
+                              and v' = i
+                              and v' = v' + v1'
+                              and (v', i) = (v', v')
+                              in (v', i)
+                           in ((False, False, None), i)
+                        in if cc'
+                           then ((cc', cb', cr'), i)
+                           else
+                              let c' = let v' = let v' = i
+                                    in v'
+                                 in (True, True, Some v')
+                              in (c', i)
+                     in (c', j, k, i)
+            in (c', i, j, k)
+   in cr'
       | None -> defaultVal ()
       | Some v -> v
 cogent_sd4 : ( U32, U32 ) -> U32
 cogent_sd4 (i
            , j) =
-   let (_
-       , _
-       , res') = let c' = gencotDummy "Translation of nontrivial blocks not yet implemented"
-         {-
-             i += 2 * j;
-             if (i == 0) {
-                 U32 k = j + 7;
-                 
-                 j += i + k;
-                 k = 15;
-             } else
-                 j = i + 3;
-             i += j + i;
-             return i;
-         -}
-      in c'
-   in res'
+   let ((_, _, cr')
+       , i
+       , j
+       , k) = let ((cc', cb', cr')
+                  , i) = let (v', i) = let v1' = 2
+            and v2' = j
+            and v1' = v1' * v2'
+            and v' = i
+            and v' = v' + v1'
+            and (v', i) = (v', v')
+            in (v', i)
+         in ((False, False, None), i)
+      in if cc'
+         then ((cc', cb', cr'), i, j, k)
+         else let (c'
+                  , j
+                  , k
+                  , i) = let ((cc', cb', cr')
+                             , j
+                             , k) = let v' = let v' = i
+                     and v1' = 0
+                     and v' = v' == v1'
+                     in v'
+                  in if v'
+                     then let (c'
+                              , j
+                              , k) = let v2' = let v2' = j
+                              and v3' = 7
+                              and v2' = v2' + v3'
+                              in v2'
+                           and (c', j) = let k = v2'
+                              and (c', j, k) = let ((cc'
+                                                    , cb'
+                                                    , cr')
+                                                   , j) = let (v'
+                                                              , j) = let v1' = i
+                                       and v2' = k
+                                       and v1' = v1' + v2'
+                                       and v' = j
+                                       and v' = v' + v1'
+                                       and (v', j) = (v', v')
+                                       in (v', j)
+                                    in ((False, False, None), j)
+                                 in if cc'
+                                    then ((cc', cb', cr'), j, k)
+                                    else let (c', k) = let (v'
+                                                           , k) = let v1' = 15
+                                             and v' = k
+                                             and v' = v1'
+                                             and (v', k) = (v', v')
+                                             in (v', k)
+                                          in ((False, False, None), k)
+                                       in (c', j, k)
+                              in (c', j)
+                           in (c', j, k)
+                        in (c', j, k)
+                     else let (c', j) = let (v'
+                                            , j) = let v1' = i
+                              and v2' = 3
+                              and v1' = v1' + v2'
+                              and v' = j
+                              and v' = v1'
+                              and (v', j) = (v', v')
+                              in (v', j)
+                           in ((False, False, None), j)
+                        in (c', j, k)
+               in if cc'
+                  then ((cc', cb', cr'), j, k, i)
+                  else let (c', i) = let ((cc'
+                                          , cb'
+                                          , cr')
+                                         , i) = let (v', i) = let v1' = j
+                              and v2' = i
+                              and v1' = v1' + v2'
+                              and v' = i
+                              and v' = v' + v1'
+                              and (v', i) = (v', v')
+                              in (v', i)
+                           in ((False, False, None), i)
+                        in if cc'
+                           then ((cc', cb', cr'), i)
+                           else
+                              let c' = let v' = let v' = i
+                                    in v'
+                                 in (True, True, Some v')
+                              in (c', i)
+                     in (c', j, k, i)
+            in (c', i, j, k)
+   in cr'
       | None -> defaultVal ()
       | Some v -> v
 cogent_sd5 : ( U32, U32 ) -> U32
 cogent_sd5 (i
            , j) =
-   let (_
-       , _
-       , res') = let c' = gencotDummy "Translation of nontrivial blocks not yet implemented"
-         {-
-             i += 2 * j;
-             
-             U32 k1, k2;
-             
-             k1 = i + 1;
-             k2 = j + 1;
-             j += k1 + k2;
-             k1 += j + i;
-             return k1;
-         -}
-      in c'
-   in res'
+   let ((_, _, cr')
+       , i
+       , k1
+       , k2
+       , j) = let ((cc', cb', cr')
+                  , i) = let (v', i) = let v1' = 2
+            and v2' = j
+            and v1' = v1' * v2'
+            and v' = i
+            and v' = v' + v1'
+            and (v', i) = (v', v')
+            in (v', i)
+         in ((False, False, None), i)
+      in if cc'
+         then ((cc', cb', cr')
+              , i
+              , k1
+              , k2
+              , j)
+         else let (c'
+                  , k1
+                  , k2
+                  , j) = let v2' = let v2' = defaultVal ()
+                  in v2'
+               and (c', k2, j) = let k1 = v2'
+                  and (c'
+                      , k1
+                      , k2
+                      , j) = let v1' = let v1' = defaultVal ()
+                        in v1'
+                     and (c', k1, j) = let k2 = v1'
+                        and (c', k1, k2, j) = let ((cc'
+                                                   , cb'
+                                                   , cr')
+                                                  , k1) = let (v'
+                                                              , k1) = let v1' = i
+                                 and v2' = 1
+                                 and v1' = v1' + v2'
+                                 and v' = k1
+                                 and v' = v1'
+                                 and (v', k1) = (v', v')
+                                 in (v', k1)
+                              in ((False, False, None), k1)
+                           in if cc'
+                              then ((cc', cb', cr')
+                                   , k1
+                                   , k2
+                                   , j)
+                              else let (c'
+                                       , k2
+                                       , j
+                                       , k1) = let ((cc', cb', cr')
+                                                   , k2) = let (v'
+                                                               , k2) = let v1' = j
+                                          and v2' = 1
+                                          and v1' = v1' + v2'
+                                          and v' = k2
+                                          and v' = v1'
+                                          and (v', k2) = (v', v')
+                                          in (v', k2)
+                                       in ((False, False, None), k2)
+                                    in if cc'
+                                       then ((cc', cb', cr')
+                                            , k2
+                                            , j
+                                            , k1)
+                                       else let (c', j, k1) = let ((cc'
+                                                                   , cb'
+                                                                   , cr')
+                                                                  , j) = let (v'
+                                                                             , j) = let v1' = k1
+                                                   and v2' = k2
+                                                   and v1' = v1' + v2'
+                                                   and v' = j
+                                                   and v' = v' + v1'
+                                                   and (v', j) = (v', v')
+                                                   in (v', j)
+                                                in ((False, False, None), j)
+                                             in if cc'
+                                                then ((cc', cb', cr'), j, k1)
+                                                else let (c', k1) = let ((cc'
+                                                                         , cb'
+                                                                         , cr')
+                                                                        , k1) = let (v'
+                                                                                    , k1) = let v1' = j
+                                                            and v2' = i
+                                                            and v1' = v1' + v2'
+                                                            and v' = k1
+                                                            and v' = v' + v1'
+                                                            and (v', k1) = (v'
+                                                                           , v')
+                                                            in (v', k1)
+                                                         in ((False
+                                                             , False
+                                                             , None)
+                                                            , k1)
+                                                      in if cc'
+                                                         then ((cc', cb', cr')
+                                                              , k1)
+                                                         else
+                                                            let c' = let v' = let v' = k1
+                                                                  in v'
+                                                               in (True
+                                                                  , True
+                                                                  , Some v')
+                                                            in (c', k1)
+                                                   in (c', j, k1)
+                                          in (c', k2, j, k1)
+                                 in (c', k1, k2, j)
+                        in (c', k1, j)
+                     in (c', k1, k2, j)
+                  in (c', k2, j)
+               in (c', k1, k2, j)
+            in (c', i, k1, k2, j)
+   in cr'
       | None -> defaultVal ()
       | Some v -> v
 cogent_sd6 : ( U32, U32 ) -> U32
 cogent_sd6 (i
            , j) =
-   let (_
-       , _
-       , res') = let c' = gencotDummy "Translation of nontrivial blocks not yet implemented"
-         {-
-             i += 2 * j;
-             
-             U32 k1, k2 = 42;
-             
-             k1 = i + 1;
-             j += k1 + k2;
-             k1 += j + i;
-             return k1;
-         -}
-      in c'
-   in res'
+   let ((_, _, cr')
+       , i
+       , k1
+       , j) = let ((cc', cb', cr')
+                  , i) = let (v', i) = let v1' = 2
+            and v2' = j
+            and v1' = v1' * v2'
+            and v' = i
+            and v' = v' + v1'
+            and (v', i) = (v', v')
+            in (v', i)
+         in ((False, False, None), i)
+      in if cc'
+         then ((cc', cb', cr'), i, k1, j)
+         else let (c'
+                  , k1
+                  , j) = let v2' = let v2' = defaultVal ()
+                  in v2'
+               and (c', j) = let k1 = v2'
+                  and (c'
+                      , k1
+                      , j) = let v1' = let v1' = 42
+                        in v1'
+                     and (c', k1, j) = let k2 = v1'
+                        and (c', k1, j) = let ((cc'
+                                               , cb'
+                                               , cr')
+                                              , k1) = let (v'
+                                                          , k1) = let v1' = i
+                                 and v2' = 1
+                                 and v1' = v1' + v2'
+                                 and v' = k1
+                                 and v' = v1'
+                                 and (v', k1) = (v', v')
+                                 in (v', k1)
+                              in ((False, False, None), k1)
+                           in if cc'
+                              then ((cc', cb', cr'), k1, j)
+                              else let (c', j, k1) = let ((cc'
+                                                          , cb'
+                                                          , cr')
+                                                         , j) = let (v'
+                                                                    , j) = let v1' = k1
+                                          and v2' = k2
+                                          and v1' = v1' + v2'
+                                          and v' = j
+                                          and v' = v' + v1'
+                                          and (v', j) = (v', v')
+                                          in (v', j)
+                                       in ((False, False, None), j)
+                                    in if cc'
+                                       then ((cc', cb', cr'), j, k1)
+                                       else let (c', k1) = let ((cc'
+                                                                , cb'
+                                                                , cr')
+                                                               , k1) = let (v'
+                                                                           , k1) = let v1' = j
+                                                   and v2' = i
+                                                   and v1' = v1' + v2'
+                                                   and v' = k1
+                                                   and v' = v' + v1'
+                                                   and (v', k1) = (v', v')
+                                                   in (v', k1)
+                                                in ((False, False, None), k1)
+                                             in if cc'
+                                                then ((cc', cb', cr'), k1)
+                                                else
+                                                   let c' = let v' = let v' = k1
+                                                         in v'
+                                                      in (True, True, Some v')
+                                                   in (c', k1)
+                                          in (c', j, k1)
+                                 in (c', k1, j)
+                        in (c', k1, j)
+                     in (c', k1, j)
+                  in (c', j)
+               in (c', k1, j)
+            in (c', i, k1, j)
+   in cr'
       | None -> defaultVal ()
       | Some v -> v

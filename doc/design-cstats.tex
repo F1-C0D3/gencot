@@ -887,6 +887,111 @@ also for this case, it is irrelevant which value is used.
 
 \subsubsection{Switch Statements}
 
+A \code{switch} statement in C specifies a ``control expression'' of integer type and a body statement. Control jumps to a 
+\code{case} statement in the body marked with the value of the control expression or to a \code{default} statement. If neither
+is present in the body it is not executed.
+
+The \code{case} and \code{default} statements may occur anywhere in the body other than in a nested \code{switch} statement,
+in particular they may occur in nested conditional statements and in loop statements. In these cases the jump is past the 
+condition or loop initialization. The resulting behavior is clearly defined in the C standard, however, it is difficult to 
+be transferred to a functional specification and usually involves code copying. The jump targets may also occur in a nested 
+compound statement so that the jump may be past some declarations into an inner scope, this is also difficult to transfer.
+
+However, there is a simple form of \code{switch} statements which can be transferred in a rather straightforward way. It is
+the case where the body is a compound statement and all \code{case} and \code{default} statements occur directly in the 
+sequence of contained statements. These \code{switch} statements have the form
+\begin{verbatim}
+  switch (e) {
+    ...
+  case c1: s11 ... s1k1
+  ...
+  case cn: sn1 ... snkn
+  default: s01 ... s0k0
+  }
+\end{verbatim}
+where the \code{default} statement may have any other position or may be omitted. The C standard requires that all \code{ci}
+constants are pairwise distinct. In practical applications most \code{switch} statements are of this form. 
+
+If there are declarations among the \code{sij} or before the first \code{case} statement the \code{switch} statement may cause
+a jump past the declaration which means the declared object exists but is not initialized, which is also difficult to transfer.
+Therefore we assume that there are no declarations in the body.
+
+Then the \code{switch} statement of the form shown above can be rewritten to the following statement
+\begin{verbatim}
+  { t v = e;
+    if (v == c1) {s11 ... s1k1}
+    ...
+    if (v == c1 || ... || v == cn) {sn1 ... snkn}
+    {s01 ... s0k0}
+  }
+\end{verbatim}
+and can be translated as described in the corresponding sections. Here \code{v} is an otherwise unused variable and \code{t} is
+the type of \code{e}. It is needed even if \code{e} is a single variable, because this variable could be modified in some cases
+but in the following case conditions the original value must be used.
+
+Note that the additional disjunctions and the omitted condition for the default part cover the feature of ``fall through'' 
+in a \code{switch} statement: the execution of following cases is only prevented by an explicit \code{break} or \code{return}
+statement. If the \code{default} statement is placed before other \code{case} statements it also needs a condition which prevents
+its execution for the cases following it.
+
+Since \code{break} statements which are not enclosed by a nested loop or \code{switch} statement are consumed by the \code{switch}
+statement and not propagated to the context, the control flow tuple must be reset by the switch statement. If it is bound to
+\code{(cc,cb,res)} by the body, it must be rebound by the \code{switch} statement to
+\begin{verbatim}
+  (res /= None || (cc && not cb),res /= None, res)
+\end{verbatim}
+which will only preserve the effect of \code{return} and \code{continue} statements. A \code{continue} statement does not 
+affect the \code{switch} statement but may be present and affect a surrounding loop.
+
+As an example, the \code{switch} statement
+\begin{verbatim}
+  switch (i) {
+    case 1: return 0;
+    case 2: i++;
+    case 3: return i+10;
+    default: return i;
+  }
+\end{verbatim}
+can be rewritten to
+\begin{verbatim}
+  {
+    if (v==1) return 0;
+    if (v==1 || v==2) i++;
+    if (v==1 || v==2 || v==3) return i+10;
+    return i;
+  }
+\end{verbatim}
+which is translated to
+\begin{verbatim}
+  (c,i) = let v = i in
+    let (cc,cb,res) = 
+      if v==1 then (True,True,Some 0)
+              else (False,False,None)
+    in if cc then ((cc,cb,res),i) else 
+      let ((cc,cb,res),i) = 
+        if v==1 || v==2 then ((False,False,None),i+1)
+                        else ((False,False,None),i)
+      in if cc then ((cc,cb,res),i) else 
+        let c = 
+          let (cc,cb,res) = 
+            if v==1 || v==2 || v==3 
+            then (True,True,Some i+10)
+            else (False,False,None)
+          in if cc then (cc,cb,res)
+                   else (True,True,Some i)
+        in (c,i)
+\end{verbatim}
+which could be simplified to
+\begin{verbatim}
+  (c,i) = 
+    ((True,True,
+      if i==1 then Some 0
+      else if i==2 then Some 13
+      else if i==3 then Some 13
+      else Some i),
+     if i==2 then 3 else i)
+\end{verbatim}
+
 \subsubsection{For Loops}
 
 A \code{for} loop has the form \code{for (ee1; ee2; ee3) s} with optional expressions \code{eei} and a statement \code{s}. 

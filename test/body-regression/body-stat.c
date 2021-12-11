@@ -110,3 +110,112 @@ int sd6(int i, int j) {
     j += k1+k2;
     k1 += j+i;
     return k1;}
+
+int ss1(int i) {
+    switch (i) {
+        case 0: return i;
+    }
+}
+
+int ss2(int i) {
+    switch (i) {
+        default: return 0;
+    }
+}
+
+int ss3(int i) {
+    switch (i) {
+        case 0: return i;
+        default: return 0;
+    }
+}
+
+int ss4(int i) {
+    switch (i) {
+        case 0: return i;
+        case 1: return i+5;
+        default: return 0;
+    }
+}
+
+int ss5(int i) {
+    switch (i) {
+        case 0: return i;
+        default: return 0;
+        case 1: return i+5;
+    }
+}
+
+int ss6(int i, int j) {
+    switch (i) {
+        case 0: j = i;
+        case 1: i++;
+        case 2: j = 5;
+        default: return j;
+    }
+}
+
+int ss7(int i, int j) {
+    switch (i) {
+        i++;
+        case 0: j = i;
+        case 1: i++; break;
+        case 2: j = 5;
+    }
+    return j;
+}
+
+int ss8(int i, int j) {
+    switch (i) {
+        case 0: j = i;
+        case 1: switch (j) {
+          case 0: return 17;
+          default: return i;
+        }
+        case 2: j = 5;
+    }
+    return j;
+}
+
+int ss10(int i) {
+    switch (i) return i;
+}
+
+int ss11(int i) {
+    switch (i) if (i==0) break;
+    return i;
+}
+
+int ss12(int i) {
+    switch (i) i = 5;
+    return i;
+}
+
+int ss13(int i,int j) {
+    switch (i) {
+        case 0: j = i;
+        if (i < 5) { j++; case 3: j++; }
+        else { case 1: return i+5;
+               case 7: j--; }
+        default: return 0;
+    }
+}
+
+int ss14(int i) {
+    switch (i) {
+        int j = 0;
+        case 0: j = i;
+        case 1: i++; break;
+        case 2: j = 5;
+    }
+    return i;
+}
+
+int ss15(int i, int j) {
+    switch (i) {
+        case 0: j = i; int k = 0; 
+        case 1: i++; break;
+        case 2: j = k;
+    }
+    return j;
+}

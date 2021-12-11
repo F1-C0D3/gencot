@@ -25,7 +25,7 @@ import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapName
 import Gencot.Items.Types (ItemAssocType,isNotNullItem,isReadOnlyItem,isAddResultItem,isNoStringItem,getGlobalStateSubItemIds,getGlobalStateProperty,getGlobalStateId,getTagItemAssoc,getIndividualItemAssoc,getTypedefItemAssoc,adjustItemAssocType,getMemberSubItemAssoc,getRefSubItemAssoc,getResultSubItemAssoc,getElemSubItemAssoc,getParamSubItemAssoc,getItemAssocType,getMemberItemAssocTypes,getSubItemAssocTypes,numberList)
 import Gencot.Items.Identifier (getObjFunName,getParamName)
 import Gencot.Cogent.Ast
-import Gencot.Cogent.Bindings (BindsPair,leadVar,lvalVar,mkBodyExpr,mkPlainExpr,mkEmptyBindsPair,mkDummyBindsPair,mkUnitBindsPair,mkDefaultBindsPair,mkIntLitBindsPair,mkCharLitBindsPair,mkStringLitBindsPair,mkValVarBindsPair,mkMemBindsPair,mkIdxBindsPair,mkOpBindsPair,mkAppBindsPair,mkAssBindsPair,mkIfBindsPair,concatBindsPairs,mkDummyBinding,mkNullBinding,mkExpBinding,mkRetBinding,mkIfBinding,mkSeqBinding,mkDecBinding)
+import Gencot.Cogent.Bindings (BindsPair,leadVar,lvalVar,mkBodyExpr,mkPlainExpr,mkEmptyBindsPair,mkDummyBindsPair,mkUnitBindsPair,mkDefaultBindsPair,mkIntLitBindsPair,mkCharLitBindsPair,mkStringLitBindsPair,mkValVarBindsPair,mkMemBindsPair,mkIdxBindsPair,mkOpBindsPair,mkAppBindsPair,mkAssBindsPair,mkIfBindsPair,concatBindsPairs,mkDummyBinding,mkNullBinding,mkExpBinding,mkRetBinding,mkBreakBinding,mkContBinding,mkIfBinding,mkSwitchBinding,mkCaseBinding,mkSeqBinding,mkDecBinding)
 import qualified Gencot.C.Ast as LQ (Stm(Exp,Block),Exp)
 import qualified Gencot.C.Translate as C (transStat,transExpr,transArrSizeExpr,transBlockItem)
 import Gencot.Traversal (FTrav,markTagAsNested,isMarkedAsNested,hasProperty,stopResolvTypeName,setFunDef,clrFunDef,getValCounter,getCmpCounter,resetVarCounters,resetValCounter)
@@ -789,6 +789,10 @@ bindStat s@(LC.CReturn (Just e) _) = do
     resetValCounter
     bpe <- bindExpr e
     insertStatSrc s $ mkRetBinding bpe
+bindStat s@(LC.CBreak _) =
+    insertStatSrc s $ mkBreakBinding
+bindStat s@(LC.CCont _) =
+    insertStatSrc s $ mkContBinding
 bindStat s@(LC.CCompound lbls bis _) = do
     LCA.enterBlockScope
     res <- if not $ null lbls
@@ -808,8 +812,70 @@ bindStat s@(LC.CIf e s1 (Just s2) _) = do
     bs1 <- bindStat s1
     bs2 <- bindStat s2
     insertStatSrc s $ mkIfBinding bpe bs1 bs2
+bindStat s@(LC.CSwitch e s1 _) = do
+    resetValCounter
+    bpe <- bindExpr e
+    lbls <- getLabels s1
+    bs <- bindSwitchBody s1 (length lbls)
+    insertStatSrc s $ mkSwitchBinding bpe lbls bs
+    where getLabels (LC.CCompound _ bis _) = bindSwitchLabels bis
+          getLabels _ = return []
+bindStat s@(LC.CCase _ _ _) =
+    insertStatSrc s $ mkDummyBinding "Case statement only supported in direct switch body"
+bindStat s@(LC.CDefault _ _) =
+    insertStatSrc s $ mkDummyBinding "Default statement only supported in direct switch body"
 bindStat s = 
     insertStatSrc s $ mkDummyBinding "Translation of statement not yet implemented"
+
+bindSwitchBody :: LC.CStat -> Int -> FTrav GenBnd
+bindSwitchBody s@(LC.CCompound [] bis _) _ | any isDecl bis = 
+    insertStatSrc s $ mkDummyBinding "Declarations not supported in switch body"
+    where isDecl (LC.CBlockDecl _) = True
+          isDecl _ = False
+bindSwitchBody s@(LC.CCompound [] bis _) grps = do
+    -- we do not need LCA.enterBlockScope because there are no declarations (?)
+    bindSwitchItems bis 1 grps False
+bindSwitchBody s _ = insertStatSrc s $ mkDummyBinding "Unsupported switch body"
+
+bindSwitchLabels :: [LC.CBlockItem] -> FTrav [Maybe BindsPair]
+bindSwitchLabels [] = return []
+bindSwitchLabels ((LC.CBlockStmt (LC.CCase e _ _)) : bis) = do
+    resetValCounter
+    bpe <- bindExpr e
+    bs <- bindSwitchLabels bis
+    return ((Just bpe) : bs)
+bindSwitchLabels ((LC.CBlockStmt (LC.CDefault _ _)) : bis) = do
+    bs <- bindSwitchLabels bis
+    return (Nothing : bs) 
+bindSwitchLabels (_ : bis) = bindSwitchLabels bis
+
+isLbld :: LC.CBlockItem -> Bool
+isLbld (LC.CBlockStmt (LC.CCase _ _ _)) = True
+isLbld (LC.CBlockStmt (LC.CDefault _ _)) = True
+isLbld _ = False
+
+-- | Process list of statements in a switch body.
+-- nr is the group number for the first statement group, grps is the total number of groups in the switch body
+-- dfltSeen is true if a default statement has already been processed.
+bindSwitchItems :: [LC.CBlockItem] -> Int -> Int -> Bool -> FTrav GenBnd
+bindSwitchItems [] _ _ _ = return mkNullBinding
+bindSwitchItems bis@(s : bis1) nr grps dfltSeen | not (isLbld s) = bindSwitchItems bis1 nr grps dfltSeen
+bindSwitchItems bis@((LC.CBlockStmt s) : bis1) nr grps dfltSeen = do
+    b1 <- bindSwitchGroup s ss1 nr grps dfltSeen'
+    b2 <- bindSwitchItems ss2 (1+nr) grps dfltSeen'
+    insertBlockItemsSrc bis $ mkSeqBinding b1 b2
+    where (ss1,ss2) = break isLbld bis1
+          dfltSeen' = if dfltSeen then True else isDflt s
+          isDflt (LC.CDefault _ _) = True
+          isDflt _ = False
+
+bindSwitchGroup :: LC.CStat -> [LC.CBlockItem] -> Int -> Int -> Bool -> FTrav GenBnd
+bindSwitchGroup s bis nr grps dfltSeen = do
+    b <- bindBlockItems (LC.CBlockStmt s' : bis)
+    return $ mkCaseBinding b nr grps dfltSeen
+    where s' = case s of
+                  LC.CDefault s' _ -> s'
+                  LC.CCase _ s' _  -> s'
 
 bindBlockItems :: [LC.CBlockItem] -> FTrav GenBnd
 bindBlockItems [] = return mkNullBinding

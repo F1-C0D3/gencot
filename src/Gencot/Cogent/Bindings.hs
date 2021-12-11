@@ -18,6 +18,11 @@ ctl2Var = "cb"++[prime]
 ctl3Var = "cr"++[prime]
 ctlVarTuple = [ctl1Var,ctl2Var,ctl3Var]
 
+swtVar = "s"++[prime]
+
+casVar :: Int -> CCS.VarName
+casVar n = "s"++(show n)++[prime]
+
 cmpVar :: Int -> CCS.VarName
 cmpVar n = "r"++(show n)++[prime]
 
@@ -263,15 +268,56 @@ mkRetBinding bp = mkVarsBinding (ctlVar : vs) $ mkLetExpr [cmbBinds bp] $ mkCtlV
     where v = leadVar bp
           vs = sideEffectTargets bp
 
+-- | Break statement: c' = (True, True, None)
+mkBreakBinding :: GenBnd
+mkBreakBinding = mkVarBinding ctlVar $ mkCtlTupleExpr True True Nothing
+
+-- | Continue statement: c' = (True, False, None)
+mkContBinding :: GenBnd
+mkContBinding = mkVarBinding ctlVar $ mkCtlTupleExpr True False Nothing
+
 -- | Conditional statement (c',z1..) = let (v<n>',v1..) = expr in if v<n>' then let b1 in (c',z1..) else let b2 in (c',z1..)
 mkIfBinding :: BindsPair -> GenBnd -> GenBnd -> GenBnd
 mkIfBinding bp b1 b2 =
     mkVarsBinding vs $ mkLetExpr [cmbBinds bp] $ mkIfExpr (mkVarExpr (leadVar bp)) e1 e2
-    where set1 = sideEffectFilter $ boundVars b1
+    where set0 = sideEffectTargets bp
+          set1 = sideEffectFilter $ boundVars b1
           set2 = sideEffectFilter $ boundVars b2
-          vs = ctlVar : (union set1 set2)
+          vs = ctlVar : (union set0 $ union set1 set2)
           e1 = mkLetExpr [b1] $ mkVarTupleExpr vs
           e2 = mkLetExpr [b2] $ mkVarTupleExpr vs
+
+-- | Switch statement (c',z1..) = let (s',v1..) = expr and (s1',...) = (s' == expr1,...) 
+--         and ((cc',cb',cr'),x1..) = exprb in ((cr’ /= None || (cc’ && not cb’),cr’ /= None, cr’),z1..)
+-- mbps are the case label expression binding list pairs with Nothing representing the default statement.
+mkSwitchBinding :: BindsPair -> [Maybe BindsPair] -> GenBnd -> GenBnd
+mkSwitchBinding bp mbps b =
+    mkVarsBinding (ctlVar : vs) $ mkLetExpr [bp',mbps',b'] $ mkExpVarTupleExpr c vs
+    where set0 = sideEffectTargets bp
+          set1 = sideEffectFilter $ boundVars b
+          vs = union set0 set1
+          bp' = replaceLeadPatn (mkVarPattern swtVar) $ cmbBinds bp
+          casVars = map casVar $ take (length mbps) $ iterate (1+) 1
+          casVal Nothing = mkBoolLitExpr True
+          casVal (Just bp) = mkOpExpr "==" [mkVarExpr swtVar, mkPlainExpr bp]
+          mbps' = mkVarsTupleBinding casVars $ map casVal mbps
+          b' = replaceLeadPatn mkCtlTuplePattern b
+          c = mkTupleExpr [mkOpExpr "||" [crNotNone,cccb],crNotNone,cr]
+          cr = mkVarExpr ctl3Var
+          n = mkOptionExpr Nothing
+          crNotNone = mkOpExpr "/=" [cr, n]
+          cccb = mkOpExpr "&&" [mkVarExpr ctl1Var,mkOpExpr "not" [mkVarExpr ctl2Var]]
+
+-- | Switch group (c',x1..) = if cond then let b in (c',x1..) else ((False,False,None),x1..)
+mkCaseBinding :: GenBnd -> Int -> Int -> Bool -> GenBnd
+mkCaseBinding b nr grps dfltSeen = 
+    if dfltSeen && nr == grps
+       then mkVarsBinding vs $ mkLetExpr [b] $ mkVarTupleExpr vs
+       else mkVarsBinding vs $ mkIfExpr (cond dfltSeen) (mkLetExpr [b] $ mkVarTupleExpr vs) $ mkFfnVarTupleExpr set
+    where set = sideEffectFilter $ boundVars b
+          vs = ctlVar : set
+          cond False = mkDisjExpr $ map (mkVarExpr . casVar) $ take nr $ iterate (1+) 1
+          cond True = mkOpExpr "not" [mkDisjExpr $ map (mkVarExpr . casVar) $ take (grps-nr) $ iterate (1+) (nr+1)]
 
 -- | Statement in Sequence (c',z1..) = let b in if cc' then ((cc',...),z1..) else let bs in (c',z1..)
 mkSeqBinding :: GenBnd -> GenBnd -> GenBnd
@@ -361,6 +407,10 @@ mkCharLitExpr = genExpr . CS.CharLit
 mkStringLitExpr :: String -> GenExpr
 mkStringLitExpr = genExpr . CS.StringLit
 
+-- construct True or False
+mkBoolLitExpr :: Bool -> GenExpr
+mkBoolLitExpr = genExpr . CS.BoolLit
+
 -- construct v
 mkVarExpr :: CCS.VarName -> GenExpr
 mkVarExpr = genExpr . CS.Var
@@ -377,15 +427,16 @@ mkOpExpr op es = genExpr $ CS.PrimOp op es
 -- construct control tuple value (c1, c2, Some me) or (c1,c2,None)
 mkCtlTupleExpr :: Bool -> Bool -> Maybe GenExpr -> GenExpr
 mkCtlTupleExpr c1 c2 me = 
-    mkTupleExpr [genExpr $ CS.BoolLit c1, genExpr $ CS.BoolLit c2,
-        case me of
-             Nothing -> genExpr $ CS.Con "None" []
-             Just e -> genExpr $ CS.Con "Some" [e] ]
+    mkTupleExpr [mkBoolLitExpr c1, mkBoolLitExpr c2, mkOptionExpr me]
+
+-- construct (False,False,None)@(LCCCompound
+mkOptionExpr :: Maybe GenExpr -> GenExpr
+mkOptionExpr Nothing = genExpr $ CS.Con "None" []
+mkOptionExpr (Just e) = genExpr $ CS.Con "Some" [e]
 
 -- construct (<control tuple>,v1,...,vn) or <control tuple>
 mkCtlVarTupleExpr :: Bool -> Bool -> Maybe GenExpr -> [CCS.VarName] -> GenExpr
-mkCtlVarTupleExpr c1 c2 me [] = mkCtlTupleExpr c1 c2 me
-mkCtlVarTupleExpr c1 c2 me vs = mkTupleExpr ((mkCtlTupleExpr c1 c2 me) : (map mkVarExpr vs))
+mkCtlVarTupleExpr c1 c2 me vs = mkExpVarTupleExpr (mkCtlTupleExpr c1 c2 me) vs
 
 -- construct (False,False,None)
 mkFfnExpr :: GenExpr
@@ -395,10 +446,20 @@ mkFfnExpr = mkCtlTupleExpr True True Nothing
 mkVarTupleExpr :: [CCS.VarName] -> GenExpr
 mkVarTupleExpr vs = mkTupleExpr $ map mkVarExpr vs
 
+-- construct (e,v1,...,vn) or e
+mkExpVarTupleExpr :: GenExpr -> [CCS.VarName] -> GenExpr
+mkExpVarTupleExpr e [] = e
+mkExpVarTupleExpr e vs = mkTupleExpr (e : (map mkVarExpr vs))
+
 -- construct ((False,False,None),v1,...,vn) or (False,False,None)
 mkFfnVarTupleExpr :: [CCS.VarName] -> GenExpr
-mkFfnVarTupleExpr [] = mkFfnExpr
-mkFfnVarTupleExpr vs = mkTupleExpr (mkFfnExpr : map mkVarExpr vs)
+mkFfnVarTupleExpr vs = mkExpVarTupleExpr mkFfnExpr vs
+
+-- construct e1 || ... || en
+mkDisjExpr :: [GenExpr] -> GenExpr
+mkDisjExpr [] = mkBoolLitExpr False
+mkDisjExpr [e] = e
+mkDisjExpr (e : es) = mkOpExpr "||" [e,mkDisjExpr es]
 
 -- replace e1 in (e1,...,en) or e1
 replaceLeadExpr :: GenExpr -> GenExpr -> GenExpr

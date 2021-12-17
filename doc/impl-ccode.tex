@@ -1591,100 +1591,6 @@ A C \code{continue} statement is translated to the binding
   c' = (True,False,None)
 \end{verbatim}
 
-\subsubsection{Selection Statements}
-
-A selection statement is a conditional statement or a switch statement.
-
-A conditional statement of the form \code{if (e) s1 else s2} is translated similar to a conditional expression.
-First the subexpression \code{e} is translated to a binding list pair and combined by \code{cmbBinds} to a binding 
-\code{(v<n>',v1..) = expr}. The substatements are translated to bindings \code{(c',x1..) = expr1} and \code{(c',y1..) = expr2}. 
-Let \code{z1..} be the union of the side effect targets \code{v1..}, \code{x1..}, and \code{y1..} in some order. The conditional
-statement is translated to the binding
-\begin{verbatim}
-  (c',z1..) = let (v<n>',v1..) = expr
-  in if v<n>' 
-     then let (c',x1..) = expr1 in (c',z1..)
-     else let (c',y1..) = expr2 in (c',z1..)
-\end{verbatim}
-
-For a conditional statement of the form \code{if (e) s1} the expression \code{e} and statement \code{s1} are translated as
-above. Let \code{z1..} be the union of the side effect targets \code{v1..} and \code{x1..} in some order. The conditional
-statement is translated to the binding
-\begin{verbatim}
-  (c',z1..) = let (v<n>',v1..) = expr
-  in if v<n>' 
-     then let (c',x1..) = expr1 in (c',z1..)
-     else ((False,False,None),z1..)
-\end{verbatim}
-
-A switch statement of the form \code{switch (e) s} is only translated if it has the restricted form described in 
-Section~\ref{design-cstats-stat}: The statement \code{s} must be a compound statement \code{\{s1 ... sn\}} where no \code{si}
-is a declaration and all \code{case} and \code{default} statements associated with the \code {switch} statement occur among the 
-\code{si}. 
-
-The translation has the form described in Section~\ref{design-cstats-stat}, however, the C code is not rewritten but translated
-directly. This is done by processing the body \code{s} in a specific way which handles the \code{case} and \code{default}
-statements among the \code{si}. At all other positions \code{case} and \code{default} statements are translated to dummy expressions.
-Declarations among the \code{si} are also translated to dummy expressions. Statements before the first \code{case} or \code{default}
-statement in the \code{si} are silently omitted.
-
-The value of \code{e} must be assigned to a specific ``switch variable''. Nested switch statements are translated encapsulated 
-in subexpressions where the switch variable shadows that from all surrounding switch statements, therefore a single switch variable 
-is sufficient for all statements. Gencot uses the name \code{s'} for the switch variable, it is automatically distinct from the names of
-all other variables used in the translation. 
-
-The case labels are in real programs mostly literals, however, syntactically they are 
-expressions. In the Cogent code a case label may be used in several places, therefore Gencot evaluates them once at the beginning 
-of the switch statement. This is possible because the case labels must be constant 
-expressions which implies that they can be evaluated independent of their context. After evaluation Gencot immediately compares the result
-to the value of the switch variable and binds the result to specific ``case variables''. For a default statement the case variable is
-bound to \code{True}. Gencot uses the names \code{s1'}, ... for the 
-case variables, which are automatically distinct from the names of all other variables used in the translation. Like the switch variable
-they can be reused for nested switch statements where they shadow the case variables from surrounding switch statements.
-
-Every \code{case} or \code{default} statement \code{sk} of the form \code{lbl: sk0} in the \code{si} is grouped together with all 
-following statements \code{sk1 ... skmk} which are no \code{case} or \code{default} statement to the compound statement \code{\{sk0 sk1 ... skmk\}}.
-Let \code{g1 ... gp} the sequence of these compound statements and let \code{lbl1 ... lblp} be the corresponding labels in the \code{case}
-or \code{default} statements. For each \code{case} statement let the label \code{lblk} be \code{case ck}, i.e., \code{ck} is the constant
-used in it.
-
-Every compound statement \code{gk} is translated to a binding \code{(c',x1..) = exprk} by applying \code{bindStat} to it. 
-Then this binding is extended to a binding \code{bk} of the form
-\begin{verbatim}
-  (c',x1..) = 
-    if condk
-    then exprk
-    else ((False,False,None),x1..)
-\end{verbatim}
-which corresponds to the C statement \code{if (condk) then \{sk0 sk1 ... skmk\}}. The condition \code{condk} is determined as follows.
-If there is no \code{default} statement before \code{sk} the condition is
-\begin{verbatim}
-  s1' || ... || s<k>'
-\end{verbatim}
-Otherwise the condition is
-\begin{verbatim}
-  not (s<k+1>' || ... || s<p>')
-\end{verbatim}
-For \code{k = p} this condition is equivalent to \code{True} and the binding \code{(c',x1..) = exprp} is used directly. Note that if
-\code{sk} is the default statement the case variable \code{s<k>'} (which has been bound to \code{True}) is never used.
-
-The resulting sequence of bindings \code{b1 ... bp} is combined to a binding \code{(c',x1..) = exprb} by processing it as described 
-below for a compound statement, as if the bindings resulted from translating statements which are the block items in the compound 
-statement. The controlling expression \code{e} is translated to a binding list pair and combined by \code{cmbBinds} to a binding 
-\code{(v<n>',v1..) = expr}. The case label expressions \code{e1}, ..., \code{ep} are translated to binding list pairs and combined by 
-\code{cmbBinds} to bindings \code{v<n>' = exprk} (there are no side effect targets because the \code{ei} are constant expressions). 
-Let \code{z1..} be the union of the side effect 
-targets \code{v1..} and \code{x1..} in some order. Then the translation of the \code{switch} statement is the binding
-\begin{verbatim}
-  (c',z1..) = let (s',v1..) = expr
-    and (s1',...,s<p>') = (s' == expr1,...,s' == exprp)
-    and ((cc',cb',cr'),x1..) = exprb
-    in ((cr' /= None || (cc' && not cb'),cr' /= None, cr'),z1..)
-\end{verbatim}
-
-\subsubsection{Iteration Statements}
-**todo**
-
 \subsubsection{Local Declarations}
 
 Local declarations are declarations which occur as an item in a compound statement. Gencot only translates local object declarations, 
@@ -1788,6 +1694,240 @@ From this binding the Cogent expression
 \end{verbatim}
 is constructed as body expression of the translated Cogent function. Additional result values due to item 
 properties and optimizations for functions with a \code{void} result are done in  later stages of the translation.
+
+\subsubsection{Selection Statements}
+
+A selection statement is a conditional statement or a switch statement.
+
+A conditional statement of the form \code{if (e) s1 else s2} is translated similar to a conditional expression.
+First the subexpression \code{e} is translated to a binding list pair and combined by \code{cmbBinds} to a binding 
+\code{(v<n>',v1..) = expr}. The substatements are translated to bindings \code{(c',x1..) = expr1} and \code{(c',y1..) = expr2}. 
+Let \code{z1..} be the union of the side effect targets \code{v1..}, \code{x1..}, and \code{y1..} in some order. The conditional
+statement is translated to the binding
+\begin{verbatim}
+  (c',z1..) = let (v<n>',v1..) = expr
+  in if v<n>' 
+     then let (c',x1..) = expr1 in (c',z1..)
+     else let (c',y1..) = expr2 in (c',z1..)
+\end{verbatim}
+
+For a conditional statement of the form \code{if (e) s1} the expression \code{e} and statement \code{s1} are translated as
+above. Let \code{z1..} be the union of the side effect targets \code{v1..} and \code{x1..} in some order. The conditional
+statement is translated to the binding
+\begin{verbatim}
+  (c',z1..) = let (v<n>',v1..) = expr
+  in if v<n>' 
+     then let (c',x1..) = expr1 in (c',z1..)
+     else ((False,False,None),z1..)
+\end{verbatim}
+
+A switch statement of the form \code{switch (e) s} is only translated if it has the restricted form described in 
+Section~\ref{design-cstats-stat}: The statement \code{s} must be a compound statement \code{\{s1 ... sn\}} where no \code{si}
+is a declaration and all \code{case} and \code{default} statements associated with the \code {switch} statement occur among the 
+\code{si}. 
+
+The translation has the form described in Section~\ref{design-cstats-stat}, however, the C code is not rewritten but translated
+directly. This is done by processing the body \code{s} in a specific way which handles the \code{case} and \code{default}
+statements among the \code{si}. At all other positions \code{case} and \code{default} statements are translated to dummy expressions.
+Declarations among the \code{si} are also translated to dummy expressions. Statements before the first \code{case} or \code{default}
+statement in the \code{si} are silently omitted.
+
+The value of \code{e} must be assigned to a specific ``switch variable''. Nested switch statements are translated encapsulated 
+in subexpressions where the switch variable shadows that from all surrounding switch statements, therefore a single switch variable 
+is sufficient for all statements. Gencot uses the name \code{s'} for the switch variable, it is automatically distinct from the names of
+all other variables used in the translation. 
+
+The case labels are in real programs mostly literals, however, syntactically they are 
+expressions. In the Cogent code a case label may be used in several places, therefore Gencot evaluates them once at the beginning 
+of the switch statement. This is possible because the case labels must be constant 
+expressions which implies that they can be evaluated independent of their context. After evaluation Gencot immediately compares the result
+to the value of the switch variable and binds the result to specific ``case variables''. For a default statement the case variable is
+bound to \code{True}. Gencot uses the names \code{s1'}, ... for the 
+case variables, which are automatically distinct from the names of all other variables used in the translation. Like the switch variable
+they can be reused for nested switch statements where they shadow the case variables from surrounding switch statements.
+
+Every \code{case} or \code{default} statement \code{sk} of the form \code{lbl: sk0} in the \code{si} is grouped together with all 
+following statements \code{sk1 ... skmk} which are no \code{case} or \code{default} statement to the compound statement \code{\{sk0 sk1 ... skmk\}}.
+Let \code{g1 ... gp} the sequence of these compound statements and let \code{lbl1 ... lblp} be the corresponding labels in the \code{case}
+or \code{default} statements. For each \code{case} statement let the label \code{lblk} be \code{case ck}, i.e., \code{ck} is the constant
+used in it.
+
+Every compound statement \code{gk} is translated to a binding \code{(c',x1..) = exprk} by applying \code{bindStat} to it. 
+Then this binding is extended to a binding \code{bk} of the form
+\begin{verbatim}
+  (c',x1..) = 
+    if condk
+    then exprk
+    else ((False,False,None),x1..)
+\end{verbatim}
+which corresponds to the C statement \code{if (condk) then \{sk0 sk1 ... skmk\}}. The condition \code{condk} is determined as follows.
+If there is no \code{default} statement before \code{sk} the condition is
+\begin{verbatim}
+  s1' || ... || s<k>'
+\end{verbatim}
+Otherwise the condition is
+\begin{verbatim}
+  not (s<k+1>' || ... || s<p>')
+\end{verbatim}
+For \code{k = p} this condition is equivalent to \code{True} and the binding \code{(c',x1..) = exprp} is used directly. Note that if
+\code{sk} is the default statement the case variable \code{s<k>'} (which has been bound to \code{True}) is never used.
+
+The resulting sequence of bindings \code{b1 ... bp} is combined to a binding \code{(c',x1..) = exprb} by processing it as described 
+for a compound statement, as if the bindings resulted from translating statements which are the block items in the compound 
+statement. The controlling expression \code{e} is translated to a binding list pair and combined by \code{cmbBinds} to a binding 
+\code{(v<n>',v1..) = expr}. The case label expressions \code{e1}, ..., \code{ep} are translated to binding list pairs and combined by 
+\code{cmbBinds} to bindings \code{v<n>' = exprk} (there are no side effect targets because the \code{ei} are constant expressions). 
+Let \code{z1..} be the union of the side effect 
+targets \code{v1..} and \code{x1..} in some order. Then the translation of the \code{switch} statement is the binding
+\begin{verbatim}
+  (c',z1..) = let (s',v1..) = expr
+    and (s1',...,s<p>') = (s' == expr1,...,s' == exprp)
+    and ((cc',cb',cr'),x1..) = exprb
+    in ((cr' /= None || (cc' && not cb'),cr' /= None, cr'),z1..)
+\end{verbatim}
+
+\subsubsection{Iteration Statements}
+
+An iteration statement is a \code{for} loop or a \code{while} loop.
+
+Gencot only translates specific \code{for} loops. These loops are translated using the abstract function \code{repeat} as described
+in Section~\ref{design-cstats-stat}. A \code{for} loop is only translated for some cases where an upper limit for the number of 
+iterations can be determined automatically from the loop structure.
+
+In a \code{for} loop the initialization part can be a declaration or a subexpression. If it is a declaration, the \code{for} loop
+is the scope of the declared variable(s).
+
+The general translation of a loop \code{for (c1; e2; e3) s} with a clause \code{c1} which is either a declaration or an expression
+and where \code{e2} has no side effects
+is as follows. The statement \code{s} is translated to a binding \code{(c',x1..) = expr} by applying \code{bindStat} to it. The expression
+\code{e3} is translated to a binding \code{(v<n>',v1..) = expr3} by applying \code{bindExpr} to it and combining the resulting binding
+list pair by \code{cmbBinds}. Conceptually, \code{e3} is appended as an expression statement to \code{s}, by combining the two bindings
+to the binding \code{(c',z1..) = exprstep} defined by
+\begin{verbatim}
+  (c',y1..) = let ((cc',cb',cr'),x1..) = expr
+  in if cb' 
+     then ((cc',cb',cr'),y1..)
+     else let (v<n>',v1..) = expr3
+          in ((False,False,None),y1..)
+\end{verbatim}
+where \code{y1..} is the union of \code{v1..} and \code{x1..}. Note that the condition uses \code{cb'} (\code{break} or \code{return}) 
+instead of \code{cc'} (\code{break}, \code{return}, or \code{continue}) to correctly translate the semantics of \code{continue} 
+statements in the body. A \code{continue} statement causes the body to abort, but still executes \code{e3}, whereas \code{break} 
+or \code{return} statements end the loop without executing \code{e3}.
+
+The expression \code{e2} is translated to a binding \code{v<n>' = expr2} by applying \code{bindExpr} to it and combining the resulting binding
+list pair by \code{cmbBinds} (no side effect targets are present because for the translation \code{e2} may not have side effects).
+Then the binding \code{(c',y1..) = exprloop} is constructed defined by
+\begin{verbatim}
+  (c',y1..) =
+  let ((_,_,cr'),y1..) = repeat #{
+    n = exprmax,
+    stop = \#{acc = ((_,cb',_),y1..), obsv = (w1..)} 
+           => cb' || not expr2,
+    step = \#{acc = (_,y1..), obsv = (w1..)} 
+           => exprstep
+    acc = ((False,False,None),y1..), obsv = (w1..)
+    }
+  in ((cr' /= None,cr' /= None,cr'),y1..)
+\end{verbatim}
+where \code{w1..} are all variables occurring free in \code{exprloop} or \code{expr2} which are not part of \code{z1..}, in some order.
+The expression \code{exprmax} for the upper limit of number of iterations is constructed as described below.
+
+If \code{c1} is an expression it is translated to a binding \code{(v<n>',u1..) = expr1} by applying \code{bindExpr} to it and 
+combining the resulting binding list pair by \code{cmbBinds}. Then the translation of the \code{for} statement is the binding
+\begin{verbatim}
+  (c',z1..) = 
+  let (v<n>',u1..) = expr1
+  and (c',y1..) = exprloop in (c',z1..)
+\end{verbatim}
+where \code{z1..} is the union of \code{u1..} and \code{y1} in some order. This corresponds to a simplified sequence of the two 
+bindings exploiting the fact that the first results from an expression and can therefore not contain a jump.
+
+If \code{c1} is a declaration it is translated to a sequence of pairs of a variable and a binding. Then this sequence is combined
+with the binding \code{(c',y1..) = exprloop} beginning with the last pair, as described above for a declaration in a block item
+sequence.
+
+Gencot translates a loop \code{for (c1; e2; e3) s} in this way only if it can construct an expression \code{exprmax} for the upper limit of
+number of iterations. For this, the loop must have the following properties:
+\begin{itemize}
+\item The expression \code{e2} must be a relation \code{v rel evl} where \code{v} is a variable not occurring free in \code{evl}
+and \code{rel} is one of the relation operators \code{<}, \code{<=}, \code{>}, \code{>=}, \code{!=}, or \code{e2} must be a 
+conjunction which contains such a relation. No side effect target of the body statement \code{s} may occur free in \code{evl}
+and \code{v} must not be a side effect target of \code{s}.
+\item The expression \code{e3} must be an assignment expression for the same variable \code{v} or it must be a sequence of 
+comma expressions which contains exactly one such assignment.
+\item If \code{rel} is \code{<} or \code{<=} the assignment in \code{e3} must have one of the forms \code{v++}, \code{v+=stp},
+\code{v=v+stp}, or \code{v=stp+v} where \code{stp} is an integer literal. In this case let \code{emax} be the expression \code{evl}.
+\item If \code{rel} is \code{>} or \code{>=} the assignment in \code{e3} must have one of the forms \code{v-{}-}, \code{v-=stp},
+or \code{v=v-stp} where \code{stp} is an integer literal. The clause \code{c1} must be an assignment expression of the form 
+\code{v=ini} or a sequence of comma expressions which contains such an assignment, or it must be a declaration with a declarator 
+for the variable \code{v} and initialization expression \code{ini}. In this case let \code{emax} be the expression \code{ini}.
+\item If \code{rel} is \code{!=} the expression \code{evl} must be an integer literal and the clause \code{c1} must be an 
+assignment expression of the form \code{v=ini} or a sequence of comma expressions which contains such an assignment, or it 
+must be a declaration with a declarator for the variable \code{v} and initialization expression \code{ini}. In both cases 
+\code{ini} must be an integer literal. If \code{ini} is lower than \code{evl} the assignment in \code{e3} must have one of 
+the forms \code{v++}, \code{v+=1}, \code{v=v+1}, or \code{v=1+v}, then let \code{emax} be the expression \code{evl}. If \code{ini}
+is greater than \code{evl} the assignment in \code{e3} must have one of the forms \code{v-{}-}, \code{v-=1}, or \code{v=v-1}, 
+then let \code{emax} be the expression \code{ini}.
+\end{itemize}
+
+If the loop satisfies these properties the resulting C expression \code{emax} is translated to a binding \code{(v<n>',v1..) = expr} 
+by applying \code{bindExpr} to it and combining the resulting binding list pair by \code{cmbBinds}. Then the expression
+\code{exprmax} is
+\begin{verbatim}
+  let (v<n>',v1..) = expr in v<n>'
+\end{verbatim}
+Note that side effect targets \code{v1..} could only occur if \code{emax} is \code{ini}. In this case the side effects are already
+handled by the translation of the loop and can be ignored here.
+
+The motivation for this approach is as follows. To determine an upper limit for the number of iterations a ``counting'' variable
+\code{v} must be present. In \code{e2} it must be compared to a value \code{evl} which is constant for all iterations, therefore neither 
+\code{v} nor a variable modified by the body may occur free in it. To safely determine the counting direction, \code{stp} must 
+be a literal, otherwise its evaluation could result in a negative number which would reverse the counting direction. Also,
+\code{v} must only be modified by \code{e3} and not by the body \code{s}.
+
+If the variable counts up and the comparison in \code{e2} uses \code{<} or \code{<=} the comparison value \code{evl} yields 
+an upper limit for the number of iterations, independent of the step size and the initial value of \code{v}. Therefore \code{c1}
+may even be omitted. If the variable counts down and the comparison in \code{e2} uses \code{>} or \code{>=} the initial value 
+\code{ini} yields an upper limit for the number of iterations, independent of the step size and the comparison value \code{evl}.
+
+If the comparison uses relation \code{!=} the situation is similar, however \code{v} must be counted in steps of 1 to safely
+hit the comparison value and it may not wrap around zero during the iterations so that the upper limit is valid.
+
+As an example, the loop \code{for (int i=0;i<b;i++) a*=2;} is translated according to these rules to the (simplified) binding
+\begin{verbatim}
+  (c',i,a) = 
+    let v' = 0
+    and (c',a) = 
+      let i = v'
+      and (c',i,a) =
+        let ((_,_,cr'),i,a) = repeat #{
+          n = b,
+          stop = \#{acc = ((_,cb',_),i,a), obsv = b} 
+           => cb' || not (i < b),
+          step = \#{acc = (_,i,a), obsv = b} 
+           => let ((cc',cb',cr'),a) = ((False,False,None),2*a)
+              in if cb' 
+                 then ((cc',cb',cr'),i,a)
+                 else let (v',i) = (i,i+1)
+                      in ((False,False,None),i,a)
+          acc = ((False,False,None),i,a), obsv = b
+          }
+        in ((cr' /= None,cr' /= None,cr'),i,a)
+      in (c',a)
+    in (c',i,a)
+\end{verbatim}
+which can be further simplified to
+\begin{verbatim}
+  (c',i,a) = 
+  let (i,a) = repeat #{
+    n = b,
+    stop = \#{acc = (i,_), obsv = b} => not (i < b),
+    step = \#{acc = (i,a)} => (i+1,2*a)
+    acc = (0,a), obsv = b
+    }
+  in ((False,False,None),i,a)
+\end{verbatim}
 
 \subsection{Generating Antiquoted C Code}
 \label{impl-ccode-anti}

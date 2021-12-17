@@ -1001,7 +1001,7 @@ loop of the form
   ee1;
   while (ee2) { s ee3; }
 \end{verbatim}
-therefore \code{e2} must evaluate to a scalar value, as for the condition in a conditional expression or statement.
+therefore \code{ee2} must evaluate to a scalar value, as for the condition in a conditional expression or statement.
 
 Since \code{while} loops are not directly supported by Cogent and need additional work for proofs when translated by using
 an abstract function, we do not use this transformation in general, instead, for certain forms of \code{for} loops we
@@ -1073,6 +1073,11 @@ in the body.
 Note that the translation is only possible if the type of the counting variable \code{w} can be represented in 
 Cogent by the type \code{U32}.
 
+Since \code{seq32\_stepf} is an abstract function the Cogent compiler does not generate a refinement proof for it.
+The refinement proof for \code{seq32\_stepf} can only be successful if the loop terminates. This depends on the 
+expression \code{e3}. As usual, if it strictly counts the variable \code{w} up, and some additional assumptions 
+about the modulo calculation for \code{U32} are valid, termination can be proved.
+
 If the expression \code{w=e3} can be rewritten as \code{w+=e3'} where \code{w} does not occur free in \code{e3'}
 the counted loop can be translated using 
 function \code{seq32} instead of \code{seq32\_stepf}. The translation has the same form as above, with the line 
@@ -1086,6 +1091,7 @@ In this case the counting variable \code{w} may also have a type which can be re
 Then the translation has the same form but uses the function \code{seq64} instead of \code{seq32}.
 
 If the expression \code{w=e3} can be rewritten as \code{w-=e3'} where \code{w} does not occur free in \code{e3'}
+and the expression \code{ee2} can be rewritten as \code{w>e2 \&\& ee2'}
 the counted loop can be translated as for \code{w+=e3'} using the function \code{seq32\_rev} instead of \code{seq32}.
 
 If the translation can be done using \code{seq32} and the body does not contain any \code{break} or \code{return} statement 
@@ -1188,6 +1194,62 @@ which can be simplified to
         | Break (res) -> (True,True,res)
 \end{verbatim}
 
+Since end of 2021 there is a new abstract function \code{repeat} for loops in Cogent for which a general refinement proof 
+has been developed. It is intended to be added to the Cogent standard library. It is even more general than \code{seq32\_stepf} 
+and can be used to translate all \code{for} loops for which an upper limit of the number of iterations can be calculated.
+This includes the terminating counted \code{for} loops described above.
+
+A general \code{for} loop \code{for (ee1; ee2; ee3) s} where \code{ee2} has no side effects is first rewritten to 
+\begin{verbatim}
+  ee1;
+  for (; ee2; ee3) s
+\end{verbatim}
+by moving the initialization expression or declaration before the loop.
+
+Let \code{expr2} be the translation of \code{ee2} and let \code{(c,v1,...,vn) = expr} be the translation of 
+the statement sequence \code{\{s ee3\}}. Let \code{w1,...,wm} be the variables occurring free in \code{expr} other than 
+\code{c} and the \code{vi}.
+Then the translation of the remaining loop 
+\begin{verbatim}
+  for (; ee2; ee3) s
+\end{verbatim}
+is
+\begin{verbatim}
+  (c, v1,...,vn) =
+  let ((_,_,res),v1,...,vn) = repeat #{
+    n = exprmax,
+    stop = \#{acc = ((_,cb,_),v1,...,vn), 
+              obsv = (w1,...,wm)} => cb || not expr2,
+    step = \#{acc = (_,v1,...,vn), 
+              obsv = (w1,...,wm)} => expr
+    acc = ((False,False,None),v1,...,vn), obsv = (w1,...,wm)
+    }
+  in ((res /= None,res /= None,res),v1,...,vn)
+\end{verbatim}
+where \code{exprmax} is an expression for calculating the upper limit of the number of iterations. The \code{repeat}
+function is defined in \code{C} using a \code{for} loop of the form \code{for (i=0; i<n; i++)}, so it iterates atmost
+\code{n} times. If the loop has the form \code{for (w=e1;w<e2;w+=e3') s} where \code{w} does not occur free in \code{e1},
+\code{e2}, and \code{e3'} the expression \code{exprmax} can be constructed by translating the \code{C} expression
+\begin{verbatim}
+  (e2 - e1) / e3'
+\end{verbatim}
+In other cases the expression for the upper limit must be determined manually.
+
+The \code{repeat} function passes an ``accumulator'' \code{acc} and an ``observed object'' \code{obsv} through all
+iterations, were \code{acc} may be modified and \code{obsv} not. The \code{repeat} function takes as arguments the 
+initial values of \code{acc} and \code{obsv} and two functions \code{stop} and \code{step} which both have \code{acc}
+and \code{obsv} as arguments. The \code{stop} function is used before each iteration to determine whether a next iteration
+should be executed, it returns a boolean value whether to stop.  The \code{step} function covers the effect of one loop iteration and returns the 
+new \code{acc} value. In the translation the \code{acc} value includes the control variable \code{c}. The \code{stop}
+function inspects the value of its \code{cb} component to detect whether a \code{break} or \code{return} statement
+has been executed in the body and terminates the loop in that case.
+
+Note that this translation may not be fully equivalent to the original C code. If the expression \code{e3'} evaluates 
+to a value greater 1, the increment of \code{w} may cause an overflow of the word arithmetics, even if \code{w<e2}
+holds before. Then the loop will not terminate in that step and possibly never. The translation described above will
+instead terminate safely after \code{n} iterations. Since this situation is normally a programming error in C
+this is not viewed as a problem.
+
 \subsubsection{While Loops}
 
 A \code{while} loop has the form \code{while (e) s} or \code{do s while (e);}. Since Cogent does not support recursive 
@@ -1196,6 +1258,27 @@ function definitions these loops cannot be translated in a natural way to Cogent
 To translate a \code{while} loop it may be rewritten in C as a counted \code{for} loop which can then be translated 
 as described in the previous section. If that is not possible the loop must be put in an abstract function which is 
 defined in C using the original \code{while} loop.
+
+Alternatively, if an upper limit of the number of iterations can be determined, the loop can be translated using the 
+abstract \code{repeat} function described above as follows.
+
+Let \code{expr1} be the translation of \code{e} and let \code{(c,v1,...,vn) = expr2} be the translation of 
+statement \code{s}. Let \code{w1,...,wm} be the variables occurring free in \code{expr1} and \code{expr2} other than 
+\code{c} and the \code{vi}.
+Then the translation of the loop \code{while (e) s} is
+\begin{verbatim}
+  (c, v1,...,vn) = 
+  let ((_,cb,_),v1,...,vn) = repeat #{
+    n = exprmax,
+    stop = \#{acc = ((_,cb,_),v1,...,vn), 
+              obsv = (w1,...,wm)} => cb || not expr1,
+    step = \#{acc = (_,v1,...,vn), 
+              obsv = (w1,...,wm)} => expr2
+    acc = (c,v1,...,vn), obsv = (w1,...,wm)
+    }
+  in ((res /= None,res /= None,res),v1,...,vn)
+\end{verbatim}
+where \code{exprmax} is an expression which calculates an upper limit for the number of loop iterations.
 
 \subsection{Dummy Expressions}
 \label{design-cstats-dummy}

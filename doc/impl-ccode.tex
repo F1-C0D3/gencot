@@ -1852,11 +1852,13 @@ conjunction which contains such a relation. The body statement \code{s} must not
 \item The expression \code{e3} must be an assignment expression for the same variable \code{v} or it must be a sequence of 
 comma expressions which contains exactly one such assignment.
 \item If \code{rel} is \code{<} or \code{<=} the assignment in \code{e3} must have one of the forms \code{v++}, \code{v+=stp},
-\code{v=v+stp}, or \code{v=stp+v} where \code{stp} is an integer literal. In this case let \code{emax} be the expression \code{evl}.
+\code{v=v+stp}, or \code{v=stp+v} where \code{stp} is an integer literal. In this case let \code{emax} be the expression \code{evl},
+if \code{rel} is \code{<=} let \code{emax} be \code{evl+1}.
 \item If \code{rel} is \code{>} or \code{>=} the assignment in \code{e3} must have one of the forms \code{v-{}-}, \code{v-=stp},
 or \code{v=v-stp} where \code{stp} is an integer literal. The clause \code{c1} must be an assignment expression of the form 
 \code{v=ini} or a sequence of comma expressions which contains such an assignment, or it must be a declaration with a declarator 
-for the variable \code{v} and initialization expression \code{ini}. In this case let \code{emax} be the expression \code{ini}.
+for the variable \code{v} and initialization expression \code{ini}. In this case let \code{emax} be the expression \code{ini},
+if \code{rel} is \code{>=} let \code{emax} be \code{ini+1}.
 \item If \code{rel} is \code{!=} the expression \code{evl} must be an integer literal and the clause \code{c1} must be an 
 assignment expression of the form \code{v=ini} or a sequence of comma expressions which contains such an assignment, or it 
 must be a declaration with a declarator for the variable \code{v} and initialization expression \code{ini}. In both cases 

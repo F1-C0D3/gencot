@@ -218,9 +218,11 @@ getForInit (Right (LC.CDecl specs dcs _)) (v@(LC.CVar vnam _),o,e,s) =
 
 getForMax :: (LC.CExpr,LC.CBinaryOp,LC.CExpr,Integer,Maybe LC.CExpr) -> Maybe LC.CExpr
 getForMax (_,op,e,stp,_) | elem op [LC.CLeOp,LC.CLeqOp] =
-    if stp > 0 then Just e else Nothing
+    if stp > 0 then Just e' else Nothing
+    where e' = if op == LC.CLeqOp then makeInc e else e
 getForMax (_,op,_,stp,mi) | elem op [LC.CGrOp,LC.CGeqOp] =
-    if stp < 0 then mi else Nothing
+    if stp < 0 then mi' else Nothing
+    where mi' = if op == LC.CGeqOp then maybe Nothing (Just . makeInc) mi else mi
 getForMax (_,LC.CNeqOp,_,_,Nothing) = Nothing
 getForMax (_,LC.CNeqOp,ee@(LC.CConst (LC.CIntConst ie _)),stp,Just ei@(LC.CConst (LC.CIntConst ii _))) =
     if lo < hi then Just ehi else Nothing
@@ -230,6 +232,10 @@ getForMax (_,LC.CNeqOp,ee@(LC.CConst (LC.CIntConst ie _)),stp,Just ei@(LC.CConst
           lo = if stp == 1 then ii' else ie'
           ehi = if stp == 1 then ee else ei
 getForMax _ = Nothing
+
+makeInc :: LC.CExpr -> LC.CExpr
+makeInc e = LC.CBinary LC.CAddOp e (LC.CConst (LC.CIntConst (LC.cInteger 1) n)) n
+    where n = (nodeInfo e)
 
 -- | All identifiers which occur free in an expression, including the names of invoked functions.
 -- These are all identifiers in the expression, since identifiers cannot be bound in an expression.

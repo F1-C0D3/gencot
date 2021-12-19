@@ -1656,7 +1656,7 @@ these parts are combined starting with the last pair and the binding.
 
 As described above a pair consists of a variable \code{v} which corresponds to the declared identifier and a binding 
 \code{(v<n>',v1..) = expr1} which corresponds to the initializer. It is combined with a binding \code{(c',y1..) = expr2} as follows. 
-Let \code{z1..} be the union of \code{v1..} and \code{y1..}. Let \code{u1..} be \code{z1..} without \code{v}. Then the
+Let \code{u1..} be \code{y1..} without \code{v}. Let \code{z1..} be the union of \code{v1..} and \code{u1..}. Then the
 combined binding is
 \begin{verbatim}
   (c',z1..) = 
@@ -1668,15 +1668,7 @@ combined binding is
     in (c',z1..)
 \end{verbatim}
 This translation also accounts for the case that \code{v} is a side effect target of its own initializer so that the side effect is
-correctly applied to a shadowed instance of \code{v}. Otherwise \code{u1..} and \code{z1..} are the same and the binding will be
-simplified in later stages to the binding
-\begin{verbatim}
-  (c',z1..) = 
-    let (v<n>',v1..) = expr1
-    and v = v<n>'
-    and (c',y1..) = expr2
-    in (c',z1..)
-\end{verbatim}
+correctly applied to a shadowed instance of \code{v}.
 
 \subsubsection{Function Bodies}
 
@@ -1815,25 +1807,28 @@ instead of \code{cc'} (\code{break}, \code{return}, or \code{continue}) to corre
 statements in the body. A \code{continue} statement causes the body to abort, but still executes \code{e3}, whereas \code{break} 
 or \code{return} statements end the loop without executing \code{e3}.
 
-The expression \code{e2} is translated to a binding \code{v<n>' = expr2} by applying \code{bindExpr} to it and combining the resulting binding
-list pair by \code{cmbBinds} (no side effect targets are present because for the translation \code{e2} may not have side effects).
+The expression \code{e2} is translated to a binding \code{(v<n>',t1..) = expr2} by applying \code{bindExpr} to it and combining 
+the resulting binding list pair by \code{cmbBinds}. (Although for the general translation \code{e2} must not have side effects, there
+may be side effect targets \code{t1..} created by the translation which are only removed in later stages.)
 Then the binding \code{(c',y1..) = exprloop} is constructed defined by
 \begin{verbatim}
   (c',y1..) =
   let ((_,_,cr'),y1..) = repeat #{
     n = exprmax,
     stop = \#{acc = ((_,cb',_),y1..), obsv = (w1..)} 
-           => cb' || not expr2,
+           => let (v<n>',t1..) = expr2 in cb' || not v<n>',
     step = \#{acc = (_,y1..), obsv = (w1..)} 
            => exprstep
     acc = ((False,False,None),y1..), obsv = (w1..)
     }
   in ((cr' /= None,cr' /= None,cr'),y1..)
 \end{verbatim}
-where \code{w1..} are all variables occurring free in \code{exprloop} or \code{expr2} which are not part of \code{z1..}, in some order.
+where \code{w1..} are all variables occurring free in \code{exprstep} or \code{expr2} which are not part of \code{y1..}, in some order.
 The expression \code{exprmax} for the upper limit of number of iterations is constructed as described below.
 
-If \code{c1} is an expression it is translated to a binding \code{(v<n>',u1..) = expr1} by applying \code{bindExpr} to it and 
+Finally, if \code{c1} is not empty its translation is prepended to the binding \code{(c',y1..) = exprloop} in the way as described 
+above for a block item sequence. If \code{c1} is an expression it is translated to a binding \code{(v<n>',u1..) = expr1} by 
+applying \code{bindExpr} to it and 
 combining the resulting binding list pair by \code{cmbBinds}. Then the translation of the \code{for} statement is the binding
 \begin{verbatim}
   (c',z1..) = 
@@ -1852,8 +1847,8 @@ number of iterations. For this, the loop must have the following properties:
 \begin{itemize}
 \item The expression \code{e2} must be a relation \code{v rel evl} where \code{v} is a variable not occurring free in \code{evl}
 and \code{rel} is one of the relation operators \code{<}, \code{<=}, \code{>}, \code{>=}, \code{!=}, or \code{e2} must be a 
-conjunction which contains such a relation. No side effect target of the body statement \code{s} may occur free in \code{evl}
-and \code{v} must not be a side effect target of \code{s}.
+conjunction which contains such a relation. The body statement \code{s} must not modify \code{v} or \code{evl} and the expression 
+\code{e3} may only modify \code{v} but not \code{evl}.
 \item The expression \code{e3} must be an assignment expression for the same variable \code{v} or it must be a sequence of 
 comma expressions which contains exactly one such assignment.
 \item If \code{rel} is \code{<} or \code{<=} the assignment in \code{e3} must have one of the forms \code{v++}, \code{v+=stp},
@@ -1894,6 +1889,32 @@ may even be omitted. If the variable counts down and the comparison in \code{e2}
 If the comparison uses relation \code{!=} the situation is similar, however \code{v} must be counted in steps of 1 to safely
 hit the comparison value and it may not wrap around zero during the iterations so that the upper limit is valid.
 
+To decide the first property the side effects of the body statement \code{s} must be known. However, the side effect targets
+\code{x1..} which result from translating \code{s} are in general neither correct nor complete. Due to translating struct and array 
+accesses using \code{take} and \code{put} operations all structs and arrays where a member or element is accessed occur as side
+effect targets. Read-only accesses are only detected and removed in later stages. It may also be the case that \code{s} modifies 
+only a part of a struct and another part is accessed in the comparison value \code{evl}. On the other hand, if a function call 
+modifies its arguments, they are not added as side effect targets, this is also done in later stages. 
+
+To check whether a counting variable \code{v} is modified in the body \code{s} Gencot checks whether \code{v} occurs on the lhs
+of an sssignment in \code{s}. The only way how \code{v} can be modified in \code{s} without being detected in this way is if it 
+is modified through a pointer retrieved with
+the help of the address operator \code{\&} (either in \code{s} or before the loop) which must be handled manually anyways.
+
+To check whether \code{s} or \code{e3} can modify the comparison value \code{evl} Gencot checks whether any non-literal operand 
+occurring in \code{evl} occurs on the lhs of an assignment in \code{s} or \code{e3}. In particular, if a struct member occurs 
+in \code{evl}, assignments to other members of the same struct in \code{s} or \code{e3} will not prevent the translation of the loop.
+
+The variables \code{w1..} which occur free in \code{exprstep} or \code{expr2} can either be determined from the C source (variables
+free in \code{e2}, \code{e3}, or \code{s}) or from the translated Cogent source. Since Cogent does not support accessing defined
+constants in a lambda expression these must be included. This is automatically done, because in Cogent constants are syntactically
+referenced in the same way as variables. In C, as described in Section~\ref{impl-ccode-dummydecl}, Gencot generates dummy declaration
+for preprocessor constants, so syntactically they are variables as well. Since all other information used here for translating 
+\code{for} statements is taken from the C source, Gencot also determines the variables \code{w1..} from the C source. This implies
+that they must be explicitly mapped to Cogent names. This mapping must be done at a place where all declarations in the context
+of the loop and also a declaration which occurs as clause \code{c1} in the loop are visible, since the mapping depends on the 
+linkage of the name which must be looked up in the symbol table.
+
 As an example, the loop \code{for (int i=0;i<b;i++) a*=2;} is translated according to these rules to the (simplified) binding
 \begin{verbatim}
   (c',i,a) = 
@@ -1904,7 +1925,7 @@ As an example, the loop \code{for (int i=0;i<b;i++) a*=2;} is translated accordi
         let ((_,_,cr'),i,a) = repeat #{
           n = b,
           stop = \#{acc = ((_,cb',_),i,a), obsv = b} 
-           => cb' || not (i < b),
+           => let v' = i<b in cb' || not v',
           step = \#{acc = (_,i,a), obsv = b} 
            => let ((cc',cb',cr'),a) = ((False,False,None),2*a)
               in if cb' 

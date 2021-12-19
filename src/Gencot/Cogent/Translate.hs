@@ -1,10 +1,10 @@
 {-# LANGUAGE PackageImports #-}
 module Gencot.Cogent.Translate where
 
-import Control.Monad (liftM,when)
-import Data.List (nub,isPrefixOf,isInfixOf,intercalate,unlines,sortOn,sort,intersect)
-import Data.Map (Map,singleton,unions,toList,union)
-import Data.Maybe (catMaybes)
+import Control.Monad (liftM,filterM,when)
+import Data.List as L (nub,isPrefixOf,isInfixOf,intercalate,unlines,sortOn,sort,intersect,union)
+import Data.Map as M (Map,singleton,unions,toList,union)
+import Data.Maybe (catMaybes,fromJust)
 
 import Data.Char (ord)
 
@@ -21,15 +21,16 @@ import Cogent.Common.Syntax as CCS
 import Cogent.Common.Types as CCT
 
 import Gencot.Origin (Origin,noOrigin,origin,mkOrigin,noComOrigin,mkBegOrigin,mkEndOrigin,prepOrigin,appdOrigin,isNested,toNoComOrigin)
-import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapNameToLower,mapPtrDeriv,mapPtrVoid,mapMayNull,mapArrDeriv,mapFunDeriv,arrDerivHasSize,arrDerivCompNam,arrDerivToUbox,mapUboxStep,rmUboxStep,mapMayNullStep,rmMayNullStepThroughRo,addMayNullStep,mapPtrStep,mapFunStep,mapIncFunStep,mapArrStep,mapModStep,mapRoStep,mapNamFunStep,getFileName,globStateType)
+import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapNameToLower,mapPtrDeriv,mapPtrVoid,mapMayNull,mapArrDeriv,mapFunDeriv,arrDerivHasSize,arrDerivCompNam,arrDerivToUbox,mapUboxStep,rmUboxStep,mapMayNullStep,rmMayNullStepThroughRo,addMayNullStep,mapPtrStep,mapFunStep,mapIncFunStep,mapArrStep,mapModStep,mapRoStep,mapNamFunStep,getFileName,globStateType,isNoFunctionName)
 import Gencot.Items.Types (ItemAssocType,isNotNullItem,isReadOnlyItem,isAddResultItem,isNoStringItem,getGlobalStateSubItemIds,getGlobalStateProperty,getGlobalStateId,getTagItemAssoc,getIndividualItemAssoc,getTypedefItemAssoc,adjustItemAssocType,getMemberSubItemAssoc,getRefSubItemAssoc,getResultSubItemAssoc,getElemSubItemAssoc,getParamSubItemAssoc,getItemAssocType,getMemberItemAssocTypes,getSubItemAssocTypes,numberList)
 import Gencot.Items.Identifier (getObjFunName,getParamName)
 import Gencot.Cogent.Ast
-import Gencot.Cogent.Bindings (BindsPair,leadVar,lvalVar,mkBodyExpr,mkPlainExpr,mkEmptyBindsPair,mkDummyBindsPair,mkUnitBindsPair,mkDefaultBindsPair,mkIntLitBindsPair,mkCharLitBindsPair,mkStringLitBindsPair,mkValVarBindsPair,mkMemBindsPair,mkIdxBindsPair,mkOpBindsPair,mkAppBindsPair,mkAssBindsPair,mkIfBindsPair,concatBindsPairs,mkDummyBinding,mkNullBinding,mkExpBinding,mkRetBinding,mkBreakBinding,mkContBinding,mkIfBinding,mkSwitchBinding,mkCaseBinding,mkSeqBinding,mkDecBinding)
+import Gencot.Cogent.Bindings (BindsPair,leadVar,lvalVar,mkBodyExpr,mkPlainExpr,mkEmptyBindsPair,mkDummyBindsPair,mkUnitBindsPair,mkDefaultBindsPair,mkIntLitBindsPair,mkCharLitBindsPair,mkStringLitBindsPair,mkValVarBindsPair,mkMemBindsPair,mkIdxBindsPair,mkOpBindsPair,mkAppBindsPair,mkAssBindsPair,mkIfBindsPair,concatBindsPairs,mkDummyBinding,mkNullBinding,mkExpBinding,mkRetBinding,mkBreakBinding,mkContBinding,mkIfBinding,mkSwitchBinding,mkCaseBinding,mkSeqBinding,mkDecBinding,mkForBinding)
 import qualified Gencot.C.Ast as LQ (Stm(Exp,Block),Exp)
 import qualified Gencot.C.Translate as C (transStat,transExpr,transArrSizeExpr,transBlockItem)
 import Gencot.Traversal (FTrav,markTagAsNested,isMarkedAsNested,hasProperty,stopResolvTypeName,setFunDef,clrFunDef,getValCounter,getCmpCounter,resetVarCounters,resetValCounter)
 import Gencot.Util.Types (carriedTypes,isExtern,isCompOrFunc,isCompPointer,isNamedFunPointer,isFunPointer,isPointer,isAggregate,isFunction,isTypeDefRef,isComplete,isArray,isVoid,isTagRef,containsTypedefs,resolveTypedef,isComposite,isLinearType,isLinearParType,isReadOnlyType,isReadOnlyParType,isDerivedType,isExternTypeDef,wrapFunAsPointer,getTagDef)
+import Gencot.Util.Expr (checkForTrans,getFreeInCExpr,getFreeInCStat)
 
 genType t = GenType t noOrigin
 genExpr e = GenExpr e noOrigin Nothing
@@ -247,7 +248,7 @@ genDerivedTypeNames tc = do
           genMap iat = do
               gt <- transType False iat
               rgt <- transType True iat
-              return $ union (singleton (getName gt) iat) (singleton (getName rgt) iat)
+              return $ M.union (singleton (getName gt) iat) (singleton (getName rgt) iat)
 
 -- | Generate type definitions for a Cogent type name @nam@ used by a derived array or function pointer type.
 -- Additional argument is the original C type as an ItemAssocType.
@@ -824,6 +825,32 @@ bindStat s@(LC.CCase _ _ _) =
     insertStatSrc s $ mkDummyBinding "Case statement only supported in direct switch body"
 bindStat s@(LC.CDefault _ _) =
     insertStatSrc s $ mkDummyBinding "Default statement only supported in direct switch body"
+bindStat s@(LC.CFor c1 me2 me3 s1 _) = do
+    case checkForTrans s of
+         Left reason -> insertStatSrc s $ mkDummyBinding ("Unsupported form of for loop: " ++ reason)
+         Right exprmax -> do
+             LCA.enterBlockScope
+             resetValCounter
+             bpm <- bindExpr exprmax
+             bc1 <- case c1 of
+                         Left (Just e1) -> do
+                             bp1 <- bindExpr e1
+                             return (Left (Just bp1))
+                         Left Nothing -> return (Left Nothing)
+                         Right d -> do
+                             LCA.analyseDecl True d
+                             -- This is not fully correct, see comment in bindBlockItems
+                             dbpl <- bindForDecl d
+                             return (Right dbpl)
+             b1 <- bindStat s1
+             bp2 <- bindExpr $ fromJust me2
+             bp3 <- bindExpr $ fromJust me3
+             fvns <- filterM isNoFunctionName freenams
+             fns <- mapM transObjName fvns
+             res <- insertStatSrc s $ mkForBinding bpm bc1 bp2 bp3 b1 fns
+             LCA.leaveBlockScope
+             return res
+    where freenams = L.union (maybe [] getFreeInCExpr me2) $ L.union (maybe [] getFreeInCExpr me3) (getFreeInCStat s1)
 bindStat s = 
     insertStatSrc s $ mkDummyBinding "Translation of statement not yet implemented"
 
@@ -886,13 +913,23 @@ bindBlockItems bis@((LC.CBlockStmt s) : bis1) = do
     insertBlockItemsSrc bis $ mkSeqBinding b bs
 bindBlockItems ((LC.CBlockDecl d) : bis) = do
     LCA.analyseDecl True d
+    -- This is not fully correct. We analyse all declarators before we process them. 
+    -- Therefore variables referenced in initializers may be looked up wrongly.
+    -- However, there is no LCA function for analysing a single declarator.
     bindDecl d bis
 
+-- | Processing a declaration together with the following block content.
 bindDecl :: LC.CDecl -> [LC.CBlockItem] -> FTrav GenBnd
 bindDecl dc@(LC.CDecl _ _ _) bis = 
     bindDeclrs dc bis
 bindDecl sa@(LC.CStaticAssert _ _ _) bis = 
     insertBlockItemsSrc ((LC.CBlockDecl sa) : bis) $ mkDummyBinding "Static assertions not supported"
+
+-- | Standalone processing of a declaration in a for loop
+-- The main difference is the handling of the source.
+bindForDecl :: LC.CDecl -> FTrav [(CCS.VarName,BindsPair)]
+bindForDecl dc@(LC.CDecl specs dcs _) = mapM (uncurry bindDeclr) (zip (repeat specs) dcs)
+bindForDecl sa@(LC.CStaticAssert _ _ _) = return []
 
 -- | We treat a declaration with a sequence of declarators as a sequence of declarations with a single declarator and replicate the specifiers
 bindDeclrs :: LC.CDecl -> [LC.CBlockItem] -> FTrav GenBnd

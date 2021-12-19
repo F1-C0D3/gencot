@@ -1,7 +1,7 @@
 GC=../../bin/gencot
 IT=../../bin/items
 
-TESTS = purexpr assignexpr stat
+TESTS = purexpr assignexpr stat loop
 UNIT = externs exttypes dvdtypes
 AUNIT = unit-dfltprops
 

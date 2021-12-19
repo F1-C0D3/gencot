@@ -118,6 +118,17 @@ mapObjectName idnam lnk fnam n =
          LCA.ExternalLinkage -> mapNameToLower idnam
          LCA.NoLinkage -> mapIfUpper idnam
 
+isNoFunctionName :: (MapNamesTrav f, MonadTrav f) => LCI.Ident -> f Bool
+isNoFunctionName idnam = do
+    mdecdef <- LCA.lookupObject idnam
+    let (Just decdef) = mdecdef
+    return (case decdef of
+                LCA.Declaration d -> case LCA.declType d of
+                                          LCA.FunctionType _ _ -> False
+                                          _ -> True
+                LCA.FunctionDef _ -> False
+                _ -> True)
+
 mapPtrDeriv :: String
 mapPtrDeriv = "CPtr"
 

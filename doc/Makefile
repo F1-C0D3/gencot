@@ -26,4 +26,5 @@ clean-git:
 	rm -rf verif/output
 
 clean: clean-git
-	rm *.aux *.log *.out
+	rm -f *.aux *.log *.out gencot-devel.pdf
+	rm -f verif/*.thy~

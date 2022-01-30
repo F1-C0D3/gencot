@@ -11,8 +11,8 @@ data structures (the Cogent AST). The drawback is that the code generation is no
 first builds a quite voluminous code which is then simplified by the postprocessing. However, the quality 
 of the resulting code has been considered more important than the performance of the Gencot translation.
 
-In the following sections the postprocessing steps are described independently of each other and in the last
-section it is described how they are combined. Every postprocessing step corresponds to a transformation from
+In the following sections the postprocessing steps are described independently of each other and the last
+section describes how they are combined. Every postprocessing step corresponds to a transformation from
 a Cogent expression to a Cogent expression and is implemented by a Haskell function of the form
 \begin{verbatim}
   procX :: GenExpr -> GenExpr
@@ -88,6 +88,9 @@ Gencot uses different kinds of variables in its generated code (see Section~\ref
 index variables, control variables, and variables corresponding to C object names. These are prioritized as follows: first as many value 
 variables are substituted as possible in a complete expression, then the control variables, then the component and index variables and
 finally the C object names. In this way the most ``technical'' variables are substituted before the more ``semantical''.
+
+\subsection{Function Call Processing}
+\label{imp-post-funcall}
 
 \subsection{Take/Put Processing}
 \label{imp-post-takeput}

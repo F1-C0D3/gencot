@@ -1164,7 +1164,8 @@ As variable for the expression value Gencot uses variables named \code{v<n>'}, w
 a valid identifier in Cogent but not in C, so it cannot collide with any other variable taken and mapped from the C
 code. The \code{<n>} is a natural number increased for each (sub)expression so that the variables for all expression 
 values are distinct. Note that, since expression values can only be used once at the position where the expression 
-is syntactically placed, every expression variable will also be used only once and could be reused afterwards for 
+is syntactically placed, every expression variable will also be used only once (in translations of assignments and
+increment/decrement operators it is used twice, but immediately together in a tuple expression) and could be reused afterwards for 
 other expressions. However, the value of an expression is not always used before another expression is evaluated,
 therefore the value variables are constructed so that they are unique. Only if in the construction of an expression
 one or more value variables are used the variable with the lowest number is reused for binding the expression value.
@@ -1247,7 +1248,7 @@ Its pattern always consists of the single variable bound to the \code{put} expre
 
 The variable for the container and the variable to which the component has been
 bound by the \code{take} operation are used by the \code{put} operation for the reassembling. Therefore both variables cannot
-be value variables since they may be used more than once. Gencot uses variable names of the form \code{r<n>'} for this 
+be value variables since they may be used more than once. Gencot uses variable names of the form \code{p<n>'} for this 
 purpose, called component variables. They are distinct from all value variables and due to the prime character from all 
 mapped C identifiers. The \code{<n>} is a natural number increased for each \code{take} operation so that the variables 
 for all taken components are distinct.
@@ -1293,14 +1294,14 @@ later translation stages.
 A struct member access \code{e.m} has only one subexpression \code{e} for denoting the struct. The following two additional 
 bindings are appended to its main list
 \begin{verbatim}
-  <v>{m=r<k>'} = v<n>'
-  v<n>' = r<k>'
+  <v>{m=p<k>'} = v<n>'
+  v<n>' = p<k>'
 \end{verbatim}
 where \code{v<n>'} is the value variable bound in the binding list pair for \code{e}, \code{<v>} is a variable or \code{\_} 
-depending on the expression bound to \code{v<n>'} in the binding list pair for \code{e} as described above, and \code{r<k>'} 
+depending on the expression bound to \code{v<n>'} in the binding list pair for \code{e} as described above, and \code{p<k>'} 
 is a new component variable. If \code{<v>} is not \code{\_} the binding
 \begin{verbatim}
-  <v> = <v>{m=r<k>'}
+  <v> = <v>{m=p<k>'}
 \end{verbatim}
 is prepended to the putback list.
 
@@ -1308,14 +1309,14 @@ An array element access \code{e1[e2]} has two unsequenced subexpressions \code{e
 The array access is translated by first concatenating the main binding list for \code{e1} after \code{e2}. Then the following two additional 
 bindings are appended to the resulting main list
 \begin{verbatim}
-  (<v> @{@v<l>'=r<k>'},i<k>') = (v<n>',v<l>')
-  v<n>' = r<k>'
+  (<v> @{@v<l>'=p<k>'},i<k>') = (v<n>',v<l>')
+  v<n>' = p<k>'
 \end{verbatim}
 where \code{v<n>'} is the value variable bound in the binding list pair for \code{e1}, \code{v<l>'} is the value variable used for
-binding the value of \code{e2}, \code{i<k>'} is the index variable corresponding to \code{r<k>'}, and \code{<v>} and \code{r<k>'} 
+binding the value of \code{e2}, \code{i<k>'} is the index variable corresponding to \code{p<k>'}, and \code{<v>} and \code{p<k>'} 
 are as above. If \code{<v>} is not \code{\_} the binding
 \begin{verbatim}
-  <v> = <v> @{@i<k>'=r<k>'}
+  <v> = <v> @{@i<k>'=p<k>'}
 \end{verbatim}
 is prepended to the putback list.
 
@@ -1345,7 +1346,7 @@ apply the address operator to a subexpression, this must be done manually (see S
 A function call has all actual arguments as subexpressions, these are treated as usual. If the function is specified directly 
 by its name \code{f} it is translated by appending the binding
 \begin{verbatim}
-  (v<n>',v1..) = (f(v<n1>',..,v<nm>'),v1..)
+  v<n>' = f(v<n1>',..,v<nm>')
 \end{verbatim}
 to the concatenated main lists of all argument subexpressions. If the function is specified by any other subexpression it is
 bound to a value variable and that variable is used to specify the function on the rhs.
@@ -1394,14 +1395,14 @@ The translation of \code{a[i].m = 0} yields the main binding list
 \begin{verbatim}
   v2' = 0
   v1' = i
-  (a @{@v1'=r1'},i1') = (a,v1')
-  r1'{m=r2'} = r1'
-  (v',r2') = (v2',v2')
+  (a @{@v1'=p1'},i1') = (a,v1')
+  p1'{m=p2'} = p1'
+  (v',p2') = (v2',v2')
 \end{verbatim}
 and the putback list
 \begin{verbatim}
-  r1' = r1'{m=r2'}
-  a = a @{@i1'=r1'}
+  p1' = p1'{m=p2'}
+  a = a @{@i1'=p1'}
 \end{verbatim}
 
 \subsubsection{Translating Expressions with Side Effects}
@@ -1510,6 +1511,26 @@ value, therefore its translation never binds a value variable. But a C statement
 to conditional evaluation with the help of an additional ``control variable'' \code{c} as described in 
 Section~\ref{design-cstats-stat}.
 
+However, the concept described there is modified with respect to the control variable and the return value. Instead of using type \code{(Bool, 
+Bool, Option T)} for the control variable the implementation uses an integer type and encodes nonlocal jumps by the 
+values \code{3} (\code{return}), \code{2} (\code{break}), \code{1} (\code{continue}), and \code{0} (no jump). In case 
+of a \code{return} jump the third component only represents the fact that a jump has been caused. The return value is represented 
+separately by binding a value of type \code{T} to a special ``result variable''. Gencot uses the name \code{r'} for the 
+result variable, it is automatically distinct from the names of all other variables used in the translation. It is
+normally treated like an additional side effect target.
+
+The reason for this modification is as follows. If a value of the option type is maintained, code for the \code{None}-case
+must be generated, although this case never occurs if the C program is syntactically correct. If the result type \code{T} 
+is linear, the code for the \code{None}-case will always violate the Cogent type constraints, because it either uses
+a default value (which does not exist for linear types) or it discards the value (which is not allowed). When using the 
+result variable the \code{None}-case may correspond to the situation where the result variable occurs free in the function 
+body. This would also be an error for the Cogent compiler, however, if the C program is syntactically correct all these
+occurrences can be eliminated from the Cogent code. In its initial translation stage Gencot generates these free occurrences
+of the result variable, they are eliminated in later stages.
+
+Instead of using a tripel of boolean values Gencot encodes the possible nonlocal jumps in an integer value, since that is more
+compact and simplifies the later stages.
+
 Values of expressions which are syntactically a part of a statement can never be used in other statements. Therefore
 all value variables can be reused in every statement. Gencot supports this by resetting the value variable counter \code{<n>}
 whenever it starts translating a statement.
@@ -1524,8 +1545,8 @@ translation to Cogent expressions before they are used as part of a translated s
 container components are put back locally in every translated expression. Gencot tries to reuse taken components even 
 over several sequential statements. However, this is only possible if no jumps occur, which is detected by the value
 of the control variable, which requires a static analysis of the control variable values. This analysis is not done
-during the initial translation, it is left for a later phase. Therefore reuse of taken components cannot be implemented
-in the initial translation phase. However, to prepare for reusing taken components, Gencot never reuses component variables
+during the initial translation, it is left for a later stage. Therefore reuse of taken components cannot be implemented
+in the initial translation stage. However, to prepare for reusing taken components, Gencot never reuses component variables
 in different statements of the same function body.
 
 As a consequence, the \code{take} and \code{put} bindings need not be separated in the translation of a statement.
@@ -1540,7 +1561,7 @@ to translate every statement to a binding of the form
   (c',v1..) = expr
 \end{verbatim}
 with side effect targets \code{v1..}. The expression \code{expr} covers the effect on the control variable and 
-all side effects of the translated statement.
+all side effects of the translated statement. The side effect targets may include the result variable \code{r'}.
 
 If Gencot cannot translate a statement it translates it to a binding where the rhs is a dummy expression as described in 
 Section~\ref{design-cstats-dummy}. The lhs contains the control variable and may still contain side effect targets, if 
@@ -1553,14 +1574,14 @@ combining it by \code{cmbBinds} to a binding \code{(v<n>',v1..) = expr}. Then th
 is the binding
 \begin{verbatim}
   (c',v1..) = let (v<n>',v1..) = expr
-  in ((False,False,None),v1..)
+  in (0,v1..)
 \end{verbatim}
 which discards the value \code{v<n>'} of \code{e}.
 
 A null statement has the form of a single semicolon \code{;} and is translated to the
 binding
 \begin{verbatim}
-  c' = (False,False,None)
+  c' = 0
 \end{verbatim}
 
 \subsubsection{Jump Statements}
@@ -1568,27 +1589,31 @@ binding
 A jump statement is a \code{return} statement, \code{break} statement, \code{continue} statement, or \code{goto} statement.
 Gencot does not translate \code{goto} statements.
 
-For a \code{return} statement the expression is translated to a binding list pair by \code{bindExpr}. If the expression has been
-omitted a binding list pair with a single binding
-\begin{verbatim}
-  v' = ()
-\end{verbatim}
-in its main list and an empty putback list is generated instead. Then the resulting binding list pair is combined by \code{cmbBinds}
-to a binding \code{(v<n>',v1..) = expr} and the translation of the return statement
+For a \code{return} statement with an expression the expression is translated to a binding list pair by \code{bindExpr} and 
+combined by \code{cmbBinds} to a binding \code{(v<n>',v1..) = expr}. Then the translation of the return statement
 is the binding
 \begin{verbatim}
-  (c',v1..) = let (v<n>',v1..) = expr
-  in ((True,True,Some v<n>'),v1..)
+  (c',r',v1..) = let (v<n>',v1..) = expr
+  in (3, v<n>',v1..)
 \end{verbatim}
+which explicitly binds the result variable \code{r'} as additional side effect target. 
+
+For a \code{return} statement without an expression only the control variable is bound, the statement is translated to the 
+binding
+\begin{verbatim}
+  c' = 3
+\end{verbatim}
+This implies that for a C function with result type \code{void} the result variable will never be bound in
+the Cogent code. The result value of the Cogent function will be generated in later stages.
 
 A \code{break} statement is translated to the binding
 \begin{verbatim}
-  c' = (True,True,None)
+  c' = 2
 \end{verbatim}
 
 A C \code{continue} statement is translated to the binding
 \begin{verbatim}
-  c' = (True,False,None)
+  c' = 1
 \end{verbatim}
 
 \subsubsection{Local Declarations}
@@ -1632,7 +1657,7 @@ The translation of a compound statement is the translation of its block item seq
 An empty block item sequence is translated like a sequence with a single null statement to the
 binding
 \begin{verbatim}
-  c' = (False,False,None)
+  c' = 0
 \end{verbatim}
 
 For a block item sequence consisting of a single statement the translation of the sequence is identical to that of the statement.
@@ -1642,9 +1667,9 @@ A block item sequence consisting of a statement \code{s} followed by a nonempty 
 to bindings \code{(c',x1..) = expr1} and \code{(c',y1..) = expr2}. Let \code{z1..} be the union of the side effect targets 
 \code{x1..} and \code{y1..} in some order. The block item sequence is translated to the binding
 \begin{verbatim}
-  (c',z1..) = let ((cc',cb',cr'),x1..) = expr1
-  in if cc' 
-     then ((cc',cb',cr'),z1..)
+  (c',z1..) = let (c',x1..) = expr1
+  in if c' > 0
+     then (c',z1..)
      else let (c',y1..) = expr2 in (c',z1..)
 \end{verbatim}
 
@@ -1680,12 +1705,11 @@ binding of the form
 
 From this binding the Cogent expression
 \begin{verbatim}
-  let ((_,_,cr'),v1..) = expr
-  in cr' | None -> defaultVal()
-         | Some v -> v
+  let (_,v1..) = expr
+  in r'
 \end{verbatim}
 is constructed as body expression of the translated Cogent function. Additional result values due to item 
-properties and optimizations for functions with a \code{void} result are done in  later stages of the translation.
+properties and optimizations for functions with a \code{void} result are done in later stages of the translation.
 
 \subsubsection{Selection Statements}
 
@@ -1710,7 +1734,7 @@ statement is translated to the binding
   (c',z1..) = let (v<n>',v1..) = expr
   in if v<n>' 
      then let (c',x1..) = expr1 in (c',z1..)
-     else ((False,False,None),z1..)
+     else ((False,False,False),z1..)
 \end{verbatim}
 
 A switch statement of the form \code{switch (e) s} is only translated if it has the restricted form described in 
@@ -1740,7 +1764,7 @@ they can be reused for nested switch statements where they shadow the case varia
 
 Every \code{case} or \code{default} statement \code{sk} of the form \code{lbl: sk0} in the \code{si} is grouped together with all 
 following statements \code{sk1 ... skmk} which are no \code{case} or \code{default} statement to the compound statement \code{\{sk0 sk1 ... skmk\}}.
-Let \code{g1 ... gp} the sequence of these compound statements and let \code{lbl1 ... lblp} be the corresponding labels in the \code{case}
+Let \code{g1 ... gp} be the sequence of these compound statements and let \code{lbl1 ... lblp} be the corresponding labels in the \code{case}
 or \code{default} statements. For each \code{case} statement let the label \code{lblk} be \code{case ck}, i.e., \code{ck} is the constant
 used in it.
 
@@ -1750,7 +1774,7 @@ Then this binding is extended to a binding \code{bk} of the form
   (c',x1..) = 
     if condk
     then exprk
-    else ((False,False,None),x1..)
+    else (0,x1..)
 \end{verbatim}
 which corresponds to the C statement \code{if (condk) then \{sk0 sk1 ... skmk\}}. The condition \code{condk} is determined as follows.
 If there is no \code{default} statement before \code{sk} the condition is
@@ -1774,9 +1798,11 @@ targets \code{v1..} and \code{x1..} in some order. Then the translation of the \
 \begin{verbatim}
   (c',z1..) = let (s',v1..) = expr
     and (s1',...,s<p>') = (s' == expr1,...,s' == exprp)
-    and ((cc',cb',cr'),x1..) = exprb
-    in ((cr' /= None || (cc' && not cb'),cr' /= None, cr'),z1..)
+    and (c',x1..) = exprb
+    in (if c'=2 then 0 else c',z1..)
 \end{verbatim}
+where the new control value reflects that a switch statement consumes a \code{break} jump (represented as \code{2}) but passes a
+\code{continue} or \code{return} jump to its context.
 
 \subsubsection{Iteration Statements}
 
@@ -1796,14 +1822,14 @@ is as follows. The statement \code{s} is translated to a binding \code{(c',x1..)
 list pair by \code{cmbBinds}. Conceptually, \code{e3} is appended as an expression statement to \code{s}, by combining the two bindings
 to the binding \code{(c',z1..) = exprstep} defined by
 \begin{verbatim}
-  (c',y1..) = let ((cc',cb',cr'),x1..) = expr
-  in if cb' 
-     then ((cc',cb',cr'),y1..)
+  (c',y1..) = let (c',x1..) = expr
+  in if c' > 1
+     then (c',y1..)
      else let (v<n>',v1..) = expr3
-          in ((False,False,None),y1..)
+          in (0,y1..)
 \end{verbatim}
-where \code{y1..} is the union of \code{v1..} and \code{x1..}. Note that the condition uses \code{cb'} (\code{break} or \code{return}) 
-instead of \code{cc'} (\code{break}, \code{return}, or \code{continue}) to correctly translate the semantics of \code{continue} 
+where \code{y1..} is the union of \code{v1..} and \code{x1..}. Note that the condition uses \code{c' > 1} (\code{break} or \code{return}) 
+instead of \code{c' > 0} (\code{break}, \code{return}, or \code{continue}) to correctly translate the semantics of \code{continue} 
 statements in the body. A \code{continue} statement causes the body to abort, but still executes \code{e3}, whereas \code{break} 
 or \code{return} statements end the loop without executing \code{e3}.
 
@@ -1813,18 +1839,23 @@ may be side effect targets \code{t1..} created by the translation which are only
 Then the binding \code{(c',y1..) = exprloop} is constructed defined by
 \begin{verbatim}
   (c',y1..) =
-  let ((_,_,cr'),y1..) = repeat #{
+  let (c',y1..) = repeat #{
     n = exprmax,
-    stop = \#{acc = ((_,cb',_),y1..), obsv = (w1..)} 
-           => let (v<n>',t1..) = expr2 in cb' || not v<n>',
+    stop = \#{acc = (c',y1..), obsv = (w1..)} 
+           => let (v<n>',t1..) = expr2 in (c' > 1) || not v<n>',
     step = \#{acc = (_,y1..), obsv = (w1..)} 
            => exprstep
-    acc = ((False,False,None),y1..), obsv = (w1..)
+    acc = (0,y1..), obsv = (w1..)
     }
-  in ((cr' /= None,cr' /= None,cr'),y1..)
+  in (if c'=2 then 0 else c',y1..)
 \end{verbatim}
 where \code{w1..} are all variables occurring free in \code{exprstep} or \code{expr2} which are not part of \code{y1..}, in some order.
 The expression \code{exprmax} for the upper limit of number of iterations is constructed as described below.
+
+Here the new control value is determined like for a switch statement, by consuming the effect of a \code{break} statement. Note that
+\code{continue} statements are already handled in \code{exprstep} above, where in the \code{else} case the control
+value is set to \code{0} which consumes the effect of a \code{continue} statement. As a consequence the control value returned by
+\code{repeat} can never be \code{1} so that it is not necessary to handle this case here.
 
 Finally, if \code{c1} is not empty its translation is prepended to the binding \code{(c',y1..) = exprloop} in the way as described 
 above for a block item sequence. If \code{c1} is an expression it is translated to a binding \code{(v<n>',u1..) = expr1} by 
@@ -1924,19 +1955,19 @@ As an example, the loop \code{for (int i=0;i<b;i++) a*=2;} is translated accordi
     and (c',a) = 
       let i = v'
       and (c',i,a) =
-        let ((_,_,cr'),i,a) = repeat #{
+        let (c',i,a) = repeat #{
           n = b,
-          stop = \#{acc = ((_,cb',_),i,a), obsv = b} 
-           => let v' = i<b in cb' || not v',
+          stop = \#{acc = (c',i,a), obsv = b} 
+           => let v' = i<b in (c' > 1) || not v',
           step = \#{acc = (_,i,a), obsv = b} 
-           => let ((cc',cb',cr'),a) = ((False,False,None),2*a)
-              in if cb' 
-                 then ((cc',cb',cr'),i,a)
+           => let (c',a) = (0,2*a)
+              in if c' > 1 
+                 then (c',i,a)
                  else let (v',i) = (i,i+1)
-                      in ((False,False,None),i,a)
-          acc = ((False,False,None),i,a), obsv = b
+                      in (0,i,a)
+          acc = (0,i,a), obsv = b
           }
-        in ((cr' /= None,cr' /= None,cr'),i,a)
+        in (if c' = 2 then 0 else c',i,a)
       in (c',a)
     in (c',i,a)
 \end{verbatim}
@@ -1949,7 +1980,7 @@ which can be further simplified to
     step = \#{acc = (i,a)} => (i+1,2*a)
     acc = (0,a), obsv = b
     }
-  in ((False,False,None),i,a)
+  in (0,i,a)
 \end{verbatim}
 
 \subsection{Generating Antiquoted C Code}

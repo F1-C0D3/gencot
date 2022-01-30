@@ -52,6 +52,9 @@ getType (LC.CVar sid _) = do
          Just decl -> return $ Just $ LCA.declType decl
 getType _ = return Nothing 
 
+-- Support for translating for loops
+------------------------------------
+
 -- | Check a for loop whether it can be translated.
 -- The result is either a message why not, or the C expression for the upper limit of iterations.
 checkForTrans :: LC.CStat -> Either String LC.CExpr
@@ -236,6 +239,9 @@ getForMax _ = Nothing
 makeInc :: LC.CExpr -> LC.CExpr
 makeInc e = LC.CBinary LC.CAddOp e (LC.CConst (LC.CIntConst (LC.cInteger 1) n)) n
     where n = (nodeInfo e)
+
+-- Free variables in expressions and statements
+-----------------------------------------------
 
 -- | All identifiers which occur free in an expression, including the names of invoked functions.
 -- These are all identifiers in the expression, since identifiers cannot be bound in an expression.

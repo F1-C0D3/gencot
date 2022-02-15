@@ -8,10 +8,10 @@ import Cogent.Dargent.Surface (DataLayoutExpr(DL), DataLayoutExpr'(LVar))
 import Cogent.Common.Syntax (VarName)
 import Cogent.Util (ffmap,fffmap,ffffmap,fffffmap)
 
-import Gencot.Origin (Origin)
+import Gencot.Origin (Origin,noOrigin)
 import Gencot.C.Ast as LQ (Stm)
 
-type ToplOfGTL = CS.TopLevel GenType GenIrrefPatn GenExpr
+type ToplOfGTL = CS.TopLevel GenType GenPatn GenExpr
 type ExprOfGE = CS.Expr GenType GenPatn GenIrrefPatn () GenExpr
 type PatnOfGP = CS.Pattern GenIrrefPatn
 type IrpatnOfGIP = CS.IrrefutablePattern VarName GenIrrefPatn GenExpr
@@ -71,3 +71,22 @@ toRawExpr = RE . fffffmap toRawType . ffffmap toRawPatn . fffmap toRawIrrefPatn 
 
 toDLExpr :: () -> DataLayoutExpr
 toDLExpr () = DL (LVar "")
+
+rawToGenToplv :: TopLevel RawType RawPatn RawExpr -> GenToplv
+rawToGenToplv tl = GenToplv (fmap rawToGenE $ fffmap rawToGenT $ ffmap rawToGenP tl) noOrigin
+
+rawToGenT :: RawType -> GenType
+rawToGenT (RT t) = GenType (fmap rawToGenT $ ffmap (const ()) $ fffmap rawToGenE t) noOrigin
+
+rawToGenP :: RawPatn -> GenPatn
+rawToGenP (RP p) = GenPatn (fmap rawToGenIP p) noOrigin
+
+rawToGenIP :: RawIrrefPatn -> GenIrrefPatn
+rawToGenIP (RIP ip) = GenIrrefPatn (ffmap rawToGenIP $ fmap rawToGenE ip) noOrigin
+
+rawToGenE :: RawExpr -> GenExpr
+rawToGenE (RE e) = GenExpr ( fffffmap rawToGenT
+                           $ ffffmap  rawToGenP
+                           $ fffmap   rawToGenIP
+                           $ ffmap    (const ()) 
+                           $ fmap     rawToGenE e) noOrigin Nothing

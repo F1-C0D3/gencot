@@ -1,6 +1,6 @@
 all: build links
 
-build: check deccm pmgen pmprc trans entrs extns exttp dvdtp cgrph dmpca itprc itgen ituse itext itefs actis actif acgop
+build: check deccm pmgen pmprc trans entrs extns exttp dvdtp cgrph dmpca cgprc itprc itgen ituse itext itefs actis actif acgop
 
 CHECK = gencot-check
 TRANS = gencot-translate
@@ -13,6 +13,7 @@ PMGEN = parmod-gen
 PMPRC = parmod-proc
 CGRPH = callgraph-print
 DMPCA = dump-c-ast
+CGPRC = cogent-proc
 ITPRC = items-proc
 ITGEN = items-gen
 ITUSE = items-used
@@ -55,6 +56,9 @@ cgrph:
 dmpca: 
 	cabal new-build $(DMPCA)
 
+cgprc: 
+	cabal new-build $(CGPRC)
+
 itprc: 
 	cabal new-build $(ITPRC)
 
@@ -79,7 +83,7 @@ actif:
 acgop: 
 	cabal new-build $(ACGOP)
 
-links: bin/$(CHECK) bin/$(DECCM) bin/$(PMGEN) bin/$(PMPRC) bin/$(TRANS) bin/$(ENTRS) bin/$(EXTNS) bin/$(EXTTP) bin/$(DVDTP) bin/$(CGRPH) bin/$(DMPCA) bin/$(ITPRC) bin/$(ITGEN) bin/$(ITUSE) bin/$(ITEXT) bin/$(ITEFS) bin/$(ACTIS) bin/$(ACTIF) bin/$(ACGOP)
+links: bin/$(CHECK) bin/$(DECCM) bin/$(PMGEN) bin/$(PMPRC) bin/$(TRANS) bin/$(ENTRS) bin/$(EXTNS) bin/$(EXTTP) bin/$(DVDTP) bin/$(CGRPH) bin/$(DMPCA) bin/$(CGPRC) bin/$(ITPRC) bin/$(ITGEN) bin/$(ITUSE) bin/$(ITEXT) bin/$(ITEFS) bin/$(ACTIS) bin/$(ACTIF) bin/$(ACGOP)
 
 bin/$(CHECK):
 	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(CHECK)/build/$(CHECK)/$(CHECK) .)
@@ -113,6 +117,9 @@ bin/$(CGRPH):
 
 bin/$(DMPCA):
 	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(DMPCA)/build/$(DMPCA)/$(DMPCA) .)
+
+bin/$(CGPRC):
+	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(CGPRC)/build/$(CGPRC)/$(CGPRC) .)
 
 bin/$(ITPRC):
 	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(ITPRC)/build/$(ITPRC)/$(ITPRC) .)

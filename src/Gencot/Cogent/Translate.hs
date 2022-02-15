@@ -347,17 +347,17 @@ transMember iat mdecl@(LCA.MemberDecl (LCA.VarDecl (LCA.VarName idnam _) _ _) _ 
 -- | Translate a sequence of parameter declarations to a pattern for binding the parameter names.
 -- The first argument is the item associated type of the function.
 -- The second argument tells whether the function is variadic.
-transParamNames :: ItemAssocType -> Bool -> [LCA.ParamDecl] -> FTrav GenIrrefPatn
+transParamNames :: ItemAssocType -> Bool -> [LCA.ParamDecl] -> FTrav GenPatn
 transParamNames fiat variadic pars = do
     ps <- mapM transParamName pars
     psgn <- makeGlobalStateNames False fiat
-    let psg = map (\nam -> GenIrrefPatn (CS.PVar $ nam) $ noOrigin) psgn
+    let psg = map (\nam -> GenIrrefPatn (CS.PVar nam) noOrigin) psgn
     let vps = if variadic then ps ++ psg ++ [variadicParamName] else ps ++ psg
     return $ if null vps 
-                then GenIrrefPatn CS.PUnitel noOrigin 
+                then GenPatn (CS.PIrrefutable $ GenIrrefPatn CS.PUnitel noOrigin) noOrigin 
                 else case vps of
-                          [pn] -> pn
-                          _ -> GenIrrefPatn (CS.PTuple vps) noOrigin
+                          [pn] -> GenPatn (CS.PIrrefutable pn) noOrigin
+                          _ -> GenPatn (CS.PIrrefutable $ GenIrrefPatn (CS.PTuple vps) noOrigin) noOrigin
 
 variadicParamName = GenIrrefPatn (CS.PVar "variadicCogentParameters") noOrigin
 
@@ -376,7 +376,7 @@ makeGlobalStateNames noro fiat = do
 transParamName :: LCA.ParamDecl -> FTrav GenIrrefPatn
 transParamName pd = do
     pnam <- mapIfUpper $ LCA.declIdent pd
-    return $ GenIrrefPatn (CS.PVar $ pnam) $ noComOrigin pd
+    return $ GenIrrefPatn (CS.PVar pnam) $ noComOrigin pd
 
 -- | Translate a C type specification to a Cogent type.
 -- The C type is specified as an ItemAssocType, so that its item properties can be respected.

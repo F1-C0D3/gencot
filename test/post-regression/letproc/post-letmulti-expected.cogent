@@ -1,0 +1,92 @@
+f1 : U32 -> U32
+f1 i = 5 + i
+f2 : U32 -> U32
+f2 i = 5 + i * 7 + 5
+f3 : U32 -> U32
+f3 i = 5 + 7 + 5
+f4 : U32 -> U32
+f4 i = 5 + i + 5
+f5 : U32 -> U32
+f5 i = 5 + i
+f10 : U32 -> U32
+f10 i = 5 + (i + 1)
+f11 : U32 -> U32
+f11 i =
+   5 + 5 + (i + 1) + (i + 1 + i)
+f12 : U32 -> U32
+f12 i = i + 1 + i + (i + 1 + i)
+f13 : U32 -> ( U32, U32, U32 )
+f13 i = (i + 1, 2 * i, i - 1)
+f20 : U32 -> U32
+f20 i =
+   i
+   | w -> w + (i + 1) + (i - 1)
+f21 : U32 -> U32
+f21 i =
+   i
+   | v1 -> v1 + (i - 1)
+f22 : U32 -> U32
+f22 i =
+   let v1 = i
+   in 5
+      | i -> v1 + 5
+f30 : U32 -> U32
+f30 i = i + 1 + i * 2
+f31 : U32 -> U32
+f31 i =
+   (if i == 0
+      then 5
+      else 2 * i) + (if i == 0
+      then i
+      else 10)
+f31a : U32 -> U32
+f31a i =
+   if i == 0
+   then (5, i)
+   else (2 * i, 10)
+f31b : U32 -> U32
+f31b i =
+   (if i == 0 then i else 10
+   , if i == 0 then 5 else 2 * i)
+f32 : U32 -> U32
+f32 i =
+   let (v1, v2) = 7
+      | i -> (i + 1, 5)
+   in v1 + v2
+g2 : U32 -> ( U32, U32 )
+g3 : U32 -> ( U32, U32, U32 )
+f40 : U32 -> U32
+f40 i =
+   let (v1, v2) = g2 i
+   in v1 + v2
+f40a : U32 -> U32
+f40a i = g2 i
+f41 : U32 -> U32
+f41 i =
+   let v1 = i
+   and (i, _) = g2 i
+   in v1 + 5 + i
+f41a : U32 -> U32
+f41a i =
+   let v1 = i
+   and (i, _) = g2 v1
+   in v1 + 5 + i
+f41b : U32 -> U32
+f41b i =
+   let v1 = i
+   and (i, _) = g2 5
+   in v1 + 5 + i
+f42 : U32 -> U32
+f42 i =
+   let (v1, _, v2) = g3 i
+   in v1 + v2
+f50 : U32 -> U32
+f50 i =
+   let (v1, (v2, v3)) = g2 i
+   in v1 + v2 + v3
+f50a : U32 -> U32
+f50a i =
+   let (v2, _) = g2 i
+   in i + v2
+f50b : U32 -> U32
+f50b i = i

@@ -776,7 +776,7 @@ transBody s = do
 transExpr :: LC.CExpr -> FTrav GenExpr
 transExpr e = do
     bp <- bindExpr e
-    return $ cleanSrc $ mkPlainExpr $ bp
+    return $ cleanSrc $ postproc $ mkPlainExpr $ bp
 
 bindStat :: LC.CStat -> FTrav GenBnd
 bindStat s@(LC.CExpr Nothing _) =

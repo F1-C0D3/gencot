@@ -5,4 +5,4 @@ import Gencot.Cogent.Ast
 import Gencot.Cogent.Simplify
  
 postproc :: GenExpr -> GenExpr
-postproc e = e
+postproc e = letproc e

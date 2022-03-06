@@ -18,18 +18,23 @@ letproc (GenExpr e o src) = GenExpr (fmap letproc e) o src
 bindsproc :: [GenBnd] -> [GenBnd] -> GenExpr -> ExprOfGE
 bindsproc [] [] e = exprOfGE e
 bindsproc [] bsp e = CS.Let bsp e
-bindsproc ((CS.Binding ip Nothing e []) : bs) bps bdy = bindproc ip e bs bps bdy
+bindsproc ((CS.Binding ip Nothing e []) : bs) bps bdy = bindproc ip (letproc e) bs bps bdy
 bindsproc (b : _) _ _ = error ("unexpected binding in letproc: " ++ (show b))
 
 bindproc :: GenIrrefPatn -> GenExpr -> [GenBnd] -> [GenBnd] -> GenExpr -> ExprOfGE
 bindproc ip e bs bps bdy = bindsproc bs bps'' bdy'
     where (retain,subst) = M.partition ((== (-1)) . fst) $ retainGrowth $ retainFree $ findMatches ip e bps bdy
           (bps',bdy') = substMatches subst bps bdy
+          -- instead of building the retained binding from the map 
+          -- we reduce the original binding to the variables bound in the map
+          mvars = boundInMap retain
+          rvars = (freeInIrrefPatn ip) \\ mvars
+          (ip',e') = if null rvars
+                        then (ip,e)
+                        else removeWildcards' (mapIrpatnOfGIP (replaceVarsInPattern rvars) ip) e
           bps'' = if M.null retain 
                      then bps' 
-                     else case reduceBinding (freeInMap retain) ip e of
-                               Nothing -> error ("cannot build retain binding in letproc for " ++ (show ip))
-                               Just (ip',e') -> (CS.Binding ip' Nothing e' []): bps'
+                     else (CS.Binding ip' Nothing e' []): bps'
 
 type MatchMap = M.Map GenIrrefPatn (Int,GenExpr)
 
@@ -88,20 +93,21 @@ removeMatches vs m =
 -- The result is a map from subpatterns to subexpressions and the number of matches. 
 -- If the number is -1 the subpattern cannot be substituted and must be retained in the original binding.
 findMatches :: GenIrrefPatn -> GenExpr -> [GenBnd] -> GenExpr -> MatchMap
-findMatches ip e ((CS.Binding ipp Nothing ep []) : bps) bdy =
-  combineMatches [msp, ms]
-  where msp = findMatches ip e [] ep
-        ms = findMatchesUnderBinding ip e (freeInIrrefPatn ipp) bps bdy
+findMatches ip e bps@((CS.Binding ipp Nothing ep []) : bps') bdy =
+    if isUnitPattern ip'
+       then M.empty
+       else combineMatches [msp, ms1, ms2]
+    where (ip',e') = reduceBinding ip e bps bdy
+          msp = findMatches ip' e' [] ep
+          (ip1,e1,ip2,e2) = splitBinding (freeInIrrefPatn ipp) ip' e'
+          ms1 = findMatches ip1 e1 bps' bdy
+          ms2 = retainOrDrop $ findMatches ip2 e2 bps' bdy
 findMatches _ _ (b : _) _ = error ("unexpected binding in letproc: " ++ (show b))
 findMatches ip e [] bdy = 
-    if null ivars 
+    if isUnitPattern ip'
        then M.empty
-       else case reduceBinding ivars ip e of
-                 Nothing -> M.singleton ip (-1,e)
-                 Just (ip',e') -> findFullMatches ip' e' (exprOfGE bdy)
-    where evars = freeInExpr e
-          pvars = freeInIrrefPatn ip
-          ivars = intersect evars pvars
+       else findFullMatches ip' e' (exprOfGE bdy)
+    where (ip',e') = reduceBinding ip e [] bdy
 
 -- | Find matches of a binding in an expression.
 -- The binding binds only variables which occur free in the expression.
@@ -117,23 +123,18 @@ findFullMatches ip e (CS.Let bs bdy) = findMatches ip e bs bdy
 findFullMatches ip e (CS.Match e' vs alts) =
     combineMatches [ms',ms]
     where ms' = findMatches ip e [] e'
-          ms = combineMatches $ map (\(CS.Alt p _ bdy) -> findMatchesUnderBinding ip e (freeInPatn p) [] bdy) alts
+          ms = combineMatches $ map (\(CS.Alt p _ bdy) -> findMatchesUnderBoundVars ip e (freeInPatn p) bdy) alts
 findFullMatches ip e (CS.Lam ip' mt bdy) =
-    findMatchesUnderBinding ip e (freeInIrrefPatn ip') [] bdy
+    findMatchesUnderBoundVars ip e (freeInIrrefPatn ip') bdy
 findFullMatches ip e bdy =
     combineMatches $ map (findMatches ip e []) $ toList bdy
 
--- | Find matches in an expression which is under a binding of variables.
--- The bound variables must be removed from the pattern and expressions where they occur free must be retained.
--- The expression under the binding consists of additional bindings and a body.
-findMatchesUnderBinding :: GenIrrefPatn -> GenExpr -> [VarName] -> [GenBnd] -> GenExpr -> MatchMap
-findMatchesUnderBinding ip e vs bs bdy = 
-    case splitBinding vs ip e of
-           Nothing -> M.singleton ip (-1,e)
-           Just (ip1,e1,ip2,e2) ->
-              let ms1 = findMatches ip1 e1 bs bdy
-                  ms2 = findMatches ip2 e2 bs bdy
-              in combineMatches [ms1, retainOrDrop ms2]
+findMatchesUnderBoundVars :: GenIrrefPatn -> GenExpr -> [VarName] -> GenExpr -> MatchMap
+findMatchesUnderBoundVars ip e vs bdy = 
+    combineMatches [ms1, ms2]
+    where (ip1,e1,ip2,e2) = splitBinding vs ip e
+          ms1 = findMatches ip1 e1 [] bdy
+          ms2 = retainOrDrop $ findMatches ip2 e2 [] bdy
 
 -- | Match a pattern with an expression.
 -- Currently only successful for nested variable tuple patterns.
@@ -157,22 +158,38 @@ freeInIrrefPatn = nub . CS.fvIP . toRawIrrefPatn
 freeInExpr :: GenExpr -> [VarName]
 freeInExpr = nub . CS.fvE . toRawExpr
 
--- | Free variables in the patterns of a MatchMap.
-freeInMap :: MatchMap -> [VarName]
-freeInMap m = nub $ concatMap freeInIrrefPatn $ M.keys m
+freeUnderBinding :: [GenBnd] -> GenExpr -> [VarName]
+freeUnderBinding [] e = freeInExpr e
+freeUnderBinding ((CS.Binding ipb Nothing eb []) : bs) e =
+    nub ((freeInExpr eb) ++ ((freeUnderBinding bs e) \\ (freeInIrrefPatn ipb)))
+freeUnderBinding (b : _) _ = error ("unexpected binding in letproc: " ++ (show b))
 
--- | Reduce the binding consisting of the pattern and the expression according to a set of variables.
--- All parts are omitted which bind a variable not in the set. If such a splitting is not 
--- possible the result is Nothing.
--- The set contains at least one variable bound in the pattern, if the splitting is possible the result
--- is a nonempty binding.
-reduceBinding :: [VarName] -> GenIrrefPatn -> GenExpr -> Maybe (GenIrrefPatn,GenExpr)
-reduceBinding vs ip e = 
-    if null vs'
-       then Just (ip,e)
-       else removeWildcards ip' e
-    where vs' = (freeInIrrefPatn ip) \\ vs
-          ip' = mapIrpatnOfGIP (replaceVarsInPattern vs') ip
+-- | Variables bound in the patterns of a MatchMap.
+boundInMap :: MatchMap -> [VarName]
+boundInMap m = nub $ concatMap freeInIrrefPatn $ M.keys m
+
+-- | Reduce the binding (ip = e) to the free variables in a body expression with additional bindings.
+-- All variables bound in the pattern which are not free are replaced by a wildcard.
+-- Then all wildcards are removed from the pattern for which the corrsponding part 
+-- can be removed from the expression.
+reduceBinding :: GenIrrefPatn -> GenExpr -> [GenBnd] -> GenExpr -> (GenIrrefPatn,GenExpr)
+reduceBinding ip e bps bdy =
+    if null ivars
+       then toUnitBinding ip e
+       else if null uvars
+               then removeWildcards' ip e
+               else removeWildcards' (mapIrpatnOfGIP (replaceVarsInPattern uvars) ip) e
+    where 
+        bdyvars = freeUnderBinding bps bdy
+        pvars = freeInIrrefPatn ip
+        ivars = intersect bdyvars pvars
+        uvars = pvars \\ ivars
+
+toUnitBinding :: GenIrrefPatn -> GenExpr -> (GenIrrefPatn,GenExpr)
+toUnitBinding ip e = (mapIrpatnOfGIP (const PUnitel) ip, mapExprOfGE (const Unitel) e)
+
+isUnitPattern :: GenIrrefPatn -> Bool
+isUnitPattern ip = (irpatnOfGIP ip) == PUnitel
 
 -- | Replace occurrences of variables in a pattern by the wildcard pattern.
 -- Variables bound to the container in a take pattern are not replaced, since that would drop the container.
@@ -192,28 +209,57 @@ replaceVarsInPattern vs (PArray ips) =
 replaceVarsInPattern vs (PArrayTake v els) =
     PArrayTake v $ map (\(e,ip) -> (e,mapIrpatnOfGIP (replaceVarsInPattern vs) ip)) els
 
--- | Remove wildcards from a pattern and remove the corresponding parts from a matching expression.
+-- | Remove as much wildcards as possible from a pattern and remove the corresponding parts from a matching expression.
 -- If the pattern only contains wildcards (i.e. binds no variable) it is replaced by a unit pattern.
--- If the pattern contains wildcards and variables and the expression cannot be split, the result is Nothing.
-removeWildcards :: GenIrrefPatn -> GenExpr -> Maybe (GenIrrefPatn,GenExpr)
+removeWildcards :: GenIrrefPatn -> GenExpr -> (GenIrrefPatn,GenExpr)
 removeWildcards ip e = 
     if not $ containsWildcard ip
-       then Just (ip,e)
+       then (ip,e)
        else if onlyWildcards ip
-              then Just (mapIrpatnOfGIP (const PUnitel) ip,e)
+              then toUnitBinding ip e
               else case irpatnOfGIP ip of
                         -- must be structured since it contains wildcards and non-wildcards
                         PTuple ips -> removeWildcardsFromTuple ip ips e
                         -- we do not split records or arrays
-                        _ -> Nothing
+                        _ -> (ip,e)
     where removeWildcardsFromTuple ip ips e = 
              case splitExpr e of
-                  Nothing -> Nothing
+                  Nothing -> (ip,e)
                   Just es -> 
                     let bs = map (uncurry removeWildcards) $ zip ips es
-                    in if any isNothing bs 
-                          then Nothing
-                          else Just $ toTupleBind (filter (\(ip,_) -> (irpatnOfGIP ip) /= PUnitel) $ catMaybes bs) ip e
+                    in toTupleBind (filter (\(ip,_) -> (irpatnOfGIP ip) /= PUnitel) bs) ip e
+
+removeWildcards' :: GenIrrefPatn -> GenExpr -> (GenIrrefPatn,GenExpr)
+removeWildcards' ip e = 
+    if not $ containsWildcard ip
+       then (ip,e)
+       else if onlyWildcards ip
+              then toUnitBinding ip e
+              else case irpatnOfGIP ip of
+                        -- must be structured since it contains wildcards and non-wildcards
+                        PTuple ips -> removeWildcardsFromTuple ip ips e
+                        -- we do not split records or arrays
+                        _ -> (ip,e)
+    where removeWildcardsFromTuple ip ips e = 
+            case exprOfGE e of
+                 Tuple es -> 
+                   let bs = map (uncurry removeWildcards') $ zip ips es
+                   in toTupleBind (filter (not . isUnitPattern . fst) bs) ip e
+                 If c vs et ee -> 
+                   let (ipt,et') = removeWildcards' ip et
+                       (ipe,ee') = removeWildcards' ip ee
+                       e' = mapExprOfGE (const (If c vs et' ee')) e
+                   in if ip == ipt || ipt /= ipe
+                         then (ip,e)
+                         else (ipt, ifproc e')
+                 Let bs bdy ->
+                   let (ip',bdy') = removeWildcards' ip bdy
+                       e' = mapExprOfGE (const (Let bs bdy')) e
+                   in if ip == ip' 
+                         then (ip,e)
+                         else (ip', letproc e')
+                 -- todo: Match, Lam
+                 _ -> (ip,e)
 
 -- | Test whether a pattern contains a wildcard.
 containsWildcard :: GenIrrefPatn -> Bool
@@ -237,20 +283,23 @@ onlyWildcards ip =
          PUnitel -> False
          PTuple ips -> all onlyWildcards ips
          PUnboxedRecord flds -> all (onlyWildcards . snd) (catMaybes flds)
-         PTake v flds -> all (onlyWildcards . snd) (catMaybes flds)
+         PTake v flds -> False -- since it contains v
          PArray ips -> all onlyWildcards ips
-         PArrayTake v els -> all (onlyWildcards . snd) els
+         PArrayTake v els -> False -- since it contains v
 
--- | Turn a nonempty sequence of bindings into a tuple binding.
+-- | Turn a sequence of bindings into a tuple binding.
+-- If the sequence has length 0, the result is a unit binding.
 -- If the sequence has length 1, its single binding is returned.
 -- Otherwise the result reuses a given pattern and expression.
 toTupleBind :: [(GenIrrefPatn,GenExpr)] -> GenIrrefPatn -> GenExpr -> (GenIrrefPatn,GenExpr)
 toTupleBind bs ip e = 
-    if (length bs) == 1
-       then head bs
-       else let ubs = unzip bs
-            in (mapIrpatnOfGIP (const (PTuple (fst ubs))) ip,
-                mapExprOfGE (const (Tuple (snd ubs))) e)
+    if null bs
+       then toUnitBinding ip e
+       else if (length bs) == 1
+               then head bs
+               else let ubs = unzip bs
+                    in (mapIrpatnOfGIP (const (PTuple (fst ubs))) ip,
+                        mapExprOfGE (const (Tuple (snd ubs))) e)
 
 -- | Split an expression of tuple type into a list of expressions for the components.
 -- If that is not possible return Nothing
@@ -271,38 +320,24 @@ splitExpr e =
          _ -> Nothing
 
 -- | Split the binding consisting of the pattern and the expression according to a set of variables.
--- First all parts are omitted which bind a variable in the set. If such a splitting is not 
--- possible the result is Nothing.
--- Otherwise the remaining binding is split into a maximal part where no variable in the set 
+-- The binding is split into a maximal part where no variable in the set 
 -- occurs free in the expression and the rest part. If one of these parts is empty the corresponding 
 -- pattern is the unit pattern.
-splitBinding :: [VarName] -> GenIrrefPatn -> GenExpr -> Maybe (GenIrrefPatn,GenExpr,GenIrrefPatn,GenExpr)
+splitBinding :: [VarName] -> GenIrrefPatn -> GenExpr -> (GenIrrefPatn,GenExpr,GenIrrefPatn,GenExpr)
 splitBinding vs ip e = 
-    if null vs
-       then Just (ip, e, unitpattern, e)
-       else case removeWildcards ip' e of
-                 Nothing -> Nothing
-                 Just (ip'',e') -> splitBinding' vs ip'' e'
-    where ip' = mapIrpatnOfGIP (replaceVarsInPattern vs) ip
-          unitpattern = mapIrpatnOfGIP (const (PUnitel)) ip
-          splitBinding' vs ip e =
-            let fvs = intersect vs $ freeInExpr e
-            in if null fvs
-                  then Just (ip, e, unitpattern, e)
-                  else case irpatnOfGIP ip of
-                            PTuple ips -> splitTuple vs ip ips e
-                            _ -> Just (unitpattern, e, ip, e)
-          splitTuple vs ip ips e =
-            case splitExpr e of
-                 Nothing -> Nothing
-                 Just es -> 
-                   let (nofree,free) = partition (\(ip,e) -> null $ intersect vs $ freeInExpr e) $ zip ips es
-                   in if null nofree
-                         then Just (unitpattern, e, ip, e)
-                         else -- free cannot be empty because fvs was not null above
-                              let (nfip,nfe) = toTupleBind nofree ip e
-                                  (fip,fe) = toTupleBind free ip e
-                              in Just (nfip,nfe,fip,fe)
+    if null (intersect vs $ freeInExpr e)
+       then (ip, e, unitpattern, unitexpr)
+       else case irpatnOfGIP ip of
+               PTuple ips -> 
+                 case splitExpr e of
+                      Nothing -> (unitpattern, unitexpr, ip, e)
+                      Just es -> 
+                        let (nofree,free) = partition (\(ip,e) -> null $ intersect vs $ freeInExpr e) $ zip ips es
+                            (nfip,nfe) = toTupleBind nofree ip e
+                            (fip,fe) = toTupleBind free ip e
+                        in (nfip,nfe,fip,fe)
+               _ -> (unitpattern, unitexpr, ip, e)
+    where (unitpattern,unitexpr) = toUnitBinding ip e
 
 -- | Combine match results.
 -- If a pattern occurs in both maps the expressions are the same. The number of matches is -1 if 
@@ -311,8 +346,10 @@ combineMatches :: [MatchMap] -> MatchMap
 combineMatches = 
     M.unionsWith (\(i1,e1) (i2,e2) -> (if i1 == -1 || i2 == -1 then -1 else i1+i2, e1))
 
--- | Drop sub bindings with 0 matches and retain all others
+-- | Drop sub bindings with 0 matches and retain all others (set matches to -1)
 retainOrDrop :: MatchMap -> MatchMap
 retainOrDrop m = 
-    M.map (\(_,e) -> (-1,e)) $ M.filter (\(i,_) -> i == 0) m
+    M.map (\(_,e) -> (-1,e)) $ M.filter (\(i,_) -> i /= 0) m
 
+ifproc :: GenExpr -> GenExpr
+ifproc e = e

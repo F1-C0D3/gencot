@@ -1,7 +1,7 @@
 {-# LANGUAGE PackageImports #-}
 module Gencot.Cogent.Simplify where
 
-import Data.List (concatMap,nub,intersect,(\\),partition,find)
+import Data.List (concatMap,nub,intersect,union,(\\),partition,find)
 import qualified Data.Map as M
 import Data.Maybe (catMaybes,isNothing,fromJust)
 import Data.Foldable (toList)
@@ -10,61 +10,78 @@ import Cogent.Surface as CS
 import Cogent.Common.Syntax as CCS
 
 import Gencot.Cogent.Ast
- 
+
+{- Simplifying let expressions -}
+{-------------------------------}
+
+-- | Simplify all contained let expressions.
 letproc :: GenExpr -> GenExpr
-letproc (GenExpr (CS.Let bs e) o src) = GenExpr (bindsproc (reverse bs) [] (letproc e)) o src
-letproc (GenExpr e o src) = GenExpr (fmap letproc e) o src
+letproc e =
+    case exprOfGE e of
+         (Let bs bdy) -> 
+            let (bs', bdy') = bindsproc bs $ exprOfGE $ letproc bdy
+            in if null bs'
+                  then mapExprOfGE (const bdy') e
+                  else mapExprOfGE (const (Let bs' $ mapExprOfGE (const bdy') bdy)) e
+         _ -> mapExprOfGE (fmap letproc) e
 
-bindsproc :: [GenBnd] -> [GenBnd] -> GenExpr -> ExprOfGE
-bindsproc [] [] e = exprOfGE e
-bindsproc [] bsp e = CS.Let bsp e
-bindsproc ((CS.Binding ip Nothing e []) : bs) bps bdy = bindproc ip (letproc e) bs bps bdy
-bindsproc (b : _) _ _ = error ("unexpected binding in letproc: " ++ (show b))
+-- | Process all bindings in a let expression.
+-- If there are several and-concatenated bindings, the are processed from the last one backwards.
+bindsproc :: [GenBnd] -> ExprOfGE -> ([GenBnd],ExprOfGE)
+bindsproc [] bdy = ([], bdy)
+bindsproc ((Binding ip Nothing e []) : bs) bdy = 
+    let (bs',bdy') = bindsproc bs bdy
+    in bindproc ip (letproc e) bs' bdy'
+bindsproc (b : _) _ = error ("unexpected binding in letproc/bindsproc: " ++ (show b))
 
-bindproc :: GenIrrefPatn -> GenExpr -> [GenBnd] -> [GenBnd] -> GenExpr -> ExprOfGE
-bindproc ip e bs bps bdy = bindsproc bs bps'' bdy'
-    where (retain,subst) = M.partition ((== (-1)) . fst) $ retainGrowth $ retainFree $ findMatches ip e bps bdy
-          (bps',bdy') = substMatches subst bps bdy
+-- | Process the binding (ip = e) by substituting it in expression (let bs in bdy).
+-- First all possible matches are searched and counted in the expression using findMatches.
+-- Then matches which violate conditions for free variables (retainFree) or grow the 
+-- expression too much (retainGrowth) are marked as retained.
+-- The remaining matches are substituted using substMatches.
+-- If there are retained matches they are added as prepended binding.
+bindproc :: GenIrrefPatn -> GenExpr -> [GenBnd] -> ExprOfGE -> ([GenBnd], ExprOfGE)
+bindproc ip e bs bdy = 
+    if M.null retain
+       then (bs',bdy') 
+       else ((Binding ip' Nothing e' []): bs',bdy')
+    where (retain,subst) = M.partition ((== (-1)) . fst) $ retainGrowth $ retainFree $ findMatches ip e bs bdy
+          (bs',bdy') = substMatches subst bs bdy
           -- instead of building the retained binding from the map 
           -- we reduce the original binding to the variables bound in the map
-          mvars = boundInMap retain
-          rvars = (freeInIrrefPatn ip) \\ mvars
-          (ip',e') = if null rvars
-                        then (ip,e)
-                        else removeWildcards' (mapIrpatnOfGIP (replaceVarsInPattern rvars) ip) e
-          bps'' = if M.null retain 
-                     then bps' 
-                     else (CS.Binding ip' Nothing e' []): bps'
+          (ip',e') = reduceBinding (boundInMap retain) ip e
 
 type MatchMap = M.Map GenIrrefPatn (Int,GenExpr)
 
 -- | Substitute matches from the map in an expression.
--- The expression corresponds to a let expression consisting of the bindings and the body expression.
+-- The expression corresponds to (let bs in bdy).
 -- The result is the same expression with substituted matches, as a pair of the bindings and the body expression.
 -- The map contains only matches which can be substituted in the expression.
-substMatches :: MatchMap -> [GenBnd] -> GenExpr -> ([GenBnd],GenExpr)
-substMatches m ((CS.Binding ipp Nothing ep []) : bps) bdy =
-    (CS.Binding ipp Nothing ep' [] : bps',bdy')
-    where (_,ep') = substMatches m [] ep
+substMatches :: MatchMap -> [GenBnd] -> ExprOfGE -> ([GenBnd],ExprOfGE)
+substMatches m bs bdy | null m = (bs,bdy)
+substMatches m [] bdy = ([],substMatchesE m bdy)
+substMatches m ((Binding ipp Nothing ep []) : bs) bdy =
+    (Binding ipp Nothing ep'' [] : bs',bdy')
+    where (_,ep') = substMatches m [] $ exprOfGE ep
+          ep'' = mapExprOfGE (const ep') ep
           m' = removeMatches (freeInIrrefPatn ipp) m
-          (bps',bdy') = substMatches m' bps bdy
-substMatches m [] bdy = ([],mapExprOfGE (substMatchesE m) bdy)
+          (bs',bdy') = substMatches m' bs bdy
 
 substMatchesE :: MatchMap -> ExprOfGE -> ExprOfGE
-substMatchesE m (CS.Let bs bdy) = CS.Let bs' bdy'
-    where (bs',bdy') = substMatches m bs bdy
-substMatchesE m (CS.Match e vs alts) = 
-    CS.Match (mapExprOfGE (substMatchesE m) e) vs $ map (substMatchesA m) alts
-substMatchesE m (CS.Lam ip mt bdy) = 
-    CS.Lam ip mt $ mapExprOfGE (substMatchesE (removeMatches (freeInIrrefPatn ip) m)) bdy
+substMatchesE m (Let bs bdy) = Let bs' $ mapExprOfGE (const bdy') bdy
+    where (bs',bdy') = substMatches m bs $ exprOfGE bdy
+substMatchesE m (Match e vs alts) = 
+    Match (mapExprOfGE (substMatchesE m) e) vs $ map (substMatchesA m) alts
+substMatchesE m (Lam ip mt bdy) = 
+    Lam ip mt $ mapExprOfGE (substMatchesE (removeMatches (freeInIrrefPatn ip) m)) bdy
 substMatchesE m e =
     case find (((flip matches) e) . irpatnOfGIP . fst) $ M.assocs m of
          Nothing -> fmap (mapExprOfGE (substMatchesE m)) e
          Just (_,(_,e')) -> exprOfGE e'
 
 substMatchesA :: MatchMap -> GenAlt -> GenAlt
-substMatchesA m (CS.Alt p l bdy) = 
-    CS.Alt p l $ mapExprOfGE (substMatchesE (removeMatches (freeInPatn p) m)) bdy
+substMatchesA m (Alt p l bdy) = 
+    Alt p l $ mapExprOfGE (substMatchesE (removeMatches (freeInPatn p) m)) bdy
 
 -- | Retain bindings for which the substitution would grow the expression too much.
 -- Not yet implemented.
@@ -86,53 +103,50 @@ removeMatches :: [VarName] -> MatchMap -> MatchMap
 removeMatches vs m =
     M.filterWithKey (\ip _ -> null $ intersect vs (freeInIrrefPatn ip)) m
 
--- | Find matches of a binding in an expression.
--- The expression corresponds to a let expression consisting of the bindings and the body expression.
--- The bindings have already been processed and have the expected form.
+-- | Find matches of a binding (ip = e) in the expression (let bs in bdy).
 -- During matching the binding may be split by splitting the pattern and the corresponding expression.
 -- The result is a map from subpatterns to subexpressions and the number of matches. 
 -- If the number is -1 the subpattern cannot be substituted and must be retained in the original binding.
-findMatches :: GenIrrefPatn -> GenExpr -> [GenBnd] -> GenExpr -> MatchMap
-findMatches ip e bps@((CS.Binding ipp Nothing ep []) : bps') bdy =
+findMatches :: GenIrrefPatn -> GenExpr -> [GenBnd] -> ExprOfGE -> MatchMap
+findMatches ip e bs@((Binding ipp Nothing ep []) : bs') bdy =
     if isUnitPattern ip'
        then M.empty
        else combineMatches [msp, ms1, ms2]
-    where (ip',e') = reduceBinding ip e bps bdy
-          msp = findMatches ip' e' [] ep
-          (ip1,e1,ip2,e2) = splitBinding (freeInIrrefPatn ipp) ip' e'
-          ms1 = findMatches ip1 e1 bps' bdy
-          ms2 = retainOrDrop $ findMatches ip2 e2 bps' bdy
-findMatches _ _ (b : _) _ = error ("unexpected binding in letproc: " ++ (show b))
+    where (ip',e') = reduceBinding (freeUnderBinding bs bdy) ip e
+          msp = findMatches ip' e' [] $ exprOfGE ep
+          ((ip1,e1),(ip2,e2)) = splitBinding (freeInIrrefPatn ipp) ip' e'
+          ms1 = findMatches ip1 e1 bs' bdy
+          ms2 = retainOrDrop $ findMatches ip2 e2 bs' bdy
+findMatches _ _ (b : _) _ = error ("unexpected binding in letproc/findMatches: " ++ (show b))
 findMatches ip e [] bdy = 
     if isUnitPattern ip'
        then M.empty
-       else findFullMatches ip' e' (exprOfGE bdy)
-    where (ip',e') = reduceBinding ip e [] bdy
+       else findFullMatches ip' e' bdy
+    where (ip',e') = reduceBinding (freeInExpr' bdy) ip e
 
 -- | Find matches of a binding in an expression.
 -- The binding binds only variables which occur free in the expression.
 -- The binding binds at least one variable.
 findFullMatches :: GenIrrefPatn -> GenExpr -> ExprOfGE -> MatchMap
-findFullMatches ip e bdy@(CS.Var _) = M.singleton ip (cnt,e)
+findFullMatches ip e bdy@(Var _) = M.singleton ip (cnt,e)
     where cnt = if matches (irpatnOfGIP ip) bdy then 1 else -1
-findFullMatches ip e bdy@(CS.Tuple es) =
+findFullMatches ip e bdy@(Tuple es) =
     if matches (irpatnOfGIP ip) bdy
        then M.singleton ip (1,e)
-       else combineMatches $ map (findMatches ip e []) es
-findFullMatches ip e (CS.Let bs bdy) = findMatches ip e bs bdy
-findFullMatches ip e (CS.Match e' vs alts) =
+       else combineMatches $ map (findMatches ip e [] . exprOfGE) es
+findFullMatches ip e (Let bs bdy) = findMatches ip e bs $ exprOfGE bdy
+findFullMatches ip e (Match e' vs alts) =
     combineMatches [ms',ms]
-    where ms' = findMatches ip e [] e'
-          ms = combineMatches $ map (\(CS.Alt p _ bdy) -> findMatchesUnderBoundVars ip e (freeInPatn p) bdy) alts
-findFullMatches ip e (CS.Lam ip' mt bdy) =
-    findMatchesUnderBoundVars ip e (freeInIrrefPatn ip') bdy
+    where ms' = findMatches ip e [] $ exprOfGE e'
+          ms = combineMatches $ map (\(Alt p _ bdy) -> findMatchesUnderBoundVars ip e (freeInPatn p) $ exprOfGE bdy) alts
+findFullMatches ip e (Lam ip' mt bdy) = M.empty -- Cogent supports no closures, no free variables allowed in lambda expression
 findFullMatches ip e bdy =
-    combineMatches $ map (findMatches ip e []) $ toList bdy
+    combineMatches $ map (findMatches ip e [] . exprOfGE) $ toList bdy
 
-findMatchesUnderBoundVars :: GenIrrefPatn -> GenExpr -> [VarName] -> GenExpr -> MatchMap
+findMatchesUnderBoundVars :: GenIrrefPatn -> GenExpr -> [VarName] -> ExprOfGE -> MatchMap
 findMatchesUnderBoundVars ip e vs bdy = 
     combineMatches [ms1, ms2]
-    where (ip1,e1,ip2,e2) = splitBinding vs ip e
+    where ((ip1,e1),(ip2,e2)) = splitBinding vs ip e
           ms1 = findMatches ip1 e1 [] bdy
           ms2 = retainOrDrop $ findMatches ip2 e2 [] bdy
 
@@ -155,34 +169,44 @@ freeInIrrefPatn :: GenIrrefPatn -> [VarName]
 freeInIrrefPatn = nub . CS.fvIP . toRawIrrefPatn
 
 -- | Free variables in an expression.
+freeInExpr' :: ExprOfGE -> [VarName]
+freeInExpr' = nub . CS.fvE . toRawExpr'
+
+-- | Free variables in an expression.
 freeInExpr :: GenExpr -> [VarName]
 freeInExpr = nub . CS.fvE . toRawExpr
 
-freeUnderBinding :: [GenBnd] -> GenExpr -> [VarName]
-freeUnderBinding [] e = freeInExpr e
+-- | Free variables in a let expression, given by a sequence of bindings and the body.
+freeUnderBinding :: [GenBnd] -> ExprOfGE -> [VarName]
+freeUnderBinding [] e = freeInExpr' e
 freeUnderBinding ((CS.Binding ipb Nothing eb []) : bs) e =
     nub ((freeInExpr eb) ++ ((freeUnderBinding bs e) \\ (freeInIrrefPatn ipb)))
-freeUnderBinding (b : _) _ = error ("unexpected binding in letproc: " ++ (show b))
+freeUnderBinding (b : _) _ = error ("unexpected binding in letproc/freeUnderBinding: " ++ (show b))
 
 -- | Variables bound in the patterns of a MatchMap.
 boundInMap :: MatchMap -> [VarName]
 boundInMap m = nub $ concatMap freeInIrrefPatn $ M.keys m
 
--- | Reduce the binding (ip = e) to the free variables in a body expression with additional bindings.
--- All variables bound in the pattern which are not free are replaced by a wildcard.
+-- | Variables bound in a sequence of bindings.
+boundInBindings :: [GenBnd] -> [VarName]
+boundInBindings [] = []
+boundInBindings ((CS.Binding ipb Nothing eb []) : bs) = union (freeInIrrefPatn ipb) $ boundInBindings bs
+boundInBindings (b : _) = error ("unexpected binding in letproc/boundInBindings: " ++ (show b))
+
+-- | Reduce the binding (ip = e) to a set of variables.
+-- All variables bound in the pattern which are not in the set are replaced by a wildcard.
 -- Then all wildcards are removed from the pattern for which the corrsponding part 
 -- can be removed from the expression.
-reduceBinding :: GenIrrefPatn -> GenExpr -> [GenBnd] -> GenExpr -> (GenIrrefPatn,GenExpr)
-reduceBinding ip e bps bdy =
+reduceBinding :: [VarName] -> GenIrrefPatn -> GenExpr -> (GenIrrefPatn,GenExpr)
+reduceBinding vs ip e =
     if null ivars
        then toUnitBinding ip e
        else if null uvars
-               then removeWildcards' ip e
-               else removeWildcards' (mapIrpatnOfGIP (replaceVarsInPattern uvars) ip) e
+               then removeWildcards ip e
+               else removeWildcards (mapIrpatnOfGIP (replaceVarsInPattern uvars) ip) e
     where 
-        bdyvars = freeUnderBinding bps bdy
         pvars = freeInIrrefPatn ip
-        ivars = intersect bdyvars pvars
+        ivars = intersect vs pvars
         uvars = pvars \\ ivars
 
 toUnitBinding :: GenIrrefPatn -> GenExpr -> (GenIrrefPatn,GenExpr)
@@ -223,37 +247,19 @@ removeWildcards ip e =
                         -- we do not split records or arrays
                         _ -> (ip,e)
     where removeWildcardsFromTuple ip ips e = 
-             case splitExpr e of
-                  Nothing -> (ip,e)
-                  Just es -> 
-                    let bs = map (uncurry removeWildcards) $ zip ips es
-                    in toTupleBind (filter (\(ip,_) -> (irpatnOfGIP ip) /= PUnitel) bs) ip e
-
-removeWildcards' :: GenIrrefPatn -> GenExpr -> (GenIrrefPatn,GenExpr)
-removeWildcards' ip e = 
-    if not $ containsWildcard ip
-       then (ip,e)
-       else if onlyWildcards ip
-              then toUnitBinding ip e
-              else case irpatnOfGIP ip of
-                        -- must be structured since it contains wildcards and non-wildcards
-                        PTuple ips -> removeWildcardsFromTuple ip ips e
-                        -- we do not split records or arrays
-                        _ -> (ip,e)
-    where removeWildcardsFromTuple ip ips e = 
             case exprOfGE e of
                  Tuple es -> 
-                   let bs = map (uncurry removeWildcards') $ zip ips es
+                   let bs = map (uncurry removeWildcards) $ zip ips es
                    in toTupleBind (filter (not . isUnitPattern . fst) bs) ip e
                  If c vs et ee -> 
-                   let (ipt,et') = removeWildcards' ip et
-                       (ipe,ee') = removeWildcards' ip ee
+                   let (ipt,et') = removeWildcards ip et
+                       (ipe,ee') = removeWildcards ip ee
                        e' = mapExprOfGE (const (If c vs et' ee')) e
                    in if ip == ipt || ipt /= ipe
-                         then (ip,e)
-                         else (ipt, ifproc e')
+                         then (ip, e)
+                         else (ipt, e')
                  Let bs bdy ->
-                   let (ip',bdy') = removeWildcards' ip bdy
+                   let (ip',bdy') = removeWildcards ip bdy
                        e' = mapExprOfGE (const (Let bs bdy')) e
                    in if ip == ip' 
                          then (ip,e)
@@ -301,43 +307,31 @@ toTupleBind bs ip e =
                     in (mapIrpatnOfGIP (const (PTuple (fst ubs))) ip,
                         mapExprOfGE (const (Tuple (snd ubs))) e)
 
--- | Split an expression of tuple type into a list of expressions for the components.
--- If that is not possible return Nothing
--- A tuple expression can always be split.
--- The following expressions can be split if the relevant subexpressions can be split:
--- Match, Lam, If, MultiWayIf, Let. 
--- From these we only try to split If expressions.
-splitExpr :: GenExpr -> Maybe [GenExpr]
-splitExpr e = 
-    case exprOfGE e of
-         Tuple es -> Just es
-         If c vs e1 e2 -> 
-           let mes1 = splitExpr e1
-               mes2 = splitExpr e2
-           in if mes1 == Nothing || mes2 == Nothing 
-                 then Nothing
-                 else Just $ map (\(e1',e2') -> mapExprOfGE (const (If c vs e1' e2')) e) $ zip (fromJust mes1) (fromJust mes2)
-         _ -> Nothing
-
--- | Split the binding consisting of the pattern and the expression according to a set of variables.
+-- | Split the binding (ip = e) according to a set of variables.
 -- The binding is split into a maximal part where no variable in the set 
 -- occurs free in the expression and the rest part. If one of these parts is empty the corresponding 
 -- pattern is the unit pattern.
-splitBinding :: [VarName] -> GenIrrefPatn -> GenExpr -> (GenIrrefPatn,GenExpr,GenIrrefPatn,GenExpr)
-splitBinding vs ip e = 
+splitBinding :: [VarName] -> GenIrrefPatn -> GenExpr -> ((GenIrrefPatn,GenExpr),(GenIrrefPatn,GenExpr))
+splitBinding vs ip e = (reduceBinding nfbvs ip e,reduceBinding fbvs ip e)
+    where fbvs = boundVarsToRetain vs ip e
+          nfbvs = (freeInIrrefPatn ip) \\ fbvs
+          
+-- | Determine all variables bound in ip where the corresponding parts of e contains
+-- a free occurrence of a variable in vs.
+boundVarsToRetain :: [VarName] -> GenIrrefPatn -> GenExpr -> [VarName]
+boundVarsToRetain vs ip e =
     if null (intersect vs $ freeInExpr e)
-       then (ip, e, unitpattern, unitexpr)
+       then []
        else case irpatnOfGIP ip of
-               PTuple ips -> 
-                 case splitExpr e of
-                      Nothing -> (unitpattern, unitexpr, ip, e)
-                      Just es -> 
-                        let (nofree,free) = partition (\(ip,e) -> null $ intersect vs $ freeInExpr e) $ zip ips es
-                            (nfip,nfe) = toTupleBind nofree ip e
-                            (fip,fe) = toTupleBind free ip e
-                        in (nfip,nfe,fip,fe)
-               _ -> (unitpattern, unitexpr, ip, e)
-    where (unitpattern,unitexpr) = toUnitBinding ip e
+                 PTuple ips -> 
+                   case exprOfGE e of
+                        Tuple es -> nub $ concatMap (uncurry (boundVarsToRetain vs)) $ zip ips es
+                        If c _ et ee -> union (boundVarsToRetain vs ip et) (boundVarsToRetain vs ip ee)
+                        Let bs bdy -> boundVarsToRetain (vs \\ boundInBindings bs) ip bdy
+                        -- todo: Match, Lam
+                        _ -> allVars
+                 _ -> allVars
+    where allVars = (freeInIrrefPatn ip)
 
 -- | Combine match results.
 -- If a pattern occurs in both maps the expressions are the same. The number of matches is -1 if 
@@ -351,5 +345,198 @@ retainOrDrop :: MatchMap -> MatchMap
 retainOrDrop m = 
     M.map (\(_,e) -> (-1,e)) $ M.filter (\(i,_) -> i /= 0) m
 
+{- Evaluating constant expressions -}
+{-----------------------------------}
+
+-- | Evaluate constant parts of operator application. 
+-- Arguments are only processed if they are constant or again operator applications.
+-- Bitwise operators are not processed.
+evalproc :: GenExpr -> GenExpr
+evalproc e =
+    case exprOfGE e of
+         (PrimOp op args) ->
+           let args' = map evalproc args
+           in if all (isLiteralExpr . exprOfGE) args'
+                then toEval op args' e
+                else mapExprOfGE (const (PrimOp op args')) e
+         _ -> e
+
+toEval :: OpName -> [GenExpr] -> GenExpr -> GenExpr
+toEval op args e | op `elem` ["==", "/="] =
+    let res = if op == "==" 
+                 then (head args) == (head $ tail args)
+                 else (head args) /= (head $ tail args)
+    in mapExprOfGE (const (BoolLit res)) e
+toEval op args e | op `elem` [">=", "<=", "<", ">"] =
+    case exprOfGE $ head args of
+         i1@(IntLit _) -> mapExprOfGE (const (BoolLit $ evalIntPred op i1 $ exprOfGE $ head $ tail args)) e
+         _ -> e
+toEval op args e | op `elem` ["&&", "||"] =
+    case exprOfGE $ head args of
+         b1@(BoolLit _) -> mapExprOfGE (const (BoolLit $ evalBoolOp op b1 $ exprOfGE $ head $ tail args)) e
+         _ -> e
+toEval op args e | op `elem` ["-"] && (length args) == 1 =
+    case exprOfGE $ head args of
+         IntLit i -> mapExprOfGE (const (IntLit (- i))) e
+         _ -> e
+toEval op args e | op `elem` ["+", "-", "*", "/", "%"] =
+    case exprOfGE $ head args of
+         i1@(IntLit _) -> mapExprOfGE (const (IntLit $ evalIntOp op i1 $ exprOfGE $ head $ tail args)) e
+         _ -> e
+toEval op args e | op `elem` ["not"] =
+    case exprOfGE $ head args of
+         BoolLit b -> mapExprOfGE (const (BoolLit (not b))) e
+         _ -> e
+         
+isLiteralExpr :: ExprOfGE -> Bool
+isLiteralExpr (IntLit _) = True
+isLiteralExpr (BoolLit _) = True
+isLiteralExpr (CharLit _) = True
+isLiteralExpr (StringLit _) = True
+isLiteralExpr _ = False
+
+evalIntPred :: OpName -> ExprOfGE -> ExprOfGE -> Bool
+evalIntPred op (IntLit i1) (IntLit i2) = 
+    case op of
+         ">=" -> i1 >= i2
+         "<=" -> i1 <= i2
+         "<"  -> i1 <  i2
+         ">"  -> i1 >  i2
+evalIntOp :: OpName -> ExprOfGE -> ExprOfGE -> Integer
+evalIntOp op (IntLit i1) (IntLit i2) = 
+    case op of
+         "+" -> i1 + i2
+         "-" -> i1 - i2
+         "*" -> i1 * i2
+         "/" -> i1 `div` i2
+         "%" -> i1 `mod` i2
+
+evalBoolOp :: OpName -> ExprOfGE -> ExprOfGE -> Bool
+evalBoolOp op (BoolLit b1) (BoolLit b2) = 
+    case op of
+         "&&" -> b1 && b2
+         "||" -> b1 || b2
+
+{- Simplifying if expressions -}
+{------------------------------}
+
+-- | Simplify all contained conditional expressions.
+-- For a conditional expression, if the condition can be statically evaluated, the expression
+-- is replaced by one of the branches. Then other rules are applied.
+-- For an operation where the first argument is a conditional expression and the second can be 
+-- statically evaluated, the operation is drawn into the branches.
 ifproc :: GenExpr -> GenExpr
-ifproc e = e
+ifproc e =
+    case exprOfGE e of
+         If c vs e1 e2 -> 
+           let c' = evalproc $ ifproc c
+               e1' = ifproc e1
+               e2' = ifproc e2
+           in case exprOfGE c' of
+                   BoolLit True -> e1'
+                   BoolLit False -> e2'
+                   _ -> mapExprOfGE (const (ifrules usedRules $ If c' vs e1' e2')) e
+         PrimOp op (arg1 : (arg2 : [])) ->
+           let arg2' = evalproc arg2
+           in case exprOfGE arg1 of
+                   If c vs e1 e2 ->
+                     if isLiteralExpr $ exprOfGE arg2'
+                        then let e1' = mapExprOfGE (const (PrimOp op [e1, arg2'])) e1
+                                 e2' = mapExprOfGE (const (PrimOp op [e2, arg2'])) e2
+                             in ifproc $ mapExprOfGE (const (If c vs e1' e2')) e
+                        else rec
+                   _ -> rec
+         _ -> rec
+    where rec = mapExprOfGE (fmap ifproc) e
+
+type IfRule = ExprOfGE -> Either ExprOfGE ExprOfGE 
+
+-- The rules applied to conditional expressions, tried from left to right.
+usedRules = [sameBranches, boolBranches, substCondition]
+
+-- | Apply a sequence of rules to a conditional expression.
+-- If a rule returns Left, stop the application of further rules, otherwise go on.
+ifrules :: [IfRule] -> ExprOfGE -> ExprOfGE
+ifrules [] e = e
+ifrules (rl : rls) e =
+    case rl e of
+         Left e' -> e'
+         Right e' -> ifrules rls e'
+
+-- | If both branches are the same, replace expression by branch.
+sameBranches :: IfRule
+sameBranches (If c vs e1 e2) = 
+    let e1' = evalproc e1
+        e2' = evalproc e2
+    in if toRawExpr e1' == toRawExpr e2'
+          then Left $ exprOfGE e1'
+          else Right $ If c vs e1' e2'
+
+-- | If both branches can be statically evaluated to a boolean value, 
+-- replace expression by condition or negated condition.
+boolBranches :: IfRule
+boolBranches e@(If c vs e1 e2) =
+    case exprOfGE e1 of
+         BoolLit b1 ->
+           case exprOfGE e2 of 
+                BoolLit b2 ->
+                  if b1 && not b2 
+                     then Left $ exprOfGE c
+                     else if not b1 && b2
+                             then Left $ PrimOp "not" [c]
+                             else Right e
+                _ -> Right e
+         _ -> Right e
+
+-- | Substitute the condition by True in the first branch and by False in the second branch.
+substCondition :: IfRule
+substCondition e@(If c vs e1 e2) =
+    let e1' = substCond (toRawExpr c) (BoolLit True) e1
+        e2' = substCond (toRawExpr c) (BoolLit False) e2
+    in Right $ If c vs e1' e2'
+
+substCond :: RawExpr -> ExprOfGE -> GenExpr -> GenExpr
+substCond c b e =
+    if c == toRawExpr e
+       then mapExprOfGE (const b) e
+       else case substAssoc "" (unRE c) b e of
+                 Just e' -> mapExprOfGE (const e') e
+                 Nothing -> mapExprOfGE (fmap (substCond c b)) e
+
+substAssoc "" (PrimOp op (arg1 : (arg2 : []))) b e | op `elem` ["&&","||"] =
+    case exprOfGE e of
+         PrimOp op' (e1 : (e2 : [])) | op == op' && arg1 == toRawExpr e1 ->
+           substAssoc op (unRE arg2) b e2
+         _ -> Nothing
+substAssoc ope (PrimOp op (arg1 : (arg2 : []))) b e | op == ope =
+    case exprOfGE e of
+         PrimOp op' (e1 : (e2 : [])) | op == op' && arg1 == toRawExpr e1 ->
+           substAssoc ope (unRE arg2) b e2
+         _ -> Nothing
+substAssoc ope c b e =
+    case exprOfGE e of
+         PrimOp op (e1 : (e2 : [])) | op == ope && c == (unRE $ toRawExpr e1) ->
+           Just $ PrimOp op [mapExprOfGE (const b) e1,e2]
+         _ -> Nothing
+
+{- Simplifying operator expressions -}
+{------------------------------------}
+
+-- | Simplify all contained operator applications.
+-- Currently, only boolean operations are simplified, if the first argument
+-- can be statically evaluated.
+opproc :: GenExpr -> GenExpr
+opproc e =
+    case exprOfGE e of
+         PrimOp "||" (e1 : (e2 : [])) ->
+           case exprOfGE e1 of
+                (BoolLit False) -> opproc e2
+                (BoolLit True)  -> e1
+                _ -> rec
+         PrimOp "&&" (e1 : (e2 : [])) ->
+           case exprOfGE e1 of
+                (BoolLit False) -> e1
+                (BoolLit True)  -> opproc e2
+                _ -> rec
+         _ -> rec
+    where rec = mapExprOfGE (fmap opproc) e

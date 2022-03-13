@@ -66,8 +66,11 @@ toRawPatn = RP . fmap toRawIrrefPatn . patnOfGP
 toRawIrrefPatn :: GenIrrefPatn -> RawIrrefPatn
 toRawIrrefPatn = RIP . ffmap toRawIrrefPatn . fmap toRawExpr . irpatnOfGIP
 
+toRawExpr' :: ExprOfGE -> RawExpr
+toRawExpr' = RE . fffffmap toRawType . ffffmap toRawPatn . fffmap toRawIrrefPatn . ffmap toDLExpr . fmap toRawExpr
+
 toRawExpr :: GenExpr -> RawExpr
-toRawExpr = RE . fffffmap toRawType . ffffmap toRawPatn . fffmap toRawIrrefPatn . ffmap toDLExpr . fmap toRawExpr . exprOfGE
+toRawExpr = toRawExpr' . exprOfGE
 
 toDLExpr :: () -> DataLayoutExpr
 toDLExpr () = DL (LVar "")

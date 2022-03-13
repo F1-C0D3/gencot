@@ -2,7 +2,8 @@ GC=../../bin/gencot
 IT=../../bin/items
 
 # VARIANT = plain
-VARIANT = letproc
+# VARIANT = letproc
+VARIANT = ifproc
 
 TESTS = purexpr assignexpr stat loop
 UNIT = externs exttypes dvdtypes

@@ -1,0 +1,161 @@
+cogent_fc1 : () -> U32
+cogent_fc1 () = 42
+cogent_fc2 : () -> U8
+cogent_fc2 () = 'x'
+cogent_fc3 : () -> U8
+cogent_fc3 () =
+   gencotDummy "Multi character constants not supported"
+cogent_fc4 : () -> MayNull (CPtr U8)
+cogent_fc4 () = "abc"
+cogent_fc5 : () -> err-float
+cogent_fc5 () =
+   gencotDummy "Float literals not supported"
+cogent_fv1 : U32 -> U32
+cogent_fv1 v = v
+cogent_fv2 : U32 -> U32
+cogent_fv2 xyz_123 = xyz_123
+cogent_fo1 : () -> U32
+cogent_fo1 () = + 42
+cogent_fo2 : () -> U32
+cogent_fo2 () = - 42
+cogent_fo3 : () -> U32
+cogent_fo3 () = 0
+cogent_fo4 : () -> U32
+cogent_fo4 () = complement 42
+cogent_fo5 : () -> U32
+cogent_fo5 () = 17 + 4
+cogent_fo6 : () -> U32
+cogent_fo6 () = 17 - 4
+cogent_fo7 : () -> U32
+cogent_fo7 () = 17 * 4
+cogent_fo8 : () -> U32
+cogent_fo8 () = 17 % 4
+cogent_fo9 : () -> U32
+cogent_fo9 () = 17 / 4
+cogent_fo10 : () -> U32
+cogent_fo10 () = 17 << 4
+cogent_fo11 : () -> U32
+cogent_fo11 () = 17 >> 4
+cogent_fo12 : () -> U32
+cogent_fo12 () = 17 < 4
+cogent_fo13 : () -> U32
+cogent_fo13 () = 17 > 4
+cogent_fo14 : () -> U32
+cogent_fo14 () = 17 <= 4
+cogent_fo15 : () -> U32
+cogent_fo15 () = 17 >= 4
+cogent_fo16 : () -> U32
+cogent_fo16 () = 17 == 4
+cogent_fo17 : () -> U32
+cogent_fo17 () = 17 /= 4
+cogent_fo18 : () -> U32
+cogent_fo18 () = 17 .&. 4
+cogent_fo19 : () -> U32
+cogent_fo19 () = 17 .|. 4
+cogent_fo20 : () -> U32
+cogent_fo20 () = 17 .^. 4
+cogent_fo21 : () -> U32
+cogent_fo21 () =
+   if 17 then 4 else 0
+cogent_fo22 : () -> U32
+cogent_fo22 () =
+   if 17 then 1 else 4
+cogent_f1 : () -> U32
+cogent_f1 () =
+   if 17 then 4 else 42
+cogent_f2 : () -> U32
+cogent_f2 () = 42
+cogent_f3 : () -> U32
+cogent_f3 () = cogent_fc1 ()
+cogent_f4 : () -> U32
+cogent_f4 () = cogent_fv1 42
+cogent_fx : ( U32, U8, U32 ) -> U32
+cogent_fx (a
+          , b
+          , c) = a
+cogent_f5 : () -> U32
+cogent_f5 () =
+   cogent_fx (17, 'x', 4)
+
+type Struct_Cogent_s1 = { m1 : U32, m2 : U32 }
+type Struct_Cogent_s2 = { m3 : U32, m4 : #Struct_Cogent_s1 }
+cogent_fs1 : #Struct_Cogent_s1 -> U32
+cogent_fs1 s = let s { m1 = p0' } = s in p0'
+cogent_fs2 : #Struct_Cogent_s1 -> U32
+cogent_fs2 s =
+   let s { m1 = p0' } = s
+   and s { m2 = p1' } = s
+   in p0' + p1'
+cogent_fs3 : #Struct_Cogent_s2 -> U32
+cogent_fs3 s =
+   let s { m4 = p0' } = s
+   and p0' { m1 = p1' } = p0'
+   in p1'
+cogent_fs4 : #Struct_Cogent_s2 -> U32
+cogent_fs4 s =
+   let s { m4 = p0' } = s
+   and p0' { m1 = p1' } = p0'
+   and s { m4 = p2' } = s
+   and p2' { m2 = p3' } = p2'
+   and s { m3 = p4' } = s
+   in p1' + p3' + p4'
+
+type Cogent_a1 = CArr5 U32
+type Cogent_a2 =
+   CArr5 #Struct_Cogent_s1
+cogent_fa1 : Cogent_a1 -> ( U32, Cogent_a1 )
+cogent_fa1 a =
+   let a @{ @v1' = p0' } = a
+   in p0'
+cogent_fa2 : Cogent_a1 -> ( U32, Cogent_a1 )
+cogent_fa2 a =
+   let a @{ @v1' = p0' } = a
+   and a @{ @v3' = p1' } = a
+   in p0' + p1'
+cogent_fa3 : Cogent_a1 -> ( U32, Cogent_a1 )
+cogent_fa3 a =
+   let a @{ @v2' = _ } = a
+   and a @{ @v1' = p1' } = a
+   in p1'
+cogent_fa4 : Cogent_a2 -> ( U32, Cogent_a2 )
+cogent_fa4 a =
+   let a @{ @v1' = p0' } = a
+   and p0' { m1 = p1' } = p0'
+   in p1'
+cogent_fa5 : Cogent_a2 -> ( U32, Cogent_a2 )
+cogent_fa5 a =
+   let a @{ @v2' = _ } = a
+   and a @{ @v1' = p2' } = a
+   and p2' { m1 = p3' } = p2'
+   in p3'
+
+type Struct_Cogent_s3 = { m5 : U32, m6 : MayNull Struct_Cogent_s1 }
+type Cogent_a3 =
+   CArr5 (MayNull (CPtr U32))
+cogent_fp1 : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
+cogent_fp1 p =
+   let p { cont = p0' } = p
+   in p0'
+cogent_fp2 : MayNull Struct_Cogent_s1 -> ( U32, MayNull Struct_Cogent_s1 )
+cogent_fp2 p =
+   let p { cont = p0' } = p
+   and p0' { m1 = p1' } = p0'
+   in p1'
+cogent_fp3 : MayNull Struct_Cogent_s1 -> ( U32, MayNull Struct_Cogent_s1 )
+cogent_fp3 p = let p { m1 = p0' } = p in p0'
+cogent_fp4 : MayNull Struct_Cogent_s3 -> ( U32, MayNull Struct_Cogent_s3 )
+cogent_fp4 p =
+   let p { m6 = p0' } = p
+   and p0' { cont = p1' } = p0'
+   and p1' { m1 = p2' } = p1'
+   in p2'
+cogent_fp5 : MayNull Struct_Cogent_s3 -> ( U32, MayNull Struct_Cogent_s3 )
+cogent_fp5 p =
+   let p { m6 = p0' } = p
+   and p0' { m1 = p1' } = p0'
+   in p1'
+cogent_fp6 : Cogent_a3 -> ( U32, Cogent_a3 )
+cogent_fp6 p =
+   let p @{ @v1' = p0' } = p
+   and p0' { cont = p1' } = p0'
+   in p1'

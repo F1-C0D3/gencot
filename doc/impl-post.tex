@@ -15,13 +15,58 @@ In the following sections the postprocessing steps are described independently o
 section describes how they are combined. Every postprocessing step corresponds to a transformation from
 a Cogent expression to a Cogent expression and is implemented by a Haskell function of the form
 \begin{verbatim}
-  procX :: GenExpr -> GenExpr
+  Xproc :: GenExpr -> GenExpr
 \end{verbatim}
 Note that no monadic actions are used, all information required for the processing must already be present in the 
 expressions.
 
 Postprocessing is applied to all expressions which occur in the generated Cogent program. These are function 
 body expressions, the expressions in constant definitions, and the expressions in array type size specifications.
+
+\subsection{Evaluating Constant Expressions}
+\label{imp-post-const}
+
+In several cases the original translation phase or postprocessing steps result in constant expressions built
+from predefined operators. Such expressions can be statically evaluated and the resulting constant then may
+enable other postprocessing steps. Therefore a constant expression evaluation is defined as auxiliary 
+function for other postprocessing steps. It is implemented by the function
+\begin{verbatim}
+  evalproc :: GenExpr -> GenExpr
+\end{verbatim}
+defined in module \code{Gencot.Cogent.Simplify}.
+
+The \code{evalproc} step is not applied on its own to arbitrary expressions. The reason is that a constant
+expression may be intentionally present in the C program to show how a value is calculated. In that case the 
+translation should also result in a constant expression in Cogent. Only if the evaluation is useful for other 
+postprocessing steps it is applied.
+
+The \code{evalproc} step only processes operator expressions. For them it recurses into the arguments. If all arguments
+are constants it evaluates the operator and replaces the expression by the resulting constant. All other forms
+of expressions are left unmodified, in particular, \code{evalproc} does not recurse into subexpressions which are
+not operator applications.
+
+\subsection{Simplifying Operator Application}
+\label{imp-post-op}
+
+If an expression cannot be completely evaluated statically, there are cases where it can be simplified.
+The following cases are implemented by Gencot postprocessing.
+
+If the first argument of a boolean operation evaluates to a constant the operation can be simplified according 
+to the rules
+\begin{verbatim}
+  True  || e --> True
+  False || e --> e
+  True  && e --> e
+  False && e --> False
+\end{verbatim}
+Currently only the first argument is treated this way, because only that case occurs in actual examples of translation
+and postprocessing, mainly for the translation of \code{switch} statements.
+
+Simplifying operator expressions using these rules is implemented by the function
+\begin{verbatim}
+  opproc :: GenExpr -> GenExpr
+\end{verbatim}
+defined in module \code{Gencot.Cogent.Simplify}.
 
 \subsection{Simplifying \code{let}-Expressions}
 \label{imp-post-let}
@@ -43,6 +88,9 @@ they are not ``drawn under a binding'' in \code{expr2}. This could be avoided by
 This scheme can directly be extended to expressions of the form \code{let v1 = e1 and ... vn = en in e} using the
 equivalence to an expression of the form \code{let v1 = e1 in let ... in let vn = en in e}.
 
+As of February 2022, Cogent does not support closures for lambda expression. This means that a lambda expression must not
+contain free variables, therefore lambda expressions in \code{expr2} are never inspected for substituting.
+
 In a Cogent \code{let} expression instead of a variable \code{v} an (irrefutable) pattern \code{p} can be used:
 \begin{verbatim}
   let p = expr1 in expr2
@@ -52,10 +100,15 @@ is a variable or wildcard or it is a pattern for a tuple, record, array or the u
 irrefutable patterns. In other words, it is a complex structure of variables which is bound to an expression \code{expr1}
 of a type for which the values have a corresponding structure. Every variable may occur only once in a pattern.
 
+Currently, the translation phase only creates bindings with patterns which are either a single variable, or a flat tuple pattern where
+all components are variables or wildcards, or a take pattern where all sub patterns are variables. The postprocessing does not 
+introduce more complex patterns. However, to make the code more robust, these restrictions are not assumed for binding processing,
+the processing is always implemented to work for arbitrary patterns.
+
 If the pattern occurs as a whole in \code{expr2} it can be
 substituted by \code{expr1} as described above. If only parts of the pattern occur (such as a single variable) it depends
-on the structure of \code{expr2} whether such a part can be substituted. The substitution is only done if all parts of the 
-pattern in \code{expr2} can be substituted, otherwise the binding is retained and \code{expr2} is not changed.
+on the structure of \code{expr2} whether such a part can be substituted. Gencot tries to substitute as much parts as possible 
+and only retains those parts of the pattern for which a substitution is not possible.
 
 If the substitution is successful the \code{let} expression is replaced by \code{expr2} which may again be a \code{let}
 expression or any other kind of expression. Therefore the simplification may reduce the number of \code{let} expressions
@@ -63,11 +116,17 @@ and may replace a \code{let} expression by an expression of another kind.
 
 Substitution of bound variables may lead to exponentially larger code, which must be avoided. Gencot uses an expression metrics
 which roughly measures the size of the printed expression in the Cogent surface syntax. A binding is only substituted if the 
-resulting expression is not much larger than the original expression.
+resulting expression is not much larger than the original \code{let} expression.
 
 Simplifying a \code{let} expression by substitution can reduce the variables which occur free in it. This is the case if no
 parts of the pattern \code{p} occur free in \code{expr2}, then \code{expr1} is removed and all variables which only occur free
 in \code{expr1} are removed with it.
+
+Simplifying \code{let} expressions is implemented by the function
+\begin{verbatim}
+  letproc :: GenExpr -> GenExpr
+\end{verbatim}
+defined in module \code{Gencot.Cogent.Simplify}.
 
 \subsubsection{Processing Subexpressions}
 
@@ -110,61 +169,73 @@ However, the transformation is only correct, if no variable in \code{pi} occurs 
 the bindings to minimize this problem but in general it cannot be avoided. Additionally, there may be cases where \code{expr1}
 even after its simplification has no structure corresponding with that of \code{p}, which also prevents the transformation.
 
-For this reason, instead of transforming the binding and substituting it sequentially, Gencot tries to substitute the split 
-binding all at once, by matching all subpatterns \code {pi} in parallel as follows. 
-The expression \code{expr2} is depth-first traversed by matching every subexpression with all \code{pi}.
-A subexpression matches \code{pi} if it has the same structure with the same variables. Since the variables in the \code{pi}
-are pairwise disjunct a subexpression matches atmost one of the \code{pi}. If it matches a \code{pi} it can be 
-replaced by \code{expr1i} and all ancestor expressions need not be matched, since they cannot match any of the \code{pi}.
-If it does not match any of the \code{pi} and no variable of \code{p} occurs free in it, it remains unchanged. 
+For this reason, instead of transforming the binding and substituting it sequentially, Gencot deconstructs the pattern while
+searching for matches. Whenever it searches the binding \code{p = expr1} in an expression (starting with \code{expr2}) 
+it determines the variables occurring free in the expression and ``reduces'' the binding to these. Reducing a binding to
+a set of variables is done by first replacing in \code{p} all variables which are not in the set by a wildcard (underscore) 
+pattern. This is always possible. Then it is tried to remove as much wildcard parts from the binding, this is only possible if
+the corresponding part can be removed from \code{expr1}. If \code{p} is a tuple pattern where some components are wildcards
+they can be removed if \code{expr1} is a corresponding tuple expression. If \code{expr1} is an application of a function to
+an argument the wildcard parts cannot be removed, since the tuple returned by the function is not available.
 
-If there is a subexpression which does not match any of the \code{pi} but a variable of \code{p} occurs free in it, then 
-the simplest such subexpression is the variable itself. This means that the subpattern \code{pi} which contains the variable 
-cannot be substituted and removed from the binding. Gencot retains all such subpatterns in the binding. This means that 
-the other subpatterns can only be substituted if they do not draw free variables under this binding. Gencot iteratively 
-determines these subpatterns and also retains them in the binding. Only the remaining subpatterns are actually substituted in 
-\code{expr2}.
+If no variable in the set occurs in the pattern all variables are replaced by wildcards and the binding is reduced to the 
+empty binding, represented by the ``unit binding'' \code{() = ()}.
 
-If a subpattern \code{pi} contains wildcards it cannot match a subexpression in \code{expr2}. If it does not contain any variables
-or the variables do not occur free in \code{expr2} it can be removed from the binding, otherwise it must be retained.
+If after reducing it the binding is not empty, it is matched with the expression, which is successful if it has the same structure with the same
+variables (which is only possible if the pattern contains no wildcards). If it matches the search stops, if not the binding 
+is searched recursively in all subexpressions (by first reducing it to the subexpression). When the search reaches a single 
+variable, the binding has been reduced to that variable. If the pattern consists of the same variable it matches there.
 
-If a subpattern \code{pi} contains a \code{take} pattern for a record or array it can only match a \code{put} subexpression 
-of exactly the same in \code{expr2}. That is only present if the component is taken and put back without modifying it or the 
-remaining record or array. In this case the \code{put} expression is replaced by \code{expr1i}. 
-The \code{take} pattern can only be split if \code{expr1i} is a corresponding \code{put} expression. However, in a sequence
-of bindings Gencot always generates all put operations after all take operations, so this case cannot occur and \code{take} 
-patterns are never split.
+Otherwise the pattern is empty or it contains the variable together with other parts which means that it cannot be used to substitute the 
+variable at that position in the expression. In this case at least the binding for that variable must be retained. Gencot 
+determines all variables in \code{expr2} for which that is the case. Then it reduces the original binding \code{p = expr1}
+to that set to determine the binding \code{p' = expr1'} which must be retained in the \code{let} expression. Only if no
+such variable exists the binding can be completely removed from the \code{let} expression.
 
-It may be the case that a \code{pi} has the same structure and the same variables as a subexpression of \code{expr2}, but the
-variables appear in another order. Since \code{expr1i} has not the same structure (otherwise \code{pi} would have been split
-further), it is not possible to rearrange the variables in \code{pi} so that it matches the subexpression. It may be possible 
-to rearrange the variables in the subexpression, but this may require to rearrange other parts of \code{expr2} and even in 
-its context. Therefore variables are never rearranged, if they are not in the correct order the subpattern is not substituted.
+If \code{p} contains a \code{take} pattern for a record or array it can only match a \code{put} subexpression 
+of exactly the same form in \code{expr2}. That is only present if the component is taken and put back without modifying it or the 
+remaining record or array. In this case the \code{put} expression is replaced by the part of \code{expr1} corresponding to 
+the \code{take} pattern.
 
-Another reason for not substituting a subpattern \code{pi} may be that a free variable of \code{expr1i} is drawn under a binding
-in \code{expr2}. Such a binding may be in a \code{let} subexpression which has been retained by the simplification of \code{expr2}
-or it may be a binding in a \code{match} or \code{lambda} expression which is not processed by the simplification.
+Wildcards in a \code{take} pattern can only be removed if the corresponding part of \code{expr1} is a \code{put} expression. 
+In the original translation phase Gencot always generates all put operations after all take operations in a sequence of bindings.
+However, during postprocessing bindings may be rearranged, so that this case may occur.
 
-The substitution and binding simplification is implemented in two phases. In the first phase the subpatterns are matched in 
-\code{expr2} and for each of them the number of successful matches is determined and whether there are places where contained 
-variables cannot be substituted. Then the subpatterns which do not occur at all are removed from the binding and for the rest
-those which must be retained are determined. The other subpatterns are actually substituted in \code{expr2} in the second phase 
-and the reduced binding is constructed. If it is empty the \code{let} expression is replaced by the modified \code{expr2}.
+Even if a part of the binding successfully matches in \code{expr2}, substitution may be prevented because it would draw a 
+free variable in \code{expr1} under a binding. Such a binding may be the retained part of the original binding or it may 
+be a binding in a \code{let} subexpression which has been retained during the simplification of \code{expr2}
+or it may be a binding in a \code{match} expression which is not processed by the simplification. These cases are handled
+by splitting the binding for which matches are searched whenever it is drawn under another binding in a (maximal) part allowed
+to draw under the binding and a rest which must be retained. The rest is still searched under the binding to determine whether
+the variables in it occur at all, if that is not the case it is not required in the expression and is not retained.
+
+A binding is split according to a set of variables not to occur free by first determining all bound variables so that the 
+corresponding part of the bound expression contains a free occurrence of a variable from the set. Then the binding is reduced
+to this set and to its complement, yielding the binding to retain and the binding for substitution.
+
+If \code{expr1} is a \code{let} or \code{if} expression or a match expression the binding cannot be reduced or split directly.
+In these cases Gencot constructs the reduced or split binding by recursively reducing or splitting the subexpressions (the 
+let-body, the if-branches, the match-alternatives).
+
+The substitution and binding simplification is implemented in two phases. In the first phase the matches for the pattern are 
+searched in \code{expr2}, resulting in the part to be retained and for every matching part the number of successful matches
+The matching parts are actually substituted in \code{expr2} in the second phase. If the retained part is not empty it is 
+prefixed to the result.
 
 \subsubsection{Growth Restriction}
 
-As size metrics for an expression the number of characters used in its surface representation is used. It could be determined
+As size metrics for an expression the number of characters appearing in its surface representation is used. It could be determined
 by actually prettyprinting the expression and measuring the size of the resulting string. However, it is assumed to be more
 efficient to traverse the expression and calculate the size from the number of characters in the names and literals and in
 the keywords, special characters and separating blanks needed for constructing composed expressions.
 
-After the first phase the metrics of the \code{let} expression is calculated. Since for every subpattern to be substituted it 
+After the first phase the metrics of the \code{let} expression is calculated. Since for each matching part to be substituted it 
 has been determined in the first phase how often it occurs in \code{expr2} the metrics for the simplified expression can be 
 calculated and it is known how much each subpattern contributes to its size. If the size is larger than for the original 
-expression and its growth exceeds a fixed limit factor additional subpatterns are determined which are retained in the binding. 
-Beginning with the subpattern with the largest contribution, subpatterns are retained until the growth is below the limit.
+expression and its growth exceeds a fixed limit factor additional binding parts are determined which are retained. 
+Beginning with the binding part with the largest contribution, parts are retained until the growth is below the limit.
 
-Instead of only taking its contribution to the size into account, subpatterns could also be selected according to the kind of
+Instead of only taking its contribution to the size into account, binding parts could also be selected according to the kind of
 variables they contain. 
 Gencot uses different kinds of variables in its generated code (see Section~\ref{impl-ccode-cstats}): value variables, component and 
 index variables, the control and result variables, and variables corresponding to C object names. These could be prioritized
@@ -188,6 +259,103 @@ parameter for Gencot so that it can be selected specifically for every translate
 \subsection{Simplifying If-Expressions}
 \label{imp-post-if}
 
+The most straightforward simplification of a conditional expression is replacing it by one of the branches, if the condition can be
+statically evaluated. Gencot tries this, by recursing into the condition and then using \code{evalproc} (see Section~\ref{imp-post-const})
+for evaluating the condition, before it recurses into the branches. This avoids processing a branch which is removed afterwards. 
+If the condition cannot be statically evaluated, both branches are processed recursively.
+
+\subsubsection{Other Used Transformations}
+
+Afterwards, the following additional simplification rules are applied, if possible.
+\begin{itemize}
+\item If both branches are the same expression, the conditional expression is replaced by this expression.
+\item If both branches statically evaluate to a boolean constant, the conditional expression is replaced
+by the condition or the negated condition according to the rules
+\begin{verbatim}
+  if c then True else False --> c
+  if c then False else True --> not c
+\end{verbatim}
+\item The condition is substituted by \code{True} in the \code{then} branch and by \code{False} in the \code{else} branch. This 
+may enable additional simplifications in subsequent iterations (see Section~\ref{imp-post-combine}).
+\end{itemize}
+
+The following rule is applied to operator expressions where the first argument is a conditional expression and the second argument
+can be statically evaluated:
+\begin{verbatim}
+  (if c then e1 else e2) <op> e -->
+  if c then e1 <op> e else e2 <op> e
+\end{verbatim}
+This transformation may enable the static evaluation of the resulting branches. 
+
+All these rules have been selected, because they specifically apply to conditional expressions resulting from the Gencot translation
+and postprocessing, in particular for the control variable.
+
+Simplifying \code{if} expressions using these rules is implemented by the function
+\begin{verbatim}
+  ifproc :: GenExpr -> GenExpr
+\end{verbatim}
+defined in module \code{Gencot.Cogent.Simplify}.
+
+\subsubsection{Unused Transformations}
+
+Other rules would transform conditional expressions where one branch can be statically evaluated to a boolean value according to
+\begin{verbatim}
+  if c then True else e  --> c || e
+  if c then False else e --> not c && e
+  if c then e else True  --> not c || e
+  if c then e else False --> c && e
+\end{verbatim}
+This is not used, because it removes boolean constants which may be useful for static evaluation after other processing steps.
+
+Other rules for simplifying conditionals with boolean values are
+\begin{verbatim}
+  if c then e else not e --> c == e
+  if c then not e else e --> c /= e
+\end{verbatim}
+These are not used because they turn conditional expressions into equations, which currently are not processed any further.
+
+If a branch is again a conditional expression, the following transformation is possible:
+\begin{verbatim}
+  if c then (if c' then e1 else e2) else e -->
+  if c' then (if c then e1 else e)
+        else (if c then e2 else e)
+\end{verbatim}
+It is not used because it duplicates expression \code{e} and does not reduce the structure of conditional expressions,
+so there is the danger of cyclic transformation.
+
+Another rule would split conditional tuples into a tuple of conditionals according to
+\begin{verbatim}
+  if c then (t1,..,tn) else (e1,..,en) --> 
+  (if c then t1 else e1, .., if c then tn else en)
+\end{verbatim}
+which would allow further simplification for all components with \code{ti = ei} and it could allow additional substitutions
+by \code{letproc}, because the components can be substituted or omitted separately. However, if both are not applicable, it 
+tends to enlarge the expression by copying the condition \code{c}. Therefore the effect on \code{letproc} has been implemented
+there by the way how conditional expressions are split and the rule is not used here for \code{ifproc}.
+
+The substitution of the condition in the branches could be generalized by substituting values for variables which can be
+inferred from the condition, such as in
+\begin{verbatim}
+  if i == 0 then e1 else e2
+\end{verbatim}
+where it is possible to substitute \code{i} by \code{0} in \code{e1}. Even more general, the condition can be interpreted as
+a set of equations for its free variables, if it can be solved for some of them they can be substituted by their solution
+in the first branch. It has not yet been considered whether such substitutions would have an effect that would pay for the 
+additional complexity.
+
+If the condition is itself a conditional expression, it may be possible to derive substitutions, although the condition does
+not occur as a whole in the branches. As an example, the following transformation could be applied:
+\begin{verbatim}
+  if (if c then x else y) 
+     then (if c then (if x then e1 else e2) else e3) 
+     else e4 
+  -->
+  if (if c then x else y) 
+     then (if c then e1 else e3)
+     else e4
+\end{verbatim}
+It has not yet been considered, whether such transformations would be useful for cases occurring during translations of C programs.
+
 \subsection{Function Call Processing}
 \label{imp-post-funcall}
 
@@ -197,3 +365,24 @@ parameter for Gencot so that it can be selected specifically for every translate
 \subsection{Combining the Steps}
 \label{imp-post-combine}
 
+Generally, the postprocessing steps recurse into the structure of the processed expression. Thus it would be possible to combine them
+on every recursion level by combining the non-recursive steps to a common postprocessing function which recurses into the expression
+structure. Alternatively each step recurses on its own and the overall simplification applies the steps sequentially to the toplevel
+expressions.
+
+Some steps depend on each other in a cyclic way. These are in particular the functions \code{evalproc}, \code{letproc}, and \code{ifproc}.
+After \code{letproc} substitutes variables it may be possible to evaluate more expressions by \code{evalproc} than before. This may
+allow additional simplifications by \code{ifproc} since conditions may evaluate to a constant. These simplifications may remove code parts 
+with occurrences of free variables which in turn may allow additional simplification by \code{letproc}. Therefore these steps must 
+be applied in a loop until the expression does not change any more.
+
+The \code{letproc} step works bottom up and is applied to subexpressions before it is applied to an expression. The \code{ifproc} step 
+for a subexpression will only benefit if variables are substituted from the context. Thus it does not help to iterate these steps for
+the same subexpression. Instead, both steps recurse on their own and are iterated on the toplevel expressions.
+
+The \code{evalproc} step is only used as auxiliary step in other postprocessing steps. Since the other steps recurse into the control
+structures like \code{if} and \code{let}, it is not necessary for \code{evalproc} to do this. Therefore \code{evalproc} only recurses
+into operator subexpressions.
+
+The \code{opproc} step recurses into arbitrary subexpressions. It processes cases which are typically created by \code{ifproc}.
+Therefore it is executed after every toplevel execution of \code{ifproc}.

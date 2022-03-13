@@ -24,7 +24,7 @@ import Cogent.Parser (parseWithIncludes)
 import Cogent.Surface
 
 import Gencot.Cogent.Ast
-import Gencot.Cogent.Simplify (letproc)
+import Gencot.Cogent.Simplify (letproc,ifproc)
 import Gencot.Cogent.Output (prettyTopLevels)
 
 main :: IO ()
@@ -39,7 +39,7 @@ main = do
             toplvs' <- case head args of 
                  "-i" -> return toplvs
                  "-l" -> return $ map (mapToplOfGTL letprocBdy) toplvs
-                 "-f" -> error "if simplification not yet implemented"
+                 "-f" -> return $ map (mapToplOfGTL ifprocBdy) toplvs
                  "-s" -> error "full simplification not yet implemented"
                  _ -> error $ "Unknown command: " ++ head args
             print $ prettyTopLevels toplvs'
@@ -48,3 +48,8 @@ letprocBdy :: ToplOfGTL -> ToplOfGTL
 letprocBdy (FunDef n pt alts) = 
     FunDef n pt $ map (\(Alt p l e) -> Alt p l $ letproc e) alts
 letprocBdy tlv = tlv
+
+ifprocBdy :: ToplOfGTL -> ToplOfGTL
+ifprocBdy (FunDef n pt alts) = 
+    FunDef n pt $ map (\(Alt p l e) -> Alt p l $ ifproc e) alts
+ifprocBdy tlv = tlv

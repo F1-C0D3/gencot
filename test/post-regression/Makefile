@@ -4,10 +4,13 @@ GD=../../bin/gencot-defcomments
 #OPTION = -i
 #VARIANT = noproc
 
-OPTION = -l
-VARIANT = letproc
+#OPTION = -l
+#VARIANT = letproc
 
-TESTS = nolet letsingle letmulti
+OPTION = -f
+VARIANT = ifproc
+
+TESTS = nolet letsingle letmulti ifexpr
 
 out: $(foreach TST,$(TESTS),post-$(TST)-out.cogent)
 

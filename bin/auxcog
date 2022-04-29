@@ -173,22 +173,19 @@ then
         echo "Wrong input file $fbase. Must have the form <proofname>_ShallowShared_Tuples.thy."
         exit 1
     fi
-    $BIN/auxcog-shalshared $TMPDIR/ctypstruct < $1 > $OUTPUTDIR/$fbase
+    $BIN/auxcog-shalshared < $1 > $OUTPUTDIR/$fbase
     srcdir=$(dirname $1)
-    sed -e "s/imports \"${prfnam}_ShallowShared_Tuples\"/imports \"${prfnam}_Shallow_Gencot_Tuples\"/ " \
+    sed -e "s/imports \"${prfnam}_ShallowShared_Tuples\"/imports \"${prfnam}_Shallow_Gencot_Semantics\"/ " \
       $srcdir/${prfnam}_Shallow_Desugar_Tuples.thy > $OUTPUTDIR/${prfnam}_Shallow_Desugar_Tuples.thy
-    cp $srcdir/${prfnam}_ShallowConsts_Desugar_Tuples.thy $OUTPUTDIR
+    sed -e "s/imports \"${prfnam}_Shallow_Desugar_Tuples\"/imports \"${prfnam}_ShallowShared_Tuples\"/ " \
+      $srcdir/${prfnam}_ShallowConsts_Desugar_Tuples.thy > $OUTPUTDIR/${prfnam}_ShallowConsts_Desugar_Tuples.thy
     echo "theory ShallowShared_Tuples" > $OUTPUTDIR/ShallowShared_Tuples.thy
     echo "  imports \"${prfnam}_ShallowShared_Tuples\"" >> $OUTPUTDIR/ShallowShared_Tuples.thy
-    echo "begin" >> $OUTPUTDIR/ShallowShared_Tuples.thy
-    echo "ML \\<open>structure sem = Named_Thms (val name = Binding.name \"sem\" val description = \"\")\\<close>" >> $OUTPUTDIR/ShallowShared_Tuples.thy
-    echo "setup \\<open> sem.setup \\<close>" >> $OUTPUTDIR/ShallowShared_Tuples.thy
-    echo "end" >> $OUTPUTDIR/ShallowShared_Tuples.thy
-    cp $GENCOT_HOME/isa/GencotTypes.thy $OUTPUTDIR
-    $BIN/auxcog-shalgencot $TMPDIR/common.gencot-std < $OUTPUTDIR/$fbase > $OUTPUTDIR/${prfnam}_Shallow_Gencot_Tuples.thy
-    $BIN/auxcog-lemmgencot $TMPDIR/common.gencot-std < $OUTPUTDIR/$fbase > $OUTPUTDIR/${prfnam}_Shallow_Gencot_Lemmas.thy
+    echo "begin end" >> $OUTPUTDIR/ShallowShared_Tuples.thy
+    $BIN/auxcog-semgencot $TMPDIR/common.gencot-std < $1 > $OUTPUTDIR/${prfnam}_Shallow_Gencot_Semantics.thy
     cp $GENCOT_HOME/isa/*_Tuples.thy $OUTPUTDIR
-    cp $GENCOT_HOME/isa/*_Lemmas.thy $OUTPUTDIR
+    cp $GENCOT_HOME/isa/*_Semantics.thy $OUTPUTDIR
+    cp $GENCOT_HOME/isa/*Support.thy $OUTPUTDIR
 elif [ "$CMD" = "refine" ]
 then
     fbase=$(basename $1)
@@ -199,8 +196,8 @@ then
         exit 1
     fi
     srcdir=$(dirname $1)
-    $BIN/auxcog-shalshared $TMPDIR/ctypstruct < $1 > $OUTPUTDIR/$fbase
-    $BIN/auxcog-shalshared $TMPDIR/ctypstruct < $srcdir/${prfnam}_ShallowShared.thy > $OUTPUTDIR/${prfnam}_ShallowShared.thy
+    $BIN/auxcog-shalshared < $1 > $OUTPUTDIR/$fbase
+    $BIN/auxcog-shalshared < $srcdir/${prfnam}_ShallowShared.thy > $OUTPUTDIR/${prfnam}_ShallowShared.thy
     sed -e "s/imports \"${prfnam}_ShallowShared_Tuples\"/imports \"${prfnam}_Shallow_Gencot_Tuples\"/ " \
       $srcdir/${prfnam}_Shallow_Desugar_Tuples.thy > $OUTPUTDIR/${prfnam}_Shallow_Desugar_Tuples.thy
     sed -e "s/imports \"${prfnam}_ShallowShared\"/imports \"${prfnam}_Shallow_Gencot\"/ " \
@@ -211,13 +208,14 @@ then
     echo "theory ShallowShared" > $OUTPUTDIR/ShallowShared.thy
     echo "  imports \"${prfnam}_ShallowShared\"" >> $OUTPUTDIR/ShallowShared.thy
     echo "begin end" >> $OUTPUTDIR/ShallowShared.thy
-    cp $GENCOT_HOME/isa/GencotTypes.thy $OUTPUTDIR
-    $BIN/auxcog-shalgencot $TMPDIR/common.gencot-std < $OUTPUTDIR/$fbase > $OUTPUTDIR/${prfnam}_Shallow_Gencot_Tuples.thy
+    $BIN/auxcog-shalgencot $TMPDIR/common.gencot-std < $1 > $OUTPUTDIR/${prfnam}_Shallow_Gencot_Tuples.thy
     $BIN/auxcog-shalgencot $TMPDIR/common.gencot-std < $srcdir/${prfnam}_ShallowShared.thy > $OUTPUTDIR/${prfnam}_Shallow_Gencot.thy
     cp $GENCOT_HOME/isa/*_Tuples.thy $OUTPUTDIR
     for fil in $GENCOT_HOME/isa/Gencot_* $GENCOT_HOME/isa/CogentCommon_*
     do 
-        if [ "X$(expr match $fil '\(.*\)_Tuples.thy')" = "X" -a "X$(expr match $fil '\(.*\)_Lemmas.thy')" = "X" ]
+        if [ "X$(expr match $fil '\(.*\)_Tuples.thy')" = "X" \
+          -a "X$(expr match $fil '\(.*\)_Semantics.thy')" = "X" \
+          -a "X$(expr match $fil '\(.*\)Support.thy')" = "X" ]
         then
             cp $fil $OUTPUTDIR
         fi

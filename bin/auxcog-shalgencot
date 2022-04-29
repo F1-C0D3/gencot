@@ -18,7 +18,7 @@ awk \
    gencot_theories = "Default Memory MayNull CPointer CArray"
    common_theories = "common"
    nr_sizes = 0
-   nr_funs = split("getArr setArr modifyArr modrefArr toCAES fromCAES rotoCAES rofromCAES", funs)
+   nr_afuns = split("siz getArr setArr modifyArr modrefArr toCAES fromCAES rotoCAES rofromCAES", afuns)
  } 
 {
   if ($1 == "theory" && NF == 2) {
@@ -30,7 +30,7 @@ awk \
       exit 1
     }
     printf("theory %s_Shallow_Gencot%s\n", prfnam, tup)
-    printf("  imports \"%s_ShallowShared%s\"\n", prfnam, tup)
+    printf("  imports \"%s_ShallowConsts_Desugar%s\"\n", prfnam, tup)
     while ((getline cline < cfile) > 0) { 
       if (2 == split(cline,a)) { 
         if (a[1] == "gencot:" && match(gencot_theories,a[2])) printf("  \"Gencot_%s%s\"\n", a[2], tup)
@@ -39,16 +39,19 @@ awk \
     }
     close(cfile) 
     printf("begin\n\n")
-  } else if ($1 == "type_synonym" && substr($3,1,4) == "CArr" && $7 == "FixedList") {
+  } else if ($1 == "type_synonym" && substr($3,1,4) == "CArr" && $6 == "list") {
     size = substr($3,5,length($3)-12)
-    nr_sizes += 1
-    sizes[nr_sizes] = size
-    fixtyp = substr($5,2,length($5)-1) " " $6 " " $7
-    printf("definition arr%s\\<^sub>T\\<^sub>f :: \"%s CArr%s\\<^sub>T \\<Rightarrow> %s \"\n",size,$2,size,fixtyp)
-    printf("  where \"arr%s\\<^sub>T\\<^sub>f arr \\<equiv> arr%s\\<^sub>f arr\"\n",size,size)
-    printf("interpretation CArrFuns%s: CArrFuns arr%s\\<^sub>T\\<^sub>f CArr%s.make .\n", size, size, size)
-    printf("adhoc_overloading %s CArrFuns%s.%sFxd\n", funs[1], size, funs[1])
-    for (i=2; i <= nr_funs; i++) printf("  and %s CArrFuns%s.%sFxd\n", funs[i], size, funs[i])
+    if (size ~ /^[0-9]*$/) { namedsize = 0; sizeval = size }
+    else { namedsize = 1; sizeval = substr(size,2,length(size)-2)}
+    if (namedsize) {
+      printf("lemmas [simp] = cogent_%s_def\n",sizeval)
+      printf("definition \"%s \\<equiv> (unat cogent_%s)\"\n", sizeval, sizeval)
+    }
+    printf("interpretation FxdArrDefs%s: FxdArrDefs arr%s\\<^sub>f CArr%s.make %s \"0::32 word\" .\n", size, size, size, sizeval)
+    printf("adhoc_overloading\n")
+    printf("      arr arr%s\\<^sub>f\n",size)
+    printf("  and carr CArr%s.make\n",size)
+    for (i=1; i <= nr_afuns; i++) printf("  and %s FxdArrDefs%s.%s\n", afuns[i], size, afuns[i])
     printf("\n")
   }
 }
@@ -64,7 +67,7 @@ END {
 # - the name of the input theory must be X_ShallowShared with an optional suffix _Tuples, which
 #   is stored in the variable tup. Otherwise an error message is written to stderr.
 # - the name of the output theory is X_Shallow_Gencot with the tup-suffix appended.
-# - the output theory imports the input theory, "HOL-Library.Adhoc_Overloading"
+# - the output theory imports X_ShallowConsts_Desugar
 #   and for every line 
 #     gencot: id
 #   in the argument file for which id is in gencot_theories the theory Gencot_id with the tup-suffix 
@@ -73,29 +76,33 @@ END {
 #   in the argument file for which id is in common_theories the theory CogentCommon_id with the tup-suffix 
 #   appended.
 # - the output theory contains for every type synonym definition of the form
-#     type_synonym 'el CArr<size>\<^sub>T = "<fixtyp> CArr<size>"
-#   in the input theory a definition of the form 
-#     definition arr<size>\<^sub>T\<^sub>f :: "'el CArr<size>\<^sub>T \<Rightarrow> <fixtyp>"
-#       where "arr<size>\<^sub>T\<^sub>f arr \<equiv> arr<size>\<^sub>f arr"
-#   and a locale interpretation of the form
-#     interpretation CArrFuns<size>: CArrFuns arr<size>\<^sub>T\<^sub>f CArr<size>.make .
+#     type_synonym 'el CArr<size>\<^sub>T = 'el list CArr<size>
+#   in the input theory a section of the following form. The <size> my be either specified by a named 
+#   constant <sizeval>, or by a number literal <sizeval>. The section always contains a locale interpretation 
+#   of the form
+#     interpretation FxdArrDefs<size>: FxdArrDefs arr<size>\<^sub>f CArr<size>.make <sizeval> "0::32 word" .
 #   and an adhoc overloading of the form
-#     adhoc_overloading getArr CArrFuns<size>.getArrFxd
-#       and setArr CArrFuns<size>.setArrFxd
+#     adhoc_overloading 
+#           arr ...
+#       and carr ...
 #       ...
-#   for all Gencot array operations and the conversions toCAES, fromCAES, rotoCAES, rofromCAES.
+#   for all array operations
+#     arr, carr, siz, getArr, setArr, modifyArr, modrefArr, toCAES, fromCAES, rotoCAES, rofromCAES
+#   If the size is a named constant, the section additionally adds the word constant definition to the simpset
+#     lemmas [simp] = cogent_<sizeval>_def
+#   and defines a nat constant
+#     definition "<sizeval> \<equiv> (unat cogent_<sizeval>)"
 #
 # The list of theories which can be imported is specified by the string variables 
 # gencot_theories and common_thories as a sequence of words separated by blanks.
-# The list of array operations is specified in the array funs of length nr_funs,
+# The list of array operations is specified in the array afuns of length nr_afuns,
 #
 # The input is read until a line of the form "theory <name>" is found. Using the <name>, the tup-suffix
 # is determined and the output theory header is generated. The argument file is read using getline to 
 # generate the corresponding imports.
 # 
 # Then the rest of the input is read and for each matching type synonym definition the 
-# interpretation and adhoc overloading is generated and the size is stored in the array sizes,
-# counting the entries in nr_sizes.
+# interpretation and adhoc overloading is generated.
 # 
 # In the END rule the theory is finished by an "end".
 #
@@ -104,10 +111,11 @@ END {
 #   to prevent its processing as normal input to awk. The argument file is explicitly read by getline.
 # - The theory lists gencot_theories and common_thories are defined in the BEGIN rule.
 # - The function array is filled in the BEGIN rule by splitting a string of words.
-# - Since in '...' the ' cannot be escaped, we avoid using it in match expressions and print it 
-#   by reusing parts of the input.
+# - Since in '...' the ' cannot be escaped, we avoid using it in match expressions.
 # - To test whether an entry from the argument file is a member of a theory list the awk builtin function
 #   match is used. The theory list is specified as the string, the entry is used as regexp. If a match
 #   is found the function returns the index of the first position of the match (which is equivalent to true),
 #   otherwise it returns 0 (which is equivalent to false). Note that this works only if no theory name 
 #   is a substring of another theory name in the list.
+# - To test whether a size specification is a literal or a named constant the regexp /^[0-9]*$/ is used.
+

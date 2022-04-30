@@ -228,6 +228,20 @@ sublocale GencotArrDefs arr carr siz idxtypespec .
 sublocale PartAccess arr arr_update
   using GencotArr_axioms GencotArr_def by blast
 
+text \<open>
+Introduce shortcut sameUpd rules for the composition \<open>elm \<circ> arr\<close>, since the sameUpd rules
+for the single functions do not compose directly.
+\<close>
+lemma elmarr_sameUpdRule[sameUpd]: 
+  "arr_update (elm_update i (\<lambda>_. u (elm i (arr a)))) a = arr_update (elm_update i u) a"
+  apply(subst local.sameUpdRule[symmetric])
+  apply(subst ElmAccess.sameUpdRule)
+  by(simp add: sameUpd)
+lemma elmarr_idsameUpdRule[simp]: 
+  "arr_update (elm_update i (\<lambda>_. (elm i (arr a)))) a = a"
+  apply(subst id_apply[where x="(elm i (arr a))",symmetric])
+  by(subst elmarr_sameUpdRule,simp add: id_def)
+
 adhoc_overloading 
       wlsd     "wlsdGen arr siz"
   and arrp     "arrpGen arr"

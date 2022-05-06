@@ -546,6 +546,8 @@ lemma [simp]: "i < nat_C \<Longrightarrow> ((of_nat i):: 'n word) < of_nat nat_C
   by(simp add: word_less_nat_alt)
 lemma [simp]: "i < nat_C \<Longrightarrow> ((of_nat i):: 'n word) \<noteq> of_nat nat_C"
   by(simp add: word_less_nat_alt less_imp_neq)
+lemma [simp]: "(unat (i:: 'n word) < nat_C) = (i < of_nat nat_C)" 
+  by(simp add: word_less_nat_alt)
 end
 
 end

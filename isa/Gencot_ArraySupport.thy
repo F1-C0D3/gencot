@@ -454,9 +454,11 @@ definition sp_elem_num :: "(nat \<times> 'el \<Rightarrow> bool) \<Rightarrow> '
 text \<open>
 Alternative standalone definitions:
 \<close>
+(*
 lemma sp_indx_map: 
  "sp_indx_map sp a = (\<lambda>e. (if \<exists>! i. iexcerpt sp a i \<and> e = (nth a i) then Some i else None))"
   sorry
+*)
 lemma sp_indx_set:
  "sp_indx_set sp a = {i. iexcerpt sp a i }"
   by(simp add: sp_indx_set_def sp_elem_map dom_def)
@@ -509,9 +511,11 @@ definition elem_num :: "'el list \<Rightarrow> nat"
 text \<open>
 Alternative standalone definitions:
 \<close>
+(*
 lemma s_indx_map: 
  "s_indx_map s a = (\<lambda>e. (if \<exists>! i. vld a i \<and> s i \<and> e = (nth a i) then Some i else None))"
   sorry
+*)
 lemma s_indx_set:
  "s_indx_set s a = {i. vld a i \<and> s i}"
   by(simp add: s_indx_set_def sp_indx_set iexcerpt_def)
@@ -525,9 +529,11 @@ lemma s_elem_num:
  "s_elem_num s a = card {e. (\<exists> i. vld a i \<and> s i \<and> e = (nth a i)) }"
   by(simp add: s_elem_num_def sp_elem_num iexcerpt_def)
 
+(*
 lemma p_indx_map: 
  "p_indx_map p a = (\<lambda>e. (if \<exists>! i. vld a i \<and> e = (nth a i)\<and> p e then Some i else None))"
   sorry
+*)
 lemma p_indx_set:
  "p_indx_set p a = {i. vld a i \<and> p (nth a i) }"
   by(simp add: p_indx_set_def sp_indx_set iexcerpt_def)
@@ -541,9 +547,11 @@ lemma p_elem_num:
  "p_elem_num p a = card {e. (\<exists> i. vld a i \<and> e = (nth a i) \<and> p e) }"
   by(simp add: p_elem_num_def sp_elem_num iexcerpt_def,metis)
 
+(*
 lemma indx_map: 
  "indx_map a = (\<lambda>e. (if \<exists>! i. vld a i \<and> e = (nth a i) then Some i else None))"
   sorry
+*)
 lemma indx_set:
  "indx_set a = {i. vld a i }"
   by(simp add: indx_set_def sp_indx_set iexcerpt_def)
@@ -637,6 +645,7 @@ lemma p_elem_num_P_union:
 text \<open>
 If an excerpt covers all indices or all elements observations can be simplified.
 \<close>
+(*
 lemma sp_to_s_indx_map:
  "\<forall>i<length a. sp (i,nth a i) = s i \<Longrightarrow>
   sp_indx_map sp a = s_indx_map s a"
@@ -644,6 +653,7 @@ lemma sp_to_s_indx_map:
   apply(subst sp_indx_map)+
   apply(rule ext)
   by(auto simp add: iexcerpt_def)
+*)
 lemma sp_to_s_indx_set:
  "\<forall>i<length a. sp (i,nth a i) = s i \<Longrightarrow>
   sp_indx_set sp a = s_indx_set s a"
@@ -665,6 +675,7 @@ lemma sp_to_s_elem_num:
   apply(simp add: s_elem_num_def sp_elem_num iexcerpt_def)
   by(rule_tac f=card in arg_cong,auto)
 
+(*
 lemma sp_to_p_indx_map:
  "\<forall>i<length a. sp (i,nth a i) = p (nth a i) \<Longrightarrow>
   sp_indx_map sp a = p_indx_map p a"
@@ -672,6 +683,7 @@ lemma sp_to_p_indx_map:
   apply(subst sp_indx_map)+
   apply(rule ext)
   by(auto simp add: iexcerpt_def)
+*)
 lemma sp_to_p_indx_set:
  "\<forall>i<length a. sp (i,nth a i) = p (nth a i) \<Longrightarrow>
   sp_indx_set sp a = p_indx_set p a"
@@ -693,6 +705,7 @@ lemma sp_to_p_elem_num:
   apply(simp add: p_elem_num_def sp_elem_num iexcerpt_def)
   by(rule_tac f=card in arg_cong,auto)
 
+(*
 lemma s_to_indx_map:
  "\<forall>i<length a. s i \<Longrightarrow>
   s_indx_map s a = indx_map a"
@@ -700,6 +713,7 @@ lemma s_to_indx_map:
   apply(subst sp_indx_map)+
   apply(rule ext)
   by(auto simp add: iexcerpt_def)
+*)
 lemma s_to_indx_set:
  "\<forall>i<length a. s i \<Longrightarrow>
   s_indx_set s a = indx_set a"
@@ -720,6 +734,7 @@ lemma s_to_elem_num:
   apply(auto simp add: elem_num_def s_elem_num iexcerpt_def sp_elem_num)
   by(rule_tac f=card in arg_cong,auto)
 
+(*
 lemma p_to_indx_map:
  "\<forall>i<length a. p (nth a i) \<Longrightarrow>
   p_indx_map p a = indx_map a"
@@ -727,6 +742,7 @@ lemma p_to_indx_map:
   apply(subst sp_indx_map)+
   apply(rule ext)
   by(auto simp add: iexcerpt_def)
+*)
 lemma p_to_indx_set:
  "\<forall>i<length a. p (nth a i) \<Longrightarrow>
   p_indx_set p a = indx_set a"

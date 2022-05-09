@@ -542,11 +542,11 @@ begin
 lemma to_C:
   "(of_nat (unat cogent_C)) = ((of_nat nat_C)::'n word)" 
   by (simp add: rel_C)
-lemma [simp]: "i < nat_C \<Longrightarrow> ((of_nat i):: 'n word) < of_nat nat_C"
+lemma less_nat_implies_less_word[simp]: "i < nat_C \<Longrightarrow> ((of_nat i):: 'n word) < of_nat nat_C"
   by(simp add: word_less_nat_alt)
-lemma [simp]: "i < nat_C \<Longrightarrow> ((of_nat i):: 'n word) \<noteq> of_nat nat_C"
+lemma less_nat_implies_neq_word[simp]: "i < nat_C \<Longrightarrow> ((of_nat i):: 'n word) \<noteq> of_nat nat_C"
   by(simp add: word_less_nat_alt less_imp_neq)
-lemma [simp]: "(unat (i:: 'n word) < nat_C) = (i < of_nat nat_C)" 
+lemma less_nat_iff_less_word[simp]: "(unat (i:: 'n word) < nat_C) = (i < of_nat nat_C)" 
   by(simp add: word_less_nat_alt)
 end
 

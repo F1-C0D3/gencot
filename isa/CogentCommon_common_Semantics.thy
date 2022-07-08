@@ -132,7 +132,7 @@ lemma seq32_induct_P_01:
   for f::"('acc, 'obsv, 'rbrk) Seq32_body" and acc::'acc and obsv::'obsv
   apply(subst seq32_cnt_01[symmetric])
   apply (rule seq32_induct_P[where P=P])
-  by(auto simp add: seq32_term_def seq32_cnt_def,unat_arith,auto)
+    by(simp_all add: seq32_term_def seq32_cnt_def, unat_arith,clarsimp)
 
 lemma seq32_induct_eq_01: 
   "(acc,Iterate()) = sf 0 acc obsv \<Longrightarrow> 

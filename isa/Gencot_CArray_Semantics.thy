@@ -347,13 +347,62 @@ lemmas arrpRulesES =
   ESArr.prsvarrp_arr_update ESArr.Prsvarrp_arr_update.rules 
 
 text \<open>
+Wellsizedness implications about the list length  are added to the simpset.
 Due to the representation of the size as a 64 bit word, wellsizedness implies that the 
 list size is restricted.
 \<close>
+lemma wlsdES_implies_length[simp]: "wlsd (a,s) \<Longrightarrow> length a = unat s"
+  by(unfold wlsd_def,simp add: arr_def siz_def)
 
-lemma arrES_length: "wlsd aes \<Longrightarrow> length (arrES aes) < 2^64"
-  apply(simp add: wlsd_def arrES_def sizES_def)
+lemma wlsdES_implies_notempty[simp]: "wlsd (a,s) \<Longrightarrow> a \<noteq> []"
+  by(unfold wlsd_def,auto simp add: arr_def siz_def)
+
+lemma wlsdES_implies_lenless[simp]: "wlsd (a,s) \<Longrightarrow> length a < 2^64"
+  apply(unfold wlsd_def,simp add: arr_def siz_def)
   by(unat_arith,simp)
+
+text \<open>
+If the function \<open>arr\<close> is explicitly specified in a term, it must be eliminated
+to apply the rules above. This is done by the simplifier only in the context of \<open>length\<close>,
+because in general the function \<open>arr\<close> may be needed to apply other rules. Then it may
+be eliminated by explicitly unfolding \<open>arr_def\<close>. 
+\<close>
+lemma length_arrES[simp]: "length (arrES (a,s)) = length a"
+  by(simp add: arr_def)
+
+text \<open>
+The following rule is also a wellsizedness implication about the list length, 
+it can be used to eliminate \<open>carr\<close> for explicitly sized arrays instead of \<open>carr_def\<close>.
+It is not applied automatically by the simplifier because that would prevent 
+alternatives. 
+\<close>
+lemma wlsdES_carr: "wlsd (a,s) \<Longrightarrow> carrES a = (a,s)"
+  apply(unfold wlsd_def,clarsimp simp add: siz_def carr_def arr_def)
+  apply(drule_tac f=of_nat in arg_cong) 
+  by(subst (asm) word_unat.Rep_inverse,simp)
+
+text \<open>
+The \<open>arrp\<close> predicate only depends on the representing list, therefore it is automatically
+simplified for explicitly sized arrays which are constructed only from the list.
+\<close>
+
+lemma arrpES_elmsp[simp]: "arrp p (carrES a) = elmsp p a"
+  by(unfold arrp_def,simp add: arr_def carr_def)
+
+text \<open>
+If an explicitly sized array is constructed in a function, also wellsizedness assumption
+and possibly \<open>arrp\<close> assumptions must be constructed. 
+The following rules are defined for that purpose, they are intended to be
+applied with method drule or frule. 
+\<close>
+(* this will create subgolas of the form LENGTH(32) \<le> 64 *)
+(* they can be solved by apply(subgoal_tac "LENGTH(32) = 32",simp,simp) *)
+(* but there should be a nicer way? *)
+lemma wlsdES_dest: "\<lbrakk>unat s = x; x = length a; a \<noteq>[]; LENGTH('b) \<le> 64\<rbrakk> \<Longrightarrow> wlsd (a,ucast s)" for s::"'b::len word"
+  by(unfold wlsd_def,simp add: siz_def arr_def)
+
+lemma arrpES_dest: "elmsp p a \<Longrightarrow> arrp p (a,s)"
+  by(unfold arrp_def,simp add: arr_def carr_def)
 
 subsection \<open>Fixed Sized Arrays\<close>
 
@@ -403,7 +452,17 @@ adhoc_overloading
 
 sublocale GencotArr arr arr_update carr siz idxtypespec
   apply(unfold_locales)
-  by(auto simp add: arr_def arr_update_def carr_inverse' arr_inverse prsvp_def prsvlen_def wlsd_def FxdArrBase.fxdsiz_def)
+        apply(auto simp add: arr_def arr_update_def carr_inverse' arr_inverse prsvp_def prsvlen_def)
+  by(unfold wlsd_def,auto simp add: FxdArrBase.fxdsiz_def carr_inverse')
+
+text \<open>
+Wellsizedness implications are added to the simpset. The first rule reduces list length
+to the fixed size value, the second rule derives that the ist is not empty.
+\<close>
+lemma wlsd_implies_length[simp]: "wlsd a \<Longrightarrow> length (arr a) = fxdsiz"
+  by(unfold wlsd_def,simp add: siz_def)
+lemma wlsd_implies_notempty[simp]: "wlsd a \<Longrightarrow> (arr a) \<noteq> []"
+  by(unfold wlsd_def,auto)
 
 text \<open>
 The \<open>mkFxdArr\<close> function always creates wellsized arrays.
@@ -427,11 +486,11 @@ text \<open>Semantics of Cogent array conversion functions.\<close>
 
 theorem sem_toCAES[sem]:
  "wlsd a \<Longrightarrow> toCAES a = (arr a, of_nat (length (arr a)))"
-  by(simp add: FxdArrBase.toCAES_def wlsd_def siz_def)
+  by(unfold wlsd_def,simp add: FxdArrBase.toCAES_def siz_def)
 theorem sem_fromCAES[sem]:
  "wlsd aes \<Longrightarrow> 
   fromCAES aes = carr (arrES aes)"
-  by(simp add: fromCAES_def wlsd_def arrES_def) 
+  by(simp add: fromCAES_def)
 
 text \<open>
 Transfer lemmas for the Cogent array conversion functions.
@@ -440,7 +499,8 @@ Transfer lemmas for the Cogent array conversion functions.
 lemma wlsdToCAES: 
  "wlsd a \<and> siz a < 2^64 \<Longrightarrow> 
   wlsd (toCAES a)"
-  by(auto simp add: sem_toCAES sizES_def arrES_def unat_of_nat wlsd_def)
+  apply(simp add: sem_toCAES) 
+  by(unfold wlsd_def,auto simp add: siz_def arr_def unat_of_nat)
 lemma wlsdFromCAES: 
  "wlsd aes \<and> sizES aes = fxdsiz \<Longrightarrow> 
   wlsd (fromCAES aes)"
@@ -537,8 +597,11 @@ locale NamedSizeRules =
     and nat_C :: nat
     and wordtypespec :: "('n::len) word"
   assumes rel_C: "nat_C = unat cogent_C"
-    and unat_of_nat[simp]: "i \<le> nat_C \<Longrightarrow> (unat ((of_nat i):: 'n word)) = i"
+    and nat_C: "nat_C < 2^LENGTH('n)"
 begin 
+lemma unat_of_nat[simp]: "i \<le> nat_C \<Longrightarrow> (unat ((of_nat i):: 'n word)) = i"
+  apply(insert nat_C)
+  by(simp add: unat_of_nat)
 lemma to_C:
   "(of_nat (unat cogent_C)) = ((of_nat nat_C)::'n word)" 
   by (simp add: rel_C)
@@ -546,8 +609,11 @@ lemma less_nat_implies_less_word[simp]: "i < nat_C \<Longrightarrow> ((of_nat i)
   by(simp add: word_less_nat_alt)
 lemma less_nat_implies_neq_word[simp]: "i < nat_C \<Longrightarrow> ((of_nat i):: 'n word) \<noteq> of_nat nat_C"
   by(simp add: word_less_nat_alt less_imp_neq)
-lemma less_nat_iff_less_word[simp]: "(unat (i:: 'n word) < nat_C) = (i < of_nat nat_C)" 
+lemma less_nat_iff_less_word[simp]: "(unat (i:: 'n word) < nat_C) \<Longrightarrow> (i < of_nat nat_C)" 
   by(simp add: word_less_nat_alt)
+lemma unat_add[simp]: "unat (n::'n word) + i < nat_C \<Longrightarrow> unat (n + of_nat i) = unat n + i"
+  apply(insert nat_C)
+  by(simp add: unat_word_ariths)
 end
 
 end

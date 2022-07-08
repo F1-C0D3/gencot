@@ -148,6 +148,10 @@ subsection \<open>Injectivity\<close>
 definition inj_map :: "('a \<rightharpoonup> 'b) \<Rightarrow> bool"
   where "inj_map m \<equiv> inj_on m (dom m)"
 
+lemma inj_map:
+ "\<lbrakk>inj_map m; m x1 = Some y; m x2 = Some y\<rbrakk> \<Longrightarrow> x1 = x2"
+  by(simp add: inj_map_def inj_on_def dom_def)
+
 lemma inj_map_le:
  "m \<subseteq>\<^sub>m m' \<Longrightarrow> inj_map m' \<Longrightarrow> inj_map m"
   apply(simp add: inj_map_def map_le_def dom_def)
@@ -170,6 +174,14 @@ lemma inj_map_comp:
      apply(auto simp add: ran_def)
   apply(drule_tac x=x and y=y in inj_onD)
   by(auto)
+
+lemma inj_map_iff:
+ "finite (dom m) \<Longrightarrow> inj_map m = (card (ran m) = card (dom m))"
+  apply(simp add: inj_map_def inj_on_iff_eq_card)
+  apply(rule arg_cong[where f="\<lambda>x. x=card (dom m)"])
+  apply(subst (2) card_image[where f=Some,symmetric],simp)
+  apply(rule arg_cong[where f="card"])
+  by(auto simp add: ran_def dom_def image_def)
 
 subsection \<open>Injective Part of a Map\<close>
 

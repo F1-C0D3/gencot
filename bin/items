@@ -8,8 +8,8 @@ then
 fi
 
 BIN=$GENCOT_HOME/bin
-PRC=$BIN/items-proc
-GEN=$BIN/items-gen
+PRC="$BIN/items-bin proc"
+GEN="$BIN/items-bin gen"
 
 USAGE="Usage: $0 [-I<dir>] [-G<dir>] [-u<uname>] [-k] [file|unit|used|merge|mergeto|help] [<file>] [<file>]"
 
@@ -211,12 +211,12 @@ then
             EIFILE=$TMPDIR/external.items
             touch $EIFILE
         fi
-        $BIN/items-externs $EIFILE < $TMPDIR/infiles | $PRC filter $EIFILE
+        $BIN/items-bin externs $EIFILE < $TMPDIR/infiles | $PRC filter $EIFILE
     else
         MIFILE=$GENCOTDIR/$UNITFILE-manitems
         PMIFILE=$TMPDIR/$UNITFILE-prcmanitems
         prepare_manitems $MIFILE $PMIFILE
-        $BIN/items-used $PMIFILE < $TMPDIR/infiles > $EIFILE
+        $BIN/items-bin used $PMIFILE < $TMPDIR/infiles > $EIFILE
     fi
 fi
 

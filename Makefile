@@ -1,132 +1,35 @@
 all: build links
 
-build: check deccm pmbin trans entrs extns exttp dvdtp cgrph dmpca itprc itgen ituse itext itefs actis actif acgop
+build: gcbin pmbin itbin acbin
 
-CHECK = gencot-check
-TRANS = gencot-translate
-ENTRS = gencot-entries
-DECCM = gencot-deccomments
-EXTNS = gencot-externs
-EXTTP = gencot-exttypes
-DVDTP = gencot-dvdtypes
+GCBIN = gencot-bin
 PMBIN = parmod-bin
-CGRPH = callgraph-print
-DMPCA = dump-c-ast
-ITPRC = items-proc
-ITGEN = items-gen
-ITUSE = items-used
-ITEXT = items-externs
-ITEFS = items-extfuns
-ACTIS = auxcog-ctypstruct
-ACTIF = auxcog-ctypfunc
-ACGOP = auxcog-genops
+ITBIN = items-bin
+ACBIN = auxcog-bin
 
-check: 
-	cabal new-build $(CHECK)
-
-trans: 
-	cabal new-build $(TRANS)
-
-entrs: 
-	cabal new-build $(ENTRS)
-
-deccm: 
-	cabal new-build $(DECCM)
-
-extns: 
-	cabal new-build $(EXTNS)
-
-exttp: 
-	cabal new-build $(EXTTP)
-
-dvdtp: 
-	cabal new-build $(DVDTP)
+gcbin: 
+	cabal new-build $(GCBIN)
 
 pmbin: 
 	cabal new-build $(PMBIN)
 
-cgrph: 
-	cabal new-build $(CGRPH)
+itbin: 
+	cabal new-build $(ITBIN)
 
-dmpca: 
-	cabal new-build $(DMPCA)
+acbin: 
+	cabal new-build $(ACBIN)
 
-itprc: 
-	cabal new-build $(ITPRC)
+links: bin/$(GCBIN) bin/$(PMBIN) bin/$(ITBIN) bin/$(ACBIN)
 
-itgen: 
-	cabal new-build $(ITGEN)
-
-ituse: 
-	cabal new-build $(ITUSE)
-
-itext: 
-	cabal new-build $(ITEXT)
-
-itefs: 
-	cabal new-build $(ITEFS)
-
-actis: 
-	cabal new-build $(ACTIS)
-
-actif: 
-	cabal new-build $(ACTIF)
-
-acgop: 
-	cabal new-build $(ACGOP)
-
-links: bin/$(CHECK) bin/$(DECCM) bin/$(PMBIN) bin/$(TRANS) bin/$(ENTRS) bin/$(EXTNS) bin/$(EXTTP) bin/$(DVDTP) bin/$(CGRPH) bin/$(DMPCA) bin/$(ITPRC) bin/$(ITGEN) bin/$(ITUSE) bin/$(ITEXT) bin/$(ITEFS) bin/$(ACTIS) bin/$(ACTIF) bin/$(ACGOP)
-
-bin/$(CHECK):
-	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(CHECK)/build/$(CHECK)/$(CHECK) .)
-
-bin/$(TRANS):
-	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(TRANS)/build/$(TRANS)/$(TRANS) .)
-
-bin/$(ENTRS):
-	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(ENTRS)/build/$(ENTRS)/$(ENTRS) .)
-
-bin/$(DECCM):
-	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(DECCM)/build/$(DECCM)/$(DECCM) .)
-
-bin/$(EXTNS):
-	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(EXTNS)/build/$(EXTNS)/$(EXTNS) .)
-
-bin/$(EXTTP):
-	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(EXTTP)/build/$(EXTTP)/$(EXTTP) .)
-
-bin/$(DVDTP):
-	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(DVDTP)/build/$(DVDTP)/$(DVDTP) .)
+bin/$(GCBIN):
+	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(GCBIN)/build/$(GCBIN)/$(GCBIN) .)
 
 bin/$(PMBIN):
 	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(PMBIN)/build/$(PMBIN)/$(PMBIN) .)
 
-bin/$(CGRPH):
-	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(CGRPH)/build/$(CGRPH)/$(CGRPH) .)
+bin/$(ITBIN):
+	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(ITBIN)/build/$(ITBIN)/$(ITBIN) .)
 
-bin/$(DMPCA):
-	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(DMPCA)/build/$(DMPCA)/$(DMPCA) .)
+bin/$(ACBIN):
+	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(ACBIN)/build/$(ACBIN)/$(ACBIN) .)
 
-bin/$(ITPRC):
-	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(ITPRC)/build/$(ITPRC)/$(ITPRC) .)
-
-bin/$(ITGEN):
-	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(ITGEN)/build/$(ITGEN)/$(ITGEN) .)
-
-bin/$(ITUSE):
-	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(ITUSE)/build/$(ITUSE)/$(ITUSE) .)
-
-bin/$(ITEXT):
-	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(ITEXT)/build/$(ITEXT)/$(ITEXT) .)
-
-bin/$(ITEFS):
-	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(ITEFS)/build/$(ITEFS)/$(ITEFS) .)
-
-bin/$(ACTIS):
-	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(ACTIS)/build/$(ACTIS)/$(ACTIS) .)
-
-bin/$(ACTIF):
-	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(ACTIF)/build/$(ACTIF)/$(ACTIF) .)
-
-bin/$(ACGOP):
-	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(ACGOP)/build/$(ACGOP)/$(ACGOP) .)

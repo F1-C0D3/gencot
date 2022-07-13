@@ -14,7 +14,7 @@ unit-json: parmod-externs.json
 
 regression: $(foreach TST,$(TESTS),$(TST)-regression) unit-regression
 
-expect-current: $(foreach TST,$(TESTS),$(TST)-expect-current)
+expect-current: $(foreach TST,$(TESTS),$(TST)-expect-current) unit-expect-current
 
 clean:  $(foreach TST,$(TESTS),$(TST)-clean)
 

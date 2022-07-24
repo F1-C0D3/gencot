@@ -117,8 +117,8 @@ if [ "$CMD" != "comments" ]
 then
     if [ -e $UNITNAME-gen.h ]
     then
-        cpp $INCLS < $UNITNAME-gen.h | $BIN/auxcog-ctypstruct > $TMPDIR/ctypstruct
-        cpp $INCLS < $UNITNAME-gen.h | $BIN/auxcog-ctypfunc > $TMPDIR/ctypfunc
+        cpp $INCLS < $UNITNAME-gen.h | $BIN/auxcog-bin ctypstruct > $TMPDIR/ctypstruct
+        cpp $INCLS < $UNITNAME-gen.h | $BIN/auxcog-bin ctypfunc > $TMPDIR/ctypfunc
     else
         echo "Error: file $UNITNAME-gen.h not found."
     fi
@@ -134,20 +134,20 @@ if [ "$CMD" = "unit" ]
 then
     if [ -e $UNITNAME-gencot_pp_inferred.c ]
     then
-        $BIN/auxcog-genops $TMPDIR/ctypstruct $TMPDIR/ctypfunc < $UNITNAME-gencot_pp_inferred.c > $OUTPUTDIR/$UNITNAME-gencot.c
+        $BIN/auxcog-bin genops $TMPDIR/ctypstruct $TMPDIR/ctypfunc < $UNITNAME-gencot_pp_inferred.c > $OUTPUTDIR/$UNITNAME-gencot.c
     fi
-    $BIN/auxcog-genops $TMPDIR/ctypstruct $TMPDIR/ctypfunc < $UNITNAME-externs_pp_inferred.c > $OUTPUTDIR/$UNITNAME-externs.c
+    $BIN/auxcog-bin genops $TMPDIR/ctypstruct $TMPDIR/ctypfunc < $UNITNAME-externs_pp_inferred.c > $OUTPUTDIR/$UNITNAME-externs.c
     for file in $(cat $GENCOTDIR/$UNITFILE)
     do
         fbase=$(basename $file)
         fnam=$(expr match $fbase '\(.*\)[.][^.]*' '|' $fbase)
         if [ $fnam != "additional_externs" ]
-        then $BIN/auxcog-genops $TMPDIR/ctypstruct $TMPDIR/ctypfunc < $fnam-entry_pp_inferred.c > $OUTPUTDIR/$fnam-entry.c
+        then $BIN/auxcog-bin genops $TMPDIR/ctypstruct $TMPDIR/ctypfunc < $fnam-entry_pp_inferred.c > $OUTPUTDIR/$fnam-entry.c
         fi
     done
     if [ -e $UNITNAME-manabstr_pp_inferred.c ]
     then
-        $BIN/auxcog-genops $TMPDIR/ctypstruct $TMPDIR/ctypfunc < $UNITNAME-manabstr_pp_inferred.c > $OUTPUTDIR/$UNITNAME-manabstr.c
+        $BIN/auxcog-bin genops $TMPDIR/ctypstruct $TMPDIR/ctypfunc < $UNITNAME-manabstr_pp_inferred.c > $OUTPUTDIR/$UNITNAME-manabstr.c
     fi
     KND=1
     PRC=''
@@ -158,7 +158,7 @@ then
             if [ $comp = "anti:" ]; then PRC=1; else PRC=''; fi
             KND=''
         else
-            if [ $PRC ]; then $BIN/auxcog-genops $TMPDIR/ctypstruct $TMPDIR/ctypfunc < std-${comp}_pp_inferred.c > $OUTPUTDIR/std-$comp.c; fi
+            if [ $PRC ]; then $BIN/auxcog-bin genops $TMPDIR/ctypstruct $TMPDIR/ctypfunc < std-${comp}_pp_inferred.c > $OUTPUTDIR/std-$comp.c; fi
             KND=1
         fi
     done

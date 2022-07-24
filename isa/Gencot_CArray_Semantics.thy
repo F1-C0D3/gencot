@@ -16,6 +16,8 @@ The actual reasoning support is defined for lists in theory \<open>Gencot_ArrayS
 
 subsection \<open>Basic Reasoning Support for all Array Types\<close>
 
+subsubsection \<open>Array Update\<close>
+
 text \<open>
 Support for accessing the representing list is provided by the part access functions \<open>arr\<close>
 and \<open>arr_update\<close>. The function \<open>arr\<close> is the same as the conversion function introduced
@@ -27,6 +29,8 @@ consts arr_update :: "('carr, 'el list) PartUpdate"
 
 ML \<open>structure arr_update_def = Named_Thms (val name = Binding.name "arr_update_def" val description = "")\<close>
 setup \<open> arr_update_def.setup \<close>
+
+subsubsection \<open>Wellsizedness\<close>
 
 text \<open>
 Support for restricting the array size is provided by a separate size function \<open>siz\<close>
@@ -69,6 +73,8 @@ lemma prsvwlsd_const[wlsd]: "wls x \<Longrightarrow> prsvp wls (\<lambda>_.x)"
 lemma prsvwlsd_id[wlsd]: "prsvp wls (\<lambda>a. a)"
   by(simp add: prsvp_def)
 end
+
+subsubsection \<open>Wellsizedness Preservation\<close>
 
 text \<open>
 The combination of \<open>prsvp\<close> and \<open>wlsdGen\<close> is abbreviated as \<open>prsvwlsdGen\<close>.
@@ -150,6 +156,8 @@ begin
 lemmas rules = prsvwlsd P.rules
 end
 
+subsubsection \<open>Wellsizedness for Nested Arrays\<close>
+
 text \<open>
 For nested arrays all elements of the outer array must satisfy wellsizedness
 for all inner arrays. For every actual outer array this can be expressed by
@@ -196,37 +204,18 @@ lemma prsvarrp_appl[lstp]:
 lemmas rules = arrpRule prsvarrp_comp prsvarrp_appl
 end
 
-subsection "Semantics for the Gencot Array Operations"
+subsubsection \<open>Locale with Basic Rules for all Array Types\<close>
 
-text \<open>
-For the Gencot array types additionally the semantics for all Gencot array operations
-is provided. It is specified in a locale which takes the conversion functions \<open>arr\<close> 
-and \<open>carr\<close>, the size function \<open>siz\<close>, the index bitlength, and \<open>arr_update\<close>
-as parameters. It provides the definitions from \<open>GencotArrDefs\<close>, and the semantics theorems. 
-It assumes the \<open>PartAccess\<close> properties for \<open>arr\<close> and \<open>arr_update\<close> and that \<open>arr_update\<close>
-can be represented by the conversion functions when the array is wellsized and the 
-list update function preserves the list length. Then \<open>arr_update\<close> also preserves 
-wellsizedness.
-\<close>
-
-locale GencotArr = 
+locale CArrayBase = 
   fixes arr :: "'carr \<Rightarrow> 'el list"
     and arr_update :: "('carr, 'el list) PartUpdate"
-    and carr :: "'el list \<Rightarrow> 'carr"
     and siz :: "'carr \<Rightarrow> nat" 
-    and idxtypespec :: "('m::len) word"
-  assumes carr_inverse: "\<And>x. arr (carr x) = x"
-      and arr_update: "wlsdGen arr siz c \<and> prsvlen u \<longrightarrow> 
-                       arr_update u c = (carr \<circ> u \<circ> arr) c"
-      and "PartAccess arr arr_update"
+  assumes "PartAccess arr arr_update"
       and prsvwlsd_arr_update[wlsd]: 
             "prsvlen u \<Longrightarrow> prsvp (wlsdGen arr siz) (arr_update u)"
 begin
-
-sublocale GencotArrDefs arr carr siz idxtypespec .
-
 sublocale PartAccess arr arr_update
-  using GencotArr_axioms GencotArr_def by blast
+  using CArrayBase_axioms CArrayBase_def by blast
 
 text \<open>
 Introduce shortcut sameUpd rules for the composition \<open>elm \<circ> arr\<close>, since the sameUpd rules
@@ -242,10 +231,11 @@ lemma elmarr_idsameUpdRule[simp]:
   apply(subst id_apply[where x="(elm i (arr a))",symmetric])
   by(subst elmarr_sameUpdRule,simp add: id_def)
 
+text \<open>
+Wellsizedness and wellszedness preservation for \<open>arr_update\<close>.
+\<close>
 adhoc_overloading 
       wlsd     "wlsdGen arr siz"
-  and arrp     "arrpGen arr"
-  and prsvwlsd "prsvwlsdGen arr siz"
   and prsvarrp "prsvarrpGen arr"
 
 sublocale Wlsd "wlsd" .
@@ -256,6 +246,42 @@ lemma prsvarrp_arr_update[lstp]:
  "prsvelmsp p u \<Longrightarrow> prsvarrp p (arr_update u)"
   by(simp add: prsvarrp_def prsvp_def arrp_def)
 sublocale Prsvarrp_arr_update: Prsvarrp arr "arr_update u" for u .
+
+end
+
+subsection "Semantics for the Gencot Array Operations"
+
+text \<open>
+For the Gencot array types additionally the semantics for all Gencot array operations
+is provided. It is specified in a locale which takes the conversion functions \<open>arr\<close> 
+and \<open>carr\<close>, the size function \<open>siz\<close>, the index bitlength, and \<open>arr_update\<close>
+as parameters. It provides the basic array support from \<open>CArrayBase\<close>, 
+the definitions from \<open>GencotArrDefs\<close>, and the semantics theorems. 
+It assumes the \<open>PartAccess\<close> properties for \<open>arr\<close> and \<open>arr_update\<close> and that \<open>arr_update\<close>
+can be represented by the conversion functions when the array is wellsized and the 
+list update function preserves the list length.
+\<close>
+
+locale GencotArr = 
+  fixes arr :: "'carr \<Rightarrow> 'el list"
+    and arr_update :: "('carr, 'el list) PartUpdate"
+    and carr :: "'el list \<Rightarrow> 'carr"
+    and siz :: "'carr \<Rightarrow> nat" 
+    and idxtypespec :: "('m::len) word"
+  assumes carr_inverse: "\<And>x. arr (carr x) = x"
+      and arr_update: "wlsdGen arr siz c \<and> prsvlen u \<longrightarrow> 
+                       arr_update u c = (carr \<circ> u \<circ> arr) c"
+      and part_access: "PartAccess arr arr_update"
+      and prsvwlsd_arr_update': 
+            "prsvlen u \<Longrightarrow> prsvp (wlsdGen arr siz) (arr_update u)"
+begin
+
+sublocale GencotArrDefs arr carr siz idxtypespec .
+
+sublocale CArrayBase arr arr_update siz
+  apply(insert part_access,simp add: PartAccess_def PartAccessBase_def PartUpdate_def PartAccessBase_axioms_def)
+  apply(unfold_locales, simp_all)
+  by(simp add: prsvwlsd_arr_update')
 
 text \<open>
 The Gencot array functions are defined using the explicit size.
@@ -445,10 +471,12 @@ lemmas defs = arr_update_def mkFxdArr_def
 
 adhoc_overloading 
       wlsd     "wlsdGen arr siz" 
+  and arrp     "arrpGen arr"
   and prsvwlsd "prsvwlsdGen arr siz"
-  (* wlsd and prsvwlsd must be overloaded because thy depend on the specific siz from FxdArrBase *)
-  (* arrp and prsvarrp must not be overloaded because they depend on the common arr and carr
-     and are overloaded in GencotArr *)
+  (* wlsd and prsvwlsd must be overloaded here because they depend on the specific siz from FxdArrBase *)
+  (* prsvarrp must not be overloaded because it depends on the common arr and carr
+     and is already overloaded in CArrayBase *)
+  (* arrp also depends on the common arr and carr, but is not overloaded in CArrayBase *)
 
 sublocale GencotArr arr arr_update carr siz idxtypespec
   apply(unfold_locales)
@@ -457,7 +485,7 @@ sublocale GencotArr arr arr_update carr siz idxtypespec
 
 text \<open>
 Wellsizedness implications are added to the simpset. The first rule reduces list length
-to the fixed size value, the second rule derives that the ist is not empty.
+to the fixed size value, the second rule derives that the list is not empty.
 \<close>
 lemma wlsd_implies_length[simp]: "wlsd a \<Longrightarrow> length (arr a) = fxdsiz"
   by(unfold wlsd_def,simp add: siz_def)

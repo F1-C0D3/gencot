@@ -96,6 +96,7 @@ else
 fi
 
 UNITFILE=$UNITNAME.unit
+NAMAPFILE=common.gencot-namap
 
 if [ "$REQARGS" = "0" ]
 then
@@ -112,6 +113,16 @@ if [ "$CMD" != "comments" ]
 then
     TMPDIR=$(mktemp -d)
 fi
+
+prepare_namap()
+{
+    if [ -e $GENCOTDIR/$NAMAPFILE ]
+    then
+        cp $GENCOTDIR/$NAMAPFILE $TMPDIR
+    else
+        touch $TMPDIR/$NAMAPFILE
+    fi
+}
 
 if [ "$CMD" != "comments" ]
 then
@@ -173,6 +184,7 @@ then
         echo "Wrong input file $fbase. Must have the form <proofname>_ShallowShared_Tuples.thy."
         exit 1
     fi
+    prepare_namap
     $BIN/auxcog-shalshared < $1 > $OUTPUTDIR/$fbase
     srcdir=$(dirname $1)
     sed -e "s/imports \"${prfnam}_ShallowShared_Tuples\"/imports \"${prfnam}_Shallow_Gencot_Semantics\"/ " \
@@ -182,7 +194,7 @@ then
     echo "theory ShallowShared_Tuples" > $OUTPUTDIR/ShallowShared_Tuples.thy
     echo "  imports \"${prfnam}_ShallowShared_Tuples\"" >> $OUTPUTDIR/ShallowShared_Tuples.thy
     echo "begin end" >> $OUTPUTDIR/ShallowShared_Tuples.thy
-    $BIN/auxcog-semgencot $TMPDIR/common.gencot-std < $1 > $OUTPUTDIR/${prfnam}_Shallow_Gencot_Semantics.thy
+    $BIN/auxcog-semgencot $TMPDIR/common.gencot-std $TMPDIR/$NAMAPFILE < $1 > $OUTPUTDIR/${prfnam}_Shallow_Gencot_Semantics.thy
     cp $GENCOT_HOME/isa/*_Tuples.thy $OUTPUTDIR
     cp $GENCOT_HOME/isa/*_Semantics.thy $OUTPUTDIR
     cp $GENCOT_HOME/isa/*Support.thy $OUTPUTDIR
@@ -202,6 +214,10 @@ then
       $srcdir/${prfnam}_Shallow_Desugar_Tuples.thy > $OUTPUTDIR/${prfnam}_Shallow_Desugar_Tuples.thy
     sed -e "s/imports \"${prfnam}_ShallowShared\"/imports \"${prfnam}_Shallow_Gencot\"/ " \
       $srcdir/${prfnam}_Shallow_Desugar.thy > $OUTPUTDIR/${prfnam}_Shallow_Desugar.thy
+    sed -e "s/imports \"${prfnam}_Shallow_Desugar_Tuples\"/imports \"${prfnam}_ShallowShared_Tuples\"/ " \
+      $srcdir/${prfnam}_ShallowConsts_Desugar_Tuples.thy > $OUTPUTDIR/${prfnam}_ShallowConsts_Desugar_Tuples.thy
+    sed -e "s/imports \"${prfnam}_Shallow_Desugar\"/imports \"${prfnam}_ShallowShared\"/ " \
+      $srcdir/${prfnam}_ShallowConsts_Desugar.thy > $OUTPUTDIR/${prfnam}_ShallowConsts_Desugar.thy
     echo "theory ShallowShared_Tuples" > $OUTPUTDIR/ShallowShared_Tuples.thy
     echo "  imports \"${prfnam}_ShallowShared_Tuples\"" >> $OUTPUTDIR/ShallowShared_Tuples.thy
     echo "begin end" >> $OUTPUTDIR/ShallowShared_Tuples.thy

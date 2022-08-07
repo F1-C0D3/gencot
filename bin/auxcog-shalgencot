@@ -66,15 +66,13 @@ END {
 # The generated theory has the following form:
 # - the name of the input theory must be X_ShallowShared with an optional suffix _Tuples, which
 #   is stored in the variable tup. Otherwise an error message is written to stderr.
-# - the name of the output theory is X_Shallow_Gencot with the tup-suffix appended.
-# - the output theory imports X_ShallowConsts_Desugar
+# - the name of the output theory is X_Shallow_Gencot[tup]
+# - the output theory imports X_ShallowConsts_Desugar[tup]
 #   and for every line 
 #     gencot: id
-#   in the argument file for which id is in gencot_theories the theory Gencot_id with the tup-suffix 
-#   appended, and for every line
+#   in the argument file for which id is in gencot_theories the theory Gencot_id[tup], and for every line
 #     common: id
-#   in the argument file for which id is in common_theories the theory CogentCommon_id with the tup-suffix 
-#   appended.
+#   in the argument file for which id is in common_theories the theory CogentCommon_id[tup].
 # - the output theory contains for every type synonym definition of the form
 #     type_synonym 'el CArr<size>\<^sub>T = 'el list CArr<size>
 #   in the input theory a section of the following form. The <size> my be either specified by a named 

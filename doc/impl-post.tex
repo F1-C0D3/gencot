@@ -356,11 +356,241 @@ not occur as a whole in the branches. As an example, the following transformatio
 \end{verbatim}
 It has not yet been considered, whether such transformations would be useful for cases occurring during translations of C programs.
 
-\subsection{Function Call Processing}
-\label{imp-post-funcall}
+\subsection{Function Processing}
+\label{imp-post-function}
+
+After the translation to Cogent, functions may have additional parameters or additional result components and parameters may have
+been rearranged. Additionally, the parameter and/or result types may be translated in different ways. Function definitions and
+function calls must be adapted to these possible modifications. The translation described in Section~\ref{impl-ccode-cstats} 
+translates all C functions exactly as they are structured in C, the adaptations are done by postprocessing.
+
+Postprocessing for functions is implemented by the function
+\begin{verbatim}
+  funproc :: GenExpr -> GenExpr
+\end{verbatim}
+defined in module \code{Gencot.Cogent.Functions}.
+
+Function postprocessing also applies to operators in C, which are translated to Cogent operators in some cases, and to predefined
+Cogent functions in others.
 
 \subsection{Take/Put Processing}
 \label{imp-post-takeput}
+
+For struct and array accesses in C (\code{s.m}, \code{s->m}, \code{a[i]}) the translation described in Section~\ref{impl-ccode-cstats} 
+creates pairs of take/put bindings of the form
+\begin{verbatim}
+  <v>{m=pk’} = vn’
+  ...
+  <v> = <v>{m=pk’}
+\end{verbatim}
+(for struct access) and
+\begin{verbatim}
+  (<v> @{@vl’=pk’},ik’) = (vn’,vl’)
+  ...
+  <v> = <v> @{@ik’=pk’}
+\end{verbatim}
+(for array access). Here, \code{<v>} is the variable used for the container (struct or array) and \code{pk'} is the component variable 
+used to bind the component (member or element). If the container has been specified by an expression in C, \code{<v>} is the wildcard \code{\_}
+and the put binding is omitted.
+
+Postprocessing for \code{take} and \code{put} bindings is implemented by the function
+\begin{verbatim}
+  tpproc :: GenExpr -> GenExpr
+\end{verbatim}
+defined in module \code{Gencot.Cogent.Takeput}.
+
+The take/put pairs are postprocessed in two major steps. In the first step single take or put bindings are eliminated, because the component
+has nonlinear type. In the second step, some of the remaining take/put pairs are converted to applications of the \code{modify} operation
+(see section~\ref{design-operations-modify}). The steps are implemented by the functions
+\begin{verbatim}
+  tpelimproc :: GenExpr -> GenExpr
+  tpmodifproc :: GenExpr -> GenExpr
+\end{verbatim}
+defined in module \code{Gencot.Cogent.Takeput}.
+
+\subsubsection{Banging \code{take} Bindings}
+
+A component of nonlinear type can freely by copied from a container without the need for a \code{take} operation. The same holds, if the 
+component has linear type, but is only used in readonly form. Then the container can be ``banged'' before the component access and a readonly
+access can be used instead of a \code{take} operation.
+
+As a preparation step all \code{take} bindings are banged for which that is possible, i.e. the container is banged in the binding by appending
+\code{!vn'} to it:
+\begin{verbatim}
+  <v>{m=pk’} = vn’
+  ->
+  <v>{m=pk’} = vn’ !vn'
+
+  (<v> @{@vl’=pk’},ik’) = (vn’,vl’)
+  ->
+  (<v> @{@vl’=pk’},ik’) = (vn’,vl’) !vn'
+\end{verbatim}
+
+Whether a \code{take} binding can be banged depends on the taken component \code{pk'}. If it has a declared nonlinear type (according to the C 
+type and the item properties), the \code{take} binding can always be banged. Otherwise, if it has a linear type, it depends on how the 
+component \code{pk'} is used, i.e. the free occurrences of the \code{pk'} bound in the \code{take} binding. First, it must be used in 
+the corresponding \code{put} binding, i.e., it must not be rebound before. This means the component is not modified in the container, 
+which would prevent making the container readonly. Second, all other free occurrencies of \code{pk'} must be in a bang specification, 
+possibly as a container in a banged \code{take} binding. To evaluate that, all following \code{take} bindings must be processed 
+recursively before. 
+
+The only possible other uses of \code{pk'} are:
+\begin{itemize}
+\item Actual parameter of an invoked function. If the formal parameter has a readonly type, \code{pk'} must be banged before (see 
+Section~\ref{imp-post-function}, otherwise it is used unbanged.
+\item Assignment to a variable or container component, or return value of the surrounding function. That must be unbanged, 
+otherwise it would escape the banged context.
+\item Dereferencing it using \code{*} or \code{->} in C. This is translated like a component access to a take/put pair and is
+handled by the recursive processing of the \code{take} bindings.
+\item Comparison with another pointer in C. There it will always be banged by the comparison postprocessing described in 
+Section~\ref{imp-post-function}.
+\end{itemize}
+Together, it is sufficient to check whether all free occurrencies of \code{pk'} have been explicitly banged by previous 
+postprocessings or the recursive \code{take} processing.
+
+The component variable \code{pk'} may also be used indirectly, by binding it to another variable. In that case the free 
+occurrencies of that variable must be checked in the same way. Usually, however, such ``chain bindings'' should have been 
+removed by the simplification of \code{let} expressions in~\ref{imp-post-let}.
+
+The banging of \code{take} bindings is implemented by the function
+\begin{verbatim}
+  tpbangproc :: GenExpr -> GenExpr
+\end{verbatim}
+defined in module \code{Gencot.Cogent.Takeput}.
+
+If a \code{take} binding is banged, the explicit bangings of the \code{pk'} are redundant. However, they are only removed after
+\code{tpelimproc} because they allow to check locally whether the container in a \code{take} binding is readonly.
+
+\subsubsection{Eliminating \code{put} Bindings}
+
+A \code{put} binding can be completely removed, if the put value \code{pk'} has only been bound in the corresponding \code{take}
+binding. In this case the taken component is put back unmodified, which is redundant. 
+
+If the \code{take} binding has been banged, the component and the container are readonly and the container's type will not be 
+changed by accessing the component. Moreover, the put would be illegal in Cogent, since it is applied to a readonly container,
+so in this case the \code{put} binding must be removed.
+
+If the \code{take} binding has not been banged, the \code{take} binding changes the type of the container to that where the component
+has been taken. The \code{put} binding is usually required to change the type back to the untaken form. However, if it was not possible
+to bang the \code{take} binding, there must be another use of component \code{pk'} in linear form. Therefore the \code{put} would
+be illegal in Cogent because the linear component is used twice. Therefore in this case the \code{put} binding is removed as well.
+
+It may be that there is another take/put pair for the same component later, where the taken component is not used at all, so that 
+the \code{take} binding is eliminated as described below. Then the remaining \code{put} binding changes the type back. Note, that
+all cases in C where a pointer component in a container is accessed once and then overwritten by an assignment before it is 
+accessed again is translated to a corresponding sequence of take/put pairs. The postprocessing turns it into valid Cogent code
+which respects the linear use of the pointers.
+
+Since the elimination of \code{put} bindings depends on insecting the corresponding \code{take} binding, it must be done before 
+eliminating \code{take} bindings.
+
+\subsubsection{Eliminating \code{take} Bindings}
+
+A \code{take} binding can be replaced by a normal binding, if the taken component is not linear. After executing \code{tpbangproc}
+this can be detected by checking whether the \code{take} binding is banged. If that is the case, it can be replaced by a binding
+which binds the container and the component separately. A banged \code{take} binding is replaced according to
+\begin{verbatim}
+  <v>{m=pk’} = vn’ !vn'
+  ->
+  (<v>,pk') = (vn',vn'.m) !vn'
+
+  (<v> @{@vl’=pk’},ik’) = (vn’,vl’) !vn'
+  ->
+  (<v>,pk',ik') = (vn',getArr(vn',vl'),vl') !vn'
+\end{verbatim}
+In case of a struct the Cogent member access \code{vn'.m} is used, in case of an array the Gencot array operation \code{getArr(vn',vl')}
+is used.
+
+Note, that banging and elimination also works for \code{take} bindings where \code{<v>} is the wildcard \code{\_}. In this case the 
+\code{vn'} is simply discarded which is no problem, since it has been banged. The unnecessary wildcard binding will be removed by
+\code{let} simplification. Only if a wildcard \code{take} binding cannot be banged and thus not eliminated, it may result in illegal
+Cogent code, because the remaining container may still be linear after taking \code{pk'}, but it is discarded.
+
+After eliminating all \code{take} bindings where possible, the redundant bangings are removed: Whenever a binding is banged, 
+the bangings of all free occurrences of the bound variables (and possible chain bindings) are removed. 
+
+\subsubsection{Repeated Access of the Same Component}
+
+If a \code{take} binding is followed by another \code{take} binding for the same container and the same component before the 
+corresponding \code{put} binding, this may cause illegal code in Cogent, because a component is taken twice. If one or both 
+\code{take} bindings can be eliminated as described above, there is no problem because the component is accessed in a readonly 
+way which can be done arbitrarily often.
+
+If both \code{take} bindings cannot be eliminated this means that the linear component is used in linear form in both cases
+which results in an illegal double use in Cogent. Nevertheless the case is still postprocessed as follows.
+
+Since every \code{take} binding uses a new component variable \code{pk'} the double uses are related to two different variables 
+\code{pi'} and \code{pj'}. To make the double use more apparent and reduce the
+number of \code{take} bindings, the second \code{take} is replaced by a rebinding of \code{pj'} to the value of \code{pi'}. Since 
+the \code{pi'} may have been rebound between the first and the second \code{take} binding, this rebinding is inserted immediately
+after the first \code{take}. Together, a sequence of two repeated \code{take} bindings which cannot be eliminated is processed 
+according to
+\begin{verbatim}
+  <v>{m=pi’} = vn’
+  ...
+  <v>{m=pj'} = <v>
+  ->
+  <v>{m=pi’} = vn’
+  pj' = pi'
+  ...
+\end{verbatim}
+for a struct. Note that for a struct it is easy to detect that two \code{take} bindings access the same component, because the coponent
+names must be the same. 
+
+In case of an array the components are the same, if the same index value is used for access, this cannot be 
+statically decided in general. The postprocessing uses a heuristics to test whether two index expressions evaluate to the same
+value. First, \code{evalproc} is applied to both so that constant subexpressions are evaluated. Then, simple integer operator
+expressions are matched, so that, e.g., the expressions \code{i+5} and \code{i+5} are detected as having the same value, 
+if \code{i} is not rebound in between. That should cover simple typical cases of indexing the same elements in C.
+
+Then the transformation for arrays is
+\begin{verbatim}
+  (<v> @{@vl’=pi’},ii’) = (vn’,vl’)
+  ...
+  (<v> @{@vm’=pj’},ij’) = (<v>,vm’)
+  ->
+  (<v> @{@vl’=pi’},ii’) = (vn’,vl’)
+  (pj',ij') = (pi',ii')
+  ...
+\end{verbatim}
+if the index expressions \code{vl'} and \code{vm'} can be shown to evaluate to the same value.
+
+If a \code{put} binding is followed by a \code{take} binding for the same container and the same component, and both bindings cannot
+be eliminated, they can be replaced by a single binding of the component variable used in the \code{take} binding to the value 
+put in the \code{put} binding. Neither the container nor its type is modified by putting a value into a component of linear type and then
+taking the component out again. The corresponding transformation is
+\begin{verbatim}
+  <v> = <v>{m=pi’}
+  ...
+  <v>{m=pj'} = <v>
+  ->
+  pj' = pi'
+  ...
+\end{verbatim}
+for structs and
+\begin{verbatim}
+  <v> = <v> @{@ii’=pi’}
+  ...
+  (<v> @{@vm’=pj’},ij’) = (<v>,vm’)
+  ->
+  pj' = pi'
+  ...
+\end{verbatim}
+if the index expressions \code{ii'} and \code{vm'} can be shown to evaluate to the same value.
+
+Note that the original translation in Section~\ref{impl-ccode-cstats} never creates a \code{take} binding after a \code{put} binding, 
+but postprocessing of Cogent expressions resulting from a sequence of C statements may result in such a sequence. The processing
+described above results in a pattern which is similar to a ``\code{do-with}'' construct where a component is selected once and then
+processed several times.
+
+Both transformations for repeated access of the same component are applied in \code{tpelimproc} after eliminating single \code{take}
+and \code{put} bindings.
+
+\subsubsection{Converting take/put Pairs to \code{modify} Expressions}
+
+\subsection{Introducing \code{getref}/\code{modref}}
+\label{imp-post-ref}
+
 
 \subsection{Combining the Steps}
 \label{imp-post-combine}
@@ -386,3 +616,6 @@ into operator subexpressions.
 
 The \code{opproc} step recurses into arbitrary subexpressions. It processes cases which are typically created by \code{ifproc}.
 Therefore it is executed after every toplevel execution of \code{ifproc}.
+
+The \code{tpproc} step depends on the explicit banging of variables of linear type which are used in a readonly way. That is done 
+in the \code{funproc} step, therefore \code{tpproc} must be executed after \code{funproc}.

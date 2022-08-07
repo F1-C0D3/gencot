@@ -235,11 +235,21 @@ For example the C assignment expression
 is translated according to this rule to the Cogent binding
 \begin{verbatim}
   (v,s) = let v = 5
-    in (v,fst(modrefFld_a(s,(modifyArr,(i,exchngFld_x,v)))))
+    in (v,fst(modifyFld_a(s,(modifyArr,(i,setFld_x,v)))))
 \end{verbatim}
-where \code{modrefFld\_a} and \code{exchngFld\_x} are abstract modification functions for the fields \code{a} and \code{x},
-respectively, as described in Section~\ref{design-operations-record}. \code{exchngFld\_x} is used instead of \code{setFld\_x}
-because \code{modifyArr} expects a modification function where the additional input and result have the same type.
+where \code{modifyFld\_a} and \code{setFld\_x} are abstract modification functions for the fields \code{a} and \code{x},
+respectively, as described in Section~\ref{design-operations-record}. 
+
+This translation is correct, but it is inefficient because \code{modifyFld\_a} will copy the whole array \code{a} only to access
+one element of it by applying \code{modifyArr} to the unboxed array. Using \code{modref} (see Section~\ref{design-operations-modify}) 
+this can be improved to
+\begin{verbatim}
+  (v,s) = let v = 5
+    in (v,fst(modrefFld_a(s,(modifyArr,(i,setFld_x,v)))))
+\end{verbatim}
+here \code{modrefFld\_a} retrieves only the pointer to \code{a} and applies \code{modifyArr} to the boxed array. If the array element
+would be a larger data structure it could be further improved by using \code{modrefArr} instead of \code{modifyArr}, here it does
+not pay because the array element is already a single pointer.
 
 No other cases for \code{lhs} are valid in a C assignment.
 
@@ -259,7 +269,8 @@ For example, a corresponding translation of \code{*(s->m1->m2) = 5} is
     and (v,m2) = let v = 5 in (v,setPtr(m2,v))
     in (v,s{m1=m1{m2=m2}})
 \end{verbatim}
-This approach avoids the need to manually define and implement the functions \code{modifyFld\_mi}.
+This approach avoids the need to manually define and implement the functions \code{modifyFld\_mi}, however it prevents the improvement
+described above by using \code{modref}.
 
 An application of an increment/decrement postfix operator \code{ss} where \code{s} is \code{+} or \code{-} has the form
 \code{lhs ss}. If \code{lhs} is a single identifier \code{v1} this identifier must have a numerical type and the expression 
@@ -284,6 +295,8 @@ for the assignment. Here \code{v1} is needed twice, first for retrieving the old
 numerical value \code{v} and afterwards to set it to the incremented/decremented value. Since \code{v1} is linear the old
 value must be retrieved in a readonly context and the modification must be done seperately. The double use of \code{v}
 is always possible since it has numeraical type.
+
+Again, this translation may be improved by using \code{modref} instead of \code{modify} where appropriate.
 
 If \code{lhs} logically starts with a chain of member accesses \code{v1->m1->...->mn...} an alternative translation using the Cogent
 take and put operations is the binding
@@ -319,9 +332,9 @@ If some of the arguments are member access chains of the form \code{vi->mi1->...
 Cogent take and put operations as above to a binding of the form
 \begin{verbatim}
   (v,v1,...,vn) = 
-  let v1{m11=...{m1k1}...}
+  let v1{m11=...{m1k1}...} = v1
   and ... 
-  and vn{mn1=...{mnkn}...}
+  and vn{mn1=...{mnkn}...} = vn
   and (v,m1k1,...,mnkn)=f(...)
   in (v,v1{m11=...{m1k1=m1k1}...},
        ...
@@ -333,8 +346,8 @@ For example, the function call \code{f(5,s->m,t->n,z)} where \code{f} modifies i
 to the binding
 \begin{verbatim}
   (v,s,t) = 
-  let s{m}
-  and t{n}
+  let s{m} = s
+  and t{n} = t
   and (v,m,n)=f(5,m,n,z)
   in (v,s{m=m},t{n=n})
 \end{verbatim}
@@ -361,7 +374,7 @@ For example, the function call \code{f(5,s->a[i]->x,z)} can be translated by fir
 for the function call is
 \begin{verbatim}
   (v,s) = let (s,v) = 
-    modrefFld_a(s,(modifyArr,(i,modifyFld_x,(f,(5,z)))))
+    modifyFld_a(s,(modifyArr,(i,modifyFld_x,(f,(5,z)))))
     in (v,s)
 \end{verbatim}
 If index \code{i} is invalid, according to the definition of \code{modifyArr} the function call \code{f(5,s->a[0]->x,z)} 

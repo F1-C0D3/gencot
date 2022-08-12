@@ -107,7 +107,7 @@ the processing is always implemented to work for arbitrary patterns.
 
 If the pattern occurs as a whole in \code{expr2} it can be
 substituted by \code{expr1} as described above. If only parts of the pattern occur (such as a single variable) it depends
-on the structure of \code{expr2} whether such a part can be substituted. Gencot tries to substitute as much parts as possible 
+on the structure of \code{expr1} whether such a part can be substituted. Gencot tries to substitute as much parts as possible 
 and only retains those parts of the pattern for which a substitution is not possible.
 
 If the substitution is successful the \code{let} expression is replaced by \code{expr2} which may again be a \code{let}
@@ -221,6 +221,24 @@ The substitution and binding simplification is implemented in two phases. In the
 searched in \code{expr2}, resulting in the part to be retained and for every matching part the number of successful matches
 The matching parts are actually substituted in \code{expr2} in the second phase. If the retained part is not empty it is 
 prefixed to the result.
+
+\subsubsection{Banged Variables}
+
+A binding may have ``banged'' variables, i.e., be of the form
+\begin{verbatim}
+  p = expr1 !v1 ... !vn
+\end{verbatim}
+which makes the variables \code{v1,...,vn} readonly in \code{expr1}. Banged variables are introduced by readonly processing 
+(see~\ref{imp-post-readonly}). Simplification of \code{let}-expressions may be executed after readonly processing, therefore it
+must deal with banged variables.
+
+In Cogent banged variables can only appear at specific places in the code: in a \code{let} binding, in a \code{match}-expression, 
+and in the condition of an \code{if}-expression. Therefore it is in general not possible to substitute (a part of) the pattern \code{p}
+at arbitrary occurrences in \code{expr2} by \code{expr1} together with the banged variables. Gencot never tries, it retains those
+parts of the binding in which the banged variables occur free in \code{expr1}.
+
+The same mechanism for splitting a binding used to prevent drawing variables under a binding is used for banged variables. Whenever
+a binding is split, the banged variables are added to the set of variables not to occur free.
 
 \subsubsection{Growth Restriction}
 
@@ -372,6 +390,9 @@ defined in module \code{Gencot.Cogent.Functions}.
 
 Function postprocessing also applies to operators in C, which are translated to Cogent operators in some cases, and to predefined
 Cogent functions in others.
+
+\subsection{Readonly Processing}
+\label{imp-post-readonly}
 
 \subsection{Take/Put Processing}
 \label{imp-post-takeput}

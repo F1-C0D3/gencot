@@ -2,7 +2,9 @@ theory CogentCommon_common_Tuples
   imports "ShallowShared_Tuples"
 begin
 
-text \<open>Iteration Functions\<close>
+section \<open>Iteration Functions\<close>
+
+subsection \<open>32 Bit Functions\<close>
 
 text \<open>Auxiliary functions:
       seq32_cnt is used to calculate the number of intended iterations from start, end and step values. 
@@ -19,7 +21,7 @@ definition seq32_cnt :: "32 word \<Rightarrow> 32 word \<Rightarrow> 32 word \<R
 definition seq32_term :: "32 word \<Rightarrow> 32 word \<Rightarrow> bool" where 
   "seq32_term to step \<equiv> (step > 0) \<and> ((unat to) + (unat step) \<le> 2 ^ LENGTH(32))"
 
-text \<open>seq32_simple\<close>
+subsubsection \<open>seq32_simple\<close>
 
 text \<open>As basic implementation we use a recursive function which counts from 0 in steps of 1.\<close>
 fun seq32_simple_imp :: "nat \<Rightarrow> ('acc \<Rightarrow> 'acc) \<Rightarrow> 'acc \<Rightarrow> 'acc" where
@@ -32,7 +34,7 @@ axiomatization where seq32_simple_def:
      seq32_simple \<lparr>Seq32SimpleParam.frm\<^sub>f=frm, to\<^sub>f=to, step\<^sub>f=step, f\<^sub>f=f, acc\<^sub>f=acc\<rparr> \<equiv> 
        seq32_simple_imp (seq32_cnt frm to step) f acc"
 
-text \<open>seq32\<close>
+subsubsection \<open>seq32\<close>
 
 text \<open>As basic implementation we use a recursive function which counts from 0 in steps of 1.
       It takes the start, step, and obsv values as additional arguments for providing the arguments of the body function.\<close>
@@ -50,15 +52,17 @@ axiomatization where seq32_def:
      seq32 \<lparr>Seq32Param.frm\<^sub>f=frm, to\<^sub>f=to, step\<^sub>f=step, f\<^sub>f=f, acc\<^sub>f=acc, obsv\<^sub>f=obsv\<rparr> \<equiv> 
        seq32_imp (seq32_cnt frm to step) f acc frm step obsv"
 
-text \<open>seq64\<close>
+subsection \<open>64 Bit Functions\<close>
 
-text \<open>Analogous to seq32.\<close>
+text \<open>Analogous to 32 bit functions.\<close>
 
 definition seq64_cnt :: "64 word \<Rightarrow> 64 word \<Rightarrow> 64 word \<Rightarrow> nat" where
   "seq64_cnt frm to step \<equiv> ((unat to)-(unat frm)+(unat step)-1) div (unat step)"
 
 definition seq64_term :: "64 word \<Rightarrow> 64 word \<Rightarrow> bool" where 
   "seq64_term to step \<equiv> (step > 0) \<and> ((unat to) + (unat step) \<le> 2 ^ LENGTH(64))"
+
+subsubsection \<open>seq64\<close>
 
 fun seq64_imp :: "nat \<Rightarrow> ('acc, 'obsv, 'rbrk) Seq64_body \<Rightarrow> 'acc \<Rightarrow> 64 word \<Rightarrow> 64 word \<Rightarrow> 'obsv \<Rightarrow> ('acc, 'rbrk) LRR\<^sub>T" where
     "seq64_imp 0 f acc frm step obsv = (acc, Iterate())" |

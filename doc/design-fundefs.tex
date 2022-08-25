@@ -26,6 +26,13 @@ Section~\ref{design-names} the C parameter names are only mapped if they are upp
 translated to Cogent unmodified. Since it is very unusual
 to use uppercase parameter names in C, the Cogent function will normally use the original C parameter names.
 
+If the item property Global-State (see Section~\ref{design-types-itemprops}) has been used to introduce additional 
+function parameters, the corresponding parameter names are added to the tuple after the last C parameter name.
+If the item property Heap-Use has been set for the function, an additional parameter named \code{heap} or 
+\code{globheap<n>} (see~\ref{design-types-itemprops}) is added to the tuple after possible Global-State parameters.
+If the Modification-Function property has been declared for a parameter the tuple is rearranged into a pair 
+where the second part is a tuple as described in Section~\ref{design-types-function}.
+
 If the function is variadic an additional last tuple component is added with a variable named
 \code{variadicCogentParameters}, mainly to inform the developer that manual action is required.
 

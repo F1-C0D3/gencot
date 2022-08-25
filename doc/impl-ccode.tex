@@ -1234,6 +1234,44 @@ The putback lists of all subexpressions are separately concatenated to yield the
 The concatenation is done in the opposite order of the concatenation of the main lists, so that components which are taken
 first are put back last.
 
+\subsubsection{Expressions for Values with Pointers}
+
+In C even an expression which is not an ``lvalue expression'' can cause side effects, if the expression evaluates to a 
+value which is a pointer or contains a pointer and occurs in a context where it is possible to use the pointer to access 
+and modify the referenced data. In the translation the possible side effect must be respected by binding a variable to the 
+value with the pointer referencing the modified data. In general it is not clear which variable to use here.
+
+In C a value containing a pointer is either the pointer itself, or it is a container with a component containing a pointer,
+i.e., a struct with a member containing a pointer, or an array where the elements contain a pointer. In C an expression
+for a pointer or container is either an identifier, a component accessed in another container, an application of the derefence
+operator \code{*}, or a function invocation which 
+returns the pointer or container as its result. A container can also be designated by a compound literal. A pointer can also
+be designated by an application of the \code{\&} operator, or by ``pointer arithmetics'', i.e., by arithmetic operations 
+involving pointers.
+
+If a pointer or container is used in a context, the subexpression for the pointer or container is translated by Gencot as 
+described above, resulting in a main binding list which ends in a binding of the pointer or container to a value
+variable \code{v<n>'}. The use in the context results in another binding which uses \code{v<n>'}.
+This binding must be extended by a side effect target for the pointer or container after possible modification. 
+
+If the pointer or container is specified in C by an identifier, the identifier is mapped to a Cogent variable 
+which is bound to \code{v<n>'}. This mapped identifier is then used as side effect target. If there is no sharing, all 
+subsequent uses of the pointer or container must be through the same identifier, therefore the modifications will be
+respected by the re-binding.
+
+If the pointer or container is specified in C by access to a component of another container, the value variable 
+\code{v<n>'} is bound to the corresponding component variable, as described in the following subsection about 
+accessing struct members and array elements. This component variable is used as side effect target to bind the pointer
+or container value after modification. Since the component variable is also used in the putback operation, the surrounding
+container will be affected by the modification. As described below, if the pointer or container is specified by dereferencing
+another pointer, Gencot treats this in the same way as for a component access, using a component variable.
+
+If the pointer or container is specified in C by any other expression, it can only be accessed afterwards if it is shared 
+by another C object. Usually, Gencot cannot automatically translate such cases to valid Cogent code. Therefore Gencot 
+does not bind the pointer or container after modification to a variable, it uses the wildcard \code{\_} instead. This
+means the pointer or container is ``discarded'' in Cogent. Depending on the further processing in following translation 
+stages this may cause a corresponding error message by the Cogent compiler.
+
 \subsubsection{Accessing Struct Members and Array Elements}
 
 The most general way of accessing struct members and array elements in Cogent is the \code{take} operation. It separates
@@ -1246,12 +1284,16 @@ expression which returns the reassembled container. Gencot binds it to the same 
 to bind the remaining container in the \code{take} operation. The resulting binding is added to the putback list.
 Its pattern always consists of the single variable bound to the \code{put} expression.
 
-The variable for the container and the variable to which the component has been
-bound by the \code{take} operation are used by the \code{put} operation for the reassembling. Therefore both variables cannot
-be value variables since they may be used more than once. Gencot uses variable names of the form \code{p<n>'} for this 
-purpose, called component variables. They are distinct from all value variables and due to the prime character from all 
-mapped C identifiers. The \code{<n>} is a natural number increased for each \code{take} operation so that the variables 
-for all taken components are distinct.
+The variable to which the component is bound by the \code{take} operation is used by the \code{put} operation for the 
+reassembling. Therefore it cannot be a value variable since it may be used more than once. Gencot uses variable names 
+of the form \code{p<n>'} for this purpose, called component variables. They are distinct from all value variables and, 
+due to the prime character, from all mapped C identifiers. The \code{<n>} is a natural number increased for each \code{take}
+operation so that the variables for all taken components are distinct.
+
+The variable to which the remaining container is bound in the \code{take} operation is determined as described for values 
+with pointers. Cases where there are no pointers in the container or where no modifications can occur are handled in later
+translation stages. If the wildcard \code{\_} is determined instead of a variable, the corresponding \code{put} operation
+binding is omitted, otherwise it is prepended to the putback list.
 
 If the container is an array, the \code{put} operation needs to use the element index. In the \code{take} operation it is
 available as a value variable which can be reused before the \code{put} operation. Therefore the index is bound to an 
@@ -1259,30 +1301,8 @@ additional variable of the form \code{i<n>'} where \code{<n>} is the same number
 variables are called index variables.
 
 Between the \code{take} and \code{put} bindings for a component variable it may be rebound. This way it is possible to translate
-side effects modifying the component and thus its container. In such a rebinding the component variable is placed in the 
-tuple pattern immediately after the value variable, before all side effect targets, if present.
-
-In C the container is always specified by a subexpression of the component access expression. This subexpression is translated 
-by Gencot as described above, resulting in a main binding list which ends in a binding of the container to a value
-variable \code{v<n>'}. When translating the access expression, this list is modified by replacing the last binding by 
-a \code{take} operation binding followed by a binding of the new component variable
-to the (reused) value variable \code{v<n>'}. The corresponding \code{put} operation binding is prepended to the putback list. The 
-\code{take} operation is constructed according to the expression which has been bound to \code{v<n>'} by the subexpression, 
-there are three possible cases.
-
-In the first case the container is specified in C by an identifier. Then the identifier is mapped to a Cogent variable 
-which is bound to \code{v<n>'}. This mapped identifier is used to bind the remaining container value in the \code{take} operation and, in 
-the putback list, to bind the reassembled container (where it is a side effect target). 
-
-In the second case the container is specified by a subexpression for a component of another, larger container. Then
-the value variable \code{v<n>'} is bound to the corresponding component variable. This component variable is used to bind the remaining 
-container value in the \code{take} operation and, in the putback list, to bind the reassembled container.
-
-In the third case the container is specified by any other C expression which is a subexpression of the translated expression, 
-hence the expression bound to \code{v<n>'} is neither a mapped C identifier nor a component variable. In C the container can 
-only be accessed afterwards if it is shared by another C object which will lead to invalid Cogent code. Therefore Gencot does
-not bind the remaining container to a variable (uses \code{\_} instead) and does not add a corresponding \code{put} operation
-binding to the putback list, the container is ``discarded''.
+side effects modifying the component and thus its container. In such a rebinding the component variable occurs as a normal side
+effect target.
 
 It may happen that an expression accesses several components of the same container or even the same component several times.
 Gencot translates every access using a new \code{take} operation and a new component variable. Usually this will lead to 
@@ -1352,8 +1372,34 @@ to the concatenated main lists of all argument subexpressions. If the function i
 bound to a value variable and that variable is used to specify the function on the rhs.
 
 Depending on its type and on item properties for the function and its arguments, the function may take additional arguments and
-it may return a tuple with additional results. Also, the function may be variadic or incomplete. All these issues are not taken into
-account here, they are handled in later translation stages.
+it may return a tuple with additional results. Also, the function may be variadic or incomplete. The following item properties
+must be directly processed here, since they cause the introduction of additional function arguments or result components or 
+their rearrangements: Heap-Use, Add-Result, Global-State, and Modification-Function. The other item properties only affect 
+the translation of types and can be handled in later translation stages.
+
+The item properties Heap-Use and Global-State introduce additional function argument, for them actual values must be determined
+to pass to the function invocation. In both cases the additional arguments must also be present for the surrounding function
+definition for which the body contains the invocation. The corresponding variable names are used as actual arguments for the
+invocation. In the case of Heap-Use it is a fixed name as described in Section~\ref{design-types-itemprops}, in the case of
+Global-State it is the name of the corresponding virtual parameter.
+
+The item properties Add-Result, Heap-Use, and Global-State introduce additional result components. In that case the binding has 
+the form
+\begin{verbatim}
+  (v<n>',v1..) = f(v<n1>',..,v<nm>')
+\end{verbatim}
+with a tuple pattern. The variables \code{v1..} correspond to the properties Add-Result, Global-State, and Heap-Use in that order.
+The variable for a component added by an Add-Result property is determined as described for expressions for values with pointers,
+i.e., it is either a mapped C variable name, or a component variable, or the wildcard \code{\_}. The variable for a component
+added by a Global-State or Heap-Use property is the same which is used as actual argument for the corresponding parameter, i.e.,
+it is the name of the corresponding parameter of the surrounding function.
+
+The item property Modification-Function only rearranges the function parameters and result components. In that case the binding
+pattern is rearranged accordingly and the binding becomes
+\begin{verbatim}
+  (vi,(v<n>',v1..)) = f(v<ni>',(v<n1>',..,v<nm>'))
+\end{verbatim}
+where \code{i} is the position of the parameter with the Modification-Function property.
 
 \subsubsection{Translating lvalue Expressions}
 

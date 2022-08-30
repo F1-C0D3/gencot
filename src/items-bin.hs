@@ -47,7 +47,7 @@ itemsExterns args = do
     {- Determine type names used directly in the Cogent compilation unit -}
     let unitTypeNames = getTypedefNames useditems
     {- determine default properties for all used items in globals -}
-    ipm <- runFTrav table ("",[],empty,(True,unitTypeNames)) $ transGlobals usedExtToplvl
+    ipm <- runFTrav table ("",[],empty,(True,unitTypeNames),"") $ transGlobals usedExtToplvl
     {- Output -}
     putStrLn $ showProperties ipm
 
@@ -69,7 +69,7 @@ itemsExtfuns args = do
     {- Determine type names used directly in the Cogent compilation unit -}
     let unitTypeNames = getTypedefNames useditems
     {- determine item ids of used external functions -}
-    iids <- runFTrav table ("",[],empty,(True,unitTypeNames)) $ functionsInGlobals $ getDeclEvents (globalDefs table) (usedFilter useditems)
+    iids <- runFTrav table ("",[],empty,(True,unitTypeNames),"") $ functionsInGlobals $ getDeclEvents (globalDefs table) (usedFilter useditems)
     {- Output -}
     putStrLn $ unlines iids
 
@@ -86,7 +86,7 @@ itemsGen args = do
     {- get input file name -}
     let fnam = head args
     {- determine default properties for all items in globals -}
-    ipm <- runFTrav table (fnam,[],empty,(False,[])) $ transGlobals $ getOwnDeclEvents (globalDefs table) defFilter
+    ipm <- runFTrav table (fnam,[],empty,(False,[]),"") $ transGlobals $ getOwnDeclEvents (globalDefs table) defFilter
     {- Output -}
     putStrLn $ showProperties ipm
 

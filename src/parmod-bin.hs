@@ -20,7 +20,6 @@ import Gencot.Items.Properties (showProperties)
 import Gencot.Json.Parmod (readParmodsFromFile,readParmodsFromInput)
 import Gencot.Json.Translate (transGlobals)
 import Gencot.Json.Process (showRemainingPars,getRequired,filterParmods,prefilterParmods,addParsFromInvokes,evaluateParmods,getFunName,mergeParmods,sortParmods,convertParmods)
-import Gencot.Traversal (runWithTable)
 
 main :: IO ()
 main = do

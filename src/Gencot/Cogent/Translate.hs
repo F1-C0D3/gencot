@@ -29,7 +29,7 @@ import Gencot.Cogent.Bindings (BindsPair,leadVar,lvalVar,mkBodyExpr,mkPlainExpr,
 import Gencot.Cogent.Postproc (postproc)
 import qualified Gencot.C.Ast as LQ (Stm(Exp,Block),Exp)
 import qualified Gencot.C.Translate as C (transStat,transExpr,transArrSizeExpr,transBlockItem)
-import Gencot.Traversal (FTrav,markTagAsNested,isMarkedAsNested,hasProperty,stopResolvTypeName,setFunDef,clrFunDef,getValCounter,getCmpCounter,resetVarCounters,resetValCounter)
+import Gencot.Traversal (FTrav,markTagAsNested,isMarkedAsNested,hasProperty,stopResolvTypeName,setFunDef,clrFunDef,getValCounter,getCmpCounter,resetVarCounters,resetValCounter,getTConf)
 import Gencot.Util.Types (carriedTypes,isExtern,isCompOrFunc,isCompPointer,isNamedFunPointer,isFunPointer,isPointer,isAggregate,isFunction,isTypeDefRef,isComplete,isArray,isVoid,isTagRef,containsTypedefs,resolveTypedef,isComposite,isLinearType,isLinearParType,isReadOnlyType,isReadOnlyParType,isDerivedType,isExternTypeDef,wrapFunAsPointer,getTagDef)
 import Gencot.Util.Expr (checkForTrans,getFreeInCExpr,getFreeInCStat)
 
@@ -770,13 +770,15 @@ arraySizeType _ = genType $ CS.TCon "U32" [] markBox
 transBody :: LC.CStat -> FTrav GenExpr
 transBody s = do
     resetVarCounters
+    tconf <- getTConf
     b <- bindStat s
-    return $ cleanSrc $ postproc $ mkBodyExpr b
+    return $ cleanSrc $ postproc tconf $ mkBodyExpr b
 
 transExpr :: LC.CExpr -> FTrav GenExpr
 transExpr e = do
+    tconf <- getTConf
     bp <- bindExpr e
-    return $ cleanSrc $ postproc $ mkPlainExpr $ bp
+    return $ cleanSrc $ postproc tconf $ mkPlainExpr $ bp
 
 bindStat :: LC.CStat -> FTrav GenBnd
 bindStat s@(LC.CExpr Nothing _) =

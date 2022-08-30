@@ -9,7 +9,7 @@ fi
 
 BIN=$GENCOT_HOME/bin
 
-USAGE="Usage: $0 [-I<dir>] [-G<dir>] [-C<dir>] [-u<uname>] [-k] [check|config|hfile|cfile|unit|cgraph|help] [<file>]"
+USAGE="Usage: $0 [-I<dir>] [-G<dir>] [-C<dir>] [-u<uname>] [-k] [-t<conf>] [check|config|hfile|cfile|unit|cgraph|help] [<file>]"
 
 long_usage()
 {
@@ -29,6 +29,7 @@ long_usage()
     echo '  -C<dir>    Directory for stored declaration comments. Default is "./comments"'
     echo '  -u<uname>  Name of unit. Default is "all"'
     echo '  -k         Keep directory with intermediate files and display it at the end.'
+    echo '  -t<conf>   Internal translation configuration string. Default is "-".'
 }
 
 short_usage()
@@ -38,7 +39,7 @@ short_usage()
 }
 
 # Parse options
-OPTS=$(getopt -o hku:I:G:C: -n "$0" -- "$@")
+OPTS=$(getopt -o hkt:u:I:G:C: -n "$0" -- "$@")
 
 if [ $? != 0 ]
 then
@@ -53,6 +54,7 @@ GENCOTDIR='.'
 COMMENTDIR='./comments'
 KEEP=''
 UNITNAME='all'
+TCONF='-'
 
 add_incl()
 {
@@ -73,6 +75,7 @@ while true; do
         -h) long_usage; exit;;
         -k) KEEP='yes'; shift;;
         -u) shift; UNITNAME="$1"; shift;;
+        -t) shift; TCONF="$1"; shift;;
         -I) shift; add_incl "$1"; shift;;
         -G) shift; GENCOTDIR="$1"; shift;;
         -C) shift; COMMENTDIR="$1"; shift;;
@@ -306,7 +309,7 @@ else
     prepare_cfile $CFILE
     prepare_namap
     prepare_itemprops
-    $BIN/gencot-bin translate $CBASE $TMPDIR/$NAMAPFILE $TMPDIR/$IPMFILE $EIFILE < $TMPDIR/$CNAME.in \
+    $BIN/gencot-bin translate $CBASE $TMPDIR/$NAMAPFILE $TMPDIR/$IPMFILE $EIFILE $TCONF < $TMPDIR/$CNAME.in \
         | $BIN/gencot-reporigs > $TMPDIR/$CNAME.out
     process_directives
     process_comments

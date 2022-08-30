@@ -52,8 +52,8 @@ gencotCheck args = do
 gencotTranslate :: [String] -> IO ()
 gencotTranslate args = do
     {- test arguments -}
-    when (length args /= 4) 
-        $ error "expected arguments: <original source file name> <name prefix map> <item properties file name> <used external items file name>"
+    when (length args /= 5) 
+        $ error "expected arguments: <original source file name> <name prefix map> <item properties file name> <used external items file name> <translation configuration string>"
     {- get own file name -}
     let fnam = head args
     {- get name prefix map -}
@@ -62,12 +62,14 @@ gencotTranslate args = do
     ipm <- readPropertiesFromFile $ head $ tail $ tail args
     {- get list of used external items -}
     useditems <- (liftM ((filter (not . null)) . lines)) $ readFile $ head $ tail $ tail $ tail args
+    {- get translation configuration string -}
+    let tconf = head $ tail $ tail $ tail $ tail args
     {- parse and analyse C source and get global definitions -}
     table <- readFromInput_
     {- Determine type names used directly in the Cogent compilation unit -}
     let unitTypeNames = getTypedefNames useditems
     {- translate global declarations and definitions to Cogent -}
-    toplvs <- runFTrav table (fnam,npm, ipm,(True,unitTypeNames)) $ transGlobals $ getOwnDeclEvents (globalDefs table) translateFilter
+    toplvs <- runFTrav table (fnam,npm, ipm,(True,unitTypeNames),tconf) $ transGlobals $ getOwnDeclEvents (globalDefs table) translateFilter
     {- Output -}
     print $ prettyTopLevels toplvs
 
@@ -94,7 +96,7 @@ gencotEntries args = do
     {- Determine type names used directly in the Cogent compilation unit -}
     let unitTypeNames = getTypedefNames useditems
     {- translate global declarations and definitions to Cogent -}
-    wrappers <- runFTrav table (fnam,npm,ipm,(True,unitTypeNames)) $ genEntries $ getOwnDeclEvents (globalDefs table) entriesFilter
+    wrappers <- runFTrav table (fnam,npm,ipm,(True,unitTypeNames),"") $ genEntries $ getOwnDeclEvents (globalDefs table) entriesFilter
     {- Output -}
     putStrLn $ showTopLevels wrappers
 
@@ -111,7 +113,7 @@ gencotDeccomments args = do
     {- get name prefix map -}
     npm <- readNameMapFromFile $ head args
     table <- readFromInput_
-    out <- runFTrav table ("", npm, empty,(False,[])) $ transDecls $ getOwnDeclEvents (globalDefs table) declFilter
+    out <- runFTrav table ("", npm, empty,(False,[]),"") $ transDecls $ getOwnDeclEvents (globalDefs table) declFilter
     putStrLn $ unlines out
 
 declFilter :: DeclEvent -> Bool
@@ -139,7 +141,7 @@ gencotExterns args = do
     {- Determine type names used directly in the Cogent compilation unit -}
     let unitTypeNames = getTypedefNames useditems
     {- translate external function declarations to Cogent abstract function definitions -}
-    absdefs <- runFTrav table ("",npm,ipm,(True,unitTypeNames)) $ transGlobals extDecls
+    absdefs <- runFTrav table ("",npm,ipm,(True,unitTypeNames),"") $ transGlobals extDecls
     {- Output -}
     print $ prettyTopLevels absdefs
 
@@ -174,7 +176,7 @@ gencotExttypes args = do
     {- Get declarations of listed tag and type definitions -}    
     let typeDefs = getDeclEvents (globalDefs table) (exttypesFilter useditems)
     {- translate type definitions in system include files -}
-    toplvs <- runFTrav table ("",npm,ipm,(True,getTypedefNames useditems)) $ transGlobals typeDefs
+    toplvs <- runFTrav table ("",npm,ipm,(True,getTypedefNames useditems),"") $ transGlobals typeDefs
     {- Output -}
     print $ prettyTopLevels toplvs
 
@@ -208,7 +210,7 @@ gencotDvdtypes args = do
     {- Determine external type names used directly in the Cogent compilation unit -}
     let unitTypeNames = getTypedefNames useditems
     {- generate abstract definitions for derived types in all type carriers -}
-    toplvs <- runFTrav table ("", npm, ipm,(True,unitTypeNames)) $ genTypeDefs unitTypeCarriers
+    toplvs <- runFTrav table ("", npm, ipm,(True,unitTypeNames),"") $ genTypeDefs unitTypeCarriers
     {- Output -}
     print $ prettyTopLevels toplvs
 

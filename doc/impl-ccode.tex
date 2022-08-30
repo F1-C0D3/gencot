@@ -1295,12 +1295,12 @@ with pointers. Cases where there are no pointers in the container or where no mo
 translation stages. If the wildcard \code{\_} is determined instead of a variable, the corresponding \code{put} operation
 binding is omitted, otherwise it is prepended to the putback list.
 
-If the container is an array, the \code{put} operation needs to use the element index. In the \code{take} operation it is
-available as a value variable which can be reused before the \code{put} operation. Therefore the index is bound to an 
-additional variable of the form \code{i<n>'} where \code{<n>} is the same number as for the component variable. These
-variables are called index variables.
+If the container is an array, the \code{put} operation needs to use the same element index as the \code{take} operation. 
+In the \code{take} operation it is available as a value variable which can be reused before the \code{put} operation. 
+Therefore the index is bound to an additional variable of the form \code{i<n>'} where \code{<n>} is the same number as for 
+the component variable. These variables are called index variables.
 
-Between the \code{take} and \code{put} bindings for a component variable it may be rebound. This way it is possible to translate
+Between the \code{take} and \code{put} bindings the component variable may be rebound. This way it is possible to translate
 side effects modifying the component and thus its container. In such a rebinding the component variable occurs as a normal side
 effect target.
 
@@ -1349,7 +1349,8 @@ pointers are treated differently by Gencot (see Section~\ref{design-types-pointe
 In the first translation step Gencot does not take the type into account and translates all pointer dereferences as if the 
 pointer type would be translated to a type \code{(CPtr T)} by accessing the \code{cont} component. That is, an expression
 \code{*e} is translated by \code{bindExpr} like \code{e.cont} to a pair of binding lists involving a \code{take} and a \code{put}
-operation as described for struct member accesses. This translation is modified in later stages.
+operation as described for struct member accesses. Semantically this means that the referenced content is separated from the 
+pointer in a \code{take} binding and later both are recombined by a \code{put} binding. This translation is modified in later stages.
 
 The C operator \code{->} is a combination of a pointer dereference and a struct component access. In this case the dereferenced 
 pointer is always a pointer to a struct type. In Cogent the \code{take} and \code{put} operations can be used for structs and
@@ -1369,7 +1370,8 @@ by its name \code{f} it is translated by appending the binding
   v<n>' = f(v<n1>',..,v<nm>')
 \end{verbatim}
 to the concatenated main lists of all argument subexpressions. If the function is specified by any other subexpression it is
-bound to a value variable and that variable is used to specify the function on the rhs.
+bound to a value variable and that variable is used to specify the function on the rhs. If the function has result type 
+\code{void} in C the result is bound to the wildcard \code{\_} instead of \code{v<n>'}.
 
 Depending on its type and on item properties for the function and its arguments, the function may take additional arguments and
 it may return a tuple with additional results. Also, the function may be variadic or incomplete. The following item properties
@@ -1392,7 +1394,12 @@ with a tuple pattern. The variables \code{v1..} correspond to the properties Add
 The variable for a component added by an Add-Result property is determined as described for expressions for values with pointers,
 i.e., it is either a mapped C variable name, or a component variable, or the wildcard \code{\_}. The variable for a component
 added by a Global-State or Heap-Use property is the same which is used as actual argument for the corresponding parameter, i.e.,
-it is the name of the corresponding parameter of the surrounding function.
+it is the name of the corresponding parameter of the surrounding function. If the function has result type 
+\code{void} in C the variable \code{v<n>'} is omitted, i.e. the binding is
+\begin{verbatim}
+  (v1..) = f(v<n1>',..,v<nm>')
+\end{verbatim}
+If there is only one result component the tuple pattern becomes a single variable.
 
 The item property Modification-Function only rearranges the function parameters and result components. In that case the binding
 pattern is rearranged accordingly and the binding becomes
@@ -1421,7 +1428,7 @@ in the translated expression its main list is concatenated after the main lists 
 \end{verbatim}
 is appended to its main list
 where \code{v<k>'} is the value variable bound by the binding list pair corresponding to the new value assigned as side effect
-(and also the result of the expression, therefore it is additionally bound to the (reused) value variable \code{v<n>'}. 
+(and also the result of the expression, therefore it is additionally bound to the (reused) value variable \code{v<n>'}). 
 Note that this is the only case where a value variable can be used twice, however, it is always used in the same binding.
 
 As an example, for the assignment expression \code{x = 5} the concatenated main binding lists for the subexpressions yield the
@@ -1752,10 +1759,28 @@ binding of the form
 From this binding the Cogent expression
 \begin{verbatim}
   let (_,v1..) = expr
-  in r'
+  in <result expression>
 \end{verbatim}
-is constructed as body expression of the translated Cogent function. Additional result values due to item 
-properties and optimizations for functions with a \code{void} result are done in later stages of the translation.
+is constructed as body expression of the translated Cogent function. The \code{<result expression>} depends on the item properties 
+Add-Result, Global-State, Heap-Use, and Modification-Function. 
+
+If no additional result components are caused by the item properties, the \code{<result expression>} is
+\begin{verbatim}
+  ()
+\end{verbatim}
+if the C function result type is \code{void}, and
+\begin{verbatim}
+  r'
+\end{verbatim}
+otherwise.
+
+If the item properties cause additional result components the \code{<result expression>} is
+\begin{verbatim}
+  (r', v1..)
+\end{verbatim}
+where the variables \code{v1..} correspond to the properties Add-Result, Global-State, and Heap-Use in that order.
+If the C function result type is \code{void}, the component \code{r'} is omitted. If then there is only one variable left
+the tuple pattern is replaced by a pattern for that variable.
 
 \subsubsection{Selection Statements}
 

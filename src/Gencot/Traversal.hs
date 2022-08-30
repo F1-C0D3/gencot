@@ -22,52 +22,53 @@ import Gencot.Items.Properties (ItemProperties)
 -- The fifth component is the list of type names where to stop resolving external types together with a flag whether to use the list
 -- The sixth component is the definition of the current function while traversing a function body
 -- The seventh component is the pair of counters for Cogent value and component variables
-type FTrav = TravT (String,NamePrefixMap,[SUERef],ItemProperties,(Bool,[String]),Maybe FunDef,(Int,Int)) Identity
+-- The eighth component is the translation configuration string
+type FTrav = TravT (String,NamePrefixMap,[SUERef],ItemProperties,(Bool,[String]),Maybe FunDef,(Int,Int),String) Identity
 
 instance MonadFail FTrav where
   fail = error "FTrav monad failed"
 
-runFTrav :: DefTable -> (String,NamePrefixMap,ItemProperties,(Bool,[String])) -> FTrav a -> IO a
-runFTrav table (f,npm,ipm,tds) action = do
+runFTrav :: DefTable -> (String,NamePrefixMap,ItemProperties,(Bool,[String]),String) -> FTrav a -> IO a
+runFTrav table (f,npm,ipm,tds,tconf) action = do
     (res,state) <- errorOnLeft "Error during translation" $ 
-        runTrav (f,npm,[],ipm,tds,Nothing,(0,0)) $ (withDefTable $ const ((),table)) >> action
+        runTrav (f,npm,[],ipm,tds,Nothing,(0,0),tconf) $ (withDefTable $ const ((),table)) >> action
     showWarnings $ travErrors state
     return res
     
 runWithTable :: DefTable -> FTrav a -> IO a
-runWithTable table action = runFTrav table ("",[],empty,(False,[])) action
+runWithTable table action = runFTrav table ("",[],empty,(False,[]),"") action
 
 instance FileNameTrav FTrav where
     getFileName = do
-        (f,_,_,_,_,_,_) <- getUserState 
+        (f,_,_,_,_,_,_,_) <- getUserState 
         return f
 
 instance MapNamesTrav FTrav where
     matchPrefix name = do
-        (_,npm,_,_,_,_,_) <- getUserState 
+        (_,npm,_,_,_,_,_,_) <- getUserState 
         return $ lookupPrefix name npm
 
 markTagAsNested :: SUERef -> FTrav ()
-markTagAsNested ref = modifyUserState (\(s,npm,ntl,spl,tds,fdf,cnt) -> (s,npm,ref : ntl,spl,tds,fdf,cnt))
+markTagAsNested ref = modifyUserState (\(s,npm,ntl,spl,tds,fdf,cnt,tconf) -> (s,npm,ref : ntl,spl,tds,fdf,cnt,tconf))
 
 isMarkedAsNested :: SUERef -> FTrav Bool
 isMarkedAsNested ref = do
-    (_,_,ntl,_,_,_,_) <- getUserState
+    (_,_,ntl,_,_,_,_,_) <- getUserState
     return $ elem ref ntl
 
 getItems :: (String -> [String] -> Bool) -> FTrav [String]
 getItems pred = do
-    (_,_,_,ipm,_,_,_) <- getUserState
+    (_,_,_,ipm,_,_,_,_) <- getUserState
     return $ keys $ filterWithKey pred ipm
 
 getProperties :: String -> FTrav [String]
 getProperties iid = do
-    (_,_,_,ipm,_,_,_) <- getUserState
+    (_,_,_,ipm,_,_,_,_) <- getUserState
     return $ findWithDefault [] iid ipm
 
 hasProperty :: String -> String -> FTrav Bool
 hasProperty prop iid = do
-    (_,_,_,ipm,_,_,_) <- getUserState
+    (_,_,_,ipm,_,_,_,_) <- getUserState
     return $ elem prop $ findWithDefault [] iid ipm
     
 class (Monad m) => TypeNamesTrav m where
@@ -75,35 +76,40 @@ class (Monad m) => TypeNamesTrav m where
 
 instance TypeNamesTrav FTrav where
     stopResolvTypeName idnam = do
-        (_,_,_,_,tds,_,_) <- getUserState
+        (_,_,_,_,tds,_,_,_) <- getUserState
         if fst tds then return $ elem (identToString idnam) $ snd tds
                    else return True
     
 getFunDef :: FTrav (Maybe FunDef)
 getFunDef = do
-    (_,_,_,_,_,fdf,_) <- getUserState
+    (_,_,_,_,_,fdf,_,_) <- getUserState
     return fdf
 
 setFunDef :: FunDef -> FTrav ()
-setFunDef fdef = modifyUserState (\(s,npm,ntl,spl,tds,_,cnt) -> (s,npm,ntl,spl,tds,Just fdef,cnt))
+setFunDef fdef = modifyUserState (\(s,npm,ntl,spl,tds,_,cnt,tconf) -> (s,npm,ntl,spl,tds,Just fdef,cnt,tconf))
 
 clrFunDef :: FTrav ()
-clrFunDef = modifyUserState (\(s,npm,ntl,spl,tds,_,cnt) -> (s,npm,ntl,spl,tds,Nothing,cnt))
+clrFunDef = modifyUserState (\(s,npm,ntl,spl,tds,_,cnt,tconf) -> (s,npm,ntl,spl,tds,Nothing,cnt,tconf))
 
 resetVarCounters :: FTrav ()
-resetVarCounters = modifyUserState (\(s,npm,ntl,spl,tds,fdf,_) -> (s,npm,ntl,spl,tds,fdf,(0,0)))
+resetVarCounters = modifyUserState (\(s,npm,ntl,spl,tds,fdf,_,tconf) -> (s,npm,ntl,spl,tds,fdf,(0,0),tconf))
 
 resetValCounter :: FTrav ()
-resetValCounter = modifyUserState (\(s,npm,ntl,spl,tds,fdf,(_,cmp)) -> (s,npm,ntl,spl,tds,fdf,(0,cmp)))
+resetValCounter = modifyUserState (\(s,npm,ntl,spl,tds,fdf,(_,cmp),tconf) -> (s,npm,ntl,spl,tds,fdf,(0,cmp),tconf))
 
 getValCounter :: FTrav Int
 getValCounter = do
-    (_,_,_,_,_,_,(val,_)) <- getUserState
-    modifyUserState (\(s,npm,ntl,spl,tds,fdf,(_,cmp)) -> (s,npm,ntl,spl,tds,fdf,(val+1,cmp)))
+    (_,_,_,_,_,_,(val,_),_) <- getUserState
+    modifyUserState (\(s,npm,ntl,spl,tds,fdf,(_,cmp),tconf) -> (s,npm,ntl,spl,tds,fdf,(val+1,cmp),tconf))
     return val
 
 getCmpCounter :: FTrav Int
 getCmpCounter = do
-    (_,_,_,_,_,_,(_,cmp)) <- getUserState
-    modifyUserState (\(s,npm,ntl,spl,tds,fdf,(val,_)) -> (s,npm,ntl,spl,tds,fdf,(val,cmp+1)))
+    (_,_,_,_,_,_,(_,cmp),_) <- getUserState
+    modifyUserState (\(s,npm,ntl,spl,tds,fdf,(val,_),tconf) -> (s,npm,ntl,spl,tds,fdf,(val,cmp+1),tconf))
     return cmp
+
+getTConf :: FTrav String
+getTConf = do
+    (_,_,_,_,_,_,_,tconf) <- getUserState
+    return tconf

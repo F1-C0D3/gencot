@@ -2,10 +2,15 @@ GC=../../bin/gencot
 IT=../../bin/items
 
 # VARIANT = plain
-# VARIANT = letproc
-VARIANT = ifproc
+# TCONF = -tfl
 
-TESTS = purexpr assignexpr stat loop
+# VARIANT = letproc
+# TCONF = -tf
+
+VARIANT = ifproc
+TCONF = 
+
+TESTS = purexpr assignexpr stat loop func
 UNIT = externs exttypes dvdtypes
 AUNIT = unit-dfltprops
 
@@ -24,6 +29,9 @@ expect-current: $(foreach TST,$(TESTS),$(TST)-expect-current) unit-expect-curren
 clean:  $(foreach TST,$(TESTS),$(TST)-clean)
 	-rm -f test.unit test.cogent $(foreach U,$(UNIT),test-$(U).cogent)
 	-rm -f test-external.items test.unit-dfltprops test.unit-itemprops
+
+body-func.c-itemprops: body-func.c-dfltprops body-func.c-manprops
+	$(IT) mergeto body-func.c-dfltprops body-func.c-manprops > $@
 
 %.c-itemprops: %.c-dfltprops common.types-manprops
 	@$(IT) merge common.types-manprops $*.c-dfltprops > $*.c-itemprops
@@ -60,7 +68,7 @@ test-external.items: test.unit test.unit-manitems
 	@$(IT) file $*.c > $*.c-dfltprops
 
 %.cogent %-entry.ac: %.c %.c-itemprops test-external.items
-	@$(GC) -u test cfile $*.c
+	@$(GC) -u test $(TCONF) cfile $*.c
 
 %-regression: body-%.cogent $(VARIANT)/body-%-expected.cogent body-%.c-dfltprops $(VARIANT)/body-%-expected.c-dfltprops
 	-diff body-$*.cogent $(VARIANT)/body-$*-expected.cogent

@@ -324,19 +324,34 @@ end
 subsection "Explicitly Sized Arrays"
 
 text \<open>
-For explicitly sized arrays the basic support and Gencot array operation semantics is provided
+The basic functions are defined by interpreting \<open>ESArrBase\<close>. 
+\<close>
+
+interpretation ESA: ESArrBase .
+adhoc_overloading
+      arr ESA.arr
+  and siz ESA.siz
+  and arr_update ESA.arr_update
+  and carr ESA.carr
+
+text \<open>
+The basic support and Gencot array operation semantics is provided
 by interpreting \<open>CArray\<close>.
 \<close>
 
-interpretation ESArray: CArray arrES arr_updateES sizES "0::64 word"
+interpretation ESArray: CArray ESA.arr ESA.arr_update ESA.siz "0::64 word"
   apply(unfold_locales,unfold arr_update_def)
       by(auto simp add: arr_def carr_def siz_def prsvlen_def prsvp_def wlsd_def)
 
 adhoc_overloading 
-      wlsd       "wlsdGen arrES sizES" 
-  and arrp       "arrpGen arrES"
-  and prsvwlsd   "prsvwlsdGen arrES sizES"
-  and prsvarrp   "prsvarrpGen arrES"
+      wlsd       "wlsdGen ESA.arr ESA.siz" 
+  and arrp       "arrpGen ESA.arr"
+  and prsvwlsd   "prsvwlsdGen ESA.arr ESA.siz"
+  and prsvarrp   "prsvarrpGen ESA.arr"
+  and getArr ESArray.getArr
+  and setArr ESArray.setArr
+  and modifyArr ESArray.modifyArr
+  and modrefArr ESArray.modrefArr
 
 lemmas wlsdRulesES = 
   ESArray.prsvwlsd_arr_update ESArray.Prsvwlsd_arr_update.rules
@@ -345,18 +360,29 @@ lemmas arrpRulesES =
 
 text \<open>
 Wellsizedness implications about the list length  are added to the simpset.
+They are intended to be applied backwards by the simplifier. To cover most cases
+they are specified in two variants.
+\<close>
+
+lemma wlsdES_implies_length[simp]: 
+  "wlsd (a,s) \<Longrightarrow> length a = unat s"
+  "wlsd esa \<Longrightarrow> length (fst esa) = unat (snd esa)"
+  by(unfold wlsd_def,simp_all add: arr_def siz_def)
+
+lemma wlsdES_implies_notempty[simp]: 
+  "wlsd (a,s) \<Longrightarrow> a \<noteq> []"
+  "wlsd esa \<Longrightarrow> (fst esa) \<noteq> []"
+  by(unfold wlsd_def,auto simp add: arr_def siz_def)
+
+text \<open>
 Due to the representation of the size as a 64 bit word, wellsizedness implies that the 
 list size is restricted.
 \<close>
-lemma wlsdES_implies_length[simp]: "wlsd (a,s) \<Longrightarrow> length a = unat s"
-  by(unfold wlsd_def,simp add: arr_def siz_def)
-
-lemma wlsdES_implies_notempty[simp]: "wlsd (a,s) \<Longrightarrow> a \<noteq> []"
-  by(unfold wlsd_def,auto simp add: arr_def siz_def)
-
-lemma wlsdES_implies_lenless[simp]: "wlsd (a,s) \<Longrightarrow> length a < 2^64"
-  apply(unfold wlsd_def,simp add: arr_def siz_def)
-  by(unat_arith,simp)
+lemma wlsdES_implies_lenless[simp]: 
+  "wlsd (a,s) \<Longrightarrow> length a < 2^64"
+  "wlsd esa \<Longrightarrow> length (fst esa) < 2^64"
+  apply(unfold wlsd_def,simp_all add: arr_def siz_def)
+  by(unat_arith,simp,unat_arith,simp)
 
 text \<open>
 If the function \<open>arr\<close> is explicitly specified in a term, it must be eliminated
@@ -364,7 +390,7 @@ to apply the rules above. This is done by the simplifier only in the context of 
 because in general the function \<open>arr\<close> may be needed to apply other rules. Then it may
 be eliminated by explicitly unfolding \<open>arr_def\<close>. 
 \<close>
-lemma length_arrES[simp]: "length (arrES (a,s)) = length a"
+lemma length_arrES[simp]: "length (arr (a,s)) = length a"
   by(simp add: arr_def)
 
 text \<open>
@@ -373,7 +399,7 @@ it can be used to eliminate \<open>carr\<close> for explicitly sized arrays inst
 It is not applied automatically by the simplifier because that would prevent 
 alternatives. 
 \<close>
-lemma wlsdES_carr: "wlsd (a,s) \<Longrightarrow> carrES a = (a,s)"
+lemma wlsdES_carr: "wlsd (a,s) \<Longrightarrow> carr a = (a,s)"
   apply(unfold wlsd_def,clarsimp simp add: siz_def carr_def arr_def)
   apply(drule_tac f=of_nat in arg_cong) 
   by(subst (asm) word_unat.Rep_inverse,simp)
@@ -383,7 +409,7 @@ The \<open>arrp\<close> predicate only depends on the representing list, therefo
 simplified for explicitly sized arrays which are constructed only from the list.
 \<close>
 
-lemma arrpES_elmsp[simp]: "arrp p (carrES a) = elmsp p a"
+lemma arrpES_elmsp[simp]: "arrp p (carr a) = elmsp p a"
   by(unfold arrp_def,simp add: arr_def carr_def)
 
 text \<open>
@@ -413,7 +439,9 @@ consts mkFxdArr :: "(nat \<Rightarrow> 'el) \<Rightarrow> 'carr"
 
 text \<open>
 The following locale extends \<open>FxdArrBase\<close>, defines \<open>mkFxdArr\<close>, and provides the basic support and 
-Gencot array operation semantics by interpreting \<open>CArray\<close>. Additionally it provides semantics
+Gencot array operation semantics by interpreting \<open>CArray\<close> and provides wellsizedness rules. 
+
+Additionally it provides  semantics
 theorems for \<open>toCAES\<close> and \<open>fromCAES\<close> and transfer lemmas for \<open>arr\<close>, \<open>arr_update\<close>, \<open>siz\<close>, 
 and \<open>wlsd\<close>. It also provides transfer lemmas for \<open>arr\<close>, \<open>arr_update\<close>, \<open>siz\<close>, and \<open>wlsd\<close> with 
 respect to \<open>mkFxdArr\<close>, they require the assumption \<open>fxdsiz > 0\<close>.
@@ -481,8 +509,8 @@ theorem sem_toCAES[sem]:
   by(unfold wlsd_def,simp add: FxdArrBase.toCAES_def siz_def)
 theorem sem_fromCAES[sem]:
  "wlsd aes \<Longrightarrow> 
-  fromCAES aes = carr (arrES aes)"
-  by(simp add: fromCAES_def)
+  fromCAES aes = carr (ESA.arr aes)"
+  by(simp add: fromCAES_def arr_def)
 
 text \<open>
 Transfer lemmas for the Cogent array conversion functions.
@@ -494,32 +522,32 @@ lemma wlsdToCAES:
   apply(simp add: sem_toCAES) 
   by(unfold wlsd_def,auto simp add: siz_def arr_def unat_of_nat)
 lemma wlsdFromCAES: 
- "wlsd aes \<and> sizES aes = fxdsiz \<Longrightarrow> 
+ "wlsd aes \<and> ESA.siz aes = fxdsiz \<Longrightarrow> 
   wlsd (fromCAES aes)"
-  by(simp add: fromCAES_def wlsd_def siz_def arr_def carr_inverse)
+  by(unfold wlsd_def,simp add: fromCAES_def siz_def arr_def carr_inverse)
 
 lemma sizToCAES[simp]: 
  "siz a < 2^64 \<Longrightarrow> 
-  sizES (toCAES a) = siz a"
+  ESA.siz (toCAES a) = siz a"
   by(simp add: toCAES_def siz_def unat_of_nat)
 lemma sizFromCAES[simp]: 
- "sizES aes = fxdsiz \<Longrightarrow> 
-  siz (fromCAES aes) = sizES aes"
+ "ESA.siz aes = fxdsiz \<Longrightarrow> 
+  siz (fromCAES aes) = ESA.siz aes"
   by(simp add: fromCAES_def siz_def)
 
 lemma arrToCAES:
- "arrES (toCAES a) = arr a"
-  by(simp add: toCAES_def arrES_def)
+ "ESA.arr (toCAES a) = arr a"
+  by(simp add: toCAES_def arr_def)
 lemma arrFromCAES:
- "arr (fromCAES aes) = arrES aes"
+ "arr (fromCAES aes) = ESA.arr aes"
   by(simp add: fromCAES_def arr_def carr_inverse)
 
 lemma arr_updateToCAES:
- "arr_updateES u (toCAES a) = toCAES (arr_update u a)"
-  by(simp add: toCAES_def arr_updateES_def arr_update_def arr_def siz_def carr_inverse)
+ "ESA.arr_update u (toCAES a) = toCAES (arr_update u a)"
+  by(simp add: toCAES_def ESA.arr_update_def arr_update_def arr_def siz_def carr_inverse)
 lemma arr_updateFromCAES:
- "arr_update u (fromCAES aes) = fromCAES (arr_updateES u aes)"
-  by(simp add: fromCAES_def arr_updateES_def arr_update_def arr_def siz_def carr_inverse)
+ "arr_update u (fromCAES aes) = fromCAES (ESA.arr_update u aes)"
+  by(simp add: fromCAES_def ESA.arr_update_def arr_update_def arr_def siz_def carr_inverse)
 
 lemmas transCAES = wlsdToCAES wlsdFromCAES sizToCAES sizFromCAES arrToCAES arrFromCAES arr_updateToCAES arr_updateFromCAES
 

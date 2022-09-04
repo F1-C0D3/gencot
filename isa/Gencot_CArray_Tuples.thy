@@ -127,29 +127,29 @@ An explicitly sized array is a pair consisting of a list and the explicitly spec
 Indexes always have bitlength \<open>64\<close>. The type \<open>'carr\<close> for an explicitly sized array with elements of type \<open>'el\<close>
 is \<open>'el CArrES\<^sub>T\<close>.
 
-For explicitly sized arrays the Gencot array operations are defined by interpreting \<open>CArrayDefs\<close>.
+The following locale defines the basic array functions.\<close>
+
+locale ESArrBase
+begin
+definition arr :: "'el CArrES\<^sub>T \<Rightarrow> 'el list" 
+  where [arr_def]: "arr \<equiv> fst"
+definition arr_update :: "('el list \<Rightarrow> 'el list) \<Rightarrow> 'el CArrES\<^sub>T \<Rightarrow> 'el CArrES\<^sub>T"
+  where [arr_update_def]: "arr_update \<equiv> apfst"
+definition siz :: "'el CArrES\<^sub>T \<Rightarrow> nat" 
+  where [siz_def]: "siz \<equiv> (unat \<circ> snd)"
+definition carr :: "'el list \<Rightarrow> 'el CArrES\<^sub>T" 
+  where [carr_def]: "carr \<equiv> \<lambda>a. (a,of_nat (length a))"
+end
+
+text \<open>
+Explicitly sized arrays are introduced by interpreting the following locale and overloading
+the defined functions. It extends the basic array functions by the Gencot array 
+operations by interpreting \<open>CArrayDefs\<close> as sublocale.
 \<close>
-
-definition arrES :: "'el CArrES\<^sub>T \<Rightarrow> 'el list" 
-  where [arr_def]: "arrES \<equiv> fst"
-definition arr_updateES :: "('el list \<Rightarrow> 'el list) \<Rightarrow> 'el CArrES\<^sub>T \<Rightarrow> 'el CArrES\<^sub>T"
-  where [arr_update_def]: "arr_updateES \<equiv> apfst"
-definition sizES :: "'el CArrES\<^sub>T \<Rightarrow> nat" 
-  where [siz_def]: "sizES \<equiv> (unat \<circ> snd)"
-definition carrES :: "'el list \<Rightarrow> 'el CArrES\<^sub>T" 
-  where [carr_def]: "carrES \<equiv> \<lambda>a. (a,of_nat (length a))"
-
-interpretation ESArrDefs: CArrayDefs arrES arr_updateES sizES "0::64 word" .
-
-adhoc_overloading
-      arr arrES
-  and siz sizES
-  and arr_update arr_updateES
-  and carr carrES
-  and getArr ESArrDefs.getArr
-  and setArr ESArrDefs.setArr
-  and modifyArr ESArrDefs.modifyArr
-  and modrefArr ESArrDefs.modrefArr
+locale ESArrDefs = ESArrBase
+begin
+sublocale CArrayDefs arr arr_update siz "0::64 word" .
+end
 
 subsubsection \<open>Fixed sized arrays\<close>
 
@@ -176,7 +176,7 @@ definition arr_update :: "('el list \<Rightarrow> 'el list) \<Rightarrow> 'carr 
 definition toCAES :: "'carr \<Rightarrow> 'el CArrES\<^sub>T"
   where "toCAES a \<equiv> (arr a, of_nat (fxdsiz))"
 definition fromCAES :: "'el CArrES\<^sub>T \<Rightarrow> 'carr"
-  where "fromCAES aes \<equiv> carr (arrES aes)"
+  where "fromCAES aes \<equiv> carr (fst aes)"
 definition rotoCAES :: "'carr \<Rightarrow> 'el CArrES\<^sub>T"
   where [simp]: "rotoCAES a \<equiv> toCAES a"
 definition rofromCAES :: "'el CArrES\<^sub>T \<Rightarrow> 'carr"

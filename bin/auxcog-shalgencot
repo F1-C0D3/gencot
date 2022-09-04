@@ -18,7 +18,8 @@ awk \
    gencot_theories = "Default Memory MayNull CPointer CArray"
    common_theories = "common"
    nr_sizes = 0
-   nr_afuns = split("siz getArr setArr modifyArr modrefArr toCAES fromCAES rotoCAES rofromCAES", afuns)
+   nr_afuns = split("siz arr_update getArr setArr modifyArr modrefArr toCAES fromCAES rotoCAES rofromCAES", afuns)
+   nr_efuns = split("carr siz arr_update getArr setArr modifyArr modrefArr", efuns)
  } 
 {
   if ($1 == "theory" && NF == 2) {
@@ -39,6 +40,13 @@ awk \
     }
     close(cfile) 
     printf("begin\n\n")
+    printf("interpretation ESArrayDefs:  ESArrDefs .\n")
+    if (tup) {
+      printf("adhoc_overloading\n")
+      printf("      arr ESArrayDefs.arr\n")
+      for (i=1; i <= nr_efuns; i++) printf("  and %s ESArrayDefs.%s\n", efuns[i], efuns[i])
+      printf("\n")
+    }
   } else if ($1 == "type_synonym" && substr($3,1,4) == "CArr" && $6 == "list") {
     size = substr($3,5,length($3)-12)
     if (size ~ /^[0-9]*$/) { namedsize = 0; sizeval = size }
@@ -48,10 +56,12 @@ awk \
       printf("definition \"%s \\<equiv> (unat cogent_%s)\"\n", sizeval, sizeval)
     }
     printf("interpretation FxdArrDefs%s: FxdArrDefs arr%s\\<^sub>f CArr%s.make %s \"0::32 word\" .\n", size, size, size, sizeval)
-    printf("adhoc_overloading\n")
-    printf("      arr arr%s\\<^sub>f\n",size)
-    printf("  and carr CArr%s.make\n",size)
-    for (i=1; i <= nr_afuns; i++) printf("  and %s FxdArrDefs%s.%s\n", afuns[i], size, afuns[i])
+    if (tup) {
+      printf("adhoc_overloading\n")
+      printf("      arr arr%s\\<^sub>f\n",size)
+      printf("  and carr CArr%s.make\n",size)
+      for (i=1; i <= nr_afuns; i++) printf("  and %s FxdArrDefs%s.%s\n", afuns[i], size, afuns[i])
+    }
     printf("\n")
   }
 }
@@ -73,19 +83,27 @@ END {
 #   in the argument file for which id is in gencot_theories the theory Gencot_id[tup], and for every line
 #     common: id
 #   in the argument file for which id is in common_theories the theory CogentCommon_id[tup].
+# - the output theory contains an interpretation and, if the _Tuples suffix is present, adhoc overloadings 
+#   for explicitly sized arrays:
+#     interpretation ESArrayDefs:  ESArrDefs .
+#     adhoc_overloading
+#           arr ESArrayDefs.arr
+#       and ...
+#   for the array operations
+#     arr, carr, siz, arr_update, getArr, setArr, modifyArr, modrefArr
 # - the output theory contains for every type synonym definition of the form
 #     type_synonym 'el CArr<size>\<^sub>T = 'el list CArr<size>
 #   in the input theory a section of the following form. The <size> my be either specified by a named 
 #   constant <sizeval>, or by a number literal <sizeval>. The section always contains a locale interpretation 
 #   of the form
 #     interpretation FxdArrDefs<size>: FxdArrDefs arr<size>\<^sub>f CArr<size>.make <sizeval> "0::32 word" .
-#   and an adhoc overloading of the form
+#   and, if the _Tuples suffix is present, an adhoc overloading of the form
 #     adhoc_overloading 
 #           arr ...
 #       and carr ...
 #       ...
 #   for all array operations
-#     arr, carr, siz, getArr, setArr, modifyArr, modrefArr, toCAES, fromCAES, rotoCAES, rofromCAES
+#     arr, carr, siz, arr_update, getArr, setArr, modifyArr, modrefArr, toCAES, fromCAES, rotoCAES, rofromCAES
 #   If the size is a named constant, the section additionally adds the word constant definition to the simpset
 #     lemmas [simp] = cogent_<sizeval>_def
 #   and defines a nat constant

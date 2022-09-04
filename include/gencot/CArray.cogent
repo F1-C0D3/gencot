@@ -5,7 +5,6 @@
 
 #include "Memory.cogent"
 #include "CPointer.cogent"
-#include "Tuples.cogent"
 
 {- Fixed size array types -}
 -- Type for mapping C array types with too complex size or no size
@@ -71,8 +70,8 @@ createCAES: all(evp). (U64, Heap) -> Result (evp,Heap) Heap
 
 -- Pass additional input in parallel to all element function invocations.
 -- Combine additional output of element function invocations using a combination function.
-initEltsParCmb: all(evt,vvt,epe,vpe,arg:<S,out). IniFun evt vvt (Tup3 (IniFun epe vpe arg out) arg ((out,out)->out)) out
-clearEltsParCmb: all(vvt,evt,vpe,epe,arg:<S,out). ClrFun vvt evt (Tup3 (ClrFun vpe epe arg out) arg ((out,out)->out)) out
+initEltsParCmb: all(evt,vvt,epe,vpe,arg:<S,out). IniFun evt vvt ((IniFun epe vpe arg out), arg,  ((out,out)->out)) out
+clearEltsParCmb: all(vvt,evt,vpe,epe,arg:<S,out). ClrFun vvt evt ((ClrFun vpe epe arg out), arg, ((out,out)->out)) out
 
 -- Pass additional input in parallel to all element function invocations.
 -- Element function has no additional output.
@@ -179,7 +178,7 @@ exchngArr : all(arr,idx,el). ModFun arr (idx,el) (idx,el)
 --   el: the array element type
 --   arg: type of additional input for element function
 --   out: type of additional output of element function
-modifyArr : all(arr,idx,el,arg,out). ModFun arr (Tup3 idx (ChgFun el arg out) arg) out
+modifyArr : all(arr,idx,el,arg,out). ModFun arr (idx, (ChgFun el arg out), arg) out
 
 -- Return pointer to element at index in readonly array
 -- For invalid index return pointer to element with index 0.
@@ -202,7 +201,7 @@ getrefArrChk : all(arr,idx,pel). (arr!,idx) -> Result pel! ()
 --   pel: the type of pointer to array elements
 --   arg: type of additional input for element function
 --   out: type of additional output of element function
-modrefArr : all(arr,idx,pel,arg,out). ModFun arr (Tup3 idx (ModFun pel arg out) arg) out
+modrefArr : all(arr,idx,pel,arg,out). ModFun arr (idx, (ModFun pel arg out), arg) out
 
 {- Conversions -}
 

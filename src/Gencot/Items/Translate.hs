@@ -26,9 +26,10 @@ transGlobal tc = do
     iat <- getItemAssocType tc
     miats <- getMemberItemAssocTypes tc
     iats <- liftM concat $ mapM getSubItemAssocTypes (iat : miats)
-    let fiats = filter (\(iid,t) -> (not $ isLeafType $ resolveTypedef t) 
-                                    && (not $ isFunPointer t) 
-                                    && ((isToplevelObjectId iid) || (isParameterId iid) || (not $ isComposite t))) iats
+    let fiats = filter (\(iid,t) -> (isToplevelObjectId iid) ||
+                                    ((not $ isLeafType $ resolveTypedef t) 
+                                     && (not $ isFunPointer t) 
+                                     && ((isParameterId iid) || (not $ isComposite t)))) iats
     dip <- mapM getDefaultProperies fiats
     return $ fromList dip
 

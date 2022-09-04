@@ -214,7 +214,7 @@ Additionally, Gencot does not support empty arrays, so the array size must not b
 defines the predicate \<open>wlsd :: carray \<Rightarrow> bool\<close> (``wellsized'') to express these properties. 
 Wellsizedness is a special case of the general notion of wellformedness. This
 approach covers the C array types as described in Section~\ref{design-types-array} as well as the
-explicitly sized arrays (see Section~\ref{design-types-esarray} and self-descriptive and externally 
+explicitly sized arrays (see Section~\ref{design-operations-esarray} and self-descriptive and externally 
 described arrays (see Section~\ref{app-transtype-arrpoint}). 
 
 Gencot provides support for C array types and explicitly sized arrays. Other arrays 

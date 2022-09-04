@@ -661,13 +661,12 @@ For every item, if its declared type (in the case of a typedef name item its def
 a derived function, array, or pointer type, its sub-items according to the 
 type are processed recursively. For a composite type item its members are processed recursively as sub-items.
 
-An item is processed as follows. If its declared or defined type is primitive or an enum or a function pointer no output 
-is generated since properties are not 
-supported or always ignored for it. Otherwise, if it is a parameter item, a global variable, or its declared type is 
-not composite, a property
-declaration is generated for it (parameters of composite type may be affected by the Add-Result property, global variables 
-of composite type may be affected by the Global-State property, items of function
-type may be affected by the Heap-Use property, items of pointer or array type may be affected by the Read-Only property).
+An item is processed as follows. If it is a global individual item (global variable or function) an empty property declaration
+is generated, since a global variable may be affected by a Global-State property and a function by a Heap-Use property. 
+Otherwise (local variable, type, or subitem), if its declared or defined type is primitive or an enum
+or a function pointer no output is generated since properties are not supported or always ignored for it. Otherwise, if it
+is a parameter item, or its declared type is not composite, a property declaration is generated for it (parameters of composite
+type may be affected by the Add-Result property, items of pointer or array type may be affected by the Read-Only property).
 For non-parameter and non-global-variable items of composite type no output is generated since properties are not 
 supported or always ignored for them.
 

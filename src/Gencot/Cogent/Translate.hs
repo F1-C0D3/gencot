@@ -25,7 +25,7 @@ import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapName
 import Gencot.Items.Types (ItemAssocType,isNotNullItem,isReadOnlyItem,isAddResultItem,isNoStringItem,getGlobalStateSubItemIds,getGlobalStateProperty,getGlobalStateId,getTagItemAssoc,getIndividualItemAssoc,getTypedefItemAssoc,adjustItemAssocType,getMemberSubItemAssoc,getRefSubItemAssoc,getResultSubItemAssoc,getElemSubItemAssoc,getParamSubItemAssoc,getItemAssocType,getMemberItemAssocTypes,getSubItemAssocTypes,numberList)
 import Gencot.Items.Identifier (getObjFunName,getParamName)
 import Gencot.Cogent.Ast
-import Gencot.Cogent.Bindings (BindsPair,leadVar,lvalVar,mkBodyExpr,mkPlainExpr,mkEmptyBindsPair,mkDummyBindsPair,mkUnitBindsPair,mkDefaultBindsPair,mkIntLitBindsPair,mkCharLitBindsPair,mkStringLitBindsPair,mkValVarBindsPair,mkMemBindsPair,mkIdxBindsPair,mkOpBindsPair,mkAppBindsPair,mkAssBindsPair,mkIfBindsPair,concatBindsPairs,mkDummyBinding,mkNullBinding,mkExpBinding,mkRetBinding,mkBreakBinding,mkContBinding,mkIfBinding,mkSwitchBinding,mkCaseBinding,mkSeqBinding,mkDecBinding,mkForBinding)
+import Gencot.Cogent.Bindings (BindsPair,leadVar,lvalVar,resVar,mkUnitExpr,mkVarExpr,mkBodyExpr,mkPlainExpr,mkEmptyBindsPair,mkDummyBindsPair,mkUnitBindsPair,mkDefaultBindsPair,mkIntLitBindsPair,mkCharLitBindsPair,mkStringLitBindsPair,mkValVarBindsPair,mkMemBindsPair,mkIdxBindsPair,mkOpBindsPair,mkAppBindsPair,mkAssBindsPair,mkIfBindsPair,concatBindsPairs,mkDummyBinding,mkNullBinding,mkExpBinding,mkRetBinding,mkBreakBinding,mkContBinding,mkIfBinding,mkSwitchBinding,mkCaseBinding,mkSeqBinding,mkDecBinding,mkForBinding)
 import Gencot.Cogent.Postproc (postproc)
 import qualified Gencot.C.Ast as LQ (Stm(Exp,Block),Exp)
 import qualified Gencot.C.Translate as C (transStat,transExpr,transArrSizeExpr,transBlockItem)
@@ -123,7 +123,7 @@ transGlobal (LCA.DeclEvent idecl@(LCA.FunctionDef fdef@(LCA.FunDef decl stat n))
     LCA.enterFunctionScope
     LCA.defineParams LCN.undefNode decl
     setFunDef fdef
-    e <- transBody stat
+    e <- transBody iat stat pars
 --    e <- extendExpr iat e pars
     clrFunDef
     LCA.leaveFunctionScope
@@ -767,12 +767,15 @@ arraySizeType _ = genType $ CS.TCon "U32" [] markBox
 {- Translating function bodies -}
 {- --------------------------- -}
 
-transBody :: LC.CStat -> FTrav GenExpr
-transBody s = do
+transBody :: ItemAssocType -> LC.CStat -> [LCA.ParamDecl] -> FTrav GenExpr
+transBody fiat s pars = do
     resetVarCounters
     tconf <- getTConf
     b <- bindStat s
-    return $ cleanSrc $ postproc tconf $ mkBodyExpr b
+    riat <- getResultSubItemAssoc fiat
+    let r = if isVoid $ snd riat then mkUnitExpr else mkVarExpr resVar
+    e <- extendExpr fiat r pars
+    return $ cleanSrc $ postproc tconf $ mkBodyExpr b e
 
 transExpr :: LC.CExpr -> FTrav GenExpr
 transExpr e = do

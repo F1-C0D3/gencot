@@ -106,57 +106,101 @@ type Cogent_a2 =
    CArr5 #Struct_Cogent_s1
 cogent_fa1 : Cogent_a1 -> ( U32, Cogent_a1 )
 cogent_fa1 a =
-   let a @{ @v1' = p0' } = a
+   (let a @{ @v1' = p0' } = a
    in p0'
+   , let (a @{ @v1' = p0' }
+         , i0') = (a, 3)
+   in a @{ @i0' = p0' })
 cogent_fa2 : Cogent_a1 -> ( U32, Cogent_a1 )
 cogent_fa2 a =
-   let a @{ @v1' = p0' } = a
+   (let a @{ @v1' = p0' } = a
    and a @{ @v3' = p1' } = a
    in p0' + p1'
+   , let (a @{ @v1' = p0' }
+         , i0') = (a, 3)
+   and (a @{ @v3' = p1' }
+       , i1') = (a, 1)
+   in a @{ @i1' = p1' } @{ @i0' = p0' })
 cogent_fa3 : Cogent_a1 -> ( U32, Cogent_a1 )
 cogent_fa3 a =
-   let a @{ @v2' = _ } = a
+   (let a @{ @v2' = _ } = a
    and a @{ @v1' = p1' } = a
    in p1'
+   , let (a @{ @v2' = p0' }
+         , i0') = (a, 2)
+   and (a @{ @v1' = p1' }
+       , i1') = (a, p0')
+   in a @{ @i1' = p1' } @{ @i0' = p0' })
 cogent_fa4 : Cogent_a2 -> ( U32, Cogent_a2 )
 cogent_fa4 a =
-   let a @{ @v1' = p0' } = a
+   (let a @{ @v1' = p0' } = a
    and p0' { m1 = p1' } = p0'
    in p1'
+   , let (a @{ @v1' = p0' }
+         , i0') = (a, 3)
+   and p0' { m1 = p1' } = p0'
+   in a @{ @i0' = p0' { m1 = p1' } })
 cogent_fa5 : Cogent_a2 -> ( U32, Cogent_a2 )
 cogent_fa5 a =
-   let a @{ @v2' = _ } = a
+   (let a @{ @v2' = _ } = a
    and a @{ @v1' = p2' } = a
    and p2' { m1 = p3' } = p2'
    in p3'
+   , let (a @{ @v2' = p0' }
+         , i0') = (a, 2)
+   and p0' { m2 = p1' } = p0'
+   and (a @{ @v1' = p2' }
+       , i2') = (a, p1')
+   and p2' { m1 = p3' } = p2'
+   in a @{ @i2' = p2' { m1 = p3' } } @{ @i0' = p0' { m2 = p1' } })
 
 type Struct_Cogent_s3 = { m5 : U32, m6 : MayNull Struct_Cogent_s1 }
 type Cogent_a3 =
    CArr5 (MayNull (CPtr U32))
 cogent_fp1 : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
 cogent_fp1 p =
-   let p { cont = p0' } = p
+   (let p { cont = p0' } = p
    in p0'
+   , let p { cont = p0' } = p
+   in p { cont = p0' })
 cogent_fp2 : MayNull Struct_Cogent_s1 -> ( U32, MayNull Struct_Cogent_s1 )
 cogent_fp2 p =
-   let p { cont = p0' } = p
+   (let p { cont = p0' } = p
    and p0' { m1 = p1' } = p0'
    in p1'
+   , let p { cont = p0' } = p
+   and p0' { m1 = p1' } = p0'
+   in p { cont = p0' { m1 = p1' } })
 cogent_fp3 : MayNull Struct_Cogent_s1 -> ( U32, MayNull Struct_Cogent_s1 )
-cogent_fp3 p = let p { m1 = p0' } = p in p0'
+cogent_fp3 p =
+   (let p { m1 = p0' } = p
+   in p0'
+   , let p { m1 = p0' } = p
+   in p { m1 = p0' })
 cogent_fp4 : MayNull Struct_Cogent_s3 -> ( U32, MayNull Struct_Cogent_s3 )
 cogent_fp4 p =
-   let p { m6 = p0' } = p
+   (let p { m6 = p0' } = p
    and p0' { cont = p1' } = p0'
    and p1' { m1 = p2' } = p1'
    in p2'
+   , let p { m6 = p0' } = p
+   and p0' { cont = p1' } = p0'
+   and p1' { m1 = p2' } = p1'
+   in p { m6 = p0' { cont = p1' { m1 = p2' } } })
 cogent_fp5 : MayNull Struct_Cogent_s3 -> ( U32, MayNull Struct_Cogent_s3 )
 cogent_fp5 p =
-   let p { m6 = p0' } = p
+   (let p { m6 = p0' } = p
    and p0' { m1 = p1' } = p0'
    in p1'
+   , let p { m6 = p0' } = p
+   and p0' { m1 = p1' } = p0'
+   in p { m6 = p0' { m1 = p1' } })
 cogent_fp6 : Cogent_a3 -> ( U32, Cogent_a3 )
 cogent_fp6 p =
-   let p @{ @v1' = p0' } = p
+   (let p @{ @v1' = p0' } = p
    and p0' { cont = p1' } = p0'
    in p1'
+   , let (p @{ @v1' = p0' }
+         , i0') = (p, 3)
+   and p0' { cont = p1' } = p0'
+   in p @{ @i0' = p0' { cont = p1' } })

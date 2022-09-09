@@ -539,9 +539,9 @@ mkRecordExpr flds = genExpr $ CS.UnboxedRecord flds
 mkLambdaExpr :: GenIrrefPatn -> GenExpr -> GenExpr
 mkLambdaExpr p e = genExpr $ CS.Lam p Nothing e
 
--- construct let (_,...) = expr in r'
-mkBodyExpr :: GenBnd -> GenExpr
-mkBodyExpr b = mkLetExpr [replaceLeadPatn mkWildcardPattern b] $ mkVarExpr resVar
+-- construct let (_,...) = expr in e
+mkBodyExpr :: GenBnd -> GenExpr -> GenExpr
+mkBodyExpr b e = mkLetExpr [replaceLeadPatn mkWildcardPattern b] e
 
 -- construct let ... in v<n>'
 mkPlainExpr :: BindsPair -> GenExpr

@@ -3,17 +3,17 @@ module Gencot.Items.Types where
 
 import Control.Monad (liftM)
 import System.FilePath (takeExtension,takeFileName,takeBaseName)
-import Data.List (isPrefixOf,find)
+import Data.List (isPrefixOf,find,sort)
 import Data.Maybe (fromMaybe)
 
 import Language.C.Data.Ident as LCI
 import Language.C.Data.Node as LCN
 import Language.C.Analysis as LCA
 
-import Gencot.Items.Identifier (individualItemId,localItemId,paramItemId,typedefItemId,tagItemId,memberSubItemId,paramSubItemId,elemSubItemId,refSubItemId,resultSubItemId,indivItemIds)
+import Gencot.Items.Identifier (individualItemId,localItemId,paramItemId,typedefItemId,tagItemId,memberSubItemId,paramSubItemId,elemSubItemId,refSubItemId,resultSubItemId,indivItemIds,getParamName)
 import Gencot.Names (getFileName,anonCompTypeName,srcFileName)
-import Gencot.Traversal (FTrav,hasProperty,stopResolvTypeName,getItems,getProperties)
-import Gencot.Util.Types (getTagDef,isExtern,isFunction,isExternTypeDef,TypeCarrier,TypeCarrierSet,mergeQualsTo)
+import Gencot.Traversal (FTrav,hasProperty,stopResolvTypeName,getItems,getProperties,getFunDef)
+import Gencot.Util.Types (getTagDef,isExtern,isFunction,isExternTypeDef,TypeCarrier,TypeCarrierSet,mergeQualsTo,safeDeclLinkage)
 
 -- | Construct the identifier for an individual toplevel item.
 -- An individual toplevel item is a function or a global object (variable).
@@ -136,6 +136,13 @@ isReadOnlyItem = isItemWithProperty "ro"
 isAddResultItem = isItemWithProperty "ar"
 isNoStringItem = isItemWithProperty "ns"
 
+-- | The AddResult property is suppressed by a ReadOnly property.
+shallAddResult :: ItemAssocType -> FTrav Bool
+shallAddResult iat = do
+    ar <- isAddResultItem iat
+    ro <- isReadOnlyItem iat
+    return (ar && (not ro))
+
 -- | Retrieve all subitems with a gs property.
 -- This includes virtual parameter items not declared for the C function.
 getGlobalStateSubItemIds :: ItemAssocType -> FTrav [String]
@@ -219,6 +226,15 @@ getParamSubItemAssoc (iid,_) ipd@(pos,pdecl) =
     where iat = (getParamSubItemId iid ipd, typ)
           typ = LCA.declType pdecl
 
+-- | Construct item assoc types for all parameters to be added by a Global-State property.
+-- The argument is the item associated type of the function. 
+-- The item names are taken from the declarations of the virtual items.
+-- As type the type void is used as a dummy, we only need the item associatd type to access its properties.
+makeGlobalStateItemAssocTypes :: ItemAssocType -> FTrav [ItemAssocType]
+makeGlobalStateItemAssocTypes fiat = do
+    gsids <- getGlobalStateSubItemIds fiat
+    return $ map (\iid -> (iid, LCA.DirectType LCA.TyVoid LCA.noTypeQuals LCA.noAttributes)) gsids
+
 -- | Adjust a type to a derived pointer type, together with its item identifier.
 -- The item identifier is adjusted by prepending a "&".
 adjustItemAssocType :: ItemAssocType -> ItemAssocType
@@ -296,3 +312,86 @@ isResolvTypeName idnam = do
     dt <- getDefTable
     srtn <- stopResolvTypeName idnam
     return ((isExternTypeDef dt idnam) && not srtn)
+
+-- | For a function get the list of Add-Result properties.
+-- The list has the same length as the list of regular parameters of the function.
+-- An entry is true if the corresponding parameter has an effective (i.e. without Read-Only property) Add-Result property .
+getAddResultProperties :: ItemAssocType -> FTrav [Bool]
+getAddResultProperties iat@(_,(LCA.FunctionType (LCA.FunType _ pars _) _)) = 
+    mapM shallAddResult $ map (getParamSubItemAssoc iat) (numberList pars)
+
+-- | For a function get the name of the parameter with a specific Global-State property.
+-- The first argument is the ItemAssocType of the function, the second is the Global-State property.
+getGlobalStateParam :: ItemAssocType -> String -> FTrav String
+getGlobalStateParam iat gs = do
+    pids <- getGlobalStateSubItemIds iat
+    gsps <- mapM getGlobalStateProperty pids
+    return $ maybe "" (getParamName . snd) $ find (\(gsp,_) -> gsp == gs) $ zip gsps pids
+
+-- | Retrieve the declaration for a global identifier (i.e. it has external or internal linkage).
+getDeclWithLinkage :: LCI.Ident -> FTrav (Maybe LCA.IdentDecl)
+getDeclWithLinkage ident = do
+    mdecl <- LCA.lookupObject ident
+    case mdecl of
+         Nothing -> return Nothing
+         Just decl -> do 
+             case safeDeclLinkage decl of
+                  LCA.NoLinkage -> return Nothing
+                  _ -> return (Just decl)
+
+-- | Retrieve information about a global object or function identifier used in a variable access in a function body.
+-- If it has a Global-State property and a corresponding parameter has been declared for the function
+-- the name of the parameter is returned as the first result component, otherwise the empty string.
+-- If it has a Const-Val property the second result component is True, otherwise False.
+getGlobalVarProperties :: LCI.Ident -> FTrav (String,Bool)
+getGlobalVarProperties ident = do
+    mdecl <- getDeclWithLinkage ident
+    case mdecl of
+         Nothing -> return $ ("",False)
+         Just decl -> 
+            if isFunction $ LCA.declType decl
+               then return $ ("",False)
+               else do
+                   sfn <- getFileName
+                   let iid = getIndividualItemId decl sfn
+                   gs <- getGlobalStateProperty iid
+                   mfdef <- getFunDef
+                   case mfdef of
+                        Just idecl@(LCA.FunctionDef _) -> do
+                            let iat = getIndividualItemAssoc idecl sfn
+                            gspar <- getGlobalStateParam iat gs
+                            cv <- return False -- isConstValItem iid
+                            return $ (gspar,cv)
+                        _ -> return $ ("",False)
+
+-- | Retrieve information about a (global) function identifier used for an invocation in a function body.
+-- The first result component is a list of booleans telling for each regular parameter whether it has an Add-Result property.
+-- The second result component is the list of parameter names of the surrounding function with Global-State property according
+-- to those for the invoked function. The list corresponds to the Global-State parameters of the invoked function in their order.
+-- If the surrounding function has no parameter with the same Global-State property the list contains an empty string.
+-- The third result component contains the name of the heap parameter of the surrounding function, if both functions have the 
+-- Heap-Use property, otherwise it is the empty string.
+-- The fourth result component is the position of the parameter of the invoked function with a Modification-Function property,
+-- otherwise it is -1.
+getFunctionProperties :: LCI.Ident -> FTrav ([Bool],[String],String,Int)
+getFunctionProperties ident = do
+    mdecl <- getDeclWithLinkage ident
+    case mdecl of
+         Nothing -> return $ ([],[],"",-1)
+         Just decl -> 
+            if not $ isFunction $ LCA.declType decl
+               then return $ ([],[],"",-1)
+               else do
+                   sfn <- getFileName
+                   let iat = getIndividualItemAssoc decl sfn
+                   arProps <- getAddResultProperties iat
+                   pids <- getGlobalStateSubItemIds iat
+                   gsps <- mapM getGlobalStateProperty pids
+                   mfdef <- getFunDef
+                   case mfdef of
+                        Just idecl@(LCA.FunctionDef _) -> do
+                            let fiat = getIndividualItemAssoc idecl sfn
+                            gspars <- mapM (getGlobalStateParam fiat) $ sort gsps
+                            hupar <- return "" -- determine hu param name
+                            return $ (arProps, gspars,hupar,-1)
+                        _ -> return $ ([],[],"",-1)

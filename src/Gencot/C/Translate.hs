@@ -16,10 +16,9 @@ import Numeric (showInt, showOct, showHex, readFloat)
 import Gencot.C.Ast as GCA
 import Gencot.Origin (Origin,noOrigin,origin,mkOrigin,listOrigin,pairOrigin,maybeOrigin)
 import Gencot.Names (transTagName,transObjName,getFileName,mapObjectName,mapIfUpper,mapNameToUpper,mapNameToLower)
-import Gencot.Traversal (FTrav,getFunDef)
-import Gencot.Util.Types (isAggregate,resolveTypedef,isFunction,safeDeclLinkage)
-import Gencot.Items.Types (getIndividualItemId,getIndividualItemAssoc,getGlobalStateProperty,getGlobalStateSubItemIds{-,isConstValItem-})
-import Gencot.Items.Identifier (getParamName)
+import Gencot.Traversal (FTrav)
+import Gencot.Util.Types (isAggregate,resolveTypedef,isFunction)
+import Gencot.Items.Types (getGlobalVarProperties)
 
 import Language.C.Analysis.TravMonad (MonadTrav)
 import qualified Language.C.Analysis as LCA
@@ -669,34 +668,4 @@ mMapMId f (Just idnam) = do
 mId :: (Maybe String) -> (Maybe LCI.Ident) -> (Maybe GCA.Id)
 mId ms mo = (liftA2 mkMapId (fmap const ms) mo)
 
--- | Retrieve information about an object or function identifier used in a function body.
--- If it is a global variable (has external or interal linkage and not a function type)
--- its item properties are inspected.
--- If it has a Global-State property and a corresponding parameter has been declared for the function
--- the name of the parameter is returned as the first result component, otherwise the empty string.
--- If it has a Const-Val property the second result component is True, otherwise False.
-getGlobalVarProperties :: LCI.Ident -> FTrav (String,Bool)
-getGlobalVarProperties ident = do
-    mdecl <- LCA.lookupObject ident
-    case mdecl of
-         Nothing -> return $ ("",False)
-         Just decl -> do 
-             case safeDeclLinkage decl of
-                  LCA.NoLinkage -> return $ ("",False)
-                  _ -> if isFunction $ LCA.declType decl
-                          then return $ ("",False)
-                          else do
-                              sfn <- getFileName
-                              let iid = getIndividualItemId decl sfn
-                              gs <- getGlobalStateProperty iid
-                              mfdef <- getFunDef
-                              case mfdef of
-                                   Nothing -> return $ ("",False)
-                                   Just fdef -> do
-                                       let fid = getIndividualItemAssoc (LCA.FunctionDef fdef) sfn
-                                       pids <- getGlobalStateSubItemIds fid
-                                       gsps <- mapM getGlobalStateProperty pids
-                                       let gspar = maybe "" (getParamName . snd) $ find (\(gsp,_) -> gsp == gs) $ zip gsps pids
-                                       cv <- return False -- isConstValItem iid
-                                       return $ (gspar,cv)
 

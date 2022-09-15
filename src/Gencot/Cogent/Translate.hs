@@ -22,7 +22,7 @@ import Cogent.Common.Types as CCT
 
 import Gencot.Origin (Origin,noOrigin,origin,mkOrigin,noComOrigin,mkBegOrigin,mkEndOrigin,prepOrigin,appdOrigin,isNested,toNoComOrigin)
 import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapNameToLower,mapPtrDeriv,mapPtrVoid,mapMayNull,mapArrDeriv,mapFunDeriv,arrDerivHasSize,arrDerivCompNam,arrDerivToUbox,mapUboxStep,rmUboxStep,mapMayNullStep,rmMayNullStepThroughRo,addMayNullStep,mapPtrStep,mapFunStep,mapIncFunStep,mapArrStep,mapModStep,mapRoStep,mapNamFunStep,getFileName,globStateType,isNoFunctionName)
-import Gencot.Items.Types (ItemAssocType,isNotNullItem,isReadOnlyItem,isAddResultItem,isNoStringItem,getGlobalStateSubItemIds,getGlobalStateProperty,getGlobalStateId,getTagItemAssoc,getIndividualItemAssoc,getTypedefItemAssoc,adjustItemAssocType,getMemberSubItemAssoc,getRefSubItemAssoc,getResultSubItemAssoc,getElemSubItemAssoc,getParamSubItemAssoc,getItemAssocType,getMemberItemAssocTypes,getSubItemAssocTypes,numberList)
+import Gencot.Items.Types (ItemAssocType,isNotNullItem,isReadOnlyItem,isNoStringItem,getGlobalStateSubItemIds,getGlobalStateProperty,getGlobalStateId,getTagItemAssoc,getIndividualItemAssoc,getTypedefItemAssoc,adjustItemAssocType,getMemberSubItemAssoc,getRefSubItemAssoc,getResultSubItemAssoc,getElemSubItemAssoc,getParamSubItemAssoc,makeGlobalStateItemAssocTypes,getItemAssocType,getMemberItemAssocTypes,getSubItemAssocTypes,numberList,getAddResultProperties)
 import Gencot.Items.Identifier (getObjFunName,getParamName)
 import Gencot.Cogent.Ast
 import Gencot.Cogent.Bindings (BindsPair,leadVar,lvalVar,resVar,mkUnitExpr,mkVarExpr,mkBodyExpr,mkPlainExpr,mkEmptyBindsPair,mkDummyBindsPair,mkUnitBindsPair,mkDefaultBindsPair,mkIntLitBindsPair,mkCharLitBindsPair,mkStringLitBindsPair,mkValVarBindsPair,mkMemBindsPair,mkIdxBindsPair,mkOpBindsPair,mkAppBindsPair,mkAssBindsPair,mkIfBindsPair,concatBindsPairs,mkDummyBinding,mkNullBinding,mkExpBinding,mkRetBinding,mkBreakBinding,mkContBinding,mkIfBinding,mkSwitchBinding,mkCaseBinding,mkSeqBinding,mkDecBinding,mkForBinding)
@@ -112,7 +112,7 @@ transGlobal de@(LCA.DeclEvent decl@(LCA.Declaration (LCA.Decl _ n))) | isComplet
 -- > name (parnames) = expr
 -- where @expr@ is the translation of @stmt@ and
 -- @partypes@, @rt@, and @expr@ are modified according to a parameter modification description.
-transGlobal (LCA.DeclEvent idecl@(LCA.FunctionDef fdef@(LCA.FunDef decl stat n))) = do
+transGlobal (LCA.DeclEvent idecl@(LCA.FunctionDef (LCA.FunDef decl stat n))) = do
     f <- transObjName idnam
     sfn <- getFileName
     let iat = getIndividualItemAssoc idecl sfn
@@ -122,7 +122,7 @@ transGlobal (LCA.DeclEvent idecl@(LCA.FunctionDef fdef@(LCA.FunDef decl stat n))
     ps <- transParamNames iat isVar pars
     LCA.enterFunctionScope
     LCA.defineParams LCN.undefNode decl
-    setFunDef fdef
+    setFunDef idecl
     e <- transBody iat stat pars
 --    e <- extendExpr iat e pars
     clrFunDef
@@ -290,7 +290,7 @@ genDerivedTypeDefs _ _ = return []
 -- The first argument is the item associated type of the function.
 extendExpr :: ItemAssocType -> GenExpr -> [LCA.ParamDecl] -> FTrav GenExpr
 extendExpr iat e pars = do
-    arProps <- mapM shallAddResult $ map (getParamSubItemAssoc iat) (numberList pars)
+    arProps <- getAddResultProperties iat
     res <- mapM (\(_,d) -> do { vid <- mapIfUpper $ LCA.declIdent d; return $ genExpr $ CS.Var vid}) $ filter fst $ zip arProps pars
     gsn <- makeGlobalStateNames True iat
     gse <- mapM (\n -> do { vid <- mapIfUpper $ LCI.Ident n 0 LCN.undefNode;  return $ genExpr $ CS.Var vid}) gsn
@@ -574,7 +574,7 @@ encodeType rslv iat@(_, (LCA.FunctionType (LCA.FunType ret pars variadic) _)) = 
     tn <- encodeType rslv sub
     encpars <- mapM (encodeParamType rslv iat) $ numberList pars
     let vencpars = if variadic then encpars ++ [mapRoStep ++ variadicTypeName] else encpars
-    arProps <- mapM shallAddResult $ map (getParamSubItemAssoc iat) (numberList pars)
+    arProps <- getAddResultProperties iat
     let varProps = if variadic then arProps ++ [False] else arProps
     let ps = map (\(arProp,s) -> if arProp then mapModStep ++ s else s) $ zip varProps vencpars
     return ((mapFunStep ps) ++ tn)
@@ -683,8 +683,8 @@ getTypedefName t = ""
 -- its type is appended to the result type.
 -- Comment markers are removed from these types to avoid duplication of comments.
 applyProperties :: ItemAssocType -> GenType -> FTrav GenType
-applyProperties iat@(_,(LCA.FunctionType (LCA.FunType _ pars _) _)) (GenType (CS.TFun pt rt) o) = do
-    arProps <- mapM shallAddResult $ map (getParamSubItemAssoc iat) (numberList pars)
+applyProperties iat (GenType (CS.TFun pt rt) o) = do
+    arProps <- getAddResultProperties iat
     gsiats <- makeGlobalStateItemAssocTypes iat
     gsps <- mapM getGlobalStateProperty (map fst gsiats)
     gstypes <- mapM makeGlobalStateType $ map fst $ sortOn snd $ zip gsiats gsps
@@ -698,23 +698,8 @@ applyProperties iat@(_,(LCA.FunctionType (LCA.FunType _ pars _) _)) (GenType (CS
           ptlist (GenType (CS.TTuple ts) _) = ts
           ptlist gt = [gt]
 
-shallAddResult :: ItemAssocType -> FTrav Bool
-shallAddResult iat = do
-    ar <- isAddResultItem iat
-    ro <- isReadOnlyItem iat
-    return (ar && (not ro))
-
 shallAddResultGS :: GenType -> Bool
 shallAddResultGS t = not $ isReadOnly t
-
--- | Construct item assoc types for all parameters to be added by a Global-State property.
--- The argument is the item associated type of the function. 
--- The item names are taken from the declarations of the virtual items.
--- As type the type void is used as a dummy, we only need the item associatd type to access its properties.
-makeGlobalStateItemAssocTypes :: ItemAssocType -> FTrav [ItemAssocType]
-makeGlobalStateItemAssocTypes fiat = do
-    gsids <- getGlobalStateSubItemIds fiat
-    return $ map (\iid -> (iid, LCA.DirectType LCA.TyVoid LCA.noTypeQuals LCA.noAttributes)) gsids
 
 -- | Determine the Cogent type from the item associated type of a global state parameter
 -- The type is ignored, the Cogent type is determined from the Global-State property only.

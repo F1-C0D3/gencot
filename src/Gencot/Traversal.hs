@@ -8,7 +8,7 @@ import Data.Functor.Identity (Identity)
 import Language.C.Analysis.DefTable (DefTable)
 import Language.C.Data.Ident (SUERef,Ident,identToString)
 import Language.C.Analysis.TravMonad (TravT,runTrav,travErrors,withDefTable,getUserState,modifyUserState,getDefTable)
-import Language.C.Analysis.SemRep (FunDef)
+import Language.C.Analysis.SemRep (IdentDecl)
 
 import Gencot.Input (showWarnings,errorOnLeft)
 import Gencot.Names (FileNameTrav,getFileName,NamePrefixMap,lookupPrefix,MapNamesTrav,matchPrefix)
@@ -23,7 +23,7 @@ import Gencot.Items.Properties (ItemProperties)
 -- The sixth component is the definition of the current function while traversing a function body
 -- The seventh component is the pair of counters for Cogent value and component variables
 -- The eighth component is the translation configuration string
-type FTrav = TravT (String,NamePrefixMap,[SUERef],ItemProperties,(Bool,[String]),Maybe FunDef,(Int,Int),String) Identity
+type FTrav = TravT (String,NamePrefixMap,[SUERef],ItemProperties,(Bool,[String]),Maybe IdentDecl,(Int,Int),String) Identity
 
 instance MonadFail FTrav where
   fail = error "FTrav monad failed"
@@ -80,12 +80,12 @@ instance TypeNamesTrav FTrav where
         if fst tds then return $ elem (identToString idnam) $ snd tds
                    else return True
     
-getFunDef :: FTrav (Maybe FunDef)
+getFunDef :: FTrav (Maybe IdentDecl)
 getFunDef = do
     (_,_,_,_,_,fdf,_,_) <- getUserState
     return fdf
 
-setFunDef :: FunDef -> FTrav ()
+setFunDef :: IdentDecl -> FTrav ()
 setFunDef fdef = modifyUserState (\(s,npm,ntl,spl,tds,_,cnt,tconf) -> (s,npm,ntl,spl,tds,Just fdef,cnt,tconf))
 
 clrFunDef :: FTrav ()

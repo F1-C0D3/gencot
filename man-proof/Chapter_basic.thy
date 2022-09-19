@@ -27,7 +27,7 @@ text_raw\<open>\label{basic-invoke-theory}\<close>
 text \<open>
 The propositions and proofs in Isabelle notation are usually collected in ``theory files'' with names of the 
 form \<^verbatim>\<open>name.thy\<close>. A theory file must import at least one other theory file to build upon its content. For theories
-based on higher order logic, as it is the case for the Cogent shallow embedding, the usual starting point to
+based on higher order logic (``HOL''), as it is the case for the Cogent shallow embedding, the usual starting point to
 import is the theory @{theory Main}.
 
 Several theory files can be grouped in a ``session''. A session is usually stored in a directory in the file system.
@@ -121,19 +121,67 @@ subsection "Theory Structure"
 text_raw\<open>\label{basic-theory-structure}\<close>
 
 text \<open>
-\<^item> Theory name
-\<^item> Imports
-\<^item> Outer/Inner syntax
-\<^item> Sections and text
+The content of a theory file has the structure
+\begin{verbatim}
+  theory <name> 
+  imports <name1> ... <namen>
+  begin
+    ...
+  end
+\end{verbatim}
+where \<^verbatim>\<open><name>\<close> is the theory name and \<^verbatim>\<open><name1> ... <namen>\<close> are the names of the imported theories.
+The theory name \<^verbatim>\<open><name>\<close> must be the same which is used for the theory file, i.e., the file name 
+must be \<^verbatim>\<open><name>.thy\<close>.
+
+The theory structure is a part of the Isabelle ``outer syntax'' which is mainly fixed and independent
+from the specific theories. Other kind of syntax is embedded into the outer syntax. The main embedded
+syntax ist the ``inner syntax'' which is mainly used to denote types and terms. Content in inner
+syntax must always be surrounded by double quotes.
+
+Additionally, text written in \LaTeX syntax can be embedded into the outer syntax using the form
+\begin{verbatim}
+  text\<open> ... \<close>
+\end{verbatim}
+and \LaTeX sections can be created using
+\begin{verbatim}
+  chapter\<open> ... \<close>
+  section\<open> ... \<close>
+  subsection\<open> ... \<close>
+  subsubsection\<open> ... \<close>
+  paragraph\<open> ... \<close>
+  subparagraph\<open> ... \<close>
+\end{verbatim}
+Note that the delimiters used here are not the ``lower'' and ``greater'' symbols, but the ``cartouche
+delimiters'' available in the jedit Symols subwindow in tab ``Punctuation''.
+
+It is also possible to embed inner syntax In the \LaTeX syntax.
 \<close>
 
 subsection "Types and Constants"
 text_raw\<open>\label{basic-theory-typcnst}\<close>
 
 text \<open>
-\<^item> Strongly typed
-\<^item> Type names
-\<^item> type synonyms and declarations
+As usual in formal logics, the basic building blocks for propositions are terms. Terms denote arbitrary
+objects like numbers, sets, functions, or boolean values. Isabelle is strongly typed, so every term 
+must have a type. However, in most situations Isabelle can derive the type of a term automatically,
+so that it needs not be specified explicitly. Terms and types are always denoted using the inner syntax.
+
+Types are usually specified by type names. There are predefined type names such as \<open>nat\<close> and \<open>bool\<close>.
+Types can be parameterized, then the type arguments are denoted \<^emph>\<open>before\<close> the type name, such as in
+\<open>nat set\<close> which is the type of sets of natural numbers.
+
+New type names can be declared in the form
+\begin{verbatim}
+  typedecl <name>
+\end{verbatim}
+which introduces the name for a new type for which the values are different from the values of all existing 
+types. Alternatively a type name can be introduced as a synonym for an existing type in the form
+\begin{verbatim}
+  type_synonym <name> = <type>
+\end{verbatim}
+such as in \<^theory_text>\<open>type_synonym natset = nat set\<close>.
+
+
 \<^item> Constant names
 \<^item> Constant declarations
 \<close>

@@ -1,11 +1,11 @@
 GC=../../bin/gencot
 IT=../../bin/items
 
-# VARIANT = plain
-# TCONF = -tfl
+#VARIANT = plain
+#TCONF = -tfl
 
-# VARIANT = letproc
-# TCONF = -tf
+#VARIANT = letproc
+#TCONF = -tf
 
 VARIANT = ifproc
 TCONF = 

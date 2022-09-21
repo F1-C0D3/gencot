@@ -107,41 +107,52 @@ cogent_ffv36 (i
    , g1
    , g2) -- g1: gs1, g2: gs2
 
-cogent_ffv41 : () -> ()
-cogent_ffv41 () = () -- ffv41: hu
-cogent_ffv42 : GlobState1 -> GlobState1
-cogent_ffv42 g = g -- ffv41: hu, g: gs1
-cogent_ffv43 : MayNull (CPtr U32) -> ()
-cogent_ffv43 i = () -- i: -ar, ffv43: hu
-cogent_ffv44 : MayNull (CPtr U32) -> MayNull (CPtr U32)
-cogent_ffv44 i =
-   let i { cont = _ } = i
-   in i { cont = 5 } -- ffv44: hu
-cogent_ffv45 : ( MayNull (CPtr U32), GlobState1 ) -> GlobState1
+cogent_ffv41 : Heap -> Heap
+cogent_ffv41 heap = heap -- ffv41: hu
+cogent_ffv42 : ( GlobState1, Heap ) -> ( GlobState1, Heap )
+cogent_ffv42 (g, heap) =
+   (g, heap) -- ffv41: hu, g: gs1
+cogent_ffv43 : ( MayNull (CPtr U32), Heap ) -> Heap
+cogent_ffv43 (i
+             , heap) = heap -- i: -ar, ffv43: hu
+cogent_ffv44 : ( MayNull (CPtr U32), Heap ) -> ( MayNull (CPtr U32), Heap )
+cogent_ffv44 (i
+             , heap) =
+   (let i { cont = _ } = i
+   in i { cont = 5 }
+   , heap) -- ffv44: hu
+cogent_ffv45 : ( MayNull (CPtr U32), GlobState1, Heap ) -> ( GlobState1, Heap )
 cogent_ffv45 (i
-             , g) = g -- i: -ar, g: gs1, ffv45: hu
-cogent_ffv46 : ( MayNull (CPtr U32), GlobState1 ) -> ( MayNull (CPtr U32), GlobState1 )
+             , g
+             , heap) = (g, heap) -- i: -ar, g: gs1, ffv45: hu
+cogent_ffv46 : ( MayNull (CPtr U32), GlobState1, Heap ) -> ( MayNull (CPtr U32), GlobState1, Heap )
 cogent_ffv46 (i
-             , g) =
+             , g
+             , heap) =
    (let i { cont = _ } = i
    in i { cont = cogent_glob1 }
-   , g) -- g: gs1, ffv46: hu
-cogent_ffv47 : ( MayNull (CPtr U32), MayNull (CPtr U32) ) -> ( MayNull (CPtr U32), MayNull (CPtr U32) )
+   , g
+   , heap) -- g: gs1, ffv46: hu
+cogent_ffv47 : ( MayNull (CPtr U32), MayNull (CPtr U32), Heap ) -> ( MayNull (CPtr U32), MayNull (CPtr U32), Heap )
 cogent_ffv47 (i
-             , j) =
-   (let i { cont = _ } = i
-   in i { cont = cogent_glob1 }
-   , let j { cont = p1' } = j
-   in j { cont = p1' }) -- ffv47: hu
-cogent_ffv48 : ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1 ) -> ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1 )
-cogent_ffv48 (i
              , j
-             , g) =
+             , heap) =
    (let i { cont = _ } = i
    in i { cont = cogent_glob1 }
    , let j { cont = p1' } = j
    in j { cont = p1' }
-   , g) -- g: gs1, ffv48: hu
+   , heap) -- ffv47: hu
+cogent_ffv48 : ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1, Heap ) -> ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1, Heap )
+cogent_ffv48 (i
+             , j
+             , g
+             , heap) =
+   (let i { cont = _ } = i
+   in i { cont = cogent_glob1 }
+   , let j { cont = p1' } = j
+   in j { cont = p1' }
+   , g
+   , heap) -- g: gs1, ffv48: hu
 
 
 cogent_ffi1 : () -> U32
@@ -256,56 +267,69 @@ cogent_ffi36 (i
    , g1
    , g2) -- g1: gs1, g2: gs2
 
-cogent_ffi41 : () -> U32
-cogent_ffi41 () = 5 -- ffv41: hu
-cogent_ffi42 : GlobState1 -> ( U32, GlobState1 )
-cogent_ffi42 g = (5, g) -- ffv41: hu, g: gs1
-cogent_ffi43 : MayNull (CPtr U32) -> U32
-cogent_ffi43 i = 2 -- i: -ar, ffv43: hu
-cogent_ffi44 : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
-cogent_ffi44 i =
+cogent_ffi41 : Heap -> ( U32, Heap )
+cogent_ffi41 heap = (5, heap) -- ffv41: hu
+cogent_ffi42 : ( GlobState1, Heap ) -> ( U32, GlobState1, Heap )
+cogent_ffi42 (g, heap) =
+   (5, g, heap) -- ffv41: hu, g: gs1
+cogent_ffi43 : ( MayNull (CPtr U32), Heap ) -> ( U32, Heap )
+cogent_ffi43 (i
+             , heap) = (2, heap) -- i: -ar, ffv43: hu
+cogent_ffi44 : ( MayNull (CPtr U32), Heap ) -> ( U32, MayNull (CPtr U32), Heap )
+cogent_ffi44 (i
+             , heap) =
    (2
    , let i { cont = _ } = i
-   in i { cont = 5 }) -- ffv44: hu
-cogent_ffi45 : ( MayNull (CPtr U32), GlobState1 ) -> ( U32, GlobState1 )
+   in i { cont = 5 }
+   , heap) -- ffv44: hu
+cogent_ffi45 : ( MayNull (CPtr U32), GlobState1, Heap ) -> ( U32, GlobState1, Heap )
 cogent_ffi45 (i
-             , g) = (2, g) -- i: -ar, g: gs1, ffv45: hu
-cogent_ffi46 : ( MayNull (CPtr U32), GlobState1 ) -> ( U32, MayNull (CPtr U32), GlobState1 )
+             , g
+             , heap) = (2, g, heap) -- i: -ar, g: gs1, ffv45: hu
+cogent_ffi46 : ( MayNull (CPtr U32), GlobState1, Heap ) -> ( U32, MayNull (CPtr U32), GlobState1, Heap )
 cogent_ffi46 (i
-             , g) =
+             , g
+             , heap) =
    (2
    , let i { cont = _ } = i
    in i { cont = cogent_glob1 }
-   , g) -- g: gs1, ffv46: hu
-cogent_ffi47 : ( MayNull (CPtr U32), MayNull (CPtr U32) ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32) )
+   , g
+   , heap) -- g: gs1, ffv46: hu
+cogent_ffi47 : ( MayNull (CPtr U32), MayNull (CPtr U32), Heap ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32), Heap )
 cogent_ffi47 (i
-             , j) =
-   (2
-   , let i { cont = _ } = i
-   in i { cont = cogent_glob1 }
-   , let j { cont = p1' } = j
-   in j { cont = p1' }) -- ffv47: hu (Error: no parameter for glob1) 
-cogent_ffi48 : ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1 ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32), GlobState1 )
-cogent_ffi48 (i
              , j
-             , g) =
+             , heap) =
    (2
    , let i { cont = _ } = i
    in i { cont = cogent_glob1 }
    , let j { cont = p1' } = j
    in j { cont = p1' }
-   , g) -- g: gs1, ffv48: hu
-cogent_ffi49 : ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1 ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32), GlobState1 )
+   , heap) -- ffv47: hu (Error: no parameter for glob1) 
+cogent_ffi48 : ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1, Heap ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32), GlobState1, Heap )
+cogent_ffi48 (i
+             , j
+             , g
+             , heap) =
+   (2
+   , let i { cont = _ } = i
+   in i { cont = cogent_glob1 }
+   , let j { cont = p1' } = j
+   in j { cont = p1' }
+   , g
+   , heap) -- g: gs1, ffv48: hu
+cogent_ffi49 : ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1, Heap ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32), GlobState1, Heap )
 cogent_ffi49 (i
              , j
-             , g) =
+             , g
+             , heap) =
    (2
    , let j { cont = p1' } = j
    and i { cont = _ } = i
    in i { cont = p1' }
    , let j { cont = p1' } = j
    in j { cont = p1' }
-   , g) -- g: gs1, ffv49: hu
+   , g
+   , heap) -- g: gs1, ffv49: hu
 
 
 cogent_mfv11 : MayNull (CPtr U32) -> ()
@@ -411,35 +435,44 @@ cogent_mfv38 (i
    in j { cont = p1' }
    , g) -- g: gs1, j: mf
 
-cogent_mfv44 : MayNull (CPtr U32) -> MayNull (CPtr U32)
-cogent_mfv44 i =
-   let i { cont = _ } = i
-   in i { cont = 5 } -- mfv44: hu, i: mf
-cogent_mfv45 : ( MayNull (CPtr U32), GlobState1 ) -> GlobState1
+cogent_mfv44 : ( MayNull (CPtr U32), Heap ) -> ( MayNull (CPtr U32), Heap )
+cogent_mfv44 (i
+             , heap) =
+   (let i { cont = _ } = i
+   in i { cont = 5 }
+   , heap) -- mfv44: hu, i: mf
+cogent_mfv45 : ( MayNull (CPtr U32), GlobState1, Heap ) -> ( GlobState1, Heap )
 cogent_mfv45 (i
-             , g) = g -- i: -ar, g: gs1 mf, mfv45: hu
-cogent_mfv46 : ( MayNull (CPtr U32), GlobState1 ) -> ( MayNull (CPtr U32), GlobState1 )
+             , g
+             , heap) = (g, heap) -- i: -ar, g: gs1 mf, mfv45: hu
+cogent_mfv46 : ( MayNull (CPtr U32), GlobState1, Heap ) -> ( MayNull (CPtr U32), GlobState1, Heap )
 cogent_mfv46 (i
-             , g) =
+             , g
+             , heap) =
    (let i { cont = _ } = i
    in i { cont = cogent_glob1 }
-   , g) -- g: gs1 mf, mfv46: hu
-cogent_mfv47 : ( MayNull (CPtr U32), MayNull (CPtr U32) ) -> ( MayNull (CPtr U32), MayNull (CPtr U32) )
+   , g
+   , heap) -- g: gs1 mf, mfv46: hu
+cogent_mfv47 : ( MayNull (CPtr U32), MayNull (CPtr U32), Heap ) -> ( MayNull (CPtr U32), MayNull (CPtr U32), Heap )
 cogent_mfv47 (i
-             , j) =
-   (let i { cont = _ } = i
-   in i { cont = cogent_glob1 }
-   , let j { cont = p1' } = j
-   in j { cont = p1' }) -- mfv47: hu, i: mf
-cogent_mfv48 : ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1 ) -> ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1 )
-cogent_mfv48 (i
              , j
-             , g) =
+             , heap) =
    (let i { cont = _ } = i
    in i { cont = cogent_glob1 }
    , let j { cont = p1' } = j
    in j { cont = p1' }
-   , g) -- g: gs1, mfv48: hu, j: mf
+   , heap) -- mfv47: hu, i: mf
+cogent_mfv48 : ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1, Heap ) -> ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1, Heap )
+cogent_mfv48 (i
+             , j
+             , g
+             , heap) =
+   (let i { cont = _ } = i
+   in i { cont = cogent_glob1 }
+   , let j { cont = p1' } = j
+   in j { cont = p1' }
+   , g
+   , heap) -- g: gs1, mfv48: hu, j: mf
 
 cogent_mfi11 : MayNull (CPtr U32) -> MayNull (CPtr U32)
 cogent_mfi11 i = i -- i: -ar mf
@@ -540,45 +573,56 @@ cogent_mfi36 (i
    , g1
    , g2) -- g1: gs1, g2: gs2 mf
 
-cogent_mfi43 : MayNull (CPtr U32) -> MayNull (CPtr U32)
-cogent_mfi43 i =
-   let i { cont = _ } = i
-   in i { cont = 5 } -- i: -ar mf, mfv43: hu
-cogent_mfi44 : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
-cogent_mfi44 i =
+cogent_mfi43 : ( MayNull (CPtr U32), Heap ) -> ( MayNull (CPtr U32), Heap )
+cogent_mfi43 (i
+             , heap) =
+   (let i { cont = _ } = i
+   in i { cont = 5 }
+   , heap) -- i: -ar mf, mfv43: hu
+cogent_mfi44 : ( MayNull (CPtr U32), Heap ) -> ( U32, MayNull (CPtr U32), Heap )
+cogent_mfi44 (i
+             , heap) =
    (2
    , let i { cont = _ } = i
-   in i { cont = 5 }) -- mfv44: hu, i: mf
-cogent_mfi45 : ( MayNull (CPtr U32), GlobState1 ) -> ( U32, GlobState1 )
+   in i { cont = 5 }
+   , heap) -- mfv44: hu, i: mf
+cogent_mfi45 : ( MayNull (CPtr U32), GlobState1, Heap ) -> ( U32, GlobState1, Heap )
 cogent_mfi45 (i
-             , g) = (2, g) -- i: -ar, g: gs1 mf, mfv45: hu
-cogent_mfi46 : ( MayNull (CPtr U32), GlobState1 ) -> ( U32, MayNull (CPtr U32), GlobState1 )
+             , g
+             , heap) = (2, g, heap) -- i: -ar, g: gs1 mf, mfv45: hu
+cogent_mfi46 : ( MayNull (CPtr U32), GlobState1, Heap ) -> ( U32, MayNull (CPtr U32), GlobState1, Heap )
 cogent_mfi46 (i
-             , g) =
+             , g
+             , heap) =
    (2
    , let i { cont = _ } = i
    in i { cont = cogent_glob1 }
-   , g) -- g: gs1, mfv46: hu, i: mf
-cogent_mfi47 : ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1 ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32), GlobState1 )
+   , g
+   , heap) -- g: gs1, mfv46: hu, i: mf
+cogent_mfi47 : ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1, Heap ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32), GlobState1, Heap )
 cogent_mfi47 (i
              , j
-             , g) =
+             , g
+             , heap) =
    (2
    , let i { cont = _ } = i
    in i { cont = cogent_glob1 }
    , let j { cont = p1' } = j
    in j { cont = p1' }
-   , g) -- g: gs1, mfv47: hu, i: mf
-cogent_mfi48 : ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1 ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32), GlobState1 )
+   , g
+   , heap) -- g: gs1, mfv47: hu, i: mf
+cogent_mfi48 : ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1, Heap ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32), GlobState1, Heap )
 cogent_mfi48 (i
              , j
-             , g) =
+             , g
+             , heap) =
    (2
    , let i { cont = _ } = i
    in i { cont = cogent_glob1 }
    , let j { cont = p1' } = j
    in j { cont = p1' }
-   , g) -- g: gs1, mfv48: hu, j: mf
+   , g
+   , heap) -- g: gs1, mfv48: hu, j: mf
 
 -- Function calls
 
@@ -630,27 +674,34 @@ cogent_cffv36 (i
               , g1
               , g2) = (i, j, g1, g2) -- g1: gs1, g2: gs2
 
-cogent_cffv41 : () -> ()
-cogent_cffv41 () = () -- cffv41: hu
-cogent_cffv42 : GlobState1 -> GlobState1
-cogent_cffv42 g = g -- cffv41: hu, g: gs1
-cogent_cffv43 : MayNull (CPtr U32) -> MayNull (CPtr U32)
-cogent_cffv43 i = i -- cffv43: hu
-cogent_cffv44 : MayNull (CPtr U32) -> MayNull (CPtr U32)
-cogent_cffv44 i = i -- cffv44: hu
-cogent_cffv45 : ( MayNull (CPtr U32), GlobState1 ) -> ( MayNull (CPtr U32), GlobState1 )
+cogent_cffv41 : Heap -> Heap
+cogent_cffv41 heap = heap -- cffv41: hu
+cogent_cffv42 : ( GlobState1, Heap ) -> ( GlobState1, Heap )
+cogent_cffv42 (g, heap) =
+   (g, heap) -- cffv41: hu, g: gs1
+cogent_cffv43 : ( MayNull (CPtr U32), Heap ) -> ( MayNull (CPtr U32), Heap )
+cogent_cffv43 (i
+              , heap) = (i, heap) -- cffv43: hu
+cogent_cffv44 : ( MayNull (CPtr U32), Heap ) -> ( MayNull (CPtr U32), Heap )
+cogent_cffv44 (i
+              , heap) = (i, heap) -- cffv44: hu
+cogent_cffv45 : ( MayNull (CPtr U32), GlobState1, Heap ) -> ( MayNull (CPtr U32), GlobState1, Heap )
 cogent_cffv45 (i
-              , g) = (i, g) -- g: gs1, cffv45: hu
-cogent_cffv46 : ( MayNull (CPtr U32), GlobState1 ) -> ( MayNull (CPtr U32), GlobState1 )
+              , g
+              , heap) = (i, g, heap) -- g: gs1, cffv45: hu
+cogent_cffv46 : ( MayNull (CPtr U32), GlobState1, Heap ) -> ( MayNull (CPtr U32), GlobState1, Heap )
 cogent_cffv46 (i
-              , g) = (i, g) -- g: gs1, cffv46: hu
-cogent_cffv47 : ( MayNull (CPtr U32), MayNull (CPtr U32) ) -> ( MayNull (CPtr U32), MayNull (CPtr U32) )
+              , g
+              , heap) = (i, g, heap) -- g: gs1, cffv46: hu
+cogent_cffv47 : ( MayNull (CPtr U32), MayNull (CPtr U32), Heap ) -> ( MayNull (CPtr U32), MayNull (CPtr U32), Heap )
 cogent_cffv47 (i
-              , j) = (i, j) -- cffv47: hu
-cogent_cffv48 : ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1 ) -> ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1 )
+              , j
+              , heap) = (i, j, heap) -- cffv47: hu
+cogent_cffv48 : ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1, Heap ) -> ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1, Heap )
 cogent_cffv48 (i
               , j
-              , g) = (i, j, g) -- g: gs1, cffv48: hu
+              , g
+              , heap) = (i, j, g, heap) -- g: gs1, cffv48: hu
 
 cogent_cffi1 : () -> U32
 cogent_cffi1 () = cogent_ffi1 ()
@@ -709,32 +760,50 @@ cogent_cffi36 (i
    , g1
    , g2) -- g1: gs1, g2: gs2
 
-cogent_cffi41 : () -> U32
-cogent_cffi41 () =
-   cogent_ffi41 () -- cffv41: hu
-cogent_cffi42 : GlobState1 -> ( U32, GlobState1 )
-cogent_cffi42 g =
-   (cogent_ffi42 (), g) -- cffv41: hu, g: gs1
-cogent_cffi43 : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
-cogent_cffi43 i = (cogent_ffi43 i, i) -- cffv43: hu
-cogent_cffi44 : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
-cogent_cffi44 i = (cogent_ffi44 i, i) -- cffv44: hu
-cogent_cffi45 : ( MayNull (CPtr U32), GlobState1 ) -> ( U32, MayNull (CPtr U32), GlobState1 )
+cogent_cffi41 : Heap -> ( U32, Heap )
+cogent_cffi41 heap =
+   (cogent_ffi41 (), heap) -- cffv41: hu
+cogent_cffi42 : ( GlobState1, Heap ) -> ( U32, GlobState1, Heap )
+cogent_cffi42 (g, heap) =
+   (cogent_ffi42 (), g, heap) -- cffv41: hu, g: gs1
+cogent_cffi43 : ( MayNull (CPtr U32), Heap ) -> ( U32, MayNull (CPtr U32), Heap )
+cogent_cffi43 (i
+              , heap) =
+   (cogent_ffi43 i, i, heap) -- cffv43: hu
+cogent_cffi44 : ( MayNull (CPtr U32), Heap ) -> ( U32, MayNull (CPtr U32), Heap )
+cogent_cffi44 (i
+              , heap) =
+   (cogent_ffi44 i, i, heap) -- cffv44: hu
+cogent_cffi45 : ( MayNull (CPtr U32), GlobState1, Heap ) -> ( U32, MayNull (CPtr U32), GlobState1, Heap )
 cogent_cffi45 (i
-              , g) = (cogent_ffi45 i, i, g) -- g: gs1, cffv45: hu
-cogent_cffi46 : ( MayNull (CPtr U32), GlobState1 ) -> ( U32, MayNull (CPtr U32), GlobState1 )
+              , g
+              , heap) =
+   (cogent_ffi45 i, i, g, heap) -- g: gs1, cffv45: hu
+cogent_cffi46 : ( MayNull (CPtr U32), GlobState1, Heap ) -> ( U32, MayNull (CPtr U32), GlobState1, Heap )
 cogent_cffi46 (i
-              , g) = (cogent_ffi46 i, i, g) -- g: gs1, cffv46: hu
-cogent_cffi48 : ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1 ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32), GlobState1 )
+              , g
+              , heap) =
+   (cogent_ffi46 i, i, g, heap) -- g: gs1, cffv46: hu
+cogent_cffi48 : ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1, Heap ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32), GlobState1, Heap )
 cogent_cffi48 (i
               , j
-              , g) =
-   (cogent_ffi48 (i, j), i, j, g) -- g: gs1, cffv48: hu
-cogent_cffi49 : ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1 ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32), GlobState1 )
+              , g
+              , heap) =
+   (cogent_ffi48 (i, j)
+   , i
+   , j
+   , g
+   , heap) -- g: gs1, cffv48: hu
+cogent_cffi49 : ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1, Heap ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32), GlobState1, Heap )
 cogent_cffi49 (i
               , j
-              , g) =
-   (cogent_ffi49 (i, j), i, j, g) -- g: gs1, cffv49: hu
+              , g
+              , heap) =
+   (cogent_ffi49 (i, j)
+   , i
+   , j
+   , g
+   , heap) -- g: gs1, cffv49: hu
 
 cogent_cmfv11 : MayNull (CPtr U32) -> MayNull (CPtr U32)
 cogent_cmfv11 i = i
@@ -778,21 +847,26 @@ cogent_cmfv38 (i
               , j
               , g) = (i, j, g) -- g: gs1
 
-cogent_cmfv44 : MayNull (CPtr U32) -> MayNull (CPtr U32)
-cogent_cmfv44 i = i -- cmfv44: hu
-cogent_cmfv45 : ( MayNull (CPtr U32), GlobState1 ) -> ( MayNull (CPtr U32), GlobState1 )
+cogent_cmfv44 : ( MayNull (CPtr U32), Heap ) -> ( MayNull (CPtr U32), Heap )
+cogent_cmfv44 (i
+              , heap) = (i, heap) -- cmfv44: hu
+cogent_cmfv45 : ( MayNull (CPtr U32), GlobState1, Heap ) -> ( MayNull (CPtr U32), GlobState1, Heap )
 cogent_cmfv45 (i
-              , g) = (i, g) -- g: gs1, cmfv45: hu
-cogent_cmfv46 : ( MayNull (CPtr U32), GlobState1 ) -> ( MayNull (CPtr U32), GlobState1 )
+              , g
+              , heap) = (i, g, heap) -- g: gs1, cmfv45: hu
+cogent_cmfv46 : ( MayNull (CPtr U32), GlobState1, Heap ) -> ( MayNull (CPtr U32), GlobState1, Heap )
 cogent_cmfv46 (i
-              , g) = (i, g) -- g: gs1, cmfv46: hu
-cogent_cmfv47 : ( MayNull (CPtr U32), MayNull (CPtr U32) ) -> ( MayNull (CPtr U32), MayNull (CPtr U32) )
+              , g
+              , heap) = (i, g, heap) -- g: gs1, cmfv46: hu
+cogent_cmfv47 : ( MayNull (CPtr U32), MayNull (CPtr U32), Heap ) -> ( MayNull (CPtr U32), MayNull (CPtr U32), Heap )
 cogent_cmfv47 (i
-              , j) = (i, j) -- cmfv47: hu
-cogent_cmfv48 : ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1 ) -> ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1 )
+              , j
+              , heap) = (i, j, heap) -- cmfv47: hu
+cogent_cmfv48 : ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1, Heap ) -> ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1, Heap )
 cogent_cmfv48 (i
               , j
-              , g) = (i, j, g) -- g: gs1, cmfv48: hu
+              , g
+              , heap) = (i, j, g, heap) -- g: gs1, cmfv48: hu
 
 cogent_cmfi11 : MayNull (CPtr U32) -> ( MayNull (CPtr U32), MayNull (CPtr U32) )
 cogent_cmfi11 i = (cogent_mfi11 i, i)
@@ -841,23 +915,41 @@ cogent_cmfi36 (i
    , g1
    , g2) -- g1: gs1, g2: gs2
 
-cogent_cmfi43 : MayNull (CPtr U32) -> ( MayNull (CPtr U32), MayNull (CPtr U32) )
-cogent_cmfi43 i = (cogent_mfi43 i, i) -- cmfv43: hu
-cogent_cmfi44 : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
-cogent_cmfi44 i = (cogent_mfi44 i, i) -- cmfv44: hu
-cogent_cmfi45 : ( MayNull (CPtr U32), GlobState1 ) -> ( U32, MayNull (CPtr U32), GlobState1 )
+cogent_cmfi43 : ( MayNull (CPtr U32), Heap ) -> ( MayNull (CPtr U32), MayNull (CPtr U32), Heap )
+cogent_cmfi43 (i
+              , heap) =
+   (cogent_mfi43 i, i, heap) -- cmfv43: hu
+cogent_cmfi44 : ( MayNull (CPtr U32), Heap ) -> ( U32, MayNull (CPtr U32), Heap )
+cogent_cmfi44 (i
+              , heap) =
+   (cogent_mfi44 i, i, heap) -- cmfv44: hu
+cogent_cmfi45 : ( MayNull (CPtr U32), GlobState1, Heap ) -> ( U32, MayNull (CPtr U32), GlobState1, Heap )
 cogent_cmfi45 (i
-              , g) = (cogent_mfi45 i, i, g) -- g: gs1, cmfv45: hu
-cogent_cmfi46 : ( MayNull (CPtr U32), GlobState1 ) -> ( U32, MayNull (CPtr U32), GlobState1 )
+              , g
+              , heap) =
+   (cogent_mfi45 i, i, g, heap) -- g: gs1, cmfv45: hu
+cogent_cmfi46 : ( MayNull (CPtr U32), GlobState1, Heap ) -> ( U32, MayNull (CPtr U32), GlobState1, Heap )
 cogent_cmfi46 (i
-              , g) = (cogent_mfi46 i, i, g) -- g: gs1, cmfv46: hu
-cogent_cmfi47 : ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1 ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32), GlobState1 )
+              , g
+              , heap) =
+   (cogent_mfi46 i, i, g, heap) -- g: gs1, cmfv46: hu
+cogent_cmfi47 : ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1, Heap ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32), GlobState1, Heap )
 cogent_cmfi47 (i
               , j
-              , g) =
-   (cogent_mfi47 (i, j), i, j, g) -- g: gs1, cmfv47: hu
-cogent_cmfi48 : ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1 ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32), GlobState1 )
+              , g
+              , heap) =
+   (cogent_mfi47 (i, j)
+   , i
+   , j
+   , g
+   , heap) -- g: gs1, cmfv47: hu
+cogent_cmfi48 : ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1, Heap ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32), GlobState1, Heap )
 cogent_cmfi48 (i
               , j
-              , g) =
-   (cogent_mfi48 (i, j), i, j, g) -- g: gs1, cmfv48: hu
+              , g
+              , heap) =
+   (cogent_mfi48 (i, j)
+   , i
+   , j
+   , g
+   , heap) -- g: gs1, cmfv48: hu

@@ -3,7 +3,7 @@ module Gencot.Items.Types where
 
 import Control.Monad (liftM)
 import System.FilePath (takeExtension,takeFileName,takeBaseName)
-import Data.List (isPrefixOf,find,sort)
+import Data.List (isPrefixOf,find,sort,sortOn)
 import Data.Maybe (fromMaybe)
 
 import Language.C.Data.Ident as LCI
@@ -11,7 +11,7 @@ import Language.C.Data.Node as LCN
 import Language.C.Analysis as LCA
 
 import Gencot.Items.Identifier (individualItemId,localItemId,paramItemId,typedefItemId,tagItemId,memberSubItemId,paramSubItemId,elemSubItemId,refSubItemId,resultSubItemId,indivItemIds,getParamName)
-import Gencot.Names (getFileName,anonCompTypeName,srcFileName)
+import Gencot.Names (getFileName,anonCompTypeName,srcFileName,mapIfUpper)
 import Gencot.Traversal (FTrav,hasProperty,stopResolvTypeName,getItems,getProperties,getFunDef)
 import Gencot.Util.Types (getTagDef,isExtern,isFunction,isExternTypeDef,TypeCarrier,TypeCarrierSet,mergeQualsTo,safeDeclLinkage)
 
@@ -135,20 +135,37 @@ isNotNullItem = isItemWithProperty "nn"
 isReadOnlyItem = isItemWithProperty "ro"
 isAddResultItem = isItemWithProperty "ar"
 isNoStringItem = isItemWithProperty "ns"
+isHeapUseItem = isItemWithProperty "hu"
 
--- | The AddResult property is suppressed by a ReadOnly property.
+-- | The Add-Result property is suppressed by a Read-Only property.
 shallAddResult :: ItemAssocType -> FTrav Bool
 shallAddResult iat = do
     ar <- isAddResultItem iat
     ro <- isReadOnlyItem iat
     return (ar && (not ro))
 
--- | Retrieve all subitems with a gs property.
+-- | Retrieve subitems with a Global-State property.
 -- This includes virtual parameter items not declared for the C function.
-getGlobalStateSubItemIds :: ItemAssocType -> FTrav [String]
-getGlobalStateSubItemIds (fid,_) = 
-    getItems (\iid plist -> (fidslash `isPrefixOf` iid) && any (\p -> "gs" `isPrefixOf` p) plist)
+-- If the first argument is False omit subitems which also have a Read-Only property.
+getGlobalStateSubItemIds :: Bool -> ItemAssocType -> FTrav [String]
+getGlobalStateSubItemIds ro (fid,_) = 
+    getItems (\iid plist -> (fidslash `isPrefixOf` iid) 
+                            && any (\p -> "gs" `isPrefixOf` p) plist
+                            && (ro || (not $ elem "ro" plist)))
     where fidslash = fid ++ "/"
+
+-- | Construct the Global-State parameters of a function.
+-- The result is the list of parameter names together with their ItemAssocTypes,
+-- sorted according to the Global-State properties.
+-- As type always the type void is used as a dummy, we only need the item associatd type to access its properties.
+-- If the first argument is False parameters with a Read-Only property are omitted.
+makeGlobalStateParams :: Bool -> ItemAssocType -> FTrav [(String,ItemAssocType)]
+makeGlobalStateParams ro fiat = do
+    iids <- getGlobalStateSubItemIds ro fiat
+    let iats = map (\iid -> (iid, LCA.DirectType LCA.TyVoid LCA.noTypeQuals LCA.noAttributes)) iids
+    gsps <- mapM getGlobalStateProperty iids
+    gsn <- mapM (\n -> mapIfUpper $ LCI.Ident n 0 LCN.undefNode) $ map getParamName iids
+    return $ map fst $ sortOn snd $ zip (zip gsn iats) gsps
 
 -- | Get the Global-State property for an item.
 -- If not present return the empty string.
@@ -225,15 +242,6 @@ getParamSubItemAssoc (iid,_) ipd@(pos,pdecl) =
     if isFunction typ then adjustItemAssocType iat else iat
     where iat = (getParamSubItemId iid ipd, typ)
           typ = LCA.declType pdecl
-
--- | Construct item assoc types for all parameters to be added by a Global-State property.
--- The argument is the item associated type of the function. 
--- The item names are taken from the declarations of the virtual items.
--- As type the type void is used as a dummy, we only need the item associatd type to access its properties.
-makeGlobalStateItemAssocTypes :: ItemAssocType -> FTrav [ItemAssocType]
-makeGlobalStateItemAssocTypes fiat = do
-    gsids <- getGlobalStateSubItemIds fiat
-    return $ map (\iid -> (iid, LCA.DirectType LCA.TyVoid LCA.noTypeQuals LCA.noAttributes)) gsids
 
 -- | Adjust a type to a derived pointer type, together with its item identifier.
 -- The item identifier is adjusted by prepending a "&".
@@ -324,7 +332,7 @@ getAddResultProperties iat@(_,(LCA.FunctionType (LCA.FunType _ pars _) _)) =
 -- The first argument is the ItemAssocType of the function, the second is the Global-State property.
 getGlobalStateParam :: ItemAssocType -> String -> FTrav String
 getGlobalStateParam iat gs = do
-    pids <- getGlobalStateSubItemIds iat
+    pids <- getGlobalStateSubItemIds True iat
     gsps <- mapM getGlobalStateProperty pids
     return $ maybe "" (getParamName . snd) $ find (\(gsp,_) -> gsp == gs) $ zip gsps pids
 
@@ -385,7 +393,7 @@ getFunctionProperties ident = do
                    sfn <- getFileName
                    let iat = getIndividualItemAssoc decl sfn
                    arProps <- getAddResultProperties iat
-                   pids <- getGlobalStateSubItemIds iat
+                   pids <- getGlobalStateSubItemIds True iat
                    gsps <- mapM getGlobalStateProperty pids
                    mfdef <- getFunDef
                    case mfdef of

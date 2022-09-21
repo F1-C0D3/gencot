@@ -204,6 +204,21 @@ mapFileChar '.' = '_'
 mapFileChar '-' = '_'
 mapFileChar c = c
 
+variadicParamName = "variadicCogentParameters"
+
+heapType :: String
+heapType = "Heap"
+
+heapParamName :: [String] -> String
+heapParamName pars = 
+    if elem "heap" pars
+       then globname 1
+       else "heap"
+    where 
+        globname i = 
+            let cand = ("globheap" ++ (show i))
+            in if elem cand pars then globname (i + 1) else cand
+
 globStateType :: String -> String
 globStateType gs = ("GlobState" ++ (drop 2 gs))
 

@@ -102,7 +102,7 @@ genBody fiat numpars idnam rIsVoid = do
 -- The second argument is the position to be used for the first virtual parameter.
 genGSInits :: ItemAssocType -> Int -> FTrav [(Maybe GCA.Designation, GCA.Initializer)]
 genGSInits fiat pos = do
-    vpars <- getGlobalStateSubItemIds fiat
+    vpars <- getGlobalStateSubItemIds True fiat
     gsps <- mapM getGlobalStateProperty vpars
     gvars <- mapM getGlobalStateId $ sort gsps
     return $ map mkRefInit $ zip (iterate (1 +) pos) $ map getObjName gvars

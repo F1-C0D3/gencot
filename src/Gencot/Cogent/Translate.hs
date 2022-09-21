@@ -21,8 +21,8 @@ import Cogent.Common.Syntax as CCS
 import Cogent.Common.Types as CCT
 
 import Gencot.Origin (Origin,noOrigin,origin,mkOrigin,noComOrigin,mkBegOrigin,mkEndOrigin,prepOrigin,appdOrigin,isNested,toNoComOrigin)
-import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapNameToLower,mapPtrDeriv,mapPtrVoid,mapMayNull,mapArrDeriv,mapFunDeriv,arrDerivHasSize,arrDerivCompNam,arrDerivToUbox,mapUboxStep,rmUboxStep,mapMayNullStep,rmMayNullStepThroughRo,addMayNullStep,mapPtrStep,mapFunStep,mapIncFunStep,mapArrStep,mapModStep,mapRoStep,mapNamFunStep,getFileName,globStateType,isNoFunctionName)
-import Gencot.Items.Types (ItemAssocType,isNotNullItem,isReadOnlyItem,isNoStringItem,getGlobalStateSubItemIds,getGlobalStateProperty,getGlobalStateId,getTagItemAssoc,getIndividualItemAssoc,getTypedefItemAssoc,adjustItemAssocType,getMemberSubItemAssoc,getRefSubItemAssoc,getResultSubItemAssoc,getElemSubItemAssoc,getParamSubItemAssoc,makeGlobalStateItemAssocTypes,getItemAssocType,getMemberItemAssocTypes,getSubItemAssocTypes,numberList,getAddResultProperties)
+import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapNameToLower,mapPtrDeriv,mapPtrVoid,mapMayNull,mapArrDeriv,mapFunDeriv,arrDerivHasSize,arrDerivCompNam,arrDerivToUbox,mapUboxStep,rmUboxStep,mapMayNullStep,rmMayNullStepThroughRo,addMayNullStep,mapPtrStep,mapFunStep,mapIncFunStep,mapArrStep,mapModStep,mapRoStep,mapNamFunStep,getFileName,globStateType,isNoFunctionName,heapType,heapParamName,variadicParamName)
+import Gencot.Items.Types (ItemAssocType,isNotNullItem,isReadOnlyItem,isNoStringItem,isHeapUseItem,getGlobalStateProperty,makeGlobalStateParams,getTagItemAssoc,getIndividualItemAssoc,getTypedefItemAssoc,adjustItemAssocType,getMemberSubItemAssoc,getRefSubItemAssoc,getResultSubItemAssoc,getElemSubItemAssoc,getParamSubItemAssoc,getItemAssocType,getMemberItemAssocTypes,getSubItemAssocTypes,numberList,getAddResultProperties)
 import Gencot.Items.Identifier (getObjFunName,getParamName)
 import Gencot.Cogent.Ast
 import Gencot.Cogent.Bindings (BindsPair,leadVar,lvalVar,resVar,mkUnitExpr,mkVarExpr,mkBodyExpr,mkPlainExpr,mkEmptyBindsPair,mkDummyBindsPair,mkUnitBindsPair,mkDefaultBindsPair,mkIntLitBindsPair,mkCharLitBindsPair,mkStringLitBindsPair,mkValVarBindsPair,mkMemBindsPair,mkIdxBindsPair,mkOpBindsPair,mkAppBindsPair,mkAssBindsPair,mkIfBindsPair,concatBindsPairs,mkDummyBinding,mkNullBinding,mkExpBinding,mkRetBinding,mkBreakBinding,mkContBinding,mkIfBinding,mkSwitchBinding,mkCaseBinding,mkSeqBinding,mkDecBinding,mkForBinding)
@@ -286,15 +286,14 @@ genDerivedTypeDefs nam iat@(iid,pt@(LCA.PtrType _ _ _)) = do
           getName (GenType (CS.TCon nam _ _) _) = nam
 genDerivedTypeDefs _ _ = return []
 
--- | Extend a result expression according to the Add-Result and Global-State properties of the function parameters.
+-- | Extend a result expression according to the properties.
+-- The Add-Result and Global-State properties of the function parameters 
+-- and the Heap-Use property of the function are processed.
 -- The first argument is the item associated type of the function.
 extendExpr :: ItemAssocType -> GenExpr -> [LCA.ParamDecl] -> FTrav GenExpr
 extendExpr iat e pars = do
-    arProps <- getAddResultProperties iat
-    res <- mapM (\(_,d) -> do { vid <- mapIfUpper $ LCA.declIdent d; return $ genExpr $ CS.Var vid}) $ filter fst $ zip arProps pars
-    gsn <- makeGlobalStateNames True iat
-    gse <- mapM (\n -> do { vid <- mapIfUpper $ LCI.Ident n 0 LCN.undefNode;  return $ genExpr $ CS.Var vid}) gsn
-    return $ mkGenExpr $ addres (res ++ gse) e
+    pns <- makeResParamNames iat pars
+    return $ mkGenExpr $ addres (map (genExpr . CS.Var) pns) e
     where addres res (GenExpr CS.Unitel _ _) = res
           addres res e = e : res
 
@@ -349,34 +348,43 @@ transMember iat mdecl@(LCA.MemberDecl (LCA.VarDecl (LCA.VarName idnam _) _ _) _ 
 -- The second argument tells whether the function is variadic.
 transParamNames :: ItemAssocType -> Bool -> [LCA.ParamDecl] -> FTrav GenPatn
 transParamNames fiat variadic pars = do
-    ps <- mapM transParamName pars
-    psgn <- makeGlobalStateNames False fiat
-    let psg = map (\nam -> GenIrrefPatn (CS.PVar nam) noOrigin) psgn
-    let vps = if variadic then ps ++ psg ++ [variadicParamName] else ps ++ psg
+    pns <- makeParamNames fiat variadic pars
+    let porigs = map noComOrigin pars
+    let vps = map (\(nam,orig) -> GenIrrefPatn (CS.PVar nam) orig) $ zip pns (porigs ++ (repeat noOrigin))
     return $ if null vps 
                 then GenPatn (CS.PIrrefutable $ GenIrrefPatn CS.PUnitel noOrigin) noOrigin 
                 else case vps of
                           [pn] -> GenPatn (CS.PIrrefutable pn) noOrigin
                           _ -> GenPatn (CS.PIrrefutable $ GenIrrefPatn (CS.PTuple vps) noOrigin) noOrigin
 
-variadicParamName = GenIrrefPatn (CS.PVar "variadicCogentParameters") noOrigin
+-- | Construct the list of parameter names for a translated function.
+-- The Global-State property of the parameters and the Heap-Use property of the function are processed.
+-- The first argument is the item associated type of the function.
+-- The second argument tells whether the function is variadic.
+makeParamNames :: ItemAssocType -> Bool -> [LCA.ParamDecl] -> FTrav [String]
+makeParamNames fiat variadic pars = do
+    psn <- mapM (mapIfUpper . LCA.declIdent) pars
+    gspars <- makeGlobalStateParams True fiat
+    let psgn = map fst gspars
+    huProp <- isHeapUseItem fiat
+    let hun = if huProp then [heapParamName (psn ++ psgn)] else []
+    let vn = if variadic then [variadicParamName] else []
+    return (psn ++ psgn ++ hun ++ vn)
 
--- | Get the names of virtual parameters with Global-State property
--- sorted according to the property numerical arguments
--- The first argument tells whether to omit parameters with Read-Only property.
-makeGlobalStateNames :: Bool -> ItemAssocType -> FTrav [String]
-makeGlobalStateNames noro fiat = do 
-    iats <- makeGlobalStateItemAssocTypes fiat
-    ros <- mapM isReadOnlyItem iats
-    gsps <- mapM getGlobalStateProperty (map fst iats)
-    let vpars = zip (map (getParamName .fst) iats) $ zip gsps ros
-    let rpars = if noro then filter (not . snd . snd) vpars else vpars
-    return $ map fst $ sortOn (fst . snd) rpars
-        
-transParamName :: LCA.ParamDecl -> FTrav GenIrrefPatn
-transParamName pd = do
-    pnam <- mapIfUpper $ LCA.declIdent pd
-    return $ GenIrrefPatn (CS.PVar pnam) $ noComOrigin pd
+-- | Construct the list of parameter names to be returned as part of the result for a translated function.
+-- The properties Add-Result, Global-State, and Read-Only of the parameters 
+-- and the Heap-Use property of the function are processed.
+-- The first argument is the item associated type of the function.
+makeResParamNames :: ItemAssocType -> [LCA.ParamDecl] -> FTrav [String]
+makeResParamNames fiat pars = do
+    psn <- mapM (mapIfUpper . LCA.declIdent) pars
+    arProps <- getAddResultProperties fiat
+    let arpsn = map snd $ filter fst $ zip arProps psn
+    gspars <- makeGlobalStateParams False fiat
+    let psgn = map fst gspars
+    huProp <- isHeapUseItem fiat
+    let hun = if huProp then [heapParamName (psn ++ psgn)] else []
+    return (arpsn ++ psgn ++ hun)
 
 -- | Translate a C type specification to a Cogent type.
 -- The C type is specified as an ItemAssocType, so that its item properties can be respected.
@@ -681,16 +689,23 @@ getTypedefName t = ""
 -- First add all parameters with a Global-State property.
 -- Then for every parameter which has the Add-Result or Global-State property and no Read-Only property
 -- its type is appended to the result type.
+-- Then if the function has a Heap-Use property, the Heap type is appended to the parameters 
+-- and the result type.
 -- Comment markers are removed from these types to avoid duplication of comments.
 applyProperties :: ItemAssocType -> GenType -> FTrav GenType
 applyProperties iat (GenType (CS.TFun pt rt) o) = do
     arProps <- getAddResultProperties iat
-    gsiats <- makeGlobalStateItemAssocTypes iat
-    gsps <- mapM getGlobalStateProperty (map fst gsiats)
-    gstypes <- mapM makeGlobalStateType $ map fst $ sortOn snd $ zip gsiats gsps
-    let gsarProps = map shallAddResultGS gstypes
-    let arPars = map snd $ filter fst $ zip (arProps ++ gsarProps) (ptl ++ gstypes)
-    return $ GenType (CS.TFun (mkParType (ptl ++ gstypes)) (mkParType $ addPars rt $ map remComment $ arPars)) o 
+    let artypes = map snd $ filter fst $ zip arProps ptl
+    gspars <- makeGlobalStateParams True iat
+    gstypes <- mapM makeGlobalStateType $ map snd gspars
+    gsarpars <- makeGlobalStateParams False iat
+    gsartypes <- mapM makeGlobalStateType $ map snd gsarpars
+    huProp <- isHeapUseItem iat
+    let hutype = if huProp then [makeHeapType] else []
+    let allpartypes = ptl ++ gstypes ++ hutype
+    let arpartypes = artypes ++ gsartypes ++ hutype
+
+    return $ GenType (CS.TFun (mkParType allpartypes) (mkParType $ addPars rt $ map remComment $ arpartypes)) o 
     where addPars (GenType CS.TUnit _) ps = ps
           addPars r ps = r : ps
           ptl = ptlist pt
@@ -708,6 +723,9 @@ makeGlobalStateType iat@(iid,_) = do
     ro <- isReadOnlyItem iat
     gs <- getGlobalStateProperty iid
     return $ makeReadOnlyIf ro $ genType $ CS.TCon (globStateType gs) [] $ markBox
+
+makeHeapType :: GenType
+makeHeapType = genType $ CS.TCon heapType [] markBox
 
 mkBoxedType :: String -> Origin -> GenType
 mkBoxedType nam = GenType (CS.TCon nam [] $ markBox)

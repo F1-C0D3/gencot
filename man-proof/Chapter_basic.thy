@@ -181,9 +181,26 @@ types. Alternatively a type name can be introduced as a synonym for an existing 
 \end{verbatim}
 such as in \<^theory_text>\<open>type_synonym natset = nat set\<close>.
 
+Terms are mainly built as syntactical structures based on constants and variables. Constants are usually
+denoted by names, using the same namespace as type names. Whether a name denotes a constant or a 
+type depends on its position in a term. 
 
-\<^item> Constant names
-\<^item> Constant declarations
+A constant name denotes an object, which may also be a function of arbitrary order. Functions always
+have a single argument. The type of a function is written as \<open>argtype \<Rightarrow> restype\<close>. The result type
+of a function may again be a function type, then it may be applied to another argument. This is used
+to represent functions with more than one arguments. Function types are right associative, thus a 
+type \<open>argtype\<^sub>1 \<Rightarrow> argtype\<^sub>2 \<Rightarrow> ... \<Rightarrow> argtype\<^sub>n \<Rightarrow> restype\<close> represents a function which can be applied 
+to \<open>n\<close> arguments. Function application terms for a function \<open>f\<close> and an argument \<open>a\<close> are denoted by 
+\<open>f a\<close>, no parentheses are required around the argument. Function application terms are left 
+associative, thus a function application to \<open>n\<close> arguments is written \<open>f a\<^sub>1 ... a\<^sub>n\<close>. Note that an
+application \<open>f a\<^sub>1 ... a\<^sub>m\<close> where \<open>m < n\<close> (a ``partial application'') is a correct term and denotes a
+function taking \<open>n-m\<close> arguments.
+
+A constant name can be introduced by declaring it together with its type. The declaration
+\begin{verbatim}
+  consts <name1> :: <type1> ... <namen> :: <typen> 
+\end{verbatim}
+declares \<^verbatim>\<open>n\<close> constant names with their types.
 \<close>
 
 subsection "Definitions"

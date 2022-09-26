@@ -22,10 +22,10 @@ import Cogent.Common.Types as CCT
 
 import Gencot.Origin (Origin,noOrigin,origin,mkOrigin,noComOrigin,mkBegOrigin,mkEndOrigin,prepOrigin,appdOrigin,isNested,toNoComOrigin)
 import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapNameToLower,mapPtrDeriv,mapPtrVoid,mapMayNull,mapArrDeriv,mapFunDeriv,arrDerivHasSize,arrDerivCompNam,arrDerivToUbox,mapUboxStep,rmUboxStep,mapMayNullStep,rmMayNullStepThroughRo,addMayNullStep,mapPtrStep,mapFunStep,mapIncFunStep,mapArrStep,mapModStep,mapRoStep,mapNamFunStep,getFileName,globStateType,isNoFunctionName,heapType,heapParamName,variadicParamName)
-import Gencot.Items.Types (ItemAssocType,isNotNullItem,isReadOnlyItem,isNoStringItem,isHeapUseItem,getGlobalStateProperty,makeGlobalStateParams,getTagItemAssoc,getIndividualItemAssoc,getTypedefItemAssoc,adjustItemAssocType,getMemberSubItemAssoc,getRefSubItemAssoc,getResultSubItemAssoc,getElemSubItemAssoc,getParamSubItemAssoc,getItemAssocType,getMemberItemAssocTypes,getSubItemAssocTypes,numberList,getAddResultProperties)
+import Gencot.Items.Types (ItemAssocType,isNotNullItem,isReadOnlyItem,isNoStringItem,isHeapUseItem,getGlobalStateProperty,makeGlobalStateParams,getTagItemAssoc,getIndividualItemAssoc,getTypedefItemAssoc,adjustItemAssocType,getMemberSubItemAssoc,getRefSubItemAssoc,getResultSubItemAssoc,getElemSubItemAssoc,getParamSubItemAssoc,getItemAssocType,getMemberItemAssocTypes,getSubItemAssocTypes,numberList,getAddResultProperties,getFunctionProperties)
 import Gencot.Items.Identifier (getObjFunName,getParamName)
 import Gencot.Cogent.Ast
-import Gencot.Cogent.Bindings (BindsPair,leadVar,lvalVar,resVar,mkUnitExpr,mkVarExpr,mkBodyExpr,mkPlainExpr,mkEmptyBindsPair,mkDummyBindsPair,mkUnitBindsPair,mkDefaultBindsPair,mkIntLitBindsPair,mkCharLitBindsPair,mkStringLitBindsPair,mkValVarBindsPair,mkMemBindsPair,mkIdxBindsPair,mkOpBindsPair,mkAppBindsPair,mkAssBindsPair,mkIfBindsPair,concatBindsPairs,mkDummyBinding,mkNullBinding,mkExpBinding,mkRetBinding,mkBreakBinding,mkContBinding,mkIfBinding,mkSwitchBinding,mkCaseBinding,mkSeqBinding,mkDecBinding,mkForBinding)
+import Gencot.Cogent.Bindings (BindsPair,valVar,leadVar,lvalVar,resVar,mkUnitExpr,mkVarExpr,mkBodyExpr,mkPlainExpr,mkEmptyBindsPair,mkDummyBindsPair,mkUnitBindsPair,mkDefaultBindsPair,mkIntLitBindsPair,mkCharLitBindsPair,mkStringLitBindsPair,mkValVarBindsPair,mkMemBindsPair,mkIdxBindsPair,mkOpBindsPair,mkAppBindsPair,mkAssBindsPair,mkIfBindsPair,concatBindsPairs,mkDummyBinding,mkNullBinding,mkExpBinding,mkRetBinding,mkBreakBinding,mkContBinding,mkIfBinding,mkSwitchBinding,mkCaseBinding,mkSeqBinding,mkDecBinding,mkForBinding)
 import Gencot.Cogent.Postproc (postproc)
 import qualified Gencot.C.Ast as LQ (Stm(Exp,Block),Exp)
 import qualified Gencot.C.Translate as C (transStat,transExpr,transArrSizeExpr,transBlockItem)
@@ -364,8 +364,8 @@ transParamNames fiat variadic pars = do
 makeParamNames :: ItemAssocType -> Bool -> [LCA.ParamDecl] -> FTrav [String]
 makeParamNames fiat variadic pars = do
     psn <- mapM (mapIfUpper . LCA.declIdent) pars
-    gspars <- makeGlobalStateParams True fiat
-    let psgn = map fst gspars
+    gspars <- makeGlobalStateParams fiat
+    let psgn = map (fst . fst) gspars
     huProp <- isHeapUseItem fiat
     let hun = if huProp then [heapParamName (psn ++ psgn)] else []
     let vn = if variadic then [variadicParamName] else []
@@ -380,8 +380,8 @@ makeResParamNames fiat pars = do
     psn <- mapM (mapIfUpper . LCA.declIdent) pars
     arProps <- getAddResultProperties fiat
     let arpsn = map snd $ filter fst $ zip arProps psn
-    gspars <- makeGlobalStateParams False fiat
-    let psgn = map fst gspars
+    gspars <- makeGlobalStateParams fiat
+    let psgn = map (fst . fst) $ filter snd gspars
     huProp <- isHeapUseItem fiat
     let hun = if huProp then [heapParamName (psn ++ psgn)] else []
     return (arpsn ++ psgn ++ hun)
@@ -696,15 +696,13 @@ applyProperties :: ItemAssocType -> GenType -> FTrav GenType
 applyProperties iat (GenType (CS.TFun pt rt) o) = do
     arProps <- getAddResultProperties iat
     let artypes = map snd $ filter fst $ zip arProps ptl
-    gspars <- makeGlobalStateParams True iat
-    gstypes <- mapM makeGlobalStateType $ map snd gspars
-    gsarpars <- makeGlobalStateParams False iat
-    gsartypes <- mapM makeGlobalStateType $ map snd gsarpars
+    gspars <- makeGlobalStateParams iat
+    gstypes <- mapM makeGlobalStateType $ map (snd . fst) gspars
+    gsartypes <- mapM makeGlobalStateType $ map (snd . fst) $ filter snd gspars
     huProp <- isHeapUseItem iat
     let hutype = if huProp then [makeHeapType] else []
     let allpartypes = ptl ++ gstypes ++ hutype
     let arpartypes = artypes ++ gsartypes ++ hutype
-
     return $ GenType (CS.TFun (mkParType allpartypes) (mkParType $ addPars rt $ map remComment $ arpartypes)) o 
     where addPars (GenType CS.TUnit _) ps = ps
           addPars r ps = r : ps
@@ -1034,14 +1032,17 @@ bindExpr e@(LC.CBinary op e1 e2 _) = do
     bp1 <- bindExpr e1
     bp2 <- bindExpr e2
     insertExprSrc e $ mkOpBindsPair (transBinOp op) [bp1,bp2]
-bindExpr e@(LC.CCall (LC.CVar nam _) [] _) = do
-    cnt <- getValCounter
-    f <- transObjName nam
-    insertExprSrc e $ mkAppBindsPair f cnt []
 bindExpr e@(LC.CCall (LC.CVar nam _) es _) = do
     bps <- mapM bindExpr es
     f <- transObjName nam
-    insertExprSrc e $ mkAppBindsPair f 0 bps
+    (vdres,arprops,gshupars,_) <- getFunctionProperties nam
+    let invalpars = filter (null . fst . fst) gshupars
+    cnt <- if (null bps && not vdres) || (not $ null invalpars) then getValCounter else return 0 
+    let rvar = if vdres then "" else if null bps then valVar cnt else leadVar (head bps)
+    insertExprSrc e $
+        if null invalpars
+           then mkAppBindsPair f bps rvar arprops $ map fst gshupars
+           else mkDummyBindsPair cnt ("No value available for property " ++ (snd (head invalpars)))
 bindExpr e@(LC.CCall _ _ _) = do
     cnt <- getValCounter
     insertExprSrc e $ mkDummyBindsPair cnt "Translation of function expression not yet implemented"

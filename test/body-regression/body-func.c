@@ -140,7 +140,7 @@ void cffv23(void) { ffv23(); } // g1: gs1, g2: gs2
 void cffv31(int *i) { ffv31(i); } // g: gs1
 void cffv32(int *i) { ffv32(i); } // g: gs1
 void cffv34(int *i, int *j) { ffv34(i,j); } // g: gs1
-void cffv35(int *i, int *j) { ffv34(i,j); } // g: gs1
+void cffv35(int *i, int *j) { ffv35(i,j); } // g: gs1
 void cffv36(int *i, int *j) { ffv36(i,j); } // g1: gs1, g2: gs2
 
 void cffv41(void) { ffv41(); } // cffv41: hu
@@ -176,7 +176,7 @@ int cffi42(void) { return ffi42(); } // cffv41: hu, g: gs1
 int cffi43(int *i) { return ffi43(i); } // cffv43: hu
 int cffi44(int *i) { return ffi44(i); } // cffv44: hu
 int cffi45(int *i) { return ffi45(i); } // g: gs1, cffv45: hu
-int cffi46(int *i) { return ffi46(i); } // g: gs1, cffv46: hu
+int cffi46(int *i) { return ffi46(i); } // heap: gs1, cffv46: hu
 int cffi48(int *i, int *j) { return ffi48(i,j); } // g: gs1, cffv48: hu
 int cffi49(int *i, int *j) { return ffi49(i,j); } // g: gs1, cffv49: hu
 

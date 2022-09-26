@@ -2,7 +2,7 @@
 module Gencot.Cogent.Bindings where
 
 import Data.List (union,nub,delete,(\\))
-import Data.Maybe (catMaybes)
+import Data.Maybe (catMaybes,isNothing)
 
 import Cogent.Surface as CS
 import Cogent.Common.Syntax as CCS
@@ -161,14 +161,22 @@ mkOpBindsPair op bps =
     addBinding (mkVarBinding (head vs) $ mkOpExpr op (map mkVarExpr vs)) $ concatBindsPairs bps
     where vs = map leadVar bps 
 
--- | Function application v<n>' = f (bp...)
--- If the function has arguments the value variable of the first argument is reused.
--- Otherwise a new value variable is introduced.
-mkAppBindsPair :: CCS.FunName -> Int -> [BindsPair] -> BindsPair
-mkAppBindsPair f n bps =
-    addBinding (mkVarBinding v $ mkAppExpr f (map mkVarExpr vs)) $ concatBindsPairs bps
-    where vs = map leadVar bps
-          v = if null vs then valVar n else (head vs)
+-- | Function application v = f (bp...) or (v,v1,..,vn) = f (bp..,vi,..,vn)
+-- The third argument is the variable to bind the function result, or the empty string if the function has result type void.
+-- The fourth argument is a boolean vector marking the Add-Result arguments in bps.
+-- The fifth argument is the list of additional variables for Global-State and Heap-Use arguments,
+-- each with a flag whether it shall be returned as result.
+mkAppBindsPair :: CCS.FunName -> [BindsPair] -> CCS.VarName -> [Bool] -> [(CCS.VarName,Bool)] -> BindsPair
+mkAppBindsPair f bps v ars ghs =
+    if any isNothing marvs
+       then mkSingleBindsPair $ mkVarBinding (head rvs) $ mkDummyExpr "Unsupported Add-Result argument"
+       else addBinding (mkVarsBinding rvs $ mkAppExpr f (map mkVarExpr vs)) $ concatBindsPairs bps
+    where vs = (map leadVar bps) ++ (map fst ghs)
+          marvs = map lvalVar $ map snd $ filter fst $ zip ars bps
+          argvs = (catMaybes marvs) ++ (map fst $ filter snd ghs)
+          rvs = (if null v 
+                   then if null argvs then ["_"] else []
+                   else [v]) ++ argvs
 
 -- | Assignment v<n>' = v<n>' op v<k>', (v<n>',v) = (v<n>',v<n>') or (v,v<n>')
 -- The first argument is True for a postfix inc/dec operator, otherwise false.
@@ -385,7 +393,8 @@ cmbBinds bp = cmbExtBinds (sideEffectTargets bp) bp
 cmbExtBinds :: [CCS.VarName] -> BindsPair -> GenBnd
 cmbExtBinds vs bp@(main,putback) = 
     mkVarsBinding vs' $ mkLetExpr bs $ mkVarTupleExpr vs'
-    where vs' = (leadVar bp : vs)
+    where lv = leadVar bp
+          vs' = if elem lv vs then vs else lv : vs
           bs = (reverse main) ++ putback
 
 -- Construct Patterns

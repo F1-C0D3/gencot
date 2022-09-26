@@ -11,9 +11,9 @@ import Language.C.Data.Node as LCN
 import Language.C.Analysis as LCA
 
 import Gencot.Items.Identifier (individualItemId,localItemId,paramItemId,typedefItemId,tagItemId,memberSubItemId,paramSubItemId,elemSubItemId,refSubItemId,resultSubItemId,indivItemIds,getParamName)
-import Gencot.Names (getFileName,anonCompTypeName,srcFileName,mapIfUpper)
+import Gencot.Names (getFileName,anonCompTypeName,srcFileName,mapIfUpper,heapParamName)
 import Gencot.Traversal (FTrav,hasProperty,stopResolvTypeName,getItems,getProperties,getFunDef)
-import Gencot.Util.Types (getTagDef,isExtern,isFunction,isExternTypeDef,TypeCarrier,TypeCarrierSet,mergeQualsTo,safeDeclLinkage)
+import Gencot.Util.Types (getTagDef,isExtern,isFunction,isExternTypeDef,isVoid,TypeCarrier,TypeCarrierSet,mergeQualsTo,safeDeclLinkage)
 
 -- | Construct the identifier for an individual toplevel item.
 -- An individual toplevel item is a function or a global object (variable).
@@ -146,26 +146,28 @@ shallAddResult iat = do
 
 -- | Retrieve subitems with a Global-State property.
 -- This includes virtual parameter items not declared for the C function.
--- If the first argument is False omit subitems which also have a Read-Only property.
-getGlobalStateSubItemIds :: Bool -> ItemAssocType -> FTrav [String]
-getGlobalStateSubItemIds ro (fid,_) = 
-    getItems (\iid plist -> (fidslash `isPrefixOf` iid) 
-                            && any (\p -> "gs" `isPrefixOf` p) plist
-                            && (ro || (not $ elem "ro" plist)))
+-- The result is a list of pairs, consisting of the item id and a flag whether the item has no Read-Only property.
+getGlobalStateSubItemIds :: ItemAssocType -> FTrav [(String,Bool)]
+getGlobalStateSubItemIds (fid,_) = do
+    gsids <- getItems (\iid plist -> (fidslash `isPrefixOf` iid) 
+                       && any (\p -> "gs" `isPrefixOf` p) plist)
+    roids <- getItems (\iid plist -> (fidslash `isPrefixOf` iid) 
+                       && elem "ro" plist)
+    let isnorogsids = map (\iid -> not $ elem iid roids) gsids
+    return $ zip gsids isnorogsids
     where fidslash = fid ++ "/"
 
 -- | Construct the Global-State parameters of a function.
--- The result is the list of parameter names together with their ItemAssocTypes,
+-- The result is the list of parameter names and their ItemAssocTypes, together with a not-Read-Only flag,
 -- sorted according to the Global-State properties.
 -- As type always the type void is used as a dummy, we only need the item associatd type to access its properties.
--- If the first argument is False parameters with a Read-Only property are omitted.
-makeGlobalStateParams :: Bool -> ItemAssocType -> FTrav [(String,ItemAssocType)]
-makeGlobalStateParams ro fiat = do
-    iids <- getGlobalStateSubItemIds ro fiat
-    let iats = map (\iid -> (iid, LCA.DirectType LCA.TyVoid LCA.noTypeQuals LCA.noAttributes)) iids
-    gsps <- mapM getGlobalStateProperty iids
-    gsn <- mapM (\n -> mapIfUpper $ LCI.Ident n 0 LCN.undefNode) $ map getParamName iids
-    return $ map fst $ sortOn snd $ zip (zip gsn iats) gsps
+makeGlobalStateParams :: ItemAssocType -> FTrav [((String,ItemAssocType),Bool)]
+makeGlobalStateParams fiat = do
+    iids <- getGlobalStateSubItemIds fiat
+    let iats = map (\iid -> (iid, LCA.DirectType LCA.TyVoid LCA.noTypeQuals LCA.noAttributes)) $ map fst iids
+    gsps <- mapM getGlobalStateProperty $ map fst iids
+    gsn <- mapM (\n -> mapIfUpper $ LCI.Ident n 0 LCN.undefNode) $ map (getParamName .fst) iids
+    return $ map fst $ sortOn snd $ zip (zip (zip gsn iats) (map snd iids)) gsps
 
 -- | Get the Global-State property for an item.
 -- If not present return the empty string.
@@ -332,9 +334,20 @@ getAddResultProperties iat@(_,(LCA.FunctionType (LCA.FunType _ pars _) _)) =
 -- The first argument is the ItemAssocType of the function, the second is the Global-State property.
 getGlobalStateParam :: ItemAssocType -> String -> FTrav String
 getGlobalStateParam iat gs = do
-    pids <- getGlobalStateSubItemIds True iat
-    gsps <- mapM getGlobalStateProperty pids
-    return $ maybe "" (getParamName . snd) $ find (\(gsp,_) -> gsp == gs) $ zip gsps pids
+    pids <- getGlobalStateSubItemIds iat
+    gsps <- mapM getGlobalStateProperty $ map fst pids
+    return $ maybe "" (getParamName . snd) $ find (\(gsp,_) -> gsp == gs) $ zip gsps $ map fst pids
+
+-- | For a function et the name of the heap parameter.
+-- If the function has no Heap-Use property, return the empty string.
+-- The first argument is the ItemAssocType of the function.
+getHeapUseParam :: ItemAssocType -> FTrav String
+getHeapUseParam iat@(_,(LCA.FunctionType (LCA.FunType _ pars _) _)) = do
+    psn <- mapM (mapIfUpper . LCA.declIdent) pars
+    gspars <- makeGlobalStateParams iat
+    let psgn = map (fst . fst) gspars
+    huProp <- isHeapUseItem iat
+    return $ if huProp then heapParamName (psn ++ psgn) else ""
 
 -- | Retrieve the declaration for a global identifier (i.e. it has external or internal linkage).
 getDeclWithLinkage :: LCI.Ident -> FTrav (Maybe LCA.IdentDecl)
@@ -373,33 +386,38 @@ getGlobalVarProperties ident = do
                         _ -> return $ ("",False)
 
 -- | Retrieve information about a (global) function identifier used for an invocation in a function body.
--- The first result component is a list of booleans telling for each regular parameter whether it has an Add-Result property.
--- The second result component is the list of parameter names of the surrounding function with Global-State property according
--- to those for the invoked function. The list corresponds to the Global-State parameters of the invoked function in their order.
--- If the surrounding function has no parameter with the same Global-State property the list contains an empty string.
--- The third result component contains the name of the heap parameter of the surrounding function, if both functions have the 
--- Heap-Use property, otherwise it is the empty string.
+-- The first result component specifies if the function result type is void.
+-- The second result component is a list of booleans specifying for each regular parameter whether it has an Add-Result property.
+-- The third result component is the list of parameter names of the surrounding function resulting from Global-State and
+-- Heap-Use properties of the invoked function in the order for the invoked function. Every element is a pair of the 
+-- parameter name and a flag whether it shall be returned by the invoked function, together with the causing property.
+-- If the surrounding function has no parameter with the corresponding property the parameter name is the empty string.
 -- The fourth result component is the position of the parameter of the invoked function with a Modification-Function property,
 -- otherwise it is -1.
-getFunctionProperties :: LCI.Ident -> FTrav ([Bool],[String],String,Int)
+getFunctionProperties :: LCI.Ident -> FTrav (Bool,[Bool],[((String,Bool),String)],Int)
 getFunctionProperties ident = do
     mdecl <- getDeclWithLinkage ident
     case mdecl of
-         Nothing -> return $ ([],[],"",-1)
+         Nothing -> return $ (False,[],[],-1)
          Just decl -> 
             if not $ isFunction $ LCA.declType decl
-               then return $ ([],[],"",-1)
+               then return $ (False,[],[],-1)
                else do
                    sfn <- getFileName
                    let iat = getIndividualItemAssoc decl sfn
+                   riat <- getResultSubItemAssoc iat
                    arProps <- getAddResultProperties iat
-                   pids <- getGlobalStateSubItemIds True iat
-                   gsps <- mapM getGlobalStateProperty pids
+                   pids <- getGlobalStateSubItemIds iat
+                   gsps <- mapM (getGlobalStateProperty . fst) pids
+                   let gspnoros = sortOn fst $ zip gsps $ map snd pids
+                   huprop <- isHeapUseItem iat
+                   let gshunoros = gspnoros ++ (if huprop then [("hu",True)] else [])
                    mfdef <- getFunDef
                    case mfdef of
                         Just idecl@(LCA.FunctionDef _) -> do
                             let fiat = getIndividualItemAssoc idecl sfn
-                            gspars <- mapM (getGlobalStateParam fiat) $ sort gsps
-                            hupar <- return "" -- determine hu param name
-                            return $ (arProps, gspars,hupar,-1)
-                        _ -> return $ ([],[],"",-1)
+                            gspars <- mapM ((getGlobalStateParam fiat) . fst) $ gspnoros
+                            hupar <- getHeapUseParam fiat
+                            let gshupars = gspars ++ (if huprop then [hupar] else [])
+                            return $ (isVoid (snd riat), arProps, zip (zip gshupars $ map snd gshunoros) $ map fst gshunoros,-1)
+                        _ -> return $ (False,[],[],-1)

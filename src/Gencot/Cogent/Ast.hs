@@ -3,7 +3,7 @@ module Gencot.Cogent.Ast where
 
 import "language-c" Language.C
 
-import Cogent.Surface as CS (TopLevel, Expr, Pattern, IrrefutablePattern, Type, Binding, Alt, RawType(RT), RawPatn(RP), RawIrrefPatn(RIP), RawExpr(RE))
+import Cogent.Surface as CS (TopLevel, Expr, Pattern, IrrefutablePattern, Type(TUnit), Binding, Alt, RawType(RT), RawPatn(RP), RawIrrefPatn(RIP), RawExpr(RE))
 import Cogent.Dargent.Surface (DataLayoutExpr(DL), DataLayoutExpr'(LVar))
 import Cogent.Common.Syntax (VarName)
 import Cogent.Util (ffmap,fffmap,ffffmap,fffffmap)
@@ -24,38 +24,43 @@ data GenToplv = GenToplv {
 data GenExpr = GenExpr {
     exprOfGE :: ExprOfGE,
     orgOfGE :: Origin,
+    typOfGE :: GenType,
     ccdOfGE :: Maybe LQ.Stm
     } deriving (Eq, Ord, Show)
 data GenPatn = GenPatn { 
     patnOfGP :: PatnOfGP,
-    orgOfGP :: Origin
+    orgOfGP :: Origin,
+    typOfGP :: GenType
     } deriving (Eq, Ord, Show)
 data GenIrrefPatn = GenIrrefPatn { 
     irpatnOfGIP :: IrpatnOfGIP,
-    orgOfGIP :: Origin
+    orgOfGIP :: Origin,
+    typOfGIP :: GenType
     } deriving (Eq, Ord, Show)
 data GenType = GenType { 
     typeOfGT :: TypeOfGT,
     orgOfGT :: Origin
     } deriving (Eq, Ord, Show)
 
+-- The types Binding and Alt cannot be extended because they are used directly in Expr
+-- instead of being a type parameter of Expr.
+type GenBnd = CS.Binding GenType GenPatn GenIrrefPatn GenExpr
+type GenAlt = CS.Alt GenPatn GenExpr
+
 mapToplOfGTL :: (ToplOfGTL -> ToplOfGTL) -> GenToplv -> GenToplv
 mapToplOfGTL f g = GenToplv (f $ toplOfGTL g) $ orgOfGTL g
 
 mapExprOfGE :: (ExprOfGE -> ExprOfGE) -> GenExpr -> GenExpr
-mapExprOfGE f g = GenExpr (f $ exprOfGE g) (orgOfGE g) (ccdOfGE g)
+mapExprOfGE f g = GenExpr (f $ exprOfGE g) (orgOfGE g) (typOfGE g) (ccdOfGE g)
 
 mapPatnOfGP :: (PatnOfGP -> PatnOfGP) -> GenPatn -> GenPatn
-mapPatnOfGP f g = GenPatn (f $ patnOfGP g) $ orgOfGP g
+mapPatnOfGP f g = GenPatn (f $ patnOfGP g) (orgOfGP g) (typOfGP g)
 
 mapIrpatnOfGIP :: (IrpatnOfGIP -> IrpatnOfGIP) -> GenIrrefPatn -> GenIrrefPatn
-mapIrpatnOfGIP f g = GenIrrefPatn (f $ irpatnOfGIP g) $ orgOfGIP g
+mapIrpatnOfGIP f g = GenIrrefPatn (f $ irpatnOfGIP g) (orgOfGIP g) (typOfGIP g)
 
 mapTypeOfGT :: (TypeOfGT -> TypeOfGT) -> GenType -> GenType
 mapTypeOfGT f g = GenType (f $ typeOfGT g) $ orgOfGT g
-
-type GenBnd = CS.Binding GenType GenPatn GenIrrefPatn GenExpr
-type GenAlt = CS.Alt GenPatn GenExpr
 
 toRawType :: GenType -> RawType
 toRawType = RT . fmap toRawType . ffmap toDLExpr . fffmap toRawExpr . typeOfGT
@@ -82,14 +87,17 @@ rawToGenT :: RawType -> GenType
 rawToGenT (RT t) = GenType (fmap rawToGenT $ ffmap (const ()) $ fffmap rawToGenE t) noOrigin
 
 rawToGenP :: RawPatn -> GenPatn
-rawToGenP (RP p) = GenPatn (fmap rawToGenIP p) noOrigin
+rawToGenP (RP p) = GenPatn (fmap rawToGenIP p) noOrigin unitType
 
 rawToGenIP :: RawIrrefPatn -> GenIrrefPatn
-rawToGenIP (RIP ip) = GenIrrefPatn (ffmap rawToGenIP $ fmap rawToGenE ip) noOrigin
+rawToGenIP (RIP ip) = GenIrrefPatn (ffmap rawToGenIP $ fmap rawToGenE ip) noOrigin unitType
 
 rawToGenE :: RawExpr -> GenExpr
 rawToGenE (RE e) = GenExpr ( fffffmap rawToGenT
                            $ ffffmap  rawToGenP
                            $ fffmap   rawToGenIP
                            $ ffmap    (const ()) 
-                           $ fmap     rawToGenE e) noOrigin Nothing
+                           $ fmap     rawToGenE e) noOrigin unitType Nothing
+
+unitType :: GenType
+unitType = GenType TUnit noOrigin

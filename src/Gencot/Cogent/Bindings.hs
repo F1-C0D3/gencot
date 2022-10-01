@@ -7,7 +7,7 @@ import Data.Maybe (catMaybes,isNothing)
 import Cogent.Surface as CS
 import Cogent.Common.Syntax as CCS
 
-import Gencot.Cogent.Ast
+import Gencot.Cogent.Ast -- includes unitType
 import Gencot.Origin (noOrigin)
     
 prime = '\''
@@ -314,7 +314,7 @@ mkCaseBinding :: GenBnd -> Int -> Int -> Bool -> GenBnd
 mkCaseBinding b nr grps dfltSeen = 
     if dfltSeen && nr == grps
        then mkVarsBinding vs $ mkLetExpr [b] $ mkVarTupleExpr vs
-       else mkVarsBinding vs $ mkIfExpr (cond dfltSeen) (mkLetExpr [b] $ mkVarTupleExpr vs) $ mk0VarTupleExpr set
+       else mkVarsBinding vs $ mkIfExpr (cond dfltSeen) (mkLetExpr [b] $ mkVarTupleExpr vs) $ mk0VarTupleExpr mkU8Type set
     where set = sideEffectFilter $ boundVars b
           vs = ctlVar : set
           cond False = mkDisjExpr $ map (mkVarExpr . casVar) $ take nr $ iterate (1+) 1
@@ -441,36 +441,36 @@ mkArrTakePattern v1 v2 v3 v4 = mkTuplePattern [genIrrefPatn $ CS.PArrayTake v1 [
 -- Construct Expressions
 ------------------------
 
-genExpr e = GenExpr e noOrigin Nothing
+genExpr t e = GenExpr e noOrigin t Nothing
 
 -- construct ()
 mkUnitExpr :: GenExpr
-mkUnitExpr = genExpr CS.Unitel
+mkUnitExpr = genExpr unitType CS.Unitel
 
 -- construct i
 mkIntLitExpr :: Integer -> GenExpr
-mkIntLitExpr = genExpr . CS.IntLit
+mkIntLitExpr t = (genExpr mkU32Type) . CS.IntLit
 
 -- construct c
 mkCharLitExpr :: Char -> GenExpr
-mkCharLitExpr = genExpr . CS.CharLit
+mkCharLitExpr = (genExpr mkU8Type) . CS.CharLit
 
 -- construct s
 mkStringLitExpr :: String -> GenExpr
-mkStringLitExpr = genExpr . CS.StringLit
+mkStringLitExpr = (genExpr mkStringType) . CS.StringLit
 
 -- construct True or False
 mkBoolLitExpr :: Bool -> GenExpr
-mkBoolLitExpr = genExpr . CS.BoolLit
+mkBoolLitExpr = (genExpr mkBoolType) . CS.BoolLit
 
 -- construct v
-mkVarExpr :: CCS.VarName -> GenExpr
-mkVarExpr = genExpr . CS.Var
+mkVarExpr :: GenType -> CCS.VarName -> GenExpr
+mkVarExpr t = (genExpr t) . CS.Var
 
 -- construct (e1,..,en) or e1
 mkTupleExpr :: [GenExpr] -> GenExpr
 mkTupleExpr [e] = e
-mkTupleExpr es = genExpr $ CS.Tuple es
+mkTupleExpr es = genExpr (mkTupleType (map typOfGE es)) $ CS.Tuple es
 
 -- construct e1 op e2 or op e1
 mkOpExpr :: CCS.OpName -> [GenExpr] -> GenExpr
@@ -490,8 +490,8 @@ mkExpVarTupleExpr e [] = e
 mkExpVarTupleExpr e vs = mkTupleExpr (e : (map mkVarExpr vs))
 
 -- construct (0,v1,...,vn) or 0
-mk0VarTupleExpr :: [CCS.VarName] -> GenExpr
-mk0VarTupleExpr vs = mkExpVarTupleExpr (mkIntLitExpr 0) vs
+mk0VarTupleExpr :: GenType -> [CCS.VarName] -> GenExpr
+mk0VarTupleExpr t vs = mkExpVarTupleExpr (mkIntLitExpr t 0) vs
 
 -- construct e1 || ... || en
 mkDisjExpr :: [GenExpr] -> GenExpr
@@ -571,3 +571,21 @@ mkDummyExpr msg = mkAppExpr "gencotDummy" [mkStringLitExpr msg]
 -- turn expression to dummy, preserving origin and source
 toDummyExpr :: GenExpr -> GenExpr -> GenExpr
 toDummyExpr (GenExpr e o src) (GenExpr dummy _ _) = (GenExpr dummy o src) 
+
+-- Construct Types
+------------------
+
+mkU8Type :: GenType
+mkU8Type = GenType (CS.TCon "U8" [] Unboxed) noOrigin
+
+mkU32Type :: GenType
+mkU32Type = GenType (CS.TCon "U32" [] Unboxed) noOrigin
+
+mkStringType :: GenType
+mkStringType = GenType (CS.TCon "String" [] Unboxed) noOrigin
+
+mkBoolType :: GenType
+mkBoolType = GenType (CS.TCon "Bool" [] Unboxed) noOrigin
+
+mkTupleType :: [GenType] -> GenType
+mkTupleType ts = GenType (CS.TTuple ts) noOrigin

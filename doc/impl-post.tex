@@ -24,7 +24,7 @@ Postprocessing is applied to all expressions which occur in the generated Cogent
 body expressions, the expressions in constant definitions, and the expressions in array type size specifications.
 
 \subsection{Evaluating Constant Expressions}
-\label{imp-post-const}
+\label{impl-post-const}
 
 In several cases the original translation phase or postprocessing steps result in constant expressions built
 from predefined operators. Such expressions can be statically evaluated and the resulting constant then may
@@ -46,7 +46,7 @@ of expressions are left unmodified, in particular, \code{evalproc} does not recu
 not operator applications.
 
 \subsection{Simplifying Operator Application}
-\label{imp-post-op}
+\label{impl-post-op}
 
 If an expression cannot be completely evaluated statically, there are cases where it can be simplified.
 The following cases are implemented by Gencot postprocessing.
@@ -69,7 +69,7 @@ Simplifying operator expressions using these rules is implemented by the functio
 defined in module \code{Gencot.Cogent.Simplify}.
 
 \subsection{Simplifying \code{let}-Expressions}
-\label{imp-post-let}
+\label{impl-post-let}
 
 One of the simplest and most straightforward postprocessing steps is substitution of bound variables by the
 expression bound to them. In Cogent variables can be bound by \code{let} expressions and by \code{match} and \code{lambda}
@@ -229,7 +229,7 @@ A binding may have ``banged'' variables, i.e., be of the form
   p = expr1 !v1 ... !vn
 \end{verbatim}
 which makes the variables \code{v1,...,vn} readonly in \code{expr1}. Banged variables are introduced by readonly processing 
-(see~\ref{imp-post-readonly}). Simplification of \code{let}-expressions may be executed after readonly processing, therefore it
+(see~\ref{impl-post-readonly}). Simplification of \code{let}-expressions may be executed after readonly processing, therefore it
 must deal with banged variables.
 
 In Cogent banged variables can only appear at specific places in the code: in a \code{let} binding, in a \code{match}-expression, 
@@ -275,10 +275,10 @@ factor and a good selection for it must be determined by practical tests. Altern
 parameter for Gencot so that it can be selected specifically for every translated C program.
 
 \subsection{Simplifying If-Expressions}
-\label{imp-post-if}
+\label{impl-post-if}
 
 The most straightforward simplification of a conditional expression is replacing it by one of the branches, if the condition can be
-statically evaluated. Gencot tries this, by recursing into the condition and then using \code{evalproc} (see Section~\ref{imp-post-const})
+statically evaluated. Gencot tries this, by recursing into the condition and then using \code{evalproc} (see Section~\ref{impl-post-const})
 for evaluating the condition, before it recurses into the branches. This avoids processing a branch which is removed afterwards. 
 If the condition cannot be statically evaluated, both branches are processed recursively.
 
@@ -294,7 +294,7 @@ by the condition or the negated condition according to the rules
   if c then False else True --> not c
 \end{verbatim}
 \item The condition is substituted by \code{True} in the \code{then} branch and by \code{False} in the \code{else} branch. This 
-may enable additional simplifications in subsequent iterations (see Section~\ref{imp-post-combine}).
+may enable additional simplifications in subsequent iterations (see Section~\ref{impl-post-combine}).
 \end{itemize}
 
 The following rule is applied to operator expressions where the first argument is a conditional expression and the second argument
@@ -375,7 +375,7 @@ not occur as a whole in the branches. As an example, the following transformatio
 It has not yet been considered, whether such transformations would be useful for cases occurring during translations of C programs.
 
 \subsection{Function Processing}
-\label{imp-post-function}
+\label{impl-post-function}
 
 After the translation to Cogent, functions may have additional parameters or additional result components and parameters may have
 been rearranged. Additionally, the parameter and/or result types may be translated in different ways. Function definitions and
@@ -392,10 +392,10 @@ Function postprocessing also applies to operators in C, which are translated to 
 Cogent functions in others.
 
 \subsection{Readonly Processing}
-\label{imp-post-readonly}
+\label{impl-post-readonly}
 
 \subsection{Take/Put Processing}
-\label{imp-post-takeput}
+\label{impl-post-takeput}
 
 For struct and array accesses in C (\code{s.m}, \code{s->m}, \code{a[i]}) the translation described in Section~\ref{impl-ccode-cstats} 
 creates pairs of take/put bindings of the form
@@ -458,20 +458,20 @@ recursively before.
 The only possible other uses of \code{pk'} are:
 \begin{itemize}
 \item Actual parameter of an invoked function. If the formal parameter has a readonly type, \code{pk'} must be banged before (see 
-Section~\ref{imp-post-function}, otherwise it is used unbanged.
+Section~\ref{impl-post-function}, otherwise it is used unbanged.
 \item Assignment to a variable or container component, or return value of the surrounding function. That must be unbanged, 
 otherwise it would escape the banged context.
 \item Dereferencing it using \code{*} or \code{->} in C. This is translated like a component access to a take/put pair and is
 handled by the recursive processing of the \code{take} bindings.
 \item Comparison with another pointer in C. There it will always be banged by the comparison postprocessing described in 
-Section~\ref{imp-post-function}.
+Section~\ref{impl-post-function}.
 \end{itemize}
 Together, it is sufficient to check whether all free occurrencies of \code{pk'} have been explicitly banged by previous 
 postprocessings or the recursive \code{take} processing.
 
 The component variable \code{pk'} may also be used indirectly, by binding it to another variable. In that case the free 
 occurrencies of that variable must be checked in the same way. Usually, however, such ``chain bindings'' should have been 
-removed by the simplification of \code{let} expressions in~\ref{imp-post-let}.
+removed by the simplification of \code{let} expressions in~\ref{impl-post-let}.
 
 The banging of \code{take} bindings is implemented by the function
 \begin{verbatim}
@@ -610,11 +610,11 @@ and \code{put} bindings.
 \subsubsection{Converting take/put Pairs to \code{modify} Expressions}
 
 \subsection{Introducing \code{getref}/\code{modref}}
-\label{imp-post-ref}
+\label{impl-post-ref}
 
 
 \subsection{Combining the Steps}
-\label{imp-post-combine}
+\label{impl-post-combine}
 
 Generally, the postprocessing steps recurse into the structure of the processed expression. Thus it would be possible to combine them
 on every recursion level by combining the non-recursive steps to a common postprocessing function which recurses into the expression

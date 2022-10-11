@@ -447,11 +447,43 @@ subsection "Proof Scripts"
 text_raw\<open>\label{basic-proof-script}\<close>
 
 text \<open>
-\<^item> method syntax
-\<^item> apply
-\<^item> apply scripts
-\<^item> done, by
-\<^item> sorry
+One form of an Isabelle proof is a ``proof script''. It consists of a linear sequence of steps,
+each step applies a ``proof method'' to one or more goals in the goal state. Depending on the 
+goal state, a proof method may be applicable or not. If it is not applicable the step is marked as 
+an error and is omitted from the proof script. If it is applicable it may modify goals, solve
+goals (and remove them from the goal state), or create new goals.
+
+A step has the form
+@{theory_text[display]
+\<open>apply method\<close>}
+where \<open>method\<close> is an expression denoting the proof method applied by the step. A proof method can
+be elementary or complex. An elementary proof method is denoted by a method name, optionally
+followed by arguments. A complex method has one of the following forms:
+ \<^item> \<open>m\<^sub>1, \<dots>, m\<^sub>n\<close> : a sequence of methods which are applied in their order,
+ \<^item> \<open>m\<^sub>1; \<dots>; m\<^sub>n\<close> : a sequence of methods where each is applied to the goals created by the previous method,
+ \<^item> \<open>m\<^sub>1| \<dots>| m\<^sub>n\<close> : a sequence of methods where only the first applicable method is applied,
+ \<^item> \<open>m[n]\<close> : the method \<open>m\<close> is applied to the first \<open>n\<close> goals,
+ \<^item> \<open>m?\<close> : the method \<open>m\<close> is applied if it is applicable,
+ \<^item> \<open>m+\<close> : the method \<open>m\<close> is applied once and then repeated as long as it is applicable.
+
+Parentheses are used to structure and nest complex methods.
+
+The last step of a proof script must result in an empty goal state. After it the
+proof script is terminated by a step of the form
+@{theory_text[display]
+\<open>done\<close>}
+Alternatively a proof script may be terminated in an arbitrary goal state (even at the beginning)
+by a step of the form
+@{theory_text[display]
+\<open>sorry\<close>}
+This can be used to include statements which are not yet proved in a theory. However, such 
+statements cannot be referenced and used in subsequent proofs.
+
+The last step \<^theory_text>\<open>apply method\<close> together with the terminating \<^theory_text>\<open>done\<close> can be combined to
+@{theory_text[display]
+\<open>by method\<close>}
+where this form additionally solves remaining goals which unify with assumptions and applies
+a simple form of backtracking if the \<open>method\<close> can be applied in different ways to the goal state.
 \<close>
 
 subsection "Backward Reasoning"

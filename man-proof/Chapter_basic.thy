@@ -1,6 +1,7 @@
 theory Chapter_basic
   imports Chapter_intro
   "HOL-Library.Adhoc_Overloading"
+  "HOL-Library.LaTeXsugar"
 begin
 chapter "Isabelle Basics"
 text_raw\<open>\label{basic}\<close>
@@ -317,13 +318,54 @@ or with also specifying a statement name \<^theory_text>\<open>name\<^sub>s\<clo
 \<open>theorem name\<^sub>s[name]: "prop" "proof"\<close>}
 \<close>
 
+subsection "Propositions"
+text_raw\<open>\label{basic-theory-prop}\<close>
+
+text \<open>
+A proposition is specified by a statement or may occur in other contexts. In its simplest
+form it is a single term of type \<open>bool\<close>, written in inner syntax, such as
+@{text[display]
+\<open>6 * 7 = 42\<close>}
+
+More complex propositions can express, e.g., ``derivation rules'' used to derive propositions
+from other propositions. Complex propositions are denoted using a ``meta logic language''. It is
+still written in inner syntax but uses a small set of metalogic operators common to all possible
+object logics in Isabelle. 
+
+Derivation rules consist of assumptions and a conclusion. They can be written using the metalogic
+operator \<open>\<Longrightarrow>\<close> in the form
+@{text[display]
+\<open>A\<^sub>1 \<Longrightarrow> \<cdots> \<Longrightarrow> A\<^sub>n \<Longrightarrow> C\<close>}
+where the \<open>A\<^sub>1 \<cdots> A\<^sub>n\<close> are the assumptions and \<open>C\<close> is the conclusion, all of them are propositions.
+A derivation rule states that if the assumptions are known to be true, the conclusion can be derived
+to be true as well. So it can be viewed as a ``meta implication'' with a similar meaning as a boolean
+implication, but a different use.
+
+An alternative, Isabelle specific syntax for derivation rules is
+@{text[display]
+\<open>\<lbrakk>A\<^sub>1; \<cdots>; A\<^sub>n\<rbrakk> \<Longrightarrow> C\<close>}
+which is often considered as more readable, because it better separates the assumptions from the
+conclusion. In the Jedit editor it may be necessary to switch to this form by setting \<^verbatim>\<open>Print Mode\<close> 
+to \<^verbatim>\<open>brackets\<close> in \<^verbatim>\<open>Plugin Options\<close> for \<^verbatim>\<open>Isabelle General\<close>.
+
+Note that in the literature a derivation rule @{thm conjI[no_vars]} is often denoted in the form
+@{thm[display,mode=Rule] conjI[no_vars]}
+
+A proposition may contain universally bound variables, using the metalogic quantifier \<open>\<And>\<close> in the
+form
+@{text[display]
+\<open>\<And> x\<^sub>1 \<cdots> x\<^sub>n. P\<close>}
+where the \<open>x\<^sub>1 \<cdots> x\<^sub>n\<close> may occur free in the proposition \<open>P\<close>. If a proposition contains free variables
+they are implicitly bound in this way.
+\<close>
+
 subsection "Locales"
 text_raw\<open>\label{basic-theory-locale}\<close>
 
 text \<open>
 There are cases where theory content such as definitions and statements occur which has similar 
-structure but differs in some types or terms. Then it is useful to define a ``pattern'' and instantiate
-it several times. This can be done in Isabelle using a ``locale''.
+structure but differs in some types or terms. Then it is useful to define a ``template'' and 
+instantiate it several times. This can be done in Isabelle using a ``locale''.
 
 A locale can be seen as a parameterized theory fragment, where the parameters are terms. A locale
 with \<open>n\<close> parameters is defined by
@@ -382,15 +424,23 @@ of the defined locale, inserted before the parameters declared by the \<^theory_
 section "Isabelle Proofs"
 text_raw\<open>\label{basic-proof}\<close>
 
+text \<open>
+Whenever a proposition occurs somewhere in an Isabelle theory it usually must be proved
+immediately by specifying a proof for it. A proof may consist of several steps, its
+structure is part of the outer syntax.
+\<close>
+ 
 subsection "Goals"
 text_raw\<open>\label{basic-proof-goal}\<close>
 
 text \<open>
-\<^item> prop syntax
-\<^item> assumptions
-\<^item> conclusion
-\<^item> view as rewrite rule
-\<^item> subgoals (proof state)
+The proof steps incrementally prove parts of the proposition. The remaining parts which are still
+to be proved are called ``subgoals'' of the proof. Goals have the same form as propositions. 
+When a proof for a proposition starts, this proposition is the only subgoal. If there are no more
+subgoals, the proof is finished.
+
+The set of subgoals is called the ``goal state'' of the proof. In the Jedit editor the proof state
+is displayed in a separate window, according to the cursor position in the proof text.
 \<close>
 
 subsection "Proof Scripts"

@@ -10,15 +10,13 @@ subsubsection \<open>Property Preservation\<close>
 
 text \<open>
 All modification functions preserve the length of the list. This can be 
-expressed by the following predicate.
+expressed by the following preservation property.
 \<close>
 
-definition prsvlen :: "('el list \<Rightarrow> 'el list) \<Rightarrow> bool"
-  where "prsvlen u \<equiv> \<forall>x. length (u x) = length x"
+abbreviation "prsvlen \<equiv> prsv length"
 
-lemma prsvlen[simp]: 
- "prsvlen u \<Longrightarrow> length (u x) = length x" 
-  by(simp add: prsvlen_def)
+lemma prsvlen: "prsvlen u = (\<forall>x. length (u x) = length x)"
+  by(auto simp add: prsv_def comp_def)
 
 text \<open>
 All modification functions also preserve arbitrary properties for the elements,
@@ -28,8 +26,6 @@ expressed using the following predicates.
 
 definition elmsp :: "('el \<Rightarrow> bool) \<Rightarrow> 'el list \<Rightarrow> bool"
   where "elmsp p \<equiv> \<lambda>x. \<forall>i. vld x i \<longrightarrow> p (nth x i)"
-definition prsvp :: "('x \<Rightarrow> bool) \<Rightarrow> ('x \<Rightarrow> 'x) \<Rightarrow> bool"
-  where "prsvp p f \<equiv> \<forall>x. p x \<longrightarrow> p (f x)"
 abbreviation "prsvelmsp p \<equiv> prsvp (elmsp p)"
 
 text \<open>
@@ -54,10 +50,11 @@ locale Prsvlstp =
   fixes f :: "'el list \<Rightarrow> 'el list"
   assumes prsvlen[simp]: "prsvlen f"
 begin
-lemma prsvlen_comp[simp]: "\<lbrakk>prsvlen f; prsvlen u\<rbrakk> \<Longrightarrow> prsvlen (f \<circ> u)"
-  by(simp add: prsvlen_def)
-lemma prsvlen_appl[simp]: "\<lbrakk>prsvlen f; prsvlen u\<rbrakk> \<Longrightarrow> prsvlen (\<lambda>x. f (u x))"
-  by(simp add: prsvlen_def)
+lemma prsvlen_comp[simp]: "\<lbrakk>prsvlen u\<rbrakk> \<Longrightarrow> prsvlen (f \<circ> u)"
+  using prsvlen apply(simp add: prsv_def)
+  by (metis comp_assoc)
+lemma prsvlen_appl[simp]: "\<lbrakk>prsvlen u\<rbrakk> \<Longrightarrow> prsvlen (\<lambda>x. f (u x))"
+  using prsvlen by(simp add: prsv_def comp_def)
 lemma elmspRule[lstp]: "\<lbrakk>elmsp p x; prsvelmsp p f\<rbrakk> \<Longrightarrow> elmsp p (f x)"
   by(simp add: prsvp_def)
 lemma prsvelmsp_comp[lstp]: "\<lbrakk>prsvelmsp p f; prsvelmsp p u\<rbrakk> \<Longrightarrow> prsvelmsp p (f \<circ> u)"
@@ -102,7 +99,7 @@ lemma
   apply(auto simp add: spie_elem_upd_def prsvp_def elmsp_def)
   by (metis nth_enumerate_eq override_on_apply_in override_on_apply_notin snd_conv)
 interpretation Prsvlstp_spie_elem_upd: Prsvlstp "spie_elem_upd sp u"
-  by(unfold_locales,simp add: spie_elem_upd_def prsvlen_def)
+  by(unfold_locales,simp add: spie_elem_upd_def prsvlen)
 
 text \<open>
 Simplified forms where the excerpt is determined by index or element value alone or is the whole array

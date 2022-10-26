@@ -2,6 +2,7 @@
 theory Gencot_ArrayBaseSupport
   imports Gencot_MapSupport
   "HOL-Library.Adhoc_Overloading"
+  Gencot_PreservationSupport
   Gencot_PartAccessSupport
 begin
 

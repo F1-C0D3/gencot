@@ -285,7 +285,7 @@ theorem sem_setArr[sem]:
  "\<lbrakk>wlsd (fst x); \<not> error_setArr x\<rbrakk> \<Longrightarrow> 
   setArr x = (let (a,i,v) = x in (arr_update (elm_update (unat i) (\<lambda>_.v)) a, ()))"
   apply (auto simp add: setArr_def wlsd_def)
-  by (auto simp add: wlsd_def elm_update prsvlen_def)
+  by (auto simp add: wlsd_def elm_update prsvlen)
 theorem errsem_setArr:
  "\<lbrakk>wlsd (fst x); error_setArr x\<rbrakk> \<Longrightarrow> 
   setArr x = ((fst x),())"
@@ -297,7 +297,7 @@ theorem sem_modifyArr[sem]:
  "\<lbrakk>wlsd (fst x); \<not> error_modifyArr x\<rbrakk> \<Longrightarrow> 
   modifyArr x = 
   (let (a,(i,f,x)) = x; (e,y) = f (elm (unat i) (arr a), x) in (arr_update (elm_update (unat i) (\<lambda>_.e)) a, y))"
-  by (auto simp add: modifyArr_def split_def Let_def elm_update elm wlsd_def prsvlen_def)
+  by (auto simp add: modifyArr_def split_def Let_def elm_update elm wlsd_def prsvlen)
 theorem errsem_modifyArr:
  "\<lbrakk>wlsd (fst x); error_modifyArr x\<rbrakk> \<Longrightarrow> 
   modifyArr x = (let (a,(_,f,x)) = x in modifyArr (a,(0,f,x)))"
@@ -309,7 +309,7 @@ theorem sem_modrefArr[sem]:
  "\<lbrakk>wlsd (fst x); \<not> error_modrefArr x\<rbrakk> \<Longrightarrow> 
   modrefArr x = 
   (let (a,(i,f,x)) = x; (e,y) = f (toPtr (elm (unat i) (arr a)), x) in (arr_update (elm_update (unat i) (\<lambda>_.frPtr e)) a, y))"
-  by (auto simp add: modrefArr_def split_def Let_def elm_update elm wlsd_def prsvlen_def)
+  by (auto simp add: modrefArr_def split_def Let_def elm_update elm wlsd_def prsvlen)
 theorem errsem_modrefArr:
  "\<lbrakk>wlsd (fst x); error_modrefArr x\<rbrakk> \<Longrightarrow> 
   modrefArr x = (let (a,(i,f,x)) = x in modrefArr (a,(0,f,x)))"
@@ -341,7 +341,7 @@ by interpreting \<open>CArray\<close>.
 
 interpretation ESArray: CArray ESA.arr ESA.arr_update ESA.siz "0::64 word"
   apply(unfold_locales,unfold arr_update_def)
-      by(auto simp add: arr_def carr_def siz_def prsvlen_def prsvp_def wlsd_def)
+      by(auto simp add: arr_def carr_def siz_def prsvlen prsvp_def wlsd_def)
 
 adhoc_overloading 
       wlsd       "wlsdGen ESA.arr ESA.siz" 
@@ -472,7 +472,7 @@ adhoc_overloading
 
 sublocale CArray arr arr_update siz idxtypespec
   apply(unfold_locales)
-        apply(auto simp add: arr_def arr_update_def carr_inverse arr_inverse prsvp_def prsvlen_def)
+        apply(auto simp add: arr_def arr_update_def carr_inverse arr_inverse prsvp_def prsvlen)
   by(unfold wlsd_def,auto simp add: FxdArrBase.fxdsiz_def carr_inverse)
 
 text \<open>

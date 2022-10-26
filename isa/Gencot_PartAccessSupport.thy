@@ -1,7 +1,7 @@
 section \<open>Part Access Support\<close>
 
 theory Gencot_PartAccessSupport
-  imports Main
+  imports Gencot_PreservationSupport
 begin
 
 text \<open>
@@ -124,6 +124,9 @@ The locale \<open>PartAbsrb\<close> provides an absorption law for an observatio
 an update of another part or any other modification of the structure which does not 
 affect the part. As for \<open>PartAccess\<close> the locale \<open>PartAbsrbBase\<close> is intended for
 record fields, the locale \<open>PartAbsrb\<close> is intended for all other structure parts.
+
+Absorption of an update by an observation is the same as preserving the observation
+by the update, therefore also a preservation rule is generated.
 \<close>
 locale PartAbsrbBase = 
     fixes prt1 :: "'whol \<Rightarrow> 'part1"
@@ -132,6 +135,8 @@ locale PartAbsrbBase =
 begin
 lemma absrbUpdComp[simp]: "prt1 \<circ> prt2_update = prt1"
   by(rule ext,simp add: absrbUpdApp)
+lemma prsvPart[simp]: "prsv prt1 prt2_update"
+  by(simp add: prsv_def)
 end
 
 locale PartAbsrb = PartAbsrbBase prt1 prt2_update

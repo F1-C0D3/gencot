@@ -31,6 +31,9 @@ valVar :: Int -> CCS.VarName
 valVar 0 = "v"++[prime]
 valVar n = "v"++(show n)++[prime]
 
+-- Variable name together with its type
+type TypedVar = (CCS.VarName,GenType)
+
 -- A pair of main and putback binding lists.
 -- The main list is represented in reverse order.
 type BindsPair = ([GenBnd],[GenBnd])
@@ -50,13 +53,13 @@ sideEffectFilter :: [CCS.VarName] -> [CCS.VarName]
 sideEffectFilter vs =
     filter (\v -> (last v) /= prime || v == resVar) vs 
 
--- | All variable names occurring in a pattern.
-tupleVars :: GenIrrefPatn -> [CCS.VarName]
+-- | All typed variables occurring in a pattern.
+tupleVars :: GenIrrefPatn -> [TypedVar]
 tupleVars ip = case irpatnOfGIP ip of
-                    CS.PVar v -> [v]
+                    CS.PVar v -> [(v,typOfGIP ip)]
                     CS.PTuple pvs -> concat $ map tupleVars pvs
-                    CS.PTake v fs -> v : (concat $ map (tupleVars . snd) $ catMaybes fs)
-                    CS.PArrayTake v fs -> v : (concat $ map (tupleVars . snd) fs)
+                    CS.PTake v fs -> (v,mkTakeType True (typOfGIP ip) (map fst $ catMaybes fs)) : (concat $ map (tupleVars . snd) $ catMaybes fs)
+                    CS.PArrayTake v fs -> (v, mkArrTakeType True (typOfGIP ip) (map fst fs)) : (concat $ map (tupleVars . snd) fs)
 
 -- | Variable names bound in a binding
 boundVars :: GenBnd -> [CCS.VarName]
@@ -400,43 +403,45 @@ cmbExtBinds vs bp@(main,putback) =
 -- Construct Patterns
 ---------------------
 
-genIrrefPatn p = GenIrrefPatn p noOrigin
+genIrrefPatn t p = GenIrrefPatn p noOrigin t
 
-mkWildcardPattern :: GenIrrefPatn
-mkWildcardPattern = genIrrefPatn CS.PUnderscore
+mkWildcardPattern :: GenType -> GenIrrefPatn
+mkWildcardPattern t = genIrrefPatn t CS.PUnderscore
 
-mkVarPattern :: CCS.VarName -> GenIrrefPatn
-mkVarPattern = genIrrefPatn . CS.PVar
+mkVarPattern :: TypedVar -> GenIrrefPatn
+mkVarPattern (v,t) = genIrrefPatn t $ CS.PVar v
 
 mkCtrlPattern :: GenIrrefPatn
-mkCtrlPattern = mkVarPattern ctlVar
+mkCtrlPattern = mkVarPattern (ctlVar,mkCtlType)
 
-mkValPattern :: Int -> GenIrrefPatn
-mkValPattern = mkVarPattern . valVar
+mkValPattern :: GenType -> Int -> GenIrrefPatn
+mkValPattern t i = mkVarPattern (valVar i,t)
 
 mkTuplePattern :: [GenIrrefPatn] -> GenIrrefPatn
 mkTuplePattern [ip] = ip
-mkTuplePattern ips = genIrrefPatn $ CS.PTuple ips
+mkTuplePattern ips = genIrrefPatn (mkTupleType (map typOfGIP ips)) $ CS.PTuple ips
 
 -- construct (v1,..,vn)
-mkVarTuplePattern :: [CCS.VarName] -> GenIrrefPatn
+mkVarTuplePattern :: [TypedVar] -> GenIrrefPatn
 mkVarTuplePattern vs = mkTuplePattern $ map mkVarPattern vs
 
 -- construct (p,v1,..,vn)
-mkPatVarTuplePattern :: GenIrrefPatn -> [CCS.VarName] -> GenIrrefPatn
+mkPatVarTuplePattern :: GenIrrefPatn -> [TypedVar] -> GenIrrefPatn
 mkPatVarTuplePattern p vs = mkTuplePattern (p : map mkVarPattern vs)
 
 -- construct #{f1 = p1, ..., fn = pn}
 mkRecordPattern :: [(CCS.FieldName,GenIrrefPatn)] -> GenIrrefPatn
-mkRecordPattern flds = genIrrefPatn $ CS.PUnboxedRecord $ map Just flds
+mkRecordPattern flds = genIrrefPatn (mkRecordType (map (\(f,ip) -> (f,typOfGIP ip)) flds) $ CS.PUnboxedRecord $ map Just flds
 
 -- construct v1{m=v2}
-mkRecTakePattern :: CCS.VarName -> CCS.VarName -> CCS.FieldName -> GenIrrefPatn
-mkRecTakePattern v1 v2 m = genIrrefPatn $ CS.PTake v1 [Just (m, mkVarPattern v2)]
+mkRecTakePattern :: TypedVar -> TypedVar -> CCS.FieldName -> GenIrrefPatn
+mkRecTakePattern tv1@(v1,t1) tv2 m = genIrrefPatn (mkTakeType False t1 [f]) $ CS.PTake v1 [Just (m, mkVarPattern tv2)]
 
 -- construct (v1 @{@v4=v2},v3)
-mkArrTakePattern :: CCS.VarName -> CCS.VarName -> CCS.VarName -> CCS.VarName -> GenIrrefPatn
-mkArrTakePattern v1 v2 v3 v4 = mkTuplePattern [genIrrefPatn $ CS.PArrayTake v1 [(mkVarExpr v4,mkVarPattern v2)], mkVarPattern v3]
+mkArrTakePattern :: TypedVar -> TypedVar -> TypedVar -> TypedVar -> GenIrrefPatn
+mkArrTakePattern tv1@(v1,t1) tv2 tv3 tv4 = 
+    mkTuplePattern [genIrrefPatn (mkArrTakeType False t1 [ip3]) $ CS.PArrayTake v1 [(mkVarExpr tv4,mkVarPattern tv2)], ip3]
+    where ip3 = mkVarPattern tv3
 
 -- Construct Expressions
 ------------------------
@@ -448,12 +453,12 @@ mkUnitExpr :: GenExpr
 mkUnitExpr = genExpr unitType CS.Unitel
 
 -- construct i
-mkIntLitExpr :: Integer -> GenExpr
-mkIntLitExpr t = (genExpr mkU32Type) . CS.IntLit
+mkIntLitExpr :: GenType -> Integer -> GenExpr
+mkIntLitExpr t = (genExpr t) . CS.IntLit
 
 -- construct c
-mkCharLitExpr :: Char -> GenExpr
-mkCharLitExpr = (genExpr mkU8Type) . CS.CharLit
+mkCharLitExpr :: GenType -> Char -> GenExpr
+mkCharLitExpr t = (genExpr t) . CS.CharLit
 
 -- construct s
 mkStringLitExpr :: String -> GenExpr
@@ -464,8 +469,8 @@ mkBoolLitExpr :: Bool -> GenExpr
 mkBoolLitExpr = (genExpr mkBoolType) . CS.BoolLit
 
 -- construct v
-mkVarExpr :: GenType -> CCS.VarName -> GenExpr
-mkVarExpr t = (genExpr t) . CS.Var
+mkVarExpr :: TypedVar -> GenExpr
+mkVarExpr (v,t) = genExpr t $ CS.Var v
 
 -- construct (e1,..,en) or e1
 mkTupleExpr :: [GenExpr] -> GenExpr
@@ -473,47 +478,52 @@ mkTupleExpr [e] = e
 mkTupleExpr es = genExpr (mkTupleType (map typOfGE es)) $ CS.Tuple es
 
 -- construct e1 op e2 or op e1
-mkOpExpr :: CCS.OpName -> [GenExpr] -> GenExpr
-mkOpExpr op es = genExpr $ CS.PrimOp op es
+mkOpExpr :: GenType -> CCS.OpName -> [GenExpr] -> GenExpr
+mkOpExpr t op es = genExpr t $ CS.PrimOp op es
+
+-- construct e1 op e2 or op e1 for op with boolean result
+mkBoolOpExpr :: CCS.OpName -> [GenExpr] -> GenExpr
+mkBoolOpExpr = mkOpExpr mkBoolType
 
 -- construct (<control value>,v1,...,vn) or <control value>
-mkCtlVarTupleExpr :: Integer -> [CCS.VarName] -> GenExpr
-mkCtlVarTupleExpr cv vs = mkExpVarTupleExpr (mkIntLitExpr cv) vs
+mkCtlVarTupleExpr :: Integer -> [TypedVar] -> GenExpr
+mkCtlVarTupleExpr cv vs = mkExpVarTupleExpr (mkIntLitExpr mkCtlType cv) vs
 
 -- construct (v1,...,vn) or v1
 mkVarTupleExpr :: [CCS.VarName] -> GenExpr
 mkVarTupleExpr vs = mkTupleExpr $ map mkVarExpr vs
 
 -- construct (e,v1,...,vn) or e
-mkExpVarTupleExpr :: GenExpr -> [CCS.VarName] -> GenExpr
+mkExpVarTupleExpr :: GenExpr -> [TypedVar] -> GenExpr
 mkExpVarTupleExpr e [] = e
 mkExpVarTupleExpr e vs = mkTupleExpr (e : (map mkVarExpr vs))
 
 -- construct (0,v1,...,vn) or 0
-mk0VarTupleExpr :: GenType -> [CCS.VarName] -> GenExpr
+mk0VarTupleExpr :: GenType -> [TypedVar] -> GenExpr
 mk0VarTupleExpr t vs = mkExpVarTupleExpr (mkIntLitExpr t 0) vs
 
 -- construct e1 || ... || en
 mkDisjExpr :: [GenExpr] -> GenExpr
 mkDisjExpr [] = mkBoolLitExpr False
 mkDisjExpr [e] = e
-mkDisjExpr (e : es) = mkOpExpr "||" [e,mkDisjExpr es]
+mkDisjExpr (e : es) = mkBoolOpExpr "||" [e,mkDisjExpr es]
 
 -- replace e1 in (e1,...,en) or e1
 replaceLeadExpr :: GenExpr -> GenExpr -> GenExpr
-replaceLeadExpr e (GenExpr (CS.Tuple es) o src) = GenExpr (CS.Tuple (e : tail es)) o src
+replaceLeadExpr e (GenExpr (CS.Tuple es) o (CS.TTuple ts) src) = 
+    GenExpr (CS.Tuple (e : tail es)) o (CS.TTuple ((typOfGE e) : tail ts)) src
 replaceLeadExpr e _ = e
 
 -- construct f () or f e1 or f (e1,..,en)
-mkAppExpr :: CCS.FunName -> [GenExpr] -> GenExpr
-mkAppExpr f es = genExpr $ CS.App (genExpr $ CS.Var f) (arg es) False
+mkAppExpr :: GenType -> CCS.FunName -> [GenExpr] -> GenExpr
+mkAppExpr rt f es = genExpr rt $ CS.App (genExpr (mkFunType rt $ mkTupleType $ map typOfGE es) $ CS.Var f) (arg es) False
     where arg [] = mkUnitExpr
           arg [e] = e
           arg es = mkTupleExpr es
 
 -- construct f[t1..] () or f[t1..] e1 or f[t1..] (e1,..,en)
-mkTypedAppExpr :: CCS.FunName -> [Maybe GenType] -> [GenExpr] -> GenExpr
-mkTypedAppExpr f ts es = genExpr $ CS.App (genExpr $ CS.TLApp f ts [] NoInline) (arg es) False
+mkTypedAppExpr :: GenType -> CCS.FunName -> [Maybe GenType] -> [GenExpr] -> GenExpr
+mkTypedAppExpr rt f ts es = genExpr rt $ CS.App (genExpr (mkFunType rt $ mkTupleType $ map typOfGE es) $ CS.TLApp f ts [] NoInline) (arg es) False
     where arg [] = mkUnitExpr
           arg [e] = e
           arg es = mkTupleExpr es
@@ -521,36 +531,38 @@ mkTypedAppExpr f ts es = genExpr $ CS.App (genExpr $ CS.TLApp f ts [] NoInline) 
 -- construct let b1 and ... and bn in e
 mkLetExpr :: [GenBnd] -> GenExpr -> GenExpr
 mkLetExpr bs e =
-    genExpr $ CS.Let bs e
+    genExpr (typOfGE e) $ CS.Let bs e
 
 -- construct v1{f=v2}
-mkRecPutExpr :: CCS.VarName -> CCS.VarName -> CCS.FieldName -> GenExpr
-mkRecPutExpr v1 v2 f = genExpr $ CS.Put (mkVarExpr v1) [Just (f,mkVarExpr v2)]
+mkRecPutExpr :: TypedVar -> TypedVar -> CCS.FieldName -> GenExpr
+mkRecPutExpr tv1@(v1,t1) tv2 f = genExpr (mkTakeType False t1 [f]) $ CS.Put (mkVarExpr tv1) [Just (f,mkVarExpr tv2)]
 
 -- construct v1 @{@v3=v2}
-mkArrPutExpr :: CCS.VarName -> CCS.VarName -> CCS.FieldName -> GenExpr
-mkArrPutExpr v1 v2 v3 = genExpr $ CS.ArrayPut (mkVarExpr v1) [(mkVarExpr v3,mkVarExpr v2)]
+mkArrPutExpr :: TypedVar -> TypedVar -> TypedVar -> GenExpr
+mkArrPutExpr tv1@(v1,t1) tv2 tv3 = genExpr (mkArrTakeType False t1 [e3]) $ CS.ArrayPut (mkVarExpr tv1) [(e3,mkVarExpr tv2)]
+    where e3 = mkVarExpr tv3
 
 -- construct if e0 then e1 else e2
 mkIfExpr :: GenExpr -> GenExpr -> GenExpr -> GenExpr
-mkIfExpr e0 e1 e2 = genExpr $ CS.If e0 [] e1 e2
+mkIfExpr e0 e1 e2 = genExpr (typOfGE e1) $ CS.If e0 [] e1 e2
 
 -- construct e | C1 v11 .. v1n1 -> e1 | ... | Ck vk1 .. vknk -> ek
-mkMatchExpr :: GenExpr -> [(CCS.TagName,[CCS.VarName],GenExpr)] -> GenExpr
-mkMatchExpr e as = genExpr $ CS.Match e [] $ map mkAlt as
-    where mkAlt (tag,vars,e) = CS.Alt (GenPatn (CS.PCon tag $ map mkVarPattern vars) noOrigin) CCS.Regular e
+mkMatchExpr :: GenExpr -> [(CCS.TagName,[TypedVar],GenExpr)] -> GenExpr
+mkMatchExpr e as = genExpr (getTyp $ head as) $ CS.Match e [] $ map mkAlt as
+    where mkAlt (tag,vars,ae) = CS.Alt (GenPatn (CS.PCon tag $ map mkVarPattern vars) (typOfGE e) noOrigin) CCS.Regular ae
+          getTyp (_,_,ae) = typOfGE ae
 
 -- construct #{f1 = e1, ... ,fn = en}
 mkRecordExpr :: [(CCS.FieldName,GenExpr)] -> GenExpr
-mkRecordExpr flds = genExpr $ CS.UnboxedRecord flds
+mkRecordExpr flds = genExpr (mkRecordType (map (\(f,e) -> (f,typOfGE e)) flds) $ CS.UnboxedRecord flds
 
 -- construct \p => e
 mkLambdaExpr :: GenIrrefPatn -> GenExpr -> GenExpr
-mkLambdaExpr p e = genExpr $ CS.Lam p Nothing e
+mkLambdaExpr p e = genExpr (mkFunType (typOfGIP p) (typOfGE e)) $ CS.Lam p Nothing e
 
 -- construct let (_,...) = expr in e
 mkBodyExpr :: GenBnd -> GenExpr -> GenExpr
-mkBodyExpr b e = mkLetExpr [replaceLeadPatn mkWildcardPattern b] e
+mkBodyExpr b@(CS.Binding ip _ _ _) e = mkLetExpr [replaceLeadPatn mkWildcardPattern (typOfGIP ip) b] e
 
 -- construct let ... in v<n>'
 mkPlainExpr :: BindsPair -> GenExpr
@@ -566,11 +578,11 @@ mkPlainExpr (main,putback) =
 
 -- construct (gencotDummy msg)
 mkDummyExpr :: String -> GenExpr
-mkDummyExpr msg = mkAppExpr "gencotDummy" [mkStringLitExpr msg]
+mkDummyExpr msg = mkAppExpr unitType "gencotDummy" [mkStringLitExpr msg]
 
--- turn expression to dummy, preserving origin and source
+-- turn expression to dummy, preserving origin, type, and source
 toDummyExpr :: GenExpr -> GenExpr -> GenExpr
-toDummyExpr (GenExpr e o src) (GenExpr dummy _ _) = (GenExpr dummy o src) 
+toDummyExpr (GenExpr e o t src) (GenExpr dummy _ _ _) = (GenExpr dummy o t src) 
 
 -- Construct Types
 ------------------
@@ -589,3 +601,23 @@ mkBoolType = GenType (CS.TCon "Bool" [] Unboxed) noOrigin
 
 mkTupleType :: [GenType] -> GenType
 mkTupleType ts = GenType (CS.TTuple ts) noOrigin
+
+mkCtlType :: GenType
+mkCtlType = mkU8Type
+
+mkFunType :: GenType -> GenType -> GenType
+mkFunType rt pt = GenType (CS.TFun pt rt) noOrigin
+
+mkRecordType :: [(CCS.FieldName,GenType)] -> GenType
+mkRecordType fts = GenType (CS.TRecord NonRec (map (\(f,t) -> (f,(t,False))) fts) Unboxed) noOrigin
+
+mkTakeType :: Bool -> GenType -> [CCS.FieldName] -> GenType
+mkTakeType b (GenType (CS.TRecord rp fs s) o) tfs =
+    GenType (CS.TRecord rp fs' s) o
+    where fs' = map (\fld@(fn, (tp, tk)) -> if elem fn tfs then (fn,(tp,b)) else fld) fs
+
+mkArrTakeType :: Bool -> GenType -> [GenExpr] -> GenType
+mkArrTakeType b (GenType (CS.TArray eltp siz s tels) o) es =
+    GenType (CS.TArray eltp siz s (tels' b)) o
+    where tels' True = (map (\e -> (e,True)) es) ++ tels
+          tels' False = filter (\tel -> not $ elem (fst tel) es) tels

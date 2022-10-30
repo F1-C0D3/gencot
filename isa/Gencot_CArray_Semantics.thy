@@ -502,14 +502,15 @@ lemmas arrpRules =
   prsvarrp_arr_update Prsvarrp_arr_update.rules
   allarrp_mk 
 
-text \<open>Semantics of Cogent array conversion functions.\<close>
+text \<open>
+Semantics of Cogent array conversion functions.
+This is nearly identical to the definitions.\<close>
 
 theorem sem_toCAES[sem]:
- "wlsd a \<Longrightarrow> toCAES a = (arr a, of_nat (length (arr a)))"
-  by(unfold wlsd_def,simp add: FxdArrBase.toCAES_def siz_def)
+ "toCAES a = (arr a, of_nat (fxdsiz))"
+  by(simp add: FxdArrBase.toCAES_def)
 theorem sem_fromCAES[sem]:
- "wlsd aes \<Longrightarrow> 
-  fromCAES aes = carr (ESA.arr aes)"
+ "fromCAES aes = carr (ESA.arr aes)"
   by(simp add: fromCAES_def arr_def)
 
 text \<open>
@@ -549,7 +550,7 @@ lemma arr_updateFromCAES:
  "arr_update u (fromCAES aes) = fromCAES (ESA.arr_update u aes)"
   by(simp add: fromCAES_def ESA.arr_update_def arr_update_def arr_def siz_def carr_inverse)
 
-lemmas transCAES = wlsdToCAES wlsdFromCAES sizToCAES sizFromCAES arrToCAES arrFromCAES arr_updateToCAES arr_updateFromCAES
+lemmas transCAES = wlsdToCAES wlsdFromCAES arrToCAES arrFromCAES arr_updateToCAES arr_updateFromCAES
 
 text \<open>
 Transfer lemmas for \<open>mkFxdArr\<close>.

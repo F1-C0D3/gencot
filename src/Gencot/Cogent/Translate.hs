@@ -14,6 +14,7 @@ import Language.C.Data.Node as LCN
 import Language.C.Data.Position as LCP
 import Language.C.Analysis as LCA
 import Language.C.Analysis.DefTable as LCD
+import Language.C.Analysis.AstAnalysis (tExpr, ExprSide(RValue), StmtCtx(LoopCtx))
 import Language.C.Syntax.AST as LCS
 
 import Cogent.Surface as CS
@@ -25,7 +26,13 @@ import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapName
 import Gencot.Items.Types (ItemAssocType,isNotNullItem,isReadOnlyItem,isNoStringItem,isHeapUseItem,getGlobalStateProperty,makeGlobalStateParams,getTagItemAssoc,getIndividualItemAssoc,getTypedefItemAssoc,adjustItemAssocType,getMemberSubItemAssoc,getRefSubItemAssoc,getResultSubItemAssoc,getElemSubItemAssoc,getParamSubItemAssoc,getItemAssocType,getMemberItemAssocTypes,getSubItemAssocTypes,numberList,getAddResultProperties,getFunctionProperties)
 import Gencot.Items.Identifier (getObjFunName,getParamName)
 import Gencot.Cogent.Ast
-import Gencot.Cogent.Bindings (BindsPair,valVar,leadVar,lvalVar,resVar,mkUnitExpr,mkVarExpr,mkBodyExpr,mkPlainExpr,mkEmptyBindsPair,mkDummyBindsPair,mkUnitBindsPair,mkDefaultBindsPair,mkIntLitBindsPair,mkCharLitBindsPair,mkStringLitBindsPair,mkValVarBindsPair,mkMemBindsPair,mkIdxBindsPair,mkOpBindsPair,mkAppBindsPair,mkAssBindsPair,mkIfBindsPair,concatBindsPairs,mkDummyBinding,mkNullBinding,mkExpBinding,mkRetBinding,mkBreakBinding,mkContBinding,mkIfBinding,mkSwitchBinding,mkCaseBinding,mkSeqBinding,mkDecBinding,mkForBinding)
+import Gencot.Cogent.Bindings (
+  BindsPair, valVar, leadVar, lvalVar, resVar, 
+  mkEmptyBindsPair, mkDummyBindsPair, mkUnitBindsPair, mkDefaultBindsPair, mkIntLitBindsPair, mkCharLitBindsPair, mkStringLitBindsPair,
+  mkValVarBindsPair, mkMemBindsPair, mkIdxBindsPair, mkOpBindsPair, mkAppBindsPair, mkAssBindsPair, mkIfBindsPair, concatBindsPairs, 
+  mkDummyBinding, mkNullBinding, mkExpBinding, mkRetBinding, mkBreakBinding, mkContBinding, 
+  mkIfBinding, mkSwitchBinding, mkCaseBinding, mkSeqBinding, mkDecBinding, mkForBinding)
+import Gencot.Cogent.Expr (mkUnitExpr,mkVarExpr,mkBodyExpr,mkPlainExpr)
 import Gencot.Cogent.Postproc (postproc)
 import qualified Gencot.C.Ast as LQ (Stm(Exp,Block),Exp)
 import qualified Gencot.C.Translate as C (transStat,transExpr,transArrSizeExpr,transBlockItem)
@@ -768,6 +775,13 @@ arraySizeType _ = genType $ CS.TCon "U32" [] markBox
 {- Translating function bodies -}
 {- --------------------------- -}
 
+-- | Retrieve the C type of a C expression.
+-- This function is only used for CConst, CUnary, CBinary, CVar expressions.
+-- The StmtCtx is only used for CStatExpr which are not processed by Gencot, therefore we always use LoopCtx as a dummy.
+-- The ExprSide for CConst, CUnary, CBinary must be RValue, for CVar it is ignored.
+exprType :: LC.CExpr -> FTrav LCA.Type
+exprType e = tExpr LoopCtx RValue e
+
 transBody :: ItemAssocType -> LC.CStat -> [LCA.ParamDecl] -> FTrav GenExpr
 transBody fiat s pars = do
     resetVarCounters
@@ -961,11 +975,13 @@ bindInit (Just (LC.CInitExpr e _)) = bindExpr e
 bindInit (Just (LC.CInitList il _)) = do
     cnt <- getValCounter
     return $ mkDummyBindsPair cnt "Non-scalar initializers not yet implemented"
-    
+
 bindExpr :: LC.CExpr -> FTrav BindsPair
 bindExpr e@(LC.CConst (LC.CIntConst i _)) = do
     cnt <- getValCounter
-    insertExprSrc e $ mkIntLitBindsPair cnt $ LC.getCInteger i
+    ct <- exprType e
+    t <- transType True ("",ct)
+    insertExprSrc e $ mkIntLitBindsPair cnt t $ LC.getCInteger i
 bindExpr e@(LC.CConst (LC.CCharConst c _)) = do
     cnt <- getValCounter
     insertExprSrc e $ 
@@ -982,7 +998,10 @@ bindExpr e@(LC.CConst (LC.CStrConst s _)) = do
 bindExpr e@(LC.CVar nam _) = do
     v <- transObjName nam
     cnt <- getValCounter
-    insertExprSrc e $ mkValVarBindsPair cnt v
+    ct <- exprType e
+    iid <- getItemId nam
+    t <- transType True (iid,ct)
+    insertExprSrc e $ mkValVarBindsPair cnt (v,t)
 bindExpr e@(LC.CMember e1 nam arrow _) = do
     bp1 <- bindExpr e1
     m <- mapIfUpper nam
@@ -996,52 +1015,68 @@ bindExpr e@(LC.CIndex e1 e2 _) = do
 bindExpr e@(LC.CUnary LC.CNegOp e1 _) = do
     -- not i -> if i==0 then 1 else 0
     bp1 <- bindExpr e1
+    let t1 = snd (leadVar bp1)
     cnt <- getValCounter
-    let c0 = mkIntLitBindsPair cnt 0
+    let c0 = mkIntLitBindsPair cnt t1 0
     cnt <- getValCounter
-    let c1 = mkIntLitBindsPair cnt 1
-    insertExprSrc e $ mkIfBindsPair (mkOpBindsPair "==" [bp1,c0]) c1 c0
+    let c1 = mkIntLitBindsPair cnt t1 1
+    insertExprSrc e $ mkIfBindsPair (mkOpBindsPair mkBoolType "==" [bp1,c0]) c1 c0
 bindExpr e@(LC.CUnary LC.CIndOp e1 _) = do
     bp1 <- bindExpr e1
     cnt <- getCmpCounter
     insertExprSrc e $ mkMemBindsPair cnt "cont" bp1
 bindExpr e@(LC.CUnary op e1 _) | elem op [LC.CPlusOp,LC.CMinOp,LC.CCompOp] = do
     bp1 <- bindExpr e1
-    insertExprSrc e $ mkOpBindsPair (transUnOp op) [bp1]
+    ct1 <- exprType e1
+    t1 <- transType True ("",ct1)
+    insertExprSrc e $ mkOpBindsPair t1 (transUnOp op) [bp1]
 bindExpr e@(LC.CUnary op e1 _) | elem op [LC.CPreIncOp,LC.CPreDecOp,LC.CPostIncOp,LC.CPostDecOp] = do
     bp1 <- bindExpr e1
+    ct1 <- exprType e1
+    t1 <- transType True ("",ct1)
     cnt <- getValCounter
-    let bp2 = mkIntLitBindsPair cnt 1
-    insertExprSrc e $ mkAssBindsPair post (transUnOp op) bp1 bp2
+    let bp2 = mkIntLitBindsPair cnt t1 1
+    ct <- exprType e
+    t <- transType True ("",ct)
+    insertExprSrc e $ mkAssBindsPair post t (transUnOp op) bp1 bp2
     where post = elem op [LC.CPostIncOp,LC.CPostDecOp]
 bindExpr e@(LC.CBinary LC.CLndOp e1 e2 _) = do
     -- e1 && e2 -> if e1 then e2 else 0
     bp1 <- bindExpr e1
     bp2 <- bindExpr e2
+    ct2 <- exprType e2
+    t2 <- transType True ("",ct2)
     cnt <- getValCounter
-    let c0 = mkIntLitBindsPair cnt 0
+    let c0 = mkIntLitBindsPair cnt t2 0
     insertExprSrc e $ mkIfBindsPair bp1 bp2 c0
 bindExpr e@(LC.CBinary LC.CLorOp e1 e2 _) = do
     -- e1 || e2 -> if e1 then 1 else e2
     bp1 <- bindExpr e1
     bp2 <- bindExpr e2
+    ct2 <- exprType e2
+    t2 <- transType True ("",ct2)
     cnt <- getValCounter
-    let c1 = mkIntLitBindsPair cnt 1
+    let c1 = mkIntLitBindsPair cnt t2 1
     insertExprSrc e $ mkIfBindsPair bp1 c1 bp2
 bindExpr e@(LC.CBinary op e1 e2 _) = do
     bp1 <- bindExpr e1
     bp2 <- bindExpr e2
-    insertExprSrc e $ mkOpBindsPair (transBinOp op) [bp1,bp2]
-bindExpr e@(LC.CCall (LC.CVar nam _) es _) = do
+    ct <- exprType e
+    t <- transType True ("",ct)
+    insertExprSrc e $ mkOpBindsPair t (transBinOp op) [bp1,bp2]
+bindExpr e@(LC.CCall fv@(LC.CVar nam _) es _) = do
     bps <- mapM bindExpr es
     f <- transObjName nam
+    ctf <- exprType fv
+    iid <- getItemId nam
+    t <- transType True (iid,ct)
     (vdres,arprops,gshupars,_) <- getFunctionProperties nam
     let invalpars = filter (null . fst . fst) gshupars
     cnt <- if (null bps && not vdres) || (not $ null invalpars) then getValCounter else return 0 
     let rvar = if vdres then "" else if null bps then valVar cnt else leadVar (head bps)
     insertExprSrc e $
         if null invalpars
-           then mkAppBindsPair f bps rvar arprops $ map fst gshupars
+           then mkAppBindsPair (f,t) bps rvar arprops $ map fst gshupars
            else mkDummyBindsPair cnt ("No value available for property " ++ (snd (head invalpars)))
 bindExpr e@(LC.CCall _ _ _) = do
     cnt <- getValCounter
@@ -1049,7 +1084,7 @@ bindExpr e@(LC.CCall _ _ _) = do
 bindExpr e@(LC.CAssign op e1 e2 _) = do
     bp1 <- bindExpr e1
     bp2 <- bindExpr e2
-    insertExprSrc e $ mkAssBindsPair False (transAssOp op) bp1 bp2
+    insertExprSrc e $ mkAssBindsPair False unitType (transAssOp op) bp1 bp2
 bindExpr e@(LC.CCond e1 (Just e2) e3 _) = do
     bp1 <- bindExpr e1
     bp2 <- bindExpr e2

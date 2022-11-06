@@ -21,10 +21,18 @@ import Cogent.Surface as CS
 import Cogent.Common.Syntax as CCS
 import Cogent.Common.Types as CCT
 
-import Gencot.Origin (Origin,noOrigin,origin,mkOrigin,noComOrigin,mkBegOrigin,mkEndOrigin,prepOrigin,appdOrigin,isNested,toNoComOrigin)
-import Gencot.Names (transTagName,transObjName,mapIfUpper,mapNameToUpper,mapNameToLower,mapPtrDeriv,mapPtrVoid,mapMayNull,mapArrDeriv,mapFunDeriv,arrDerivHasSize,arrDerivCompNam,arrDerivToUbox,mapUboxStep,rmUboxStep,mapMayNullStep,rmMayNullStepThroughRo,addMayNullStep,mapPtrStep,mapFunStep,mapIncFunStep,mapArrStep,mapModStep,mapRoStep,mapNamFunStep,getFileName,globStateType,isNoFunctionName,heapType,heapParamName,variadicParamName)
-import Gencot.Items.Types (ItemAssocType,isNotNullItem,isReadOnlyItem,isNoStringItem,isHeapUseItem,getGlobalStateProperty,makeGlobalStateParams,getTagItemAssoc,getIndividualItemAssoc,getTypedefItemAssoc,adjustItemAssocType,getMemberSubItemAssoc,getRefSubItemAssoc,getResultSubItemAssoc,getElemSubItemAssoc,getParamSubItemAssoc,getItemAssocType,getMemberItemAssocTypes,getSubItemAssocTypes,numberList,getAddResultProperties,getFunctionProperties)
-import Gencot.Items.Identifier (getObjFunName,getParamName)
+import Gencot.Origin (Origin, noOrigin, origin, mkOrigin, noComOrigin, mkBegOrigin, mkEndOrigin, prepOrigin, appdOrigin, isNested, toNoComOrigin)
+import Gencot.Names (
+  transTagName, transObjName, mapIfUpper, mapNameToUpper, mapNameToLower, mapPtrDeriv, mapPtrVoid, mapMayNull, mapArrDeriv, mapFunDeriv, 
+  arrDerivHasSize, arrDerivCompNam, arrDerivToUbox, mapUboxStep, rmUboxStep, mapMayNullStep, rmMayNullStepThroughRo, addMayNullStep, 
+  mapPtrStep, mapFunStep, mapIncFunStep, mapArrStep, mapModStep, mapRoStep, mapNamFunStep,
+  getFileName, globStateType, isNoFunctionName, heapType, heapParamName, variadicParamName)
+import Gencot.Items.Types (
+  ItemAssocType, isNotNullItem, isReadOnlyItem, isNoStringItem, isHeapUseItem, 
+  getGlobalStateProperty, makeGlobalStateParams, getTagItemAssoc, getIndividualItemAssoc, getTypedefItemAssoc, adjustItemAssocType, 
+  getMemberSubItemAssoc, getRefSubItemAssoc, getResultSubItemAssoc, getElemSubItemAssoc, getParamSubItemAssoc, 
+  getItemAssocType, getMemberItemAssocTypes, getSubItemAssocTypes, numberList, getAddResultProperties, getFunctionProperties)
+import Gencot.Items.Identifier (getObjFunName, getParamName)
 import Gencot.Cogent.Ast
 import Gencot.Cogent.Bindings (
   BindsPair, valVar, leadVar, lvalVar, resVar, 
@@ -32,13 +40,19 @@ import Gencot.Cogent.Bindings (
   mkValVarBindsPair, mkMemBindsPair, mkIdxBindsPair, mkOpBindsPair, mkAppBindsPair, mkAssBindsPair, mkIfBindsPair, concatBindsPairs, 
   mkDummyBinding, mkNullBinding, mkExpBinding, mkRetBinding, mkBreakBinding, mkContBinding, 
   mkIfBinding, mkSwitchBinding, mkCaseBinding, mkSeqBinding, mkDecBinding, mkForBinding)
-import Gencot.Cogent.Expr (mkUnitExpr,mkVarExpr,mkBodyExpr,mkPlainExpr)
+import Gencot.Cogent.Expr (mkUnitExpr, mkVarExpr, mkBodyExpr, mkPlainExpr)
 import Gencot.Cogent.Postproc (postproc)
-import qualified Gencot.C.Ast as LQ (Stm(Exp,Block),Exp)
-import qualified Gencot.C.Translate as C (transStat,transExpr,transArrSizeExpr,transBlockItem)
-import Gencot.Traversal (FTrav,markTagAsNested,isMarkedAsNested,hasProperty,stopResolvTypeName,setFunDef,clrFunDef,getValCounter,getCmpCounter,resetVarCounters,resetValCounter,getTConf)
-import Gencot.Util.Types (carriedTypes,isExtern,isCompOrFunc,isCompPointer,isNamedFunPointer,isFunPointer,isPointer,isAggregate,isFunction,isTypeDefRef,isComplete,isArray,isVoid,isTagRef,containsTypedefs,resolveTypedef,isComposite,isLinearType,isLinearParType,isReadOnlyType,isReadOnlyParType,isDerivedType,isExternTypeDef,wrapFunAsPointer,getTagDef)
-import Gencot.Util.Expr (checkForTrans,getFreeInCExpr,getFreeInCStat)
+import qualified Gencot.C.Ast as LQ (Stm(Exp,Block), Exp)
+import qualified Gencot.C.Translate as C (transStat, transExpr, transArrSizeExpr, transBlockItem)
+import Gencot.Traversal (
+  FTrav, markTagAsNested, isMarkedAsNested, hasProperty, stopResolvTypeName, 
+  setFunDef, clrFunDef, enterItemScope, leaveItemScope, registerItemId, getItemId, nextVarNum, resetVarNums,
+  getValCounter, getCmpCounter, resetVarCounters, resetValCounter, getTConf)
+import Gencot.Util.Types (
+  carriedTypes, isExtern, isCompOrFunc, isCompPointer, isNamedFunPointer, isFunPointer, isPointer, isAggregate, isFunction, 
+  isTypeDefRef, isComplete, isArray, isVoid, isTagRef, containsTypedefs, resolveTypedef, isComposite, 
+  isLinearType, isLinearParType, isReadOnlyType, isReadOnlyParType, isDerivedType, isExternTypeDef, wrapFunAsPointer, getTagDef)
+import Gencot.Util.Expr (checkForTrans, getFreeInCExpr, getFreeInCStat)
 
 genType t = GenType t noOrigin
 genExpr e = GenExpr e noOrigin Nothing
@@ -129,10 +143,14 @@ transGlobal (LCA.DeclEvent idecl@(LCA.FunctionDef (LCA.FunDef decl stat n))) = d
     ps <- transParamNames iat isVar pars
     LCA.enterFunctionScope
     LCA.defineParams LCN.undefNode decl
+    enterItemScope
+    registerParamIds pars 1 idnam
     setFunDef idecl
     e <- transBody iat stat pars
 --    e <- extendExpr iat e pars
     clrFunDef
+    resetVarNums
+    leaveItemScope
     LCA.leaveFunctionScope
     return $ wrapOrigin n ({-nt ++ -}[GenToplv (CS.FunDef f (CS.PT [] [] t) [CS.Alt ps CCS.Regular e]) noOrigin])
     where idnam = LCA.declIdent idecl
@@ -193,6 +211,13 @@ transGlobal (LCA.TypeDefEvent (LCA.TypeDef idnam typ _ n)) = do
           modifiat = if isComposite typ then adjustItemAssocType iat else iat
         
 transGlobal _ = return $ [GenToplv (CS.Include "err-unexpected toplevel") noOrigin]
+
+registerParamIds :: [LCA.ParamDecl] -> Int -> LCI.Ident -> FTrav ()
+registerParamIds [] _ _ = return ()
+registerParamIds (p : ps) pos fid@(LCI.Ident f _ _) = do
+    registerItemId s (paramSubItemId f pos s)
+    registerParamIds ps (pos+1) fid
+    where (LCA.VarDecl (LCA.VarName (LCI.Ident s _ _) _) _ _) = p
 
 -- | Translate nested tag definitions in a member definition.
 -- The first argument is the ItemAssocType of the struct.
@@ -817,9 +842,11 @@ bindStat s@(LC.CCont _) =
     insertStatSrc s $ mkContBinding
 bindStat s@(LC.CCompound lbls bis _) = do
     LCA.enterBlockScope
+    enterItemScope
     res <- if not $ null lbls
               then insertStatSrc s $ mkDummyBinding "Local labels not supported in compound statement"
               else bindBlockItems bis
+    leaveItemScope
     LCA.leaveBlockScope
     return res
 bindStat s@(LC.CIf e s1 Nothing _) = do
@@ -851,6 +878,7 @@ bindStat s@(LC.CFor c1 me2 me3 s1 _) = do
          Left reason -> insertStatSrc s $ mkDummyBinding ("Unsupported form of for loop: " ++ reason)
          Right exprmax -> do
              LCA.enterBlockScope
+             enterItemScope
              resetValCounter
              bpm <- bindExpr exprmax
              bc1 <- case c1 of
@@ -869,6 +897,7 @@ bindStat s@(LC.CFor c1 me2 me3 s1 _) = do
              fvns <- filterM isNoFunctionName freenams
              fns <- mapM transObjName fvns
              res <- insertStatSrc s $ mkForBinding bpm bc1 bp2 bp3 b1 fns
+             leaveItemScope
              LCA.leaveBlockScope
              return res
     where freenams = L.union (maybe [] getFreeInCExpr me2) $ L.union (maybe [] getFreeInCExpr me3) (getFreeInCStat s1)
@@ -964,7 +993,10 @@ bindDeclr :: [LC.CDeclSpec] -> (Maybe LC.CDeclr, Maybe LC.CInit, Maybe LC.CExpr)
 bindDeclr _ (Just (LC.CDeclr (Just nam) _ _ _ _),mi,me) = do
     v <- transObjName nam
     bp <- bindInit mi
+    num <- nextVarNum s  -- not yet used
+    registerItemId s (localItemId s)
     return (v,bp)
+    where s = LCI.identToString nam
 bindDeclr _ _ = return ("",mkEmptyBindsPair)
 
 bindInit :: Maybe LC.CInit -> FTrav BindsPair
@@ -999,7 +1031,7 @@ bindExpr e@(LC.CVar nam _) = do
     v <- transObjName nam
     cnt <- getValCounter
     ct <- exprType e
-    iid <- getItemId nam
+    iid <- getItemId $ LCI.identToString nam
     t <- transType True (iid,ct)
     insertExprSrc e $ mkValVarBindsPair cnt (v,t)
 bindExpr e@(LC.CMember e1 nam arrow _) = do
@@ -1068,7 +1100,7 @@ bindExpr e@(LC.CCall fv@(LC.CVar nam _) es _) = do
     bps <- mapM bindExpr es
     f <- transObjName nam
     ctf <- exprType fv
-    iid <- getItemId nam
+    iid <- getItemId $ LCI.identToString nam
     t <- transType True (iid,ct)
     (vdres,arprops,gshupars,_) <- getFunctionProperties nam
     let invalpars = filter (null . fst . fst) gshupars

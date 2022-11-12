@@ -161,3 +161,53 @@ mkDummyExpr msg = mkAppExpr unitType "gencotDummy" [mkStringLitExpr msg]
 -- turn expression to dummy, preserving origin, type, and source
 toDummyExpr :: GenExpr -> GenExpr -> GenExpr
 toDummyExpr (GenExpr e o t src) (GenExpr dummy _ _ _) = (GenExpr dummy o t src) 
+
+-- Determine free typed variables in Expressions
+------------------------------------------------
+
+-- | Retrieve the free variables with their types.
+-- Toplevel defined functions (used in TLApp expressions) are omitted.
+getFreeTypedVars :: GenExpr -> [TypedVar]
+getFreeTypedVars (GenExpr (CS.Var nam) _ t _) = [(nam,t)]
+getFreeTypedVars (GenExpr (CS.PrimOp _ es) _ _ _) = nub $ concat $ map getFreeTypedVars es
+getFreeTypedVars (GenExpr (CS.Match e _ alts) _ _ _) = union (getFreeTypedVars e) $ nub $ concat $ map getFreeTypedVarsInAlt alts
+getFreeTypedVars (GenExpr (CS.TLApp _ _ _ _) _ _ _) = []
+getFreeTypedVars (GenExpr (CS.Con _ es) _ _ _) = nub $ concat $ map getFreeTypedVars es
+getFreeTypedVars (GenExpr (CS.Seq e1 e2) _ _ _) = union (getFreeTypedVars e1) (getFreeTypedVars e2)
+getFreeTypedVars (GenExpr (CS.Lam ip _ e) _ _ _) = (getFreeTypedVars e) \\ (getBoundTypedVars ip)
+getFreeTypedVars (GenExpr (CS.App e1 e2 _) _ _ _) = union (getFreeTypedVars e1) (getFreeTypedVars e2)
+getFreeTypedVars (GenExpr (CS.Comp e1 e2) _ _ _) = union (getFreeTypedVars e1) (getFreeTypedVars e2)
+-- CS.LamC not implemented
+-- CS.AppC not implemented
+getFreeTypedVars (GenExpr (CS.If e1 _ e2 e3) _ _ _) = union (getFreeTypedVars e1) $ union (getFreeTypedVars e2) (getFreeTypedVars e3)
+-- CS.MultiWayIf not implemented
+getFreeTypedVars (GenExpr (CS.Member e _) _ _ _) = getFreeTypedVars e
+-- CS.ArrayLit, CS.ArrayIndex, CS.ArrayMap2, CS.ArrayPut not implemented
+getFreeTypedVars (GenExpr (CS.Tuple es) _ _ _) = nub $ concat $ map getFreeTypedVars es
+
+getFreeTypedVars (GenExpr (CS.UnboxedRecord fs) _ _ _) = nub $ concat $ map (\(_,e) -> getFreeTypedVars e) fs
+getFreeTypedVars (GenExpr (CS.Let bs e) _ _ _) = getFreeTypedVarsInLet bs e
+getFreeTypedVars (GenExpr (CS.Put e fs) _ _ _) = union (getFreeTypedVars e) (nub $ concat $ map (\(_,e) -> getFreeTypedVars e) (catMaybes fs))
+getFreeTypedVars (GenExpr (CS.Upcast e) _ _ _) = getFreeTypedVars e
+-- CS.Annot not implemented
+getFreeTypedVars _ = []
+
+getBoundTypedVars :: GenIrrefPatn -> [TypedVar]
+getBoundTypedVars (GenIrrefPatn (CS.PVar v) _ t) = [(v,t)]
+getBoundTypedVars (GenIrrefPatn (CS.PTuple ips) _ _) = nub $ concat $ map getBoundTypedVars ips
+getBoundTypedVars (GenIrrefPatn (CS.PUnboxedRecord fs) _ _) = nub $ concat $ map (\(_,ip) -> getBoundTypedVars ip) (catMaybes fs)
+getBoundTypedVars (GenIrrefPatn (CS.PTake pv fs) _ t) = 
+    (pv,mkTakeType True t (map fst (catMaybes fs)) : (nub $ concat $ map (\(_,ip) -> getBoundTypedVars ip) (catMaybes fs))
+getBoundTypedVars (GenIrrefPatn (CS.PArray ips) _ _) = nub $ concat $ map getBoundTypedVars ips
+getBoundTypedVars (GenIrrefPatn (CS.PArrayTake pv is) _ t) = 
+    (pv,mkArrTakeType True t (map fst is)) : (nub $ concat $ map (\(_,ip) -> getBoundTypedVars ip) is
+getBoundTypedVars _ = []
+
+getFreeTypedVarsInAlt :: GenAlt -> [TypedVar]
+getFreeTypedVarsInAlt (CS.Alt _ _ e) = getFreeTypedVars e
+
+getFreeTypedVarsInLet :: [GenBnd] -> GenExpr -> [TypedVar]
+getFreeTypedVarsInLet [] e = getFreeTypedVars e
+getFreeTypedVarsInLet ((CS.Binding ip _ eb _) : bs) e = union (getFreeTypedVars eb) ((getFreeTypedVarsInLet bs e) \\ (getBoundTypedVars ip))
+-- CS.BindingAlts not implemented
+

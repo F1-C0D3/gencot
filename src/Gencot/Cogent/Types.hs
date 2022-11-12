@@ -67,3 +67,4 @@ getMemType f (GenType (CS.TRecord _ fs s) _) =
 getResultType :: GenType -> GenType
 getResultType (GenType (CS.TFun _ rt) _) = rt
 getResultType _ = unitType
+

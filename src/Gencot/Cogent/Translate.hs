@@ -14,7 +14,7 @@ import Language.C.Data.Node as LCN
 import Language.C.Data.Position as LCP
 import Language.C.Analysis as LCA
 import Language.C.Analysis.DefTable as LCD
-import Language.C.Analysis.AstAnalysis (tExpr, ExprSide(RValue), StmtCtx(LoopCtx))
+import Language.C.Analysis.AstAnalysis (tExpr, ExprSide(RValue), StmtCtx(LoopCtx)) -- sollte auch über LCA ansprechbar sein
 import Language.C.Syntax.AST as LCS
 
 import Cogent.Surface as CS
@@ -29,6 +29,7 @@ import Gencot.Names (
   getFileName, globStateType, isNoFunctionName, heapType, heapParamName, variadicParamName)
 import Gencot.Items.Types (
   ItemAssocType, isNotNullItem, isReadOnlyItem, isNoStringItem, isHeapUseItem, 
+  getIndividualItemId, getObjectItemId, getParamSubItemId,
   getGlobalStateProperty, makeGlobalStateParams, getTagItemAssoc, getIndividualItemAssoc, getTypedefItemAssoc, adjustItemAssocType, 
   getMemberSubItemAssoc, getRefSubItemAssoc, getResultSubItemAssoc, getElemSubItemAssoc, getParamSubItemAssoc, 
   getItemAssocType, getMemberItemAssocTypes, getSubItemAssocTypes, numberList, getAddResultProperties, getFunctionProperties)
@@ -46,7 +47,7 @@ import qualified Gencot.C.Ast as LQ (Stm(Exp,Block), Exp)
 import qualified Gencot.C.Translate as C (transStat, transExpr, transArrSizeExpr, transBlockItem)
 import Gencot.Traversal (
   FTrav, markTagAsNested, isMarkedAsNested, hasProperty, stopResolvTypeName, 
-  setFunDef, clrFunDef, enterItemScope, leaveItemScope, registerItemId, getItemId, nextVarNum, resetVarNums,
+  setFunDef, clrFunDef, enterItemScope, leaveItemScope, registerItemId, nextVarNum, resetVarNums,
   getValCounter, getCmpCounter, resetVarCounters, resetValCounter, getTConf)
 import Gencot.Util.Types (
   carriedTypes, isExtern, isCompOrFunc, isCompPointer, isNamedFunPointer, isFunPointer, isPointer, isAggregate, isFunction, 
@@ -134,9 +135,9 @@ transGlobal de@(LCA.DeclEvent decl@(LCA.Declaration (LCA.Decl _ n))) | isComplet
 -- where @expr@ is the translation of @stmt@ and
 -- @partypes@, @rt@, and @expr@ are modified according to a parameter modification description.
 transGlobal (LCA.DeclEvent idecl@(LCA.FunctionDef (LCA.FunDef decl stat n))) = do
-    f <- transObjName idnam
+    f <- transObjName $ LCA.declIdent idecl
     sfn <- getFileName
-    let iat = getIndividualItemAssoc idecl sfn
+    let iat@(fid,_) = getIndividualItemAssoc idecl sfn
     t <- transType False iat
 -- from nesttags:
 --    nt <- transTagIfNested typ n -- wirkt erst wenn transTagIfNested auch derived types verarbeitet
@@ -144,7 +145,7 @@ transGlobal (LCA.DeclEvent idecl@(LCA.FunctionDef (LCA.FunDef decl stat n))) = d
     LCA.enterFunctionScope
     LCA.defineParams LCN.undefNode decl
     enterItemScope
-    registerParamIds pars 1 idnam
+    registerParamIds pars 1 fid
     setFunDef idecl
     e <- transBody iat stat pars
 --    e <- extendExpr iat e pars
@@ -153,8 +154,7 @@ transGlobal (LCA.DeclEvent idecl@(LCA.FunctionDef (LCA.FunDef decl stat n))) = d
     leaveItemScope
     LCA.leaveFunctionScope
     return $ wrapOrigin n ({-nt ++ -}[GenToplv (CS.FunDef f (CS.PT [] [] t) [CS.Alt ps CCS.Regular e]) noOrigin])
-    where idnam = LCA.declIdent idecl
-          typ@(LCA.FunctionType (LCA.FunType res pars isVar) _) = LCA.declType idecl
+    where typ@(LCA.FunctionType (LCA.FunType res pars isVar) _) = LCA.declType idecl
 -- Translate a C object definition of the form
 -- > typ name = expr;
 -- (where typ may be a derived type syntactically integrated in the name).
@@ -212,12 +212,11 @@ transGlobal (LCA.TypeDefEvent (LCA.TypeDef idnam typ _ n)) = do
         
 transGlobal _ = return $ [GenToplv (CS.Include "err-unexpected toplevel") noOrigin]
 
-registerParamIds :: [LCA.ParamDecl] -> Int -> LCI.Ident -> FTrav ()
+registerParamIds :: [LCA.ParamDecl] -> Int -> String -> FTrav ()
 registerParamIds [] _ _ = return ()
-registerParamIds (p : ps) pos fid@(LCI.Ident f _ _) = do
-    registerItemId s (paramSubItemId f pos s)
+registerParamIds (p : ps) pos fid = do
+    registerItemId (LCI.identToString $ LCA.declIdent p) $ getParamSubItemId fid (pos,p)
     registerParamIds ps (pos+1) fid
-    where (LCA.VarDecl (LCA.VarName (LCI.Ident s _ _) _) _ _) = p
 
 -- | Translate nested tag definitions in a member definition.
 -- The first argument is the ItemAssocType of the struct.
@@ -805,7 +804,7 @@ arraySizeType _ = genType $ CS.TCon "U32" [] markBox
 -- The StmtCtx is only used for CStatExpr which are not processed by Gencot, therefore we always use LoopCtx as a dummy.
 -- The ExprSide for CConst, CUnary, CBinary must be RValue, for CVar it is ignored.
 exprType :: LC.CExpr -> FTrav LCA.Type
-exprType e = tExpr LoopCtx RValue e
+exprType e = LCA.tExpr LoopCtx RValue e
 
 transBody :: ItemAssocType -> LC.CStat -> [LCA.ParamDecl] -> FTrav GenExpr
 transBody fiat s pars = do
@@ -821,7 +820,7 @@ transExpr :: LC.CExpr -> FTrav GenExpr
 transExpr e = do
     tconf <- getTConf
     bp <- bindExpr e
-    return $ cleanSrc $ postproc tconf $ mkPlainExpr $ bp
+    return $ cleanSrc $ postproc tconf $ mkPlainExpr bp
 
 bindStat :: LC.CStat -> FTrav GenBnd
 bindStat s@(LC.CExpr Nothing _) =
@@ -887,20 +886,15 @@ bindStat s@(LC.CFor c1 me2 me3 s1 _) = do
                              return (Left (Just bp1))
                          Left Nothing -> return (Left Nothing)
                          Right d -> do
-                             LCA.analyseDecl True d
-                             -- This is not fully correct, see comment in bindBlockItems
                              dbpl <- bindForDecl d
                              return (Right dbpl)
              b1 <- bindStat s1
              bp2 <- bindExpr $ fromJust me2
              bp3 <- bindExpr $ fromJust me3
-             fvns <- filterM isNoFunctionName freenams
-             fns <- mapM transObjName fvns
-             res <- insertStatSrc s $ mkForBinding bpm bc1 bp2 bp3 b1 fns
+             res <- insertStatSrc s $ mkForBinding bpm bc1 bp2 bp3 b1
              leaveItemScope
              LCA.leaveBlockScope
              return res
-    where freenams = L.union (maybe [] getFreeInCExpr me2) $ L.union (maybe [] getFreeInCExpr me3) (getFreeInCStat s1)
 bindStat s = 
     insertStatSrc s $ mkDummyBinding "Translation of statement not yet implemented"
 
@@ -961,50 +955,74 @@ bindBlockItems bis@((LC.CBlockStmt s) : bis1) = do
     b <- bindStat s
     bs <- bindBlockItems bis1
     insertBlockItemsSrc bis $ mkSeqBinding b bs
-bindBlockItems ((LC.CBlockDecl d) : bis) = do
-    LCA.analyseDecl True d
-    -- This is not fully correct. We analyse all declarators before we process them. 
-    -- Therefore variables referenced in initializers may be looked up wrongly.
-    -- However, there is no LCA function for analysing a single declarator.
+bindBlockItems ((LC.CBlockDecl d) : bis) =
     bindDecl d bis
 
+type DeclElem = (Maybe LC.CDeclr, Maybe LC.CInit, Maybe LC.CExpr)
+type ProcDeclSpecs = ([LC.CStorageSpec], [LC.CAttr], [LC.CTypeQual], LCA.TypeSpecAnalysis, [LC.CFunSpec])
+
+processDeclSpecs :: [LC.CDeclSpec] -> FTrav ProcDeclSpecs
+processDeclSpecs specs = do
+    let (sspecs, attrs, tquals, tspecs, fspecs, _) = LCA.partitionDeclSpecs specs
+    ctspecs <- LCA.canonicalTypeSpec tspecs
+    return (sspecs, attrs, tquals, ctspecs, fspecs)
+    
 -- | Processing a declaration together with the following block content.
 bindDecl :: LC.CDecl -> [LC.CBlockItem] -> FTrav GenBnd
-bindDecl dc@(LC.CDecl _ _ _) bis = 
-    bindDeclrs dc bis
+bindDecl dc@(LC.CDecl specs dcs _) bis = do
+    pspecs <- processDeclSpecs specs
+    bindDeclrs pspecs dcs bis
 bindDecl sa@(LC.CStaticAssert _ _ _) bis = 
     insertBlockItemsSrc ((LC.CBlockDecl sa) : bis) $ mkDummyBinding "Static assertions not supported"
 
 -- | Standalone processing of a declaration in a for loop
 -- The main difference is the handling of the source.
-bindForDecl :: LC.CDecl -> FTrav [(CCS.VarName,BindsPair)]
-bindForDecl dc@(LC.CDecl specs dcs _) = mapM (uncurry bindDeclr) (zip (repeat specs) dcs)
+bindForDecl :: LC.CDecl -> FTrav [(TypedVar,BindsPair)]
+bindForDecl dc@(LC.CDecl specs dcs _) = do
+    pspecs <- processDeclSpecs specs
+    mapM (uncurry bindDeclr) (zip (repeat pspecs) dcs)
 bindForDecl sa@(LC.CStaticAssert _ _ _) = return []
 
 -- | We treat a declaration with a sequence of declarators as a sequence of declarations with a single declarator and replicate the specifiers
-bindDeclrs :: LC.CDecl -> [LC.CBlockItem] -> FTrav GenBnd
-bindDeclrs (LC.CDecl specs [] _) bis = bindBlockItems bis
-bindDeclrs d@(LC.CDecl specs (dc : dcs) n) bis = do
-    bs <- bindDeclrs (LC.CDecl specs dcs n) bis
-    (v,bp) <- bindDeclr specs dc
+bindDeclrs :: ProcDeclSpecs -> [DeclElem] -> [LC.CBlockItem] -> FTrav GenBnd
+bindDeclrs _ [] bis = bindBlockItems bis
+bindDeclrs pspecs (dc : dcs) bis = do
+    (v,bp) <- bindDeclr pspecs dc
+    bs <- bindDeclrs pspecs dcs bis
     insertBlockItemsSrc ((LC.CBlockDecl d) : bis) $ mkDecBinding v bp bs
 
-bindDeclr :: [LC.CDeclSpec] -> (Maybe LC.CDeclr, Maybe LC.CInit, Maybe LC.CExpr) -> FTrav (CCS.VarName,BindsPair)
-bindDeclr _ (Just (LC.CDeclr (Just nam) _ _ _ _),mi,me) = do
+bindDeclr :: ProcDeclSpecs -> DeclElem -> FTrav (TypedVar,BindsPair)
+bindDeclr (ss,a,tq,tsa,fs) (Just declr@(LC.CDeclr (Just nam) _ _ _ _),mi,me) = do
     v <- transObjName nam
-    bp <- bindInit mi
-    num <- nextVarNum s  -- not yet used
-    registerItemId s (localItemId s)
-    return (v,bp)
-    where s = LCI.identToString nam
-bindDeclr _ _ = return ("",mkEmptyBindsPair)
+    vardeclInfo@(VarDeclInfo _ _ _ _ typ _) <-
+        LCA.analyseVarDecl False ss a tq tsa fs declr [] Nothing
 
-bindInit :: Maybe LC.CInit -> FTrav BindsPair
-bindInit Nothing = do
+    num <- nextVarNum s  -- not yet used
+    -- bindDeclr is only used for local declarations, therefore the function context is defined
+    (Just fdef) <- getFunDef
+    sfn <- getFileName
+    let fid = getIndividualItemId fdef sfn -- not yet used
+        vid = (localItemId s) -- here num and fid must be used when local item ids are changed.
+
+    t <- transType True (vid,typ)
+
+    _ <- maybe (return Nothing) (liftM Just . tInit typ) mi
+    bp <- bindInit mi t
+
+    -- this inserts the new variable into the symbol table, hence it must be done after processing mi by bindInit
+    LCA.localVarDecl vardeclInfo mi
+    
+    registerItemId s vid
+    return ((v,t),bp)
+    where s = LCI.identToString nam
+bindDeclr _ _ = return (("",unitType),mkEmptyBindsPair)
+
+bindInit :: Maybe LC.CInit -> GenType -> FTrav BindsPair
+bindInit Nothing t = do
     cnt <- getValCounter
-    return $ mkDefaultBindsPair cnt
-bindInit (Just (LC.CInitExpr e _)) = bindExpr e
-bindInit (Just (LC.CInitList il _)) = do
+    return $ mkDefaultBindsPair cnt t
+bindInit (Just (LC.CInitExpr e _)) _ = bindExpr e
+bindInit (Just (LC.CInitList il _)) _ = do
     cnt <- getValCounter
     return $ mkDummyBindsPair cnt "Non-scalar initializers not yet implemented"
 
@@ -1031,7 +1049,7 @@ bindExpr e@(LC.CVar nam _) = do
     v <- transObjName nam
     cnt <- getValCounter
     ct <- exprType e
-    iid <- getItemId $ LCI.identToString nam
+    iid <- getObjectItemId nam
     t <- transType True (iid,ct)
     insertExprSrc e $ mkValVarBindsPair cnt (v,t)
 bindExpr e@(LC.CMember e1 nam arrow _) = do
@@ -1100,7 +1118,7 @@ bindExpr e@(LC.CCall fv@(LC.CVar nam _) es _) = do
     bps <- mapM bindExpr es
     f <- transObjName nam
     ctf <- exprType fv
-    iid <- getItemId $ LCI.identToString nam
+    iid <- getObjectItemId nam
     t <- transType True (iid,ct)
     (vdres,arprops,gshupars,_) <- getFunctionProperties nam
     let invalpars = filter (null . fst . fst) gshupars

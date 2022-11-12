@@ -123,6 +123,20 @@ derivedItemIds (LCA.PtrType bt _ _) = do
     return $ map (\s -> s ++ "*") dii
 derivedItemIds _ = return $ []
 
+-- | Get the item id for an arbitrary object identifier referenced in the C program.
+-- First the item id is looked up in the item id table in the FTrav state
+-- to find local variables and parameters. 
+-- If not found there, it must be an individual toplevel item.
+getObjectItemId :: LCI.Ident -> FTrav String
+getObjectItemId nam = do
+    iid <- getItemId $ LCI.identToString nam
+    if null iid then do
+        mdec <- LCA.lookupObject nam
+        sfn <- getFileName
+        case mdec of
+             Nothing -> return ""
+             Just dec -> return $ getIndividualItemId dec sfn
+
 -- | A type with an associated item identifier.
 type ItemAssocType = (String,LCA.Type)
 

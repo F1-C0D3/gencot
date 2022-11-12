@@ -12,7 +12,8 @@ import Gencot.Cogent.Ast -- includes unitType
 import Gencot.Cogent.Types (
   mkU8Type, mkU32Type, mkStringType, mkBoolType, 
   mkTupleType, mkCtlType, mkFunType, mkRecordType, mkTakeType, mkArrTakeType, 
-  getMemType, getResultType)
+  getMemType, getResultType,
+  isFunctionType)
 import Gencot.Cogent.Expr (
   TypedVar, TypedFun,
   mkUnitExpr, mkIntLitExpr, mkCharLitExpr, mkStringLitExpr, mkBoolLitExpr,
@@ -190,7 +191,7 @@ mkAppBindsPair :: TypedFun -> [BindsPair] -> CCS.VarName -> [Bool] -> [(TypedVar
 mkAppBindsPair f@(_,t) bps v ars ghs =
     if any isNothing marvs
        then mkSingleBindsPair $ mkVarBinding (head rvs) $ mkDummyExpr "Unsupported Add-Result argument"
-       else addBinding (mkVarsBinding rvs $ mkAppExpr f (map mkVarExpr vs)) $ concatBindsPairs bps
+       else addBinding (mkVarsBinding rvs $ mkTypedAppExpr f [] (map mkVarExpr vs)) $ concatBindsPairs bps
     where vs = (map leadVar bps) ++ (map fst ghs)
           marvs = map lvalVar $ map snd $ filter fst $ zip ars bps
           argvs = (catMaybes marvs) ++ (map fst $ filter snd ghs)
@@ -379,22 +380,23 @@ mkDeclBinding [] b = b
 mkDeclBinding ((v,bp) : ds) b = mkDecBinding v bp $ mkDeclBinding ds b
 
 -- | for statement: 
-mkForBinding :: BindsPair -> (Either (Maybe BindsPair) [(TypedVar,BindsPair)]) -> BindsPair -> BindsPair -> GenBnd -> [TypedVar] -> GenBnd
-mkForBinding bpm ebp1 bp2 bp3 b freevars = 
+mkForBinding :: BindsPair -> (Either (Maybe BindsPair) [(TypedVar,BindsPair)]) -> BindsPair -> BindsPair -> GenBnd -> GenBnd
+mkForBinding bpm ebp1 bp2 bp3 b = 
     case ebp1 of
          (Left Nothing) -> bindloop
          (Left (Just bp1)) -> mkSimpSeqBinding (cmbBinds bp1) bindloop
          (Right ds) -> mkDeclBinding ds bindloop
     where b3 = cmbBinds bp3
           accvars = union (sideEffectFilter $ boundVars b) (sideEffectFilter $ boundVars b3)
-          obsvars = freevars \\ accvars
           exprstep = mkLetExpr [b] $ mkIfExpr ctlcond accexpr $ mkLetExpr [b3] $ mk0VarTupleExpr accvars
-          b2 = cmbBinds bp2
+          b2@(CS.Binding _ _ expr2 _) = cmbBinds bp2
+          freevars = union (getFreeTypedVars exprstep) (getFreeTypedVars expr2)
           exprloop = mkLetExpr [(mkBinding accpat $ mkAppExpr "repeat" [repeatargexpr])] $ mkExpVarTupleExpr repeatctl accvars
           accpat = mkPatVarTuplePattern mkCtrlPattern accvars -- (c',y1..)
           accexpr = mkVarTupleExpr (typedCtlVar : accvars) -- (c',y1..)
           ctlcond = mkBoolOpExpr ">" [mkVarExpr typedCtlVar,mkCtlLitExpr 1] -- c' > 1
           accpatwild = mkPatVarTuplePattern mkWildcardPattern accvars -- (_,y1..)
+          obsvars = freevars \\ accvars
           obsvpat = mkVarTuplePattern obsvars
           repeatctl = mkIfExpr (mkBoolOpExpr "==" [mkVarExpr typedCtlVar,mkCtlLitExpr 2]) (mkCtlLitExpr 0) (mkVarExpr typedCtlVar)
           repeatargexpr = mkRecordExpr [("n",exprmax),("stop",stopfun),("step",stepfun),("acc",iniacc),("obsv",iniobsv)]

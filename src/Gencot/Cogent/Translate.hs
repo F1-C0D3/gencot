@@ -28,19 +28,22 @@ import Gencot.Names (
   mapPtrStep, mapFunStep, mapIncFunStep, mapArrStep, mapModStep, mapRoStep, mapNamFunStep,
   getFileName, globStateType, isNoFunctionName, heapType, heapParamName, variadicParamName)
 import Gencot.Items.Types (
-  ItemAssocType, isNotNullItem, isReadOnlyItem, isNoStringItem, isHeapUseItem, 
+  ItemAssocType, isNotNullItem, isReadOnlyItem, isNoStringItem, isHeapUseItem, getItemProperties,
   getIndividualItemId, getObjectItemId, getParamSubItemId,
   getGlobalStateProperty, makeGlobalStateParams, getTagItemAssoc, getIndividualItemAssoc, getTypedefItemAssoc, adjustItemAssocType, 
   getMemberSubItemAssoc, getRefSubItemAssoc, getResultSubItemAssoc, getElemSubItemAssoc, getParamSubItemAssoc, 
   getItemAssocType, getMemberItemAssocTypes, getSubItemAssocTypes, numberList, getAddResultProperties, getFunctionProperties)
-import Gencot.Items.Identifier (getObjFunName, getParamName)
+import Gencot.Items.Identifier (getObjFuncName, getParamName)
 import Gencot.Cogent.Ast
 import Gencot.Cogent.Bindings (
   BindsPair, valVar, leadVar, lvalVar, resVar, 
   mkEmptyBindsPair, mkDummyBindsPair, mkUnitBindsPair, mkDefaultBindsPair, mkIntLitBindsPair, mkCharLitBindsPair, mkStringLitBindsPair,
   mkValVarBindsPair, mkMemBindsPair, mkIdxBindsPair, mkOpBindsPair, mkAppBindsPair, mkAssBindsPair, mkIfBindsPair, concatBindsPairs, 
+  processMFpropForBindsPairs,
+  replaceBoundVarType,
   mkDummyBinding, mkNullBinding, mkExpBinding, mkRetBinding, mkBreakBinding, mkContBinding, 
-  mkIfBinding, mkSwitchBinding, mkCaseBinding, mkSeqBinding, mkDecBinding, mkForBinding)
+  mkIfBinding, mkSwitchBinding, mkCaseBinding, mkSeqBinding, mkDecBinding, mkForBinding,
+  processMFpropForPatterns)
 import Gencot.Cogent.Expr (mkUnitExpr, mkVarExpr, mkBodyExpr, mkPlainExpr)
 import Gencot.Cogent.Postproc (postproc)
 import qualified Gencot.C.Ast as LQ (Stm(Exp,Block), Exp)
@@ -1119,14 +1122,15 @@ bindExpr e@(LC.CCall fv@(LC.CVar nam _) es _) = do
     f <- transObjName nam
     ctf <- exprType fv
     iid <- getObjectItemId nam
-    t <- transType True (iid,ct)
+    t <- transType True (iid,ctf)
     (vdres,arprops,gshupars,_) <- getFunctionProperties nam
     let invalpars = filter (null . fst . fst) gshupars
     cnt <- if (null bps && not vdres) || (not $ null invalpars) then getValCounter else return 0 
     let rvar = if vdres then "" else if null bps then valVar cnt else leadVar (head bps)
+    let vs = (map leadVar bps) ++ (map (fst . fst) gshupars)
     insertExprSrc e $
         if null invalpars
-           then mkAppBindsPair (f,t) bps rvar arprops $ map fst gshupars
+           then mkAppBindsPair (f,t) bps rvar vs arprops $ map fst gshupars
            else mkDummyBindsPair cnt ("No value available for property " ++ (snd (head invalpars)))
 bindExpr e@(LC.CCall _ _ _) = do
     cnt <- getValCounter
@@ -1167,7 +1171,205 @@ insertExprSrc src (main,putback) = do
 insertBlockItemsSrc :: [LC.CBlockItem] -> GenBnd -> FTrav GenBnd
 insertBlockItemsSrc src b = insertStatSrc (LC.CCompound [] src LCN.undefNode) b
 
+-- | Description of a single parameter: name, type, properties.
+-- A parameter caused by a hu property of the function is additionally marked by an own hu property.
+-- Note that if a function parameter has a hu property it is associated with the dereferenced parameter instead.
+data ParamDesc = ParamDesc {
+    nameOfParamDesc :: CCS.VarName, 
+    typeOfParamDesc :: GenType, 
+    propOfParamDesc :: [String]}
 
+-- | Description of a function: name, type, properties, parameter descriptions.
+-- The type already includes the effect of ModificationFunction properties,
+-- the parameter descriptions describe the C and virtual parameters in their original order.
+data FuncDesc = FuncDesc {
+    nameOfFuncDesc :: CCS.FunName, 
+    typeOfFuncDesc :: GenType, 
+    propOfFuncDesc :: [String], 
+    parsOfFuncDesc :: [ParamDesc]}
+
+-- | Construct a function description from the function declaration.
+getFuncDesc :: LCA.VarDecl -> FTrav FuncDesc
+getFuncDesc decl = do
+    name <- mapIfUpper $ LCA.declIdent decl
+    iid <- getObjectItemId $ LCA.declIdent decl
+    let iat = (iid, LCA.declType decl)
+    typ <- transType True iat
+    props <- getItemProperties iat
+    parms <- getAllParamDesc iat
+    return $ FuncDesc name typ props parms
+
+-- | Construct the descriptions for all parameters of a function
+-- The parameter types are not taken from the translated function type, because
+-- there they may have been rearranged by processing a ModificationFunction property.
+getAllParamDesc :: ItemAssocType -> FTrav [ParamDesc]
+getAllParamDesc iat@(iid,(LCA.FunctionType (LCA.FunType _ pds isVar) _)) = do
+    pns <- mapM mapIfUpper $ map LCA.declIdent pds
+    pts <- mapM (transType True) piats
+    pps <- mapM getItemProperties piats
+    let nonvirt = map (\(n,t,p) -> ParamDesc n t p) $ zip3 pns pts pps
+    gsps <- getGlobalStateSubItemIds iat -- the item ids of all gs parameters
+    gsprops <- mapM getGlobalStateProperty $ map fst gsps -- the gs properties of all gs parameters
+    gsvars <- mapM getGlobalStateId gsprops -- the global var item ids or "" for all gs parameters
+    gsvirtnosort <- mapM makeGlobalStateParamDesc $ zip gsps gsprops -- the descriptions for all gs parameters
+    let gsvirt = map snd $ sortOn fst $ zip gsprops gsvirtnosort
+    huprop <- isHeapUseItem iat
+    let huvirt = if huprop then [makeHeapUseParamDesc $ map nameOfParamDesc (nonvirt ++ gsvirt)] else []
+    let variadic = if isVar then [makeVariadicParamDesc] else []
+    return (nonvirt ++ gsvirt ++ huvirt ++ variadic)
+    where piats = map (getParamSubItemAssoc iat) $ numberList pds
+
+-- | Construct the parameter description for a GlobalState parameter.
+-- The first string is the item id od the parameter.
+-- The boolean is true if it has no ReadOnly property.
+-- The second string is the GlobalState property.
+makeGlobalStateParamDesc :: ((String, Bool), String) -> FTrav ParamDesc
+makeGlobalStateParamDesc ((iid,noro), gs) = do
+    name <- mapIfUpper $ LCI.Ident (getParamName iid) 0 LCN.undefNode
+    gsvar <- getGlobalStateId gs -- global var item id or ""
+    if null gsvar
+       then -- global variable not available, use type synonym
+         let typ = makeReadOnlyIf (not noro) $ genType $ CS.TCon (globStateType gs) [] $ markBox
+         props <- getProperties iid
+         return $ ParamDesc name typ props
+       else -- global variable found, use its type
+         mdec <- LCA.lookupObject $ LCI.Ident (getObjFunName gsvar) 0 LCN.undefNode
+         case mdec of
+              Nothing -> return $ ParamDesc "" unitType []
+              Just decl -> do
+                  let piat = (iid,LCA.PtrType (LCA.declType decl) LCA.noTypeQuals LCA.noAttributes)
+                  typ <- transType True piat
+                  props <- getItemProperties piat
+                  return $ ParamDesc name typ props
+
+-- | construct the parameter description for the HeapUse parameter.
+-- The argument is the list of names of all other parameters.
+-- The parameter is marked by an artificial hu property. 
+makeHeapUseParamDesc :: [CCS.VarName] -> ParamDesc
+makeHeapUseParamDesc pnams = 
+    ParamDesc (heapParamName pnams) makeHeapType ["hu"]
+
+-- | construct the parameter description for the variadic parameter.
+makeVariadicParamDesc :: ParamDesc
+makeVariadicParamDesc = 
+    ParamDesc variadicParamName variadicType []
+
+-- | Return the variadic parameter description, if present.
+getVariadicParamDesc :: FuncDesc -> Maybe ParamDesc
+getVariadicParamDesc fdes = 
+    if nameOfParamDesc pdes == variadicParamName then Just pdes else Nothing
+    where pdes = last $ parsOfFuncDesc fdes
+
+-- | Return the function result type
+getResultType :: FuncDesc -> GenType
+getResultType fdes = 
+    case typeOfGT $ typeOfFuncDesc fdes of
+         CS.TFun _ t -> t
+    
+-- | Return the HeapUse parameter description, if present.
+-- That is the first parameter marked by an hu property.
+getHeapUseParamDesc :: FuncDesc -> Maybe ParamDesc
+getHeapUseParamDesc fdes =
+    find (\pdes -> elem "hu" $ propOfParamDesc pdes) $ parsOfFuncDesc fdes
+
+-- | Return the sequence of GlobalState properties from the parameter descriptions.
+getGlobalStateParamProps :: FuncDesc -> [String]
+getGlobalStateParamProps fdes = 
+    filter (not . null) $ map getGSProp $ parsOfFuncDesc fdes
+    where getGSProp = (fromMaybe "") . (find (\p -> "gs" `isPrefixOf` p)) . propOfParamDesc
+
+-- | Search a parameter description for a HeapUse parameter.
+-- If not found return a description with empty name, unit type, and only the HeapUse property.
+searchHeapUseParamDesc :: FuncDesc -> ParamDesc
+searchHeapUseParamDesc fdes =
+    case getHeapUseParamDesc fdes of
+         Nothing -> ParamDesc "" unitType ["hu"]
+         Just pdes -> pdes
+
+-- | Search a parameter description with a specific GlobalState property.
+-- If not found return a description with empty name, unit type, and only the GlobalState property.
+searchGlobalStateParamDesc :: FuncDesc -> String -> ParamDesc
+searchGlobalStateParamDesc fdes gsprop =
+    case find (\pdes -> elem gsprop $ propOfParamDesc pdes) $ parsOfFuncDesc fdes of
+         Nothing -> ParamDesc "" unitType [gsprop]
+         Just pdes -> pdes
+
+isAddResultParam :: ParamDesc -> Bool
+isAddResultParam pdes =
+    ((elem "ar" props) && (not $ elem "ro" props)) ||
+    (any (\p -> "gs" `isPrefixOf` p) props) ||
+    (elem "hu" props)
+    where props = propOfParamDesc pdes
+
+getTypedVarFromParamDesc :: ParamDesc -> TypedVar
+getTypedVarFromParamDesc pdes = (nameOfParamDesc pdes, typeOfParamDesc pdes)
+
+-- | Retrieve the actual virtual parameters for a function call from the context.
+-- The argument is the description of the invoked function.
+-- The result is a sequence of parameter descriptions of the surrounding function,
+-- ordered according to the use in the invoked function.
+-- If a virtual parameter is not available, the resulting parameter description has 
+-- an empty name, a unit type and (only) the required property.
+getVirtParamsFromContext :: FuncDesc -> FTrav [ParamDesc]
+getVirtParamsFromContext fdes = do
+    mfdef <- getFunDef
+    case mfdef of
+         Nothing -> return []
+         Just (LCA.FunctionDef (LCA.FunDef decl _ _)) -> do
+             ctxfdes <- getFuncDesc decl
+             let gspdes = map (searchGlobalStateParamDesc ctxfdes) $ getGlobalStateParamProps fdes
+             let hupdes = if elem "hu" $ propOfFuncDesc fdes
+                             then [searchHeapUseParamDesc ctxfdes]
+                             else []
+             let vrpdes = case getVariadicParamDesc fdes of
+                             Nothing -> []
+                             Just pdes -> [pdes]
+             return (gspdes ++ hupdes ++ vrpdes)
+
+-- | Get a variable for binding the result of a function.
+-- The first argument is the function result type.
+-- The second argument is the list of all parameter BindsPairs.
+-- If the result type is the unit type (C function has result type void), return a wildcard.
+-- Otherwise reuse the value variable of the first parameter, or return a new value variable if there are no parameters.
+getResultVar :: GenType -> [BindsPair] -> FTrav TypedVar
+getResultVar rt bps = do
+    rv <- if null bps 
+             then do
+                    cnt <- getValCounter
+                    return (valVar cnt,rt)
+             else return (fst $ leadVar $ head bps, rt)
+    return (if rt == unitType then ("_",rt) else rv)
+
+-- | Determine lists of actual parameters and patterns to bind the result of a function call.
+-- The first argument is the description of the invoked function.
+-- The second argument is the list of translated C argument expressions.
+processParamVals :: FuncDesc -> [BindsPair] -> FTrav ([BindsPair], [GenIrrefPatn])
+processParamVals fdes pvals = do
+    -- construct BindsPairs for all virtual parameters
+    vpds <- getVirtParamsFromContext fdes
+    vpbps <- mapM (\pdes -> do 
+                             cnt <- getValCounter
+                             return $ mkValVarBindsPair cnt $ getTypedVarFromParamDesc pdes) vpds
+    let -- modify types of non-virtual parameters
+        nvpbps = map (\(bp, pdes) -> replaceBoundVarType (typeOfParamDesc pdes) bp) $ zip pvals pdess
+        -- the list of all actual parameters
+        allpbps = nvpbps ++ vpbps
+        -- actual parameters paired with mf flags
+        mfpbps = zip allpbps $ map hasMf pdess
+    -- provide value variable index if there is a single parameter and it has an mf flag
+    cnt <- if length mfpbps == 1 && snd (head mfpbps) then getValCounter else return 0
+    -- additional result variables
+    let arvars = map (\(bp,pdes) -> (lvalVar bp, hasMf pdes) $ filter (\(_,pdes) -> isAddResultParam pdes) $ zip allpbps pdess
+    -- variable for original function result
+    rvar <- getResultVar rt allpbps
+    -- the list of all result variables, paired with mf flags
+    -- the original result is used as mf result if the mf parameter has no ar property
+    let mfrvars = if isWild rvar then if null arvars then [(rvar,mfIsNotAr)] else arvars else ((rvar,mfIsNotAr) : arvars)
+    return (processMFpropForBindsPairs cnt mfpbps, processMFpropForPatterns mfrvars)
+    where rt = getResultType fdes
+          pdess = parsOfFuncDesc fdes
+          hasMf pdes = elem "mf" $ propOfParamDesc pdes
+          mfIsNotAr = any (\pdes -> (hasMf pdes) && not (isAddResultParam pdes)) pdess
 
 fvGB :: GenBnd -> [CCS.VarName]
 fvGB b = [] -- TODO using conversion to raw and CS.fvB

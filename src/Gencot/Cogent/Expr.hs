@@ -68,7 +68,7 @@ mkCtlVarTupleExpr :: Integer -> [TypedVar] -> GenExpr
 mkCtlVarTupleExpr cv vs = mkExpVarTupleExpr (mkCtlLitExpr cv) vs
 
 -- construct (v1,...,vn) or v1
-mkVarTupleExpr :: [CCS.VarName] -> GenExpr
+mkVarTupleExpr :: [TypedVar] -> GenExpr
 mkVarTupleExpr vs = mkTupleExpr $ map mkVarExpr vs
 
 -- construct (e,v1,...,vn) or e
@@ -92,19 +92,13 @@ replaceLeadExpr e (GenExpr (CS.Tuple es) o (CS.TTuple ts) src) =
     GenExpr (CS.Tuple (e : tail es)) o (CS.TTuple ((typOfGE e) : tail ts)) src
 replaceLeadExpr e _ = e
 
--- construct f () or f e1 or f (e1,..,en)
-mkAppExpr :: TypedFun -> [GenExpr] -> GenExpr
-mkAppExpr (f,t) es = genExpr (getResultType t) $ CS.App (genExpr t $ CS.Var f) (arg es) False
-    where arg [] = mkUnitExpr
-          arg [e] = e
-          arg es = mkTupleExpr es
+-- construct f(e)
+mkAppExpr :: GenExpr -> GenExpr -> GenExpr
+mkAppExpr f e = genExpr (getResultType $ typOfGE f) $ CS.App f e False
 
--- construct f[t1..] () or f[t1..] e1 or f[t1..] (e1,..,en)
-mkTypedAppExpr :: TypedFun -> [Maybe GenType] -> [GenExpr] -> GenExpr
-mkTypedAppExpr (f,t) ts es = genExpr (getResultType t) $ CS.App (genExpr t $ CS.TLApp f ts [] NoInline) (arg es) False
-    where arg [] = mkUnitExpr
-          arg [e] = e
-          arg es = mkTupleExpr es
+-- construct f[t1..]
+mkTopLevelFunExpr :: TypedFun -> [Maybe GenType] -> GenExpr
+mkTopLevelFunExpr (f,t) ts = genExpr t $ CS.TLApp f ts [] NoInline
 
 -- construct let b1 and ... and bn in e
 mkLetExpr :: [GenBnd] -> GenExpr -> GenExpr

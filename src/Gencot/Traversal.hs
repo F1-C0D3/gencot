@@ -21,7 +21,7 @@ import Gencot.Items.Properties (ItemProperties)
 -- The fourth component is the item property map from item ids to property string lists
 -- The fifth component is the list of type names where to stop resolving external types together with a flag whether to use the list
 -- The sixth component is the definition of the current function while traversing a function body
--- The seventh component is the table of item ids while traversing a function body
+-- The seventh component is the table of local item ids while traversing a function body
 -- The eighth component is the pair of counters for Cogent value and component variables
 -- The nineth component is the translation configuration string
 type FTrav = TravT (String,NamePrefixMap,[SUERef],ItemProperties,(Bool,[String]),Maybe IdentDecl,([Map String String],Map String Int),(Int,Int),String) Identity

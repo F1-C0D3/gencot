@@ -3,7 +3,7 @@ module Gencot.Items.Types where
 
 import Control.Monad (liftM)
 import System.FilePath (takeExtension,takeFileName,takeBaseName)
-import Data.List (isPrefixOf,find,sort,sortOn)
+import Data.List (isPrefixOf,find,sort,sortOn,union)
 import Data.Maybe (fromMaybe)
 
 import Language.C.Data.Ident as LCI
@@ -12,7 +12,7 @@ import Language.C.Analysis as LCA
 
 import Gencot.Items.Identifier (individualItemId,localItemId,paramItemId,typedefItemId,tagItemId,memberSubItemId,paramSubItemId,elemSubItemId,refSubItemId,resultSubItemId,indivItemIds,getParamName)
 import Gencot.Names (getFileName,anonCompTypeName,srcFileName,mapIfUpper,heapParamName)
-import Gencot.Traversal (FTrav,hasProperty,stopResolvTypeName,getItems,getProperties,getFunDef)
+import Gencot.Traversal (FTrav,hasProperty,stopResolvTypeName,getItems,getProperties,getFunDef,getItemId)
 import Gencot.Util.Types (getTagDef,isExtern,isFunction,isExternTypeDef,isVoid,TypeCarrier,TypeCarrierSet,mergeQualsTo,safeDeclLinkage)
 
 -- | Construct the identifier for an individual toplevel item.
@@ -151,6 +151,11 @@ isAddResultItem = isItemWithProperty "ar"
 isNoStringItem = isItemWithProperty "ns"
 isHeapUseItem = isItemWithProperty "hu"
 
+getItemProperties :: ItemAssocType -> FTrav [String]
+getItemProperties (iid,t) = do
+    dii <- derivedItemIds t
+    liftM union $ mapM getProperties $ ((indivItemIds iid) ++ dii)
+    
 -- | The Add-Result property is suppressed by a Read-Only property.
 shallAddResult :: ItemAssocType -> FTrav Bool
 shallAddResult iat = do

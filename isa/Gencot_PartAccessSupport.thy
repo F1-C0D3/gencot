@@ -92,6 +92,42 @@ begin
 declare prtPrtUpdApp[simp]
 end
 
+text \<open>
+In contrast to the other rules, the \<open>sameUpdRule\<close> and \<open>idsameUpdRule\<close> are not automatically
+transferred to compositions of part access functions. The locale \<open>SameUpd\<close> is defined
+for lifting the rules to such compositions.
+\<close>
+lemma sameUpd_comp:
+ "\<lbrakk>\<And> u a. upd1 (\<lambda>_. u (acc1 a)) a = upd1 u a;
+   \<And> u a. upd2 (\<lambda>_. u (acc2 a)) a = upd2 u a\<rbrakk> \<Longrightarrow>
+  (upd1 \<circ> upd2) (\<lambda>_. u ((acc2 \<circ> acc1) a)) a = (upd1 \<circ> upd2) u a"
+  by (simp,metis)
+lemma sameUpd2:
+ "\<lbrakk>\<And> u a. upd' (\<lambda>_. u (prt' a)) a = upd' u a;
+   \<And> u a. upd (\<lambda>_. u (prt a)) a = upd u a\<rbrakk> \<Longrightarrow>
+  upd' (upd (\<lambda>_. u ((prt ( prt' a))))) a = upd' (upd u) a"
+  by (metis)
+
+locale SameUpd =
+  fixes prt1 :: "'whol \<Rightarrow> 'part1"
+    and prt1_update :: "('whol, 'part1) PartUpdate"
+    and prt2 :: "'part1 \<Rightarrow> 'part2"
+    and prt2_update :: "('part1, 'part2) PartUpdate"
+  assumes part_assms: 
+    "prt1_update (\<lambda>_. u1 (prt1 w)) w = prt1_update u1 w"
+    "prt2_update (\<lambda>_. u2 (prt2 p)) p = prt2_update u2 p"
+    "prt1_update (\<lambda>a. a) = (\<lambda>a. a)"
+    "prt2_update (\<lambda>a. a) = (\<lambda>a. a)"
+begin
+lemma rule[sameUpd]: 
+  "prt1_update (prt2_update (\<lambda>_. u (prt2 (prt1 w)))) w = prt1_update (prt2_update u) w"
+  apply(rule sameUpd2[where upd'="prt1_update" and upd="prt2_update"])
+  by(simp_all add: part_assms)
+lemma idRule[simp]: "prt1_update (prt2_update (\<lambda>_. (prt2 (prt1 w)))) w = w"
+  apply(subst id_apply[where x="prt2 (prt1 w)",symmetric])
+  by(subst rule,simp add: id_def part_assms)
+end
+
 subsection \<open>Laws for Relating Two Parts\<close>
 
 text \<open>
@@ -471,11 +507,5 @@ lemma comm2UpdComp[commUpd]: "(prt2_update i u2) \<circ> (prt1_update u1) = (prt
 lemma commUpdComp[commUpd]: "f \<circ> (prt2_update i u2) \<circ> (prt1_update u1) = f \<circ> (prt1_update u1) \<circ> (prt2_update i u2)"
   by(rule ext,simp add: commUpdApp)
 end
-
-lemma sameUpd_comp:
- "\<lbrakk>\<And> u a. upd1 (\<lambda>_. u (acc1 a)) a = upd1 u a;
-   \<And> u a. upd2 (\<lambda>_. u (acc2 a)) a = upd2 u a\<rbrakk> \<Longrightarrow>
-  (upd1 \<circ> upd2) (\<lambda>_. u ((acc2 \<circ> acc1) a)) a = (upd1 \<circ> upd2) u a"
-  by (simp,metis)
 
 end

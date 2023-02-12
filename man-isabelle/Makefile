@@ -14,7 +14,7 @@ ISABELLE=$(ISABELLEROOT)/bin/isabelle
 all: doc
 
 edit: 
-	$(ISABELLE) jedit -l HOL Chapter_basic.thy
+	$(ISABELLE) jedit -l HOL Chapter_holbasic.thy
 
 doc:
 	$(ISABELLE) build -v -b -d . man-isabelle

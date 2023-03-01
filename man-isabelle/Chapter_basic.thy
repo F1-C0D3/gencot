@@ -2678,14 +2678,14 @@ text\<open>
 To prove a goal in this way it must be split into a separate goal for each case. All these goals
 must have the same conclusion but differ in the additional assumptions. This splitting can be done
 by applying a meta-rule of the form
-@{theory_text[display]
+@{text[display]
 \<open>\<lbrakk>Q\<^sub>1 \<Longrightarrow> ?P; ...; Q\<^sub>n \<Longrightarrow> ?P\<rbrakk> \<Longrightarrow> ?P\<close>}
 Such rules are called ``case rules''.
 
 When this case rule is applied to a goal \<^theory_text>\<open>\<And> x\<^sub>1 \<dots> x\<^sub>m. \<lbrakk>A\<^sub>1; \<dots>; A\<^sub>n\<rbrakk> \<Longrightarrow> C\<close> as described in 
 Section~\ref{basic-methods-rule}, it unifies \<open>?P\<close> with the conclusion \<open>C\<close> and replaces the goal
 by the \<open>n\<close> goals
-@{theory_text[display]
+@{text[display]
 \<open>\<And> x\<^sub>1 \<dots> x\<^sub>m. \<lbrakk>A\<^sub>1; \<dots>; A\<^sub>n; Q\<^sub>1\<rbrakk> \<Longrightarrow> C
 \<dots>
 \<And> x\<^sub>1 \<dots> x\<^sub>m. \<lbrakk>A\<^sub>1; \<dots>; A\<^sub>n; Q\<^sub>n\<rbrakk> \<Longrightarrow> C\<close>}
@@ -2699,7 +2699,7 @@ depends on the \<open>Q\<^sub>i\<close> whether splitting a specific goal with t
 the goal.
 
 A case rule for testing a natural number for being zero would be
-@{theory_text[display]
+@{text[display]
 \<open>\<lbrakk>?n = 0 \<Longrightarrow> ?P; ?n \<noteq> 0 \<Longrightarrow> ?P\<rbrakk> \<Longrightarrow> ?P\<close>}
 It contains the number to be tested as the unknown \<open>?n\<close>, so that an arbitrary term can be substituted
 for it. This is not automatically done by unifying \<open>?P\<close> with the goal's conclusion, thus the rule 
@@ -2707,13 +2707,13 @@ must be ``prepared'' for
 application to a specific goal. To apply it to the goal \<open>(x::nat) < c \<Longrightarrow> n*x \<le> n*c\<close> in the intended
 way the unknown \<open>?n\<close> must be substituted by the variable \<open>n\<close> from the goal conclusion. If the 
 prepared rule is then applied to the goal it splits it into the goals
-@{theory_text[display]
+@{text[display]
 \<open>\<lbrakk>(x::nat) < c; n = 0\<rbrakk> \<Longrightarrow> n*x \<le> n*c
 \<lbrakk>(x::nat) < c; n \<noteq> 0\<rbrakk> \<Longrightarrow> n*x \<le> n*c\<close>}
 which can now be proven separately.
 
 Actually, the much more general case rule 
-@{theory_text[display]
+@{text[display]
 \<open>\<lbrakk>?Q \<Longrightarrow> ?P; \<not> ?Q \<Longrightarrow> ?P\<rbrakk> \<Longrightarrow> ?P\<close>}
 is used for this purpose. Here the unknown \<open>?Q\<close> represents the complete proposition to be used as
 additional assumption, therefore the rule can be used for arbitrary propositions. By substituting 
@@ -2722,7 +2722,7 @@ the term \<open>n = 0\<close> for \<open>?Q\<close> the rule is prepared to be a
 Case rules may even be more general than shown above. Instead of a single proposition \<open>Q\<^sub>i\<close> every 
 case may have locally bound variables and an arbitrary number of assumptions, resulting in the
 most general form
-@{theory_text[display]
+@{text[display]
 \<open>\<lbrakk>\<And>x\<^sub>1\<^sub>1\<dots>x\<^sub>1\<^sub>k\<^sub>1. \<lbrakk>Q\<^sub>1\<^sub>1;\<dots>;Q\<^sub>1\<^sub>m\<^sub>1\<rbrakk> \<Longrightarrow> ?P;
   \<dots>;
  \<And>x\<^sub>n\<^sub>1\<dots>x\<^sub>n\<^sub>k\<^sub>n. \<lbrakk>Q\<^sub>n\<^sub>1;\<dots>;Q\<^sub>n\<^sub>m\<^sub>n\<rbrakk> \<Longrightarrow> ?P\<rbrakk> \<Longrightarrow> ?P\<close>}
@@ -2751,7 +2751,7 @@ Often a case rule has only one unknown in the case assumptions. If there are mor
 may be specified in the \<^theory_text>\<open>cases\<close> method for preparing the rule.
 
 The \<^theory_text>\<open>cases\<close> method treats input facts like the empty method (see Section~\ref{basic-methods-empty}) by 
-inserting them into the original goal before splitting it.
+inserting them as assumptions into the original goal before splitting it.
  
 Like the \<^theory_text>\<open>rule\<close> method (see Section~\ref{basic-methods-rule}) the \<^theory_text>\<open>cases\<close> method supports
 automatic rule selection for the case rule and may be specified in the form
@@ -2798,10 +2798,176 @@ Section~\ref{basic-proof-assume}) if needed for the proof.
 subsection "Induction"
 
 text\<open>
-**todo**
+With induction a goal is proven by processing ``all possible cases'' for certain values which
+occur in it. If the goal can be proven for all these cases and the cases cover all
+possibilities, the goal holds generally. A specific
+technique is to assume the goal for some values and then prove it for other values. In this
+way it is possible to cover infinite value sets by proofs for only a finite number of values and 
+steps from values to other values.
+
+The best known example of induction is a proposition which is proven for the natural number \<open>0\<close> and
+the step from a number \<open>n\<close> to its successor \<open>n+1\<close>, which covers the whole infinite set of natural
+numbers. 
+
+As a (trivial) example consider the proposition \<open>0\<le>n\<close>. To prove that it is valid for all natural numbers
+\<open>n\<close> we prove the ``base case'' where \<open>n\<close> is \<open>0\<close>, which is true because \<open>0\<le>0\<close>. Then we prove the
+``induction step'', by assuming that \<open>0\<le>n\<close> (the ``induction hypothesis'') and proving that \<open>0\<le>n+1\<close> 
+follows, which is true because addition increases the value.
 \<close>
 
 subsubsection "Induction Rules"
+
+text\<open>
+Like for case based reasoning (see Section~\ref{basic-case-reasoning}) a goal is split into these
+cases by applying a meta-rule. For induction these rules are called ``induction rules'' and have
+the general form
+@{text[display]
+\<open>\<lbrakk>P\<^sub>1 ; ...; P\<^sub>n \<rbrakk> \<Longrightarrow> ?P ?a\<^sub>1 \<dots> ?a\<^sub>m\<close>}
+where every \<open>P\<^sub>i\<close> is a rule of the form
+@{text[display]
+\<open>\<And>y\<^sub>i\<^sub>1 \<dots> y\<^sub>i\<^sub>p\<^sub>i. \<lbrakk>Q\<^sub>i\<^sub>1; \<dots>; Q\<^sub>i\<^sub>q\<^sub>i\<rbrakk> \<Longrightarrow> ?P term\<^sub>i\<^sub>1 \<dots> term\<^sub>i\<^sub>m\<close>}
+where the assumptions \<open>Q\<^sub>i\<^sub>j\<close> may contain the unknown \<open>?P\<close> but no other unknowns, in particular none
+of the \<open>?a\<^sub>1 \<dots> ?a\<^sub>m\<close>. A rule for a base case usually has no bound variables \<open>y\<^sub>i\<^sub>j\<close> and no assumptions
+\<open>Q\<^sub>i\<^sub>j\<close>, at least the \<open>Q\<^sub>i\<^sub>j\<close> do not contain \<open>?P\<close>. 
+
+Note that the \<open>?a\<^sub>1 \<dots> ?a\<^sub>m\<close> only occur once in the conclusion of the meta-rule and nowhere else. Like
+the case rules induction rules must be ``prepared'' for use, this is done by replacing the \<open>?a\<^sub>1 \<dots> ?a\<^sub>m\<close>
+by specific terms \<open>term\<^sub>1 \<dots> term\<^sub>m\<close>. These are the terms for which all possible cases shall be processed
+in the goal.
+
+When a prepared induction rule is applied to a goal \<open>\<And> x\<^sub>1 \<dots> x\<^sub>m. \<lbrakk>A\<^sub>1; \<dots>; A\<^sub>n\<rbrakk> \<Longrightarrow> C\<close> as described in 
+Section~\ref{basic-methods-rule}, it unifies \<open>?P term\<^sub>1 \<dots> term\<^sub>m\<close> with the conclusion \<open>C\<close>. This has
+the effect of abstracting \<open>C\<close> to a (boolean) function \<open>PC\<close> by identifying all places where the \<open>term\<^sub>i\<close>
+occur in \<open>C\<close> and replacing them by the function arguments. The function \<open>PC\<close> is then bound to the 
+unknown \<open>?P\<close>, so that applying \<open>?P\<close> to the arguments \<open>term\<^sub>1 \<dots> term\<^sub>m\<close> again yields \<open>C\<close>. The function
+\<open>PC\<close> is the property to be proven for all argument values. Therefore the cases of the proof
+can be described by applying \<open>?P\<close> to terms for the specific values in the rules \<open>P\<^sub>i\<close> for the cases. 
+The rule application results in the \<open>n\<close> goals
+@{text[display]
+\<open>\<And> x\<^sub>1 \<dots> x\<^sub>m y\<^sub>1\<^sub>1 \<dots> y\<^sub>1\<^sub>p\<^sub>1. \<lbrakk>A\<^sub>1; \<dots>; A\<^sub>n; Q\<^sub>1\<^sub>1; \<dots>; Q\<^sub>1\<^sub>q\<^sub>1\<rbrakk> \<Longrightarrow> PC term\<^sub>1\<^sub>1 \<dots> term\<^sub>1\<^sub>m
+\<dots>
+\<And> x\<^sub>1 \<dots> x\<^sub>m y\<^sub>n\<^sub>1 \<dots> y\<^sub>n\<^sub>p\<^sub>n. \<lbrakk>A\<^sub>1; \<dots>; A\<^sub>n; Q\<^sub>n\<^sub>1; \<dots>; Q\<^sub>n\<^sub>q\<^sub>n\<rbrakk> \<Longrightarrow> PC term\<^sub>n\<^sub>1 \<dots> term\<^sub>n\<^sub>m\<close>}
+If some of the \<open>y\<^sub>i\<^sub>j\<close> collide with some of the \<open>x\<^sub>i\<close> they are consistently renamed.
+
+The induction rule is only valid if for every argument position \<open>j\<close> of \<open>?P\<close> the terms \<open>term\<^sub>i\<^sub>j\<close>
+cover all possible values. Then the induction rule has been proven and is available as a fact which 
+can be applied. After preparing the induction rule for application, its conclusion \<open>?P term\<^sub>1 \<dots> term\<^sub>m\<close> 
+matches all propositions which contain the terms \<open>term\<^sub>1 \<dots> term\<^sub>m\<close> in one or more copies. It depends 
+on the \<open>P\<^sub>i\<close> in the rule whether splitting a specific goal with the induction rule is useful for 
+proving the goal.
+
+An induction rule for the natural numbers is
+@{text[display]
+\<open>\<lbrakk>?P 0; \<And>y. ?P y \<Longrightarrow> ?P (y+1)\<rbrakk> \<Longrightarrow> ?P ?a\<close>}
+To apply it to the goal \<open>0\<le>n\<close>, it must be prepared by substituting the variable \<open>n\<close> for the 
+unknown \<open>?a\<close>. Then the rule conclusion \<open>?P n\<close> is unified with the goal which abstracts the
+goal to the boolean function \<open>PC = (\<lambda>i. 0\<le>i)\<close> and substitutes it for all occurrences of \<open>?P\<close>. 
+This results in the rule instance 
+\<open>\<lbrakk>(\<lambda>i. 0\<le>i) 0; \<And>y. (\<lambda>i. 0\<le>i) y \<Longrightarrow> (\<lambda>i. 0\<le>i) (y+1)\<rbrakk> \<Longrightarrow> (\<lambda>i. 0\<le>i) n\<close>.
+By substituting the arguments in the function applications its assumption part yields the two goals
+@{text[display]
+\<open>0\<le>0
+\<And>y. 0\<le>y \<Longrightarrow> 0\<le>(y+1)\<close>}
+which correspond to the base case and induction step as described above.
+\<close>
+
+subsubsection "The \<^theory_text>\<open>induction\<close> Method"
+
+text\<open>
+Induction can be performed in a structured proof using the method \<^theory_text>\<open>induction\<close> in the form
+@{theory_text[display]
+\<open>induction "term\<^sub>1" \<dots> "term\<^sub>m" rule: name\<close>}
+where \<open>name\<close> is the name of a valid induction rule. The method prepares the rule by substituting the
+specified \<open>term\<^sub>i\<close> for the unknowns \<open>?a\<^sub>1 \<dots> ?a\<^sub>m\<close> and applies the rule to the first goal in the
+goal state. 
+
+Additionally, the method creates a named context for every goal resulting from the rule
+application. The context contains the variables and assumptions specified in the corresponding
+case in the induction rule. For the most general form depicted above the context for the \<open>i\<close>th case 
+contains the variables \<open>x\<^sub>1 \<dots> x\<^sub>m y\<^sub>i\<^sub>1 \<dots> y\<^sub>i\<^sub>p\<^sub>i\<close> and the assumptions \<open>A\<^sub>1; \<dots>; A\<^sub>n; Q\<^sub>i\<^sub>1; \<dots>; Q\<^sub>i\<^sub>q\<^sub>i\<close>. 
+The term abbreviation \<open>?case\<close> is defined for the case conclusion \<open>PC term\<^sub>1\<^sub>1 \<dots> term\<^sub>1\<^sub>m\<close> which is to
+be proven for the case.
+
+The \<^theory_text>\<open>induction\<close> method treats input facts like the empty method (see Section~\ref{basic-methods-empty})
+and the \<^theory_text>\<open>cases\<close> method (see Section~\ref{basic-case-reasoning}) by inserting them as assumptions 
+into the original goal before splitting it.
+
+Also like the \<^theory_text>\<open>cases\<close> method the \<^theory_text>\<open>induction\<close> method supports
+automatic rule selection for the induction rule. This is only possible if only one term is specified
+in the method:
+@{theory_text[display]
+\<open>induction "term"\<close>}
+Then the rule is selected according to the type of the specified \<open>term\<close>. In Isabelle HOL (see 
+Section~\ref{hol}) most types have an associated induction rule. 
+
+The rule \<open>\<lbrakk>?P True; ?P False\<rbrakk> \<Longrightarrow> ?P ?a\<close> is associated with type \<open>bool\<close>. Therefore induction can be 
+applied to every proposition which contains a term of type \<open>bool\<close>, such as the goal \<open>b \<and> False = False\<close>.
+Applying the method
+@{theory_text[display]
+\<open>induct b\<close>}
+will split the it into the goals
+@{text[display]
+\<open>False \<and> False = False
+True \<and> False = False\<close>}
+which cover all possible cases for \<open>b\<close>. Here, the type has only two values, therefore induction is 
+not really needed.
+
+Like for the \<^theory_text>\<open>cases\<close> method (see Section~\ref{basic-case-reasoning}) the names used for the contexts 
+created by the \<^theory_text>\<open>induction\<close> method can be specified by attributing the induction rule. They can be 
+determined from the proof skeleton which is displayed in the interactive editor
+when the cursor is positioned on the \<^theory_text>\<open>induction\<close> method (see Section~\ref{basic-case-goals}).
+
+If the induction rule \<open>\<lbrakk>?P 0; \<And>y. ?P y \<Longrightarrow> ?P (y+1)\<rbrakk> \<Longrightarrow> ?P ?a\<close> for the natural numbers has been
+proven and named \<open>induct_nat\<close> with case names \<open>Start\<close> and \<open>Step\<close>, a structured proof for the goal 
+\<open>0\<le>n\<close> may have the form
+@{theory_text[display]
+\<open>proof (induction n rule: induct_nat)
+case Start
+\<dots>
+show ?case \<proof>
+next
+case Step
+\<dots>
+show ?case \<proof>
+qed\<close>}
+The \<^theory_text>\<open>induction\<close> method creates the named contexts \<open>Start\<close> and \<open>Step\<close>. The former has no local 
+variables and assumptions and binds \<open>?case\<close> to the proposition \<open>0\<le>0\<close>, the latter has the local
+variable \<open>y\<close>, the assumption \<open>0\<le>y\<close> named \<open>Step\<close> and binds \<open>?case\<close> to the proposition \<open>0 \<le> y + 1\<close>.
+
+If the rule \<open>induct_nat\<close> has been associated with type \<open>nat\<close> the rule specification
+may be omitted in the method:
+@{theory_text[display]
+\<open>proof (induction n)
+\<dots>
+\<close>}
+\<close>
+
+subsubsection "Assumptions"
+
+text\<open>
+Some care must be taken to apply induction rules correctly.
+
+As described above, the prepared rule's conclusion \<open>?P term\<^sub>1 \<dots> term\<^sub>m\<close> is only unified with the 
+conclusion \<open>C\<close> of the goal to determine the function \<open>PC\<close> which is substituted for \<open>?P\<close> in the
+induction rule. The assumptions \<open>A\<^sub>1 \<dots> A\<^sub>n\<close> in the goal are completely ignored, although they are
+included in the goals after splitting. If the assumptions share free variables with the conclusion
+\<open>C\<close> this connection is broken after applying the prepared induction rule. 
+
+Consider the goal
+@{text[display]
+\<open>4 < n \<Longrightarrow> 5 \<le> n\<close>}
+When applying the prepared induction rule for the natural numbers
+\<open>\<lbrakk>?P 0; \<And>y. ?P y \<Longrightarrow> ?P (y+1)\<rbrakk> \<Longrightarrow> ?P n\<close> the conclusions will be matched which leads to the 
+abstracted function \<open>(\<lambda>i. 5\<le>i)\<close> and the resulting goals are
+@{text[display]
+\<open>4 < n \<Longrightarrow> 5 \<le> 0
+\<And>y. \<lbrakk>4 < n; 5 \<le> y\<rbrakk> \<Longrightarrow> 5 \<le> (y+1)\<close>}
+where the first goal is invalid. Although the second goal is valid, it shows that the relation
+between the variable \<open>n\<close> in the assumption and the variable \<open>y\<close> used in the induction rule has been
+lost. 
+\<close>
+
+subsubsection "Subterms"
 
 text\<open>
 **todo**
@@ -2812,5 +2978,45 @@ subsubsection "The \<^theory_text>\<open>induct\<close> Method"
 text\<open>
 **todo**
 \<close>
+(*
+lemma myInduct: "\<lbrakk>P 0; \<And>y. P y \<Longrightarrow> P (y+1)\<rbrakk> \<Longrightarrow> P a" for a::nat
+  by (metis add.commute add_cancel_left_left discrete infinite_descent0 le_iff_add less_add_same_cancel2 less_numeral_extra(1))
+
+lemma "4 < n \<Longrightarrow> 5 \<le> n" for n::nat
+  apply(induct rule: myInduct)
+  apply(rule myInduct[where a=n]) 
+  oops
+
+lemma "0\<le>n" for n::nat
+proof (induction n rule:myInduct)
+  case 1
+  then show ?case sorry
+next
+  case (2 y)
+  then show ?case sorry
+qed
+inductive ev :: "nat \<Rightarrow> bool" where
+ev0:
+ "ev 0" |
+evSS : "ev n \<Longrightarrow> ev (n + 2)"
+thm ev.induct
+
+fun evn :: "nat \<Rightarrow> bool" where
+"evn 0 = True" |
+"evn (Suc 0) = False" |
+"evn (Suc(Suc n)) = evn n"
+thm evn.induct
+thm nat.induct int_of_nat_induct
+lemma "ev m \<Longrightarrow> evn m"
+apply(induction m rule: ev.induct )
+  by(simp_all)
+
+lemma "evn n \<Longrightarrow> ev n"
+  apply(rule evn.induct ) sorry
+
+lemma "w = of_nat n + of_nat m" for n::nat and w::int
+  apply(induction n m rule: nat.induct) sorry
+
+*)
 
 end

@@ -682,8 +682,19 @@ The proof context may contain
  \<^item> Term abbreviations: these are names introduced locally for terms. Using such names for terms
   occurring in propositions it is often possible to denote propositions in a more concise form.
 
-The initial proof context in a theorem of the form @{theory_text\<open>theorem "prop" \<proof>\<close>} 
+The initial proof context in a theorem of the form \<^theory_text>\<open>theorem "prop" \<proof>\<close>
 has the proposition \<open>prop\<close> as the only goal and is otherwise empty.
+
+The initial proof context in a theorem of the alternative form
+@{theory_text[display]
+\<open>theorem 
+  fixes x\<^sub>1 \<dots> x\<^sub>m
+  assumes "A\<^sub>1" \<dots> "A\<^sub>n"
+  shows "C"
+  \<proof>\<close>}
+has the proposition \<open>C\<close> as the only goal and contains \<open>x\<^sub>1 \<dots> x\<^sub>m\<close> as fixed variables and the
+\<open>A\<^sub>1, \<dots>, A\<^sub>n\<close> as assumed facts. Therefore, although the theorem is equivalent to the theorem 
+\<^theory_text>\<open>theorem "\<And> x\<^sub>1 \<dots> x\<^sub>m. \<lbrakk>A\<^sub>1; \<dots>; A\<^sub>n\<rbrakk> \<Longrightarrow> C" \<proof>\<close> the initial proof contexts differ.
 \<close>
 
 subsection "Proof Procedure"
@@ -796,7 +807,8 @@ enclosing theory and a subproof can use facts from the enclosing proof(s) and th
 toplevel theory.
 
 In particular, if the proposition of a theorem has no assumptions, i.e., the proposition is a
-formula and consists only of the conclusion \<open>C\<close>, every proof must start at one or more external facts.
+formula and consists only of the conclusion \<open>C\<close>, every proof must start at one or more external facts
+(if \<open>C\<close> is no tautology which is valid by itself).
 \<close>
 
 subsection "Basic Proof Structure"
@@ -940,7 +952,7 @@ or \<^theory_text>\<open>(simp add: example2)\<close>, where \<open>example1\<cl
 Methods can be applied to the goal state, they modify the goal state by removing and adding goals.
 
 The effect of applying a method is determined by its implementation and must be known to the proof
-writer. Isabelle supports a large number of proof methods. Methods used for the proofs described in
+writer. Isabelle supports a large number of proof methods. A selection of proof methods used in
 this manual are described in Section~\ref{basic-methods}. 
 \<close>
 
@@ -960,7 +972,8 @@ backward reasoning steps are method applications is
 proof `method\<^sub>n\<^sub>+\<^sub>1`
   FS\<^sub>1 \<dots> FS\<^sub>m
 qed `method\<^sub>n\<^sub>+\<^sub>2`\<close>}
-where \<open>FS\<^sub>1 \<dots> FS\<^sub>m\<close> are forward reasoning steps.
+where \<open>FS\<^sub>1 \<dots> FS\<^sub>m\<close> are forward reasoning steps. The method \<open>method\<^sub>n\<^sub>+\<^sub>1\<close> is called the ``initial method''
+of the structured proof part.
 \<close>
 
 subsection "Forward Reasoning Steps"
@@ -1022,9 +1035,9 @@ of a forward proof can be written as
 \<open>show ?thesis \<proof>\<close>}
 The abbreviation \<open>?thesis\<close> is a single identifier, therefore it needs not be quoted.
 
-If, however, the application of \<open>method\<close> in a structured proof \<^theory_text>\<open>proof method \<dots> \<close> modifies
-the original goal, this modification is not reflected in \<open>?thesis\<close>. So a statement \<^theory_text>\<open>show ?thesis 
-\<proof>\<close> will usually not work, because \<open>?thesis\<close> no more unifies with the conclusion of the 
+If, however, the application of the initial method \<open>method\<close> in a structured proof \<^theory_text>\<open>proof method \<dots> \<close> 
+modifies the original goal, this modification is not reflected in \<open>?thesis\<close>. So a statement \<^theory_text>\<open>show 
+?thesis \<proof>\<close> will usually not work, because \<open>?thesis\<close> no more unifies with the conclusion of the 
 modified goal. Instead, the proof writer must know the modified goal and specify its conclusion
 explicitly as proposition in the \<^theory_text>\<open>show\<close> statement. If the \<open>method\<close> splits the goal into several new 
 goals, several \<^theory_text>\<open>show\<close> statements may be needed to remove them.
@@ -1045,7 +1058,7 @@ If a linear fact sequence \<open>F\<^sub>1 \<Longrightarrow> \<cdots> \<Longrigh
 \<open>have "F\<^sub>1" `\<proof>\<^sub>1`
 \<dots>
 have "F\<^sub>n" `\<proof>\<^sub>n`\<close>}
-every fact \<open>F\<^sub>i\<close> needs to refer to the previous fact \<open>F\<^sub>i\<^sub>-\<^sub>1\<close> in its proof \<open>proof\<^sub>i\<close>. This can be 
+every fact \<open>F\<^sub>i\<close> needs to refer to the previous fact \<open>F\<^sub>i\<^sub>-\<^sub>1\<close> in its proof \<open>\<proof>\<^sub>i\<close>. This can be 
 done by naming all facts 
 @{theory_text[display]
 \<open>have name\<^sub>1: "F\<^sub>1" `\<proof>\<^sub>1`
@@ -1061,7 +1074,7 @@ subsubsection "Using Input Facts in a Proof"
 text \<open>
 The input facts are passed as input to the first method applied in the proof. In a proof script
 it is the method applied in the first \<^theory_text>\<open>apply\<close> step, in a structured proof \<^theory_text>\<open>proof method \<dots>\<close> it 
-is \<open>method\<close>. 
+is the initial method \<open>method\<close>. 
 
 Every proof method accepts a set of facts as input. Whether it processes them and how it uses
 them depends on the kind of method. Therefore input facts for a proof only work in the desired 
@@ -1187,7 +1200,7 @@ Defining such names is only possible in the \<^theory_text>\<open>note\<close> s
 \<^theory_text>\<open>from\<close> and \<^theory_text>\<open>with\<close>.
 
 The facts specified in \<^theory_text>\<open>note\<close>, \<^theory_text>\<open>from\<close>, \<^theory_text>\<open>with\<close>, and \<^theory_text>\<open>using\<close> can be grouped by separating 
-them by \<^theory_text>\<open>and\<close>. Thus it is even possible to write
+them by \<^theory_text>\<open>and\<close>. Thus it is possible to write
 @{theory_text[display]
 \<open>from name\<^sub>1 and \<dots> and name\<^sub>n have "prop" \<proof>\<close>}
 In the case of a \<^theory_text>\<open>note\<close> statement every group can be given an additional explicit name as in
@@ -1243,9 +1256,9 @@ subsection "Assuming Facts"
 text_raw\<open>\label{basic-proof-assume}\<close>
 
 text \<open>
-The Assumptions \<open>A\<^sub>1,\<dots>,A\<^sub>n\<close> of the proposition to be proven are needed as facts in the proof 
-context to start the branches of the fact tree. However, they are not automatically inserted, 
-that must be done explicitly.
+In a theorem of the form \<^theory_text>\<open>theorem "\<And> x\<^sub>1 \<dots> x\<^sub>m. \<lbrakk>A\<^sub>1; \<dots>; A\<^sub>n\<rbrakk> \<Longrightarrow> C" \<proof>\<close>
+the assumptions \<open>A\<^sub>1,\<dots>,A\<^sub>n\<close> are needed as facts in the proof context to start the branches of the 
+fact tree. However, they are not automatically inserted, that must be done explicitly.
 \<close>
 
 subsubsection "Introducing Assumed Facts"
@@ -1317,7 +1330,7 @@ in the goal. This way of matching a rule with a goal is called ``refinement''. S
 for a successful \<^theory_text>\<open>show\<close> statement can be stated as ``the exported fact must refine a goal''.
 \<close>
 
-subsubsection "Avoiding Repeated Propositions for Assumed Facts"
+subsubsection "Externally Assumed Facts"
 
 text\<open>
 To make \<^theory_text>\<open>show\<close> statements succeed, an \<^theory_text>\<open>assume\<close> statement will usually repeat one or more 
@@ -1332,9 +1345,9 @@ specified in the form (see Section~\ref{basic-theory-theorem})
   assumes "A\<^sub>1" and \<dots> and "A\<^sub>n"
   shows "C"
   \<proof>\<close>}
-This form automatically inserts the assumptions as assumed facts in the proof context.
-No \<^theory_text>\<open>assume\<close> statements are needed, the assumptions need not be repeated, and the assumed 
-facts are always safe for \<^theory_text>\<open>show\<close> statements.
+As described in Section~\ref{basic-proof-context} this form automatically inserts the assumptions 
+as assumed facts in the proof context. No \<^theory_text>\<open>assume\<close> statements are needed, thus the assumptions need 
+not be repeated.
 
 The assumptions can still be named and referred by name in the proof. A proof can be started
 at assumption \<open>A\<^sub>1\<close> in the form
@@ -1355,11 +1368,20 @@ started in the form
 but it is usually clearer for the reader to specify only the relevant assumption(s) by explicit 
 names.
 
-In subproofs \<^theory_text>\<open>assume\<close> statements cannot be avoided in this way, because propositions
-in goal statements cannot be specified using \<^theory_text>\<open>assumes\<close> and \<^theory_text>\<open>shows\<close>. However, goal statements 
+In subproofs \<^theory_text>\<open>assume\<close> statements cannot be avoided in this way, because propositions in local goal 
+statements cannot be specified using \<^theory_text>\<open>assumes\<close> and \<^theory_text>\<open>shows\<close>. However, goal statements 
 usually specify only a fact as proposition without assumptions. Instead of assumed facts the 
 subproof can either use facts provided as input, or use external facts from the enclosing proof
 context by referring to them by name.
+
+Note that there is another difference when specifying a theorem using \<^theory_text>\<open>assumes\<close> and \<^theory_text>\<open>shows\<close>. As
+described in Section~\ref{basic-proof-context}, the goal only consists of the conclusion \<open>C\<close>, the
+assumptions do not belong to the goal. So how can a fact exported by a \<^theory_text>\<open>show\<close> statement refine
+the goal, if the assumed facts inserted by \<^theory_text>\<open>assumes\<close> are added to the fact upon export? For the
+answer remember from Section~\ref{basic-proof-struct} that a structured proof always has two proof 
+contexts, an outer and an inner one. Whereas facts inserted by \<^theory_text>\<open>assume\<close> belong to the inner context,
+the facts inserted by \<^theory_text>\<open>assumes\<close> are part of the \<^emph>\<open>outer\<close> context and are not added to facts exported
+by \<^theory_text>\<open>show\<close> statements in the inner context and therefore need not be present in refined goals.
 \<close>
 
 subsubsection "Presuming Facts"
@@ -1457,6 +1479,24 @@ still works and the local fact \<open>y < 5\<close> can be proven, but it cannot
 statement to prove the proposition \<open>x < 3 \<Longrightarrow> x < 5\<close>, because the exported rule is now 
 \<open>y<3 \<Longrightarrow> y<5\<close> which does not unify with the proposition, it contains a different variable
 instead of an unknown.
+\<close>
+
+subsubsection "Externally Fixed Variables"
+
+text\<open>
+Like assumed facts inserted by \<^theory_text>\<open>assumes\<close> (see Section~\ref{basic-proof-assume}), local variables
+added from outside by \<^theory_text>\<open>fixes\<close> instead of locally by \<^theory_text>\<open>fix\<close> are part of the \<^emph>\<open>outer\<close> proof context
+of a theorem. Therefore they are not converted to unknowns when a fact is exported by a \<^theory_text>\<open>show\<close>
+statement. Actually, this is not necessary, because variables fixed by \<^theory_text>\<open>fixes\<close> may directly occur
+in assumptions specified by \<^theory_text>\<open>assumes\<close> and in the goal specified by \<^theory_text>\<open>shows\<close>.
+
+In the theorem
+@{theory_text[display]
+\<open>fixes x::nat
+assumes "x < 3"
+shows "x < 5" \<proof>
+\<close>}
+the \<open>\<proof>\<close> can be directly written using the local variable \<open>x\<close>. 
 \<close>
 
 subsection "Obtaining Variables"
@@ -1585,7 +1625,7 @@ The \<^theory_text>\<open>let\<close> statement
 \<open>let "?lhs \<le> ?rhs" = "2*x+3 \<le> 2*5+3"\<close>}
 binds the unknowns to the same terms as the two \<^theory_text>\<open>let\<close> statements above.
 
-The term may contain unknowns which are already bound. They are substituted 
+The \<open>term\<close> may contain unknowns which are already bound. They are substituted 
 by their bound terms before the pattern matching is performed. Thus the term
 can be constructed with the help of abbreviation which have been defined previously. A useful
 example is matching a pattern with \<open>?thesis\<close>:
@@ -1815,10 +1855,6 @@ The empty method is denoted by a single minus sign
 \<open>-\<close>}
 If no input facts are passed to it, it does nothing, it does not alter the goal state.
 
-Otherwise it affects all goals by inserting the input facts as assumptions after the existing
-assumptions. If the input facts are \<open>F\<^sub>1,\<dots>,F\<^sub>m\<close> a goal of the form \<open>\<lbrakk>A\<^sub>1;\<dots>;A\<^sub>n\<rbrakk> \<Longrightarrow> C\<close> is replaced
-by the goal \<open>\<lbrakk>A\<^sub>1;\<dots>;A\<^sub>n;F\<^sub>1,\<dots>,F\<^sub>m\<rbrakk> \<Longrightarrow> C\<close>. The reason for this behavior will be explained below.
-
 The empty method is useful at the beginning of a structured proof of the form
 @{theory_text[display]
 \<open>proof method FS\<^sub>1 \<dots> FS\<^sub>n qed\<close>}
@@ -1827,8 +1863,43 @@ empty method must be specified for \<open>method\<close>, thus the structured pr
 @{theory_text[display]
 \<open>proof - FS\<^sub>1 \<dots> FS\<^sub>n qed\<close>}
 
-Note that it is possible to omit the \<open>method\<close> completely, but then it defaults to the method
-named \<open>standard\<close> which alters the goal state (see below).
+Note that it is possible to syntactically omit the \<open>method\<close> completely, but then it defaults to the 
+method named \<open>standard\<close> which alters the goal state (see below).
+
+If input facts are passed to the empty method, it affects all goals by inserting the input facts as 
+assumptions after the existing assumptions. If the input facts are \<open>F\<^sub>1,\<dots>,F\<^sub>m\<close> a goal of the form 
+\<open>\<lbrakk>A\<^sub>1;\<dots>;A\<^sub>n\<rbrakk> \<Longrightarrow> C\<close> is replaced by the goal \<open>\<lbrakk>A\<^sub>1;\<dots>;A\<^sub>n;F\<^sub>1,\<dots>,F\<^sub>m\<rbrakk> \<Longrightarrow> C\<close>. This makes it possible to 
+assume the input facts using \<^theory_text>\<open>assume\<close> statements in the proof for the goal:
+@{theory_text[display]
+\<open>have "F\<^sub>i" \<proof>
+then have "F\<^sub>i\<^sub>+\<^sub>1" proof - assume "F\<^sub>i" then \<dots> qed\<close>}
+If the input facts
+would not have been inserted into the goal, a subsequent \<^theory_text>\<open>show\<close> statement could not refine it. 
+
+However, an \<^theory_text>\<open>assume\<close> statement for an input fact usually has to repeat the corresponding 
+proposition which has already been specified in an enclosing context where it has been proven as a 
+fact. Then it is easier to name the fact in the enclosing context and refer to it by name instead
+of assuming it: 
+@{theory_text[display]
+\<open>have f\<^sub>i: "F\<^sub>i" \<proof>
+have "F\<^sub>i\<^sub>+\<^sub>1" proof - from f\<^sub>i \<dots> qed\<close>}
+Since there are no other ways to use input facts in a structured proof with empty initial method than
+re-specifying them in \<^theory_text>\<open>assume\<close> statements, it is normally useless to input facts into such a proof.
+\<close>
+
+subsection \<open>The {\sl insert} Method\<close>
+text_raw\<open>\label{basic-methods-insert}\<close>
+
+text\<open>
+Whereas the empty method inserts its input facts as assumptions into all goals, the method
+@{theory_text[display]
+\<open>insert name\<^sub>1 \<dots> name\<^sub>n\<close>}
+inserts existing facts \<open>F\<^sub>1,\<dots>,F\<^sub>n\<close> if they are named by \<open>name\<^sub>1 \<dots> name\<^sub>n\<close>: every goal of the form 
+\<open>\<lbrakk>A\<^sub>1;\<dots>;A\<^sub>m\<rbrakk> \<Longrightarrow> C\<close> is replaced by the goal \<open>\<lbrakk>A\<^sub>1;\<dots>;A\<^sub>m;F\<^sub>1,\<dots>,F\<^sub>n\<rbrakk> \<Longrightarrow> C\<close>. Input facts are ignored
+by the method.
+
+Like the empty method the \<open>insert\<close> method is not useful as initial method in a structured proof.
+A useful application of the method is described in Section~\ref{basic-case-induction}.
 \<close>
 
 subsection "Rule Application"
@@ -2059,28 +2130,6 @@ qed
 \<close>}
 \<close>
 
-subsubsection "Adding Input Facts to the Goal"
-
-text\<open>
-Another way of using the previous fact \<open>F\<^sub>i\<close> in the proof of \<open>F\<^sub>i\<^sub>+\<^sub>1\<close> is to add it as assumption
-to the goal. That is what the empty method does (see Section~\ref{basic-methods-empty}) if 
-\<open>F\<^sub>i\<close> is passed as input. 
-
-Thus the forward reasoning step can be written in the form
-@{theory_text[display]
-\<open>from f\<^sub>i have "F\<^sub>i\<^sub>+\<^sub>1" 
-proof - 
-  assume "F\<^sub>i" 
-  then show ?thesis by (rule r\<^sub>i) 
-qed\<close>}
-The empty method \<open>-\<close> replaces the goal \<open>F\<^sub>i\<^sub>+\<^sub>1\<close> by the goal \<open>F\<^sub>i \<Longrightarrow> F\<^sub>i\<^sub>+\<^sub>1\<close> which is then proven 
-by a forward reasoning step.
-
-Of course this is much longer than the proof using the \<open>rule\<close> method immediately. But it shows
-generally how the step from \<open>F\<^sub>i\<close> to \<open>F\<^sub>i\<^sub>+\<^sub>1\<close> can be established using an arbitrary structured proof.
-That can be useful if no direct derivation rule \<open>r\<^sub>i\<close> is available.
-\<close>
-
 subsubsection "Automatic Rule Selection"
 
 text\<open>
@@ -2190,7 +2239,7 @@ as
   done
 \<close>}
 
-In particular, it is possible to apply an arbitrarily complex backward reasoning step as the first 
+In particular, it is possible to apply an arbitrarily complex backward reasoning step as initial 
 method in a structured proof. Using composed methods the first example forward reasoning proof can 
 be written
 @{theory_text[display]
@@ -2320,7 +2369,7 @@ Isabelle supports simplification by the method
 \<open>simp\<close>}
 which is also called ``the simplifier''. It uses the dynamic fact set \<open>simp\<close> as the set of 
 equations, which is also called ``the simpset''. The method only affects the first goal. 
-If no equation in \<open>simp\<close> is applicable to it or it is not modified by the applicable equations 
+If no equation in the simpset is applicable to it or it is not modified by the applicable equations 
 an error is signaled.
 
 The \<open>simp\<close> method simplifies the whole goal, i.e., it applies rewriting to the conclusion and 
@@ -2337,7 +2386,7 @@ proof may be performed by a single application of the simplifier in the form
 @{theory_text[display]
 \<open>by simp\<close>}
 
-In Isabelle HOL (see Section~\ref{hol}) the simpset is populated with a large number of facts
+In Isabelle HOL (see Section~\ref{holbasic}) the simpset is populated with a large number of facts
 which make the simplifier a very useful proof tool. Actually all examples of facts used
 in the previous sections can be proven by the simplifier:
 @{theory_text[display]
@@ -2386,7 +2435,7 @@ subsubsection "Splitting Terms"
 
 text \<open>
 There are certain terms in which the simplifier will not apply its simpset rules. A typical
-example are terms with an internal case distinction (see Section~\ref{hol-terms-case}). To 
+example are terms with an internal case distinction (see Section~\ref{holbasic-data-destr}). To 
 process such terms in a goal conclusion the terms must be split. Splitting a term usually results
 in several new goals with simpler terms which are then further processed by the simplifier.
 
@@ -2424,7 +2473,7 @@ in the goal state and simplifies them. If it fails for all goals an error is sig
 it simplifies only the goals for which it does not fail. If it achieves to remove all goals 
 the proof is finished.
 
-The \<open>simp_all\<close> method can be configured by \<open>add:\<close>, \<open>del:\<close>, and \<open>only:\<close> in the same way as 
+The \<open>simp_all\<close> method can be configured by \<open>add:\<close>, \<open>del:\<close>, \<open>only:\<close>, and \<open>split:\<close> in the same way as 
 the \<open>simp\<close> method.
 
 The \<open>simp_all\<close> method is useful, if first a method \<open>method\<close> is applied to the goal which splits 
@@ -2443,7 +2492,7 @@ techniques which may help.
 The content of the simpset can be displayed by the command
 @{theory_text[display]
 \<open>print_simpset\<close>}
-which may be written in the proof text in modes \<open>proof(prove)\<close> and \<open>proof(state)\<close> and outside 
+which may be specified in the proof text in modes \<open>proof(prove)\<close> and \<open>proof(state)\<close> and outside 
 of proofs. In the interactive editor the result is displayed in the Output panel (see 
 Section~\ref{system-jedit-output}).
 
@@ -2482,7 +2531,9 @@ leaves those it cannot solve.
 usually does not split goals.
 \<^item> \<open>fastforce\<close> uses more techniques than \<open>auto\<close>, but processes only the first goal.
 \<^item> \<open>force\<close> uses even more techniques and tries to solve the first goal.
+\<close>
 
+text\<open>
 The methods which do simplification can be configured like the simplifier by adding 
 specifications \<open>simp add:\<close>, \<open>simp del:\<close>, \<open>simp only:\<close>, and \<open>split:\<close>. For example, additional
 simplification rules can be specified for the \<open>auto\<close> method in the form
@@ -2503,8 +2554,8 @@ It will try many automatic proof methods and describe the result in the Output w
 It may take some time until results are displayed, in particular, if the goal is invalid and
 cannot be proven.
 
-If \<^theory_text>\<open>try\<close> finds a proof for one or more goals it displays them as single proof methods, which, 
-by clicking on them can be copied to the cursor position in the text area. The \<^theory_text>\<open>try\<close> command
+If \<^theory_text>\<open>try\<close> finds a proof for one or more goals it displays it as a single (composed) proof method, 
+which, by clicking on it can be copied to the cursor position in the text area. The \<^theory_text>\<open>try\<close> command
 must be removed manually.
 
 If \<^theory_text>\<open>try\<close> tells you that the goal can be ``directly solved'' by some fact, you can prove it
@@ -2561,7 +2612,7 @@ assume name: "A\<^sub>1" \<dots> "A\<^sub>n"
 where \<open>x\<^sub>1 \<dots> x\<^sub>k\<close> are the local variables, \<open>?a\<^sub>1, \<dots>, ?a\<^sub>m\<close> are the term abbreviations, and
 \<open>A\<^sub>1, \<dots>, A\<^sub>n\<close> are the facts in the named context of the case. The facts are injected as assumptions
 and the set of these assumptions is named using the case name. Moreover, like the \<^theory_text>\<open>assume\<close>
-statement the \<^theory_text>\<open>case\<close> command makes the assumed facts current.
+statement, the \<^theory_text>\<open>case\<close> command makes the assumed facts current.
 
 Instead of using the case name for naming the assumptions an explicit assumption name \<open>aname\<close> may be 
 specified:
@@ -2584,9 +2635,9 @@ the conclusion of the corresponding goal.
 subsubsection "Proof Structure with Cases"
 
 text \<open>
-The usual proof structure using cases consists of a sequence of nested contexts. At its 
-beginning each context is initialized by a \<^theory_text>\<open>case\<close> command, at its end it uses a \<^theory_text>\<open>show\<close> 
-statement to remove the corresponding goal:
+The usual proof structure using cases consists of a sequence of nested contexts (see 
+Section~\ref{basic-proof-struct}). At its beginning each context is initialized by a \<^theory_text>\<open>case\<close>
+command, at its end it uses a \<^theory_text>\<open>show\<close> statement to remove the corresponding goal:
 @{theory_text[display]
 \<open>proof `method`
 case name\<^sub>1
@@ -2629,7 +2680,7 @@ contains variables which are not explicitly bound by \<open>\<And>\<close> these
 context.
 
 The effect is that if no other variables are fixed and no other facts are assumed a statement
-\<^theory_text>\<open>show ?case\<close> after the corresponding \<^theory_text>\<open>case\<close> command will match the goal.
+\<^theory_text>\<open>show ?case\<close> after the corresponding \<^theory_text>\<open>case\<close> command will refine the goal.
 
 The cases are named by numbers starting with \<open>1\<close>. If other names should be used they can be specified
 as arguments to the method:
@@ -2665,7 +2716,7 @@ In the simplest form a single proposition is used as additional assumption. Then
 cases: if the proposition is \<open>True\<close> or if it is \<open>False\<close>.
 
 Consider the derivation rule \<open>(x::nat) < c \<Longrightarrow> n*x \<le> n*c\<close> from Section~\ref{basic-theory-prop}. As
-additional assumption the proposition whether \<open>n\<close> is zero can be used. Then there are the two cases 
+additional assumption the proposition that \<open>n\<close> is zero can be used. Then there are the two cases 
 \<open>n = 0\<close> and \<open>n \<noteq> 0\<close> and clearly these cover all possibilities. Using the first case as assumption 
 implies that \<open>n*x\<close> and \<open>n*c\<close> are both zero and thus \<open>n*x = n*c\<close>. Using the second case as assumption
 together with the original assumption implies that \<open>n*x < n*c\<close>. Together the conclusion \<open>n*x \<le> n*c\<close>
@@ -2679,8 +2730,8 @@ To prove a goal in this way it must be split into a separate goal for each case.
 must have the same conclusion but differ in the additional assumptions. This splitting can be done
 by applying a meta-rule of the form
 @{text[display]
-\<open>\<lbrakk>Q\<^sub>1 \<Longrightarrow> ?P; ...; Q\<^sub>n \<Longrightarrow> ?P\<rbrakk> \<Longrightarrow> ?P\<close>}
-Such rules are called ``case rules''.
+\<open>\<lbrakk>Q\<^sub>1 \<Longrightarrow> ?P; \<dots>; Q\<^sub>n \<Longrightarrow> ?P\<rbrakk> \<Longrightarrow> ?P\<close>}
+where \<open>Q\<^sub>1 \<dots> Q\<^sub>n\<close> are all cases of the additional assumption. Such rules are called ``case rules''.
 
 When this case rule is applied to a goal \<^theory_text>\<open>\<And> x\<^sub>1 \<dots> x\<^sub>m. \<lbrakk>A\<^sub>1; \<dots>; A\<^sub>n\<rbrakk> \<Longrightarrow> C\<close> as described in 
 Section~\ref{basic-methods-rule}, it unifies \<open>?P\<close> with the conclusion \<open>C\<close> and replaces the goal
@@ -2692,7 +2743,7 @@ by the \<open>n\<close> goals
 where every goal has one of the propositions \<open>Q\<^sub>i\<close> as additional assumption.
 
 The case rule is only valid, if the \<open>Q\<^sub>i\<close> together cover all possibilities, i.e., if 
-\<open>Q\<^sub>1 \<or> \<dots> \<or> Q\<^sub>n\<close> holds. Then it has been proven and is available as a fact which can be applied.
+\<open>Q\<^sub>1 \<or> \<dots> \<or> Q\<^sub>n\<close> holds. If this has been proven the case rule is available as a fact which can be applied.
 Since the whole conclusion is the single unknown \<open>?P\<close> it unifies with every proposition used as
 conclusion in a goal, hence a case rule can always be applied to arbitrary goals. It 
 depends on the \<open>Q\<^sub>i\<close> whether splitting a specific goal with the case rule is useful for proving
@@ -2748,7 +2799,9 @@ contains the variables \<open>x\<^sub>i\<^sub>1 \<dots> x\<^sub>i\<^sub>k\<^sub>
 goal, thus the existing abbreviation \<open>?thesis\<close> can be used instead.
 
 Often a case rule has only one unknown in the case assumptions. If there are more, several terms
-may be specified in the \<^theory_text>\<open>cases\<close> method for preparing the rule.
+may be specified in the \<^theory_text>\<open>cases\<close> method for preparing the rule. If less terms are specified than
+there are unknowns in the case assumptions the resulting goals will contain unbound unknowns and
+cannot be proven. If more terms are specified an error is signaled.
 
 The \<^theory_text>\<open>cases\<close> method treats input facts like the empty method (see Section~\ref{basic-methods-empty}) by 
 inserting them as assumptions into the original goal before splitting it.
@@ -2758,7 +2811,8 @@ automatic rule selection for the case rule and may be specified in the form
 @{theory_text[display]
 \<open>cases "term"\<close>}
 Normally the rule is selected according to the type of the specified \<open>term\<close>. In Isabelle HOL (see 
-Section~\ref{hol}) most types have an associated case rule. 
+Section~\ref{holbasic}) most types have an associated case rule. Only case rules with a single 
+unknown in the case assumptions can be automatically selected in this way.
 
 The rule \<open>\<lbrakk>?Q \<Longrightarrow> ?P; \<not> ?Q \<Longrightarrow> ?P\<rbrakk> \<Longrightarrow> ?P\<close>
 depicted above is associated with type \<open>bool\<close>. Therefore the case splitting for comparing \<open>n\<close> with
@@ -2786,9 +2840,9 @@ case False
 \<dots>
 show ?thesis \<proof>
 qed\<close>}
-The \<^theory_text>\<open>cases\<close> method adds the assumptions \<open>n=0\<close> and \<open>n\<noteq>0\<close> to the goals of the cases, the \<^theory_text>\<open>case\<close> 
-commands add them as assumed facts to the local context, so that they are part of the rule exported
-by the \<^theory_text>\<open>show\<close> statement and match the assumption in the corresponding goal.
+The \<^theory_text>\<open>cases\<close> method adds the assumptions \<open>n=0\<close> and \<open>n\<noteq>0\<close> respectively to the goals of the cases, 
+the \<^theory_text>\<open>case\<close> commands add them as assumed facts to the local context, so that they are part of the 
+rule exported by the \<^theory_text>\<open>show\<close> statement and match the assumption in the corresponding goal.
 
 Note that the \<^theory_text>\<open>case\<close> command adds only the assumptions originating from the case rule. The other
 assumptions in the original goal (here \<open>x < c\<close>) must be added to the context in the usual ways (see 
@@ -2796,6 +2850,7 @@ Section~\ref{basic-proof-assume}) if needed for the proof.
 \<close>
 
 subsection "Induction"
+text_raw\<open>\label{basic-case-induction}\<close>
 
 text\<open>
 With induction a goal is proven by processing ``all possible cases'' for certain values which
@@ -2805,9 +2860,9 @@ technique is to assume the goal for some values and then prove it for other valu
 way it is possible to cover infinite value sets by proofs for only a finite number of values and 
 steps from values to other values.
 
-The best known example of induction is a proposition which is proven for the natural number \<open>0\<close> and
-the step from a number \<open>n\<close> to its successor \<open>n+1\<close>, which covers the whole infinite set of natural
-numbers. 
+Perhaps the best known example of induction is a proposition which is proven for the natural number
+\<open>0\<close> and the step from a number \<open>n\<close> to its successor \<open>n+1\<close>, which covers the whole infinite set of 
+natural numbers. 
 
 As a (trivial) example consider the proposition \<open>0\<le>n\<close>. To prove that it is valid for all natural numbers
 \<open>n\<close> we prove the ``base case'' where \<open>n\<close> is \<open>0\<close>, which is true because \<open>0\<le>0\<close>. Then we prove the
@@ -2819,47 +2874,66 @@ subsubsection "Induction Rules"
 
 text\<open>
 Like for case based reasoning (see Section~\ref{basic-case-reasoning}) a goal is split into these
-cases by applying a meta-rule. For induction these rules are called ``induction rules'' and have
-the general form
+cases by applying a meta-rule. For induction the splitting can be done by a meta-rule of the form
 @{text[display]
-\<open>\<lbrakk>P\<^sub>1 ; ...; P\<^sub>n \<rbrakk> \<Longrightarrow> ?P ?a\<^sub>1 \<dots> ?a\<^sub>m\<close>}
+\<open>\<lbrakk>P\<^sub>1 ; ...; P\<^sub>n \<rbrakk> \<Longrightarrow> ?P ?a\<close>}
 where every \<open>P\<^sub>i\<close> is a rule of the form
 @{text[display]
-\<open>\<And>y\<^sub>i\<^sub>1 \<dots> y\<^sub>i\<^sub>p\<^sub>i. \<lbrakk>Q\<^sub>i\<^sub>1; \<dots>; Q\<^sub>i\<^sub>q\<^sub>i\<rbrakk> \<Longrightarrow> ?P term\<^sub>i\<^sub>1 \<dots> term\<^sub>i\<^sub>m\<close>}
-where the assumptions \<open>Q\<^sub>i\<^sub>j\<close> may contain the unknown \<open>?P\<close> but no other unknowns, in particular none
-of the \<open>?a\<^sub>1 \<dots> ?a\<^sub>m\<close>. A rule for a base case usually has no bound variables \<open>y\<^sub>i\<^sub>j\<close> and no assumptions
-\<open>Q\<^sub>i\<^sub>j\<close>, at least the \<open>Q\<^sub>i\<^sub>j\<close> do not contain \<open>?P\<close>. 
+\<open>\<And>y\<^sub>i\<^sub>1 \<dots> y\<^sub>i\<^sub>p\<^sub>i. \<lbrakk>Q\<^sub>i\<^sub>1; \<dots>; Q\<^sub>i\<^sub>q\<^sub>i\<rbrakk> \<Longrightarrow> ?P term\<^sub>i\<close>}
+where the assumptions \<open>Q\<^sub>i\<^sub>j\<close> may contain the unknown \<open>?P\<close> but no other unknowns, in particular not
+\<open>?a\<close>. A rule for a base case usually has no bound variables \<open>y\<^sub>i\<^sub>j\<close> and no assumptions
+\<open>Q\<^sub>i\<^sub>j\<close>, at least the \<open>Q\<^sub>i\<^sub>j\<close> do not contain \<open>?P\<close>. The remaining rules mostly have only a single
+assumption \<open>Q\<^sub>i\<^sub>j\<close> which contains \<open>?P\<close>.
 
-Note that the \<open>?a\<^sub>1 \<dots> ?a\<^sub>m\<close> only occur once in the conclusion of the meta-rule and nowhere else. Like
-the case rules induction rules must be ``prepared'' for use, this is done by replacing the \<open>?a\<^sub>1 \<dots> ?a\<^sub>m\<close>
-by specific terms \<open>term\<^sub>1 \<dots> term\<^sub>m\<close>. These are the terms for which all possible cases shall be processed
-in the goal.
+Note that the unknown \<open>?a\<close> only occurs once in the conclusion of the meta-rule and nowhere else. Like
+the case rules induction rules must be ``prepared'' for use, this is done by replacing \<open>?a\<close>
+by a specific term \<open>term\<close>. This is the term for which all possible cases shall be processed
+in the goal. It must have the same type as all \<open>term\<^sub>i\<close> in the \<open>P\<^sub>i\<close>.
 
-When a prepared induction rule is applied to a goal \<open>\<And> x\<^sub>1 \<dots> x\<^sub>m. \<lbrakk>A\<^sub>1; \<dots>; A\<^sub>n\<rbrakk> \<Longrightarrow> C\<close> as described in 
-Section~\ref{basic-methods-rule}, it unifies \<open>?P term\<^sub>1 \<dots> term\<^sub>m\<close> with the conclusion \<open>C\<close>. This has
-the effect of abstracting \<open>C\<close> to a (boolean) function \<open>PC\<close> by identifying all places where the \<open>term\<^sub>i\<close>
-occur in \<open>C\<close> and replacing them by the function arguments. The function \<open>PC\<close> is then bound to the 
-unknown \<open>?P\<close>, so that applying \<open>?P\<close> to the arguments \<open>term\<^sub>1 \<dots> term\<^sub>m\<close> again yields \<open>C\<close>. The function
-\<open>PC\<close> is the property to be proven for all argument values. Therefore the cases of the proof
-can be described by applying \<open>?P\<close> to terms for the specific values in the rules \<open>P\<^sub>i\<close> for the cases. 
-The rule application results in the \<open>n\<close> goals
+Usually, ``all possible cases'' means all values of the type of \<open>term\<close>, then \<open>term\<close> consists of a 
+single variable which may adopt any values of its type. There are also other forms of induction where
+more complex terms are used, but they are not presented in this introduction, refer to other 
+Isabelle documentations for them. In the following the unknown \<open>?a\<close> will always be replaced by a
+variable \<open>x\<close>.
+
+When a prepared induction rule is applied to a goal \<open>C\<close> without bound variables and assumptions as 
+described in Section~\ref{basic-methods-rule}, it unifies \<open>?P x\<close> with the conclusion \<open>C\<close>. This has
+the effect of abstracting \<open>C\<close> to a (boolean) function \<open>PC\<close> by identifying all places where \<open>x\<close>
+occurs in \<open>C\<close> and replacing it by the function argument. The function \<open>PC\<close> is then bound to the 
+unknown \<open>?P\<close>, so that applying \<open>?P\<close> to the argument \<open>x\<close> again yields \<open>C\<close>. The function
+\<open>PC\<close> is the property to be proven for all possible argument values. Therefore the cases of the proof
+can be described by applying \<open>?P\<close> to the terms \<open>term\<^sub>i\<close> for the specific values in the rules \<open>P\<^sub>i\<close> for 
+the cases. 
+
+The application of the prepared rule results in the \<open>n\<close> goals
 @{text[display]
-\<open>\<And> x\<^sub>1 \<dots> x\<^sub>m y\<^sub>1\<^sub>1 \<dots> y\<^sub>1\<^sub>p\<^sub>1. \<lbrakk>A\<^sub>1; \<dots>; A\<^sub>n; Q\<^sub>1\<^sub>1; \<dots>; Q\<^sub>1\<^sub>q\<^sub>1\<rbrakk> \<Longrightarrow> PC term\<^sub>1\<^sub>1 \<dots> term\<^sub>1\<^sub>m
+\<open>\<And> y\<^sub>1\<^sub>1 \<dots> y\<^sub>1\<^sub>p\<^sub>1. \<lbrakk>Q\<^sub>1\<^sub>1; \<dots>; Q\<^sub>1\<^sub>q\<^sub>1\<rbrakk> \<Longrightarrow> PC term\<^sub>1
 \<dots>
-\<And> x\<^sub>1 \<dots> x\<^sub>m y\<^sub>n\<^sub>1 \<dots> y\<^sub>n\<^sub>p\<^sub>n. \<lbrakk>A\<^sub>1; \<dots>; A\<^sub>n; Q\<^sub>n\<^sub>1; \<dots>; Q\<^sub>n\<^sub>q\<^sub>n\<rbrakk> \<Longrightarrow> PC term\<^sub>n\<^sub>1 \<dots> term\<^sub>n\<^sub>m\<close>}
-If some of the \<open>y\<^sub>i\<^sub>j\<close> collide with some of the \<open>x\<^sub>i\<close> they are consistently renamed.
+\<And> y\<^sub>n\<^sub>1 \<dots> y\<^sub>n\<^sub>p\<^sub>n. \<lbrakk>Q\<^sub>n\<^sub>1; \<dots>; Q\<^sub>n\<^sub>q\<^sub>n\<rbrakk> \<Longrightarrow> PC term\<^sub>n\<close>}
 
-The induction rule is only valid if for every argument position \<open>j\<close> of \<open>?P\<close> the terms \<open>term\<^sub>i\<^sub>j\<close>
-cover all possible values. Then the induction rule has been proven and is available as a fact which 
-can be applied. After preparing the induction rule for application, its conclusion \<open>?P term\<^sub>1 \<dots> term\<^sub>m\<close> 
-matches all propositions which contain the terms \<open>term\<^sub>1 \<dots> term\<^sub>m\<close> in one or more copies. It depends 
+The induction rule is only valid if the terms \<open>term\<^sub>i\<close> cover all possible values of their associated
+type. If this has been proven the case rule is available as a fact which can be applied.
+After preparing the induction rule for application, its conclusion \<open>?P x\<close> 
+matches all propositions which contain the variable \<open>x\<close> in one or more copies. It depends 
 on the \<open>P\<^sub>i\<close> in the rule whether splitting a specific goal with the induction rule is useful for 
 proving the goal.
+
+The real power of induction rules emerges, when a \<open>Q\<^sub>i\<^sub>j\<close> contains the unknown \<open>?P\<close>. Due to the
+type associated with \<open>?P\<close> it must be applied to an argument \<open>term\<^sub>i\<^sub>j\<close> of the same type as \<open>x\<close> and
+the \<open>term\<^sub>i\<close>. Then the goal resulting from \<open>P\<^sub>i\<close> states the property that if \<open>Q\<^sub>i\<^sub>j\<close> holds if 
+specialized to \<open>PC term\<^sub>i\<^sub>j\<close>, \<open>PC\<close> holds for \<open>term\<^sub>i\<close> (an ``induction step''). Thus, for covering the
+possible values of \<open>x\<close>, the step from \<open>term\<^sub>i\<^sub>j\<close> to \<open>term\<^sub>i\<close> can be applied arbitrarily often which
+allows to cover some types with infinite value sets.
 
 An induction rule for the natural numbers is
 @{text[display]
 \<open>\<lbrakk>?P 0; \<And>y. ?P y \<Longrightarrow> ?P (y+1)\<rbrakk> \<Longrightarrow> ?P ?a\<close>}
-To apply it to the goal \<open>0\<le>n\<close>, it must be prepared by substituting the variable \<open>n\<close> for the 
+\<open>P\<^sub>1\<close> is the base case, it has no variables and assumptions and only consists of the conclusion
+\<open>?P 0\<close>. \<open>P\<^sub>2\<close> binds the variable \<open>y\<close>, has one assumption \<open>?P y\<close> and the conclusion \<open>?P (y+1)\<close>.
+\<open>P\<^sub>1\<close> covers the value \<open>0\<close>, \<open>P\<^sub>2\<close> covers the step from a value \<open>y\<close> to its successor \<open>y+1\<close>, together
+they cover all possible values of type \<open>nat\<close>.
+
+To apply the rule to the goal \<open>0\<le>n\<close>, it must be prepared by substituting the variable \<open>n\<close> for the 
 unknown \<open>?a\<close>. Then the rule conclusion \<open>?P n\<close> is unified with the goal which abstracts the
 goal to the boolean function \<open>PC = (\<lambda>i. 0\<le>i)\<close> and substitutes it for all occurrences of \<open>?P\<close>. 
 This results in the rule instance 
@@ -2869,6 +2943,11 @@ By substituting the arguments in the function applications its assumption part y
 \<open>0\<le>0
 \<And>y. 0\<le>y \<Longrightarrow> 0\<le>(y+1)\<close>}
 which correspond to the base case and induction step as described above.
+
+Induction rules may even be more general than shown above. Instead of applying \<open>?P\<close> to a single 
+argument it may have several arguments and the conclusion becomes \<open>?P ?a\<^sub>1 \<dots> ?a\<^sub>r\<close>. Also in the
+\<open>P\<^sub>i\<close> every occurrence of \<open>?P\<close> then has \<open>r\<close> terms as arguments. The induction rule is valid if it
+covers all possible cases for all combinations of the \<open>r\<close> argument values.
 \<close>
 
 subsubsection "The \<^theory_text>\<open>induction\<close> Method"
@@ -2876,16 +2955,16 @@ subsubsection "The \<^theory_text>\<open>induction\<close> Method"
 text\<open>
 Induction can be performed in a structured proof using the method \<^theory_text>\<open>induction\<close> in the form
 @{theory_text[display]
-\<open>induction "term\<^sub>1" \<dots> "term\<^sub>m" rule: name\<close>}
+\<open>induction x rule: name\<close>}
 where \<open>name\<close> is the name of a valid induction rule. The method prepares the rule by substituting the
-specified \<open>term\<^sub>i\<close> for the unknowns \<open>?a\<^sub>1 \<dots> ?a\<^sub>m\<close> and applies the rule to the first goal in the
+specified variable \<open>x\<close> for the unknown \<open>?a\<close> and applies the rule to the first goal in the
 goal state. 
 
 Additionally, the method creates a named context for every goal resulting from the rule
 application. The context contains the variables and assumptions specified in the corresponding
 case in the induction rule. For the most general form depicted above the context for the \<open>i\<close>th case 
-contains the variables \<open>x\<^sub>1 \<dots> x\<^sub>m y\<^sub>i\<^sub>1 \<dots> y\<^sub>i\<^sub>p\<^sub>i\<close> and the assumptions \<open>A\<^sub>1; \<dots>; A\<^sub>n; Q\<^sub>i\<^sub>1; \<dots>; Q\<^sub>i\<^sub>q\<^sub>i\<close>. 
-The term abbreviation \<open>?case\<close> is defined for the case conclusion \<open>PC term\<^sub>1\<^sub>1 \<dots> term\<^sub>1\<^sub>m\<close> which is to
+contains the variables \<open>y\<^sub>i\<^sub>1 \<dots> y\<^sub>i\<^sub>p\<^sub>i\<close> and the assumptions \<open>Q\<^sub>i\<^sub>1; \<dots>; Q\<^sub>i\<^sub>q\<^sub>i\<close>. 
+The term abbreviation \<open>?case\<close> is defined for the case conclusion \<open>PC term\<^sub>i\<close> which is to
 be proven for the case.
 
 The \<^theory_text>\<open>induction\<close> method treats input facts like the empty method (see Section~\ref{basic-methods-empty})
@@ -2893,19 +2972,19 @@ and the \<^theory_text>\<open>cases\<close> method (see Section~\ref{basic-case-
 into the original goal before splitting it.
 
 Also like the \<^theory_text>\<open>cases\<close> method the \<^theory_text>\<open>induction\<close> method supports
-automatic rule selection for the induction rule. This is only possible if only one term is specified
-in the method:
+automatic rule selection for the induction rule. This is only possible if \<open>?P\<close> is applied to a single
+argument, which means that only one variable is specified in the method:
 @{theory_text[display]
-\<open>induction "term"\<close>}
-Then the rule is selected according to the type of the specified \<open>term\<close>. In Isabelle HOL (see 
-Section~\ref{hol}) most types have an associated induction rule. 
+\<open>induction x\<close>}
+Then the rule is selected according to the type of \<open>x\<close>. In Isabelle HOL (see 
+Section~\ref{holbasic}) most types have an associated induction rule. 
 
 The rule \<open>\<lbrakk>?P True; ?P False\<rbrakk> \<Longrightarrow> ?P ?a\<close> is associated with type \<open>bool\<close>. Therefore induction can be 
-applied to every proposition which contains a term of type \<open>bool\<close>, such as the goal \<open>b \<and> False = False\<close>.
+applied to every proposition which contains a variable of type \<open>bool\<close>, such as the goal \<open>b \<and> False = False\<close>.
 Applying the method
 @{theory_text[display]
-\<open>induct b\<close>}
-will split the it into the goals
+\<open>induction b\<close>}
+will split the goal into the goals
 @{text[display]
 \<open>False \<and> False = False
 True \<and> False = False\<close>}
@@ -2942,35 +3021,50 @@ may be omitted in the method:
 \<close>}
 \<close>
 
-subsubsection "Assumptions"
+subsubsection "Goals with Assumptions"
 
 text\<open>
-Some care must be taken to apply induction rules correctly.
-
-As described above, the prepared rule's conclusion \<open>?P term\<^sub>1 \<dots> term\<^sub>m\<close> is only unified with the 
-conclusion \<open>C\<close> of the goal to determine the function \<open>PC\<close> which is substituted for \<open>?P\<close> in the
-induction rule. The assumptions \<open>A\<^sub>1 \<dots> A\<^sub>n\<close> in the goal are completely ignored, although they are
-included in the goals after splitting. If the assumptions share free variables with the conclusion
-\<open>C\<close> this connection is broken after applying the prepared induction rule. 
+If the \<open>induction\<close> method would apply the prepared induction rule in the same way as the \<open>rule\<close>
+method to a goal \<open>\<And> x\<^sub>1 \<dots> x\<^sub>k. \<lbrakk>A\<^sub>1; \<dots>; A\<^sub>m\<rbrakk> \<Longrightarrow> C\<close> with bound variables and assumptions it would 
+unify \<open>?P x\<close> only with the conclusion \<open>C\<close> and copy the assumptions \<open>A\<^sub>1, \<dots>, A\<^sub>m\<close>
+to all resulting goals unchanged. However, if \<open>x\<close> also occurs in one or more of the \<open>A\<^sub>l\<close> this 
+connection with \<open>C\<close> is lost after applying the prepared induction rule. 
 
 Consider the goal
 @{text[display]
 \<open>4 < n \<Longrightarrow> 5 \<le> n\<close>}
+which is of the form 
+@{text[display]
+\<open>A \<Longrightarrow> C\<close>}
 When applying the prepared induction rule for the natural numbers
-\<open>\<lbrakk>?P 0; \<And>y. ?P y \<Longrightarrow> ?P (y+1)\<rbrakk> \<Longrightarrow> ?P n\<close> the conclusions will be matched which leads to the 
-abstracted function \<open>(\<lambda>i. 5\<le>i)\<close> and the resulting goals are
+\<open>\<lbrakk>?P 0; \<And>y. ?P y \<Longrightarrow> ?P (y+1)\<rbrakk> \<Longrightarrow> ?P n\<close> in the way of the \<open>rule\<close> method the conclusion will be 
+matched which leads to the abstracted function \<open>PC \<equiv> (\<lambda>i. 5\<le>i)\<close> and the resulting goals are
 @{text[display]
 \<open>4 < n \<Longrightarrow> 5 \<le> 0
 \<And>y. \<lbrakk>4 < n; 5 \<le> y\<rbrakk> \<Longrightarrow> 5 \<le> (y+1)\<close>}
 where the first goal is invalid. Although the second goal is valid, it shows that the relation
 between the variable \<open>n\<close> in the assumption and the variable \<open>y\<close> used in the induction rule has been
 lost. 
-\<close>
 
-subsubsection "Subterms"
+Therefore the \<open>induction\<close> method works in a different way. It unifies \<open>?P x\<close> with the conclusion
+\<open>C\<close> and separately with every assumption \<open>A\<^sub>l\<close> and thus additionally determines an abstracted function
+\<open>PA\<^sub>l\<close> for every \<open>A\<^sub>l\<close>. Instead of using \<open>A\<^sub>l\<close> directly in the resulting goals the method replaces
+it by \<open>PA\<^sub>l term\<^sub>i\<close> in the \<open>i\<close>th goal. Moreover, if a \<open>Q\<^sub>i\<^sub>j\<close> contains a sub-term \<open>?P term\<^sub>i\<^sub>j\<close> the 
+assumptions \<open>PA\<^sub>1 term\<^sub>i\<^sub>j; \<dots>; PA\<^sub>m term\<^sub>i\<^sub>j\<close> are added to \<open>Q\<^sub>i\<^sub>j\<close>. Thus the resulting goals actually are
+@{text[display]
+\<open>\<And> y\<^sub>1\<^sub>1 \<dots> y\<^sub>1\<^sub>p\<^sub>1 x\<^sub>1 \<dots> x\<^sub>k. \<lbrakk>Q\<^sub>1\<^sub>1'; \<dots>; Q\<^sub>1\<^sub>q\<^sub>1'; PA\<^sub>1 term\<^sub>1; \<dots>; PA\<^sub>m  term\<^sub>1\<rbrakk> \<Longrightarrow> PC term\<^sub>1
+\<dots>
+\<And> y\<^sub>n\<^sub>1 \<dots> y\<^sub>n\<^sub>p\<^sub>n x\<^sub>1 \<dots> x\<^sub>k. \<lbrakk>Q\<^sub>n\<^sub>1'; \<dots>; Q\<^sub>n\<^sub>q\<^sub>n'; PA\<^sub>1 term\<^sub>n; \<dots>; PA\<^sub>m term\<^sub>n\<rbrakk> \<Longrightarrow> PC term\<^sub>n\<close>}
+where \<open>Q\<^sub>i\<^sub>j'\<close> is \<open>Q\<^sub>i\<^sub>j\<close> with added assumptions as described above.
+If some of the \<open>y\<^sub>i\<^sub>j\<close> collide with some of the \<open>x\<^sub>i\<close> they are consistently renamed.
 
-text\<open>
-**todo**
+In the example above the \<open>induction\<close> method additionally unifies \<open>?P n\<close> with the assumption \<open>4 < n\<close>
+which yields the abstracted function \<open>PA \<equiv> (\<lambda>i. 4<i)\<close> and produces the goals
+@{text[display]
+\<open>4 < 0 \<Longrightarrow> 5 \<le> 0
+\<And>y. \<lbrakk>4 < y \<Longrightarrow> 5 \<le> y; 4 < (y+1)\<rbrakk> \<Longrightarrow> 5 \<le> (y+1)\<close>}
+Here \<open>4 < (y+1)\<close> results from applying \<open>PA\<close> to \<open>(y+1)\<close> and \<open>4 < y\<close> results from adding \<open>PA\<close> applied
+to \<open>y\<close> as assumption to the assumption \<open>?P y\<close> from the rule. 
 \<close>
 
 subsubsection "The \<^theory_text>\<open>induct\<close> Method"
@@ -2978,12 +3072,12 @@ subsubsection "The \<^theory_text>\<open>induct\<close> Method"
 text\<open>
 **todo**
 \<close>
-(*
+
 lemma myInduct: "\<lbrakk>P 0; \<And>y. P y \<Longrightarrow> P (y+1)\<rbrakk> \<Longrightarrow> P a" for a::nat
   by (metis add.commute add_cancel_left_left discrete infinite_descent0 le_iff_add less_add_same_cancel2 less_numeral_extra(1))
 
 lemma "4 < n \<Longrightarrow> 5 \<le> n" for n::nat
-  apply(induct rule: myInduct)
+  apply(induct "n" rule: myInduct)
   apply(rule myInduct[where a=n]) 
   oops
 

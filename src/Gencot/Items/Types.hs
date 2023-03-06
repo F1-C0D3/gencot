@@ -404,39 +404,3 @@ getGlobalVarProperties ident = do
                             return $ (gspar,cv)
                         _ -> return $ ("",False)
 
--- | Retrieve information about a (global) function identifier used for an invocation in a function body.
--- The first result component specifies if the function result type is void.
--- The second result component is a list of booleans specifying for each regular parameter whether it has an Add-Result property.
--- The third result component is the list of parameter names of the surrounding function resulting from Global-State and
--- Heap-Use properties of the invoked function in the order for the invoked function. Every element is a pair of the 
--- parameter name and a flag whether it shall be returned by the invoked function, together with the causing property.
--- If the surrounding function has no parameter with the corresponding property the parameter name is the empty string.
--- The fourth result component is the position of the parameter of the invoked function with a Modification-Function property,
--- otherwise it is -1.
-getFunctionProperties :: LCI.Ident -> FTrav (Bool,[Bool],[((String,Bool),String)],Int)
-getFunctionProperties ident = do
-    mdecl <- getDeclWithLinkage ident
-    case mdecl of
-         Nothing -> return $ (False,[],[],-1)
-         Just decl -> 
-            if not $ isFunction $ LCA.declType decl
-               then return $ (False,[],[],-1)
-               else do
-                   sfn <- getFileName
-                   let iat = getIndividualItemAssoc decl sfn
-                   riat <- getResultSubItemAssoc iat
-                   arProps <- getAddResultProperties iat
-                   pids <- getGlobalStateSubItemIds iat
-                   gsps <- mapM (getGlobalStateProperty . fst) pids
-                   let gspnoros = sortOn fst $ zip gsps $ map snd pids
-                   huprop <- isHeapUseItem iat
-                   let gshunoros = gspnoros ++ (if huprop then [("hu",True)] else [])
-                   mfdef <- getFunDef
-                   case mfdef of
-                        Just idecl@(LCA.FunctionDef _) -> do
-                            let fiat = getIndividualItemAssoc idecl sfn
-                            gspars <- mapM ((getGlobalStateParam fiat) . fst) $ gspnoros
-                            hupar <- getHeapUseParam fiat
-                            let gshupars = gspars ++ (if huprop then [hupar] else [])
-                            return $ (isVoid (snd riat), arProps, zip (zip gshupars $ map snd gshunoros) $ map fst gshunoros,-1)
-                        _ -> return $ (False,[],[],-1)

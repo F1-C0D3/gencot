@@ -32,8 +32,8 @@ import Gencot.Items.Types (
   getIndividualItemId, getObjectItemId, getParamSubItemId,
   getGlobalStateProperty, makeGlobalStateParams, getTagItemAssoc, getIndividualItemAssoc, getTypedefItemAssoc, adjustItemAssocType, 
   getMemberSubItemAssoc, getRefSubItemAssoc, getResultSubItemAssoc, getElemSubItemAssoc, getParamSubItemAssoc, 
-  getItemAssocType, getMemberItemAssocTypes, getSubItemAssocTypes, numberList, getAddResultProperties, getFunctionProperties)
-import Gencot.Items.Identifier (getObjFuncName, getParamName)
+  getItemAssocType, getMemberItemAssocTypes, getSubItemAssocTypes, numberList, getAddResultProperties)
+import Gencot.Items.Identifier (getObjFuncName, getParamName, isToplevelObjectId, isParameterId)
 import Gencot.Cogent.Ast
 import Gencot.Cogent.Bindings (
   BindsPair, valVar, leadVar, lvalVar, resVar, 
@@ -1054,7 +1054,18 @@ bindExpr e@(LC.CVar nam _) = do
     ct <- exprType e
     iid <- getObjectItemId nam
     t <- transType True (iid,ct)
-    insertExprSrc e $ mkValVarBindsPair cnt (v,t)
+    (v',t') <-
+       if isToplevelObjectId iid && not $ isFunction ct -- global variable
+          then do
+              gs <- getGlobalStateProperty iid
+              fdes <- getContextFuncDesc
+              let pdes = searchGlobalStateParamDesc fdes gs
+              return $ (nameOfParamDesc pdes, typeOfParamDesc pdes)
+          else return (v,t)
+    insertExprSrc e $
+        if null v'
+           then mkDummyBindsPair cnt ("Cannot access global variable: " ++ (LCI.identToString nam))
+           else mkValVarBindsPair cnt (v',t)
 bindExpr e@(LC.CMember e1 nam arrow _) = do
     bp1 <- bindExpr e1
     m <- mapIfUpper nam
@@ -1119,19 +1130,21 @@ bindExpr e@(LC.CBinary op e1 e2 _) = do
     insertExprSrc e $ mkOpBindsPair t (transBinOp op) [bp1,bp2]
 bindExpr e@(LC.CCall fv@(LC.CVar nam _) es _) = do
     bps <- mapM bindExpr es
-    f <- transObjName nam
-    ctf <- exprType fv
-    iid <- getObjectItemId nam
-    t <- transType True (iid,ctf)
-    (vdres,arprops,gshupars,_) <- getFunctionProperties nam
-    let invalpars = filter (null . fst . fst) gshupars
-    cnt <- if (null bps && not vdres) || (not $ null invalpars) then getValCounter else return 0 
-    let rvar = if vdres then "" else if null bps then valVar cnt else leadVar (head bps)
-    let vs = (map leadVar bps) ++ (map (fst . fst) gshupars)
-    insertExprSrc e $
-        if null invalpars
-           then mkAppBindsPair (f,t) bps rvar vs arprops $ map fst gshupars
-           else mkDummyBindsPair cnt ("No value available for property " ++ (snd (head invalpars)))
+    fbp <- bindExpr fv
+    cft <- exprType fv
+    fbp' <- if isFunPointer cft
+               then do
+                   nrfpt <- transType False cft
+                   iid <- getObjectItemId nam
+                   iaft <- getRefSubItemAssoc (iid, resolveTypedef cft)
+                   ft <- transType True iafpt
+                   nrft <- transType False iafpt
+                   return $ mkFunDerefBindsPair ft nrfpt nrft fbp
+               else return fbp
+    (Just decl) <- LCA.lookupObject nam
+    fd <- getFuncDesc decl
+    (pbp,rpat) <- processParamVals fd bps
+    insertExprSrc e $ mkAppBindsPair fbp' rpat pbp
 bindExpr e@(LC.CCall _ _ _) = do
     cnt <- getValCounter
     insertExprSrc e $ mkDummyBindsPair cnt "Translation of function expression not yet implemented"
@@ -1304,6 +1317,15 @@ isAddResultParam pdes =
 getTypedVarFromParamDesc :: ParamDesc -> TypedVar
 getTypedVarFromParamDesc pdes = (nameOfParamDesc pdes, typeOfParamDesc pdes)
 
+-- | Retrieve the description of the surrounding function when processing a function body.
+-- Outside a function body a description with empty name and unit type is returned.
+getContextFuncDesc :: FTrav FuncDesc
+getContextFuncDesc = do
+    mfdef <- getFunDef
+    case mfdef of
+         Nothing -> return $ FuncDesc "" unitType [] []
+         Just (LCA.FunctionDef (LCA.FunDef decl _ _)) -> return $ getFuncDesc decl
+
 -- | Retrieve the actual virtual parameters for a function call from the context.
 -- The argument is the description of the invoked function.
 -- The result is a sequence of parameter descriptions of the surrounding function,
@@ -1312,35 +1334,17 @@ getTypedVarFromParamDesc pdes = (nameOfParamDesc pdes, typeOfParamDesc pdes)
 -- an empty name, a unit type and (only) the required property.
 getVirtParamsFromContext :: FuncDesc -> FTrav [ParamDesc]
 getVirtParamsFromContext fdes = do
-    mfdef <- getFunDef
-    case mfdef of
-         Nothing -> return []
-         Just (LCA.FunctionDef (LCA.FunDef decl _ _)) -> do
-             ctxfdes <- getFuncDesc decl
-             let gspdes = map (searchGlobalStateParamDesc ctxfdes) $ getGlobalStateParamProps fdes
-             let hupdes = if elem "hu" $ propOfFuncDesc fdes
-                             then [searchHeapUseParamDesc ctxfdes]
-                             else []
-             let vrpdes = case getVariadicParamDesc fdes of
-                             Nothing -> []
-                             Just pdes -> [pdes]
-             return (gspdes ++ hupdes ++ vrpdes)
+    ctxfdes <- getContextFuncDesc
+    let gspdes = map (searchGlobalStateParamDesc ctxfdes) $ getGlobalStateParamProps fdes
+    let hupdes = if elem "hu" $ propOfFuncDesc fdes
+                    then [searchHeapUseParamDesc ctxfdes]
+                    else []
+    let vrpdes = case getVariadicParamDesc fdes of
+                    Nothing -> []
+                    Just pdes -> [pdes]
+    return (gspdes ++ hupdes ++ vrpdes)
 
--- | Get a variable for binding the result of a function.
--- The first argument is the function result type.
--- The second argument is the list of all parameter BindsPairs.
--- If the result type is the unit type (C function has result type void), return a wildcard.
--- Otherwise reuse the value variable of the first parameter, or return a new value variable if there are no parameters.
-getResultVar :: GenType -> [BindsPair] -> FTrav TypedVar
-getResultVar rt bps = do
-    rv <- if null bps 
-             then do
-                    cnt <- getValCounter
-                    return (valVar cnt,rt)
-             else return (fst $ leadVar $ head bps, rt)
-    return (if rt == unitType then ("_",rt) else rv)
-
--- | Determine lists of actual parameters and patterns to bind the result of a function call.
+-- | Determine tupel of actual parameters and pattern to bind the result of a function call.
 -- The first argument is the description of the invoked function.
 -- The second argument is the list of translated C argument expressions.
 processParamVals :: FuncDesc -> [BindsPair] -> FTrav ([BindsPair], [GenIrrefPatn])
@@ -1354,22 +1358,20 @@ processParamVals fdes pvals = do
         nvpbps = map (\(bp, pdes) -> replaceBoundVarType (typeOfParamDesc pdes) bp) $ zip pvals pdess
         -- the list of all actual parameters
         allpbps = nvpbps ++ vpbps
-        -- actual parameters paired with mf flags
-        mfpbps = zip allpbps $ map hasMf pdess
-    -- provide value variable index if there is a single parameter and it has an mf flag
-    cnt <- if length mfpbps == 1 && snd (head mfpbps) then getValCounter else return 0
-    -- additional result variables
-    let arvars = map (\(bp,pdes) -> (lvalVar bp, hasMf pdes) $ filter (\(_,pdes) -> isAddResultParam pdes) $ zip allpbps pdess
-    -- variable for original function result
-    rvar <- getResultVar rt allpbps
-    -- the list of all result variables, paired with mf flags
-    -- the original result is used as mf result if the mf parameter has no ar property
-    let mfrvars = if isWild rvar then if null arvars then [(rvar,mfIsNotAr)] else arvars else ((rvar,mfIsNotAr) : arvars)
-    return (processMFpropForBindsPairs cnt mfpbps, processMFpropForPatterns mfrvars)
-    where rt = getResultType fdes
-          pdess = parsOfFuncDesc fdes
-          hasMf pdes = elem "mf" $ propOfParamDesc pdes
-          mfIsNotAr = any (\pdes -> (hasMf pdes) && not (isAddResultParam pdes)) pdess
+    -- provide value variable index for parameter tuple if it is empty
+    unitcnt <- if null allpbps then getValCounter else return 0
+    let -- construct BindsPair for parameter tuple
+        pbp = mkTupleBindsPair unitcnt pbps
+        -- additional result variables
+        arvars = map (lvalVar . fst) $ filter (\(_,pdes) -> isAddResultParam pdes) $ zip allpbps pdess
+        -- variable for original function result: for C function with void result use wildcard,
+        -- otherwise reuse value variable of parameter tuple
+        rvar = if rt == unitType then ("_",rt) else leadVar pbp
+        -- pattern for binding the function result
+        rpat = mkTuplePattern $ map mkVarPattern (rvar : arvars)
+    return (pbp, rpat)
+    where pdess = parsOfFuncDesc fdes
+          rt = getResultType fdes
 
 fvGB :: GenBnd -> [CCS.VarName]
 fvGB b = [] -- TODO using conversion to raw and CS.fvB

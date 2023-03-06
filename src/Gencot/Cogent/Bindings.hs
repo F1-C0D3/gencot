@@ -186,21 +186,22 @@ mkOpBindsPair t op bps =
     where vs = map leadVar bps 
 
 -- | Function pointer dereference f = fromFunPtr (fp)
--- The first argument is the type of the resulting function.
-mkFunDerefBindsPair :: GenType -> BindsPair -> BindsPair
-mkFunDerefBindsPair ft bp =
-    addBinding (mkVarBinding (fst v, ft) $ mkAppExpr (mkTopLevelFunExpr ("fromFunPtr",ffpt) [ft, ufpt]) (mkVarExpr v)) bp
-    where v@(_,ufpt) = leadVar bp
-          ffpt = mkFunType ft ufpt
+-- The first argument is the type of the resulting function (with typedefs resolved, as usual in a BindsPair)
+-- The second argument is the type of the function pointer with typedefs not resolved, to be put in the Cogent source.
+-- The third argument is the type of the resulting function with typedefs not resolved, to be put in the Cogent source.
+mkFunDerefBindsPair :: GenType -> GenType -> GenType -> BindsPair -> BindsPair
+mkFunDerefBindsPair ft nrfpt nrft bp =
+    addBinding (mkVarBinding (vnam, ft) $ mkAppExpr (mkTopLevelFunExpr ("fromFunPtr",ffpt) [nrft, nrfpt]) (mkVarExpr v)) bp
+    where v@(vnam,fpt) = leadVar bp
+          ffpt = mkFunType ft fpt
 
--- | Function application v = f (bp...) or (v,v1,..,vn) = f (bp..,vi,..,vn)
--- The first argument is the value variable index to bind the unit value if there are no parameters.
--- The second argument is the BindsPair for the function
--- The third argument must not be empty.
-mkAppBindsPair :: Int -> BindsPair -> [GenIrrefPatn] -> [BindsPair] -> BindsPair
-mkAppBindsPair n fbp rpats pbps =
-    addBinding (mkTupleBinding rpats $ mkAppExpr (mkVarExpr $ leadVar fbp) (mkVarExpr $ leadVar pbp)) $ concatBindsPairs [pbp,fbp]
-    where pbp = mkTupleBindsPair n pbps
+-- | Function application v = f (pbp) or (v,v1,..,vn) = f (pbp)
+-- The first argument is the BindsPair for the function
+-- The second argument is the pattern for binding the function result
+-- The third argument is the BindsPair for the parameter tuple (or single parameter or unit value)
+mkAppBindsPair :: BindsPair -> GenIrrefPatn -> BindsPair -> BindsPair
+mkAppBindsPair fbp rpat pbp =
+    addBinding (mkBinding rpat $ mkAppExpr (mkVarExpr $ leadVar fbp) (mkVarExpr $ leadVar pbp)) $ concatBindsPairs [pbp,fbp]
 
 -- | Assignment v<n>' = v<n>' op v<k>', (v<n>',v) = (v<n>',v<n>') or (v,v<n>')
 -- The first argument is True for a postfix inc/dec operator, otherwise false.

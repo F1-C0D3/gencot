@@ -1099,7 +1099,7 @@ In forward reasoning mode \<open>proof(state)\<close> fact input is supported wi
 fact set name \<open>this\<close>. The statement
 @{theory_text[display]
 \<open>then\<close>}
-inputs the facts named \<open>this\<close> to the proof of the following fact statement. 
+inputs the facts named \<open>this\<close> to the proof of the following goal statement. 
 
 The statement \<^theory_text>\<open>then\<close>
 must be immediately followed by a goal statement (\<^theory_text>\<open>have\<close> or \<^theory_text>\<open>show\<close>). This is enforced by
@@ -1885,21 +1885,6 @@ of assuming it:
 have "F\<^sub>i\<^sub>+\<^sub>1" proof - from f\<^sub>i \<dots> qed\<close>}
 Since there are no other ways to use input facts in a structured proof with empty initial method than
 re-specifying them in \<^theory_text>\<open>assume\<close> statements, it is normally useless to input facts into such a proof.
-\<close>
-
-subsection \<open>The {\sl insert} Method\<close>
-text_raw\<open>\label{basic-methods-insert}\<close>
-
-text\<open>
-Whereas the empty method inserts its input facts as assumptions into all goals, the method
-@{theory_text[display]
-\<open>insert name\<^sub>1 \<dots> name\<^sub>n\<close>}
-inserts existing facts \<open>F\<^sub>1,\<dots>,F\<^sub>n\<close> if they are named by \<open>name\<^sub>1 \<dots> name\<^sub>n\<close>: every goal of the form 
-\<open>\<lbrakk>A\<^sub>1;\<dots>;A\<^sub>m\<rbrakk> \<Longrightarrow> C\<close> is replaced by the goal \<open>\<lbrakk>A\<^sub>1;\<dots>;A\<^sub>m;F\<^sub>1,\<dots>,F\<^sub>n\<rbrakk> \<Longrightarrow> C\<close>. Input facts are ignored
-by the method.
-
-Like the empty method the \<open>insert\<close> method is not useful as initial method in a structured proof.
-A useful application of the method is described in Section~\ref{basic-case-induction}.
 \<close>
 
 subsection "Rule Application"
@@ -2920,9 +2905,9 @@ proving the goal.
 
 The real power of induction rules emerges, when a \<open>Q\<^sub>i\<^sub>j\<close> contains the unknown \<open>?P\<close>. Due to the
 type associated with \<open>?P\<close> it must be applied to an argument \<open>term\<^sub>i\<^sub>j\<close> of the same type as \<open>x\<close> and
-the \<open>term\<^sub>i\<close>. Then the goal resulting from \<open>P\<^sub>i\<close> states the property that if \<open>Q\<^sub>i\<^sub>j\<close> holds if 
+the \<open>term\<^sub>i\<close>. Then the goal resulting from \<open>P\<^sub>i\<close> states the property that if \<open>Q\<^sub>i\<^sub>j\<close> holds when
 specialized to \<open>PC term\<^sub>i\<^sub>j\<close>, \<open>PC\<close> holds for \<open>term\<^sub>i\<close> (an ``induction step''). Thus, for covering the
-possible values of \<open>x\<close>, the step from \<open>term\<^sub>i\<^sub>j\<close> to \<open>term\<^sub>i\<close> can be applied arbitrarily often which
+possible values of \<open>x\<close>, the step from \<open>term\<^sub>i\<^sub>j\<close> to \<open>term\<^sub>i\<close> can be repeated arbitrarily often which
 allows to cover some types with infinite value sets.
 
 An induction rule for the natural numbers is
@@ -2946,7 +2931,7 @@ which correspond to the base case and induction step as described above.
 
 Induction rules may even be more general than shown above. Instead of applying \<open>?P\<close> to a single 
 argument it may have several arguments and the conclusion becomes \<open>?P ?a\<^sub>1 \<dots> ?a\<^sub>r\<close>. Also in the
-\<open>P\<^sub>i\<close> every occurrence of \<open>?P\<close> then has \<open>r\<close> terms as arguments. The induction rule is valid if it
+\<open>P\<^sub>i\<close> every occurrence of \<open>?P\<close> then has \<open>r\<close> terms as arguments. Such an induction rule is valid if it
 covers all possible cases for all combinations of the \<open>r\<close> argument values.
 \<close>
 
@@ -2962,7 +2947,7 @@ goal state.
 
 Additionally, the method creates a named context for every goal resulting from the rule
 application. The context contains the variables and assumptions specified in the corresponding
-case in the induction rule. For the most general form depicted above the context for the \<open>i\<close>th case 
+case in the induction rule. For the general form depicted above the context for the \<open>i\<close>th case 
 contains the variables \<open>y\<^sub>i\<^sub>1 \<dots> y\<^sub>i\<^sub>p\<^sub>i\<close> and the assumptions \<open>Q\<^sub>i\<^sub>1; \<dots>; Q\<^sub>i\<^sub>q\<^sub>i\<close>. 
 The term abbreviation \<open>?case\<close> is defined for the case conclusion \<open>PC term\<^sub>i\<close> which is to
 be proven for the case.
@@ -3021,11 +3006,42 @@ may be omitted in the method:
 \<close>}
 \<close>
 
+subsubsection "Case Assumption Naming and the \<^theory_text>\<open>induct\<close> Method"
+
+text\<open>
+As usual, the \<^theory_text>\<open>case\<close> command uses the case name as name for the assumptions \<open>Q\<^sub>i\<^sub>1 \<dots> Q\<^sub>i\<^sub>q\<^sub>i\<close> in the
+\<open>i\<close>th case or an explicit name may be specified for them. Additionally, the \<open>induction\<close> method
+arranges the named context for a case so that the set of assumptions is split into those which
+in the rule contain the unknown \<open>?P\<close> and those which do not. These sets are separately named, so 
+that they can be referenced individually.
+
+The set of assumptions which originally contained \<open>?P\<close> now contain an application of \<open>PC\<close> to
+a value \<open>term\<^sub>i\<^sub>j\<close> and allow the step from this value to value \<open>term\<^sub>i\<close> by induction. These assumptions
+are called ``induction hypothesis'' and are named \<open>"cname.IH"\<close> where \<open>cname\<close> is the case name or the
+explicit name for the case assumptions. The other assumptions are independent from \<open>PC\<close>, they are 
+additional hypotheses and are named \<open>"cname.hyps"\<close>. Both forms of names
+must be enclosed in quotes because the dot is not a normal name constituent.
+
+For an example consider the induction rule \<open>\<lbrakk>?P 0; ?P 1; \<And>y. \<lbrakk>y\<ge>1; ?P y\<rbrakk> \<Longrightarrow> ?P (y+1)\<rbrakk> \<Longrightarrow> ?P ?a\<close> 
+with an additional base case for the value \<open>1\<close> and a step which always starts at value \<open>1\<close> or 
+greater. If applied to the goal \<open>0\<le>n\<close> the \<open>induction\<close> method produces the three goals
+@{text[display]
+\<open>0\<le>0
+0\<le>1
+\<And>y. \<lbrakk>y\<ge>1; 0\<le>y\<rbrakk> \<Longrightarrow> 0\<le>(y+1)\<close>}
+If the default case name \<open>3\<close> is used for the third case, the induction hypothesis \<open>0\<le>y\<close> is named
+\<open>"3.IH"\<close> and the additional hypothesis \<open>y\<ge>1\<close> is named \<open>"3.hyps"\<close>.
+
+There is a method \<^theory_text>\<open>induct\<close> which behaves like \<^theory_text>\<open>induction\<close> with the only difference that it does 
+not introduce the name \<open>"cname.IH"\<close>, it uses \<open>"cname.hyps"\<close> for all assumptions \<open>Q\<^sub>i\<^sub>1 \<dots> Q\<^sub>i\<^sub>q\<^sub>i\<close>, whether
+they contain \<open>?P\<close> or not.
+\<close>
+
 subsubsection "Goals with Assumptions"
 
 text\<open>
 If the \<open>induction\<close> method would apply the prepared induction rule in the same way as the \<open>rule\<close>
-method to a goal \<open>\<And> x\<^sub>1 \<dots> x\<^sub>k. \<lbrakk>A\<^sub>1; \<dots>; A\<^sub>m\<rbrakk> \<Longrightarrow> C\<close> with bound variables and assumptions it would 
+method to a goal \<open>\<lbrakk>A\<^sub>1; \<dots>; A\<^sub>m\<rbrakk> \<Longrightarrow> C\<close> with assumptions it would 
 unify \<open>?P x\<close> only with the conclusion \<open>C\<close> and copy the assumptions \<open>A\<^sub>1, \<dots>, A\<^sub>m\<close>
 to all resulting goals unchanged. However, if \<open>x\<close> also occurs in one or more of the \<open>A\<^sub>l\<close> this 
 connection with \<open>C\<close> is lost after applying the prepared induction rule. 
@@ -3052,11 +3068,15 @@ Therefore the \<open>induction\<close> method works in a different way. It unifi
 it by \<open>PA\<^sub>l term\<^sub>i\<close> in the \<open>i\<close>th goal. Moreover, if a \<open>Q\<^sub>i\<^sub>j\<close> contains a sub-term \<open>?P term\<^sub>i\<^sub>j\<close> the 
 assumptions \<open>PA\<^sub>1 term\<^sub>i\<^sub>j; \<dots>; PA\<^sub>m term\<^sub>i\<^sub>j\<close> are added to \<open>Q\<^sub>i\<^sub>j\<close>. Thus the resulting goals actually are
 @{text[display]
-\<open>\<And> y\<^sub>1\<^sub>1 \<dots> y\<^sub>1\<^sub>p\<^sub>1 x\<^sub>1 \<dots> x\<^sub>k. \<lbrakk>Q\<^sub>1\<^sub>1'; \<dots>; Q\<^sub>1\<^sub>q\<^sub>1'; PA\<^sub>1 term\<^sub>1; \<dots>; PA\<^sub>m  term\<^sub>1\<rbrakk> \<Longrightarrow> PC term\<^sub>1
+\<open>\<And> y\<^sub>1\<^sub>1 \<dots> y\<^sub>1\<^sub>p\<^sub>1. \<lbrakk>Q\<^sub>1\<^sub>1'; \<dots>; Q\<^sub>1\<^sub>q\<^sub>1'; PA\<^sub>1 term\<^sub>1; \<dots>; PA\<^sub>m term\<^sub>1\<rbrakk> \<Longrightarrow> PC term\<^sub>1
 \<dots>
-\<And> y\<^sub>n\<^sub>1 \<dots> y\<^sub>n\<^sub>p\<^sub>n x\<^sub>1 \<dots> x\<^sub>k. \<lbrakk>Q\<^sub>n\<^sub>1'; \<dots>; Q\<^sub>n\<^sub>q\<^sub>n'; PA\<^sub>1 term\<^sub>n; \<dots>; PA\<^sub>m term\<^sub>n\<rbrakk> \<Longrightarrow> PC term\<^sub>n\<close>}
-where \<open>Q\<^sub>i\<^sub>j'\<close> is \<open>Q\<^sub>i\<^sub>j\<close> with added assumptions as described above.
-If some of the \<open>y\<^sub>i\<^sub>j\<close> collide with some of the \<open>x\<^sub>i\<close> they are consistently renamed.
+\<And> y\<^sub>n\<^sub>1 \<dots> y\<^sub>n\<^sub>p\<^sub>n. \<lbrakk>Q\<^sub>n\<^sub>1'; \<dots>; Q\<^sub>n\<^sub>q\<^sub>n'; PA\<^sub>1 term\<^sub>n; \<dots>; PA\<^sub>m term\<^sub>n\<rbrakk> \<Longrightarrow> PC term\<^sub>n\<close>}
+where \<open>Q\<^sub>i\<^sub>j'\<close> is \<open>Q\<^sub>i\<^sub>j\<close> with assumptions added as described above.
+
+Moreover, the \<open>induction\<close> method (and also the \<open>induct\<close> method) arranges the named contexts in a
+way that the assumptions \<open>PA\<^sub>1 term\<^sub>n; \<dots>; PA\<^sub>m term\<^sub>n\<close> which originate from the goal are named by
+\<open>"cname.prems"\<close> and can thus be referenced separate from the \<open>Q\<^sub>i\<^sub>j'\<close> which are named \<open>"cname.hyps"\<close>
+and possibly \<open>"cname.IH"\<close> as described above.
 
 In the example above the \<open>induction\<close> method additionally unifies \<open>?P n\<close> with the assumption \<open>4 < n\<close>
 which yields the abstracted function \<open>PA \<equiv> (\<lambda>i. 4<i)\<close> and produces the goals
@@ -3064,31 +3084,82 @@ which yields the abstracted function \<open>PA \<equiv> (\<lambda>i. 4<i)\<close
 \<open>4 < 0 \<Longrightarrow> 5 \<le> 0
 \<And>y. \<lbrakk>4 < y \<Longrightarrow> 5 \<le> y; 4 < (y+1)\<rbrakk> \<Longrightarrow> 5 \<le> (y+1)\<close>}
 Here \<open>4 < (y+1)\<close> results from applying \<open>PA\<close> to \<open>(y+1)\<close> and \<open>4 < y\<close> results from adding \<open>PA\<close> applied
-to \<open>y\<close> as assumption to the assumption \<open>?P y\<close> from the rule. 
+to \<open>y\<close> as assumption to the assumption \<open>?P y\<close> from the rule. If the default case name \<open>2\<close> is used
+for the second case, the case assumption \<open>4 < y \<Longrightarrow> 5 \<le> y\<close> will be named \<open>"2.IH"\<close> and the case 
+assumption \<open>4 < (y+1)\<close> will be named \<open>"2.prems"\<close> by the \<^theory_text>\<open>case\<close> command.
+
+The \<open>induction\<close> method can only process assumptions \<open>A\<^sub>1, \<dots>, A\<^sub>m\<close> in the described way, if they are
+part of the goal to which the \<open>induction\<close> method is applied. If the assumptions are only present as
+assumed facts in the proof context, they cannot be processed by the method. In particular, if a 
+theorem is specified in the form (see Section~\ref{basic-theory-theorem})
+@{theory_text[display]
+\<open>theorem 
+  assumes "A\<^sub>1" \<dots> "A\<^sub>n"
+  shows "C"
+  \<proof>\<close>}
+the initial goal in \<open>\<proof>\<close> is only \<open>C\<close> and does not contain the assumptions \<open>A\<^sub>1, \<dots>, A\<^sub>m\<close>.
+
+In such situations, to apply the \<open>induction\<close> method, the required assumptions must first be inserted
+into the goal. This can be done by using fact input (see Section~\ref{basic-proof-this}), since the
+\<open>induction\<close> method inserts input facts as assumptions before splitting the goal.
+
+Thus, in the form
+@{theory_text[display]
+\<open>theorem 
+  assumes "A\<^sub>1" \<dots> "A\<^sub>n"
+  shows "C"
+using assms
+proof (induction \<dots>) \<dots> qed\<close>}
+induction can be applied in the same way as if the theorem had been specified as 
+@{theory_text[display]
+\<open>theorem "\<lbrakk>A\<^sub>1; \<dots>; A\<^sub>n\<rbrakk> \<Longrightarrow> C"\<close>}
+because the assumptions \<open>A\<^sub>1, \<dots>, A\<^sub>m\<close> together are automatically named \<open>assms\<close> (see 
+Section~\ref{basic-proof-assume}). Alternatively, explicit names could be specified for single
+assumptions to insert only some of them into the goal.
+
+If induction is applied in a subproof, additional assumptions can also be passed to it by fact 
+chaining (see Section~\ref{basic-proof-chain}). 
 \<close>
 
-subsubsection "The \<^theory_text>\<open>induct\<close> Method"
+subsubsection "Arbitrary Variables"
 
 text\<open>
 **todo**
+If some of the \<open>y\<^sub>i\<^sub>j\<close> collide with some of the \<open>x\<^sub>i\<close> they are consistently renamed.
 \<close>
 
+(*
 lemma myInduct: "\<lbrakk>P 0; \<And>y. P y \<Longrightarrow> P (y+1)\<rbrakk> \<Longrightarrow> P a" for a::nat
   by (metis add.commute add_cancel_left_left discrete infinite_descent0 le_iff_add less_add_same_cancel2 less_numeral_extra(1))
 
 lemma "4 < n \<Longrightarrow> 5 \<le> n" for n::nat
-  apply(induct "n" rule: myInduct)
+  apply(induction "n" rule: myInduct)
   apply(rule myInduct[where a=n]) 
   oops
 
+lemma myInduct2: "\<lbrakk>P 0; P 1; \<And>y. \<lbrakk>P y; y \<ge> 1\<rbrakk> \<Longrightarrow> P (y+1)\<rbrakk> \<Longrightarrow> P a" for a::nat
+  by (metis One_nat_def Suc_eq_plus1 le_simps(3) myInduct neq0_conv)
+
 lemma "0\<le>n" for n::nat
-proof (induction n rule:myInduct)
+proof (induction n rule:myInduct2)
   case 1
   then show ?case sorry
 next
-  case (2 y)
+  case (3 y)
   then show ?case sorry
 qed
+
+
+lemma "4 < n \<Longrightarrow> 5 \<le> n" for n::nat
+proof (induction "n" rule: myInduct2)
+  case start: 1
+  then show ?case sorry
+next
+  case step: (2 y)
+  then show ?case sorry
+qed
+
+
 inductive ev :: "nat \<Rightarrow> bool" where
 ev0:
  "ev 0" |
@@ -3104,6 +3175,13 @@ thm nat.induct int_of_nat_induct
 lemma "ev m \<Longrightarrow> evn m"
 apply(induction m rule: ev.induct )
   by(simp_all)
+
+lemma 
+  assumes "ev m"
+  shows "evn m"
+  using assms
+proof (induction m rule: ev.induct )
+qed simp_all
 
 lemma "evn n \<Longrightarrow> ev n"
   apply(rule evn.induct ) sorry

@@ -55,7 +55,9 @@ traverseLocalDecl decl@(CDecl declspecs declrs node) action foldfun
             else localVarDecl vardeclInfo init_opt
         return res
 
--- copied from Language.C.Analysis.AstAnalysis
+-- All following functions have been copied from Language.C.Analysis.AstAnalysis
+------------------------
+
 hasTypeDef :: [CDeclSpec] -> Maybe [CDeclSpec]
 hasTypeDef declspecs =
     case foldr hasTypeDefSpec (False,[]) declspecs of
@@ -65,7 +67,6 @@ hasTypeDef declspecs =
     hasTypeDefSpec (CStorageSpec (CTypedef _)) (_,specs) = (True, specs)
     hasTypeDefSpec spec (b,specs) = (b,spec:specs)
 
--- copied from Language.C.Analysis.AstAnalysis
 analyseTypeDef :: (MonadTrav m) => Bool -> [CDeclSpec] -> CDeclr -> NodeInfo -> m ()
 analyseTypeDef handle_sue_def declspecs declr node_info = do
     -- analyse the declarator
@@ -80,7 +81,6 @@ analyseTypeDef handle_sue_def declspecs declr node_info = do
     checkValidTypeDef _ NoStorageSpec _ = return ()
     checkValidTypeDef _ bad_storage _ = astError node_info $ "storage specified for typeDef: " ++ show bad_storage
 
--- copied from Language.C.Analysis.AstAnalysis
 localVarDecl :: (MonadTrav m) => VarDeclInfo -> Maybe Initializer -> m ()
 localVarDecl (VarDeclInfo var_name fun_attrs storage_spec attrs typ node_info) init_opt =
     do when (isNoName var_name) $ astError node_info "NoName in localVarDecl"
@@ -103,4 +103,3 @@ localVarDecl (VarDeclInfo var_name fun_attrs storage_spec attrs typ node_info) i
           do old_decl <- lookupObject ident
              return (maybe (Static ExternalLinkage thread_local) declStorage old_decl,False)
     localStorage _ = astError node_info "bad storage specifier for local"
-

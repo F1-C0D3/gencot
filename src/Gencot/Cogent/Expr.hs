@@ -1,6 +1,9 @@
 {-# LANGUAGE PackageImports #-}
 module Gencot.Cogent.Expr where
 
+import Data.List (union,nub,(\\))
+import Data.Maybe (catMaybes)
+
 import Cogent.Surface as CS
 import Cogent.Common.Syntax as CCS
 
@@ -12,6 +15,9 @@ import Gencot.Cogent.Types (
 
 -- Variable name together with its type
 type TypedVar = (CCS.VarName,GenType)
+
+-- | A synonym for marking the case where a typed variable may also be ("_",unitType)
+type TypedVarOrWild = TypedVar
 
 -- Function name together with its type
 type TypedFun = (CCS.FunName,GenType)
@@ -88,8 +94,8 @@ mkDisjExpr (e : es) = mkBoolOpExpr "||" [e,mkDisjExpr es]
 
 -- replace e1 in (e1,...,en) or e1
 replaceLeadExpr :: GenExpr -> GenExpr -> GenExpr
-replaceLeadExpr e (GenExpr (CS.Tuple es) o (CS.TTuple ts) src) = 
-    GenExpr (CS.Tuple (e : tail es)) o (CS.TTuple ((typOfGE e) : tail ts)) src
+replaceLeadExpr e (GenExpr (CS.Tuple es) o (GenType (CS.TTuple ts) ot) src) =
+    GenExpr (CS.Tuple (e : tail es)) o (GenType (CS.TTuple ((typOfGE e) : tail ts)) ot) src
 replaceLeadExpr e _ = e
 
 -- construct f(e)
@@ -119,42 +125,18 @@ mkIfExpr :: GenExpr -> GenExpr -> GenExpr -> GenExpr
 mkIfExpr e0 e1 e2 = genExpr (typOfGE e1) $ CS.If e0 [] e1 e2
 
 -- construct e | C1 v11 .. v1n1 -> e1 | ... | Ck vk1 .. vknk -> ek
-mkMatchExpr :: GenExpr -> [(CCS.TagName,[TypedVar],GenExpr)] -> GenExpr
+mkMatchExpr :: GenExpr -> [(CCS.TagName,[GenIrrefPatn],GenExpr)] -> GenExpr
 mkMatchExpr e as = genExpr (getTyp $ head as) $ CS.Match e [] $ map mkAlt as
-    where mkAlt (tag,vars,ae) = CS.Alt (GenPatn (CS.PCon tag $ map mkVarPattern vars) (typOfGE e) noOrigin) CCS.Regular ae
+    where mkAlt (tag,varpats,ae) = CS.Alt (GenPatn (CS.PCon tag varpats) noOrigin (typOfGE e)) CCS.Regular ae
           getTyp (_,_,ae) = typOfGE ae
 
 -- construct #{f1 = e1, ... ,fn = en}
 mkRecordExpr :: [(CCS.FieldName,GenExpr)] -> GenExpr
-mkRecordExpr flds = genExpr (mkRecordType (map (\(f,e) -> (f,typOfGE e)) flds) $ CS.UnboxedRecord flds
+mkRecordExpr flds = genExpr (mkRecordType (map (\(f,e) -> (f,typOfGE e)) flds)) $ CS.UnboxedRecord flds
 
 -- construct \p => e
 mkLambdaExpr :: GenIrrefPatn -> GenExpr -> GenExpr
 mkLambdaExpr p e = genExpr (mkFunType (typOfGIP p) (typOfGE e)) $ CS.Lam p Nothing e
-
--- construct let (_,...) = expr in e
-mkBodyExpr :: GenBnd -> GenExpr -> GenExpr
-mkBodyExpr b@(CS.Binding ip _ _ _) e = mkLetExpr [replaceLeadPatn mkWildcardPattern (typOfGIP ip) b] e
-
--- construct let ... in v<n>'
-mkPlainExpr :: BindsPair -> GenExpr
-mkPlainExpr (main,putback) = 
-    if not $ null putback
-       then toDummyExpr e $ mkDummyExpr "No putback obligations supported in plain expression."
-       else 
-       if (length vs) > 1
-          then toDummyExpr e $ mkDummyExpr "No side effects supported in plain expression."
-          else mkLetExpr (reverse main) $ mkVarExpr $ head vs
-    where (CS.Binding ip _ e _) = head main
-          vs = tupleVars ip
-
--- construct (gencotDummy msg)
-mkDummyExpr :: String -> GenExpr
-mkDummyExpr msg = mkAppExpr unitType "gencotDummy" [mkStringLitExpr msg]
-
--- turn expression to dummy, preserving origin, type, and source
-toDummyExpr :: GenExpr -> GenExpr -> GenExpr
-toDummyExpr (GenExpr e o t src) (GenExpr dummy _ _ _) = (GenExpr dummy o t src) 
 
 -- Determine free typed variables in Expressions
 ------------------------------------------------
@@ -191,10 +173,10 @@ getBoundTypedVars (GenIrrefPatn (CS.PVar v) _ t) = [(v,t)]
 getBoundTypedVars (GenIrrefPatn (CS.PTuple ips) _ _) = nub $ concat $ map getBoundTypedVars ips
 getBoundTypedVars (GenIrrefPatn (CS.PUnboxedRecord fs) _ _) = nub $ concat $ map (\(_,ip) -> getBoundTypedVars ip) (catMaybes fs)
 getBoundTypedVars (GenIrrefPatn (CS.PTake pv fs) _ t) = 
-    (pv,mkTakeType True t (map fst (catMaybes fs)) : (nub $ concat $ map (\(_,ip) -> getBoundTypedVars ip) (catMaybes fs))
+    (pv,mkTakeType True t (map fst (catMaybes fs))) : (nub $ concat $ map (\(_,ip) -> getBoundTypedVars ip) (catMaybes fs))
 getBoundTypedVars (GenIrrefPatn (CS.PArray ips) _ _) = nub $ concat $ map getBoundTypedVars ips
 getBoundTypedVars (GenIrrefPatn (CS.PArrayTake pv is) _ t) = 
-    (pv,mkArrTakeType True t (map fst is)) : (nub $ concat $ map (\(_,ip) -> getBoundTypedVars ip) is
+    (pv,mkArrTakeType True t (map fst is)) : (nub $ concat $ map (\(_,ip) -> getBoundTypedVars ip) is)
 getBoundTypedVars _ = []
 
 getFreeTypedVarsInAlt :: GenAlt -> [TypedVar]

@@ -71,28 +71,28 @@ encloseSepGen os left right sep ds
 --        _   -> align left <> (hcat (zipWith addOrig os (zipWith (<>) ds ((replicate ((length ds) - 1) sep) ++ [right]))))
 
 instance PatnType GenPatn where
-  isPVar  (GenPatn p _) = isPVar p
-  prettyP (GenPatn p _) = prettyP p
-  prettyB (GenPatn p _,mt,e) = prettyB (p,mt,e)
+  isPVar  (GenPatn p _ _) = isPVar p
+  prettyP (GenPatn p _ _) = prettyP p
+  prettyB (GenPatn p _ _,mt,e) = prettyB (p,mt,e)
 
 instance Pretty GenPatn where
-    pretty (GenPatn p org) = addOrig org $ pretty p
+    pretty (GenPatn p org _) = addOrig org $ pretty p
 
 instance Pretty GenIrrefPatn where
-    pretty (GenIrrefPatn t org) = addOrig org $ pretty t
+    pretty (GenIrrefPatn t org _) = addOrig org $ pretty t
 
 instance PatnType GenIrrefPatn where
-  isPVar  (GenIrrefPatn p _) = isPVar p
-  prettyP (GenIrrefPatn p _) = prettyP p
-  prettyB (GenIrrefPatn p _,mt,e) = prettyB (p,mt,e)
+  isPVar  (GenIrrefPatn p _ _) = isPVar p
+  prettyP (GenIrrefPatn p _ _) = prettyP p
+  prettyB (GenIrrefPatn p _ _,mt,e) = prettyB (p,mt,e)
 
 instance Prec GenExpr where
-  prec (GenExpr e _ _) = prec e
+  prec (GenExpr e _ _ _) = prec e
 
 instance ExprType GenExpr where
-  isVar (GenExpr e _ _) = isVar e
+  isVar (GenExpr e _ _ _) = isVar e
 
 instance Pretty GenExpr where
-  pretty (GenExpr e org Nothing) = addOrig org $ pretty e
-  pretty (GenExpr e org (Just s)) = addOrig org ((pretty e) <$> ((string . (TPM.pretty 2000) . pprCommented) s))
+  pretty (GenExpr e org _ Nothing) = addOrig org $ pretty e
+  pretty (GenExpr e org _ (Just s)) = addOrig org ((pretty e) <$> ((string . (TPM.pretty 2000) . pprCommented) s))
 

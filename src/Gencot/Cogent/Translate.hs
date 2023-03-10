@@ -33,10 +33,11 @@ import Gencot.Items.Types (
   getGlobalStateProperty, makeGlobalStateParams, getTagItemAssoc, getIndividualItemAssoc, getTypedefItemAssoc, adjustItemAssocType, 
   getMemberSubItemAssoc, getRefSubItemAssoc, getResultSubItemAssoc, getElemSubItemAssoc, getParamSubItemAssoc, 
   getItemAssocType, getMemberItemAssocTypes, getSubItemAssocTypes, numberList, getAddResultProperties)
-import Gencot.Items.Identifier (getObjFuncName, getParamName, isToplevelObjectId, isParameterId)
+import Gencot.Items.Identifier (getParamName, localItemId, isToplevelObjectId, isParameterId)
 import Gencot.Cogent.Ast
 import Gencot.Cogent.Bindings (
-  BindsPair, valVar, leadVar, lvalVar, resVar, 
+  BindsPair, valVar, leadVar, lvalVar, resVar,
+  mkBodyExpr, mkPlainExpr,
   mkEmptyBindsPair, mkDummyBindsPair, mkUnitBindsPair, mkDefaultBindsPair, mkIntLitBindsPair, mkCharLitBindsPair, mkStringLitBindsPair,
   mkValVarBindsPair, mkMemBindsPair, mkIdxBindsPair, mkOpBindsPair, mkAppBindsPair, mkAssBindsPair, mkIfBindsPair, concatBindsPairs, 
   processMFpropForBindsPairs,
@@ -44,22 +45,23 @@ import Gencot.Cogent.Bindings (
   mkDummyBinding, mkNullBinding, mkExpBinding, mkRetBinding, mkBreakBinding, mkContBinding, 
   mkIfBinding, mkSwitchBinding, mkCaseBinding, mkSeqBinding, mkDecBinding, mkForBinding,
   processMFpropForPatterns)
-import Gencot.Cogent.Expr (mkUnitExpr, mkVarExpr, mkBodyExpr, mkPlainExpr)
+import Gencot.Cogent.Expr (TypedVar, mkUnitExpr, mkVarExpr)
 import Gencot.Cogent.Postproc (postproc)
 import qualified Gencot.C.Ast as LQ (Stm(Exp,Block), Exp)
 import qualified Gencot.C.Translate as C (transStat, transExpr, transArrSizeExpr, transBlockItem)
 import Gencot.Traversal (
   FTrav, markTagAsNested, isMarkedAsNested, hasProperty, stopResolvTypeName, 
-  setFunDef, clrFunDef, enterItemScope, leaveItemScope, registerItemId, nextVarNum, resetVarNums,
+  getFunDef, setFunDef, clrFunDef, enterItemScope, leaveItemScope, registerItemId, nextVarNum, resetVarNums,
   getValCounter, getCmpCounter, resetVarCounters, resetValCounter, getTConf)
 import Gencot.Util.Types (
   carriedTypes, isExtern, isCompOrFunc, isCompPointer, isNamedFunPointer, isFunPointer, isPointer, isAggregate, isFunction, 
   isTypeDefRef, isComplete, isArray, isVoid, isTagRef, containsTypedefs, resolveTypedef, isComposite, 
   isLinearType, isLinearParType, isReadOnlyType, isReadOnlyParType, isDerivedType, isExternTypeDef, wrapFunAsPointer, getTagDef)
 import Gencot.Util.Expr (checkForTrans, getFreeInCExpr, getFreeInCStat)
+import Gencot.Util.Decl (localVarDecl)
 
 genType t = GenType t noOrigin
-genExpr e = GenExpr e noOrigin Nothing
+{- genExpr e = GenExpr e noOrigin Nothing -}
 
 -- | Translate a sequence of C "external" (global) declarations to a sequence of Cogent toplevel definitions.
 transGlobals :: [LCA.DeclEvent] -> FTrav [GenToplv]
@@ -320,6 +322,7 @@ genDerivedTypeDefs nam iat@(iid,pt@(LCA.PtrType _ _ _)) = do
           getName (GenType (CS.TCon nam _ _) _) = nam
 genDerivedTypeDefs _ _ = return []
 
+{-
 -- | Extend a result expression according to the properties.
 -- The Add-Result and Global-State properties of the function parameters 
 -- and the Heap-Use property of the function are processed.
@@ -330,6 +333,7 @@ extendExpr iat e pars = do
     return $ mkGenExpr $ addres (map (genExpr . CS.Var) pns) e
     where addres res (GenExpr CS.Unitel _ _) = res
           addres res e = e : res
+-}
 
 aggBitfields :: [LCA.MemberDecl] -> [LCA.MemberDecl]
 aggBitfields ms = foldl accu [] ms
@@ -803,9 +807,9 @@ arraySizeType _ = genType $ CS.TCon "U32" [] markBox
 {- --------------------------- -}
 
 -- | Retrieve the C type of a C expression.
--- This function is only used for CConst, CUnary, CBinary, CVar expressions.
 -- The StmtCtx is only used for CStatExpr which are not processed by Gencot, therefore we always use LoopCtx as a dummy.
--- The ExprSide for CConst, CUnary, CBinary must be RValue, for CVar it is ignored.
+-- If the ExprSide is LValue, tExpr checks whether the expression is admissible as lvalue,
+-- Therefore we always use RValue so that all expressions are accepted.
 exprType :: LC.CExpr -> FTrav LCA.Type
 exprType e = LCA.tExpr LoopCtx RValue e
 
@@ -815,8 +819,8 @@ transBody fiat s pars = do
     tconf <- getTConf
     b <- bindStat s
     riat <- getResultSubItemAssoc fiat
-    let r = if isVoid $ snd riat then mkUnitExpr else mkVarExpr resVar
-    e <- extendExpr fiat r pars
+    let r = if isVoid $ snd riat then mkUnitExpr else mkVarExpr (resVar,unitType) -- resVar
+    e <- mkUnitExpr {-extendExpr fiat r pars-}
     return $ cleanSrc $ postproc tconf $ mkBodyExpr b e
 
 transExpr :: LC.CExpr -> FTrav GenExpr
@@ -964,19 +968,27 @@ bindBlockItems ((LC.CBlockDecl d) : bis) =
 type DeclElem = (Maybe LC.CDeclr, Maybe LC.CInit, Maybe LC.CExpr)
 type ProcDeclSpecs = ([LC.CStorageSpec], [LC.CAttr], [LC.CTypeQual], LCA.TypeSpecAnalysis, [LC.CFunSpec])
 
-processDeclSpecs :: [LC.CDeclSpec] -> FTrav ProcDeclSpecs
-processDeclSpecs specs = do
-    let (sspecs, attrs, tquals, tspecs, fspecs, _) = LCA.partitionDeclSpecs specs
-    ctspecs <- LCA.canonicalTypeSpec tspecs
-    return (sspecs, attrs, tquals, ctspecs, fspecs)
-    
 -- | Processing a declaration together with the following block content.
 bindDecl :: LC.CDecl -> [LC.CBlockItem] -> FTrav GenBnd
 bindDecl dc@(LC.CDecl specs dcs _) bis = do
+    -- Here it would be easiest to use LCA.analyseDecl and then process the declarators.
+    -- However, that would insert the defined identifiers of all declarators into the symbol table.
+    -- When processing a declarator afterwards it could happen that an identifier used in an initializer
+    -- is looked up in the wrong scope.
+    -- Therefore the function bindDeclrs re-implements the content of LCA.analyseDecl for every declarator.
     pspecs <- processDeclSpecs specs
-    bindDeclrs pspecs dcs bis
+    bnd <- bindDeclrs pspecs dcs bis
+    insertBlockItemsSrc ((LC.CBlockDecl dc) : bis) bnd
 bindDecl sa@(LC.CStaticAssert _ _ _) bis = 
     insertBlockItemsSrc ((LC.CBlockDecl sa) : bis) $ mkDummyBinding "Static assertions not supported"
+
+-- | Process declaration specifiers.
+-- Content copied from LCA.analyseDecl.
+processDeclSpecs :: [LC.CDeclSpec] -> FTrav ProcDeclSpecs
+processDeclSpecs specs = do
+    let (sspecs, attrs, tquals, tspecs, fspecs, _) = LCS.partitionDeclSpecs specs
+    ctspecs <- LCA.canonicalTypeSpec tspecs
+    return (sspecs, attrs, tquals, ctspecs, fspecs)
 
 -- | Standalone processing of a declaration in a for loop
 -- The main difference is the handling of the source.
@@ -992,8 +1004,10 @@ bindDeclrs _ [] bis = bindBlockItems bis
 bindDeclrs pspecs (dc : dcs) bis = do
     (v,bp) <- bindDeclr pspecs dc
     bs <- bindDeclrs pspecs dcs bis
-    insertBlockItemsSrc ((LC.CBlockDecl d) : bis) $ mkDecBinding v bp bs
+    return mkDecBinding v bp bs
 
+-- | Process a single declarator.
+-- The content copies the relevant steps from LCA.analyseDecl.
 bindDeclr :: ProcDeclSpecs -> DeclElem -> FTrav (TypedVar,BindsPair)
 bindDeclr (ss,a,tq,tsa,fs) (Just declr@(LC.CDeclr (Just nam) _ _ _ _),mi,me) = do
     v <- transObjName nam
@@ -1009,11 +1023,13 @@ bindDeclr (ss,a,tq,tsa,fs) (Just declr@(LC.CDeclr (Just nam) _ _ _ _),mi,me) = d
 
     t <- transType True (vid,typ)
 
-    _ <- maybe (return Nothing) (liftM Just . tInit typ) mi
+    -- LCA.tInit only checks the initializer, it is not needed here.
+
     bp <- bindInit mi t
 
     -- this inserts the new variable into the symbol table, hence it must be done after processing mi by bindInit
-    LCA.localVarDecl vardeclInfo mi
+    -- it does the same as function localVarDecl in module LCA, but that is not exported, hence it has been copied in Gencot.Util.Decl.
+    localVarDecl vardeclInfo mi
     
     registerItemId s vid
     return ((v,t),bp)
@@ -1193,12 +1209,11 @@ data ParamDesc = ParamDesc {
     propOfParamDesc :: [String]}
 
 -- | Description of a function: name, type, properties, parameter descriptions.
--- The type already includes the effect of ModificationFunction properties,
--- the parameter descriptions describe the C and virtual parameters in their original order.
+-- The parameter descriptions describe the C and virtual parameters in their original order.
 data FuncDesc = FuncDesc {
     nameOfFuncDesc :: CCS.FunName, 
     typeOfFuncDesc :: GenType, 
-    propOfFuncDesc :: [String], 
+    propOfFuncDesc :: [String],
     parsOfFuncDesc :: [ParamDesc]}
 
 -- | Construct a function description from the function declaration.
@@ -1241,11 +1256,11 @@ makeGlobalStateParamDesc ((iid,noro), gs) = do
     name <- mapIfUpper $ LCI.Ident (getParamName iid) 0 LCN.undefNode
     gsvar <- getGlobalStateId gs -- global var item id or ""
     if null gsvar
-       then -- global variable not available, use type synonym
+       then do -- global variable not available, use type synonym
          let typ = makeReadOnlyIf (not noro) $ genType $ CS.TCon (globStateType gs) [] $ markBox
          props <- getProperties iid
          return $ ParamDesc name typ props
-       else -- global variable found, use its type
+       else do -- global variable found, use its type
          mdec <- LCA.lookupObject $ LCI.Ident (getObjFunName gsvar) 0 LCN.undefNode
          case mdec of
               Nothing -> return $ ParamDesc "" unitType []
@@ -1434,10 +1449,12 @@ mkParType [] = genType CS.TUnit
 mkParType [gt] = gt
 mkParType gts = genType $ CS.TTuple gts 
 
+{-
 mkGenExpr :: [GenExpr] -> GenExpr
 mkGenExpr [] = genExpr CS.Unitel
 mkGenExpr [re] = re
 mkGenExpr res = genExpr $ CS.Tuple res
+-}
 
 {-
 mkRawExpr :: [RawExpr] -> RawExpr

@@ -3,7 +3,7 @@ module Gencot.Items.Types where
 
 import Control.Monad (liftM)
 import System.FilePath (takeExtension,takeFileName,takeBaseName)
-import Data.List (isPrefixOf,find,sort,sortOn,union)
+import Data.List (isPrefixOf,find,sort,sortOn,union,nub)
 import Data.Maybe (fromMaybe)
 
 import Language.C.Data.Ident as LCI
@@ -130,12 +130,14 @@ derivedItemIds _ = return $ []
 getObjectItemId :: LCI.Ident -> FTrav String
 getObjectItemId nam = do
     iid <- getItemId $ LCI.identToString nam
-    if null iid then do
-        mdec <- LCA.lookupObject nam
-        sfn <- getFileName
-        case mdec of
-             Nothing -> return ""
-             Just dec -> return $ getIndividualItemId dec sfn
+    if null iid
+       then do
+           mdec <- LCA.lookupObject nam
+           sfn <- getFileName
+           case mdec of
+                Nothing -> return ""
+                Just dec -> return $ getIndividualItemId dec sfn
+       else return iid
 
 -- | A type with an associated item identifier.
 type ItemAssocType = (String,LCA.Type)
@@ -154,7 +156,7 @@ isHeapUseItem = isItemWithProperty "hu"
 getItemProperties :: ItemAssocType -> FTrav [String]
 getItemProperties (iid,t) = do
     dii <- derivedItemIds t
-    liftM union $ mapM getProperties $ ((indivItemIds iid) ++ dii)
+    liftM (nub . concat) $ mapM getProperties $ ((indivItemIds iid) ++ dii)
     
 -- | The Add-Result property is suppressed by a Read-Only property.
 shallAddResult :: ItemAssocType -> FTrav Bool

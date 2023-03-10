@@ -1,9 +1,11 @@
 {-# LANGUAGE PackageImports #-}
 module Gencot.Cogent.Types where
 
+import Data.List (find)
+
 import Cogent.Surface as CS
 import Cogent.Common.Syntax as CCS
-import Cogent.Common.Types (readonly,bangSigil)
+import Cogent.Common.Types (readonly,bangSigil,Sigil(Unboxed),RecursiveParameter(NonRec))
 
 import Gencot.Cogent.Ast -- includes unitType
 import Gencot.Origin (noOrigin)
@@ -63,6 +65,10 @@ getMemType f (GenType (CS.TRecord _ fs s) _) =
     case find (\fld -> fst fld == f) fs of
          Nothing -> unitType
          Just (_,(t,_)) -> if readonly s then mkReadonly t else t
+
+getElmType :: GenType -> GenType
+getElmType (GenType (CS.TArray t _ s _) _) =
+    if readonly s then mkReadonly t else t
 
 getResultType :: GenType -> GenType
 getResultType (GenType (CS.TFun _ rt) _) = rt

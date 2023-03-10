@@ -2,7 +2,7 @@
 module Gencot.Traversal where
 
 import Control.Monad (liftM)
-import Data.Map (Map,findWithDefault,empty,keys,filterWithKey)
+import Data.Map as M (Map,findWithDefault,empty,keys,filterWithKey,insert,lookup)
 import Data.Functor.Identity (Identity)
 
 import Language.C.Analysis.DefTable (DefTable)
@@ -15,7 +15,7 @@ import Gencot.Names (FileNameTrav,getFileName,NamePrefixMap,lookupPrefix,MapName
 import Gencot.Items.Properties (ItemProperties)
 
 -- | The traversal state for processing C code.
--- The first component is the name of the C source file.
+-- The first component is the name of the C source file.idm
 -- The second component is the name prefix map.
 -- The third component is the set of translated nested tag definitions
 -- The fourth component is the item property map from item ids to property string lists
@@ -98,26 +98,26 @@ getItemId s = do
     return $ getId s ms
     where getId s [] = ""
           getId s (m : ms) = 
-              case lookup s m of
+              case M.lookup s m of
                    Nothing -> getId s ms
                    Just iid -> iid
 
 enterItemScope :: FTrav ()
-enterItemScope = modifyUserState (\(s,npm,ntl,spl,tds,fdf,(ms,vn),cnt,tconf) -> (s,npm,ntl,spl,tds,fdf,(empty : idm,vn),cnt,tconf))
+enterItemScope = modifyUserState (\(s,npm,ntl,spl,tds,fdf,(ms,vn),cnt,tconf) -> (s,npm,ntl,spl,tds,fdf,(empty : ms,vn),cnt,tconf))
 
 leaveItemScope :: FTrav ()
 leaveItemScope = modifyUserState (\(s,npm,ntl,spl,tds,fdf,(ms,vn),cnt,tconf) -> (s,npm,ntl,spl,tds,fdf,(tail ms,vn),cnt,tconf))
 
 registerItemId :: String -> String -> FTrav ()
-registerItemId s iid = modifyUserState (\(s,npm,ntl,spl,tds,fdf,(ms,vn),cnt,tconf) -> (s,npm,ntl,spl,tds,fdf,(insert s iid $ head ms,vn),cnt,tconf))
+registerItemId s iid = modifyUserState (\(s,npm,ntl,spl,tds,fdf,(ms,vn),cnt,tconf)
+                               -> (s,npm,ntl,spl,tds,fdf,((insert s iid $ head ms) : tail ms,vn),cnt,tconf))
 
 nextVarNum :: String -> FTrav Int
 nextVarNum s = do
     (_,_,_,_,_,_,(_,vn),_,_) <- getUserState
-    let res = 
-        case lookup s vn of
-             Nothing -> 1
-             Just v -> v+1
+    let res = case M.lookup s vn of
+                 Nothing -> 1
+                 Just v -> v+1
     modifyUserState (\(s,npm,ntl,spl,tds,fdf,(ms,vn),cnt,tconf) -> (s,npm,ntl,spl,tds,fdf,(ms,insert s res vn),cnt,tconf))
     return res
 

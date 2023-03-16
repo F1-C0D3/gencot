@@ -39,7 +39,8 @@ data GenIrrefPatn = GenIrrefPatn {
     } deriving (Eq, Ord, Show)
 data GenType = GenType { 
     typeOfGT :: TypeOfGT,
-    orgOfGT :: Origin
+    orgOfGT :: Origin,
+    typSynOfGT :: Maybe String
     } deriving (Eq, Ord, Show)
 
 -- The types Binding and Alt cannot be extended because they are used directly in Expr
@@ -60,7 +61,7 @@ mapIrpatnOfGIP :: (IrpatnOfGIP -> IrpatnOfGIP) -> GenIrrefPatn -> GenIrrefPatn
 mapIrpatnOfGIP f g = GenIrrefPatn (f $ irpatnOfGIP g) (orgOfGIP g) (typOfGIP g)
 
 mapTypeOfGT :: (TypeOfGT -> TypeOfGT) -> GenType -> GenType
-mapTypeOfGT f g = GenType (f $ typeOfGT g) $ orgOfGT g
+mapTypeOfGT f g = GenType (f $ typeOfGT g) (orgOfGT g) (typSynOfGT g)
 
 toRawType :: GenType -> RawType
 toRawType = RT . fmap toRawType . ffmap toDLExpr . fffmap toRawExpr . typeOfGT
@@ -84,7 +85,7 @@ rawToGenToplv :: TopLevel RawType RawPatn RawExpr -> GenToplv
 rawToGenToplv tl = GenToplv (fmap rawToGenE $ fffmap rawToGenT $ ffmap rawToGenP tl) noOrigin
 
 rawToGenT :: RawType -> GenType
-rawToGenT (RT t) = GenType (fmap rawToGenT $ ffmap (const ()) $ fffmap rawToGenE t) noOrigin
+rawToGenT (RT t) = GenType (fmap rawToGenT $ ffmap (const ()) $ fffmap rawToGenE t) noOrigin Nothing
 
 rawToGenP :: RawPatn -> GenPatn
 rawToGenP (RP p) = GenPatn (fmap rawToGenIP p) noOrigin unitType
@@ -100,4 +101,4 @@ rawToGenE (RE e) = GenExpr ( fffffmap rawToGenT
                            $ fmap     rawToGenE e) noOrigin unitType Nothing
 
 unitType :: GenType
-unitType = GenType TUnit noOrigin
+unitType = GenType TUnit noOrigin Nothing

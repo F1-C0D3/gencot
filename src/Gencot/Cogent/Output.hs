@@ -2,7 +2,7 @@
 {-# LANGUAGE PackageImports #-}
 module Gencot.Cogent.Output where
 
-import Cogent.Surface (TopLevel(FunDef), Expr, Pattern, IrrefutablePattern, Type(TRecord,TTuple))
+import Cogent.Surface (TopLevel(FunDef), Expr, Pattern, IrrefutablePattern, Type(TRecord,TTuple,TArray))
 import Cogent.Common.Syntax (VarName)
 import Cogent.Common.Types (Sigil(Unboxed),readonly)
 import Cogent.PrettyPrint
@@ -11,6 +11,7 @@ import Prelude hiding ((<$>))
 import Text.PrettyPrint.ANSI.Leijen
 
 import Gencot.Origin (Origin(..),fstLine,lstLine)
+import Gencot.Names (mapPtrDeriv, ptrDerivCompName, isArrDeriv, arrDerivCompNam)
 import Gencot.Cogent.Ast
 import Gencot.C.Output (pprCommented)
 
@@ -41,15 +42,24 @@ showCogent :: Pretty a => a -> String
 showCogent cog = (displayS $ renderCompact $ pretty cog) ""
 
 instance Pretty GenType where
-    pretty (GenType tr@(TRecord rp ts s) org) = addOrig org $ prettyGenRT tr 
-    pretty (GenType tt@(TTuple ts) org) = addOrig org $ prettyGenRT tt
-    pretty (GenType t org) = addOrig org $ pretty t
+    -- array type synonym of form CArr<size> with element type as argument
+    pretty (GenType (TRecord _ [(arrx,((GenType (TArray et _ _ _) _ _),_))] _) org (Just syn))
+        | isArrDeriv syn && arrDerivCompNam syn == arrx = addOrig org $ typename syn <+> hsep (map prettyT' [et])
+    -- pointer type synonym CPtr with referenced type as argument
+    pretty (GenType (TRecord _ [(ptrDerivCompName,(rt,_))] _) org (Just mapPtrDeriv))
+        = addOrig org $ typename mapPtrDeriv <+> hsep (map prettyT' [rt])
+    -- all other type synonyms resulting from typedef names. Without type arguments.
+    pretty (GenType _ org (Just syn)) = addOrig org $ typename syn
+    -- types without synonyms
+    pretty (GenType tr@(TRecord rp ts s) org Nothing) = addOrig org $ prettyGenRT tr
+    pretty (GenType tt@(TTuple ts) org Nothing) = addOrig org $ prettyGenRT tt
+    pretty (GenType t org Nothing) = addOrig org $ pretty t
 
 instance TypeType GenType where
-  isCon     (GenType t _) = isCon     t
-  isTakePut (GenType t _) = isTakePut t
-  isFun     (GenType t _) = isFun     t
-  isAtomic  (GenType t _) = isAtomic  t
+  isCon     (GenType t _ _) = isCon     t
+  isTakePut (GenType t _ _) = isTakePut t
+  isFun     (GenType t _ _) = isFun     t
+  isAtomic  (GenType t _ _) = isAtomic  t
 
 prettyGenRT :: (Type GenExpr () GenType) -> Doc
 prettyGenRT (TRecord rp ts s) = 

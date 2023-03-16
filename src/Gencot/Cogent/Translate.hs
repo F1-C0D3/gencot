@@ -2,9 +2,9 @@
 module Gencot.Cogent.Translate where
 
 import Control.Monad (liftM,filterM,when)
-import Data.List as L (nub,isPrefixOf,isInfixOf,intercalate,unlines,sortOn,sort,intersect,union)
+import Data.List as L (isPrefixOf,isInfixOf,intercalate,unlines,sortOn,sort,find)
 import Data.Map as M (Map,singleton,unions,toList,union)
-import Data.Maybe (catMaybes,fromJust)
+import Data.Maybe (catMaybes,fromJust,fromMaybe)
 
 import Data.Char (ord)
 
@@ -23,34 +23,42 @@ import Cogent.Common.Types as CCT
 
 import Gencot.Origin (Origin, noOrigin, origin, mkOrigin, noComOrigin, mkBegOrigin, mkEndOrigin, prepOrigin, appdOrigin, isNested, toNoComOrigin)
 import Gencot.Names (
-  transTagName, transObjName, mapIfUpper, mapNameToUpper, mapNameToLower, mapPtrDeriv, mapPtrVoid, mapMayNull, mapArrDeriv, mapFunDeriv, 
+  transTagName, transObjName, transDeclName, mapIfUpper, mapNameToUpper, mapNameToLower, mapPtrDeriv, mapPtrVoid, mapMayNull, mapArrDeriv, mapFunDeriv,
   arrDerivHasSize, arrDerivCompNam, arrDerivToUbox, mapUboxStep, rmUboxStep, mapMayNullStep, rmMayNullStepThroughRo, addMayNullStep, 
   mapPtrStep, mapFunStep, mapIncFunStep, mapArrStep, mapModStep, mapRoStep, mapNamFunStep,
   getFileName, globStateType, isNoFunctionName, heapType, heapParamName, variadicParamName)
 import Gencot.Items.Types (
-  ItemAssocType, isNotNullItem, isReadOnlyItem, isNoStringItem, isHeapUseItem, getItemProperties,
-  getIndividualItemId, getObjectItemId, getParamSubItemId,
-  getGlobalStateProperty, makeGlobalStateParams, getTagItemAssoc, getIndividualItemAssoc, getTypedefItemAssoc, adjustItemAssocType, 
+  ItemAssocType, isNotNullItem, isReadOnlyItem, isNoStringItem, isHeapUseItem, isConstValItem, getItemProperties,
+  getIndividualItemId, getObjectItemId, getParamSubItemId, getGlobalStateSubItemIds, getGlobalStateId,
+  getGlobalStateProperty, getTagItemAssoc, getIndividualItemAssoc, getTypedefItemAssoc, adjustItemAssocType,
   getMemberSubItemAssoc, getRefSubItemAssoc, getResultSubItemAssoc, getElemSubItemAssoc, getParamSubItemAssoc, 
   getItemAssocType, getMemberItemAssocTypes, getSubItemAssocTypes, numberList, getAddResultProperties)
-import Gencot.Items.Identifier (getParamName, localItemId, isToplevelObjectId, isParameterId)
+import Gencot.Items.Identifier (
+  localItemId, memberSubItemId, elemSubItemId, refSubItemId, resultSubItemId,
+  getParamName, getObjFunName, isToplevelObjectId, isParameterId)
 import Gencot.Cogent.Ast
 import Gencot.Cogent.Bindings (
   BindsPair, valVar, leadVar, lvalVar, resVar,
   mkBodyExpr, mkPlainExpr,
   mkEmptyBindsPair, mkDummyBindsPair, mkUnitBindsPair, mkDefaultBindsPair, mkIntLitBindsPair, mkCharLitBindsPair, mkStringLitBindsPair,
-  mkValVarBindsPair, mkMemBindsPair, mkIdxBindsPair, mkOpBindsPair, mkAppBindsPair, mkAssBindsPair, mkIfBindsPair, concatBindsPairs, 
+  mkValVarBindsPair, mkMemBindsPair, mkIdxBindsPair, mkOpBindsPair, mkConstAppBindsPair, mkAppBindsPair, mkAssBindsPair,
+  mkIfBindsPair, mkTupleBindsPair, mkDerefBindsPair, mkFunDerefBindsPair, concatBindsPairs,
   processMFpropForBindsPairs,
   replaceBoundVarType,
   mkDummyBinding, mkNullBinding, mkExpBinding, mkRetBinding, mkBreakBinding, mkContBinding, 
   mkIfBinding, mkSwitchBinding, mkCaseBinding, mkSeqBinding, mkDecBinding, mkForBinding,
+  mkTuplePattern, mkVarPattern, mkVarTuplePattern,
+  mkAlt,
   processMFpropForPatterns)
-import Gencot.Cogent.Expr (TypedVar, mkUnitExpr, mkVarExpr)
+import Gencot.Cogent.Expr (TypedVar(TV), typOfTV, mkUnitExpr, mkVarExpr, mkExpVarTupleExpr)
+import Gencot.Cogent.Types (
+  genType, mkConstrType, mkTypeName, mkU32Type, mkBoolType, mkTupleType, mkFunType, mkArrayType, mkRecordType,
+  addTypeSyn, mkReadonly, mkUnboxed, isUnboxed, mkMayNull, getBoxType, getNnlType, getResultType)
 import Gencot.Cogent.Postproc (postproc)
 import qualified Gencot.C.Ast as LQ (Stm(Exp,Block), Exp)
 import qualified Gencot.C.Translate as C (transStat, transExpr, transArrSizeExpr, transBlockItem)
 import Gencot.Traversal (
-  FTrav, markTagAsNested, isMarkedAsNested, hasProperty, stopResolvTypeName, 
+  FTrav, markTagAsNested, isMarkedAsNested, hasProperty, getProperties, stopResolvTypeName,
   getFunDef, setFunDef, clrFunDef, enterItemScope, leaveItemScope, registerItemId, nextVarNum, resetVarNums,
   getValCounter, getCmpCounter, resetVarCounters, resetValCounter, getTConf)
 import Gencot.Util.Types (
@@ -60,7 +68,6 @@ import Gencot.Util.Types (
 import Gencot.Util.Expr (checkForTrans, getFreeInCExpr, getFreeInCStat)
 import Gencot.Util.Decl (localVarDecl)
 
-genType t = GenType t noOrigin
 {- genExpr e = GenExpr e noOrigin Nothing -}
 
 -- | Translate a sequence of C "external" (global) declarations to a sequence of Cogent toplevel definitions.
@@ -85,7 +92,7 @@ transGlobal (LCA.TagEvent def@(LCA.CompDef (LCA.CompType sueref LCA.StructTag me
            let iat = getTagItemAssoc def sfn
            ms <- mapM (transMember iat) aggmems
            nts <- liftM concat $ mapM (transMemTagIfNested iat) aggmems
-           return $ wrapOrigin n ([GenToplv (CS.TypeDec tn [] $ genType $ CS.TRecord CCT.NonRec ms markBox) noOrigin] ++ nts)
+           return $ wrapOrigin n ([GenToplv (CS.TypeDec tn [] $ mkRecordType ms) noOrigin] ++ nts)
     where typnam = LCA.TyComp $ LCA.CompTypeRef sueref LCA.StructTag n
           aggmems = aggBitfields mems
 -- If not yet translated as nested, translate a C union definition of the form
@@ -111,7 +118,7 @@ transGlobal (LCA.TagEvent (LCA.EnumDef (LCA.EnumType sueref es _ n))) = do
        then return []
        else do
            tn <- transTagName $ LCA.TyEnum $ LCA.EnumTypeRef sueref n
-           return $ [GenToplv (CS.TypeDec tn [] $ genType $ CS.TCon "U32" [] markUnbox) $ mkOrigin n]
+           return $ [GenToplv (CS.TypeDec tn [] mkU32Type) $ mkOrigin n]
 -- Translate an object or complete function declaration of the form
 -- > typ name;
 -- (where typ may be a derived type syntactically integrated in the name)
@@ -120,18 +127,17 @@ transGlobal (LCA.TagEvent (LCA.EnumDef (LCA.EnumType sueref es _ n))) = do
 -- If the C object is not a function, the Cogent function is a parameterless
 -- access function of type () -> typ
 transGlobal de@(LCA.DeclEvent decl@(LCA.Declaration (LCA.Decl _ n))) | isComplete dtyp = do
-    f <- transObjName idnam 
+    f <- transDeclName decl
     sfn <- getFileName
     let iat = getIndividualItemAssoc decl sfn
-    t <- transType False iat
+    t <- transType iat
 -- from nesttags:
 --    nt <- transTagIfNested dtyp n
-    let typ = if isFunction dtyp then t else mkFunType t
+    let typ = if isFunction dtyp then t else mkConstFunType t
     if isFunction dtyp -- suppress generation of access function
        then return $ wrapOrigin n ({-nt ++ -}[GenToplv (CS.AbsDec f (CS.PT [] [] typ)) noOrigin])
        else return $ []
-    where idnam = LCA.declIdent decl
-          dtyp = LCA.declType decl
+    where dtyp = LCA.declType decl
 -- Translate a C function definition of the form
 -- > rt name(parlist) { stmt }
 -- to a Cogent function definition of the form
@@ -140,26 +146,26 @@ transGlobal de@(LCA.DeclEvent decl@(LCA.Declaration (LCA.Decl _ n))) | isComplet
 -- where @expr@ is the translation of @stmt@ and
 -- @partypes@, @rt@, and @expr@ are modified according to a parameter modification description.
 transGlobal (LCA.DeclEvent idecl@(LCA.FunctionDef (LCA.FunDef decl stat n))) = do
-    f <- transObjName $ LCA.declIdent idecl
+    f <- transDeclName idecl
     sfn <- getFileName
     let iat@(fid,_) = getIndividualItemAssoc idecl sfn
-    t <- transType False iat
+    fdes <- getFuncDesc iat
 -- from nesttags:
 --    nt <- transTagIfNested typ n -- wirkt erst wenn transTagIfNested auch derived types verarbeitet
-    ps <- transParamNames iat isVar pars
+--    ps <- transParamNames iat isVar pars
     LCA.enterFunctionScope
     LCA.defineParams LCN.undefNode decl
     enterItemScope
     registerParamIds pars 1 fid
     setFunDef idecl
-    e <- transBody iat stat pars
+    alts <- transBody fdes stat
 --    e <- extendExpr iat e pars
     clrFunDef
     resetVarNums
     leaveItemScope
     LCA.leaveFunctionScope
-    return $ wrapOrigin n ({-nt ++ -}[GenToplv (CS.FunDef f (CS.PT [] [] t) [CS.Alt ps CCS.Regular e]) noOrigin])
-    where typ@(LCA.FunctionType (LCA.FunType res pars isVar) _) = LCA.declType idecl
+    return $ wrapOrigin n ({-nt ++ -}[GenToplv (CS.FunDef f (CS.PT [] [] (typeOfFuncDesc fdes)) alts) noOrigin])
+    where typ@(LCA.FunctionType (LCA.FunType _ pars _) _) = LCA.declType idecl
 -- Translate a C object definition of the form
 -- > typ name = expr;
 -- (where typ may be a derived type syntactically integrated in the name).
@@ -170,19 +176,19 @@ transGlobal (LCA.DeclEvent idecl@(LCA.FunctionDef (LCA.FunDef decl stat n))) = d
 -- > name :: () -> typ
 -- for a parameterless access function is generated.
 transGlobal (LCA.DeclEvent odef@(LCA.ObjectDef (LCA.ObjDef _ _ n))) = do
-    f <- transObjName idnam
+    f <- transDeclName odef
     sfn <- getFileName
     let iat = getIndividualItemAssoc odef sfn
     gs <- getGlobalStateProperty $ fst iat
     tsyn <- if null gs 
                then return $ []
                else do
-                   pt <- transType False $ adjustItemAssocType iat
+                   pt <- transType $ adjustItemAssocType iat
                    return $ [GenToplv (CS.TypeDec (globStateType gs) [] $ rmMayNullIf True pt) noOrigin]
-    t <- transType False iat
+    t <- transType iat
 -- from nesttags:
 --    nt <- transTagIfNested dtyp n
-    let afun = [] -- [GenToplv (CS.AbsDec f (CS.PT [] [] $ mkFunType t)) noOrigin]
+    let afun = [] -- [GenToplv (CS.AbsDec f (CS.PT [] [] $ mkConstFunType t)) noOrigin]
     return $ wrapOrigin n ({-nt ++ -} tsyn ++ afun)
     where idnam = LCA.declIdent odef
           dtyp = LCA.declType odef
@@ -195,7 +201,7 @@ transGlobal (LCA.DeclEvent odef@(LCA.ObjectDef (LCA.ObjDef _ _ n))) = do
 transGlobal (LCA.DeclEvent (LCA.EnumeratorDef (LCA.Enumerator idnam expr _ n))) = do
     e <- transExpr expr
     en <- mapNameToLower idnam
-    return $ [GenToplv (CS.ConstDef en (genType $ CS.TCon "U32" [] markUnbox) e) $ mkOrigin n]
+    return $ [GenToplv (CS.ConstDef en mkU32Type e) $ mkOrigin n]
 -- Translate a typedef of the form
 -- > typedef type-specifier declarator;
 -- where @declarator@ denotes a (derived type for an) identifier @idnam@.
@@ -205,11 +211,12 @@ transGlobal (LCA.DeclEvent (LCA.EnumeratorDef (LCA.Enumerator idnam expr _ n))) 
 -- > type idnam = type
 -- where @type@ is constructed by translating @type-specifier@ and applying all derivations from the adjusted @declarator@.
 -- A MayNull application to @type@ is removed.
--- If @type@ is an array type or translates to type String, a Bang operator is also removed.
 transGlobal (LCA.TypeDefEvent (LCA.TypeDef idnam typ _ n)) = do
-    t <- transType False modifiat
+    t <- if isArray typ
+            then transArrayType modifiat -- prevent making readonly
+            else transType modifiat
     nt <- transTagIfNested iat n
-    let dt = if isArray typ || isString t then rmReadOnly $ rmMayNullThroughBang t else rmMayNullThroughBang t
+    let dt = getNnlType t
     tn <- mapNameToUpper idnam
     return $ wrapOrigin n (nt ++ [GenToplv (CS.TypeDec tn [] dt) noOrigin])
     where iat = getTypedefItemAssoc idnam typ
@@ -279,13 +286,17 @@ genDerivedTypeNames tc = do
     iats <- (liftM concat) $ mapM getSubItemAssocTypes (iat : miats)
     let fiats = filter (\(_,t) -> (isDerivedType t) && (not $ isFunction t) && ((not $ isPointer t) || isFunPointer t)) iats
     mapM genMap fiats
-    where getName (GenType (CS.TCon nam _ _) _) = nam
-          getName (GenType (CS.TBang (GenType (CS.TCon nam _ _) _)) _) = nam
+    where getSyn (GenType _ _ (Just nam)) = nam
+          getSyn (GenType (CS.TBang t) _ _) = getSyn t
+          getSyn (GenType (CS.TUnbox t) _ _) = getSyn t
+          getSyn t = getName t
+          getName (GenType (CS.TCon nam _ _) _ _) = nam
+          getName (GenType (CS.TBang t) _ _) = getName t
+          getName (GenType (CS.TUnbox t) _ _) = getName t
           genMap :: ItemAssocType -> FTrav (Map String ItemAssocType)
           genMap iat = do
-              gt <- transType False iat
-              rgt <- transType True iat
-              return $ M.union (singleton (getName gt) iat) (singleton (getName rgt) iat)
+              gt <- transType iat
+              return $ M.union (singleton (getSyn gt) iat) (singleton (getName gt) iat)
 
 -- | Generate type definitions for a Cogent type name @nam@ used by a derived array or function pointer type.
 -- Additional argument is the original C type as an ItemAssocType.
@@ -296,30 +307,34 @@ genDerivedTypeDefs :: String -> ItemAssocType -> FTrav [GenToplv]
 -- > type CArr... el = { arr...: el#[<size>] }
 genDerivedTypeDefs nam (_,(LCA.ArrayType _ as _ _)) | arrDerivHasSize nam = do
     e <- transExpr $ getSizeExpr as
-    let atyp = genType $ CS.TArray (genType $ CS.TVar "el" False False) e markUnbox []
-    return [GenToplv (CS.TypeDec nam ["el"] $ genType $ CS.TRecord CCT.NonRec [(arrDerivCompNam nam, (atyp, False))] markBox) noOrigin]
+    return [GenToplv (CS.TypeDec nam ["el"] $ mkArrayType nam e $ genType $ CS.TVar "el" False False) noOrigin]
     where getSizeExpr (LCA.ArraySize _ e) = e -- arrDerivHasSize implies that only this case may occur for the array size as.
 -- For a derived function pointer type the name has the form @CFunPtr_enc@ or @CFunInc_enc@ where
--- @enc@ is an encoded C type. First we determine the corresponding type where all typedef names are resolved.
--- If that is different from @nam@ then @nam@ contains typedef names. In that case generate a type synonym definition
+-- @enc@ is an encoded C type. First we determine the name with all typedef names resolved.
+-- If it differs from @nam@ then @nam@ contains typedef names. In that case generate a type synonym definition
 -- > type nam = resnam
--- where resnam is the name with all typedef names resolved. Otherwise generate an abstract type definition of the form
+-- where resnam is the name in the type. Otherwise generate an abstract type definition of the form
 -- > type nam
 -- In the case of a complete function type additionally introduce a synonym for the corresponding
 -- function type of the form
 -- > type CFun_enc = <Cogent mapping of C function type>
 genDerivedTypeDefs nam iat@(iid,pt@(LCA.PtrType _ _ _)) = do
-    rslvtyp <- transType True iat
-    let isResolved = getName rslvtyp == nam
+    typ <- transType iat
+    let isResolved = getName typ == nam
     let tdef = if isResolved
                 then CS.AbsTypeDec nam [] []
-                else CS.TypeDec nam [] rslvtyp
+                else CS.TypeDec nam [] $ rmSyn typ
     sub <- getRefSubItemAssoc iat
-    typ <- transType isResolved sub
+    typ <- transType sub
     let fdef = GenToplv (CS.TypeDec fnam [] typ ) noOrigin
     return $ (GenToplv tdef noOrigin): if (mapFunDeriv True) `isPrefixOf` nam then [fdef] else []
     where fnam = "CFun" ++ (drop (length (mapFunDeriv True)) nam)
-          getName (GenType (CS.TCon nam _ _) _) = nam
+          getName (GenType (CS.TCon nam _ _) _ _) = nam
+          getName (GenType (CS.TBang t) _ _) = getName t
+          getName (GenType (CS.TUnbox t) _ _) = getName t
+          rmSyn (GenType (CS.TBang t) o _) = GenType (CS.TBang (rmSyn t)) o Nothing
+          rmSyn (GenType (CS.TUnbox t) o _) = GenType (CS.TUnbox (rmSyn t)) o Nothing
+          rmSyn (GenType t o _) = GenType t o Nothing
 genDerivedTypeDefs _ _ = return []
 
 {-
@@ -372,15 +387,18 @@ aggBitfields ms = foldl accu [] ms
 -- | Translate struct member definition to pair of Cogent record field name and type.
 -- First parameter is the ItemAssocType of the enclosing struct type.
 -- Translate member type, if array set unboxed. Map member name if it starts with uppercase.
-transMember :: ItemAssocType -> LCA.MemberDecl -> FTrav (CCS.FieldName, (GenType, CS.Taken))
+transMember :: ItemAssocType -> LCA.MemberDecl -> FTrav (CCS.FieldName, GenType)
 transMember iat mdecl@(LCA.MemberDecl (LCA.VarDecl (LCA.VarName idnam _) _ _) _ n) = do
-    t <- transType False miat
-    let ut = if isArray mtyp then setUnboxed (rmReadOnly t) else t
+    t <- if isArray mtyp
+            then transArrayType miat -- prevent making readonly
+            else transType miat
+    let ut = if isArray mtyp then getBoxType t else t
     mnam <- mapIfUpper idnam
-    return (mnam, (setOrigin n ut, False))
+    return (mnam, setOrigin n ut)
     where miat@(_,mtyp) = getMemberSubItemAssoc iat mdecl
 {- LCA.AnonBitField cannot occur since it is always replaced by aggBitfields -}
 
+{-
 -- | Translate a sequence of parameter declarations to a pattern for binding the parameter names.
 -- The first argument is the item associated type of the function.
 -- The second argument tells whether the function is variadic.
@@ -423,221 +441,234 @@ makeResParamNames fiat pars = do
     huProp <- isHeapUseItem fiat
     let hun = if huProp then [heapParamName (psn ++ psgn)] else []
     return (arpsn ++ psgn ++ hun)
+-}
 
 -- | Translate a C type specification to a Cogent type.
 -- The C type is specified as an ItemAssocType, so that its item properties can be respected.
--- The first parameter specifies whether all typedef names shall be resolved.
--- (External types are always resolved until directly used typedef names.)
-transType :: Bool -> ItemAssocType -> FTrav GenType 
+transType :: ItemAssocType -> FTrav GenType
 
 -- Type void:
 -- Translate to: ()
-transType _ (_, (LCA.DirectType LCA.TyVoid _ _)) = 
-    return $ genType CS.TUnit
+transType (_, (LCA.DirectType LCA.TyVoid _ _)) =
+    return unitType
 -- Direct type:
 -- Translate to: Name of primitive type (boxed) or composite type (unboxed).
 -- Remark: Semantically, primitive types are unboxed. 
 -- However, if marked as unboxed the Cogent prettyprinter adds a (redundant) unbox operator.
-transType _ (_, (LCA.DirectType tnam _ _)) = do
+transType (_, (LCA.DirectType tnam _ _)) = do
     tn <- transTNam tnam
-    return $ genType $ CS.TCon tn [] ub 
-    where ub = case tnam of
-                (LCA.TyComp _) -> markUnbox
-                _ -> markBox
+    let bt = mkTypeName tn
+    let t = case tnam of
+                (LCA.TyComp _) -> mkUnboxed bt
+                _ -> bt
+    return t
 -- Typedef name:
--- If resolving or external typedef where resolve does not stop, translate the referenced type.
--- Otherwise translate to mapped name. Unboxed for struct, union, or function pointer, otherwise boxed.
--- If the typedef name has the Not-Null property, omit or remove MayNull
--- otherwise move a MayNull from the resolved type to the mapped name.
--- If the typedef name has the Read-Only property make the result banged, if the defining type is not String.
-transType rslv iat@(iid, (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _)) = do
+-- If external typedef where resolve does not stop, ignore the typedef name.
+-- Translate the referenced type, using the typedef names collective item id, if not ignored.
+-- Additionally apply Not-Null and Read-Only properties of specific item id.
+-- If not ignored translate typedef name to mapped name and insert into translated type.
+transType iat@(iid, (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _)) = do
     dt <- LCA.getDefTable
     srtn <- stopResolvTypeName idnam
-    let rslvTypeName = (isExternTypeDef dt idnam) && not srtn
+    let ignoreTypeName = (isExternTypeDef dt idnam) && not srtn
+    -- translate type, use typedef name as item id if not ignored
+    let rslviat = (if not ignoreTypeName then getTypedefItemAssoc idnam typ else (iid,typ))
+    t <- transType rslviat
+    -- handle typedef name
+    ts <- if ignoreTypeName
+             then return t
+             else do
+                 tn <- mapNameToUpper idnam
+                 return $ addTypeSyn tn t
+    -- handle Not-Null and Read-Only property of specific iid
     safe <- isNotNullItem iat
     ro <- isReadOnlyItem iat
-    let rslviat = (if not rslvTypeName then getTypedefItemAssoc idnam typ else (iid,typ))
-    rslvtyp <- transType rslv rslviat
-    tn <- mapNameToUpper idnam
-    let nntyp = if rslv || rslvTypeName
-                  then rmMayNullIf safe rslvtyp
-                  else addMayNullIfNot (safe || (not $ hasMayNull rslvtyp)) $ genType $ CS.TCon tn [] ub
-    bang <- if ro then do
-        {- We need the fully resolved type to detect aliased String types -}
-                    rslvtypfull <- transType True rslviat
-                    return $ not $ isString rslvtypfull
-                  else return False
-    return (if bang then makeReadOnlyIf ro nntyp else nntyp)
-    where ub = if (isComposite typ) || (isFunPointer typ) then markUnbox else markBox
-          
+    return $ makeReadOnlyIf ro $ rmMayNullIf safe ts
 -- Pointer to void:
 -- Translate to: CVoidPtr
 -- If no Not-Null property: MayNull CVoidPtr
--- If Read-OnlyProperty: banged
-transType _ iat@(_, (LCA.PtrType t _ _)) | isVoid t = do
+-- If Read-Only property: banged
+transType iat@(_, (LCA.PtrType t _ _)) | isVoid t = do
     safe <- isNotNullItem iat
     ro <- isReadOnlyItem iat
-    return $ makeReadOnlyIf ro $ addMayNullIfNot safe $ genType $ CS.TCon mapPtrVoid [] markBox
+    return $ makeReadOnlyIf ro $ addMayNullIfNot safe $ mkTypeName mapPtrVoid
 -- Derived pointer type for function type t:
--- Encode t, apply CFunPtr or CFunInc and make unboxed.
-transType rslv iat@(_, (LCA.PtrType t _ _)) | isFunction t = do
+-- Encode t, apply CFunPtr or CFunInc, add synonym if different, and make unboxed.
+transType iat@(_, (LCA.PtrType t _ _)) | isFunction t = do
     sub <- getRefSubItemAssoc iat
-    enctyp <- encodeType rslv sub
-    return $ genType $ CS.TCon ((mapFunDeriv $ isComplete t) ++ "_" ++ enctyp) [] markUnbox
+    (et1,et2) <- encodeType sub
+    let tn = mkTypeName ((mapFunDeriv $ isComplete t) ++ "_" ++ et2)
+    let stn = if et1 == et2 then tn else addTypeSyn et1 tn
+    return $ mkUnboxed stn
 -- Derived pointer type for array type t:
 -- Translate t and use as result. Always boxed.
 -- If no Not-Null property: apply MayNull
 -- If Read-OnlyProperty: banged
-transType rslv iat@(_, (LCA.PtrType t _ _)) | isArray t = do
+transType iat@(_, (LCA.PtrType t _ _)) | isArray t = do
     safe <- isNotNullItem iat
     ro <- isReadOnlyItem iat
     sub <- getRefSubItemAssoc iat
-    typ <- transType rslv sub
+    typ <- transType sub
     return $ makeReadOnlyIf ro $ addMayNullIfNot safe typ
 -- Derived pointer type for (unsigned) char type:
 -- If Read-Only property and not No-String property: translate to primitive type String
 -- Otherwise translate to normal pointer (to U8).
-transType rslv iat@(_, pt@(LCA.PtrType (LCA.DirectType (LCA.TyIntegral it) _ _) _ _)) | it == TyChar || it == TyUChar = do
+transType iat@(_, pt@(LCA.PtrType (LCA.DirectType (LCA.TyIntegral it) _ _) _ _)) | it == TyChar || it == TyUChar = do
     ro <- isReadOnlyItem iat
     ns <- isNoStringItem iat
     if ro && (not ns)
-       then return $ genType $ CS.TCon "String" [] markBox
+       then return $ mkTypeName "String"
        else do
            safe <- isNotNullItem iat
            sub <- getRefSubItemAssoc iat
-           typ <- transType rslv sub
-           return $ makeReadOnlyIf ro $ addMayNullIfNot safe $ genType $ CS.TCon mapPtrDeriv [typ] markBox 
+           typ <- transType sub
+           return $ makeReadOnlyIf ro $ addMayNullIfNot safe $ mkConstrType mapPtrDeriv [typ]
 -- Derived pointer type for other type t:
 -- Translate t. If unboxed and no function pointer make boxed, otherwise apply CPtr. Always boxed.
 -- If no Not-Null property: apply MayNull
 -- If Read-OnlyProperty: banged
-transType rslv iat@(_, pt@(LCA.PtrType t _ _)) = do
+transType iat@(_, pt@(LCA.PtrType t _ _)) = do
     safe <- isNotNullItem iat
     ro <- isReadOnlyItem iat
     sub <- getRefSubItemAssoc iat
-    typ <- transType rslv sub
+    typ <- transType sub
     let rtyp = if (isUnboxed typ) && not (isFunPointer t) 
-                then setBoxed typ
-                else genType $ CS.TCon mapPtrDeriv [typ] markBox
+                then getBoxType typ
+                else mkConstrType mapPtrDeriv [typ]
     return $ makeReadOnlyIf ro $ addMayNullIfNot safe rtyp
 -- Complete derived function type: ret (p1,..,pn)
--- Translate to: Cogent function type (p1,..,pn) -> ret, then apply properties.
-transType rslv iat@(_, (LCA.FunctionType (LCA.FunType ret pars variadic) _)) = do
+-- Translate ret, determine parameter description including virtual parameters.
+-- Translate to: Cogent function type from parameter tuple to extended result tuple.
+transType iat@(_, (LCA.FunctionType (LCA.FunType ret pars variadic) _)) = do
     sub <- getResultSubItemAssoc iat
-    r <- transType rslv sub
-    ps <- mapM (transParamType rslv iat) $ numberList pars
-    let pt = mkParType (ps ++ if variadic then [variadicType] else [])
-    applyProperties iat $ genType $ CS.TFun pt r
+    r <- transType sub
+    pdess <- getAllParamDesc iat
+    return $ genFunType pdess r
 -- Incomplete derived function type: ret ()
 -- Signal an error.
-transType rslv iat@(iid, (LCA.FunctionType (LCA.FunTypeIncomplete ret) _)) =
+transType iat@(iid, (LCA.FunctionType (LCA.FunTypeIncomplete ret) _)) =
     error ("Cannot translate incomplete function type for " ++ iid)
 -- Derived array type for element type t:
--- Translate t, if again array type apply unbox operator, then apply generic array type. Always boxed.
--- If Read-OnlyProperty: banged
-transType rslv iat@(_, (LCA.ArrayType t as _ _)) = do
+-- Translate with transArrayType, always boxed.
+-- If Read-OnlyProperty: apply bang.
+transType iat@(_, (LCA.ArrayType t as _ _)) = do
+    res <- transArrayType iat
     ro <- isReadOnlyItem iat
+    return $ makeReadOnlyIf ro res
+
+-- | Reduced translation for array types.
+-- The interpretation of Read-Only properties is omitted.
+-- This is used when the array type shall be used in its unboxed form.
+-- Translate t, if again array type make unboxed.
+-- If array size is unknown translate to abstract type CArrXX el.
+-- Otherwise translate array size expression.
+-- Then create wrapper record around builtin array type with size expression
+-- and add generic Gencot array type as synonym.
+-- Always boxed.
+transArrayType :: ItemAssocType -> FTrav GenType
+transArrayType iat@(_, (LCA.ArrayType t as _ _)) = do
     sub <- getElemSubItemAssoc iat
-    typ <- transType rslv sub
-    return $ makeReadOnlyIf ro $ genType $ CS.TCon (mapArrDeriv as) [if isArray t then setUnboxed typ else typ] markBox 
+    typ <- if isArray t then transArrayType sub else transType sub
+    let eltyp = if isArray t then mkUnboxed typ else typ
+    siz <- case as of
+                 LCA.UnknownArraySize _ -> return mkUnitExpr
+                 LCA.ArraySize _ e -> transExpr e
+    return $ mkArrayType (mapArrDeriv as) siz eltyp
 
 -- | Encode a C type specification as a Cogent type name.
 -- The C type is specified as an ItemAssocType, so that its item properties can be respected.
--- The first parameter specifies whether typedef names shall be resolved.
-encodeType :: Bool -> ItemAssocType -> FTrav String
+-- The result is a pair of the encoding with typedef names and without typedef names.
+encodeType :: ItemAssocType -> FTrav (String,String)
 -- Type void:
 -- Encode as: Void
-encodeType _ (_, (LCA.DirectType LCA.TyVoid _ _)) = 
-    return "Void"
+encodeType (_, (LCA.DirectType LCA.TyVoid _ _)) =
+    return ("Void","Void")
 -- Direct type:
 -- Encode as: Name of primitive type or composite type.
 -- For composite type prepend unbox step.
-encodeType _ (_, (LCA.DirectType tnam _ _)) = do
+encodeType (_, (LCA.DirectType tnam _ _)) = do
     tn <- transTNam tnam
-    return (ustep ++ tn)
+    let res = ustep ++ tn
+    return (res,res)
     where ustep = case tnam of
                 (LCA.TyComp _) -> mapUboxStep
                 _ -> ""
 -- Typedef name:
--- If resolving, encode the referenced type.
--- Otherwise, encode as mapped name. For struct, union, or array prepend unbox step.
+-- For the second result encode the referenced type.
+-- For the first result encode as mapped name. For struct, union, or array prepend unbox step.
 -- If the typedef name has the Not-Null property, omit or remove MayNull step
 -- otherwise move a MayNull step from the resolved type to the mapped name.
--- If the typedef name has the Read-Only property add readonly step.
-encodeType rslv iat@(iid, (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _)) = do
+-- If the typedef name has the Read-Only property add readonly step (simplifying also for String types).
+encodeType iat@(iid, (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _)) = do
     dt <- LCA.getDefTable
     srtn <- stopResolvTypeName idnam
-    let rslvTypeName = (isExternTypeDef dt idnam) && not srtn
+    let ignoreTypeName = (isExternTypeDef dt idnam) && not srtn
     safe <- isNotNullItem iat
     ro <- isReadOnlyItem iat
-    let rslviat = (if not rslvTypeName then getTypedefItemAssoc idnam typ else (iid,typ))
-    rslvtyp <- encodeType rslv rslviat
+    let rslviat = (if not ignoreTypeName then getTypedefItemAssoc idnam typ else (iid,typ))
+    (_,rslvtyp) <- encodeType rslviat
     tn <- mapNameToUpper idnam
-    let nntyp = if rslv || rslvTypeName
-                then rmMayNullStepIf safe rslvtyp
-                else addMayNullStepIfNot (safe || (not $ hasMayNullStep rslvtyp)) (ustep ++ tn)
-    bang <- if ro then do
-        {- We need the fully resolved type to detect aliased String types -}
-                    rslvtypfull <- transType True rslviat
-                    return $ not $ isString rslvtypfull
-                  else return False
-    return (if bang then addReadOnlyStepIf ro nntyp else nntyp)
+    let nntyp = (addMayNullStepIfNot (safe || (not $ hasMayNullStep rslvtyp)) (ustep ++ tn),
+                 rmMayNullStepIf safe rslvtyp)
+    return (if ro then fmap (addReadOnlyStepIf ro) nntyp else nntyp)
     where ustep = if isAggregate typ then mapUboxStep else ""
 -- Derived pointer type for function type t:
 -- Encode t, prepend pointer derivation step.
-encodeType rslv iat@(_, (LCA.PtrType t _ _)) | isFunction t = do
+encodeType iat@(_, (LCA.PtrType t _ _)) | isFunction t = do
     sub <- getRefSubItemAssoc iat
-    tn <- encodeType rslv sub
-    return (mapPtrStep ++ tn)
+    (tn1,tn2) <- encodeType sub
+    return (mapPtrStep ++ tn1, mapPtrStep ++ tn2)
 -- Derived pointer type for (unsigned) char type:
 -- If Read-Only property and not No-String property: encode as "String"
 -- Otherwise encode as normal pointer (to U8).
-encodeType rslv iat@(_, pt@(LCA.PtrType (LCA.DirectType (LCA.TyIntegral it) _ _) _ _)) | it == TyChar || it == TyUChar = do
+encodeType iat@(_, pt@(LCA.PtrType (LCA.DirectType (LCA.TyIntegral it) _ _) _ _)) | it == TyChar || it == TyUChar = do
     ro <- isReadOnlyItem iat
     ns <- isNoStringItem iat
     if ro && (not ns)
-       then return "String"
+       then return ("String","String")
        else do
            safe <- isNotNullItem iat
            sub <- getRefSubItemAssoc iat
-           tn <- encodeType rslv sub
-           return $ addReadOnlyStepIf ro $ addMayNullStepIfNot safe (mapPtrStep ++ tn)
+           (tn1,tn2) <- encodeType sub
+           return $ fmap (addReadOnlyStepIf ro . addMayNullStepIfNot safe) (mapPtrStep ++ tn1, mapPtrStep ++ tn2)
 -- Derived pointer type for other type t:
 -- Encode t, for aggregate type remove unbox step, otherwise prepend pointer derivation step.
 -- If no Not-Null property, add MayNull step.
 -- If Read-Only property  add readonly step.
-encodeType rslv iat@(_, pt@(LCA.PtrType t _ _)) = do
+encodeType iat@(_, pt@(LCA.PtrType t _ _)) = do
     safe <- isNotNullItem iat
     ro <- isReadOnlyItem iat
     sub <- getRefSubItemAssoc iat
-    tn <- encodeType rslv sub
-    let htn = if isAggregate t then (rmUboxStep tn) else (mapPtrStep ++ tn)
-    return $ addReadOnlyStepIf ro $ addMayNullStepIfNot safe htn
+    tnp <- encodeType sub
+    let htn = if isAggregate t then fmap rmUboxStep tnp else fmap (mapPtrStep ++) tnp
+    return $ fmap (addReadOnlyStepIf ro . addMayNullStepIfNot safe) htn
 -- Complete derived function type: ret (p1,..,pn)
 -- Encode ret, prepend function derivation step using encoded pi.
-encodeType rslv iat@(_, (LCA.FunctionType (LCA.FunType ret pars variadic) _)) = do
+encodeType iat@(_, (LCA.FunctionType (LCA.FunType ret pars variadic) _)) = do
     sub <- getResultSubItemAssoc iat
-    tn <- encodeType rslv sub
-    encpars <- mapM (encodeParamType rslv iat) $ numberList pars
-    let vencpars = if variadic then encpars ++ [mapRoStep ++ variadicTypeName] else encpars
+    (tn1,tn2) <- encodeType sub
+    epps <- mapM (encodeParamType iat) $ numberList pars
+    let (ep1s,ep2s) = unzip epps
+    let (vp1s,vp2s) = if variadic then (ep1s ++ [mapRoStep ++ variadicTypeName], ep2s ++ [mapRoStep ++ variadicTypeName]) else (ep1s,ep2s)
     arProps <- getAddResultProperties iat
     let varProps = if variadic then arProps ++ [False] else arProps
-    let ps = map (\(arProp,s) -> if arProp then mapModStep ++ s else s) $ zip varProps vencpars
-    return ((mapFunStep ps) ++ tn)
+    let ps1s = map (\(arProp,s) -> if arProp then mapModStep ++ s else s) $ zip varProps vp1s
+    let ps2s = map (\(arProp,s) -> if arProp then mapModStep ++ s else s) $ zip varProps vp2s
+    return $ ((mapFunStep ps1s) ++ tn1, (mapFunStep ps2s) ++ tn2)
 -- Incomplete derived function type: ret ()
 -- Encode ret, prepend incomplete function derivation step.
-encodeType rslv iat@(_, (LCA.FunctionType (LCA.FunTypeIncomplete ret) _)) = do
+encodeType iat@(_, (LCA.FunctionType (LCA.FunTypeIncomplete ret) _)) = do
     sub <- getResultSubItemAssoc iat
-    tn <- encodeType rslv sub
-    return (mapIncFunStep ++ tn)
+    tnp <- encodeType sub
+    return $ fmap (mapIncFunStep ++) tnp
 -- Derived array type for element type t:
 -- Encode t, prepend array derivation step and unbox step.
 -- If Read-Only property add readonly step.
-encodeType rslv iat@(_, (LCA.ArrayType t as _ _)) = do
+encodeType iat@(_, (LCA.ArrayType t as _ _)) = do
     ro <- isReadOnlyItem iat
     sub <- getElemSubItemAssoc iat
-    tn <- encodeType rslv sub
-    return $ addReadOnlyStepIf ro (mapUboxStep ++ (mapArrStep as) ++ tn)
+    tnp <- encodeType sub
+    return $ fmap (addReadOnlyStepIf ro . ((mapUboxStep ++ (mapArrStep as)) ++)) tnp
 
 -- | Translate a C type name to a Cogent type name.
 transTNam :: LCA.TypeName -> FTrav String
@@ -663,13 +694,11 @@ transTNam (LCA.TyComplex _) =          return "err-complex"
 transTNam (LCA.TyBuiltin _) =          return "err-builtin" 
 
 rmMayNullIf :: Bool -> GenType -> GenType
-rmMayNullIf True t = rmMayNullThroughBang t
+rmMayNullIf True t = getNnlType t
 rmMayNullIf False t = t
 
 addMayNullIfNot :: Bool -> GenType -> GenType
-addMayNullIfNot False (GenType (CS.TBang t) o) = (GenType (CS.TBang $ addMayNullIfNot False t) o)
-addMayNullIfNot False t | hasMayNull t = t
-addMayNullIfNot False t = genType $ CS.TCon mapMayNull [t] markBox
+addMayNullIfNot False t = mkMayNull t
 addMayNullIfNot True t = t
 
 rmMayNullStepIf :: Bool -> String -> String
@@ -680,22 +709,11 @@ addMayNullStepIfNot :: Bool -> String -> String
 addMayNullStepIfNot False t = addMayNullStep t
 addMayNullStepIfNot True t = t
 
-rmMayNullThroughBang :: GenType -> GenType
-rmMayNullThroughBang (GenType (CS.TBang (GenType (CS.TCon tn [t] _) _)) o) | tn == mapMayNull = GenType (CS.TBang t) o
-rmMayNullThroughBang (GenType (CS.TCon tn [t] _) _) | tn == mapMayNull = t
-rmMayNullThroughBang t = t
-
-hasMayNull :: GenType -> Bool
-hasMayNull (GenType (CS.TBang t) _) = hasMayNull t
-hasMayNull (GenType (CS.TCon tn _ _) _) | tn == mapMayNull = True
-hasMayNull _ = False
-
 hasMayNullStep :: String -> Bool
 hasMayNullStep t = (mapMayNullStep `isPrefixOf` t) || ((mapRoStep ++ mapMayNullStep) `isPrefixOf` t)
 
 makeReadOnlyIf :: Bool -> GenType -> GenType
-makeReadOnlyIf True t@(GenType (CS.TBang _) _) = t
-makeReadOnlyIf True t = genType $ CS.TBang t
+makeReadOnlyIf True t = mkReadonly t
 makeReadOnlyIf False t = t
 
 addReadOnlyStepIf :: Bool -> String -> String
@@ -703,10 +721,7 @@ addReadOnlyStepIf True t@('R' : '_' : _) = t
 addReadOnlyStepIf True t = mapRoStep ++ t
 addReadOnlyStepIf False t = t
 
-rmReadOnly :: GenType -> GenType
-rmReadOnly (GenType (CS.TBang t) _) = t
-rmReadOnly t = t
-
+{-
 getTag :: LCA.Type -> String
 getTag (LCA.DirectType (LCA.TyComp (LCA.CompTypeRef sueref knd _)) _ _) = 
     kndstr ++ "|" ++ (sueRefToString sueref)
@@ -717,6 +732,7 @@ getTag (LCA.DirectType (LCA.TyEnum (LCA.EnumTypeRef sueref _)) _ _) =
     "enum|" ++ (sueRefToString sueref)
 getTag (LCA.TypeDefType (LCA.TypeDefRef _ typ _) _ _) = getTag typ
 getTag _ = ""
+
 
 getTypedefName :: LCA.Type -> String
 getTypedefName (LCA.TypeDefType (LCA.TypeDefRef nam _ _) _ _) = identToString nam
@@ -731,7 +747,7 @@ getTypedefName t = ""
 -- and the result type.
 -- Comment markers are removed from these types to avoid duplication of comments.
 applyProperties :: ItemAssocType -> GenType -> FTrav GenType
-applyProperties iat (GenType (CS.TFun pt rt) o) = do
+applyProperties iat (GenType (CS.TFun pt rt) o _) = do
     arProps <- getAddResultProperties iat
     let artypes = map snd $ filter fst $ zip arProps ptl
     gspars <- makeGlobalStateParams iat
@@ -741,12 +757,12 @@ applyProperties iat (GenType (CS.TFun pt rt) o) = do
     let hutype = if huProp then [makeHeapType] else []
     let allpartypes = ptl ++ gstypes ++ hutype
     let arpartypes = artypes ++ gsartypes ++ hutype
-    return $ GenType (CS.TFun (mkParType allpartypes) (mkParType $ addPars rt $ map remComment $ arpartypes)) o 
-    where addPars (GenType CS.TUnit _) ps = ps
+    return $ GenType (CS.TFun (mkParType allpartypes) (mkParType $ addPars rt $ map remComment $ arpartypes)) o Nothing
+    where addPars (GenType CS.TUnit _ _) ps = ps
           addPars r ps = r : ps
           ptl = ptlist pt
-          ptlist (GenType CS.TUnit _) = []
-          ptlist (GenType (CS.TTuple ts) _) = ts
+          ptlist (GenType CS.TUnit _ _) = []
+          ptlist (GenType (CS.TTuple ts) _ _) = ts
           ptlist gt = [gt]
 
 shallAddResultGS :: GenType -> Bool
@@ -758,70 +774,67 @@ makeGlobalStateType :: ItemAssocType -> FTrav GenType
 makeGlobalStateType iat@(iid,_) = do
     ro <- isReadOnlyItem iat
     gs <- getGlobalStateProperty iid
-    return $ makeReadOnlyIf ro $ genType $ CS.TCon (globStateType gs) [] $ markBox
+    return $ makeReadOnlyIf ro $ mkTypeName (globStateType gs)
+-}
 
 makeHeapType :: GenType
-makeHeapType = genType $ CS.TCon heapType [] markBox
-
-mkBoxedType :: String -> Origin -> GenType
-mkBoxedType nam = GenType (CS.TCon nam [] $ markBox)
-
-mkUnboxedType :: String -> Origin -> GenType
-mkUnboxedType nam = GenType (CS.TCon nam [] $ markUnbox)
+makeHeapType = mkTypeName heapType
 
 -- | Convert an arbitrary Cogent type T to the function type () -> T
-mkFunType :: GenType -> GenType
-mkFunType t = genType $ CS.TFun (mkParType []) t
+mkConstFunType :: GenType -> GenType
+mkConstFunType t = mkFunType unitType t
 
-variadicType = makeReadOnlyIf True $ genType (CS.TCon variadicTypeName [] markBox)
+variadicType = makeReadOnlyIf True $ mkTypeName variadicTypeName
 variadicTypeName = "VariadicCogentParameters"
-
--- | Translate a C parameter declaration to the adjusted Cogent parameter type.
--- The parameter declaration is specified together with the parameter position.
--- The first argument specifies whether typedef names shall be resolved.
--- The second argument is the function's ItemAssocType.
-transParamType :: Bool -> ItemAssocType -> (Int,LCA.ParamDecl) -> FTrav GenType
-transParamType rslv iat ipd@(_,pd) = do
-    t <- transType rslv $ getParamSubItemAssoc iat ipd
-    return $ GenType (typeOfGT t) $ origin pd
 
 -- | Encode a type as parameter type.
 -- The parameter declaration is specified together with the parameter position.
 -- For an array type: adjust by removing unbox step.
 -- For a function type: adjust by adding pointer step.
-encodeParamType :: Bool -> ItemAssocType -> (Int,LCA.ParamDecl) -> FTrav String
-encodeParamType rslv iat ipd@(_,pd) = do
-    typ <- encodeType rslv $ getParamSubItemAssoc iat ipd
+encodeParamType :: ItemAssocType -> (Int,LCA.ParamDecl) -> FTrav (String, String)
+encodeParamType iat ipd@(_,pd) = do
+    typp <- encodeType $ getParamSubItemAssoc iat ipd
     if isArray $ LCA.declType pd
-       then return $ rmUboxStep typ
-       else return typ
+       then return $ fmap rmUboxStep typp
+       else return typp
 
+{-
 arraySizeType :: LCA.ArraySize -> GenType
 arraySizeType (LCA.ArraySize _ (LCS.CConst (LCS.CIntConst ci _))) =
-    genType $ CS.TCon tnam [] markBox
+    mkTypeName tnam
     where tnam = if i < 257 then "U8" else if i < 65537 then "U16" else "U32"
           i = LC.getCInteger ci
-arraySizeType _ = genType $ CS.TCon "U32" [] markBox
+arraySizeType _ = mkU32Type
+-}
 
 {- Translating function bodies -}
 {- --------------------------- -}
 
 -- | Retrieve the C type of a C expression.
--- The StmtCtx is only used for CStatExpr which are not processed by Gencot, therefore we always use LoopCtx as a dummy.
+-- The StmtCtxs are only used for CStatExpr which are not processed by Gencot, therefore we omit them.
 -- If the ExprSide is LValue, tExpr checks whether the expression is admissible as lvalue,
 -- Therefore we always use RValue so that all expressions are accepted.
 exprType :: LC.CExpr -> FTrav LCA.Type
-exprType e = LCA.tExpr LoopCtx RValue e
+exprType e = LCA.tExpr [] RValue e
 
+transBody :: FuncDesc -> LC.CStat -> FTrav [GenAlt]
+transBody fdes s = do
+    resetVarCounters
+    tconf <- getTConf
+    b <- bindStat s
+    let e = cleanSrc $ postproc tconf $ mkBodyExpr b $ genFunResultExpr fdes
+    return [mkAlt (genFunParamPattern fdes) e]
+{-
 transBody :: ItemAssocType -> LC.CStat -> [LCA.ParamDecl] -> FTrav GenExpr
 transBody fiat s pars = do
     resetVarCounters
     tconf <- getTConf
     b <- bindStat s
     riat <- getResultSubItemAssoc fiat
-    let r = if isVoid $ snd riat then mkUnitExpr else mkVarExpr (resVar,unitType) -- resVar
-    e <- mkUnitExpr {-extendExpr fiat r pars-}
+    let r = if isVoid $ snd riat then mkUnitExpr else mkVarExpr (TV resVar unitType) -- resVar
+    e <- error "" {-extendExpr fiat r pars-}
     return $ cleanSrc $ postproc tconf $ mkBodyExpr b e
+-}
 
 transExpr :: LC.CExpr -> FTrav GenExpr
 transExpr e = do
@@ -1004,13 +1017,13 @@ bindDeclrs _ [] bis = bindBlockItems bis
 bindDeclrs pspecs (dc : dcs) bis = do
     (v,bp) <- bindDeclr pspecs dc
     bs <- bindDeclrs pspecs dcs bis
-    return mkDecBinding v bp bs
+    return $ mkDecBinding v bp bs
 
 -- | Process a single declarator.
 -- The content copies the relevant steps from LCA.analyseDecl.
 bindDeclr :: ProcDeclSpecs -> DeclElem -> FTrav (TypedVar,BindsPair)
 bindDeclr (ss,a,tq,tsa,fs) (Just declr@(LC.CDeclr (Just nam) _ _ _ _),mi,me) = do
-    v <- transObjName nam
+    v <- mapIfUpper nam
     vardeclInfo@(VarDeclInfo _ _ _ _ typ _) <-
         LCA.analyseVarDecl False ss a tq tsa fs declr [] Nothing
 
@@ -1021,7 +1034,7 @@ bindDeclr (ss,a,tq,tsa,fs) (Just declr@(LC.CDeclr (Just nam) _ _ _ _),mi,me) = d
     let fid = getIndividualItemId fdef sfn -- not yet used
         vid = (localItemId s) -- here num and fid must be used when local item ids are changed.
 
-    t <- transType True (vid,typ)
+    t <- transType (vid,typ)
 
     -- LCA.tInit only checks the initializer, it is not needed here.
 
@@ -1032,9 +1045,9 @@ bindDeclr (ss,a,tq,tsa,fs) (Just declr@(LC.CDeclr (Just nam) _ _ _ _),mi,me) = d
     localVarDecl vardeclInfo mi
     
     registerItemId s vid
-    return ((v,t),bp)
+    return ((TV v t),bp)
     where s = LCI.identToString nam
-bindDeclr _ _ = return (("",unitType),mkEmptyBindsPair)
+bindDeclr _ _ = return ((TV "" unitType),mkEmptyBindsPair)
 
 bindInit :: Maybe LC.CInit -> GenType -> FTrav BindsPair
 bindInit Nothing t = do
@@ -1049,7 +1062,7 @@ bindExpr :: LC.CExpr -> FTrav BindsPair
 bindExpr e@(LC.CConst (LC.CIntConst i _)) = do
     cnt <- getValCounter
     ct <- exprType e
-    t <- transType True ("",ct)
+    t <- transType ("",ct)
     insertExprSrc e $ mkIntLitBindsPair cnt t $ LC.getCInteger i
 bindExpr e@(LC.CConst (LC.CCharConst c _)) = do
     cnt <- getValCounter
@@ -1069,19 +1082,26 @@ bindExpr e@(LC.CVar nam _) = do
     cnt <- getValCounter
     ct <- exprType e
     iid <- getObjectItemId nam
-    t <- transType True (iid,ct)
-    (v',t') <-
-       if isToplevelObjectId iid && not $ isFunction ct -- global variable
+    t <- transType (iid,ct)
+    bp <-
+       if (isToplevelObjectId iid) && (not $ isFunction ct) -- global variable
           then do
               gs <- getGlobalStateProperty iid
-              fdes <- getContextFuncDesc
-              let pdes = searchGlobalStateParamDesc fdes gs
-              return $ (nameOfParamDesc pdes, typeOfParamDesc pdes)
-          else return (v,t)
-    insertExprSrc e $
-        if null v'
-           then mkDummyBindsPair cnt ("Cannot access global variable: " ++ (LCI.identToString nam))
-           else mkValVarBindsPair cnt (v',t)
+              if null gs
+                 then do
+                     cv <- isConstValItem (iid,ct)
+                     if cv -- Const-Val property: invoke access function named v
+                        then return $ mkConstAppBindsPair cnt v t
+                        else -- assume preprocessor constant: access Cogent constant named v
+                             return $ mkValVarBindsPair cnt $ TV v t
+                 else do
+                     fdes <- getContextFuncDesc
+                     let pdes = searchGlobalStateParamDesc fdes gs
+                     if null $ nameOfParamDesc pdes
+                        then return $ mkDummyBindsPair cnt ("Cannot access global variable: " ++ (LCI.identToString nam))
+                        else return $ mkValVarBindsPair cnt $ TV (nameOfParamDesc pdes) (typeOfParamDesc pdes)
+          else return $ mkValVarBindsPair cnt $ TV v t
+    insertExprSrc e bp
 bindExpr e@(LC.CMember e1 nam arrow _) = do
     bp1 <- bindExpr e1
     m <- mapIfUpper nam
@@ -1095,7 +1115,7 @@ bindExpr e@(LC.CIndex e1 e2 _) = do
 bindExpr e@(LC.CUnary LC.CNegOp e1 _) = do
     -- not i -> if i==0 then 1 else 0
     bp1 <- bindExpr e1
-    let t1 = snd (leadVar bp1)
+    let t1 = typOfTV (leadVar bp1)
     cnt <- getValCounter
     let c0 = mkIntLitBindsPair cnt t1 0
     cnt <- getValCounter
@@ -1103,21 +1123,30 @@ bindExpr e@(LC.CUnary LC.CNegOp e1 _) = do
     insertExprSrc e $ mkIfBindsPair (mkOpBindsPair mkBoolType "==" [bp1,c0]) c1 c0
 bindExpr e@(LC.CUnary LC.CIndOp e1 _) = do
     bp1 <- bindExpr e1
-    cnt <- getCmpCounter
-    insertExprSrc e $ mkMemBindsPair cnt "cont" bp1
+    ct1 <- exprType e1
+    bp <-
+      if isFunPointer ct1
+         then do
+             iid <- getExprItemId e1
+             ft <- transType (iid,ct1)
+             return $ mkFunDerefBindsPair ft bp1
+         else do
+             cnt <- getCmpCounter
+             return $ mkDerefBindsPair cnt bp1
+    insertExprSrc e bp
 bindExpr e@(LC.CUnary op e1 _) | elem op [LC.CPlusOp,LC.CMinOp,LC.CCompOp] = do
     bp1 <- bindExpr e1
     ct1 <- exprType e1
-    t1 <- transType True ("",ct1)
+    t1 <- transType ("",ct1)
     insertExprSrc e $ mkOpBindsPair t1 (transUnOp op) [bp1]
 bindExpr e@(LC.CUnary op e1 _) | elem op [LC.CPreIncOp,LC.CPreDecOp,LC.CPostIncOp,LC.CPostDecOp] = do
     bp1 <- bindExpr e1
     ct1 <- exprType e1
-    t1 <- transType True ("",ct1)
+    t1 <- transType ("",ct1)
     cnt <- getValCounter
     let bp2 = mkIntLitBindsPair cnt t1 1
     ct <- exprType e
-    t <- transType True ("",ct)
+    t <- transType ("",ct)
     insertExprSrc e $ mkAssBindsPair post t (transUnOp op) bp1 bp2
     where post = elem op [LC.CPostIncOp,LC.CPostDecOp]
 bindExpr e@(LC.CBinary LC.CLndOp e1 e2 _) = do
@@ -1125,7 +1154,7 @@ bindExpr e@(LC.CBinary LC.CLndOp e1 e2 _) = do
     bp1 <- bindExpr e1
     bp2 <- bindExpr e2
     ct2 <- exprType e2
-    t2 <- transType True ("",ct2)
+    t2 <- transType ("",ct2)
     cnt <- getValCounter
     let c0 = mkIntLitBindsPair cnt t2 0
     insertExprSrc e $ mkIfBindsPair bp1 bp2 c0
@@ -1134,7 +1163,7 @@ bindExpr e@(LC.CBinary LC.CLorOp e1 e2 _) = do
     bp1 <- bindExpr e1
     bp2 <- bindExpr e2
     ct2 <- exprType e2
-    t2 <- transType True ("",ct2)
+    t2 <- transType ("",ct2)
     cnt <- getValCounter
     let c1 = mkIntLitBindsPair cnt t2 1
     insertExprSrc e $ mkIfBindsPair bp1 c1 bp2
@@ -1142,28 +1171,21 @@ bindExpr e@(LC.CBinary op e1 e2 _) = do
     bp1 <- bindExpr e1
     bp2 <- bindExpr e2
     ct <- exprType e
-    t <- transType True ("",ct)
+    t <- transType ("",ct)
     insertExprSrc e $ mkOpBindsPair t (transBinOp op) [bp1,bp2]
-bindExpr e@(LC.CCall fv@(LC.CVar nam _) es _) = do
+bindExpr e@(LC.CCall f es _) = do
     bps <- mapM bindExpr es
-    fbp <- bindExpr fv
-    cft <- exprType fv
+    fbp <- bindExpr f
+    cft <- exprType f
+    iid <- getExprItemId f
     fbp' <- if isFunPointer cft
                then do
-                   nrfpt <- transType False cft
-                   iid <- getObjectItemId nam
-                   iaft <- getRefSubItemAssoc (iid, resolveTypedef cft)
-                   ft <- transType True iafpt
-                   nrft <- transType False iafpt
-                   return $ mkFunDerefBindsPair ft nrfpt nrft fbp
+                   ft <- transType (iid,cft)
+                   return $ mkFunDerefBindsPair ft fbp
                else return fbp
-    (Just decl) <- LCA.lookupObject nam
-    fd <- getFuncDesc decl
+    fd <- getFuncDesc (iid,cft)
     (pbp,rpat) <- processParamVals fd bps
     insertExprSrc e $ mkAppBindsPair fbp' rpat pbp
-bindExpr e@(LC.CCall _ _ _) = do
-    cnt <- getValCounter
-    insertExprSrc e $ mkDummyBindsPair cnt "Translation of function expression not yet implemented"
 bindExpr e@(LC.CAssign op e1 e2 _) = do
     bp1 <- bindExpr e1
     bp2 <- bindExpr e2
@@ -1182,9 +1204,9 @@ bindExpr e = do
 
 -- | Add a statement source to a binding
 insertStatSrc :: LC.CStat -> GenBnd -> FTrav GenBnd
-insertStatSrc src (CS.Binding ip t (GenExpr e o _) v) = do
+insertStatSrc src (CS.Binding ip t (GenExpr e o et _) v) = do
     src' <- C.transStat src
-    return $ (CS.Binding ip t (GenExpr e o (Just src')) v)
+    return $ (CS.Binding ip t (GenExpr e o et (Just src')) v)
 
 -- | Add an expression source to the final binding in the main list
 -- The expression is inserted as an expression statement.
@@ -1192,8 +1214,8 @@ insertExprSrc :: LC.CExpr -> BindsPair -> FTrav BindsPair
 insertExprSrc src (main,putback) = do
     src' <- C.transExpr src
     let srcstat = (LQ.Exp (Just src') noOrigin)
-    return $ ((CS.Binding ip t (GenExpr e o (Just srcstat)) v) : tail main,putback)
-    where (CS.Binding ip t (GenExpr e o _) v) = head main
+    return $ ((CS.Binding ip t (GenExpr e o et (Just srcstat)) v) : tail main,putback)
+    where (CS.Binding ip t (GenExpr e o et _) v) = head main
 
 -- | Add a block item sequence source to a binding
 -- The sequence is inserted as a compound statement
@@ -1204,36 +1226,34 @@ insertBlockItemsSrc src b = insertStatSrc (LC.CCompound [] src LCN.undefNode) b
 -- A parameter caused by a hu property of the function is additionally marked by an own hu property.
 -- Note that if a function parameter has a hu property it is associated with the dereferenced parameter instead.
 data ParamDesc = ParamDesc {
-    nameOfParamDesc :: CCS.VarName, 
-    typeOfParamDesc :: GenType, 
+    nameOfParamDesc :: CCS.VarName,
+    typeOfParamDesc :: GenType,
     propOfParamDesc :: [String]}
 
--- | Description of a function: name, type, properties, parameter descriptions.
+-- | Description of a function: type, properties, parameter descriptions.
 -- The parameter descriptions describe the C and virtual parameters in their original order.
 data FuncDesc = FuncDesc {
-    nameOfFuncDesc :: CCS.FunName, 
-    typeOfFuncDesc :: GenType, 
+    typeOfFuncDesc :: GenType,
     propOfFuncDesc :: [String],
     parsOfFuncDesc :: [ParamDesc]}
 
--- | Construct a function description from the function declaration.
-getFuncDesc :: LCA.VarDecl -> FTrav FuncDesc
-getFuncDesc decl = do
-    name <- mapIfUpper $ LCA.declIdent decl
-    iid <- getObjectItemId $ LCA.declIdent decl
-    let iat = (iid, LCA.declType decl)
-    typ <- transType True iat
+-- | Construct a function description from the functions item associated type
+getFuncDesc :: ItemAssocType -> FTrav FuncDesc
+getFuncDesc iat = do
+    sub <- getResultSubItemAssoc iat
+    rtyp <- transType sub
     props <- getItemProperties iat
     parms <- getAllParamDesc iat
-    return $ FuncDesc name typ props parms
+    return $ FuncDesc (genFunType parms rtyp) props parms
 
 -- | Construct the descriptions for all parameters of a function
 -- The parameter types are not taken from the translated function type, because
 -- there they may have been rearranged by processing a ModificationFunction property.
+-- If parameter names are not available they are left empty, they are automatically not used in such situations.
 getAllParamDesc :: ItemAssocType -> FTrav [ParamDesc]
 getAllParamDesc iat@(iid,(LCA.FunctionType (LCA.FunType _ pds isVar) _)) = do
-    pns <- mapM mapIfUpper $ map LCA.declIdent pds
-    pts <- mapM (transType True) piats
+    pns <- mapM mapIfUpper $ map (\d -> case LCA.declName d of VarName idnam _ -> idnam; NoName -> LCI.builtinIdent "") pds
+    pts <- mapM transType piats
     pps <- mapM getItemProperties piats
     let nonvirt = map (\(n,t,p) -> ParamDesc n t p) $ zip3 pns pts pps
     gsps <- getGlobalStateSubItemIds iat -- the item ids of all gs parameters
@@ -1248,7 +1268,7 @@ getAllParamDesc iat@(iid,(LCA.FunctionType (LCA.FunType _ pds isVar) _)) = do
     where piats = map (getParamSubItemAssoc iat) $ numberList pds
 
 -- | Construct the parameter description for a GlobalState parameter.
--- The first string is the item id od the parameter.
+-- The first string is the item id of the parameter.
 -- The boolean is true if it has no ReadOnly property.
 -- The second string is the GlobalState property.
 makeGlobalStateParamDesc :: ((String, Bool), String) -> FTrav ParamDesc
@@ -1256,44 +1276,38 @@ makeGlobalStateParamDesc ((iid,noro), gs) = do
     name <- mapIfUpper $ LCI.Ident (getParamName iid) 0 LCN.undefNode
     gsvar <- getGlobalStateId gs -- global var item id or ""
     if null gsvar
-       then do -- global variable not available, use type synonym
-         let typ = makeReadOnlyIf (not noro) $ genType $ CS.TCon (globStateType gs) [] $ markBox
+       then do -- global variable not available, use type synonym as opaque type
+         let typ = makeReadOnlyIf (not noro) $ mkTypeName (globStateType gs)
          props <- getProperties iid
          return $ ParamDesc name typ props
-       else do -- global variable found, use its type
+       else do -- global variable found, use its type and add type synonym
          mdec <- LCA.lookupObject $ LCI.Ident (getObjFunName gsvar) 0 LCN.undefNode
          case mdec of
               Nothing -> return $ ParamDesc "" unitType []
               Just decl -> do
                   let piat = (iid,LCA.PtrType (LCA.declType decl) LCA.noTypeQuals LCA.noAttributes)
-                  typ <- transType True piat
+                  typ <- transType piat
                   props <- getItemProperties piat
-                  return $ ParamDesc name typ props
+                  return $ ParamDesc name (addTypeSyn (globStateType gs) typ) props
 
 -- | construct the parameter description for the HeapUse parameter.
 -- The argument is the list of names of all other parameters.
--- The parameter is marked by an artificial hu property. 
+-- The parameter is marked by an artificial hu property.
 makeHeapUseParamDesc :: [CCS.VarName] -> ParamDesc
-makeHeapUseParamDesc pnams = 
+makeHeapUseParamDesc pnams =
     ParamDesc (heapParamName pnams) makeHeapType ["hu"]
 
 -- | construct the parameter description for the variadic parameter.
 makeVariadicParamDesc :: ParamDesc
-makeVariadicParamDesc = 
+makeVariadicParamDesc =
     ParamDesc variadicParamName variadicType []
 
 -- | Return the variadic parameter description, if present.
 getVariadicParamDesc :: FuncDesc -> Maybe ParamDesc
-getVariadicParamDesc fdes = 
+getVariadicParamDesc fdes =
     if nameOfParamDesc pdes == variadicParamName then Just pdes else Nothing
     where pdes = last $ parsOfFuncDesc fdes
 
--- | Return the function result type
-getResultType :: FuncDesc -> GenType
-getResultType fdes = 
-    case typeOfGT $ typeOfFuncDesc fdes of
-         CS.TFun _ t -> t
-    
 -- | Return the HeapUse parameter description, if present.
 -- That is the first parameter marked by an hu property.
 getHeapUseParamDesc :: FuncDesc -> Maybe ParamDesc
@@ -1302,7 +1316,7 @@ getHeapUseParamDesc fdes =
 
 -- | Return the sequence of GlobalState properties from the parameter descriptions.
 getGlobalStateParamProps :: FuncDesc -> [String]
-getGlobalStateParamProps fdes = 
+getGlobalStateParamProps fdes =
     filter (not . null) $ map getGSProp $ parsOfFuncDesc fdes
     where getGSProp = (fromMaybe "") . (find (\p -> "gs" `isPrefixOf` p)) . propOfParamDesc
 
@@ -1330,22 +1344,25 @@ isAddResultParam pdes =
     where props = propOfParamDesc pdes
 
 getTypedVarFromParamDesc :: ParamDesc -> TypedVar
-getTypedVarFromParamDesc pdes = (nameOfParamDesc pdes, typeOfParamDesc pdes)
+getTypedVarFromParamDesc pdes = TV (nameOfParamDesc pdes) $ typeOfParamDesc pdes
 
 -- | Retrieve the description of the surrounding function when processing a function body.
--- Outside a function body a description with empty name and unit type is returned.
+-- Outside a function body a description with unit type and no parameters is returned.
 getContextFuncDesc :: FTrav FuncDesc
 getContextFuncDesc = do
     mfdef <- getFunDef
     case mfdef of
-         Nothing -> return $ FuncDesc "" unitType [] []
-         Just (LCA.FunctionDef (LCA.FunDef decl _ _)) -> return $ getFuncDesc decl
+         Nothing -> return $ FuncDesc unitType [] []
+         Just fdef -> do
+             sfn <- getFileName
+             let iat@(fid,_) = getIndividualItemAssoc fdef sfn
+             getFuncDesc iat
 
 -- | Retrieve the actual virtual parameters for a function call from the context.
 -- The argument is the description of the invoked function.
 -- The result is a sequence of parameter descriptions of the surrounding function,
 -- ordered according to the use in the invoked function.
--- If a virtual parameter is not available, the resulting parameter description has 
+-- If a virtual parameter is not available, the resulting parameter description has
 -- an empty name, a unit type and (only) the required property.
 getVirtParamsFromContext :: FuncDesc -> FTrav [ParamDesc]
 getVirtParamsFromContext fdes = do
@@ -1362,7 +1379,7 @@ getVirtParamsFromContext fdes = do
 -- | Determine tupel of actual parameters and pattern to bind the result of a function call.
 -- The first argument is the description of the invoked function.
 -- The second argument is the list of translated C argument expressions.
-processParamVals :: FuncDesc -> [BindsPair] -> FTrav ([BindsPair], [GenIrrefPatn])
+processParamVals :: FuncDesc -> [BindsPair] -> FTrav (BindsPair, GenIrrefPatn)
 processParamVals fdes pvals = do
     -- construct BindsPairs for all virtual parameters
     vpds <- getVirtParamsFromContext fdes
@@ -1376,17 +1393,73 @@ processParamVals fdes pvals = do
     -- provide value variable index for parameter tuple if it is empty
     unitcnt <- if null allpbps then getValCounter else return 0
     let -- construct BindsPair for parameter tuple
-        pbp = mkTupleBindsPair unitcnt pbps
+        pbp = mkTupleBindsPair unitcnt allpbps
         -- additional result variables
         arvars = map (lvalVar . fst) $ filter (\(_,pdes) -> isAddResultParam pdes) $ zip allpbps pdess
         -- variable for original function result: for C function with void result use wildcard,
         -- otherwise reuse value variable of parameter tuple
-        rvar = if rt == unitType then ("_",rt) else leadVar pbp
+        rvar = if rt == unitType then (TV "_" rt) else leadVar pbp
         -- pattern for binding the function result
         rpat = mkTuplePattern $ map mkVarPattern (rvar : arvars)
     return (pbp, rpat)
     where pdess = parsOfFuncDesc fdes
-          rt = getResultType fdes
+          rt = getResultType $ typeOfFuncDesc fdes
+
+-- | Construct function type from parameter descriptions and result type
+-- Comment markers are removed from parameter types used for the result to avoid duplication of comments.
+genFunType :: [ParamDesc] -> GenType -> GenType
+genFunType pdess rt =
+    mkFunType (mkTupleType $ map typeOfParamDesc pdess) $ mkTupleType rtyps
+    where rtyps = rt : (map (remComment . typeOfParamDesc) $ filter isAddResultParam pdess)
+
+-- | Construct pattern for formal parameters in function definition.
+genFunParamPattern :: FuncDesc -> GenIrrefPatn
+genFunParamPattern fdes =
+    mkVarTuplePattern $ map getTypedVarFromParamDesc $ parsOfFuncDesc fdes
+
+-- | Construct result expression for function definition.
+-- It is a tuple where the first component is the result variable, or unit if the function result type is void.
+-- The other components are the additional result parameters.
+genFunResultExpr :: FuncDesc -> GenExpr
+genFunResultExpr fdes =
+    mkExpVarTupleExpr re $ map getTypedVarFromParamDesc $ filter isAddResultParam $ parsOfFuncDesc fdes
+    where re = if rt == unitType then mkUnitExpr else mkVarExpr $ TV resVar rt
+          rt = getResultType $ typeOfFuncDesc fdes
+
+-- | Construct the item id according to the structure of an expression.
+-- This is only needed for encoded function pointer types to determine the
+-- correct function type by separately translating the C function type instead of
+-- accessing the Cogent function type from the Cogent function pointer type.
+getExprItemId :: LC.CExpr -> FTrav String
+getExprItemId (LC.CVar nam _) = transObjName nam
+getExprItemId (LC.CMember e1 nam arrow _) = do
+    iid <- getExprItemId e1
+    if null iid
+       then return ""
+       else if arrow
+       then return $ memberSubItemId s $ refSubItemId iid
+       else return $ memberSubItemId s iid
+    where s = LCI.identToString nam
+getExprItemId (LC.CIndex e1 e2 _) = do
+    iid <- getExprItemId e1
+    if null iid
+       then return ""
+       else return $ elemSubItemId iid
+getExprItemId (LC.CUnary LC.CIndOp e1 _) = do
+    iid <- getExprItemId e1
+    if null iid
+       then return ""
+       else return $ refSubItemId iid
+getExprItemId (LC.CCall e _ _) = do
+    iid <- getExprItemId e
+    cft <- exprType e
+    if null iid
+       then return ""
+       else if isFunPointer cft
+       then return $ resultSubItemId $ refSubItemId iid
+       else return $ resultSubItemId iid
+getExprItemId (LC.CAssign _ e1 _ _) = getExprItemId e1
+getExprItemId _ = return ""
 
 fvGB :: GenBnd -> [CCS.VarName]
 fvGB b = [] -- TODO using conversion to raw and CS.fvB
@@ -1436,12 +1509,13 @@ transAssOp LC.COrAssOp = ".|."
 
 -- | Remove source from all but dummy expressions
 cleanSrc :: GenExpr -> GenExpr
-cleanSrc (GenExpr e o Nothing) = GenExpr (fmap cleanSrc e) o Nothing
-cleanSrc (GenExpr e o (Just src)) =
+cleanSrc (GenExpr e o t Nothing) = GenExpr (fmap cleanSrc e) o t Nothing
+cleanSrc (GenExpr e o t (Just src)) =
     case e of
-         CS.App (GenExpr (CS.Var "gencotDummy") _ _) _ _ -> GenExpr (fmap cleanSrc e) o (Just src)
-         _ -> GenExpr (fmap cleanSrc e) o Nothing
+         CS.App (GenExpr (CS.Var "gencotDummy") _ _ _) _ _ -> GenExpr (fmap cleanSrc e) o t (Just src)
+         _ -> GenExpr (fmap cleanSrc e) o t Nothing
 
+{-
 -- | Construct a function's parameter type from the sequence of translated C parameter types.
 -- The result is either the unit type, a single type, or a tuple type (for more than 1 parameter).
 mkParType :: [GenType] -> GenType
@@ -1449,53 +1523,44 @@ mkParType [] = genType CS.TUnit
 mkParType [gt] = gt
 mkParType gts = genType $ CS.TTuple gts 
 
-{-
 mkGenExpr :: [GenExpr] -> GenExpr
 mkGenExpr [] = genExpr CS.Unitel
 mkGenExpr [re] = re
 mkGenExpr res = genExpr $ CS.Tuple res
--}
 
-{-
 mkRawExpr :: [RawExpr] -> RawExpr
 mkRawExpr [] = CS.RE CS.Unitel
 mkRawExpr [re] = re
 mkRawExpr res = CS.RE $ CS.Tuple res
--}
 
 setBoxed :: GenType -> GenType
-setBoxed (GenType (CS.TCon nam p _) o) = (GenType (CS.TCon nam p markBox) o)
-setBoxed (GenType (CS.TRecord rp fields _) o) = (GenType (CS.TRecord rp fields markBox) o)
-setBoxed (GenType (CS.TUnbox (GenType t _)) o) = (GenType t o)
+setBoxed (GenType (CS.TCon nam p _) o ms) = (GenType (CS.TCon nam p markBox) o ms)
+setBoxed (GenType (CS.TRecord rp fields _) o ms) = (GenType (CS.TRecord rp fields markBox) o ms)
+setBoxed (GenType (CS.TUnbox (GenType t _ ms)) o _) = (GenType t o ms)
 
 setUnboxed :: GenType -> GenType
-setUnboxed (GenType (CS.TCon nam p _) o) = (GenType (CS.TCon nam p markUnbox) o)
-setUnboxed (GenType (CS.TRecord rp fields _) o) = (GenType (CS.TRecord rp fields markUnbox) o)
-setUnboxed (GenType t o) = (GenType (CS.TUnbox (GenType t noOrigin)) o)
-
-isUnboxed :: GenType -> Bool
-isUnboxed (GenType (CS.TCon _ _ CCT.Unboxed) _) = True
-isUnboxed (GenType (CS.TRecord _ _ CCT.Unboxed) _) = True
-isUnboxed (GenType (CS.TUnbox _) _) = True
-isUnboxed _ = False
+setUnboxed (GenType (CS.TCon nam p _) o ms) = (GenType (CS.TCon nam p markUnbox) o ms)
+setUnboxed (GenType (CS.TRecord rp fields _) o ms) = (GenType (CS.TRecord rp fields markUnbox) o ms)
+setUnboxed (GenType t o ms) = (GenType (CS.TUnbox (GenType t noOrigin ms)) o Nothing)
 
 markBox = CCT.Boxed False Nothing
 markUnbox = CCT.Unboxed
 
 isReadOnly :: GenType -> Bool
-isReadOnly (GenType (CS.TBang t) _) = True
+isReadOnly (GenType (CS.TBang t) _ _) = True
 isReadOnly _ = False
 
 isString :: GenType -> Bool
-isString (GenType (CS.TBang t) _) = isString t
-isString (GenType (CS.TCon "String" _ _) _) = True
+isString (GenType (CS.TBang t) _ _) = isString t
+isString (GenType (CS.TCon "String" _ _) _ _) = True
 isString _ = False
+-}
 
 setOrigin :: LCN.NodeInfo -> GenType -> GenType
-setOrigin n t = (GenType (typeOfGT t) $ mkOrigin n)
+setOrigin n t = (GenType (typeOfGT t) (mkOrigin n) (typSynOfGT t))
 
 remComment :: GenType -> GenType
-remComment (GenType t o) = GenType t $ toNoComOrigin o
+remComment (GenType t o ms) = GenType t (toNoComOrigin o) ms
 
 errType :: String -> FTrav GenType
-errType s = return $ genType $ CS.TCon ("err-" ++ s) [] markUnbox
+errType s = return $ mkTypeName ("err-" ++ s)

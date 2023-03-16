@@ -16,9 +16,10 @@ import Numeric (showInt, showOct, showHex, readFloat)
 import Gencot.C.Ast as GCA
 import Gencot.Origin (Origin,noOrigin,origin,mkOrigin,listOrigin,pairOrigin,maybeOrigin)
 import Gencot.Names (transTagName,transObjName,getFileName,mapObjectName,mapIfUpper,mapNameToUpper,mapNameToLower)
-import Gencot.Traversal (FTrav)
+import Gencot.Traversal (FTrav,getFunDef)
 import Gencot.Util.Types (isAggregate,resolveTypedef,isFunction)
-import Gencot.Items.Types (getGlobalVarProperties)
+import Gencot.Items.Types (getObjectItemId,getGlobalStateProperty,isConstValItem,getIndividualItemAssoc,getGlobalStateParam)
+import Gencot.Items.Identifier (isToplevelObjectId)
 
 import Language.C.Analysis.TravMonad (MonadTrav)
 import qualified Language.C.Analysis as LCA
@@ -487,14 +488,31 @@ transExpr (LC.CMember expr ident True n) = do
     i <- mkMapMId mapIfUpper ident
     return $ GCA.PtrMember e i $ mkOrigin n
 transExpr (LC.CVar ident n) = do
-    (gspar,cv) <- getGlobalVarProperties ident
-    if null gspar
+    i <- transObjName ident
+    let nam = mkMapId (const i) ident -- add origin
+    (Just decl) <- LCA.lookupObject ident
+    let t = LCA.declType decl
+    iid <- getObjectItemId ident
+    if (isToplevelObjectId iid) && (not $ isFunction t) -- global variable
        then do
-           i <- transObjName ident
-           let nam = mkMapId (const i) ident
-           let e = (if cv then GCA.FnCall (GCA.Var nam noOrigin) [] else GCA.Var nam) $ mkOrigin n
-           return e
-       else return $ GCA.UnOp GCA.Deref (GCA.Var (GCA.Id gspar noOrigin) noOrigin) $ mkOrigin n
+           gs <- getGlobalStateProperty iid
+           if null gs
+              then do
+                  cv <- isConstValItem (iid,t)
+                  if cv -- Const-Val property: invoke access function named v
+                     then return $ GCA.FnCall (GCA.Var nam noOrigin) [] $ mkOrigin n
+                     else -- assume preprocessor constant: access it
+                          return $ GCA.Var nam $ mkOrigin n
+              else do
+                  mfdef <- getFunDef
+                  case mfdef of
+                       Just idecl@(LCA.FunctionDef _) -> do
+                           sfn <- getFileName
+                           let iat = getIndividualItemAssoc idecl sfn
+                           gspar <- getGlobalStateParam iat gs
+                           return $ GCA.UnOp GCA.Deref (GCA.Var (GCA.Id gspar noOrigin) noOrigin) $ mkOrigin n
+                       _ -> return $ GCA.Var nam $ mkOrigin n
+       else return $ GCA.Var nam $ mkOrigin n
 transExpr (LC.CConst constant) = do
     c <- transConst constant
     return $ GCA.Const c noOrigin

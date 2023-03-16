@@ -8,13 +8,14 @@ import Cogent.Surface as CS
 import Cogent.Common.Syntax as CCS
 
 import Gencot.Origin (noOrigin)
+import Gencot.Names (ptrDerivCompName)
 import Gencot.Cogent.Ast -- includes unitType
 import Gencot.Cogent.Types (
   mkU8Type, mkU32Type, mkStringType, mkBoolType, 
   mkTupleType, mkCtlType, mkFunType, mkRecordType, mkTakeType, mkArrTakeType, 
-  getMemType, getElmType, getResultType)
+  getMemberType, getDerefType, getResultType)
 import Gencot.Cogent.Expr (
-  TypedVar, TypedVarOrWild, TypedFun,
+  TypedVar(TV), namOfTV, typOfTV, TypedVarOrWild,
   mkUnitExpr, mkIntLitExpr, mkCharLitExpr, mkStringLitExpr, mkBoolLitExpr,
   mkVarExpr, mkCtlLitExpr, mkTupleExpr, mkOpExpr, mkBoolOpExpr, mkCtlVarTupleExpr, mkVarTupleExpr, mkExpVarTupleExpr, mk0VarTupleExpr,
   mkDisjExpr, mkAppExpr, mkTopLevelFunExpr, mkLetExpr, mkRecPutExpr, mkArrPutExpr,
@@ -42,8 +43,8 @@ valVar :: Int -> CCS.VarName
 valVar 0 = "v"++[prime]
 valVar n = "v"++(show n)++[prime]
 
-typedCtlVar = (ctlVar, mkCtlType)
-typedCasVar n = (casVar n, mkBoolType)
+typedCtlVar = TV ctlVar mkCtlType
+typedCasVar n = TV (casVar n) mkBoolType
 
 -- A pair of main and putback binding lists.
 -- The main list is represented in reverse order.
@@ -64,15 +65,16 @@ sideEffectTargets (main,putback) =
 -- | Select side effect targets from a list of typed variables.
 sideEffectFilter :: [TypedVar] -> [TypedVar]
 sideEffectFilter vs =
-    filter (\(v,_) -> (last v) /= prime || v == resVar) vs 
+    filter (\(TV v _) -> (last v) /= prime || v == resVar) vs
 
 -- | All typed variables occurring in a pattern.
 tupleVars :: GenIrrefPatn -> [TypedVar]
-tupleVars ip = case irpatnOfGIP ip of
-                    CS.PVar v -> [(v,typOfGIP ip)]
-                    CS.PTuple pvs -> concat $ map tupleVars pvs
-                    CS.PTake v fs -> (v,mkTakeType False (typOfGIP ip) (map fst $ catMaybes fs)) : (concat $ map (tupleVars . snd) $ catMaybes fs)
-                    CS.PArrayTake v fs -> (v, mkArrTakeType False (typOfGIP ip) (map fst fs)) : (concat $ map (tupleVars . snd) fs)
+tupleVars ip =
+    case irpatnOfGIP ip of
+         CS.PVar v -> [TV v $ typOfGIP ip]
+         CS.PTuple pvs -> concat $ map tupleVars pvs
+         CS.PTake v fs -> (TV v $ mkTakeType False (typOfGIP ip) (map fst $ catMaybes fs)) : (concat $ map (tupleVars . snd) $ catMaybes fs)
+         CS.PArrayTake v fs -> (TV v $ mkArrTakeType False (typOfGIP ip) (map fst fs)) : (concat $ map (tupleVars . snd) fs)
 
 -- | Typed variables bound in a binding
 -- For a valid binding all resulting variables have different names.
@@ -90,13 +92,13 @@ leadVar (main,_) = head $ tupleVars ip
     where (CS.Binding ip _ _ _) = head main
 
 isStatBindsPair :: BindsPair -> Bool
-isStatBindsPair bp = (fst (leadVar bp)) == ctlVar
+isStatBindsPair bp = (namOfTV (leadVar bp)) == ctlVar
 
 boundExpr :: GenBnd -> GenExpr
 boundExpr (CS.Binding _ _ e _) = e
 
 isWild :: TypedVarOrWild -> Bool
-isWild ("_",_) = True
+isWild (TV "_" _) = True
 isWild _ = False
 
 -- | The first expression bound in the final binding of the main list, if it is a variable.
@@ -105,10 +107,10 @@ lvalVar (main,_) =
     case exprOfGE e of
          (CS.Tuple es) -> 
             case exprOfGE $ head es of
-                 (CS.Var v) -> (v,typOfGE $ head es)
-                 _ -> ("_", typOfGE $ head es)
-         (CS.Var v) -> (v,typOfGE e)
-         _ -> ("_",typOfGE e)
+                 (CS.Var v) -> (TV v $ typOfGE $ head es)
+                 _ -> (TV "_" $ typOfGE $ head es)
+         (CS.Var v) -> (TV v $ typOfGE e)
+         _ -> (TV "_" $ typOfGE e)
     where (CS.Binding _ _ e _) = head main
 
 -- Construct Toplevel Expressions
@@ -116,7 +118,7 @@ lvalVar (main,_) =
 
 -- construct let (_,...) = expr in e
 mkBodyExpr :: GenBnd -> GenExpr -> GenExpr
-mkBodyExpr b@(CS.Binding ip _ _ _) e = mkLetExpr [replaceLeadPatn (mkVarPattern ("_", typOfGIP ip)) b] e
+mkBodyExpr b@(CS.Binding ip _ _ _) e = mkLetExpr [replaceLeadPatn (mkVarPattern (TV "_" $ typOfGIP ip)) b] e
 
 -- construct let ... in v<n>'
 mkPlainExpr :: ([GenBnd],[GenBnd]) {-BindsPair-} -> GenExpr
@@ -150,41 +152,41 @@ mkSingleBindsPair b = ([b],[])
 
 -- | Single binding v<n>' = gencotDummy msg
 mkDummyBindsPair :: Int -> String -> BindsPair
-mkDummyBindsPair n msg = mkSingleBindsPair $ mkVarBinding ((valVar n),unitType) $ mkDummyExpr msg
+mkDummyBindsPair n msg = mkSingleBindsPair $ mkValVarBinding n unitType $ mkDummyExpr msg
 
 -- | Single binding v<n>' = ()
 mkUnitBindsPair :: Int -> BindsPair
-mkUnitBindsPair n = mkSingleBindsPair $ mkVarBinding ((valVar n),unitType) $ mkUnitExpr
+mkUnitBindsPair n = mkSingleBindsPair $ mkValVarBinding n unitType $ mkUnitExpr
 
 -- | Single binding v<n>' = defaultVal ()
 mkDefaultBindsPair :: Int -> GenType -> BindsPair
-mkDefaultBindsPair n t = mkSingleBindsPair $ mkVarBinding ((valVar n),t) $ mkAppExpr (mkTopLevelFunExpr ("defaultVal",t) []) mkUnitExpr
+mkDefaultBindsPair n t = mkConstAppBindsPair n "defaultVal" t
 
 -- | Single binding v<n>' = i
 mkIntLitBindsPair :: Int -> GenType -> Integer -> BindsPair
-mkIntLitBindsPair n t i = mkSingleBindsPair $ mkVarBinding ((valVar n),t) $ mkIntLitExpr t i
+mkIntLitBindsPair n t i = mkSingleBindsPair $ mkValVarBinding n t $ mkIntLitExpr t i
 
 -- | Single binding v<n>' = c
 -- in C a character constant has type int!
 mkCharLitBindsPair :: Int -> Char -> BindsPair
-mkCharLitBindsPair n i = mkSingleBindsPair $ mkVarBinding ((valVar n),mkU32Type) $ mkCharLitExpr i
+mkCharLitBindsPair n i = mkSingleBindsPair $ mkValVarBinding n mkU32Type $ mkCharLitExpr i
 
 -- | Single binding v<n>' = s
 mkStringLitBindsPair :: Int -> String -> BindsPair
-mkStringLitBindsPair n s = mkSingleBindsPair $ mkVarBinding ((valVar n),mkStringType) $ mkStringLitExpr s
+mkStringLitBindsPair n s = mkSingleBindsPair $ mkValVarBinding n mkStringType $ mkStringLitExpr s
 
 -- | Single binding v<n>' = v
 mkValVarBindsPair :: Int -> TypedVar -> BindsPair
-mkValVarBindsPair n v = mkSingleBindsPair $ mkVarBinding ((valVar n),snd v) $ mkVarExpr v
+mkValVarBindsPair n v = mkSingleBindsPair $ mkValVarBinding n (typOfTV v) $ mkVarExpr v
 
 -- | Member (field) access <v>{f=r<k>’} = v<n>' and v<n>’ = r<k>’
 --   with putback <v> = <v>{f=r<k>’}
 mkMemBindsPair :: Int -> CCS.FieldName -> BindsPair -> BindsPair
 mkMemBindsPair n f bp = 
     if isWild rv then mainbp else addPutback (mkVarBinding rv $ mkRecPutExpr rv cmp f) mainbp
-    where vv@(_,rt) = leadVar bp
-          ct = getMemType f rt
-          cmp = (cmpVar n, ct)
+    where vv@(TV _ rt) = leadVar bp
+          ct = getMemberType f rt
+          cmp = TV (cmpVar n) ct
           rv = lvalVar bp
           mainbp = addBinding (mkVarBinding vv $ mkVarExpr cmp) $ 
                      addBinding (mkBinding (mkRecTakePattern rv cmp f) $ mkVarExpr vv) bp
@@ -194,29 +196,46 @@ mkMemBindsPair n f bp =
 mkIdxBindsPair :: Int -> BindsPair -> BindsPair -> BindsPair
 mkIdxBindsPair n bp1 bp2 = 
     if isWild rv then mainbp else addPutback (mkVarBinding rv $ mkArrPutExpr rv cmp idx) mainbp
-    where v1@(_,at) = leadVar bp1
-          v2@(_,it) = leadVar bp2
-          et = getElmType at
-          cmp = (cmpVar n,et)
-          idx = (idxVar n,it)
+    where v1@(TV _ at) = leadVar bp1
+          v2@(TV _ it) = leadVar bp2
+          et = getDerefType at
+          cmp = TV (cmpVar n) et
+          idx = TV (idxVar n) it
           rv = lvalVar bp1
           mainbp = addBinding (mkVarBinding v1 $ mkVarExpr cmp) $ 
                      addBinding (mkBinding (mkArrTakePattern rv cmp idx v2) $ mkVarTupleExpr [v1,v2]) $ concatBindsPairs [bp2,bp1]
 
+-- | Pointer dereference, always <v>{cont=r<k>’} = v<n>' and v<n>’ = r<k>’
+--   with putback <v> = <v>{cont=r<k>’}
+-- The type of v<n>' may be an arbitrary mapped C pointer type except function pointer type.
+mkDerefBindsPair :: Int -> BindsPair -> BindsPair
+mkDerefBindsPair n bp =
+    if isWild rv then mainbp else addPutback (mkVarBinding rv $ mkRecPutExpr rv cmp f) mainbp
+    where f = ptrDerivCompName
+          vv@(TV _ rt) = leadVar bp
+          ct = getDerefType rt
+          cmp = TV (cmpVar n) ct
+          rv = lvalVar bp
+          mainbp = addBinding (mkVarBinding vv $ mkVarExpr cmp) $
+                     addBinding (mkBinding (mkRecTakePattern rv cmp f) $ mkVarExpr vv) bp
+
 -- | Operator application v<n>' = op [bp...]
 mkOpBindsPair :: GenType -> CCS.OpName -> [BindsPair] -> BindsPair
 mkOpBindsPair t op bps =
-    addBinding (mkVarBinding (fst $ head vs, t) $ mkOpExpr t op (map mkVarExpr vs)) $ concatBindsPairs bps
+    addBinding (mkVarBinding (TV (namOfTV $ head vs) t) $ mkOpExpr t op (map mkVarExpr vs)) $ concatBindsPairs bps
     where vs = map leadVar bps 
 
+-- | Application of constant named function v<n>' = f ()
+-- The type is the function result type.
+mkConstAppBindsPair :: Int -> CCS.FunName -> GenType -> BindsPair
+mkConstAppBindsPair n f t = mkSingleBindsPair $ mkValVarBinding n t $ mkAppExpr (mkTopLevelFunExpr (f,mkFunType t unitType) []) mkUnitExpr
+
 -- | Function pointer dereference f = fromFunPtr (fp)
--- The first argument is the type of the resulting function (with typedefs resolved, as usual in a BindsPair)
--- The second argument is the type of the function pointer with typedefs not resolved, to be put in the Cogent source.
--- The third argument is the type of the resulting function with typedefs not resolved, to be put in the Cogent source.
-mkFunDerefBindsPair :: GenType -> GenType -> GenType -> BindsPair -> BindsPair
-mkFunDerefBindsPair ft nrfpt nrft bp =
-    addBinding (mkVarBinding (vnam, ft) $ mkAppExpr (mkTopLevelFunExpr ("fromFunPtr",ffpt) [Just nrft, Just nrfpt]) (mkVarExpr v)) bp
-    where v@(vnam,fpt) = leadVar bp
+-- The first argument is the type of the resulting function.
+mkFunDerefBindsPair :: GenType -> BindsPair -> BindsPair
+mkFunDerefBindsPair ft bp =
+    addBinding (mkVarBinding (TV vnam ft) $ mkAppExpr (mkTopLevelFunExpr ("fromFunPtr",ffpt) [Just ft, Just fpt]) (mkVarExpr v)) bp
+    where v@(TV vnam fpt) = leadVar bp
           ffpt = mkFunType ft fpt
 
 -- | Function application v = f (pbp) or (v,v1,..,vn) = f (pbp)
@@ -313,6 +332,10 @@ mkVarsBinding vs e = mkTupleBinding (map mkVarPattern vs) e
 mkVarBinding :: TypedVarOrWild -> GenExpr -> GenBnd
 mkVarBinding v e = mkBinding (mkVarPattern v) e
 
+-- construct v<n>' = expr
+mkValVarBinding :: Int -> GenType -> GenExpr -> GenBnd
+mkValVarBinding n t e = mkBinding (mkValVarPattern n t) e
+
 -- construct (v1,..,vn) = (e1,..,en)
 mkVarsTupleBinding :: [TypedVarOrWild] -> [GenExpr] -> GenBnd
 mkVarsTupleBinding [v] [e] = mkVarBinding v e
@@ -334,8 +357,8 @@ mkExpBinding bp = mkVarsBinding (typedCtlVar : vs) $ mkLetExpr [cmbBinds bp] $ m
 
 -- | Return statement: (c',r',v1..) = let ... in (3, v<n>',v1,..)
 mkRetBinding :: BindsPair -> GenBnd
-mkRetBinding bp = mkVarsBinding (typedCtlVar : ((resVar,t) : vs)) $ mkLetExpr [cmbBinds bp] $ mkCtlVarTupleExpr 3 ((v,t) : vs)
-    where (v,t) = leadVar bp
+mkRetBinding bp = mkVarsBinding (typedCtlVar : ((TV resVar t) : vs)) $ mkLetExpr [cmbBinds bp] $ mkCtlVarTupleExpr 3 ((TV v t) : vs)
+    where (TV v t) = leadVar bp
           vs = sideEffectTargets bp
 
 -- | Break statement: c' = 2
@@ -366,7 +389,7 @@ mkSwitchBinding bp mbps b =
     where set0 = sideEffectTargets bp
           set1 = sideEffectFilter $ boundVars b
           vs = union set0 set1
-          typedSwtVar = (swtVar,snd (leadVar bp))
+          typedSwtVar = TV swtVar $ typOfTV $ leadVar bp
           bp' = replaceLeadPatn (mkVarPattern typedSwtVar) $ cmbBinds bp
           casVars = map typedCasVar $ take (length mbps) $ iterate (1+) 1
           casVal Nothing = mkBoolLitExpr True
@@ -436,7 +459,7 @@ mkForBinding bpm ebp1 bp2 bp3 b =
           accpat = mkVarTuplePattern (typedCtlVar : accvars) -- (c',y1..)
           accexpr = mkVarTupleExpr (typedCtlVar : accvars) -- (c',y1..)
           ctlcond = mkBoolOpExpr ">" [mkVarExpr typedCtlVar,mkCtlLitExpr 1] -- c' > 1
-          accpatwild = mkVarTuplePattern (("_", mkCtlType) : accvars) -- (_,y1..)
+          accpatwild = mkVarTuplePattern ((TV "_" mkCtlType) : accvars) -- (_,y1..)
           obsvars = freevars \\ accvars
           obsvpat = mkVarTuplePattern obsvars
           repeatctl = mkIfExpr (mkBoolOpExpr "==" [mkVarExpr typedCtlVar,mkCtlLitExpr 2]) (mkCtlLitExpr 0) (mkVarExpr typedCtlVar)
@@ -470,12 +493,13 @@ cmbExtBinds vs bp@(main,putback) =
 genIrrefPatn t p = GenIrrefPatn p noOrigin t
 
 mkVarPattern :: TypedVarOrWild -> GenIrrefPatn
-mkVarPattern (v,t) = genIrrefPatn t $ (if isWild (v,t) then CS.PUnderscore else CS.PVar v)
+mkVarPattern v = genIrrefPatn (typOfTV v) $ (if isWild v then CS.PUnderscore else CS.PVar (namOfTV v))
 
-mkValPattern :: GenType -> Int -> GenIrrefPatn
-mkValPattern t i = mkVarPattern (valVar i,t)
+mkValVarPattern :: Int -> GenType -> GenIrrefPatn
+mkValVarPattern n t = mkVarPattern $ TV (valVar n) t
 
 mkTuplePattern :: [GenIrrefPatn] -> GenIrrefPatn
+mkTuplePattern [] = genIrrefPatn unitType $ CS.PUnitel
 mkTuplePattern [ip] = ip
 mkTuplePattern ips = genIrrefPatn (mkTupleType (map typOfGIP ips)) $ CS.PTuple ips
 
@@ -489,14 +513,20 @@ mkRecordPattern flds = genIrrefPatn (mkRecordType (map (\(f,ip) -> (f,typOfGIP i
 
 -- construct v1{f=v2}
 mkRecTakePattern :: TypedVarOrWild -> TypedVarOrWild -> CCS.FieldName -> GenIrrefPatn
-mkRecTakePattern tv1@(v1,t1) tv2 f = genIrrefPatn (mkTakeType False t1 [f]) $ CS.PTake v1 [Just (f, mkVarPattern tv2)]
+mkRecTakePattern tv1@(TV v1 t1) tv2 f = genIrrefPatn (mkTakeType False t1 [f]) $ CS.PTake v1 [Just (f, mkVarPattern tv2)]
 
 -- construct (v1 @{@v4=v2},v3)
 mkArrTakePattern :: TypedVarOrWild -> TypedVarOrWild -> TypedVarOrWild -> TypedVar -> GenIrrefPatn
-mkArrTakePattern tv1@(v1,t1) tv2 tv3 tv4 =
+mkArrTakePattern tv1@(TV v1 t1) tv2 tv3 tv4 =
     mkTuplePattern [genIrrefPatn (mkArrTakeType False t1 [ie3]) $ CS.PArrayTake v1 [(mkVarExpr tv4,mkVarPattern tv2)], ip3]
     where ip3 = mkVarPattern tv3
           ie3 = mkVarExpr tv3
+
+-- Construct Alternative
+------------------------
+
+mkAlt :: GenIrrefPatn -> GenExpr -> GenAlt
+mkAlt p e = CS.Alt (GenPatn (CS.PIrrefutable p) noOrigin $ typOfGIP p) CCS.Regular e
 
 -- Handling mf flags
 --------------------
@@ -521,4 +551,4 @@ processMFpropForPatterns mfvars =
        else [fst $ head postmf, arpat]
     where (premf,postmf) = break snd $ map (\(tv,mf) -> (mkVarPattern tv, mf)) mfvars
           arpats = map fst (premf ++ (tail postmf))
-          arpat = if null arpats then mkVarPattern ("_",unitType) else mkTuplePattern arpats
+          arpat = if null arpats then mkVarPattern (TV "_" unitType) else mkTuplePattern arpats

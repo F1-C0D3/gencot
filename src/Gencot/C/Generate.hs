@@ -33,7 +33,7 @@ genEntry (LCA.DeclEvent idecl@(LCA.FunctionDef fdef@(LCA.FunDef decl stat n))) =
     let iat = getIndividualItemAssoc idecl sfn
     --_ <- if "main" == (fst iat) then error ("genEntry: " ++ (fst iat)) else return ()
     resiat <- getResultSubItemAssoc iat
-    restyp <- transType False resiat
+    restyp <- transType resiat
     let rIsVoid = case res of { (LCA.DirectType LCA.TyVoid _ _) -> True; _ -> False }
     let rspec = if rIsVoid then mkVoid else mkADec restyp
     ps <- mapM (genParam iat) numpars
@@ -48,7 +48,7 @@ genEntry (LCA.DeclEvent idecl@(LCA.FunctionDef fdef@(LCA.FunDef decl stat n))) =
 genEntry (LCA.DeclEvent odef@(LCA.ObjectDef (LCA.ObjDef _ minit n))) = do
     sfn <- getFileName
     let iat = getIndividualItemAssoc odef sfn
-    t <- transType False iat
+    t <- transType iat
     mini <- mapM transInit minit
     return $ GCA.DecDef (mkObjDef t (isStatic,isConst) (getObjName $ fst iat) mini) $ mkOrigin n
     where isStatic = (LCA.declLinkage odef) == LCA.InternalLinkage
@@ -64,7 +64,7 @@ genEntry (LCA.DeclEvent odef@(LCA.ObjectDef (LCA.ObjDef _ minit n))) = do
 -- As type it uses the antiquoted Cogent type translated from the original parameter type.
 genParam :: ItemAssocType -> (Int,LCA.ParamDecl) -> FTrav GCA.Param
 genParam fiat ipd = do
-    partyp <- transType False $ getParamSubItemAssoc fiat ipd
+    partyp <- transType $ getParamSubItemAssoc fiat ipd
     return $ mkPar pnam partyp
     where pnam = LCI.identToString $ LCA.declIdent $ snd ipd
 
@@ -75,9 +75,9 @@ genParam fiat ipd = do
 genBody :: ItemAssocType -> [(Int,LCA.ParamDecl)] -> LCI.Ident -> Bool -> FTrav [GCA.BlockItem]
 genBody fiat numpars idnam rIsVoid = do
     f <- transObjName idnam
-    cogtyp <- transType False fiat
+    cogtyp <- transType fiat
     let (cogptyp,cogrtyp) = case cogtyp of {
-        (GenType (TFun p r) _) -> (p,r);
+        (GenType (TFun p r) _ _) -> (p,r);
         _ -> error "Function has no function type" }
     gsinits <- genGSInits fiat $ (1 + length numpars) -- [.pn+1=&gvar1,...]
     let inits = ainits ++ gsinits
@@ -87,8 +87,8 @@ genBody fiat numpars idnam rIsVoid = do
         _ -> (mkVar "arg", (Just $ mkTVal inits)) }
     let invk = mkInvk f aarg
     let rval = case cogrtyp of {
-        (GenType TUnit _) -> Nothing;
-        (GenType (TTuple cogptypes) _) -> (Just $ mkMbAcc invk "p1");
+        (GenType TUnit _ _) -> Nothing;
+        (GenType (TTuple cogptypes) _ _) -> (Just $ mkMbAcc invk "p1");
         _ -> (Just invk) }
     let rstat = if rIsVoid 
                     then mkSStm invk 

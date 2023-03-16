@@ -152,6 +152,7 @@ isReadOnlyItem = isItemWithProperty "ro"
 isAddResultItem = isItemWithProperty "ar"
 isNoStringItem = isItemWithProperty "ns"
 isHeapUseItem = isItemWithProperty "hu"
+isConstValItem = isItemWithProperty "cv"
 
 getItemProperties :: ItemAssocType -> FTrav [String]
 getItemProperties (iid,t) = do
@@ -178,6 +179,7 @@ getGlobalStateSubItemIds (fid,_) = do
     return $ zip gsids isnorogsids
     where fidslash = fid ++ "/"
 
+{-
 -- | Construct the Global-State parameters of a function.
 -- The result is the list of parameter names and their ItemAssocTypes, together with a not-Read-Only flag,
 -- sorted according to the Global-State properties.
@@ -189,6 +191,7 @@ makeGlobalStateParams fiat = do
     gsps <- mapM getGlobalStateProperty $ map fst iids
     gsn <- mapM (\n -> mapIfUpper $ LCI.Ident n 0 LCN.undefNode) $ map (getParamName .fst) iids
     return $ map fst $ sortOn snd $ zip (zip (zip gsn iats) (map snd iids)) gsps
+-}
 
 -- | Get the Global-State property for an item.
 -- If not present return the empty string.
@@ -358,51 +361,4 @@ getGlobalStateParam iat gs = do
     pids <- getGlobalStateSubItemIds iat
     gsps <- mapM getGlobalStateProperty $ map fst pids
     return $ maybe "" (getParamName . snd) $ find (\(gsp,_) -> gsp == gs) $ zip gsps $ map fst pids
-
--- | For a function et the name of the heap parameter.
--- If the function has no Heap-Use property, return the empty string.
--- The first argument is the ItemAssocType of the function.
-getHeapUseParam :: ItemAssocType -> FTrav String
-getHeapUseParam iat@(_,(LCA.FunctionType (LCA.FunType _ pars _) _)) = do
-    psn <- mapM (mapIfUpper . LCA.declIdent) pars
-    gspars <- makeGlobalStateParams iat
-    let psgn = map (fst . fst) gspars
-    huProp <- isHeapUseItem iat
-    return $ if huProp then heapParamName (psn ++ psgn) else ""
-
--- | Retrieve the declaration for a global identifier (i.e. it has external or internal linkage).
-getDeclWithLinkage :: LCI.Ident -> FTrav (Maybe LCA.IdentDecl)
-getDeclWithLinkage ident = do
-    mdecl <- LCA.lookupObject ident
-    case mdecl of
-         Nothing -> return Nothing
-         Just decl -> do 
-             case safeDeclLinkage decl of
-                  LCA.NoLinkage -> return Nothing
-                  _ -> return (Just decl)
-
--- | Retrieve information about a global object or function identifier used in a variable access in a function body.
--- If it has a Global-State property and a corresponding parameter has been declared for the function
--- the name of the parameter is returned as the first result component, otherwise the empty string.
--- If it has a Const-Val property the second result component is True, otherwise False.
-getGlobalVarProperties :: LCI.Ident -> FTrav (String,Bool)
-getGlobalVarProperties ident = do
-    mdecl <- getDeclWithLinkage ident
-    case mdecl of
-         Nothing -> return $ ("",False)
-         Just decl -> 
-            if isFunction $ LCA.declType decl
-               then return $ ("",False)
-               else do
-                   sfn <- getFileName
-                   let iid = getIndividualItemId decl sfn
-                   gs <- getGlobalStateProperty iid
-                   mfdef <- getFunDef
-                   case mfdef of
-                        Just idecl@(LCA.FunctionDef _) -> do
-                            let iat = getIndividualItemAssoc idecl sfn
-                            gspar <- getGlobalStateParam iat gs
-                            cv <- return False -- isConstValItem iid
-                            return $ (gspar,cv)
-                        _ -> return $ ("",False)
 

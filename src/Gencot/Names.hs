@@ -105,11 +105,16 @@ transObjName :: (MapNamesTrav f, MonadTrav f) => LCI.Ident -> f String
 transObjName idnam = do
     mdecdef <- LCA.lookupObject idnam
     let (Just decdef) = mdecdef
-    fnam <- getFileName 
-    let lnk = LCA.declLinkage decdef
-    case decdef of
+    transDeclName decdef
+
+transDeclName :: (MapNamesTrav f, MonadTrav f) => LCA.IdentDecl -> f String
+transDeclName decl = do
+    fnam <- getFileName
+    let lnk = LCA.declLinkage decl
+    let idnam = LCA.declIdent decl
+    case decl of
          LCA.EnumeratorDef _ -> mapNameToLower idnam
-         _ -> mapObjectName idnam lnk fnam decdef
+         _ -> mapObjectName idnam lnk fnam decl
 
 mapObjectName :: (CNode a, MapNamesTrav f) => LCI.Ident -> LCA.Linkage -> String -> a -> f String
 mapObjectName idnam lnk fnam n = 
@@ -132,6 +137,9 @@ isNoFunctionName idnam = do
 mapPtrDeriv :: String
 mapPtrDeriv = "CPtr"
 
+ptrDerivCompName :: String
+ptrDerivCompName = "cont"
+
 mapPtrVoid :: String
 mapPtrVoid = "CVoidPtr"
 
@@ -141,6 +149,9 @@ mapArrDeriv (LCA.ArraySize _ (LCS.CVar (LCI.Ident s _ _) _)) =
     let sep = findSepCharFor s
     in "CArr" ++ [sep] ++ s ++ [sep] 
 mapArrDeriv _ = "CArrXX"
+
+isArrDeriv :: String -> Bool
+isArrDeriv s = "CArr" `isPrefixOf` s
 
 arrDerivHasSize :: String -> Bool
 arrDerivHasSize nam = nam /= "CArrXX"
@@ -155,6 +166,11 @@ arrDerivToUbox ('C' : rest) = "U" ++ rest
 mapFunDeriv :: Bool -> String
 mapFunDeriv False = "CFunInc"
 mapFunDeriv True = "CFunPtr"
+
+isFunDeriv :: String -> Bool
+isFunDeriv "CFunInc" = True
+isFunDeriv "CFunPtr" = True
+isFunDeriv _ = False
 
 mapMayNull :: String
 mapMayNull = "MayNull"

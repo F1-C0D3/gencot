@@ -14,6 +14,11 @@ import Gencot.Input (showWarnings,errorOnLeft)
 import Gencot.Names (FileNameTrav,getFileName,NamePrefixMap,lookupPrefix,MapNamesTrav,matchPrefix)
 import Gencot.Items.Properties (ItemProperties)
 
+-- | Table for looking up item ids of local variables and parameters.
+-- The first component is a stack of contexts mapping C identifiers to item ids.
+-- The second component maps C variable names to their next number to be used for the id of a local variable with this name.
+type LocalItemIdTable = ([Map String String],Map String Int)
+
 -- | The traversal state for processing C code.
 -- The first component is the name of the C source file.idm
 -- The second component is the name prefix map.
@@ -24,7 +29,7 @@ import Gencot.Items.Properties (ItemProperties)
 -- The seventh component is the table of local item ids while traversing a function body
 -- The eighth component is the pair of counters for Cogent value and component variables
 -- The nineth component is the translation configuration string
-type FTrav = TravT (String,NamePrefixMap,[SUERef],ItemProperties,(Bool,[String]),Maybe IdentDecl,([Map String String],Map String Int),(Int,Int),String) Identity
+type FTrav = TravT (String,NamePrefixMap,[SUERef],ItemProperties,(Bool,[String]),Maybe IdentDecl,LocalItemIdTable,(Int,Int),String) Identity
 
 instance MonadFail FTrav where
   fail = error "FTrav monad failed"

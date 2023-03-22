@@ -3094,7 +3094,7 @@ assumed facts in the proof context, they cannot be processed by the method. In p
 theorem is specified in the form (see Section~\ref{basic-theory-theorem})
 @{theory_text[display]
 \<open>theorem 
-  assumes "A\<^sub>1" \<dots> "A\<^sub>n"
+  assumes "A\<^sub>1" \<dots> "A\<^sub>m"
   shows "C"
   \<proof>\<close>}
 the initial goal in \<open>\<proof>\<close> is only \<open>C\<close> and does not contain the assumptions \<open>A\<^sub>1, \<dots>, A\<^sub>m\<close>.
@@ -3106,13 +3106,13 @@ into the goal. This can be done by using fact input (see Section~\ref{basic-proo
 Thus, in the form
 @{theory_text[display]
 \<open>theorem 
-  assumes "A\<^sub>1" \<dots> "A\<^sub>n"
+  assumes "A\<^sub>1" \<dots> "A\<^sub>m"
   shows "C"
 using assms
 proof (induction \<dots>) \<dots> qed\<close>}
 induction can be applied in the same way as if the theorem had been specified as 
 @{theory_text[display]
-\<open>theorem "\<lbrakk>A\<^sub>1; \<dots>; A\<^sub>n\<rbrakk> \<Longrightarrow> C"\<close>}
+\<open>theorem "\<lbrakk>A\<^sub>1; \<dots>; A\<^sub>m\<rbrakk> \<Longrightarrow> C"\<close>}
 because the assumptions \<open>A\<^sub>1, \<dots>, A\<^sub>m\<close> together are automatically named \<open>assms\<close> (see 
 Section~\ref{basic-proof-assume}). Alternatively, explicit names could be specified for single
 assumptions to insert only some of them into the goal.
@@ -3124,11 +3124,96 @@ chaining (see Section~\ref{basic-proof-chain}).
 subsubsection "Arbitrary Variables"
 
 text\<open>
-**todo**
-If some of the \<open>y\<^sub>i\<^sub>j\<close> collide with some of the \<open>x\<^sub>i\<close> they are consistently renamed.
+If the goal contains bound variables, i.e., is of the form \<open>\<And> x\<^sub>1 \<dots> x\<^sub>k. \<lbrakk>A\<^sub>1; \<dots>; A\<^sub>m\<rbrakk> \<Longrightarrow> C\<close> these
+variables may occur in the assumptions \<open>A\<^sub>1, \<dots>, A\<^sub>m\<close> and the conclusion \<open>C\<close>. When these are abstracted
+to functions \<open>PA\<^sub>l\<close> and \<open>PC\<close> by unification with \<open>?P x\<close> the \<open>x\<^sub>1 \<dots> x\<^sub>k\<close> may still occur free in these
+functions and thus in their applications to terms, which means they denote the same value in all these
+applications. 
+
+Consider the goal
+@{text[display]
+\<open>\<And>c. n<c \<Longrightarrow> 2*n < 2*c\<close>}
+When applying the prepared induction rule for the natural numbers
+\<open>\<lbrakk>?P 0; \<And>y. ?P y \<Longrightarrow> ?P (y+1)\<rbrakk> \<Longrightarrow> ?P n\<close> in the way described above, binding the variable \<open>c\<close> in every
+goal, the resulting goals would be
+@{text[display]
+\<open>\<And>c. 0<c \<Longrightarrow> 2*0 < 2*c
+\<And>y c. \<lbrakk>y<c \<Longrightarrow> 2*y < 2*c; y+1 < c\<rbrakk> \<Longrightarrow> 2*(y + 1) < 2*c\<close>}
+In the second goal the value \<open>c\<close> in the induction hypothesis \<open>y<c \<Longrightarrow> 2*y < 2*c\<close> must be equal to 
+the value \<open>c\<close> in the additional hypothesis \<open>y+1 < c\<close> and the conclusion \<open>2*(y + 1) < 2*c\<close>. This 
+induction hypothesis only allows to derive \<open>2*(y + 1) < 2*c + 2\<close> and the additional hypothesis cannot
+be used.
+
+Therefore the methods \<open>induction\<close> and \<open>induct\<close> additionally bind the variables \<open>x\<^sub>1 \<dots> x\<^sub>k\<close> locally
+in every induction hypothesis, that is, in every \<open>Q\<^sub>i\<^sub>j\<close> which originally contains \<open>?P\<close>. Thus the 
+resulting goals are now
+@{text[display]
+\<open>\<And> y\<^sub>1\<^sub>1 \<dots> y\<^sub>1\<^sub>p\<^sub>1 x\<^sub>1 \<dots> x\<^sub>k. \<lbrakk>Q\<^sub>1\<^sub>1'; \<dots>; Q\<^sub>1\<^sub>q\<^sub>1'; PA\<^sub>1 term\<^sub>1; \<dots>; PA\<^sub>m term\<^sub>1\<rbrakk> 
+    \<Longrightarrow> PC term\<^sub>1
+\<dots>
+\<And> y\<^sub>n\<^sub>1 \<dots> y\<^sub>n\<^sub>p\<^sub>n x\<^sub>1 \<dots> x\<^sub>k. \<lbrakk>Q\<^sub>n\<^sub>1'; \<dots>; Q\<^sub>n\<^sub>q\<^sub>n'; PA\<^sub>1 term\<^sub>n; \<dots>; PA\<^sub>m term\<^sub>n\<rbrakk> 
+    \<Longrightarrow> PC term\<^sub>n\<close>}
+where every \<open>Q\<^sub>i\<^sub>j'\<close> is 
+@{text[display]
+\<open>\<And> x\<^sub>1 \<dots> x\<^sub>k. \<lbrakk>A\<^sub>1; \<dots>; A\<^sub>m\<rbrakk> \<Longrightarrow> Q\<^sub>i\<^sub>j\<close>}
+if \<open>Q\<^sub>i\<^sub>j\<close> contains \<open>?P\<close> and is \<open>Q\<^sub>i\<^sub>j\<close> otherwise.
+If some of the \<open>y\<^sub>i\<^sub>j\<close> collide with some of the \<open>x\<^sub>i\<close> in the outer binding in the goals they are 
+consistently renamed.
+
+In the example above the \<open>induction\<close> and \<open>induct\<close> methods produce the goals
+@{text[display]
+\<open>\<And>c. 0<c \<Longrightarrow> 2*0 < 2*c
+\<And>y c. \<lbrakk>\<And>c. y<c \<Longrightarrow> 2*y < 2*c; y+1 < c\<rbrakk> \<Longrightarrow> 2*(y + 1) < 2*c\<close>}
+Now the value \<open>c\<close> in the induction hypothesis may be different from the value \<open>c\<close> in the additional 
+hypothesis, the induction hypothesis is assumed to hold for arbitrary values \<open>c\<close>. This allows to 
+convert the additional hypothesis to \<open>y < c-1\<close> and use the induction hypothesis with \<open>c-1\<close> substituted
+for \<open>c\<close> to derive \<open>2*y < 2*(c-1)\<close> from which the conclusion can be shown.
+
+The \<open>induction\<close> and \<open>induct\<close> methods can only bind variables locally in induction hypotheses which
+are explicitly bound in the goal to which the method is applied. If the variables are only present as
+fixed variables in the proof context, they cannot be processed by the method. In particular, if a 
+theorem is specified in the form (see Section~\ref{basic-theory-theorem})
+@{theory_text[display]
+\<open>theorem
+  fixes x\<^sub>1 \<dots> x\<^sub>k
+  assumes "A\<^sub>1" \<dots> "A\<^sub>m"
+  shows "C"
+  \<proof>\<close>}
+the initial goal in \<open>\<proof>\<close> is only \<open>C\<close> and does not contain bindings for the variables \<open>x\<^sub>1 \<dots> x\<^sub>k\<close>.
+
+In such situations it is not possible to ``insert'' the bindings in a similar way as described for 
+the assumptions \<open>A\<^sub>1, \<dots>, A\<^sub>m\<close>. Instead, the variables to be bound locally in induction hypotheses can
+be explicitly specified to the \<open>induction\<close> method in the form
+@{theory_text[display]
+\<open>induction x arbitrary: x\<^sub>1 \<dots> x\<^sub>k rule: name\<close>}
+and in the same form for the \<open>induct\<close> method.
+
+Thus, in the form
+@{theory_text[display]
+\<open>theorem 
+  fixes x\<^sub>1 \<dots> x\<^sub>k
+  assumes "A\<^sub>1" \<dots> "A\<^sub>m"
+  shows "C"
+using assms
+proof (induction \<dots> arbitrary: x\<^sub>1 \<dots> x\<^sub>k \<dots>) \<dots> qed\<close>}
+induction can be applied in the same way as if the theorem had been specified as 
+@{theory_text[display]
+\<open>theorem "\<And>x\<^sub>1 \<dots> x\<^sub>k. \<lbrakk>A\<^sub>1; \<dots>; A\<^sub>m\<rbrakk> \<Longrightarrow> C"\<close>}
 \<close>
 
 (*
+lemma myInduct: "\<lbrakk>P 0; \<And>y. P y \<Longrightarrow> P (y+1)\<rbrakk> \<Longrightarrow> P a" for a::nat
+  by (metis add.commute add_cancel_left_left discrete infinite_descent0 le_iff_add less_add_same_cancel2 less_numeral_extra(1))
+
+lemma myInduct': "\<lbrakk>P 0; \<And>y. \<lbrakk>P y; y < 5\<rbrakk> \<Longrightarrow> P (y+1)\<rbrakk> \<Longrightarrow> P a" for a::nat
+  sorry
+
+lemma "\<And>c. n < c \<Longrightarrow> 2*n < 2*c" for n::nat
+  apply(induction "n" rule: myInduct')
+  apply(rule myInduct[where a=n]) 
+  oops
+
+
 lemma myInduct: "\<lbrakk>P 0; \<And>y. P y \<Longrightarrow> P (y+1)\<rbrakk> \<Longrightarrow> P a" for a::nat
   by (metis add.commute add_cancel_left_left discrete infinite_descent0 le_iff_add less_add_same_cancel2 less_numeral_extra(1))
 

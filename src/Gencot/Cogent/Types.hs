@@ -101,9 +101,12 @@ isUnsizedArrayType :: GenType -> Bool
 isUnsizedArrayType (GenType (CS.TCon n [_] _) _ _) = isArrDeriv n && not (arrDerivHasSize n)
 isUnsizedArrayType _ = False
 
+isArrayType :: GenType -> Bool
+isArrayType t = isSizedArrayType t || isUnsizedArrayType t
+
 isUnboxedArrayType :: GenType -> Bool
 isUnboxedArrayType (GenType (CS.TBang t) _ _) = isUnboxedArrayType t
-isUnboxedArrayType (GenType (CS.TUnbox t) _ _) = isSizedArrayType t || isUnsizedArrayType t
+isUnboxedArrayType (GenType (CS.TUnbox t) _ _) = isArrayType t
 isUnboxedArrayType _ = False
 
 isPtrType :: GenType -> Bool
@@ -113,6 +116,10 @@ isPtrType _ = False
 isVoidPtrType :: GenType -> Bool
 isVoidPtrType (GenType (CS.TCon mapPtrVoid [] _) _ _) = True
 isVoidPtrType _ = False
+
+isStringType :: GenType -> Bool
+isStringType (GenType (CS.TCon "String" [] _) _ _) = True
+isStringType _ = False
 
 -- Type synonyms
 ----------------
@@ -247,3 +254,11 @@ getDerefType t = mkUnboxed t
 
 getResultType :: GenType -> GenType
 getResultType (GenType (CS.TFun _ rt) _ _) = rt
+
+-- | Transfer property effects
+
+-- | Transfer effects of Read-Only, Not-Null, and No-String from first argument to second.
+transferProperties :: GenType -> GenType -> GenType
+transferProperties (GenType (CS.TBang t) _ _) t2 = mkReadonly $ transferProperties t t2
+transferProperties t1 t2 | isStringType t2 && (not $ isStringType t1) = t1
+transferProperties t1 t2 | isMayNull t2 && (not $ isMayNull t1) = getNnlType t2

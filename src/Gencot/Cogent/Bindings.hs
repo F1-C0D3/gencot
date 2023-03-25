@@ -13,7 +13,7 @@ import Gencot.Cogent.Ast -- includes unitType
 import Gencot.Cogent.Types (
   mkU8Type, mkU32Type, mkStringType, mkBoolType, 
   mkTupleType, mkCtlType, mkFunType, mkRecordType, mkTakeType, mkArrTakeType, 
-  getMemberType, getDerefType, getResultType)
+  getMemberType, getDerefType, getResultType, transferProperties)
 import Gencot.Cogent.Expr (
   TypedVar(TV), namOfTV, typOfTV, TypedVarOrWild,
   mkUnitExpr, mkIntLitExpr, mkCharLitExpr, mkStringLitExpr, mkBoolLitExpr,
@@ -241,10 +241,10 @@ mkFunDerefBindsPair ft bp =
 -- | Function application v = f (pbp) or (v,v1,..,vn) = f (pbp)
 -- The first argument is the BindsPair for the function
 -- The second argument is the pattern for binding the function result
--- The third argument is the BindsPair for the parameter tuple (or single parameter or unit value)
-mkAppBindsPair :: BindsPair -> GenIrrefPatn -> BindsPair -> BindsPair
-mkAppBindsPair fbp rpat pbp =
-    addBinding (mkBinding rpat $ mkAppExpr (mkVarExpr $ leadVar fbp) (mkVarExpr $ leadVar pbp)) $ concatBindsPairs [pbp,fbp]
+-- The third argument is the list of BindsPairs for the parameter tuple (or single parameter or unit value)
+mkAppBindsPair :: BindsPair -> GenIrrefPatn -> [BindsPair] -> BindsPair
+mkAppBindsPair fbp rpat pbps =
+    addBinding (mkBinding rpat $ mkAppExpr (mkVarExpr $ leadVar fbp) (mkTupleExpr (map (mkVarExpr . leadVar) pbps))) $ concatBindsPairs (fbp : pbps)
 
 -- | Assignment v<n>' = v<n>' op v<k>', (v<n>',v) = (v<n>',v<n>') or (v,v<n>')
 -- The first argument is True for a postfix inc/dec operator, otherwise false.
@@ -265,18 +265,23 @@ mkAssBindsPair post t op bpl bpr =
           lval = mkVarsTupleBinding [vl,v] [if post then e else el, el]
 
 -- | Conditional v<n>' = if bp1 then bp2 else bp3
-mkIfBindsPair :: BindsPair -> BindsPair -> BindsPair -> BindsPair
-mkIfBindsPair bp0 bp1 bp2 =
-    addBinding (mkVarsBinding (v0 : set) (mkIfExpr (mkVarExpr v0) e1 e2)) bp
+-- The first argument is the result type but without the effect of properties,
+-- these are taken from bp1, assuming that they are the same in bp2.
+mkIfBindsPair :: GenType -> BindsPair -> BindsPair -> BindsPair -> BindsPair
+mkIfBindsPair t bp0 bp1 bp2 =
+    addBinding (mkVarsBinding (vr : set) (mkIfExpr (mkVarExpr v0) e1 e2)) bp
     where set1 = sideEffectTargets bp1
           set2 = sideEffectTargets bp2
           v0 = leadVar bp0
+          v1 = leadVar bp1
+          v2 = leadVar bp2
+          vr = TV (namOfTV v0) (transferProperties (typOfTV v1) t)
           set = union set1 set2
           (bp1l,e1) = if null set1
-                         then ([bp1],mkVarTupleExpr (leadVar bp1 : set))
+                         then ([bp1],mkVarTupleExpr (v1 : set))
                          else ([],boundExpr $ cmbExtBinds set bp1)
           (bp2l,e2) = if null set2
-                         then ([bp2],mkVarTupleExpr (leadVar bp2 : set))
+                         then ([bp2],mkVarTupleExpr (v2 : set))
                          else ([],boundExpr $ cmbExtBinds set bp2)
           bp = concatBindsPairs (bp0 : (bp1l ++ bp2l))
 

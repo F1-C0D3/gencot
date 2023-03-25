@@ -50,10 +50,10 @@ import Gencot.Cogent.Bindings (
   mkTuplePattern, mkVarPattern, mkVarTuplePattern,
   mkAlt,
   processMFpropForPatterns)
-import Gencot.Cogent.Expr (TypedVar(TV), typOfTV, mkUnitExpr, mkVarExpr, mkExpVarTupleExpr)
+import Gencot.Cogent.Expr (TypedVar(TV), typOfTV, namOfTV, mkUnitExpr, mkVarExpr, mkExpVarTupleExpr)
 import Gencot.Cogent.Types (
   genType, mkConstrType, mkTypeName, mkU32Type, mkBoolType, mkTupleType, mkFunType, mkArrayType, mkRecordType,
-  addTypeSyn, mkReadonly, mkUnboxed, isUnboxed, mkMayNull, getBoxType, getNnlType, getResultType)
+  addTypeSyn, mkReadonly, mkUnboxed, isArrayType, isUnboxed, mkMayNull, getBoxType, getNnlType, getResultType)
 import Gencot.Cogent.Postproc (postproc)
 import qualified Gencot.C.Ast as LQ (Stm(Exp,Block), Exp)
 import qualified Gencot.C.Translate as C (transStat, transExpr, transArrSizeExpr, transBlockItem)
@@ -1099,7 +1099,11 @@ bindExpr e@(LC.CVar nam _) = do
                      let pdes = searchGlobalStateParamDesc fdes gs
                      if null $ nameOfParamDesc pdes
                         then return $ mkDummyBindsPair cnt ("Cannot access global variable: " ++ (LCI.identToString nam))
-                        else return $ mkValVarBindsPair cnt $ TV (nameOfParamDesc pdes) (typeOfParamDesc pdes)
+                        else if isArrayType $ typeOfParamDesc pdes
+                        then return $ mkValVarBindsPair cnt $ TV (nameOfParamDesc pdes) (typeOfParamDesc pdes)
+                        else do
+                            cntp <- getCmpCounter
+                            return $ mkDerefBindsPair cntp $ mkValVarBindsPair cnt $ TV (nameOfParamDesc pdes) (typeOfParamDesc pdes)
           else return $ mkValVarBindsPair cnt $ TV v t
     insertExprSrc e bp
 bindExpr e@(LC.CMember e1 nam arrow _) = do
@@ -1120,7 +1124,9 @@ bindExpr e@(LC.CUnary LC.CNegOp e1 _) = do
     let c0 = mkIntLitBindsPair cnt t1 0
     cnt <- getValCounter
     let c1 = mkIntLitBindsPair cnt t1 1
-    insertExprSrc e $ mkIfBindsPair (mkOpBindsPair mkBoolType "==" [bp1,c0]) c1 c0
+    ct <- exprType e
+    t <- transType ("",ct)
+    insertExprSrc e $ mkIfBindsPair t (mkOpBindsPair mkBoolType "==" [bp1,c0]) c1 c0
 bindExpr e@(LC.CUnary LC.CIndOp e1 _) = do
     bp1 <- bindExpr e1
     ct1 <- exprType e1
@@ -1157,7 +1163,7 @@ bindExpr e@(LC.CBinary LC.CLndOp e1 e2 _) = do
     t2 <- transType ("",ct2)
     cnt <- getValCounter
     let c0 = mkIntLitBindsPair cnt t2 0
-    insertExprSrc e $ mkIfBindsPair bp1 bp2 c0
+    insertExprSrc e $ mkIfBindsPair t2 bp1 bp2 c0
 bindExpr e@(LC.CBinary LC.CLorOp e1 e2 _) = do
     -- e1 || e2 -> if e1 then 1 else e2
     bp1 <- bindExpr e1
@@ -1166,7 +1172,7 @@ bindExpr e@(LC.CBinary LC.CLorOp e1 e2 _) = do
     t2 <- transType ("",ct2)
     cnt <- getValCounter
     let c1 = mkIntLitBindsPair cnt t2 1
-    insertExprSrc e $ mkIfBindsPair bp1 c1 bp2
+    insertExprSrc e $ mkIfBindsPair t2 bp1 c1 bp2
 bindExpr e@(LC.CBinary op e1 e2 _) = do
     bp1 <- bindExpr e1
     bp2 <- bindExpr e2
@@ -1184,8 +1190,8 @@ bindExpr e@(LC.CCall f es _) = do
                    return $ mkFunDerefBindsPair ft fbp
                else return fbp
     fd <- getFuncDesc (iid,cft)
-    (pbp,rpat) <- processParamVals fd bps
-    insertExprSrc e $ mkAppBindsPair fbp' rpat pbp
+    (pbps,rpat) <- processParamVals (leadVar fbp') fd bps
+    insertExprSrc e $ mkAppBindsPair fbp' rpat pbps
 bindExpr e@(LC.CAssign op e1 e2 _) = do
     bp1 <- bindExpr e1
     bp2 <- bindExpr e2
@@ -1194,7 +1200,9 @@ bindExpr e@(LC.CCond e1 (Just e2) e3 _) = do
     bp1 <- bindExpr e1
     bp2 <- bindExpr e2
     bp3 <- bindExpr e3
-    insertExprSrc e $ mkIfBindsPair bp1 bp2 bp3
+    ct <- exprType e
+    t <- transType ("",ct)
+    insertExprSrc e $ mkIfBindsPair t bp1 bp2 bp3
 bindExpr e@(LC.CComma es _) = do
     bps <- mapM bindExpr es
     insertExprSrc e $ concatBindsPairs bps
@@ -1280,7 +1288,8 @@ makeGlobalStateParamDesc ((iid,noro), gs) = do
          let typ = makeReadOnlyIf (not noro) $ mkTypeName (globStateType gs)
          props <- getProperties iid
          return $ ParamDesc name typ props
-       else do -- global variable found, use its type and add type synonym
+       else do -- global variable found, convert its type to pointer and add type synonym
+         -- if the variable has an array type this is correct because transType ignores the pointer
          mdec <- LCA.lookupObject $ LCI.Ident (getObjFunName gsvar) 0 LCN.undefNode
          case mdec of
               Nothing -> return $ ParamDesc "" unitType []
@@ -1376,11 +1385,12 @@ getVirtParamsFromContext fdes = do
                     Just pdes -> [pdes]
     return (gspdes ++ hupdes ++ vrpdes)
 
--- | Determine tupel of actual parameters and pattern to bind the result of a function call.
--- The first argument is the description of the invoked function.
--- The second argument is the list of translated C argument expressions.
-processParamVals :: FuncDesc -> [BindsPair] -> FTrav (BindsPair, GenIrrefPatn)
-processParamVals fdes pvals = do
+-- | Determine actual parameters as list of BindsPairs and pattern to bind the result of a function call.
+-- The first argument is the variable to reuse for the dunction result
+-- The second argument is the description of the invoked function.
+-- The third argument is the list of translated C argument expressions.
+processParamVals :: TypedVar -> FuncDesc -> [BindsPair] -> FTrav ([BindsPair], GenIrrefPatn)
+processParamVals v fdes pvals = do
     -- construct BindsPairs for all virtual parameters
     vpds <- getVirtParamsFromContext fdes
     vpbps <- mapM (\pdes -> do 
@@ -1390,18 +1400,14 @@ processParamVals fdes pvals = do
         nvpbps = map (\(bp, pdes) -> replaceBoundVarType (typeOfParamDesc pdes) bp) $ zip pvals pdess
         -- the list of all actual parameters
         allpbps = nvpbps ++ vpbps
-    -- provide value variable index for parameter tuple if it is empty
-    unitcnt <- if null allpbps then getValCounter else return 0
-    let -- construct BindsPair for parameter tuple
-        pbp = mkTupleBindsPair unitcnt allpbps
-        -- additional result variables
+    let -- additional result variables
         arvars = map (lvalVar . fst) $ filter (\(_,pdes) -> isAddResultParam pdes) $ zip allpbps pdess
         -- variable for original function result: for C function with void result use wildcard,
-        -- otherwise reuse value variable of parameter tuple
-        rvar = if rt == unitType then (TV "_" rt) else leadVar pbp
+        -- otherwise reuse v
+        rvar = if rt == unitType then (TV "_" rt) else (TV (namOfTV v) rt)
         -- pattern for binding the function result
         rpat = mkTuplePattern $ map mkVarPattern (rvar : arvars)
-    return (pbp, rpat)
+    return (allpbps, rpat)
     where pdess = parsOfFuncDesc fdes
           rt = getResultType $ typeOfFuncDesc fdes
 

@@ -12,7 +12,8 @@ import Cogent.Common.Types (readonly,bangSigil,Sigil(Unboxed,Boxed),RecursivePar
 import Gencot.Cogent.Ast -- includes unitType
 import Gencot.Origin (noOrigin)
 import Gencot.Names (
-  mapPtrDeriv, ptrDerivCompName, mapPtrVoid, mapMayNull, mapArrDeriv, isArrDeriv, arrDerivCompNam, arrDerivHasSize, mapFunDeriv)
+  mapPtrDeriv, ptrDerivCompName, mapPtrVoid, mapMayNull, variadicTypeName, mapArrDeriv,
+  isArrDeriv, arrDerivCompNam, arrDerivHasSize, mapFunDeriv)
 
 -- Construct Types
 ------------------
@@ -41,13 +42,15 @@ mkBoolType :: GenType
 mkBoolType = mkTypeName "Bool"
 
 mkTupleType :: [GenType] -> GenType
+mkTupleType [] = genType CS.TUnit
+mkTupleType [t] = t
 mkTupleType ts = genType (CS.TTuple ts)
 
 mkCtlType :: GenType
 mkCtlType = mkU8Type
 
 mkFunType :: GenType -> GenType -> GenType
-mkFunType rt pt = genType (CS.TFun pt rt)
+mkFunType pt rt = genType (CS.TFun pt rt)
 
 mkRecordType :: [(CCS.FieldName,GenType)] -> GenType
 mkRecordType fts = genType (CS.TRecord NonRec (map (\(f,t) -> (f,(t,False))) fts) $ Boxed False Nothing)
@@ -61,8 +64,11 @@ mkRecordType fts = genType (CS.TRecord NonRec (map (\(f,t) -> (f,(t,False))) fts
 mkArrayType :: String -> GenExpr -> GenType -> GenType
 mkArrayType tnam siz eltyp =
     if arrDerivHasSize tnam
-       then addTypeSyn tnam $ mkRecordType [(arrDerivCompNam tnam, genType $ CS.TArray eltyp siz (Boxed False Nothing) [])]
+       then addTypeSyn tnam $ mkWrappedArrayType tnam siz eltyp
        else mkConstrType tnam [eltyp]
+
+mkWrappedArrayType :: String -> GenExpr -> GenType -> GenType
+mkWrappedArrayType tnam siz eltyp = mkRecordType [(arrDerivCompNam tnam, genType $ CS.TArray eltyp siz Unboxed [])]
 
 -- Pointer type:
 -- Wrapper record with cont component and synonym CPtr.
@@ -110,15 +116,15 @@ isUnboxedArrayType (GenType (CS.TUnbox t) _ _) = isArrayType t
 isUnboxedArrayType _ = False
 
 isPtrType :: GenType -> Bool
-isPtrType (GenType (CS.TRecord NonRec [(ptrDerivCompName,_)] _) _ (Just mapPtrDeriv)) = True
+isPtrType (GenType (CS.TRecord NonRec [(cmpNam,_)] _) _ (Just syn)) = cmpNam == ptrDerivCompName && syn == mapPtrDeriv
 isPtrType _ = False
 
 isVoidPtrType :: GenType -> Bool
-isVoidPtrType (GenType (CS.TCon mapPtrVoid [] _) _ _) = True
+isVoidPtrType (GenType (CS.TCon cstr [] _) _ _) = cstr == mapPtrVoid
 isVoidPtrType _ = False
 
 isStringType :: GenType -> Bool
-isStringType (GenType (CS.TCon "String" [] _) _ _) = True
+isStringType (GenType (CS.TCon cstr [] _) _ _) = cstr == "String"
 isStringType _ = False
 
 -- Type synonyms
@@ -130,7 +136,7 @@ isStringType _ = False
 addTypeSyn :: CCS.TypeName -> GenType -> GenType
 addTypeSyn s (GenType (CS.TBang t) o ms) = (GenType (CS.TBang (addTypeSyn s t)) o ms)
 addTypeSyn s (GenType (CS.TUnbox t) o ms) = (GenType (CS.TUnbox (addTypeSyn s t)) o ms)
-addTypeSyn s (GenType (CS.TCon mapMayNull [t] sg) o ms) = (GenType (CS.TCon mapMayNull [(addTypeSyn s t)] sg) o ms)
+addTypeSyn s (GenType (CS.TCon cstr [t] sg) o ms) | cstr == mapMayNull = (GenType (CS.TCon cstr [(addTypeSyn s t)] sg) o ms)
 addTypeSyn s (GenType t o _) = (GenType t o (Just s))
 
 -- Readonly, Unboxed, and MayNull Types
@@ -140,7 +146,8 @@ addTypeSyn s (GenType t o _) = (GenType t o (Just s))
 -- The following normal form is used: whenever TBang affects component types, only the outermost position is marked by TBang.
 -- For TTuple always only the components are marked by TBang.
 -- Type synonyms are retained because they are wrapped by TBang, with the exception of TTuple.
--- The abstract types CVoidPtr, MayNull, CArr* are the only abstract types used by Gencot which can be made readonly.
+-- The abstract types CVoidPtr, MayNull, CArr*, and the pseudo type variadicTypeName are the only abstract types used by
+-- Gencot which can be made readonly.
 -- After a type has been made readonly, the original type cannot be reconstructed from it.
 
 -- Unboxed types are always represented by TUnbox for the same reason.
@@ -158,7 +165,7 @@ mkReadonly (GenType (CS.TArray t e s ts) o ms) =
     mkBangType (GenType (CS.TArray (rmRRO t) e s ts) o ms)
 mkReadonly (GenType (CS.TUnbox t) o ms) =
     mkBangType (GenType (CS.TUnbox $ rmRRO t) o ms)
-mkReadonly (GenType (CS.TCon tn ts s) o ms) | (elem tn [mapPtrVoid, mapMayNull]) || isArrDeriv tn =
+mkReadonly (GenType (CS.TCon tn ts s) o ms) | (elem tn [mapPtrVoid, mapMayNull, variadicTypeName]) || isArrDeriv tn =
     mkBangType (GenType (CS.TCon tn (map rmRRO ts) s) o ms)
 mkReadonly t = t
 
@@ -194,12 +201,12 @@ isUnboxed (GenType (CS.TBang t) _ _) = isUnboxed t
 isUnboxed _ = False
 
 mkMayNull :: GenType -> GenType
-mkMayNull t@(GenType (CS.TCon mapMayNull _ _) _ _) = t
+mkMayNull t@(GenType (CS.TCon cstr _ _) _ _) | cstr == mapMayNull = t
 mkMayNull (GenType (CS.TBang t) o ms) = (GenType (CS.TBang $ mkMayNull t) o ms)
 mkMayNull t = mkConstrType mapMayNull [t]
 
 isMayNull :: GenType -> Bool
-isMayNull (GenType (CS.TCon mapMayNull _ _) _ _) = True
+isMayNull (GenType (CS.TCon cstr _ _) _ _) | cstr == mapMayNull = True
 isMayNull (GenType (CS.TBang t) _ _) = isMayNull t
 isMayNull _ = False
 
@@ -227,7 +234,7 @@ getBoxType (GenType (CS.TBang t) _ _) = mkBangType $ getBoxType t
 getBoxType t = t
 
 getNnlType :: GenType -> GenType
-getNnlType (GenType (CS.TCon mapMayNull [t] _) _ _) = t
+getNnlType (GenType (CS.TCon n [t] _) _ _) | n == mapMayNull = t
 getNnlType (GenType (CS.TBang t) _ _) = mkBangType $ getNnlType t
 getNnlType t = t
 
@@ -237,9 +244,9 @@ getDerefType :: GenType -> GenType
 -- readonly type
 getDerefType (GenType (CS.TBang t) _ _) = mkBangType $ getDerefType t
 -- void pointer
-getDerefType (GenType (CS.TCon mapPtrVoid [] _) _ _) = unitType
+getDerefType (GenType (CS.TCon n [] _) _ _) | n == mapPtrVoid = unitType
 -- explicit pointer
-getDerefType (GenType (CS.TRecord NonRec [(f,(t,_))] _) _ (Just mapPtrDeriv)) | f == ptrDerivCompName = t
+getDerefType (GenType (CS.TRecord NonRec [(f,(t,_))] _) _ (Just syn)) | f == ptrDerivCompName && syn == mapPtrDeriv = t
 -- maynull wrapped type
 getDerefType (GenType (CS.TCon n [t] _) _ _) | n == mapMayNull = getDerefType t
 -- array types -> element type

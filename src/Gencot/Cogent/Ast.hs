@@ -3,13 +3,18 @@ module Gencot.Cogent.Ast where
 
 import "language-c" Language.C
 
-import Cogent.Surface as CS (TopLevel, Expr, Pattern, IrrefutablePattern, Type(TUnit), Binding, Alt, RawType(RT), RawPatn(RP), RawIrrefPatn(RIP), RawExpr(RE))
+import Cogent.Surface as CS (TopLevel, Expr, Pattern, IrrefutablePattern, Type(TUnit,TRecord,TArray,TCon), Binding, Alt, RawType(RT), RawPatn(RP), RawIrrefPatn(RIP), RawExpr(RE))
 import Cogent.Dargent.Surface (DataLayoutExpr(DL), DataLayoutExpr'(LVar))
 import Cogent.Common.Syntax (VarName)
+import Cogent.Common.Types (Sigil(Boxed))
 import Cogent.Util (ffmap,fffmap,ffffmap,fffffmap)
 
 import Gencot.Origin (Origin,noOrigin)
 import Gencot.C.Ast as LQ (Stm)
+import Gencot.Names (mapPtrDeriv, ptrDerivCompName, isArrDeriv, arrDerivCompNam)
+
+-- | Intermediate representation with types for expressions and patterns and with type synonyms
+--------------------------------
 
 type ToplOfGTL = CS.TopLevel GenType GenPatn GenExpr
 type ExprOfGE = CS.Expr GenType GenPatn GenIrrefPatn () GenExpr
@@ -102,3 +107,79 @@ rawToGenE (RE e) = GenExpr ( fffffmap rawToGenT
 
 unitType :: GenType
 unitType = GenType TUnit noOrigin Nothing
+
+-- | Target representation for code output.
+--------------------------------
+
+type ToplOfTTL = CS.TopLevel TrgType TrgPatn TrgExpr
+type ExprOfTE = CS.Expr TrgType TrgPatn TrgIrrefPatn () TrgExpr
+type PatnOfTP = CS.Pattern TrgIrrefPatn
+type IrpatnOfTIP = CS.IrrefutablePattern VarName TrgIrrefPatn TrgExpr
+type TypeOfTT = CS.Type TrgExpr () TrgType
+
+data TrgToplv = TrgToplv {
+    toplOfTTL :: ToplOfTTL,
+    orgOfTTL :: Origin
+    } deriving (Eq, Show)
+data TrgExpr = TrgExpr {
+    exprOfTE :: ExprOfTE,
+    orgOfTE :: Origin,
+    ccdOfTE :: Maybe LQ.Stm
+    } deriving (Eq, Ord, Show)
+data TrgPatn = TrgPatn {
+    patnOfTP :: PatnOfTP,
+    orgOfTP :: Origin
+    } deriving (Eq, Ord, Show)
+data TrgIrrefPatn = TrgIrrefPatn {
+    irpatnOfTIP :: IrpatnOfTIP,
+    orgOfTIP :: Origin
+    } deriving (Eq, Ord, Show)
+data TrgType = TrgType {
+    typeOfTT :: TypeOfTT,
+    orgOfTT :: Origin
+    } deriving (Eq, Ord, Show)
+
+-- The types Binding and Alt cannot be extended because they are used directly in Expr
+-- instead of being a type parameter of Expr.
+type TrgBnd = CS.Binding TrgType TrgPatn TrgIrrefPatn TrgExpr
+type TrgAlt = CS.Alt TrgPatn TrgExpr
+
+mapToplOfTTL :: (ToplOfTTL -> ToplOfTTL) -> TrgToplv -> TrgToplv
+mapToplOfTTL f g = TrgToplv (f $ toplOfTTL g) $ orgOfTTL g
+
+mapExprOfTE :: (ExprOfTE -> ExprOfTE) -> TrgExpr -> TrgExpr
+mapExprOfTE f g = TrgExpr (f $ exprOfTE g) (orgOfTE g) (ccdOfTE g)
+
+mapPatnOfTP :: (PatnOfTP -> PatnOfTP) -> TrgPatn -> TrgPatn
+mapPatnOfTP f g = TrgPatn (f $ patnOfTP g) (orgOfTP g)
+
+mapIrpatnOfTIP :: (IrpatnOfTIP -> IrpatnOfTIP) -> TrgIrrefPatn -> TrgIrrefPatn
+mapIrpatnOfTIP f g = TrgIrrefPatn (f $ irpatnOfTIP g) (orgOfTIP g)
+
+mapTypeOfTT :: (TypeOfTT -> TypeOfTT) -> TrgType -> TrgType
+mapTypeOfTT f g = TrgType (f $ typeOfTT g) (orgOfTT g)
+
+toTrgType :: GenType -> TrgType
+-- array type synonym of form CArr<size> with element type as argument
+toTrgType (GenType (TRecord _ [(arrx,((GenType (TArray et _ _ _) _ _),_))] _) org (Just syn))
+        | isArrDeriv syn && arrDerivCompNam syn == arrx =
+    TrgType (TCon syn [toTrgType et] $ Boxed False Nothing) org
+-- pointer type synonym CPtr with referenced type as argument
+toTrgType (GenType (TRecord _ [(cont,(rt,_))] _) org (Just syn))
+        | syn == mapPtrDeriv && ptrDerivCompName == cont =
+    TrgType (TCon mapPtrDeriv [toTrgType rt] $ Boxed False Nothing) org
+-- all other type synonyms resulting from typedef names. Without type arguments.
+toTrgType (GenType _ org (Just syn)) = TrgType (TCon syn [] $ Boxed False Nothing) org
+toTrgType t = TrgType (fmap toTrgType $ fffmap toTrgExpr $ typeOfGT t) $ orgOfGT t
+
+toTrgPatn :: GenPatn -> TrgPatn
+toTrgPatn p = TrgPatn (fmap toTrgIrrefPatn $ patnOfGP p) $ orgOfGP p
+
+toTrgIrrefPatn :: GenIrrefPatn -> TrgIrrefPatn
+toTrgIrrefPatn ip = TrgIrrefPatn (ffmap toTrgIrrefPatn $ fmap toTrgExpr $ irpatnOfGIP ip) $ orgOfGIP ip
+
+toTrgExpr :: GenExpr -> TrgExpr
+toTrgExpr e =  TrgExpr (fffffmap toTrgType $ ffffmap toTrgPatn $ fffmap toTrgIrrefPatn $ fmap toTrgExpr $ exprOfGE e) (orgOfGE e) $ ccdOfGE e
+
+toTrgToplv :: GenToplv -> TrgToplv
+toTrgToplv tl = TrgToplv (fffmap toTrgType $ ffmap toTrgPatn $ fmap toTrgExpr $ toplOfGTL tl) $ orgOfGTL tl

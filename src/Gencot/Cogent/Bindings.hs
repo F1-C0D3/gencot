@@ -58,36 +58,37 @@ etosBindsPair (main,putback) =
 -- | Select side effect targets from a binding list pair.
 -- For the actually occurring BindsPairs all resulting variables should have different names,
 -- because they are mapped from C identifiers occurring in the same block, so every occurrence has the same type.
-sideEffectTargets :: BindsPair -> [TypedVar]
+sideEffectTargets :: BindsPair -> [TypedVarOrWild]
 sideEffectTargets (main,putback) =
     sideEffectFilter $ union (boundVarsList main) (boundVarsList putback)
 
 -- | Select side effect targets from a list of typed variables.
-sideEffectFilter :: [TypedVar] -> [TypedVar]
+sideEffectFilter :: [TypedVarOrWild] -> [TypedVarOrWild]
 sideEffectFilter vs =
     filter (\(TV v _) -> (last v) /= prime || v == resVar) vs
 
 -- | All typed variables occurring in a pattern.
-tupleVars :: GenIrrefPatn -> [TypedVar]
+tupleVars :: GenIrrefPatn -> [TypedVarOrWild]
 tupleVars ip =
     case irpatnOfGIP ip of
          CS.PVar v -> [TV v $ typOfGIP ip]
+         CS.PUnderscore -> [TV "_" $ typOfGIP ip]
          CS.PTuple pvs -> concat $ map tupleVars pvs
          CS.PTake v fs -> (TV v $ mkTakeType False (typOfGIP ip) (map fst $ catMaybes fs)) : (concat $ map (tupleVars . snd) $ catMaybes fs)
          CS.PArrayTake v fs -> (TV v $ mkArrTakeType False (typOfGIP ip) (map fst fs)) : (concat $ map (tupleVars . snd) fs)
 
 -- | Typed variables bound in a binding
 -- For a valid binding all resulting variables have different names.
-boundVars :: GenBnd -> [TypedVar]
+boundVars :: GenBnd -> [TypedVarOrWild]
 boundVars (CS.Binding ip _ _ _) = tupleVars ip
 
 -- | Typed variables bound in a binding list
 -- The result may contain variables with the same name but different types.
-boundVarsList :: [GenBnd] -> [TypedVar]
+boundVarsList :: [GenBnd] -> [TypedVarOrWild]
 boundVarsList bs = nub $ concat $ map boundVars bs
 
 -- | The first typed variable bound in the final binding of the main list.
-leadVar :: BindsPair -> TypedVar
+leadVar :: BindsPair -> TypedVarOrWild
 leadVar (main,_) = head $ tupleVars ip
     where (CS.Binding ip _ _ _) = head main
 
@@ -228,7 +229,7 @@ mkOpBindsPair t op bps =
 -- | Application of constant named function v<n>' = f ()
 -- The type is the function result type.
 mkConstAppBindsPair :: Int -> CCS.FunName -> GenType -> BindsPair
-mkConstAppBindsPair n f t = mkSingleBindsPair $ mkValVarBinding n t $ mkAppExpr (mkTopLevelFunExpr (f,mkFunType t unitType) []) mkUnitExpr
+mkConstAppBindsPair n f t = mkSingleBindsPair $ mkValVarBinding n t $ mkAppExpr (mkTopLevelFunExpr (f,mkFunType unitType t) []) mkUnitExpr
 
 -- | Function pointer dereference f = fromFunPtr (fp)
 -- The first argument is the type of the resulting function.
@@ -236,7 +237,7 @@ mkFunDerefBindsPair :: GenType -> BindsPair -> BindsPair
 mkFunDerefBindsPair ft bp =
     addBinding (mkVarBinding (TV vnam ft) $ mkAppExpr (mkTopLevelFunExpr ("fromFunPtr",ffpt) [Just ft, Just fpt]) (mkVarExpr v)) bp
     where v@(TV vnam fpt) = leadVar bp
-          ffpt = mkFunType ft fpt
+          ffpt = mkFunType fpt ft
 
 -- | Function application v = f (pbp) or (v,v1,..,vn) = f (pbp)
 -- The first argument is the BindsPair for the function

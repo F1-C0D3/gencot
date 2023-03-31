@@ -79,6 +79,8 @@ test-external.items: test.unit test.unit-manitems
 	@$(IT) $(ABSINCL) file $*.c > $*.c-dfltprops
 
 %.cogent %-entry.ac: %.c %.c-itemprops test-external.items
+#	@$(GC) -tG $(ABSINCL) -u test cfile $*.c
+#	@$(GC) -tlfo $(ABSINCL) -u test cfile $*.c
 	@$(GC) $(ABSINCL) -u test cfile $*.c
 
 %-regression: types-%.cogent types-%-expected.cogent types-%.c-dfltprops types-%-expected.c-dfltprops

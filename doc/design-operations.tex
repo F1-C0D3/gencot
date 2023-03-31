@@ -154,11 +154,6 @@ For generality we extend the types \code{ModTypeFun} and \code{ModFun} to non-po
 they have the normal Cogent semantics and behave like the type \code{ChgFun} defined below. Note that the types \code{obj}
 and \code{res} may still be linear if they correspond to structures containing pointers.
 
-When the item property Modification-Function (see Section~\ref{design-types-itemprops}) has been declared for a C function, Gencot
-translates it to the form of a modification function, i.e. it arranges the parameter and result types to be pairs of the type
-of the first parameter of linear type and a tuple of all other relevant types. Gencot then uses a type of the form 
-\code{ModFun Obj (...) (...)} as type of the translated function.
-
 The put operation can now be represented as a function of type \code{ModTypeFun R (R put f) V ()} where \code{R} is the type of
 \code{r} and \code{V} that of field \code{f} and value \code{v}. If the field is not taken in \code{R} the type is \code{ModFun R V ()}.
 The take operation can be represented as a function of type \code{ModTypeFun R (R take f) () V}, it returns 

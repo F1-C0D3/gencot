@@ -1,39 +1,31 @@
 cogent_fpvr1 : String -> ()
 cogent_fpvr1 p1 = ()
 cogent_fpvr2 : ( U32, String ) -> ()
-cogent_fpvr2 (p1
-             , p2) = ()
-cogent_fpvl1 : MayNull (CPtr U8) -> MayNull (CPtr U8)
-cogent_fpvl1 p1 = p1
-cogent_fpvl2 : ( MayNull (CPtr U8), String ) -> MayNull (CPtr U8)
-cogent_fpvl2 (p1
-             , p2) = p1
+cogent_fpvr2 (p1, p2) = ()
+cogent_fpvl1 : MayNull (CPtr U8) -> ( (), MayNull (CPtr U8) )
+cogent_fpvl1 p1 = (r', p1)
+cogent_fpvl2 : ( MayNull (CPtr U8), String ) -> ( (), MayNull (CPtr U8) )
+cogent_fpvl2 (p1, p2) = (r', p1)
 cogent_fpl1 : MayNull (CPtr U8) -> ( U32, MayNull (CPtr U8) )
 cogent_fpl1 p1 = (0, p1)
 cogent_fpl2 : ( String, MayNull (CPtr U8) ) -> ( U32, MayNull (CPtr U8) )
-cogent_fpl2 (p1
-            , p2) = (0, p2)
+cogent_fpl2 (p1, p2) = (0, p2)
 cogent_fpl3 : ( U32, MayNull (CPtr U8) ) -> ( U32, MayNull (CPtr U8) )
-cogent_fpl3 (p1
-            , p2) = (0, p2)
+cogent_fpl3 (p1, p2) = (0, p2)
 cogent_fpl4 : ( MayNull (CPtr U8), MayNull (CPtr U8), U32 ) -> ( U32, MayNull (CPtr U8), MayNull (CPtr U8) )
-cogent_fpl4 (p1
-            , p2
-            , p3) = (0, p1, p2)
+cogent_fpl4 (p1, p2, p3) =
+   (0, p1, p2)
 cogent_fpvd1 : MayNull (CPtr U8) -> ()
 cogent_fpvd1 p1 = ()
-cogent_fpvd2 : ( MayNull (CPtr U8), MayNull (CPtr U8) ) -> MayNull (CPtr U8)
-cogent_fpvd2 (p1
-             , p2) = p1
+cogent_fpvd2 : ( MayNull (CPtr U8), MayNull (CPtr U8) ) -> ( (), MayNull (CPtr U8) )
+cogent_fpvd2 (p1, p2) = (r', p1)
 cogent_fpd1 : MayNull (CPtr U8) -> U32
 cogent_fpd1 p1 = 0
 cogent_fpd2 : ( String, MayNull (CPtr U8) ) -> U32
-cogent_fpd2 (p1
-            , p2) = 0
+cogent_fpd2 (p1, p2) = 0
 cogent_fpr1 : MayNull (CPtr U8) -> MayNull (CPtr U8)
 cogent_fpr1 p1 = 0
 cogent_fpr2 : ( MayNull (CPtr U8), String ) -> MayNull (CPtr U8)
-cogent_fpr2 (p1
-            , p2) = 0
+cogent_fpr2 (p1, p2) = 0
 
 type Struct_Cogent_pmd = { pmfpvr1 : #CFunPtr_FXStringX_Void, pmfpvr2 : #CFunPtr_FXU32XStringX_Void, pmfpvl1 : #CFunPtr_FXM_N_P_U8X_Void, pmfpvl2 : #CFunPtr_FXStringXM_N_P_U8X_Void, pmfpl1 : #CFunPtr_FXM_N_P_U8X_U32, pmfpl2 : #CFunPtr_FXM_N_P_U8XM_N_P_U8X_U32, pmfpl3 : #CFunPtr_FXU32XM_N_P_U8X_U32, pmfpl4 : #CFunPtr_FXM_N_P_U8XStringXU32X_U32, pmfpvd1 : #CFunPtr_FXN_P_U8X_Void, pmfpvd2 : #CFunPtr_FXN_P_U8XM_N_P_U8X_Void, pmfpd1 : #CFunPtr_FXN_P_U8X_U32, pmfpd2 : #CFunPtr_FXStringXN_P_U8X_U32, pmfpr1 : #CFunPtr_FXN_P_U8X_N_P_U8, pmfpr2 : #CFunPtr_FXN_P_U8XM_N_P_U8X_N_P_U8 }

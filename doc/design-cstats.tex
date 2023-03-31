@@ -719,7 +719,7 @@ A jump statement is a \code{return} statement, \code{break} statement, or \code{
 
 A C return statement has the form \code{return;} or \code{return e;}. It always ends the control flow in the surrounding
 function body. The first form can only be used in functions returning \code{void}, these are translated to Cogent as returning 
-\code{()} or a tuple of only the modified parameters. 
+\code{()} or a tuple with \code{()} as first component.
 
 The translation of a return statement of the form \code{return;} is the binding
 \begin{verbatim}
@@ -872,11 +872,11 @@ which can be further simplified to
 
 A compound statement used as the body of a C function is translated to a Cogent expression instead of a Cogent binding.
 If the C function has result type \code{void} and modifies its parameters \code{pm1,...,pmn}, its translation is 
-a Cogent function returning the tuple \code{(pm1,...,pmk)}. If the translation of the compound statement 
+a Cogent function returning the tuple \code{((),pm1,...,pmk)}. If the translation of the compound statement
 used as function body is the binding \code{(c,v1,...,vn) = expr}, the body is translated to the expression
 \begin{verbatim}
   let (c,v1,...,vn) = expr
-  in (pm1,...,pmn)
+  in ((),pm1,...,pmn)
 \end{verbatim}
 If the function modifies no parameters
 it returns the unit value \code{()}. Note that if the C function is correct, \code{c} contains the value \code{Some ()}.

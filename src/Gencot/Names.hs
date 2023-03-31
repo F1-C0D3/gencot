@@ -77,6 +77,7 @@ mapInternal :: String -> LCI.Ident -> String
 mapInternal fnam (LCI.Ident s _ _) = "local_" ++ (dropExtension $ fnam) ++ "_" ++ s
 
 mapIfUpper ::MapNamesTrav f => LCI.Ident -> f String
+mapIfUpper (Ident "" _ _) = return ""
 mapIfUpper idnam =
     if (isUpper $ head s) || "_" `isPrefixOf` s then mapNameToLower idnam else return s
     where (Ident s _ _) = idnam
@@ -221,6 +222,7 @@ mapFileChar '-' = '_'
 mapFileChar c = c
 
 variadicParamName = "variadicCogentParameters"
+variadicTypeName = "VariadicCogentParameters"
 
 heapType :: String
 heapType = "Heap"

@@ -13,7 +13,7 @@ import Cogent.Surface (Type(TFun,TUnit,TTuple))
 
 import Gencot.C.Ast as GCA
 import Gencot.C.Translate (transInit)
-import Gencot.Cogent.Ast (GenType(GenType))
+import Gencot.Cogent.Ast (GenType(GenType), toTrgType)
 import Gencot.Cogent.Output (showCogent)
 import Gencot.Cogent.Translate (transType)
 
@@ -157,7 +157,7 @@ mkADec cogtyp = mkADecSpec cogtyp (False,False)
 
 -- | Generate [static] [const] $ty:(cogtyp)
 mkADecSpec :: GenType -> (Bool,Bool) -> GCA.DeclSpec
-mkADecSpec cogtyp (isStatic,isConst) = (GCA.AntiTypeDeclSpec extsta cst (showCogent cogtyp) noOrigin)
+mkADecSpec cogtyp (isStatic,isConst) = (GCA.AntiTypeDeclSpec extsta cst (showCogent $ toTrgType cogtyp) noOrigin)
     where cst = if isConst then [GCA.Tconst noOrigin] else []
           extsta = if isStatic then [GCA.Tstatic noOrigin] else []
 

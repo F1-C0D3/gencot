@@ -445,6 +445,21 @@ resolveTypedef :: LCA.Type -> LCA.Type
 resolveTypedef (LCA.TypeDefType (LCA.TypeDefRef _ t _) _ _) = resolveTypedef t
 resolveTypedef t = t
 
+resolveAllTypedefs :: LCA.Type -> LCA.Type
+resolveAllTypedefs t@(LCA.TypeDefType _ _ _) = resolveAllTypedefs $ resolveTypedef t
+resolveAllTypedefs t@(LCA.DirectType _ _ _) = t
+resolveAllTypedefs (LCA.PtrType t q a) = LCA.PtrType (resolveAllTypedefs t) q a
+resolveAllTypedefs (LCA.ArrayType t i q a) = LCA.ArrayType (resolveAllTypedefs t) i q a
+resolveAllTypedefs (LCA.FunctionType (LCA.FunTypeIncomplete t) a) = LCA.FunctionType (LCA.FunTypeIncomplete $ resolveAllTypedefs t) a
+resolveAllTypedefs (LCA.FunctionType (LCA.FunType rt pars v) a) =
+    LCA.FunctionType (LCA.FunType (resolveAllTypedefs rt) (map resolveAllTypedefsInParamDecl pars) v) a
+
+resolveAllTypedefsInParamDecl :: LCA.ParamDecl -> LCA.ParamDecl
+resolveAllTypedefsInParamDecl (LCA.ParamDecl (LCA.VarDecl nam atts t) n) =
+    LCA.ParamDecl (LCA.VarDecl nam atts $ resolveAllTypedefs t) n
+resolveAllTypedefsInParamDecl (LCA.AbstractParamDecl (LCA.VarDecl nam atts t) n) =
+    LCA.AbstractParamDecl (LCA.VarDecl nam atts $ resolveAllTypedefs t) n
+
 getFunctionInSIFType :: LCA.Type -> LCA.Type
 getFunctionInSIFType t@(LCA.FunctionType _ _) = t
 getFunctionInSIFType (LCA.PtrType t _ _) = getFunctionInSIFType t

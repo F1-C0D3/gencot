@@ -1,6 +1,6 @@
 The Cogent code generated for C expressions and statements in the first translation phase as described in 
-Section~\ref{impl-ccode-cstats} is in general neither correct nor efficient. Therefore it must be improved, 
-which is done by postprocessing. The postprocessing is done directly in the Cogent AST. 
+Section~\ref{impl-ccode-cexpr} and~\ref{impl-ccode-cstats} is in general neither correct nor efficient.
+Therefore it must be improved, which is done by postprocessing. The postprocessing is done directly in the Cogent AST.
 
 This approach taken by Gencot has several advantages over generating the Cogent code in a single phase.
 First, the actual translation step ist rather simple and straightforward and even needs not take the C types
@@ -255,7 +255,7 @@ Beginning with the binding part with the largest contribution, parts are retaine
 
 Instead of only taking its contribution to the size into account, binding parts could also be selected according to the kind of
 variables they contain. 
-Gencot uses different kinds of variables in its generated code (see Section~\ref{impl-ccode-cstats}): value variables, component and 
+Gencot uses different kinds of variables in its generated code (see Section~\ref{impl-ccode-cexpr}): value variables, component and
 index variables, the control and result variables, and variables corresponding to C object names. These could be prioritized
 as follows: first as many value 
 variables are substituted as possible in a complete expression, then the control variables, then the component and index variables and
@@ -397,7 +397,7 @@ Cogent functions in others.
 \subsection{Take/Put Processing}
 \label{impl-post-takeput}
 
-For struct and array accesses in C (\code{s.m}, \code{s->m}, \code{a[i]}) the translation described in Section~\ref{impl-ccode-cstats} 
+For struct and array accesses in C (\code{s.m}, \code{s->m}, \code{a[i]}) the translation described in Section~\ref{impl-ccode-cexpr}
 creates pairs of take/put bindings of the form
 \begin{verbatim}
   <v>{m=pk’} = vn’
@@ -599,7 +599,7 @@ for structs and
 \end{verbatim}
 if the index expressions \code{ii'} and \code{vm'} can be shown to evaluate to the same value.
 
-Note that the original translation in Section~\ref{impl-ccode-cstats} never creates a \code{take} binding after a \code{put} binding, 
+Note that the original translation in Section~\ref{impl-ccode-cexpr} never creates a \code{take} binding after a \code{put} binding,
 but postprocessing of Cogent expressions resulting from a sequence of C statements may result in such a sequence. The processing
 described above results in a pattern which is similar to a ``\code{do-with}'' construct where a component is selected once and then
 processed several times.

@@ -599,6 +599,22 @@ As source location representation in the \code{LocXXX} types Cogent uses the typ
 \code{Text.Parsec.Pos} in package \code{parsec}.
 It contains a file name and a row and column number. This information is ignored by the prettyprinter.
 
+\subsubsection{Translations for C Statements and Expressions}
+
+C statements and expressions are first translated to intermediate Cogent bindings, which are then further processed
+and finally converted to Cogent expressions. Gencot directly uses the datastructure for representing bindings
+in the Cogent AST for the intermediate form. Although it would be possible to define a specific data structure
+which is more adequate for the intermediate processing, this approach has the advantage of higher flexibility,
+the possibility of using the Cogent prettyprinter for debugging output and no need to transform between representations.
+
+However, only a subset of the AST for bindings is used. Of the datatype \code{Binding} only the variant
+\code{Binding} is used, the variant \code{BindingAlts} is not used since it is intended for refutable patterns
+to distinguish cases. The optional type in the \code{Binding} variant is not used.
+
+The irrefutable patterns in the bindings are usually nested tuples of variables, built from the constructors
+\code{PTuple} and \code{PVar}. Related to struct and array accesses also \code{take} patterns are used constructed
+by \code{PTake} and \code{PArrayTake}.
+
 \subsubsection{Extending the Cogent Surface Syntax}
 
 Gencot needs to extend the Cogent surface syntax for its generated code in three ways:
@@ -1177,25 +1193,10 @@ An identifier for an enumerator is always mapped to lowercase, like preprocessor
 Identifiers for local variables may also occur in a declarator of a local object definition which defines 
 the name. They are also mapped depending on their linkage, as described above.
 
-\subsection{Translating C Statements and Expressions}
-\label{impl-ccode-cstats}
+\subsection{Translating C Expressions}
+\label{impl-ccode-cexpr}
 
-C statements and expressions are translated to intermediate Cogent bindings and finally to Cogent expressions 
-as described in Section~\ref{design-cstats}. Gencot directly uses the datastructure for representing bindings 
-in the extended Cogent AST, described in Section~\ref{impl-ccode-gencog}. Although it would be possible
-to define a specific data structure which is more adequate for the intermediate processing, this approach has
-the advantage of higher flexibility, the possibility of using the Cogent prettyprinter for debugging output
-and no need to transform between representations.
-
-However, only a subset of the AST for bindings is used. Of the datatype \code{Binding} only the variant 
-\code{Binding} is used, the variant \code{BindingAlts} is not used since it is intended for refutable patterns 
-to distinguish cases. The optional type in the \code{Binding} variant is not used.
-
-The irrefutable patterns in the bindings are usually nested tuples of variables, built from the constructors
-\code{PTuple} and \code{PVar}. Related to struct and array accesses also \code{take} patterns are used constructed 
-by \code{PTake} and \code{PArrayTake}.
-
-The translation produces Cogent code in a simple and straightforward manner. The resulting code is highly inefficient 
+The translation produces Cogent code in a simple and straightforward manner. The resulting code is highly inefficient
 and large, it is intended for being improved in postprocessing steps.
 
 \subsubsection{General Translation of C Expressions}
@@ -1234,9 +1235,9 @@ The last binding in the main binding list for an expression \code{e} has the for
 where \code{expr} is the translation of \code{e} to a Cogent expression for a tuple value, possibly using variables bound 
 in preceding bindings. If \code{e} is the invocation of a function with type \code{void} it has the form
 \begin{verbatim}
-  (v1..) = expr
+  (_,v1..) = expr
 \end{verbatim}
-where the pattern is the unit pattern if there are no \code{v1..}.
+using the wildcard \code{\_} for binding the unit value which is returned as function result.
 
 The term \code{v1..} abbreviates 
 the sequence \code{v1},...,\code{vn} of the mapped names of all C identifiers affected by side effects of \code{e}, their values 
@@ -1547,12 +1548,7 @@ with a tuple pattern. The variables \code{v1..} correspond to the properties Add
 The variable for a component added by an Add-Result property is determined as described for expressions for values with pointers,
 i.e., it is either a mapped C variable name, or a component variable, or the wildcard \code{\_}. The variable for a component
 added by a Global-State or Heap-Use property is the same which is used as actual argument for the corresponding parameter, i.e.,
-it is the name of the corresponding parameter of the surrounding function. If the function has result type 
-\code{void} in C the variable \code{v<n>'} is omitted, i.e. the binding is
-\begin{verbatim}
-  (v1..) = f(v<n1>',..,v<nm>')
-\end{verbatim}
-If there is only one result component the tuple pattern becomes a single variable.
+it is the name of the corresponding parameter of the surrounding function.
 
 \subsubsection{Translating lvalue Expressions}
 
@@ -1702,6 +1698,80 @@ whereas the expression \code{(v = i) \&\& x} is translated to
     if v' then v2' else v3'
 \end{verbatim}
 which will be simplified to \code{(v = i) and (v' = i \&\& x)} in later stages.
+
+\subsection{Additional Type Information}
+\label{impl-ccode-type}
+
+Although the translation described in Section~\ref{impl-ccode-cexpr} is mostly independent of any type
+information, additional type information must be provided in the resulting Cogent AST to be used during
+postprocessing (see Section~\ref{impl-ccode-gencog}). This is done by constructing a Cogent type for every
+expression and pattern in the bindings of the Cogent AST and also for all subexpressions and subpatterns.
+These types are inserted into the AST elements for expressions and patterns.
+
+The type information is either taken from the C program or it is constructed according to the structure of an
+expression or pattern from the types of sub components. Additionally, the item properties have to be taken
+into account, which affect the type translation.
+
+The analysis module of the language-c parser provides type information in two ways: either from the symbol map
+using the monadic action \code{lookupObject} (see Section\ref{impl-ccode-trav}), where type information is
+provided for all defined or declared identifiers, or from a monadic action \code{tExpr} which is used to
+typecheck expressions during the analysis phase.
+
+The action \code{tExpr} is defined by language-c as
+\begin{verbatim}
+tExpr :: [StmtCtx] -> ExprSide -> CExpr -> m Type
+\end{verbatim}
+where \code{m} is a \code{MonadTrav} (see Section\ref{impl-ccode-trav}). The \code{StmtCtx} is only used for
+``statement expressions'' which are a GNU extension of C which is not supported by Gencot, therefore an arbitrary
+value can be used for it. The \code{ExprSide} specifies whether the expression occurs as lvalue or rvalue and
+only affects the admissible types. Here the value for rvalue is used since no restrictions apply if expressions
+are used as rvalue. If the typecheck is successful, \code{tExpr} returns the C type of the checked expression
+in the same form as used in the symbol map. Since Gencot assumes a correct C program the typecheck functionality
+is irrelevant, only the resulting type is used.
+
+\subsubsection{Expressions for Constants and Operator Application}
+
+For constants and the results of operator applications the type information is always directly determined from the
+C program. Item properties are not relevant, because constants and operators are no items, so no properties can be
+specified for them. The type of operator results may depend on the type of the parameters, however, C operators
+only exist for arithmetic types, which are not affected by item properties.
+
+For constants language-c distinguishes in the C AST between Integer, Char, Float, and String constants. Float
+constants are not supported by Gencot. Char constants in C have type \code{int}, which is mapped to Cogent type
+\code{U32} (see Section~\ref{design-types-prim}). For String constants Cogent type \code{String} is used.
+For Integer constants and operator applications the C type is determined using \code{tExpr}, then it is mapped to a
+Cogent type as described in Section~\ref{design-types-prim} which results in one of the types \code{U8}, \code{U16},
+\code{U32}, or \code{U64}.
+
+\subsubsection{Expressions for Variables}
+
+For an identifier first the C type is determined using \code{tExpr} (which internally looks it up in the symbol map).
+Since every identifier may denote an ``item'' with declared item properties on which its Cogent type may depend
+(see Section~\ref{impl-itemprops}), next its associated item id must be determined, then both are combined to an
+\code{ItemAssocType} (see Section~\ref{impl-itemprops-types}) and mapped to a Cogent type by \code{transType}
+(see Section~\ref{impl-ccomps-main}).
+
+The item id of an identifier depends on whether the identifier denotes a toplevel object or function, a parameter
+of the surrounding function definition, or a local variable declared in the function body. However, this information is
+no more available after the analysis by language-c. Looking the identifier up in the symbol map only allows to
+distinguish toplevel definitions from local declarations, but neither parameters from local variables, nor different
+local variables with the same name.
+
+Therefore Gencot implements its own ``item id table'' for this purpose: it maintains a stack of local contexts
+where each context maps identifiers to their item id. Only local identifiers in function definitions are managed here,
+the function parameters are in the outermost context and at the end of a function definition all contexts are removed.
+See Section~\ref{impl-ccode-trav} for the corresponding monadic actions.
+
+\subsubsection{Function Application}
+
+\subsubsection{Other Expressions}
+
+\subsubsection{Patterns}
+
+\subsection{Translating C Statements}
+\label{impl-ccode-cstats}
+
+Like C expressions, C statements are mainly translated to Cogent bindings.
 
 \subsubsection{General Translation of C Statements}
 
@@ -1908,7 +1978,7 @@ From this binding the Cogent expression
   in <result expression>
 \end{verbatim}
 is constructed as body expression of the translated Cogent function. The \code{<result expression>} depends on the item properties 
-Add-Result, Global-State, Heap-Use, and Modification-Function. 
+Add-Result, Global-State, and Heap-Use.
 
 If no additional result components are caused by the item properties, the \code{<result expression>} is
 \begin{verbatim}
@@ -1925,8 +1995,6 @@ If the item properties cause additional result components the \code{<result expr
   (r', v1..)
 \end{verbatim}
 where the variables \code{v1..} correspond to the properties Add-Result, Global-State, and Heap-Use in that order.
-If the C function result type is \code{void}, the component \code{r'} is omitted. If then there is only one variable left
-the tuple pattern is replaced by a pattern for that variable.
 
 \subsubsection{Selection Statements}
 
@@ -2200,70 +2268,6 @@ which can be further simplified to
   in (0,i,a)
 \end{verbatim}
 
-\subsection{Additional Type Information}
-\label{impl-ccode-type}
-
-Although the translation described in Section~\ref{impl-ccode-cstats} is mostly independent of any type
-information, additional type information must be provided in the resulting Cogent AST to be used during
-postprocessing (see Section~\ref{impl-ccode-gencog}). This is done by constructing a Cogent type for every
-expression and pattern in the bindings of the Cogent AST and also for all subexpressions and subpatterns.
-These types are inserted into the AST elements for expressions and patterns.
-
-The type information is either taken from the C program or it is constructed according to the structure of an
-expression or pattern from the types of sub components.
-
-The analysis module of the language-c parser provides type information in two ways: either from the symbol map
-using the monadic action \code{lookupObject} (see Section\ref{impl-ccode-trav}), where type information is
-provided for all defined or declared identifiers, or from a monadic action \code{tExpr} which is used to
-typecheck expressions during the analysis phase.
-
-The action \code{tExpr} is defined by language-c as
-\begin{verbatim}
-tExpr :: [StmtCtx] -> ExprSide -> CExpr -> m Type
-\end{verbatim}
-where \code{m} is a \code{MonadTrav} (see Section\ref{impl-ccode-trav}). The \code{StmtCtx} is only used for
-``statement expressions'' which are a GNU extension of C which is not supported by Gencot, therefore an arbitrary
-value can be used for it. The \code{ExprSide} specifies whether the expression occurs as lvalue or rvalue and
-only affects the admissible types. Here the value for rvalue is used since no restrictions apply if expressions
-are used as rvalue. If the typecheck is successful, \code{tExpr} returns the C type of the checked expression
-in the same form as used in the symbol map. Since Gencot assumes a correct C program the typecheck functionality
-is irrelevant, only the resulting type is used.
-
-\subsubsection{Expressions for Constants and Variables}
-
-For constants and identifiers the type information is always directly determined from the C program.
-
-For constants language-c distinguishes in the C AST between Integer, Char, Float, and String constants. Float
-constants are not supported by Gencot. Char constants in C have type \code{int}, which is mapped to Cogent type
-\code{U32} (see Section~\ref{design-types-prim}). For String constants Cogent type \code{String} is used.
-For Integer constants the C type is determined using \code{tExpr}, then it is mapped to a Cogent type as described
-in Section~\ref{design-types-prim} which results in one of the types \code{U8}, \code{U16}, \code{U32}, or \code{U64}.
-
-For an identifier first the C type is determined using \code{tExpr} (which internally looks it up in the symbol map).
-Since every identifier may denote an ``item'' with declared item properties on which its Cogent type may depend
-(see Section~\ref{impl-itemprops}), next its associated item id must be determined, then both are combined to an
-\code{ItemAssocType} (see Section~\ref{impl-itemprops-types}) and mapped to a Cogent type by \code{transType}
-(see Section~\ref{impl-ccomps-main}).
-
-The item id of an identifier depends on whether the identifier denotes a toplevel object or function, a parameter
-of the surrounding function definition, or a local variable declared in the function body. However, this information is
-no more available after the analysis by language-c. Looking the identifier up in the symbol map only allows to
-distinguish toplevel definitions from local declarations, but neither parameters from local variables, nor different
-local variables with the same name.
-
-Therefore Gencot implements its own ``item id table'' for this purpose: it maintains a stack of local contexts
-where each context maps identifiers to their item id. Only local identifiers in function definitions are managed here,
-the function parameters are in the outermost context and at the end of a function definition all contexts are removed.
-See Section~\ref{impl-ccode-trav} for the corresponding monadic actions.
-
-\subsubsection{Operation Application}
-
-\subsubsection{Function Application}
-
-\subsubsection{Other Expressions}
-
-\subsubsection{Patterns}
-
 \subsection{Generating Antiquoted C Code}
 \label{impl-ccode-anti}
 
@@ -2409,7 +2413,7 @@ Section~\ref{impl-ccode-read}. This list is implemented as a list of elements of
 by language-c to identify both tagged and untagged struct/union/enum types.
 \item The current function definition when traversing a function body. This is not available in the symbol table.
 \item A table for looking up the item ids of local variables and parameters, as described in Section~\ref{impl-ccode-type}.
-\item Counters for generated Cogent variable names, as described in Section~\ref{impl-ccode-cstats}.
+\item Counters for generated Cogent variable names, as described in Section~\ref{impl-ccode-cexpr}.
 \item A string with configuration settings for the Cogent translation.
 \end{itemize}
 
@@ -2508,7 +2512,7 @@ The variable counters can be maintained by the monadic action
   getValCounter :: FTrav Int
   getCmpCounter :: FTrav Int
 \end{verbatim}
-The first counter is used for value variables, the second for component variables (see Section~\ref{impl-ccode-cstats}).
+The first counter is used for value variables, the second for component variables (see Section~\ref{impl-ccode-cexpr}).
 The first action resets both counters to 0, the second action resets only the value variable counter. 
 The other two actions return the current counter value and increment the counter.
 

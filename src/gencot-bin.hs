@@ -16,7 +16,7 @@ import Gencot.Items.Identifier (getTypedefNames)
 import Gencot.Items.Types (getItemAssocType,getEnumItemId,getTagItemId,getTypedefItemId)
 import Gencot.Names (readNameMapFromFile)
 import Gencot.Traversal (runFTrav)
-import Gencot.Cogent.Output (prettyTopLevels)
+import Gencot.Cogent.Output (prettyTopLevels,prettyGenTopLevels)
 import Gencot.Cogent.Translate (transGlobals,genTypeDefs)
 import Gencot.C.Output (showTopLevels)
 import Gencot.C.Generate (genEntries)
@@ -71,7 +71,9 @@ gencotTranslate args = do
     {- translate global declarations and definitions to Cogent -}
     toplvs <- runFTrav table (fnam,npm, ipm,(True,unitTypeNames),tconf) $ transGlobals $ getOwnDeclEvents (globalDefs table) translateFilter
     {- Output -}
-    print $ prettyTopLevels toplvs
+    if elem 'G' tconf
+       then print $ prettyGenTopLevels toplvs
+       else print $ prettyTopLevels toplvs
 
 translateFilter :: DeclEvent -> Bool
 translateFilter (TagEvent (EnumDef (EnumType (AnonymousRef _) _ _ _))) = False

@@ -30,8 +30,6 @@ If the item property Global-State (see Section~\ref{design-types-itemprops}) has
 function parameters, the corresponding parameter names are added to the tuple after the last C parameter name.
 If the item property Heap-Use has been set for the function, an additional parameter named \code{heap} or 
 \code{globheap<n>} (see~\ref{design-types-itemprops}) is added to the tuple after possible Global-State parameters.
-If the Modification-Function property has been declared for a parameter the tuple is rearranged into a pair 
-where the second part is a tuple as described in Section~\ref{design-types-function}.
 
 If the function is variadic an additional last tuple component is added with a variable named
 \code{variadicCogentParameters}, mainly to inform the developer that manual action is required.
@@ -176,23 +174,7 @@ with internal linkage. Then the entry wrapper body has the form
   return cogent_fnam(arg).p1;
 \end{verbatim}
 
-
-If a parameter has the Modification-Function property the argument and result of the Cogent functions are
-represented as pairs where the second component may be a tuple (see Section~\ref{design-types-function}). 
-The wrapper must rearrange the parameters and retrieve the original result. For example, if the C 
-function has 3 parameters, the second parameter has the Modification-Function property and the Add-Result 
-property, and the third parameter has the Add-Result property the Cogent function has type
-\begin{verbatim}
-  (<cogt2>, (<cogt1>, <cogt3>)) -> (<cogt2>, (<cogt0>, <cogt3>))
-\end{verbatim}
-and the entry wrapper body has the form
-\begin{verbatim}
-  $ty:((<cogt2>,(<cogt1>,<cogt3>))) arg = 
-    {.p1=arg2,.p2={.p1=arg1,.p2=arg3}};
-  return cogent_fnam(arg).p2.p1;
-\end{verbatim}
-
-Together, the information required to generate the entry wrapper is the same as that for translating the 
+Together, the information required to generate the entry wrapper is the same as that for translating the
 function's type to Cogent: the argument types and the result type must be translated to Cogent and the
 function name must be mapped to determine the name of the Cogent function.
 

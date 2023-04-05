@@ -80,11 +80,17 @@ mkVoidPtrType :: GenType
 mkVoidPtrType = mkTypeName mapPtrVoid
 
 mkTakeType :: Bool -> GenType -> [CCS.FieldName] -> GenType
+mkTakeType b (GenType (CS.TBang t) o s) tfs = GenType (CS.TBang (mkTakeType b t tfs)) o s
+mkTakeType b (GenType (CS.TUnbox t) o s) tfs = GenType (CS.TUnbox (mkTakeType b t tfs)) o s
 mkTakeType b (GenType (CS.TRecord rp fs s) o _) tfs =
     GenType (CS.TRecord rp fs' s) o Nothing
     where fs' = map (\fld@(fn, (tp, tk)) -> if elem fn tfs then (fn,(tp,b)) else fld) fs
+mkTakeType _ t _ = error $ show t
 
 mkArrTakeType :: Bool -> GenType -> [GenExpr] -> GenType
+mkArrTakeType b (GenType (CS.TBang t) o s) es = GenType (CS.TBang (mkArrTakeType b t es)) o s
+mkArrTakeType b (GenType (CS.TUnbox t) o s) es = GenType (CS.TUnbox (mkArrTakeType b t es)) o s
+mkArrTakeType b (GenType (CS.TRecord rp [(arr,(t,tk))] s) o syn) es = GenType (CS.TRecord rp [(arr,(mkArrTakeType b t es,tk))] s) o syn
 mkArrTakeType b (GenType (CS.TArray eltp siz s tels) o _) es =
     GenType (CS.TArray eltp siz s (tels' b)) o Nothing
     where tels' True = (map (\e -> (e,True)) es) ++ tels
@@ -269,3 +275,4 @@ transferProperties :: GenType -> GenType -> GenType
 transferProperties (GenType (CS.TBang t) _ _) t2 = mkReadonly $ transferProperties t t2
 transferProperties t1 t2 | isStringType t2 && (not $ isStringType t1) = t1
 transferProperties t1 t2 | isMayNull t2 && (not $ isMayNull t1) = getNnlType t2
+transferProperties _ t = t

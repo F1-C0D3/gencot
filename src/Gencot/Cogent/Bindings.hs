@@ -135,7 +135,7 @@ mkPlainExpr (main,putback) =
 
 -- construct (gencotDummy msg)
 mkDummyExpr :: String -> GenExpr
-mkDummyExpr msg = mkAppExpr (mkTopLevelFunExpr ("gencotDummy",unitType) []) $ mkStringLitExpr msg
+mkDummyExpr msg = mkAppExpr (mkTopLevelFunExpr ("gencotDummy",mkFunType mkStringType unitType) []) $ mkStringLitExpr msg
 
 -- turn expression to dummy, preserving origin, type, and source
 toDummyExpr :: GenExpr -> GenExpr -> GenExpr

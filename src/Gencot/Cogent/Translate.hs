@@ -448,7 +448,7 @@ transType :: ItemAssocType -> FTrav GenType
 transType (_, (LCA.DirectType LCA.TyVoid _ _)) =
     return unitType
 -- Direct type:
--- Translate to: Name of primitive type (boxed) or composite type (unboxed).
+-- Translate to: Name of primitive type (boxed) or to composite type (unboxed) with tag as type synonym.
 -- Remark: Semantically, primitive types are unboxed. 
 -- However, if marked as unboxed the Cogent prettyprinter adds a (redundant) unbox operator.
 transType iat@(_, (LCA.DirectType tnam _ _)) = do
@@ -1328,6 +1328,7 @@ makeVariadicParamDesc =
 
 -- | Return the variadic parameter description, if present.
 getVariadicParamDesc :: FuncDesc -> Maybe ParamDesc
+getVariadicParamDesc fdes | null $ parsOfFuncDesc fdes = Nothing
 getVariadicParamDesc fdes =
     if nameOfParamDesc pdes == variadicParamName then Just pdes else Nothing
     where pdes = last $ parsOfFuncDesc fdes
@@ -1408,7 +1409,7 @@ processParamVals :: TypedVar -> FuncDesc -> [BindsPair] -> FTrav ([BindsPair], G
 processParamVals v fdes pvals = do
     -- construct BindsPairs for all virtual parameters
     vpds <- getVirtParamsFromContext fdes
-    vpbps <- mapM (\pdes -> do 
+    vpbps <- mapM (\pdes -> do
                              cnt <- getValCounter
                              return $ mkValVarBindsPair cnt $ getTypedVarFromParamDesc pdes) vpds
     let -- modify types of non-virtual parameters

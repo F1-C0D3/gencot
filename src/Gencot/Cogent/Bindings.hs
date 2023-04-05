@@ -125,17 +125,18 @@ mkBodyExpr b@(CS.Binding ip _ _ _) e = mkLetExpr [replaceLeadPatn (mkVarPattern 
 mkPlainExpr :: ([GenBnd],[GenBnd]) {-BindsPair-} -> GenExpr
 mkPlainExpr (main,putback) =
     if not $ null putback
-       then toDummyExpr e $ mkDummyExpr "No putback obligations supported in plain expression."
+       then toDummyExpr e $ mkDummyExpr unitType "No putback obligations supported in plain expression."
        else
        if (length vs) > 1
-          then toDummyExpr e $ mkDummyExpr "No side effects supported in plain expression."
+          then toDummyExpr e $ mkDummyExpr unitType "No side effects supported in plain expression."
           else mkLetExpr (reverse main) $ mkVarExpr $ head vs
     where (CS.Binding ip _ e _) = head main
           vs = tupleVars ip
 
 -- construct (gencotDummy msg)
-mkDummyExpr :: String -> GenExpr
-mkDummyExpr msg = mkAppExpr (mkTopLevelFunExpr ("gencotDummy",mkFunType mkStringType unitType) []) $ mkStringLitExpr msg
+-- use mkVarExpr instead of mkTopLevelFunExpr to omit type and layout arguments
+mkDummyExpr :: GenType -> String -> GenExpr
+mkDummyExpr t msg = mkAppExpr (mkVarExpr (TV "gencotDummy" $ mkFunType mkStringType t)) $ mkStringLitExpr msg
 
 -- turn expression to dummy, preserving origin, type, and source
 toDummyExpr :: GenExpr -> GenExpr -> GenExpr
@@ -152,8 +153,8 @@ mkSingleBindsPair :: GenBnd -> BindsPair
 mkSingleBindsPair b = ([b],[])
 
 -- | Single binding v<n>' = gencotDummy msg
-mkDummyBindsPair :: Int -> String -> BindsPair
-mkDummyBindsPair n msg = mkSingleBindsPair $ mkValVarBinding n unitType $ mkDummyExpr msg
+mkDummyBindsPair :: Int -> GenType -> String -> BindsPair
+mkDummyBindsPair n t msg = mkSingleBindsPair $ mkValVarBinding n t $ mkDummyExpr t msg
 
 -- | Single binding v<n>' = ()
 mkUnitBindsPair :: Int -> BindsPair
@@ -324,7 +325,7 @@ mkBinding ip e = CS.Binding ip Nothing e []
 
 -- | Single binding c' = gencotDummy msg
 mkDummyBinding :: String -> GenBnd
-mkDummyBinding msg = mkVarBinding typedCtlVar $ mkDummyExpr msg
+mkDummyBinding msg = mkVarBinding typedCtlVar $ mkDummyExpr mkCtlType msg
 
 -- construct (p1,..,pn) = expr or p1 = expr
 mkTupleBinding :: [GenIrrefPatn] -> GenExpr -> GenBnd

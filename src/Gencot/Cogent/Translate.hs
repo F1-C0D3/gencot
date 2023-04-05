@@ -52,8 +52,8 @@ import Gencot.Cogent.Bindings (
   processMFpropForPatterns)
 import Gencot.Cogent.Expr (TypedVar(TV), typOfTV, namOfTV, mkUnitExpr, mkVarExpr, mkExpVarTupleExpr)
 import Gencot.Cogent.Types (
-  genType, mkConstrType, mkTypeName, mkU32Type, mkBoolType, mkTupleType, mkFunType, mkArrayType, mkWrappedArrayType, mkRecordType,
-  addTypeSyn, mkReadonly, mkUnboxed, isArrayType, isUnboxed, mkMayNull, getBoxType, getNnlType, getResultType)
+  genType, mkTypeName, mkU32Type, mkBoolType, mkTupleType, mkFunType, mkArrayType, mkWrappedArrayType, mkRecordType, mkPtrType,
+  addTypeSyn, useTypeSyn, mkReadonly, mkUnboxed, isArrayType, isUnboxed, mkMayNull, getBoxType, getNnlType, getResultType, getDerefType)
 import Gencot.Cogent.Postproc (postproc)
 import qualified Gencot.C.Ast as LQ (Stm(Exp,Block), Exp)
 import qualified Gencot.C.Translate as C (transStat, transExpr, transArrSizeExpr, transBlockItem)
@@ -90,9 +90,9 @@ transGlobal (LCA.TagEvent def@(LCA.CompDef (LCA.CompType sueref LCA.StructTag me
            tn <- transTagName typnam
            sfn <- getFileName
            let iat = getTagItemAssoc def sfn
-           ms <- mapM (transMember iat) aggmems
+           rt <- transStructType def iat
            nts <- liftM concat $ mapM (transMemTagIfNested iat) aggmems
-           return $ wrapOrigin n ([GenToplv (CS.TypeDec tn [] $ mkRecordType ms) noOrigin] ++ nts)
+           return $ wrapOrigin n ([GenToplv (CS.TypeDec tn [] rt) noOrigin] ++ nts)
     where typnam = LCA.TyComp $ LCA.CompTypeRef sueref LCA.StructTag n
           aggmems = aggBitfields mems
 -- If not yet translated as nested, translate a C union definition of the form
@@ -210,13 +210,14 @@ transGlobal (LCA.DeclEvent (LCA.EnumeratorDef (LCA.Enumerator idnam expr _ n))) 
 -- The translation result has the form
 -- > type idnam = type
 -- where @type@ is constructed by translating @type-specifier@ and applying all derivations from the adjusted @declarator@.
+-- If @type@ has a type synonym, it is used instead of @type@ (resulting in a synonym chain).
 -- A MayNull application to @type@ is removed.
 transGlobal (LCA.TypeDefEvent (LCA.TypeDef idnam typ _ n)) = do
     t <- if isArray typ
             then transArrayType modifiat -- prevent making readonly
             else transType modifiat
     nt <- transTagIfNested iat n
-    let dt = getNnlType t
+    let dt = useTypeSyn $ getNnlType t
     tn <- mapNameToUpper idnam
     return $ wrapOrigin n (nt ++ [GenToplv (CS.TypeDec tn [] dt) noOrigin])
     where iat = getTypedefItemAssoc idnam typ
@@ -380,6 +381,12 @@ aggBitfields ms = foldl accu [] ms
           isBitfield (LCA.MemberDecl _ Nothing _) = False
           isBitfield _ = True
 
+-- | Translate a struct definition to a record type.
+transStructType :: LCA.TagDef -> ItemAssocType -> FTrav GenType
+transStructType (LCA.CompDef (LCA.CompType _ LCA.StructTag mems _ _)) iat = do
+    ms <- mapM (transMember iat) $ aggBitfields mems
+    return $ mkRecordType ms
+
 -- | Translate struct member definition to pair of Cogent record field name and type.
 -- First parameter is the ItemAssocType of the enclosing struct type.
 -- Translate member type, if array set unboxed. Map member name if it starts with uppercase.
@@ -447,9 +454,21 @@ transType :: ItemAssocType -> FTrav GenType
 -- Translate to: ()
 transType (_, (LCA.DirectType LCA.TyVoid _ _)) =
     return unitType
--- Direct type:
--- Translate to: Name of primitive type (boxed) or to composite type (unboxed) with tag as type synonym.
--- Remark: Semantically, primitive types are unboxed. 
+-- Struct type:
+-- Translate to: record type (unboxed) with tag as type synonym.
+transType iat@(_, (LCA.DirectType tnam@(LCA.TyComp (LCA.CompTypeRef sueref LCA.StructTag _)) _ _)) = do
+    tn <- transTNam tnam
+    dt <- LCA.getDefTable
+    let mdef = getTagDef dt sueref
+    case mdef of
+         Nothing -> error ("Forward struct reference after analysis for " ++ tn)
+         Just def -> do
+             rt <- transStructType def iat
+             ro <- isReadOnlyItem iat
+             return $ makeReadOnlyIf ro $ mkUnboxed $ addTypeSyn tn rt
+-- Other direct type:
+-- Translate to: Name of primitive type (boxed) or union type (unboxed).
+-- Remark: Semantically, primitive types are unboxed.
 -- However, if marked as unboxed the Cogent prettyprinter adds a (redundant) unbox operator.
 transType iat@(_, (LCA.DirectType tnam _ _)) = do
     tn <- transTNam tnam
@@ -520,7 +539,7 @@ transType iat@(_, pt@(LCA.PtrType (LCA.DirectType (LCA.TyIntegral it) _ _) _ _))
            safe <- isNotNullItem iat
            sub <- getRefSubItemAssoc iat
            typ <- transType sub
-           return $ makeReadOnlyIf ro $ addMayNullIfNot safe $ mkConstrType mapPtrDeriv [typ]
+           return $ makeReadOnlyIf ro $ addMayNullIfNot safe $ mkPtrType typ
 -- Derived pointer type for other type t:
 -- Translate t. If unboxed and no function pointer make boxed, otherwise apply CPtr. Always boxed.
 -- If no Not-Null property: apply MayNull
@@ -532,7 +551,7 @@ transType iat@(_, pt@(LCA.PtrType t _ _)) = do
     typ <- transType sub
     let rtyp = if (isUnboxed typ) && not (isFunPointer t) 
                 then getBoxType typ
-                else mkConstrType mapPtrDeriv [typ]
+                else mkPtrType typ
     return $ makeReadOnlyIf ro $ addMayNullIfNot safe rtyp
 -- Complete derived function type: ret (p1,..,pn)
 -- Translate ret, determine parameter description including virtual parameters.
@@ -1069,9 +1088,9 @@ bindInit Nothing t = do
     cnt <- getValCounter
     return $ mkDefaultBindsPair cnt t
 bindInit (Just (LC.CInitExpr e _)) _ = bindExpr e
-bindInit (Just (LC.CInitList il _)) _ = do
+bindInit (Just (LC.CInitList il _)) t = do
     cnt <- getValCounter
-    return $ mkDummyBindsPair cnt "Non-scalar initializers not yet implemented"
+    return $ mkDummyBindsPair cnt t "Non-scalar initializers not yet implemented"
 
 bindExpr :: LC.CExpr -> FTrav BindsPair
 bindExpr e@(LC.CConst (LC.CIntConst i _)) = do
@@ -1084,11 +1103,13 @@ bindExpr e@(LC.CConst (LC.CCharConst c _)) = do
     insertExprSrc e $ 
         if length ch == 1 
            then mkCharLitBindsPair cnt $ head ch
-           else mkDummyBindsPair cnt "Multi character constants not supported"
+           else mkDummyBindsPair cnt mkU32Type "Multi character constants not supported"
     where ch = LC.getCChar c
 bindExpr e@(LC.CConst (LC.CFloatConst _ _)) = do
+    ct <- exprType e
+    t <- transType ("",ct)
     cnt <- getValCounter
-    insertExprSrc e $ mkDummyBindsPair cnt "Float literals not supported"
+    insertExprSrc e $ mkDummyBindsPair cnt t "Float literals not supported"
 bindExpr e@(LC.CConst (LC.CStrConst s _)) = do
     cnt <- getValCounter
     insertExprSrc e $ mkStringLitBindsPair cnt $ LC.getCString s
@@ -1112,13 +1133,16 @@ bindExpr e@(LC.CVar nam _) = do
                  else do
                      fdes <- getContextFuncDesc
                      let pdes = searchGlobalStateParamDesc fdes gs
-                     if null $ nameOfParamDesc pdes
-                        then return $ mkDummyBindsPair cnt ("Cannot access global variable: " ++ (LCI.identToString nam))
-                        else if isArrayType $ typeOfParamDesc pdes
-                        then return $ mkValVarBindsPair cnt $ TV (nameOfParamDesc pdes) (typeOfParamDesc pdes)
+                         pt = typeOfParamDesc pdes
+                         pn = nameOfParamDesc pdes
+                     if null pn
+                        then return $ mkDummyBindsPair cnt (if isArrayType pt then pt else getDerefType pt)
+                                        ("Cannot access global variable: " ++ (LCI.identToString nam))
+                        else if isArrayType pt
+                        then return $ mkValVarBindsPair cnt $ TV pn pt
                         else do
                             cntp <- getCmpCounter
-                            return $ mkDerefBindsPair cntp $ mkValVarBindsPair cnt $ TV (nameOfParamDesc pdes) (typeOfParamDesc pdes)
+                            return $ mkDerefBindsPair cntp $ mkValVarBindsPair cnt $ TV pn pt
           else return $ mkValVarBindsPair cnt $ TV v t
     insertExprSrc e bp
 bindExpr e@(LC.CMember e1 nam arrow _) = do
@@ -1222,8 +1246,10 @@ bindExpr e@(LC.CComma es _) = do
     bps <- mapM bindExpr es
     insertExprSrc e $ concatBindsPairs bps
 bindExpr e = do
+    ct <- exprType e
+    t <- transType ("",ct)
     cnt <- getValCounter
-    insertExprSrc e $ mkDummyBindsPair cnt "Translation of expression not yet implemented"
+    insertExprSrc e $ mkDummyBindsPair cnt t "Translation of expression not yet implemented"
 
 -- | Add a statement source to a binding
 insertStatSrc :: LC.CStat -> GenBnd -> FTrav GenBnd

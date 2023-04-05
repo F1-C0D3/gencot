@@ -6,6 +6,7 @@ import Cogent.Surface (TopLevel(FunDef), Expr(Tuple), Pattern, IrrefutablePatter
 import Cogent.Common.Syntax (VarName)
 import Cogent.Common.Types (Sigil(Unboxed),readonly)
 import Cogent.PrettyPrint
+import Cogent.Util (ffmap,fffmap,ffffmap,fffffmap)
 
 import Prelude hiding ((<$>))
 import Text.PrettyPrint.ANSI.Leijen
@@ -13,6 +14,7 @@ import Text.PrettyPrint.ANSI.Leijen
 import Gencot.Origin (Origin(..),fstLine,lstLine)
 import Gencot.Names (mapPtrDeriv, ptrDerivCompName, isArrDeriv, arrDerivCompNam)
 import Gencot.Cogent.Ast
+import Gencot.Cogent.Types (useTypeSyn)
 import Gencot.C.Output (pprCommented)
 
 import Text.PrettyPrint.Mainland.Class (ppr)
@@ -37,11 +39,26 @@ instance Pretty GenToplv where
 prettyGenTopLevels :: [GenToplv] -> Doc
 prettyGenTopLevels tll = plain $ vsep $ fmap pretty tll
 
+toTrgType :: GenType -> TrgType
+toTrgType t = TrgType (fmap toTrgType $ fffmap toTrgExpr $ typeOfGT $ useTypeSyn t) $ orgOfGT t
+
+toTrgPatn :: GenPatn -> TrgPatn
+toTrgPatn p = TrgPatn (fmap toTrgIrrefPatn $ patnOfGP p) $ orgOfGP p
+
+toTrgIrrefPatn :: GenIrrefPatn -> TrgIrrefPatn
+toTrgIrrefPatn ip = TrgIrrefPatn (ffmap toTrgIrrefPatn $ fmap toTrgExpr $ irpatnOfGIP ip) $ orgOfGIP ip
+
+toTrgExpr :: GenExpr -> TrgExpr
+toTrgExpr e =  TrgExpr (fffffmap toTrgType $ ffffmap toTrgPatn $ fffmap toTrgIrrefPatn $ fmap toTrgExpr $ exprOfGE e) (orgOfGE e) $ ccdOfGE e
+
+toTrgToplv :: GenToplv -> TrgToplv
+toTrgToplv tl = TrgToplv (fffmap toTrgType $ ffmap toTrgPatn $ fmap toTrgExpr $ toplOfGTL tl) $ orgOfGTL tl
+
 prettyTopLevels :: [GenToplv] -> Doc
 prettyTopLevels tll = plain $ vsep $ fmap (pretty . toTrgToplv) tll
 
-showCogent :: Pretty a => a -> String
-showCogent cog = (displayS $ renderCompact $ pretty cog) ""
+showCogentType :: GenType -> String
+showCogentType t = (displayS $ renderCompact $ pretty $ toTrgType t) ""
 
 instance Pretty GenType where
     -- all other type synonyms resulting from typedef names. Without type arguments.

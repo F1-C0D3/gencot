@@ -158,28 +158,3 @@ mapIrpatnOfTIP f g = TrgIrrefPatn (f $ irpatnOfTIP g) (orgOfTIP g)
 
 mapTypeOfTT :: (TypeOfTT -> TypeOfTT) -> TrgType -> TrgType
 mapTypeOfTT f g = TrgType (f $ typeOfTT g) (orgOfTT g)
-
-toTrgType :: GenType -> TrgType
--- array type synonym of form CArr<size> with element type as argument
-toTrgType (GenType (TRecord _ [(arrx,((GenType (TArray et _ _ _) _ _),_))] _) org (Just syn))
-        | isArrDeriv syn && arrDerivCompNam syn == arrx =
-    TrgType (TCon syn [toTrgType et] $ Boxed False Nothing) org
--- pointer type synonym CPtr with referenced type as argument
-toTrgType (GenType (TRecord _ [(cont,(rt,_))] _) org (Just syn))
-        | syn == mapPtrDeriv && ptrDerivCompName == cont =
-    TrgType (TCon mapPtrDeriv [toTrgType rt] $ Boxed False Nothing) org
--- all other type synonyms resulting from typedef names. Without type arguments.
-toTrgType (GenType _ org (Just syn)) = TrgType (TCon syn [] $ Boxed False Nothing) org
-toTrgType t = TrgType (fmap toTrgType $ fffmap toTrgExpr $ typeOfGT t) $ orgOfGT t
-
-toTrgPatn :: GenPatn -> TrgPatn
-toTrgPatn p = TrgPatn (fmap toTrgIrrefPatn $ patnOfGP p) $ orgOfGP p
-
-toTrgIrrefPatn :: GenIrrefPatn -> TrgIrrefPatn
-toTrgIrrefPatn ip = TrgIrrefPatn (ffmap toTrgIrrefPatn $ fmap toTrgExpr $ irpatnOfGIP ip) $ orgOfGIP ip
-
-toTrgExpr :: GenExpr -> TrgExpr
-toTrgExpr e =  TrgExpr (fffffmap toTrgType $ ffffmap toTrgPatn $ fffmap toTrgIrrefPatn $ fmap toTrgExpr $ exprOfGE e) (orgOfGE e) $ ccdOfGE e
-
-toTrgToplv :: GenToplv -> TrgToplv
-toTrgToplv tl = TrgToplv (fffmap toTrgType $ ffmap toTrgPatn $ fmap toTrgExpr $ toplOfGTL tl) $ orgOfGTL tl

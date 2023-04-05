@@ -82,14 +82,15 @@ mkVoidPtrType = mkTypeName mapPtrVoid
 mkTakeType :: Bool -> GenType -> [CCS.FieldName] -> GenType
 mkTakeType b (GenType (CS.TBang t) o s) tfs = GenType (CS.TBang (mkTakeType b t tfs)) o s
 mkTakeType b (GenType (CS.TUnbox t) o s) tfs = GenType (CS.TUnbox (mkTakeType b t tfs)) o s
+mkTakeType b (GenType (CS.TCon cstr [t] sg) o s) tfs | cstr == mapMayNull = GenType (CS.TCon cstr [(mkTakeType b t tfs)] sg) o s
 mkTakeType b (GenType (CS.TRecord rp fs s) o _) tfs =
     GenType (CS.TRecord rp fs' s) o Nothing
     where fs' = map (\fld@(fn, (tp, tk)) -> if elem fn tfs then (fn,(tp,b)) else fld) fs
-mkTakeType _ t _ = error $ show t
 
 mkArrTakeType :: Bool -> GenType -> [GenExpr] -> GenType
 mkArrTakeType b (GenType (CS.TBang t) o s) es = GenType (CS.TBang (mkArrTakeType b t es)) o s
 mkArrTakeType b (GenType (CS.TUnbox t) o s) es = GenType (CS.TUnbox (mkArrTakeType b t es)) o s
+mkArrTakeType b (GenType (CS.TCon cstr [t] sg) o s) es | cstr == mapMayNull = GenType (CS.TCon cstr [(mkArrTakeType b t es)] sg) o s
 mkArrTakeType b (GenType (CS.TRecord rp [(arr,(t,tk))] s) o syn) es = GenType (CS.TRecord rp [(arr,(mkArrTakeType b t es,tk))] s) o syn
 mkArrTakeType b (GenType (CS.TArray eltp siz s tels) o _) es =
     GenType (CS.TArray eltp siz s (tels' b)) o Nothing
@@ -140,10 +141,28 @@ isStringType _ = False
 -- Always attached inside of TBang, TUnbox, and MayNull, so that these modifiers are applied to the synonym.
 -- If there is already a synonym, it is overwritten.
 addTypeSyn :: CCS.TypeName -> GenType -> GenType
-addTypeSyn s (GenType (CS.TBang t) o ms) = (GenType (CS.TBang (addTypeSyn s t)) o ms)
-addTypeSyn s (GenType (CS.TUnbox t) o ms) = (GenType (CS.TUnbox (addTypeSyn s t)) o ms)
-addTypeSyn s (GenType (CS.TCon cstr [t] sg) o ms) | cstr == mapMayNull = (GenType (CS.TCon cstr [(addTypeSyn s t)] sg) o ms)
-addTypeSyn s (GenType t o _) = (GenType t o (Just s))
+addTypeSyn s (GenType (CS.TBang t) o ms) = GenType (CS.TBang (addTypeSyn s t)) o ms
+addTypeSyn s (GenType (CS.TUnbox t) o ms) = GenType (CS.TUnbox (addTypeSyn s t)) o ms
+addTypeSyn s (GenType (CS.TCon cstr [t] sg) o ms) | cstr == mapMayNull = GenType (CS.TCon cstr [(addTypeSyn s t)] sg) o ms
+addTypeSyn s (GenType t o _) = GenType t o (Just s)
+
+-- | Replace a type using its type synonym, if present.
+useTypeSyn :: GenType -> GenType
+useTypeSyn (GenType (CS.TBang t) o ms) = GenType (CS.TBang (useTypeSyn t)) o ms
+useTypeSyn (GenType (CS.TUnbox t) o ms) = GenType (CS.TUnbox (useTypeSyn t)) o ms
+useTypeSyn (GenType (CS.TCon cstr [t] sg) o ms) | cstr == mapMayNull = GenType (CS.TCon cstr [(useTypeSyn t)] sg) o ms
+-- array type synonym of form CArr<size> with element type as argument
+useTypeSyn (GenType (TRecord _ [(arrx,((GenType (TArray et _ _ _) _ _),_))] _) org (Just syn))
+        | isArrDeriv syn && arrDerivCompNam syn == arrx =
+    GenType (CS.TCon syn [et] $ Boxed False Nothing) org Nothing
+-- pointer type synonym CPtr with referenced type as argument
+useTypeSyn (GenType (TRecord _ [(cont,(rt,_))] _) org (Just syn))
+        | syn == mapPtrDeriv && ptrDerivCompName == cont =
+    GenType (CS.TCon mapPtrDeriv [rt] $ Boxed False Nothing) org Nothing
+-- all other type synonyms resulting from typedef or tag names. Without type arguments.
+useTypeSyn (GenType _ org (Just syn)) = GenType (CS.TCon syn [] $ Boxed False Nothing) org Nothing
+-- type without type synonym
+useTypeSyn t@(GenType _ _ Nothing) = t
 
 -- Readonly, Unboxed, and MayNull Types
 ---------------------------------------

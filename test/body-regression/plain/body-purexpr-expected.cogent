@@ -271,22 +271,22 @@ cogent_f2 () =
 cogent_f3 : () -> U32
 cogent_f3 () =
    let (_
-       , r') = let v' = let v' = cogent_fc1 ()
+       , r') = let v' = let v' = cogent_fc1
+         and v' = v' ()
          in v'
       in (3, v')
    in r'
 cogent_f4 : () -> U32
 cogent_f4 () =
    let (_
-       , r') = let v' = let v' = 42
-         and v' = cogent_fv1 v'
+       , r') = let v' = let v' = cogent_fv1
+         and v1' = 42
+         and v' = v' v1'
          in v'
       in (3, v')
    in r'
 cogent_fx : ( U32, U8, U32 ) -> U32
-cogent_fx (a
-          , b
-          , c) =
+cogent_fx (a, b, c) =
    let (_
        , r') = let v' = let v' = a
          in v'
@@ -295,12 +295,11 @@ cogent_fx (a
 cogent_f5 : () -> U32
 cogent_f5 () =
    let (_
-       , r') = let v' = let v' = 17
-         and v1' = 'x'
-         and v2' = 4
-         and v' = cogent_fx (v'
-                            , v1'
-                            , v2')
+       , r') = let v' = let v' = cogent_fx
+         and v1' = 17
+         and v2' = 'x'
+         and v3' = 4
+         and v' = v' (v1', v2', v3')
          in v'
       in (3, v')
    in r'
@@ -374,7 +373,7 @@ cogent_fs4 s =
 
 type Cogent_a1 = CArr5 U32
 type Cogent_a2 =
-   CArr5 #Struct_Cogent_s1
+   CArr5 (#Struct_Cogent_s1)
 cogent_fa1 : Cogent_a1 -> ( U32, Cogent_a1 )
 cogent_fa1 a =
    let (_, r', a) = let (v'

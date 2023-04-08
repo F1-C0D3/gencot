@@ -287,6 +287,10 @@ getDerefType t = mkUnboxed t
 getResultType :: GenType -> GenType
 getResultType (GenType (CS.TFun _ rt) _ _) = rt
 
+getLeadType :: GenType -> GenType
+getLeadType (GenType (CS.TTuple (t : ts)) _ _) = t
+getLeadType t = t
+
 -- | Transfer property effects
 
 -- | Transfer effects of Read-Only, Not-Null, and No-String from first argument to second.

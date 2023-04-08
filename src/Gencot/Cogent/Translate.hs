@@ -53,7 +53,8 @@ import Gencot.Cogent.Bindings (
 import Gencot.Cogent.Expr (TypedVar(TV), typOfTV, namOfTV, mkUnitExpr, mkVarExpr, mkExpVarTupleExpr)
 import Gencot.Cogent.Types (
   genType, mkTypeName, mkU32Type, mkBoolType, mkTupleType, mkFunType, mkArrayType, mkWrappedArrayType, mkRecordType, mkPtrType,
-  addTypeSyn, useTypeSyn, mkReadonly, mkUnboxed, isArrayType, isUnboxed, mkMayNull, getBoxType, getNnlType, getResultType, getDerefType)
+  addTypeSyn, useTypeSyn, mkReadonly, mkUnboxed, isArrayType, isUnboxed, mkMayNull,
+  getBoxType, getNnlType, getResultType, getDerefType, getLeadType)
 import Gencot.Cogent.Postproc (postproc)
 import qualified Gencot.C.Ast as LQ (Stm(Exp,Block), Exp)
 import qualified Gencot.C.Translate as C (transStat, transExpr, transArrSizeExpr, transBlockItem)
@@ -578,19 +579,15 @@ transType iat@(_, (LCA.ArrayType t as _ _)) = do
 -- This is used when the array type shall be used in its unboxed form.
 -- Translate t, if again array type make unboxed.
 -- If array size is unknown translate to abstract type CArrXX el.
--- Otherwise translate array size expression.
--- Then create wrapper record around builtin array type with size expression
--- and add generic Gencot array type as synonym.
+-- Then create wrapper record around builtin array type and add generic Gencot array type as synonym.
+-- The array size expression is not translated, for the builtin array type it is always set to ().
 -- Always boxed.
 transArrayType :: ItemAssocType -> FTrav GenType
 transArrayType iat@(_, (LCA.ArrayType t as _ _)) = do
     sub <- getElemSubItemAssoc iat
     typ <- if isArray t then transArrayType sub else transType sub
     let eltyp = if isArray t then mkUnboxed typ else typ
-    siz <- case as of
-                 LCA.UnknownArraySize _ -> return mkUnitExpr
-                 LCA.ArraySize _ e -> transExpr e
-    return $ mkArrayType (mapArrDeriv as) siz eltyp
+    return $ mkArrayType (mapArrDeriv as) mkUnitExpr eltyp
 transArrayType iat@(iid, (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _)) = do
     dt <- LCA.getDefTable
     srtn <- stopResolvTypeName idnam
@@ -1072,6 +1069,7 @@ bindDeclr (ss,a,tq,tsa,fs) (Just declr@(LC.CDeclr (Just nam) _ _ _ _),mi,me) = d
 
     -- LCA.tInit only checks the initializer, it is not needed here.
 
+    resetValCounter
     bp <- bindInit mi t
 
     -- this inserts the new variable into the symbol table, hence it must be done after processing mi by bindInit
@@ -1219,7 +1217,6 @@ bindExpr e@(LC.CBinary op e1 e2 _) = do
     t <- transType ("",ct)
     insertExprSrc e $ mkOpBindsPair t (transBinOp op) [bp1,bp2]
 bindExpr e@(LC.CCall f es _) = do
-    bps <- mapM bindExpr es
     fbp <- bindExpr f
     cft <- exprType f
     iid <- getExprItemId f
@@ -1229,6 +1226,7 @@ bindExpr e@(LC.CCall f es _) = do
                    return $ mkFunDerefBindsPair ft fbp
                else return fbp
     fd <- getFuncDesc (iid,resolveTypedef cft) -- a declared function may have a typedef as type
+    bps <- mapM bindExpr es
     (pbps,rpat) <- processParamVals (leadVar fbp') fd bps
     insertExprSrc e $ mkAppBindsPair fbp' rpat pbps
 bindExpr e@(LC.CAssign op e1 e2 _) = do
@@ -1332,6 +1330,7 @@ makeGlobalStateParamDesc ((iid,noro), gs) = do
        else do -- global variable found, convert its type to pointer and add type synonym
          -- if the variable has an array type this is correct because transType ignores the pointer
          mdec <- LCA.lookupObject $ LCI.Ident (getObjFunName gsvar) 0 LCN.undefNode
+         error $ show mdec
          case mdec of
               Nothing -> return $ ParamDesc "" unitType []
               Just decl -> do
@@ -1451,7 +1450,7 @@ processParamVals v fdes pvals = do
         rpat = mkTuplePattern $ map mkVarPattern (rvar : arvars)
     return (allpbps, rpat)
     where pdess = parsOfFuncDesc fdes
-          rt = getResultType $ typeOfFuncDesc fdes
+          rt = getLeadType $ getResultType $ typeOfFuncDesc fdes
 
 -- | Construct function type from parameter descriptions and result type
 -- Comment markers are removed from parameter types used for the result to avoid duplication of comments.
@@ -1472,7 +1471,7 @@ genFunResultExpr :: FuncDesc -> GenExpr
 genFunResultExpr fdes =
     mkExpVarTupleExpr re $ map getTypedVarFromParamDesc $ filter isAddResultParam $ parsOfFuncDesc fdes
     where re = if rt == unitType then mkUnitExpr else mkVarExpr $ TV resVar rt
-          rt = getResultType $ typeOfFuncDesc fdes
+          rt = getLeadType $ getResultType $ typeOfFuncDesc fdes
 
 -- | Construct the item id according to the structure of an expression.
 -- This is only needed for encoded function pointer types to determine the

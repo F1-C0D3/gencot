@@ -13,7 +13,7 @@ import Gencot.Cogent.Ast -- includes unitType
 import Gencot.Cogent.Types (
   mkU8Type, mkU32Type, mkStringType, mkBoolType, 
   mkTupleType, mkCtlType, mkFunType, mkRecordType, mkTakeType, mkArrTakeType, 
-  getMemberType, getDerefType, getResultType, transferProperties)
+  getMemberType, getDerefType, transferProperties)
 import Gencot.Cogent.Expr (
   TypedVar(TV), namOfTV, typOfTV, TypedVarOrWild,
   mkUnitExpr, mkIntLitExpr, mkCharLitExpr, mkStringLitExpr, mkBoolLitExpr,
@@ -162,7 +162,8 @@ mkUnitBindsPair n = mkSingleBindsPair $ mkValVarBinding n unitType $ mkUnitExpr
 
 -- | Single binding v<n>' = defaultVal ()
 mkDefaultBindsPair :: Int -> GenType -> BindsPair
-mkDefaultBindsPair n t = mkConstAppBindsPair n "defaultVal" t
+mkDefaultBindsPair n t =
+    mkSingleBindsPair $ mkValVarBinding n t $ mkAppExpr (mkTopLevelFunExpr ("defaultVal",mkFunType unitType t) [Just t]) mkUnitExpr
 
 -- | Single binding v<n>' = i
 mkIntLitBindsPair :: Int -> GenType -> Integer -> BindsPair
@@ -474,7 +475,8 @@ mkForBinding bpm ebp1 bp2 bp3 b =
           exprmax = mkPlainExpr bpm
           iniacc = mk0VarTupleExpr accvars
           iniobsv = mkVarTupleExpr obsvars
-          repeatfun = mkTopLevelFunExpr ("repeat",typOfGE iniacc) [Just $ typOfGE iniacc, Just $ typOfGE iniobsv]
+          repeattype = mkFunType (typOfGE repeatargexpr) (typOfGE iniacc)
+          repeatfun = mkTopLevelFunExpr ("repeat",repeattype) [Just $ typOfGE iniacc, Just $ typOfGE iniobsv]
           exprloop = mkLetExpr [(mkBinding accpat $ mkAppExpr repeatfun repeatargexpr)] $ mkExpVarTupleExpr repeatctl accvars
           stopfun = mkLambdaExpr (mkRecordPattern [("acc",accpat),("obsv",obsvpat)]) $ mkLetExpr [b2] stopexpr
           stopexpr = mkDisjExpr [ctlcond, mkBoolOpExpr "not" [mkVarExpr $ leadVar bp2]]

@@ -61,7 +61,7 @@ import qualified Gencot.C.Translate as C (transStat, transExpr, transArrSizeExpr
 import Gencot.Traversal (
   FTrav, markTagAsNested, isMarkedAsNested, hasProperty, getProperties, stopResolvTypeName,
   getFunDef, setFunDef, clrFunDef, enterItemScope, leaveItemScope, registerItemId, nextVarNum, resetVarNums,
-  getValCounter, getCmpCounter, resetVarCounters, resetValCounter, getTConf)
+  getValCounter, getCmpCounter, resetVarCounters, resetValCounter, lookupGlobItem, getTConf)
 import Gencot.Util.Types (
   carriedTypes, isExtern, isCompOrFunc, isCompPointer, isNamedFunPointer, isFunPointer, isPointer, isAggregate, isFunction, 
   isTypeDefRef, isComplete, isArray, isVoid, isTagRef, containsTypedefs, resolveTypedef, resolveAllTypedefs, isComposite,
@@ -1329,8 +1329,7 @@ makeGlobalStateParamDesc ((iid,noro), gs) = do
          return $ ParamDesc name typ props
        else do -- global variable found, convert its type to pointer and add type synonym
          -- if the variable has an array type this is correct because transType ignores the pointer
-         mdec <- LCA.lookupObject $ LCI.Ident (getObjFunName gsvar) 0 LCN.undefNode
-         error $ show mdec
+         mdec <- lookupGlobItem gsvar -- LCA.lookupObject $ LCI.Ident (getObjFunName gsvar) 0 LCN.undefNode
          case mdec of
               Nothing -> return $ ParamDesc "" unitType []
               Just decl -> do
@@ -1435,8 +1434,11 @@ processParamVals v fdes pvals = do
     -- construct BindsPairs for all virtual parameters
     vpds <- getVirtParamsFromContext fdes
     vpbps <- mapM (\pdes -> do
-                             cnt <- getValCounter
-                             return $ mkValVarBindsPair cnt $ getTypedVarFromParamDesc pdes) vpds
+                               cnt <- getValCounter
+                               if null $ nameOfParamDesc pdes
+                                  then return $ mkDummyBindsPair cnt (typeOfParamDesc pdes)
+                                          ("no context parameter for property " ++ (head $ propOfParamDesc pdes))
+                                  else return $ mkValVarBindsPair cnt $ getTypedVarFromParamDesc pdes) vpds
     let -- modify types of non-virtual parameters
         nvpbps = map (\(bp, pdes) -> replaceBoundVarType (typeOfParamDesc pdes) bp) $ zip pvals pdess
         -- the list of all actual parameters
@@ -1445,7 +1447,7 @@ processParamVals v fdes pvals = do
         arvars = map (lvalVar . fst) $ filter (\(_,pdes) -> isAddResultParam pdes) $ zip allpbps pdess
         -- variable for original function result: for C function with void result use wildcard,
         -- otherwise reuse v
-        rvar = if rt == unitType then (TV "_" rt) else (TV (namOfTV v) rt)
+        rvar = {- if rt == unitType then (TV "_" rt) else -} (TV (namOfTV v) rt)
         -- pattern for binding the function result
         rpat = mkTuplePattern $ map mkVarPattern (rvar : arvars)
     return (allpbps, rpat)
@@ -1478,7 +1480,7 @@ genFunResultExpr fdes =
 -- correct function type by separately translating the C function type instead of
 -- accessing the Cogent function type from the Cogent function pointer type.
 getExprItemId :: LC.CExpr -> FTrav String
-getExprItemId (LC.CVar nam _) = transObjName nam
+getExprItemId (LC.CVar nam _) = getObjectItemId nam
 getExprItemId (LC.CMember e1 nam arrow _) = do
     iid <- getExprItemId e1
     if null iid

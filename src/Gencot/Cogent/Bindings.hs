@@ -30,6 +30,8 @@ resVar = "r"++[prime]
 
 swtVar = "s"++[prime]
 
+errVar = "err"++[prime]
+
 casVar :: Int -> CCS.VarName
 casVar n = "s"++(show n)++[prime]
 
@@ -109,9 +111,9 @@ lvalVar (main,_) =
          (CS.Tuple es) -> 
             case exprOfGE $ head es of
                  (CS.Var v) -> (TV v $ typOfGE $ head es)
-                 _ -> (TV "_" $ typOfGE $ head es)
+                 _ -> (TV errVar $ typOfGE $ head es)
          (CS.Var v) -> (TV v $ typOfGE e)
-         _ -> (TV "_" $ typOfGE e)
+         _ -> (TV errVar $ typOfGE e)
     where (CS.Binding _ _ e _) = head main
 
 -- Construct Toplevel Expressions

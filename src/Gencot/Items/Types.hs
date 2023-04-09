@@ -4,6 +4,7 @@ module Gencot.Items.Types where
 import Control.Monad (liftM)
 import System.FilePath (takeExtension,takeFileName,takeBaseName)
 import Data.List (isPrefixOf,find,sort,sortOn,union,nub)
+import Data.Map (Map, insert)
 import Data.Maybe (fromMaybe)
 
 import Language.C.Data.Ident as LCI
@@ -199,6 +200,17 @@ getGlobalStateProperty :: String -> FTrav String
 getGlobalStateProperty iid = do
     props <- getProperties iid
     return $ fromMaybe "" $ find (\p -> "gs" `isPrefixOf` p) props
+
+-- | The callback handler for building a mapping from item ids to the declaration/definition
+-- for global variables.
+-- The map is built as a (Map String IdentDecl) in the second component of the Trav user state.
+-- The first argument is the name of the main source file.
+collectGlobalStateIds :: String -> LCA.DeclEvent -> Trav (s1,(Map String LCA.IdentDecl)) ()
+collectGlobalStateIds fnam (LCA.DeclEvent idec@(LCA.Declaration _)) | not $ isFunction $ LCA.declType idec =
+    modifyUserState (\(us1,us2) -> (us1,insert (getIndividualItemId idec fnam) idec us2))
+collectGlobalStateIds fnam (LCA.DeclEvent idec@(LCA.ObjectDef _)) =
+    modifyUserState (\(us1,us2) -> (us1,insert (getIndividualItemId idec fnam) idec us2))
+collectGlobalStateIds _ _ = return ()
 
 -- | Retrieve the item identifier of the toplevel item with the given gs property.
 -- If there is more than one, an arbitrary one is returned. 

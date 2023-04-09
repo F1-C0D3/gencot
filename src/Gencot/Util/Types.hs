@@ -18,16 +18,20 @@ type TypeCarrierSet = [TypeCarrier]
 
 -- | Callback handler for collecting initial type carriers
 -- First argument is a filter predicate.
+-- Second argument is the input file name (not used).
 -- The handler collects all definitions of objects and functions, and of all non-external types and composite tags.
 -- It also collects all declarations and definitions locally in a function.
 -- It omits all global declarations and all enum tag definitions and all external types and composite tags.
-collectTypeCarriers :: (TypeCarrier -> Bool) -> TypeCarrier -> Trav TypeCarrierSet ()
-collectTypeCarriers tcp e@(LCA.DeclEvent (LCA.ObjectDef _)) | tcp e && (not $ isExtern e) = modifyUserState (e:)
-collectTypeCarriers tcp e@(LCA.DeclEvent (LCA.FunctionDef _)) | tcp e && (not $ isExtern e) = modifyUserState (e:)
-collectTypeCarriers tcp e@(LCA.LocalEvent _) | tcp e && (not $ isExtern e) = modifyUserState (e:)
-collectTypeCarriers tcp e@(LCA.TypeDefEvent _) | tcp e && (not $ isExtern e) = modifyUserState (e:)
-collectTypeCarriers tcp e@(LCA.TagEvent (LCA.CompDef _)) | tcp e && (not $ isExtern e) = modifyUserState (e:)
-collectTypeCarriers _ _ = return ()
+collectTypeCarriers :: (TypeCarrier -> Bool) -> String -> TypeCarrier -> Trav (TypeCarrierSet,s2) ()
+collectTypeCarriers tcp _ e@(LCA.DeclEvent (LCA.ObjectDef _)) | tcp e && (not $ isExtern e) = addTypeCarrier e
+collectTypeCarriers tcp _ e@(LCA.DeclEvent (LCA.FunctionDef _)) | tcp e && (not $ isExtern e) = addTypeCarrier e
+collectTypeCarriers tcp _ e@(LCA.LocalEvent _) | tcp e && (not $ isExtern e) = addTypeCarrier e
+collectTypeCarriers tcp _ e@(LCA.TypeDefEvent _) | tcp e && (not $ isExtern e) = addTypeCarrier e
+collectTypeCarriers tcp _ e@(LCA.TagEvent (LCA.CompDef _)) | tcp e && (not $ isExtern e) = addTypeCarrier e
+collectTypeCarriers _ _ _ = return ()
+
+addTypeCarrier :: TypeCarrier -> Trav (TypeCarrierSet,s2) ()
+addTypeCarrier e = modifyUserState (\(us1,us2) -> (e:us1,us2))
 
 -- | Type carrier predicate.
 -- True if the type is not primitive.

@@ -35,14 +35,17 @@ names to all uppercase member names (which in practice are unusual in C). Moreov
 with an underscore, so these names are mapped as well, by prepending \code{cogent\_} (which results in two consecutive 
 underscores).
 
-C function parameter names are translated to Cogent variable names bound in the Cogent function body expression. Hence, both
-in C and Cogent the scope of these names is restricted to the function body. They are treated by Gencot in the same way as 
-member names and are only mapped if they are uppercase in C, which is very unusual in practice.
+The remaining names in C are type names, function names, enum constant names, and names for global and local variables and
+function parameters. Additionally, there may be C constant names defined by preprocessor macro directives.
 
-The remaining names in C are type names, function names, enum constant names, and names for global and local variables.
-Additionally, there may be C constant names defined by preprocessor macro directives.
-Local variables only occur in C function bodies which are not translated by Gencot. The other names are always mapped by
-Gencot, irrespective whether they have the correct case or not.
+The scope of function parameters and local variables is restricted to the surrounding C function body. There their scope
+is determined by the block structure where parameters belong to the outermost block and names in a block shadow names in
+surrounding blocks. This block structure is translated to a similar block structure in Cogent, where both kinds of names
+are translated to Cogent variable names bound in the correspnding block in the Cogent function body expression. They are
+treated by Gencot in the same way as member names and are only mapped if they are uppercase in C, which is very unusual
+in practice.
+
+The other names on the global level are always mapped by Gencot, irrespective whether they have the correct case or not.
 
 \subsubsection{Names with internal linkage}
 
@@ -101,10 +104,10 @@ where the suffix is constructed from the name \code{x.h} or \code{x.c} of the so
 
 Derived C types are pointer types, function types, and array types. They always depend on a base type which in the C program 
 must be defined before the base type is used.
-In Cogent a similar dependency can only be expressed ba a generic type: the Cogent compiler takes care that in the generated C code
+In Cogent a similar dependency can only be expressed by a generic type: the Cogent compiler takes care that in the generated C code
 each instance
 of a generic type is introduced after all its type arguments have been defined. Therefore Gencot translates every C derived
-types to a generic Cogent type with its base type as its (single) type argument. 
+type to a generic Cogent type with its base type as its (single) type argument.
 
 For C pointer types a fixed set of generic types is used by Gencot (see Section~\ref{design-types-pointer}). Function types 
 are translated to Cogent function type expressions. Only for array types generic type names are introduced which are specific

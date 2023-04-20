@@ -57,16 +57,15 @@ referenced function is invoked, such as in
   if( fptr == NULL ) ...
   else fptr( params );
 \end{verbatim}
-The conversion function \code{fromFunPtr} returns a result of the variant type \code{Result fun ()} where \code{fun} is the 
-Cogent function type. So the corresponding invocation in Cogent has the form
+When applied to \code{NULL} the conversion function \code{fromFunPtr} returns a result which can be invoked in Cogent.
+To treat the \code{NULL} case separately it must be tested using the function \code{nullFunPtr}:
 \begin{verbatim}
-  FROMFUNPTR(<enc>)(fptr)
-  | Error () -> ...
-  | Success f -> f( params )
+  if nullFunPtr(fptr) then ...
+  else fromFunPtr(fptr)(params)
 \end{verbatim}
 
-In Cogent the \code{Error} case does not only cover the case where the function pointer is \code{NULL}, it covers
-all cases where the function referenced by the pointer is not known by Cogent. A function is only known by Cogent
+In Cogent the \code{then} case only covers the case where the function pointer is \code{NULL}, it does not cover
+the cases where the function referenced by the pointer is not known by Cogent. A function is only known by Cogent
 if there is a Cogent definition for it, either as a Cogent function or as an abstract function.
 
 Function pointers are not needed for Cogent functions which are only invoked from Cogent, then the Cogent function can 
@@ -75,9 +74,8 @@ the Cogent compilation unit. So there are two application cases:
 \begin{itemize}
 \item A function which is defined in C and is passed as a function pointer to Cogent for invocation there. As
 described in Section~\ref{design-modular}, this invocation requires an exit wrapper. The function \code{fromFunPtr}
-converts the function pointer to the exit wrapper function. If there is no exit wrapper, \code{fromFunPtr}
-returns an error. To be consistent, function \code{toFunPtr} converts every exit wrapper to a pointer to the
-wrapped external function.
+converts the function pointer to the exit wrapper function. To be consistent, function \code{toFunPtr} converts
+every exit wrapper to a pointer to the wrapped external function.
 \item A function which is defined in Cogent and is passed as a function pointer to C for invocation there. As
 described in Section~\ref{design-modular}, this invocation requires an entry wrapper. Entry wrappers are automatically
 generated for all translated functions which had external linkage in C. For all these functions \code{toFunPtr}
@@ -93,7 +91,7 @@ unit (see Section~\ref{impl-ccomps-externs}), determined with the help of the ca
 Section~\ref{impl-ccode-callgraph}). However, functions which are \textit{only} invoked through function pointers
 are not detected by the call graph (the invoked function pointer is detected but not which actual functions
 may have been assigned to the function pointer), so no exit wrapper will be generated and \code{fromFunPtr}
-will return an error for the corresponding function pointer. Moreover, if there are no other Cogent functions
+will return an invalid result. Moreover, if there are no other Cogent functions
 of the same function type, the Cogent program will be translated to inconsistent C code: the invocation of the 
 converted function pointer will be translated using a dispatcher function which does not exist.
 
@@ -207,8 +205,8 @@ In the first use case there are several problems with this approach. First, ther
 for C variables in Cogent. Second, it is not possible to pass the variable to the implementation of the
 abstract function, without first determining its address using the address operator. Third, if the address
 operator is applied to the variable in the implementation of the abstract function, the Isabelle c-parser
-will not be able to process the abstract function, since it only supports the address operator when 
-the result is a heap address.
+will not be able to process the abstract function if the variable is local, since it only supports the address
+operator when the result is a heap address or a global address.
 
 All these problems can be solved by allocating the variable on the heap instead. Then the variable definition
 must be replaced by a call to the polymorphic function \code{create} (see Section~\ref{design-operations-pointer}) and 
@@ -237,7 +235,7 @@ stack allocated variable. If it is only used for a short time, a better solution
 The second use case cannot be translated in this way, since the referenced data is a part of a larger structure.
 If it is separated from the structure and allocated on the heap, the structure is not binary compatible any more.
 
-If the overall structure is not allocated on the heap, the same three problems apply as in the first use case.
+If the overall structure is allocated on the stack, the same three problems apply as in the first use case.
 This can be solved in the same way, by moving the overall structure to the heap. Then it can be represented
 by the linear Cogent type
 \begin{verbatim}

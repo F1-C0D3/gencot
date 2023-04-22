@@ -70,9 +70,7 @@ cogent_f3 () = cogent_fc1 ()
 cogent_f4 : () -> U32
 cogent_f4 () = cogent_fv1 42
 cogent_fx : ( U32, U8, U32 ) -> U32
-cogent_fx (a
-          , b
-          , c) = a
+cogent_fx (a, b, c) = a
 cogent_f5 : () -> U32
 cogent_f5 () =
    cogent_fx (17, 'x', 4)
@@ -80,7 +78,9 @@ cogent_f5 () =
 type Struct_Cogent_s1 = { m1 : U32, m2 : U32 }
 type Struct_Cogent_s2 = { m3 : U32, m4 : #Struct_Cogent_s1 }
 cogent_fs1 : #Struct_Cogent_s1 -> U32
-cogent_fs1 s = let s { m1 = p0' } = s in p0'
+cogent_fs1 s =
+   let s { m1 = p0' } = s
+   in p0'
 cogent_fs2 : #Struct_Cogent_s1 -> U32
 cogent_fs2 s =
    let s { m1 = p0' } = s
@@ -102,7 +102,7 @@ cogent_fs4 s =
 
 type Cogent_a1 = CArr5 U32
 type Cogent_a2 =
-   CArr5 #Struct_Cogent_s1
+   CArr5 (#Struct_Cogent_s1)
 cogent_fa1 : Cogent_a1 -> ( U32, Cogent_a1 )
 cogent_fa1 a =
    (let a @{ @v1' = p0' } = a

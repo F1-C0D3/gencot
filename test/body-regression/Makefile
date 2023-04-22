@@ -1,14 +1,14 @@
 GC=../../bin/gencot
 IT=../../bin/items
 
-VARIANT = plain
-TCONF = -tfl
+#VARIANT = plain
+#TCONF = -tfl
 
 #VARIANT = letproc
 #TCONF = -tf
 
-#VARIANT = ifproc
-#TCONF = 
+VARIANT = ifproc
+TCONF =
 
 TESTS = purexpr assignexpr stat loop func
 UNIT = externs exttypes dvdtypes

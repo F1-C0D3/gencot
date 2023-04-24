@@ -880,12 +880,16 @@ bindStat s@(LC.CExpr (Just e) _) = do
     resetValCounter
     bpe <- bindExpr e
     insertStatSrc s $ mkExpBinding bpe
-bindStat s@(LC.CReturn Nothing _) =
-    insertStatSrc s $ mkRetBinding $ mkUnitBindsPair 0
+bindStat s@(LC.CReturn Nothing _) = do
+    fdes <- getContextFuncDesc
+    let rt = getLeadType $ getResultType $ typeOfFuncDesc fdes
+    insertStatSrc s $ mkRetBinding rt $ mkUnitBindsPair 0
 bindStat s@(LC.CReturn (Just e) _) = do
+    fdes <- getContextFuncDesc
+    let rt = getLeadType $ getResultType $ typeOfFuncDesc fdes
     resetValCounter
     bpe <- bindExpr e
-    insertStatSrc s $ mkRetBinding bpe
+    insertStatSrc s $ mkRetBinding rt bpe
 bindStat s@(LC.CBreak _) =
     insertStatSrc s $ mkBreakBinding
 bindStat s@(LC.CCont _) =
@@ -1179,9 +1183,9 @@ bindExpr e@(LC.CUnary LC.CIndOp e1 _) = do
     insertExprSrc e bp
 bindExpr e@(LC.CUnary op e1 _) | elem op [LC.CPlusOp,LC.CMinOp,LC.CCompOp] = do
     bp1 <- bindExpr e1
-    ct1 <- exprType e1
-    t1 <- transType ("",ct1)
-    insertExprSrc e $ mkOpBindsPair t1 (transUnOp op) [bp1]
+    ct <- exprType e
+    t <- transType ("",ct)
+    insertExprSrc e $ mkOpBindsPair t (transUnOp op) [bp1]
 bindExpr e@(LC.CUnary op e1 _) | elem op [LC.CPreIncOp,LC.CPreDecOp,LC.CPostIncOp,LC.CPostDecOp] = do
     bp1 <- bindExpr e1
     ct1 <- exprType e1
@@ -1198,18 +1202,22 @@ bindExpr e@(LC.CBinary LC.CLndOp e1 e2 _) = do
     bp2 <- bindExpr e2
     ct2 <- exprType e2
     t2 <- transType ("",ct2)
+    ct <- exprType e
+    t <- transType ("",ct)
     cnt <- getValCounter
     let c0 = mkIntLitBindsPair cnt t2 0
-    insertExprSrc e $ mkIfBindsPair t2 bp1 bp2 c0
+    insertExprSrc e $ mkIfBindsPair t bp1 bp2 c0
 bindExpr e@(LC.CBinary LC.CLorOp e1 e2 _) = do
     -- e1 || e2 -> if e1 then 1 else e2
     bp1 <- bindExpr e1
     bp2 <- bindExpr e2
     ct2 <- exprType e2
     t2 <- transType ("",ct2)
+    ct <- exprType e
+    t <- transType ("",ct)
     cnt <- getValCounter
     let c1 = mkIntLitBindsPair cnt t2 1
-    insertExprSrc e $ mkIfBindsPair t2 bp1 c1 bp2
+    insertExprSrc e $ mkIfBindsPair t bp1 c1 bp2
 bindExpr e@(LC.CBinary op e1 e2 _) = do
     bp1 <- bindExpr e1
     bp2 <- bindExpr e2
@@ -1439,15 +1447,12 @@ processParamVals v fdes pvals = do
                                   then return $ mkDummyBindsPair cnt (typeOfParamDesc pdes)
                                           ("no context parameter for property " ++ (head $ propOfParamDesc pdes))
                                   else return $ mkValVarBindsPair cnt $ getTypedVarFromParamDesc pdes) vpds
-    let -- modify types of non-virtual parameters
-        nvpbps = map (\(bp, pdes) -> replaceBoundVarType (typeOfParamDesc pdes) bp) $ zip pvals pdess
-        -- the list of all actual parameters
-        allpbps = nvpbps ++ vpbps
+    let -- the list of all actual parameters
+        allpbps = pvals ++ vpbps
     let -- additional result variables
         arvars = map (lvalVar . fst) $ filter (\(_,pdes) -> isAddResultParam pdes) $ zip allpbps pdess
-        -- variable for original function result: for C function with void result use wildcard,
-        -- otherwise reuse v
-        rvar = {- if rt == unitType then (TV "_" rt) else -} (TV (namOfTV v) rt)
+        -- variable for original function result: reuse v
+        rvar = (TV (namOfTV v) rt)
         -- pattern for binding the function result
         rpat = mkTuplePattern $ map mkVarPattern (rvar : arvars)
     return (allpbps, rpat)

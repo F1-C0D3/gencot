@@ -299,11 +299,20 @@ mkTupleBindsPair _ [bp] = bp
 mkTupleBindsPair _ bps = 
     addBinding (mkVarBinding (leadVar $ head bps) $ mkTupleExpr (map (mkVarExpr . leadVar) bps)) $ concatBindsPairs bps
 
--- | Replace the type in the pattern by a given type.
--- We assume that the pattern is for a single variable and only replace the type at the top level in the pattern.
+-- | Replace the type in the leading value variable of a pattern by a given type.
+-- The pattern must be a single variable or wildcard or a tuple with a variable or wildcard as first component.
 replaceBoundVarType :: GenType -> BindsPair -> BindsPair 
 replaceBoundVarType t ((CS.Binding ip mt e vs) : mtl, putback) =
-    ((CS.Binding (GenIrrefPatn (irpatnOfGIP ip) (orgOfGIP ip) t) mt e vs) : mtl, putback)
+    ((CS.Binding (replaceInGIP t ip) mt e vs) : mtl, putback)
+
+replaceInGIP :: GenType -> GenIrrefPatn -> GenIrrefPatn
+replaceInGIP t (GenIrrefPatn (CS.PVar v) o _) = (GenIrrefPatn (CS.PVar v) o t)
+replaceInGIP t (GenIrrefPatn CS.PUnderscore o _) = (GenIrrefPatn CS.PUnderscore o t)
+replaceInGIP t (GenIrrefPatn (CS.PTuple pvs) o (GenType (CS.TTuple ts) ot _)) =
+    (GenIrrefPatn (CS.PTuple pvs') o (GenType (CS.TTuple ts') ot Nothing))
+    where ip' = (replaceInGIP t $ head pvs)
+          pvs' = ip' : (tail pvs)
+          ts' = (typOfGIP ip') : (tail ts)
 
 -- | Add binding to the main list
 addBinding :: GenBnd -> BindsPair -> BindsPair
@@ -366,9 +375,10 @@ mkExpBinding bp = mkVarsBinding (typedCtlVar : vs) $ mkLetExpr [cmbBinds bp] $ m
     where vs = sideEffectTargets bp
 
 -- | Return statement: (c',r',v1..) = let ... in (3, v<n>',v1,..)
-mkRetBinding :: BindsPair -> GenBnd
-mkRetBinding bp = mkVarsBinding (typedCtlVar : ((TV resVar t) : vs)) $ mkLetExpr [cmbBinds bp] $ mkCtlVarTupleExpr 3 ((TV v t) : vs)
-    where (TV v t) = leadVar bp
+-- Second argument is the result type of the enclosing function.
+mkRetBinding :: GenType -> BindsPair -> GenBnd
+mkRetBinding t bp = mkVarsBinding (typedCtlVar : ((TV resVar t) : vs)) $ mkLetExpr [cmbBinds bp] $ mkCtlVarTupleExpr 3 (v : vs)
+    where v = leadVar bp
           vs = sideEffectTargets bp
 
 -- | Break statement: c' = 2

@@ -40,7 +40,7 @@ instance MonadFail FTrav where
 
 runFTrav :: DefTable -> (String,NamePrefixMap,ItemProperties,(Bool,[String]),GlobItemMap,String) -> FTrav a -> IO a
 runFTrav table (f,npm,ipm,tds,gmap,tconf) action = do
-    (res,state) <- errorOnLeft "Error during translation" $ 
+    (res,state) <- errorOnLeft "Error during processing" $
         runTrav (f,npm,[],ipm,tds,Nothing,([],empty),(0,0),gmap,tconf) $ (withDefTable $ const ((),table)) >> action
     showWarnings $ travErrors state
     return res

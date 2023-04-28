@@ -217,7 +217,8 @@ To use the analysis module, the following import is needed:
 Then, if the abstract syntax tree has been bound to variable \code{ast}, it can be analysed by
 \begin{verbatim}
   (table,state) <- either (error . show) return $ 
-    runTrav uinit (withExtDeclHandler (analyseAST ast >> getDefTable) uhandler)
+    runTrav uinit (withExtDeclHandler
+                   (analyseAST ast >> getDefTable) uhandler)
 \end{verbatim}
 which binds the resulting symbol table to variable \code{table} and the resulting state to \code{ustate}. \code{runTrav}
 returns a result of type \code{Either [CError] (DefTable, TravState s)}, where \code{DefTable}
@@ -234,14 +235,32 @@ The semantics map is created from the symbol table by the function \code{globalD
 
 On this basis, Gencot implements the following functions in the module \code{Gencot.Input} as utility for parsing and analysis:
 \begin{verbatim}
-  readFromInput :: s -> (DeclEvent -> Trav s ()) -> IO (DefTable, s)
-  readFromFile :: FilePath -> s -> (DeclEvent -> Trav s ()) -> IO (DefTable, s)
+  readFromInput :: String -> s ->
+      (String -> DeclEvent -> Trav s ()) -> IO (DefTable, s)
+  readFromFile :: s -> (String -> DeclEvent -> Trav s ()) ->
+      FilePath -> IO (DefTable, s)
 \end{verbatim}
-The first one takes as arguments an initial user state and a callback handler. It reads C code from standard input, parses
-and analyses it and returns the symbol table and the user state accumulated by the callback handler. The second function
-takes a file name as additional argument and does the same reading from the file.
+The first one takes as arguments the original C source file name, an initial user state and a callback handler.
+It reads C code from standard input, parses and analyses it and returns the symbol table and the user state
+accumulated by the callback handler. The second function takes a file name as additional argument instead of
+the original C source file name and does the same reading from the file. Both functions pass the file name
+as first argument to the callback handler.
 
 All Gencot filters which read C code use one of these two functions.
+
+The callback handler is used by Gencot whenever it has to process information in a different order than in the source file.
+Then the callback handler collects all relevant information during the analysis phase and returns it in the user state.
+It is used for the second AST traversal for the processing by Gencot (see Section~\ref{impl-ccode-trav}) by either
+transferring it to the user state for that traversal, or by using it as the traversed AST elements.
+There are two callback handlers used by Gencot this way:
+\begin{itemize}
+\item \code{collectGlobalStateIds}, defined in module \code{Gencot.Items.Types}. It collects a mapping from item ids to
+item definitions or declarations for all global variables, which is added to the user state of the second traversal.
+It is needed because a function with a Global-State parameter may be defined before the corresponding global variable.
+The variables type is required for processing the parameter, it must be retrieved from the definition or declaration.
+\item \code{collectTypeCarriers}, defined in module \code{Gencot.Util.Types}. It collects typed AST elements occurring in the
+Cogent compilation unit as starting points for transitively determining all used types in the second traversal.
+\end{itemize}
 
 \subsubsection{Source Code Origin}
 
@@ -2338,12 +2357,21 @@ which can be used to output a list \code{<antis>} of antiquoted C AST definition
 \label{impl-ccode-trav}
 
 The package language-c uses a monad \code{MonadTrav} for traversing and analysing the C AST. The monad is defined in module
-\code{Language.C.Analysis.TravMonad} and mainly provides the symbol table and user state during the traversal.
+\code{Language.C.Analysis.TravMonad} and mainly provides the symbol table, error messages, and user state during the traversal.
 The traversal itself is implemented by a recursive descent according to the C AST using a separate function
-for analysing every syntactic construct. 
+for analysing every syntactic construct.
+
+The package language-c provides the function
+\begin{verbatim}
+  runTrav :: forall s a. s -> Trav s a -> Either [CError] (a, TravState s)
+\end{verbatim}
+for running a monadic action of type \code{Trav s a} where \code{s} is the type of the user state and \code{a} is
+the type of the result. The function either returns a list of errors, or it returns the result together with the
+modified monadic state of type \code{TravState s}.
 
 When processing the semantic map resulting from the language-c analysis Gencot implements similar recursive 
-descents using a processing function for every syntactic construct. For this it uses the same monad for two reasons.
+descents using a processing function for every syntactic construct. For this it uses the same monad with a
+different type of user state for two reasons.
 \begin{itemize}
 \item the definitions and declarations of the global identifiers are needed for accessing their types and for
 mapping the identifiers to Cogent names,
@@ -2351,7 +2379,9 @@ mapping the identifiers to Cogent names,
 bodies for the same purpose.
 \end{itemize}
 
-The global definitions and declarations in the symbol table correspond to the semantics map which is the result 
+\subsubsection{Symbol Table}
+
+The global definitions and declarations in the symbol table correspond to the semantics map which is the result
 of the language-c analysis step. It is created from the symbol table after the initial traversal of the C AST. Although Gencot 
 processes the content of the semantics map, it is not available as a whole in the processing functions. Instead
 of passing the semantics map as an explicit parameter to all processing functions, Gencot uses monadic traversals
@@ -2365,6 +2395,58 @@ semantic representation, it does not modify function bodies and returns them as 
 the information about local declarations is discarded at the end of its scope, the information is not 
 present anymore in the symbol table after the analysis phase. Gencot uses the symbol table functionality
 to rebuild this information during its own traversals.
+
+In the monadic actions the symbol table can be accessed by actions defined in the modules
+\code{Language.C.Analysis.TravMonad} and \code{Language.C.Analysis.DefTable}. An identifier can be
+resolved using the actions
+\begin{verbatim}
+  lookupTypeDef :: Ident -> FTrav Type
+  lookupObject :: Ident -> FTrav (Maybe IdentDecl)
+\end{verbatim}
+For resolving tag definitions the symbol table must be retrieved by
+\begin{verbatim}
+  getDefTable :: FTrav DefTable
+\end{verbatim}
+then the struct/union/enum reference can be resolved by
+\begin{verbatim}
+  lookupTag :: SUERef -> DefTable -> Maybe TagEntry
+\end{verbatim}
+Additionally, there are actions to enter and leave a scope and actions for inserting definitions.
+
+\subsubsection{Error Messages}
+
+The monad supports nonlocal jumps by throwing and catching errors, however, this feature is not used by Gencot.
+Gencot is implemented so that it always can proceed if it encounters an erroneous situation, if the processed
+C program is correct. Gencot only registers error messages in the monad and outputs the list of all error messages
+at the end of execution.
+
+An error can be recorded in the monad using the action
+\begin{verbatim}
+  recordError :: Language.C.Data.Error.Error e => e -> m ()
+\end{verbatim}
+The class \code{Error} covers all specific error types, it provides for every error a level (warning, error, fatal),
+a source code position and a sequence of error message line strings. Predefined members of the class are the types
+\code{UnsupportedFeature} with position information and \code{UserError} with error message only, both have level error.
+Also predefined is the member type \code{CError} which is a wrapper for all other member types of \code{Error}. When
+an error is displayed, the information is shown together with the error class name as short message.
+
+The function \code{runTrav} distinguishes between errors of level error or fatal and errors of level warning. If there
+is atleast one error of the former case it only returns the error list and no result or modified state. If there are
+only errors of level warning, they are returned as part of the modified monadic state and may be retrieved using the
+function
+\begin{verbatim}
+  travErrors :: TravState s -> [CError]
+\end{verbatim}
+
+Since Gencot always proceeds upon errors and produces a result, it uses only errors of level warning.
+
+Gencot defines its own error types with names of the form \code{XError} with level warning and a constructor function
+\begin{verbatim}
+  xError :: (Pos a) => String -> a -> XError
+\end{verbatim}
+Class \code{Pos} includes all elements of the C AST, the second argument is used to determine the position.
+
+\subsubsection{User State}
 
 The user state is used by Gencot to provide additional information, depending on the purpose of the traversal.
 A common case is to make the actual name of the processed file available during processing. In the \code{NodeInfo}
@@ -2423,7 +2505,7 @@ The main monadic type is defined as
   type FTrav = Trav (
      String, NamePrefixMap, [SUERef], ItemProperties,
      (Bool,[String]), Maybe IdentDecl, LocalItemIdTable,
-     (Int,Int), String)
+     (Int,Int), GlobItemMap, String)
 \end{verbatim}
 where \code{String} is the type used for storing the original C source file name in the user state,
 \code{NamePrefixMap} is the type for the name prefix map described in Section~\ref{impl-ccode-names},
@@ -2431,45 +2513,26 @@ where \code{String} is the type used for storing the original C source file name
 the type for maintaining the table of item ids for local identifiers. The third component is the list for
 maintaining tag definitions processed as nested, the fifth component is the list of directly used external type names 
 together with the flag for activating or deactivating the list, the sixth component is the function definition
-whenever traversing a function body, the eighth component is a pair of variable counters, and the last component
-is the translation configuration string.
+whenever traversing a function body, the eighth component is a pair of variable counters, the nineth component
+is the mapping from item ids to definitions for all global variables, collected by the uhandler as described
+in Section~\ref{impl-ccode-read}, and the last component is the translation configuration string.
 
 \code{FTrav} is an
 instance of \code{FileNameTrav} and \code{TypeNamesTrav}. As execution function for the monadic actions the functions
 \begin{verbatim}
   runFTrav :: DefTable -> (
-     String, NamePrefixMap, ItemProperties, (Bool,[String]))
+     String, NamePrefixMap, ItemProperties, (Bool,[String]),
+     GlobItemMap, String)
     -> FTrav a -> IO a
   runWithTable :: DefTable -> FTrav a -> IO a
 \end{verbatim}
 are defined. The first one takes the symbol table, the original C source file name, the name prefix map, 
-the item property map, the list of directly used external type names, and the configuration string as
-arguments to initialize the state. The tag definition list and the item id table are always initialized as empty,
+the item property map, the list of directly used external type names, the item id map for global variables, and the
+configuration string as arguments to initialize the state. The tag definition list and the item id table
+are always initialized as empty,
 the function definition is set to \code{Nothing}, the variable counters are set to 0. The second
 function leaves also the other five components empty and deactivated. The functions are themselves
-\code{IO} actions and print error messages generated during traversal to the standard output.
-
-In the monadic actions the symbol table can be accessed by actions defined in the modules 
-\code{Language.C.Analysis.TravMonad} and \code{Language.C.Analysis.DefTable}. An identifier can be
-resolved using the actions
-\begin{verbatim}
-  lookupTypeDef :: Ident -> FTrav Type
-  lookupObject :: Ident -> FTrav (Maybe IdentDecl)
-\end{verbatim}
-For resolving tag definitions the symbol table must be retrieved by
-\begin{verbatim}
-  getDefTable :: FTrav DefTable
-\end{verbatim}
-then the struct/union/enum reference can be resolved by
-\begin{verbatim}
-  lookupTag :: SUERef -> DefTable -> Maybe TagEntry
-\end{verbatim}
-Additionally, there are actions to enter and leave a scope and actions for inserting definitions.
-
-An error can be recorded in the monad using the action
-\begin{verbatim}
-  recordError :: Language.C.Data.Error.Error e => e -> m () 
-\end{verbatim}
+\code{IO} actions and print error messages generated during traversal to the standard error stream.
 
 To maintain the list of tag definitions processed as nested two monadic actions are defined:
 \begin{verbatim}

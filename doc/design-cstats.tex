@@ -4,11 +4,10 @@ must be translated to Cogent expressions. This means a transformation from imper
 state to purely functional constructs where all effects are explicitly represented in the construct itself. It also means a transformation
 from arbitrary treatment of pointers to the Cogent uniqueness type system where pointers are never shared or discarded.
 
-The first issue is handled by Gencot. However, since it is complex to detect and translate all side effects, it uses a semiautomatic approach.
-It tries to cover most of the standard cases but leaves some cases to be manually translated by the programmer. In such cases the generated 
-Cogent code contains a dummy expression which documents the reason for not translating it automatically, together with the corresponding C code as
-a comment. So the generated Cogent code is always syntactically correct and can be parsed by the Cogent compiler, although it may not reflect
-the complete original C code.
+The first issue is handled by Gencot. In some cases a translation is not (yet) implemented. In such cases the generated
+Cogent code contains a dummy expression which documents the reason for not translating it automatically, together with
+the corresponding C code as a comment. So the generated Cogent code is always syntactically correct and can be parsed
+by the Cogent compiler, although it may not reflect the complete original C code.
 
 The second issue is not handled by Gencot. If the C code involves sharing or discarding of pointers the translation will result in Cogent
 code which violates the uniqueness type assumptions. This will be detected by the Cogent compiler in its type checking phase and must be

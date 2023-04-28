@@ -50,6 +50,7 @@ import Gencot.Cogent.Bindings (
   mkTuplePattern, mkVarPattern, mkVarTuplePattern,
   mkAlt,
   processMFpropForPatterns)
+import Gencot.Cogent.Error (unSupported, noParam)
 import Gencot.Cogent.Expr (TypedVar(TV), typOfTV, namOfTV, mkUnitExpr, mkVarExpr, mkExpVarTupleExpr)
 import Gencot.Cogent.Types (
   genType, mkTypeName, mkU32Type, mkBoolType, mkTupleType, mkFunType, mkArrayType, mkWrappedArrayType, mkRecordType, mkPtrType,
@@ -224,7 +225,9 @@ transGlobal (LCA.TypeDefEvent (LCA.TypeDef idnam typ _ n)) = do
     where iat = getTypedefItemAssoc idnam typ
           modifiat = if isComposite typ then adjustItemAssocType iat else iat
         
-transGlobal _ = return $ [GenToplv (CS.Include "err-unexpected toplevel") noOrigin]
+transGlobal e = do
+    recordError $ unSupported e "toplevel C construct"
+    return $ [GenToplv (CS.Include "err-unexpected toplevel") noOrigin]
 
 registerParamIds :: [LCA.ParamDecl] -> Int -> String -> FTrav ()
 registerParamIds [] _ _ = return ()
@@ -564,7 +567,8 @@ transType iat@(_, (LCA.FunctionType (LCA.FunType ret pars variadic) _)) = do
     return $ genFunType pdess r
 -- Incomplete derived function type: ret ()
 -- Signal an error.
-transType iat@(iid, (LCA.FunctionType (LCA.FunTypeIncomplete ret) _)) =
+transType iat@(iid, (LCA.FunctionType (LCA.FunTypeIncomplete ret) _)) = do
+    recordError $ unSupported LCN.undefNode ("incomplete function type for " ++ iid)
     error ("Cannot translate incomplete function type for " ++ iid)
 -- Derived array type for element type t:
 -- Translate with transArrayType, always boxed.
@@ -715,15 +719,25 @@ transTNam (LCA.TyIntegral TyShort) =   return "U16"
 transTNam (LCA.TyIntegral TyUShort) =  return "U16"
 transTNam (LCA.TyIntegral TyInt) =     return "U32"
 transTNam (LCA.TyIntegral TyUInt) =    return "U32"
-transTNam (LCA.TyIntegral TyInt128) =  return "err-int128"
-transTNam (LCA.TyIntegral TyUInt128) = return "err-uint128"
+transTNam (LCA.TyIntegral TyInt128) =  do
+    recordError $ unSupported LCN.undefNode "type int128"
+    return "err-int128"
+transTNam (LCA.TyIntegral TyUInt128) = do
+    recordError $ unSupported LCN.undefNode "type uint128"
+    return "err-uint128"
 transTNam (LCA.TyIntegral TyLong) =    return "U64"
 transTNam (LCA.TyIntegral TyULong) =   return "U64"
 transTNam (LCA.TyIntegral TyLLong) =   return "U64"
 transTNam (LCA.TyIntegral TyULLong) =  return "U64"
-transTNam (LCA.TyFloating _) =         return "err-float"
-transTNam (LCA.TyComplex _) =          return "err-complex"
-transTNam (LCA.TyBuiltin _) =          return "err-builtin" 
+transTNam (LCA.TyFloating _) =         do
+    recordError $ unSupported LCN.undefNode "type float"
+    return "err-float"
+transTNam (LCA.TyComplex _) =          do
+    recordError $ unSupported LCN.undefNode "type complex"
+    return "err-complex"
+transTNam (LCA.TyBuiltin _) =          do
+    recordError $ unSupported LCN.undefNode "builtin type"
+    return "err-builtin"
 
 rmMayNullIf :: Bool -> GenType -> GenType
 rmMayNullIf True t = getNnlType t
@@ -898,7 +912,9 @@ bindStat s@(LC.CCompound lbls bis _) = do
     LCA.enterBlockScope
     enterItemScope
     res <- if not $ null lbls
-              then insertStatSrc s $ mkDummyBinding "Local labels not supported in compound statement"
+              then do
+                  recordError $ unSupported s "local labels in compound statement"
+                  insertStatSrc s $ mkDummyBinding "Local labels not supported in compound statement"
               else bindBlockItems bis
     leaveItemScope
     LCA.leaveBlockScope
@@ -923,13 +939,17 @@ bindStat s@(LC.CSwitch e s1 _) = do
     insertStatSrc s $ mkSwitchBinding bpe lbls bs
     where getLabels (LC.CCompound _ bis _) = bindSwitchLabels bis
           getLabels _ = return []
-bindStat s@(LC.CCase _ _ _) =
+bindStat s@(LC.CCase _ _ _) = do
+    recordError $ unSupported s "case statement not in direct switch body"
     insertStatSrc s $ mkDummyBinding "Case statement only supported in direct switch body"
-bindStat s@(LC.CDefault _ _) =
+bindStat s@(LC.CDefault _ _) = do
+    recordError $ unSupported s "default statement not in direct switch body"
     insertStatSrc s $ mkDummyBinding "Default statement only supported in direct switch body"
 bindStat s@(LC.CFor c1 me2 me3 s1 _) = do
     case checkForTrans s of
-         Left reason -> insertStatSrc s $ mkDummyBinding ("Unsupported form of for loop: " ++ reason)
+         Left reason -> do
+             recordError $ unSupported s ("loop: " ++ reason)
+             insertStatSrc s $ mkDummyBinding ("Unsupported form of for loop: " ++ reason)
          Right exprmax -> do
              LCA.enterBlockScope
              enterItemScope
@@ -950,18 +970,22 @@ bindStat s@(LC.CFor c1 me2 me3 s1 _) = do
              leaveItemScope
              LCA.leaveBlockScope
              return res
-bindStat s = 
+bindStat s = do
+    recordError $ unSupported s "statement"
     insertStatSrc s $ mkDummyBinding "Translation of statement not yet implemented"
 
 bindSwitchBody :: LC.CStat -> Int -> FTrav GenBnd
-bindSwitchBody s@(LC.CCompound [] bis _) _ | any isDecl bis = 
+bindSwitchBody s@(LC.CCompound [] bis _) _ | any isDecl bis = do
+    recordError $ unSupported s "declaration in switch body"
     insertStatSrc s $ mkDummyBinding "Declarations not supported in switch body"
     where isDecl (LC.CBlockDecl _) = True
           isDecl _ = False
 bindSwitchBody s@(LC.CCompound [] bis _) grps = do
     -- we do not need LCA.enterBlockScope because there are no declarations (?)
     bindSwitchItems bis 1 grps False
-bindSwitchBody s _ = insertStatSrc s $ mkDummyBinding "Unsupported switch body"
+bindSwitchBody s _ = do
+    recordError $ unSupported s "switch body"
+    insertStatSrc s $ mkDummyBinding "Unsupported switch body"
 
 bindSwitchLabels :: [LC.CBlockItem] -> FTrav [Maybe BindsPair]
 bindSwitchLabels [] = return []
@@ -1027,7 +1051,8 @@ bindDecl dc@(LC.CDecl specs dcs _) bis = do
     pspecs <- processDeclSpecs specs
     bnd <- bindDeclrs pspecs dcs bis
     insertBlockItemsSrc ((LC.CBlockDecl dc) : bis) bnd
-bindDecl sa@(LC.CStaticAssert _ _ _) bis = 
+bindDecl sa@(LC.CStaticAssert _ _ _) bis = do
+    recordError $ unSupported sa "static assertion"
     insertBlockItemsSrc ((LC.CBlockDecl sa) : bis) $ mkDummyBinding "Static assertions not supported"
 
 -- | Process declaration specifiers.
@@ -1090,8 +1115,9 @@ bindInit Nothing t = do
     cnt <- getValCounter
     return $ mkDefaultBindsPair cnt t
 bindInit (Just (LC.CInitExpr e _)) _ = bindExpr e
-bindInit (Just (LC.CInitList il _)) t = do
+bindInit (Just i@(LC.CInitList il _)) t = do
     cnt <- getValCounter
+    recordError $ unSupported i "non-scalar initializer"
     return $ mkDummyBindsPair cnt t "Non-scalar initializers not yet implemented"
 
 bindExpr :: LC.CExpr -> FTrav BindsPair
@@ -1100,17 +1126,19 @@ bindExpr e@(LC.CConst (LC.CIntConst i _)) = do
     ct <- exprType e
     t <- transType ("",ct)
     insertExprSrc e $ mkIntLitBindsPair cnt t $ LC.getCInteger i
-bindExpr e@(LC.CConst (LC.CCharConst c _)) = do
+bindExpr e@(LC.CConst (LC.CCharConst c n)) = do
     cnt <- getValCounter
-    insertExprSrc e $ 
-        if length ch == 1 
-           then mkCharLitBindsPair cnt $ head ch
-           else mkDummyBindsPair cnt mkU32Type "Multi character constants not supported"
+    if length ch == 1
+       then insertExprSrc e $ mkCharLitBindsPair cnt $ head ch
+       else do
+           recordError $ unSupported e "multi character constant"
+           insertExprSrc e $ mkDummyBindsPair cnt mkU32Type "Multi character constants not supported"
     where ch = LC.getCChar c
-bindExpr e@(LC.CConst (LC.CFloatConst _ _)) = do
+bindExpr e@(LC.CConst (LC.CFloatConst _ n)) = do
     ct <- exprType e
     t <- transType ("",ct)
     cnt <- getValCounter
+    recordError $ unSupported e "float literal"
     insertExprSrc e $ mkDummyBindsPair cnt t "Float literals not supported"
 bindExpr e@(LC.CConst (LC.CStrConst s _)) = do
     cnt <- getValCounter
@@ -1138,7 +1166,9 @@ bindExpr e@(LC.CVar nam _) = do
                          pt = typeOfParamDesc pdes
                          pn = nameOfParamDesc pdes
                      if null pn
-                        then return $ mkDummyBindsPair cnt (if isArrayType pt then pt else getDerefType pt)
+                        then do
+                            recordError $ noParam e ("for accessing " ++ (LCI.identToString nam))
+                            return $ mkDummyBindsPair cnt (if isArrayType pt then pt else getDerefType pt)
                                         ("Cannot access global variable: " ++ (LCI.identToString nam))
                         else if isArrayType pt
                         then return $ mkValVarBindsPair cnt $ TV pn pt
@@ -1255,6 +1285,7 @@ bindExpr e = do
     ct <- exprType e
     t <- transType ("",ct)
     cnt <- getValCounter
+    recordError $ unSupported e "expression"
     insertExprSrc e $ mkDummyBindsPair cnt t "Translation of expression not yet implemented"
 
 -- | Add a statement source to a binding
@@ -1444,7 +1475,9 @@ processParamVals v fdes pvals = do
     vpbps <- mapM (\pdes -> do
                                cnt <- getValCounter
                                if null $ nameOfParamDesc pdes
-                                  then return $ mkDummyBindsPair cnt (typeOfParamDesc pdes)
+                                  then do
+                                      recordError $ noParam LCN.undefNode ("for property " ++ (head $ propOfParamDesc pdes))
+                                      return $ mkDummyBindsPair cnt (typeOfParamDesc pdes)
                                           ("no context parameter for property " ++ (head $ propOfParamDesc pdes))
                                   else return $ mkValVarBindsPair cnt $ getTypedVarFromParamDesc pdes) vpds
     let -- the list of all actual parameters

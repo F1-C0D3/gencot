@@ -1,14 +1,14 @@
 GC=../../bin/gencot
 IT=../../bin/items
 
-#VARIANT = plain
-#TCONF = -tfl
+VARIANT = plain
+TCONF = -tfl
 
 #VARIANT = letproc
 #TCONF = -tf
 
-VARIANT = ifproc
-TCONF =
+#VARIANT = ifproc
+#TCONF =
 
 TESTS = purexpr assignexpr stat loop func
 UNIT = externs exttypes dvdtypes
@@ -27,7 +27,7 @@ regression: $(foreach TST,$(TESTS),$(TST)-regression) unit-regression
 expect-current: $(foreach TST,$(TESTS),$(TST)-expect-current) unit-expect-current
 
 clean:  $(foreach TST,$(TESTS),$(TST)-clean)
-	-rm -f test.unit test.cogent $(foreach U,$(UNIT),test-$(U).cogent)
+	-rm -f test.unit test.unit-errmess test.cogent $(foreach U,$(UNIT),test-$(U).cogent)
 	-rm -f test-external.items test.unit-dfltprops test.unit-itemprops
 
 body-func.c-itemprops: body-func.c-dfltprops body-func.c-manprops
@@ -46,6 +46,7 @@ unit-regression: unit $(foreach U,$(UNIT),$(VARIANT)/test-$(U)-expected.cogent) 
 	  diff test.$$u $(VARIANT)/test-expected.$$u; \
 	done
 	-diff test-external.items $(VARIANT)/test-external-expected.items
+	-diff test.unit-errmess $(VARIANT)/test.unit-expected-errmess
 
 unit-expect-current: unit test.unit-dfltprops
 	@for u in $(UNIT); do \
@@ -57,6 +58,7 @@ unit-expect-current: unit test.unit-dfltprops
 	  cp test.$$u $(VARIANT)/test-expected.$$u; \
 	done
 	cp test-external.items $(VARIANT)/test-external-expected.items
+	cp test.unit-errmess $(VARIANT)/test.unit-expected-errmess
 
 test.unit-dfltprops: test.unit test-external.items
 	@$(IT) -u test unit > test.unit-dfltprops
@@ -67,21 +69,23 @@ test-external.items: test.unit test.unit-manitems
 %.c-dfltprops: %.c
 	@$(IT) file $*.c > $*.c-dfltprops
 
-%.cogent %-entry.ac: %.c %.c-itemprops test-external.items
-	@$(GC) -u test $(TCONF) cfile $*.c
+%.cogent %-entry.ac %-errmess: %.c %.c-itemprops test-external.items
+	@$(GC) -u test $(TCONF) cfile $*.c 2> $*-errmess
 
 %-regression: body-%.cogent $(VARIANT)/body-%-expected.cogent body-%.c-dfltprops $(VARIANT)/body-%-expected.c-dfltprops
 	-diff body-$*.cogent $(VARIANT)/body-$*-expected.cogent
 	-diff body-$*.c-dfltprops $(VARIANT)/body-$*-expected.c-dfltprops
 	-diff body-$*-entry.ac $(VARIANT)/body-$*-entry-expected.ac
+	-diff body-$*-errmess $(VARIANT)/body-$*-errmess
 
 %-expect-current: body-%.cogent body-%.c-dfltprops
 	cp body-$*.cogent $(VARIANT)/body-$*-expected.cogent
 	cp body-$*.c-dfltprops $(VARIANT)/body-$*-expected.c-dfltprops
 	cp body-$*-entry.ac $(VARIANT)/body-$*-entry-expected.ac
+	cp body-$*-errmess $(VARIANT)/body-$*-errmess
 
 %-clean:
-	-rm -f body-$*.cogent body-$*.o body-$*.c-dfltprops body-$*.c-itemprops body-$*-entry.ac
+	-rm -f body-$*.cogent body-$*.o body-$*.c-dfltprops body-$*.c-itemprops body-$*-entry.ac body-$*-errmess
 
 test.unit-itemprops: itemprops
 	@touch test.unit-itemprops
@@ -97,4 +101,4 @@ test.unit:
 	@cat test.unit
 
 unit: test.unit test.unit-itemprops
-	@$(GC) -u test unit
+	@$(GC) -u test unit 2> test.unit-errmess

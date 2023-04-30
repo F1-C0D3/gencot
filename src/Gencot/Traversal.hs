@@ -102,13 +102,13 @@ clrFunDef :: FTrav ()
 clrFunDef = modifyUserState (\(s,npm,ntl,spl,tds,_,idm,cnt,gmap,tconf) -> (s,npm,ntl,spl,tds,Nothing,idm,cnt,gmap,tconf))
 
 getItemId :: String -> FTrav String
-getItemId s = do
+getItemId nam = do
     (_,_,_,_,_,_,(ms,_),_,_,_) <- getUserState
-    return $ getId s ms
-    where getId s [] = ""
-          getId s (m : ms) = 
-              case M.lookup s m of
-                   Nothing -> getId s ms
+    return $ getId nam ms
+    where getId nam [] = ""
+          getId nam (m : ms) =
+              case M.lookup nam m of
+                   Nothing -> getId nam ms
                    Just iid -> iid
 
 enterItemScope :: FTrav ()
@@ -118,16 +118,16 @@ leaveItemScope :: FTrav ()
 leaveItemScope = modifyUserState (\(s,npm,ntl,spl,tds,fdf,(ms,vn),cnt,gmap,tconf) -> (s,npm,ntl,spl,tds,fdf,(tail ms,vn),cnt,gmap,tconf))
 
 registerItemId :: String -> String -> FTrav ()
-registerItemId s iid = modifyUserState (\(s,npm,ntl,spl,tds,fdf,(ms,vn),cnt,gmap,tconf)
-                               -> (s,npm,ntl,spl,tds,fdf,((insert s iid $ head ms) : tail ms,vn),cnt,gmap,tconf))
+registerItemId nam iid = modifyUserState (\(s,npm,ntl,spl,tds,fdf,(ms,vn),cnt,gmap,tconf)
+                               -> (s,npm,ntl,spl,tds,fdf,((insert nam iid $ head ms) : tail ms,vn),cnt,gmap,tconf))
 
 nextVarNum :: String -> FTrav Int
-nextVarNum s = do
+nextVarNum nam = do
     (_,_,_,_,_,_,(_,vn),_,_,_) <- getUserState
-    let res = case M.lookup s vn of
+    let res = case M.lookup nam vn of
                  Nothing -> 1
                  Just v -> v+1
-    modifyUserState (\(s,npm,ntl,spl,tds,fdf,(ms,vn),cnt,gmap,tconf) -> (s,npm,ntl,spl,tds,fdf,(ms,insert s res vn),cnt,gmap,tconf))
+    modifyUserState (\(s,npm,ntl,spl,tds,fdf,(ms,vn),cnt,gmap,tconf) -> (s,npm,ntl,spl,tds,fdf,(ms,insert nam res vn),cnt,gmap,tconf))
     return res
 
 resetVarNums :: FTrav ()

@@ -28,6 +28,9 @@ type TypedVarOrWild = TypedVar
 -- Function name together with its type
 type TypedFun = (CCS.FunName,GenType)
 
+funResultType :: TypedFun -> GenType
+funResultType (_, t) = getResultType t
+
 -- Construct Expressions
 ------------------------
 
@@ -57,6 +60,10 @@ mkBoolLitExpr = (genExpr mkBoolType) . CS.BoolLit
 -- construct v
 mkVarExpr :: TypedVar -> GenExpr
 mkVarExpr (TV v t) = genExpr t $ CS.Var v
+
+-- construct f
+mkFunExpr :: TypedFun -> GenExpr
+mkFunExpr (f,t) = genExpr t $ CS.Var f
 
 -- construct i as control value
 mkCtlLitExpr :: Integer -> GenExpr

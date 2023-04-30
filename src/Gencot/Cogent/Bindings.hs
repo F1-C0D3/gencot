@@ -15,9 +15,9 @@ import Gencot.Cogent.Types (
   mkTupleType, mkCtlType, mkFunType, mkRecordType, mkTakeType, mkArrTakeType, 
   getMemberType, getDerefType, transferProperties)
 import Gencot.Cogent.Expr (
-  TypedVar(TV), namOfTV, typOfTV, TypedVarOrWild,
+  TypedVar(TV), namOfTV, typOfTV, TypedVarOrWild, TypedFun, funResultType,
   mkUnitExpr, mkIntLitExpr, mkCharLitExpr, mkStringLitExpr, mkBoolLitExpr,
-  mkVarExpr, mkCtlLitExpr, mkTupleExpr, mkOpExpr, mkBoolOpExpr, mkCtlVarTupleExpr, mkVarTupleExpr, mkExpVarTupleExpr, mk0VarTupleExpr,
+  mkVarExpr, mkFunExpr, mkCtlLitExpr, mkTupleExpr, mkOpExpr, mkBoolOpExpr, mkCtlVarTupleExpr, mkVarTupleExpr, mkExpVarTupleExpr, mk0VarTupleExpr,
   mkDisjExpr, mkAppExpr, mkTopLevelFunExpr, mkLetExpr, mkRecPutExpr, mkArrPutExpr,
   mkIfExpr, mkRecordExpr, mkLambdaExpr,
   getFreeTypedVars)
@@ -231,9 +231,8 @@ mkOpBindsPair t op bps =
     where vs = map leadVar bps 
 
 -- | Application of constant named function v<n>' = f ()
--- The type is the function result type.
-mkConstAppBindsPair :: Int -> CCS.FunName -> GenType -> BindsPair
-mkConstAppBindsPair n f t = mkSingleBindsPair $ mkValVarBinding n t $ mkAppExpr (mkTopLevelFunExpr (f,mkFunType unitType t) []) mkUnitExpr
+mkConstAppBindsPair :: Int -> TypedFun -> BindsPair
+mkConstAppBindsPair n f = mkSingleBindsPair $ mkValVarBinding n (funResultType f) $ mkAppExpr (mkFunExpr f) mkUnitExpr
 
 -- | Function pointer dereference f = fromFunPtr (fp)
 -- The first argument is the type of the resulting function.

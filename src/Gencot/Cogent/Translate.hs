@@ -1157,7 +1157,7 @@ bindExpr e@(LC.CVar nam _) = do
                  then do
                      cv <- isConstValItem (iid,ct)
                      if cv -- Const-Val property: invoke access function named v
-                        then return $ mkConstAppBindsPair cnt v t
+                        then return $ mkConstAppBindsPair cnt $ (v, mkFunType unitType t)
                         else -- assume preprocessor constant: access Cogent constant named v
                              return $ mkValVarBindsPair cnt $ TV v t
                  else do
@@ -1375,7 +1375,7 @@ makeGlobalStateParamDesc ((iid,noro), gs) = do
                   let piat = (iid,LCA.PtrType (LCA.declType decl) LCA.noTypeQuals LCA.noAttributes)
                   typ <- transType piat
                   props <- getItemProperties piat
-                  return $ ParamDesc name (addTypeSyn (globStateType gs) typ) props
+                  return $ ParamDesc name (addTypeSyn (globStateType gs) (rmMayNullIf True typ)) props
 
 -- | construct the parameter description for the HeapUse parameter.
 -- The argument is the list of names of all other parameters.

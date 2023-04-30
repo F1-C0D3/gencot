@@ -1,8 +1,11 @@
 GC=../../bin/gencot
 IT=../../bin/items
 
-VARIANT = plain
-TCONF = -tfl
+VARIANT = plaingen
+TCONF = -tflG
+
+#VARIANT = plain
+#TCONF = -tfl
 
 #VARIANT = letproc
 #TCONF = -tf
@@ -10,7 +13,7 @@ TCONF = -tfl
 #VARIANT = ifproc
 #TCONF =
 
-TESTS = purexpr assignexpr stat loop func
+TESTS = purexpr assignexpr stat loop func ro
 UNIT = externs exttypes dvdtypes
 AUNIT = unit-dfltprops
 
@@ -32,6 +35,9 @@ clean:  $(foreach TST,$(TESTS),$(TST)-clean)
 
 body-func.c-itemprops: body-func.c-dfltprops body-func.c-manprops
 	$(IT) mergeto body-func.c-dfltprops body-func.c-manprops > $@
+
+body-ro.c-itemprops: body-ro.c-dfltprops body-ro.c-manprops
+	$(IT) mergeto body-ro.c-dfltprops body-ro.c-manprops > $@
 
 %.c-itemprops: %.c-dfltprops common.types-manprops
 	@$(IT) merge common.types-manprops $*.c-dfltprops > $*.c-itemprops

@@ -1,0 +1,236 @@
+-- Using values of readonly type.
+
+-- Functions used as context:
+cogent_fcln : CPtr U32 -> ()
+cogent_fcln i = ()
+cogent_fcro : (CPtr U32)! -> ()
+cogent_fcro i = ()
+-- Global variables used as context:
+type GlobState1 =
+   CPtr (CPtr U32)
+type GlobState2 =
+   CPtr ((CPtr U32)!)
+
+-- struct probes:
+type Struct_Cogent_ros1 = { mrg : U32, mro : (CPtr U32)!, mln : CPtr U32 }
+type Struct_Cogent_ros2 = { sln : Struct_Cogent_ros1, sub : #Struct_Cogent_ros1 }
+
+-- array probes:
+type Cogent_roa1 = CArr5 U32 -- regular elements
+type Cogent_roa2 =
+   CArr5 ((CPtr U32)!) -- readonly elements
+type Cogent_roa3 =
+   CArr5 (CPtr U32) -- linear elements
+type Cogent_roa4 =
+   CArr5 (#Cogent_roa1) -- array elements
+type Cogent_roa5 =
+   CArr5 (#Cogent_roa2) -- array elements
+type Cogent_roa6 =
+   CArr5 (#Cogent_roa3) -- array elements
+
+-- Direct use of probe in context
+cogent_f11ln : (CPtr U32)! -> ()
+cogent_f11ln pro = ()
+cogent_f11ro : (CPtr U32)! -> ()
+cogent_f11ro pro = ()
+cogent_f12ln : () -> ()
+cogent_f12ln () = ()
+cogent_f12ro : () -> ()
+cogent_f12ro () = ()
+cogent_f13ln : () -> ()
+cogent_f13ln () = ()
+cogent_f13ro : () -> ()
+cogent_f13ro () = ()
+cogent_f14ln : ( (CPtr U32)!, (CPtr U32)!, U32 ) -> ()
+cogent_f14ln (pro, qro, i) = ()
+cogent_f14ro : ( (CPtr U32)!, (CPtr U32)!, U32 ) -> ()
+cogent_f14ro (pro, qro, i) = ()
+
+-- Probe assigned to variable
+cogent_f21ln : GlobState1 -> ( (), GlobState1 )
+cogent_f21ln g =
+   (()
+   , let g { cont = _ } = g
+   in g { cont = cogent_frro () })
+cogent_f21ro : GlobState2 -> ( (), GlobState2 )
+cogent_f21ro g =
+   (()
+   , let g { cont = _ } = g
+   in g { cont = cogent_frro () })
+cogent_f22ln : CPtr U32 -> ( (), CPtr U32 )
+cogent_f22ln pln =
+   ((), cogent_frro ())
+cogent_f22ro : (CPtr U32)! -> ()
+cogent_f22ro pro = ()
+
+-- Probe returned as result
+cogent_f31ln : () -> CPtr U32
+cogent_f31ln () = cogent_frro ()
+cogent_f31ro : () -> (CPtr U32)!
+cogent_f31ro () = cogent_frro ()
+
+-- Probe used in conditional expression with other branch as context
+cogent_f41ln : ( (CPtr U32)!, CPtr U32, U32 ) -> ( (), CPtr U32 )
+cogent_f41ln (pro, qln, i) =
+   ((), qln)
+cogent_f42ln : ( CPtr U32, (CPtr U32)!, U32 ) -> ( (), CPtr U32 )
+cogent_f42ln (pln, qro, i) =
+   ((), pln)
+
+-- Probe used by accessing a struct component
+cogent_f51ln : Struct_Cogent_ros1! -> ()
+cogent_f51ln pro = ()
+cogent_f51ro : Struct_Cogent_ros1! -> ()
+cogent_f51ro pro = ()
+cogent_f52ln : Struct_Cogent_ros1! -> ()
+cogent_f52ln pro = ()
+cogent_f52ro : Struct_Cogent_ros1! -> ()
+cogent_f52ro pro = ()
+cogent_f53ln : Struct_Cogent_ros1! -> ()
+cogent_f53ln pro = ()
+cogent_f53ro : Struct_Cogent_ros1! -> ()
+cogent_f53ro pro = ()
+cogent_f54ln : Struct_Cogent_ros1! -> ()
+cogent_f54ln pro = ()
+cogent_f54ro : Struct_Cogent_ros1! -> ()
+cogent_f54ro pro = ()
+cogent_f55ln : Struct_Cogent_ros1! -> ()
+cogent_f55ln pro = ()
+cogent_f55ro : Struct_Cogent_ros1! -> ()
+cogent_f55ro pro = ()
+cogent_f56ln : ( Struct_Cogent_ros1!, GlobState1 ) -> ( (), GlobState1 )
+cogent_f56ln (pro, g) =
+   (()
+   , let pro { mln = p1' } = pro
+   and g { cont = _ } = g
+   in g { cont = p1' })
+cogent_f56ro : ( Struct_Cogent_ros1!, GlobState2 ) -> ( (), GlobState2 )
+cogent_f56ro (pro, g) =
+   (()
+   , let pro { mln = p1' } = pro
+   and g { cont = _ } = g
+   in g { cont = p1' })
+cogent_f57ln : ( Struct_Cogent_ros1!, CPtr U32 ) -> ( (), CPtr U32 )
+cogent_f57ln (pro, pln) =
+   (()
+   , let pro { mln = p0' } = pro
+   in p0')
+cogent_f57ro : ( Struct_Cogent_ros1!, (CPtr U32)! ) -> ()
+cogent_f57ro (pro, qro) = ()
+cogent_f58ln : Struct_Cogent_ros1! -> CPtr U32
+cogent_f58ln pro =
+   let pro { mln = p0' } = pro
+   in p0'
+cogent_f58ro : Struct_Cogent_ros1! -> (CPtr U32)!
+cogent_f58ro pro =
+   let pro { mln = p0' } = pro
+   in p0'
+cogent_f59ln : ( Struct_Cogent_ros1!, CPtr U32, U32 ) -> ( (), CPtr U32 )
+cogent_f59ln (pro, qln, i) =
+   ((), qln)
+cogent_f59ro : ( Struct_Cogent_ros1!, (CPtr U32)!, U32 ) -> ()
+cogent_f59ro (pro, qro, i) = ()
+
+cogent_f61ln : Struct_Cogent_ros2! -> ()
+cogent_f61ln pro = ()
+cogent_f61ro : Struct_Cogent_ros2! -> ()
+cogent_f61ro pro = ()
+cogent_f62ln : Struct_Cogent_ros2! -> ()
+cogent_f62ln pro = ()
+cogent_f62ro : Struct_Cogent_ros2! -> ()
+cogent_f62ro pro = ()
+cogent_f63ln : Struct_Cogent_ros2! -> ()
+cogent_f63ln pro = ()
+cogent_f63ro : Struct_Cogent_ros2! -> ()
+cogent_f63ro pro = ()
+
+-- Probe used by accessing an array element
+cogent_f71ln : Cogent_roa1! -> ()
+cogent_f71ln pro = ()
+cogent_f71ro : Cogent_roa1! -> ()
+cogent_f71ro pro = ()
+cogent_f72ln : Cogent_roa2! -> ()
+cogent_f72ln pro = ()
+cogent_f72ro : Cogent_roa2! -> ()
+cogent_f72ro pro = ()
+cogent_f73ln : Cogent_roa3! -> ()
+cogent_f73ln pro = ()
+cogent_f73ro : Cogent_roa3! -> ()
+cogent_f73ro pro = ()
+cogent_f74ln : Cogent_roa3! -> ()
+cogent_f74ln pro = ()
+cogent_f74ro : Cogent_roa3! -> ()
+cogent_f74ro pro = ()
+cogent_f75ln : Cogent_roa3! -> ()
+cogent_f75ln pro = ()
+cogent_f75ro : Cogent_roa3! -> ()
+cogent_f75ro pro = ()
+cogent_f76ln : ( Cogent_roa3!, GlobState1 ) -> ( (), GlobState1 )
+cogent_f76ln (pro, g) =
+   (()
+   , let pro @{ @v2' = p1' } = pro
+   and g { cont = _ } = g
+   in g { cont = p1' })
+cogent_f76ro : ( Cogent_roa3!, GlobState2 ) -> ( (), GlobState2 )
+cogent_f76ro (pro, g) =
+   (()
+   , let pro @{ @v2' = p1' } = pro
+   and g { cont = _ } = g
+   in g { cont = p1' })
+cogent_f77ln : ( Cogent_roa3!, CPtr U32 ) -> ( (), CPtr U32 )
+cogent_f77ln (pro, qln) =
+   (()
+   , let pro @{ @v2' = p0' } = pro
+   in p0')
+cogent_f77ro : ( Cogent_roa3!, (CPtr U32)! ) -> ()
+cogent_f77ro (pro, qro) = ()
+cogent_f78ln : Cogent_roa3! -> CPtr U32
+cogent_f78ln pro =
+   let pro @{ @v1' = p0' } = pro
+   in p0'
+cogent_f78ro : Cogent_roa3! -> (CPtr U32)!
+cogent_f78ro pro =
+   let pro @{ @v1' = p0' } = pro
+   in p0'
+cogent_f79ln : ( Cogent_roa3!, CPtr U32, U32 ) -> ( (), CPtr U32 )
+cogent_f79ln (pro, qln, i) =
+   ((), qln)
+cogent_f79ro : ( Cogent_roa3!, (CPtr U32)!, U32 ) -> ()
+cogent_f79ro (pro, qro, i) = ()
+
+cogent_f81ln : Cogent_roa4! -> ()
+cogent_f81ln pro = ()
+cogent_f81ro : Cogent_roa4! -> ()
+cogent_f81ro pro = ()
+cogent_f82ln : Cogent_roa5! -> ()
+cogent_f82ln pro = ()
+cogent_f82ro : Cogent_roa5! -> ()
+cogent_f82ro pro = ()
+cogent_f83ln : Cogent_roa6! -> ()
+cogent_f83ln pro = ()
+cogent_f83ro : Cogent_roa6! -> ()
+cogent_f83ro pro = ()
+
+-- probe assigned to struct component or array element
+cogent_f91ln : Struct_Cogent_ros1 -> ( (), Struct_Cogent_ros1 )
+cogent_f91ln pln =
+   (()
+   , let pln { mln = _ } = pln
+   in pln { mln = cogent_frro () })
+cogent_f91ro : Struct_Cogent_ros1 -> ( (), Struct_Cogent_ros1 )
+cogent_f91ro pln =
+   (()
+   , let pln { mro = _ } = pln
+   in pln { mro = cogent_frro () })
+cogent_f92ln : Cogent_roa3 -> ( (), Cogent_roa3 )
+cogent_f92ln pln =
+   (()
+   , let (pln @{ @v1' = _ }
+         , i0') = (pln, 1)
+   in pln @{ @i0' = cogent_frro () })
+cogent_f92ro : Cogent_roa2 -> ( (), Cogent_roa2 )
+cogent_f92ro pln =
+   (()
+   , let (pln @{ @v1' = _ }
+         , i0') = (pln, 1)
+   in pln @{ @i0' = cogent_frro () })

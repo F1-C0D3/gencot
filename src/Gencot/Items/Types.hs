@@ -245,31 +245,22 @@ getTypedefItemAssoc idnam typ = (getTypedefItemId idnam, typ)
 -- | ItemAssocType for a composite type member.
 -- The first argument is the ItemAssocType of the composite type.
 getMemberSubItemAssoc :: ItemAssocType -> LCA.MemberDecl -> ItemAssocType
-getMemberSubItemAssoc (iid,_) mdecl = 
+getMemberSubItemAssoc (iid,_) mdecl =
     (getMemberSubItemId iid mdecl, LCA.declType mdecl)
 
 -- | Element sub-item  for array ItemAssocType
-getElemSubItemAssoc :: ItemAssocType -> FTrav ItemAssocType
-getElemSubItemAssoc (iid,(LCA.ArrayType st _ _ _)) = hSubItemAssoc st (elemSubItemId iid)
+getElemSubItemAssoc :: ItemAssocType -> ItemAssocType
+getElemSubItemAssoc (iid,t@(LCA.ArrayType st _ _ _)) = (elemSubItemId iid, st)
 
 -- | Referenced data sub-item for pointer ItemAssocType
-getRefSubItemAssoc :: ItemAssocType -> FTrav ItemAssocType
-getRefSubItemAssoc (iid,(LCA.PtrType st _ _)) = hSubItemAssoc st (refSubItemId iid)
+getRefSubItemAssoc :: ItemAssocType -> ItemAssocType
+getRefSubItemAssoc (iid,t@(LCA.PtrType st _ _)) = (refSubItemId iid, st)
 
 -- | Result sub-item  for function ItemAssocType
-getResultSubItemAssoc :: ItemAssocType -> FTrav ItemAssocType
-getResultSubItemAssoc (iid,(LCA.FunctionType ft _)) = hSubItemAssoc (resultType ft) (resultSubItemId iid)
+getResultSubItemAssoc :: ItemAssocType -> ItemAssocType
+getResultSubItemAssoc (iid,t@(LCA.FunctionType ft _)) = (resultSubItemId iid, resultType ft)
     where resultType (LCA.FunType t _ _) = t
           resultType (LCA.FunTypeIncomplete t) = t
-
--- | Return individual or collective ItemAssocType for the first argument.
--- If it is a typedef reference which is not resolved, use the corresponding collective Item id.
--- Otherwise use the second argument as item id.
-hSubItemAssoc :: LCA.Type -> String -> FTrav ItemAssocType
-hSubItemAssoc st@(LCA.TypeDefType (LCA.TypeDefRef idnam t _) _ _) iid = do
-    rtn <- isResolvTypeName idnam
-    return (if rtn then (iid,st) else (getTypedefItemAssoc idnam st))
-hSubItemAssoc st iid = return (iid,st)
 
 -- | Parameter sub-item for ItemAssocType.
 -- The parameter is specified by the pair of its position and its declaration.
@@ -333,21 +324,17 @@ getSubItemAssocTypes iat@(iid,(LCA.TypeDefType (LCA.TypeDefRef idnam t _) q _)) 
              return (iat : subs)-}
 getSubItemAssocTypes iat@(iid,(LCA.DirectType _ _ _)) = return [iat] 
 getSubItemAssocTypes iat@(iid,(LCA.PtrType _ _ _)) = do
-    sub <- getRefSubItemAssoc iat
-    subs <- getSubItemAssocTypes sub
+    subs <- getSubItemAssocTypes $ getRefSubItemAssoc iat
     return (iat : subs)
 getSubItemAssocTypes iat@(iid,(LCA.ArrayType _ _ _ _)) = do
-    sub <- getElemSubItemAssoc iat
-    subs <- getSubItemAssocTypes sub
+    subs <- getSubItemAssocTypes $ getElemSubItemAssoc iat
     return (iat : subs)
 getSubItemAssocTypes iat@(iid,(LCA.FunctionType (LCA.FunType rt pars _) _)) = do
-    sub <- getResultSubItemAssoc iat
-    rsubs <- getSubItemAssocTypes sub
+    rsubs <- getSubItemAssocTypes $ getResultSubItemAssoc iat
     psubs <- mapM (\ipd -> getSubItemAssocTypes $ getParamSubItemAssoc iat ipd) $ numberList pars
     return (iat : (rsubs ++ (concat psubs)))
 getSubItemAssocTypes iat@(iid,(LCA.FunctionType (LCA.FunTypeIncomplete rt) _)) = do
-    sub <- getResultSubItemAssoc iat
-    subs <- getSubItemAssocTypes sub
+    subs <- getSubItemAssocTypes $ getResultSubItemAssoc iat
     return (iat : subs)
 
 numberList :: [a] -> [(Int,a)]

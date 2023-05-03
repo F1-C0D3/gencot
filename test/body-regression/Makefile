@@ -82,13 +82,13 @@ test-external.items: test.unit test.unit-manitems
 	-diff body-$*.cogent $(VARIANT)/body-$*-expected.cogent
 	-diff body-$*.c-dfltprops $(VARIANT)/body-$*-expected.c-dfltprops
 	-diff body-$*-entry.ac $(VARIANT)/body-$*-entry-expected.ac
-	-diff body-$*-errmess $(VARIANT)/body-$*-errmess
+	-diff body-$*-errmess $(VARIANT)/body-$*-expected-errmess
 
 %-expect-current: body-%.cogent body-%.c-dfltprops
 	cp body-$*.cogent $(VARIANT)/body-$*-expected.cogent
 	cp body-$*.c-dfltprops $(VARIANT)/body-$*-expected.c-dfltprops
 	cp body-$*-entry.ac $(VARIANT)/body-$*-entry-expected.ac
-	cp body-$*-errmess $(VARIANT)/body-$*-errmess
+	cp body-$*-errmess $(VARIANT)/body-$*-expected-errmess
 
 %-clean:
 	-rm -f body-$*.cogent body-$*.o body-$*.c-dfltprops body-$*.c-itemprops body-$*-entry.ac body-$*-errmess

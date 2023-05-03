@@ -30,15 +30,15 @@ transGlobal tc = do
                                     ((not $ isLeafType $ resolveTypedef t) 
                                      && (not $ isFunPointer t) 
                                      && ((isParameterId iid) || (not $ isComposite t)))) iats
-    dip <- mapM getDefaultProperies fiats
+    dip <- mapM getDefaultProperties fiats
     return $ fromList dip
 
 -- | Get the default properties for an item associated type.
 -- If the type is a pointer type with all contained pointers qualified as const the ro property is used,
 -- if the identifier is for a parameter and the type is linear and no ro property the ar property is used,
 -- otherwise no property is used.
-getDefaultProperies :: ItemAssocType -> FTrav (String,[String])
-getDefaultProperies (iid,t) = do
+getDefaultProperties :: ItemAssocType -> FTrav (String,[String])
+getDefaultProperties (iid,t) = do
     ro <- isReadOnlyType t
     lt <- isLinearParType t
     let roProp = if ro && ((isPointer t) || ((isArray t) && (not $ isEmbeddedId iid))) then ["ro"] else []

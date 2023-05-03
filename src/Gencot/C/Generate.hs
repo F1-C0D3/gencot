@@ -31,9 +31,7 @@ genEntry :: LCA.DeclEvent -> FTrav GCA.Definition
 genEntry (LCA.DeclEvent idecl@(LCA.FunctionDef fdef@(LCA.FunDef decl stat n))) = do
     sfn <- getFileName
     let iat = getIndividualItemAssoc idecl sfn
-    --_ <- if "main" == (fst iat) then error ("genEntry: " ++ (fst iat)) else return ()
-    resiat <- getResultSubItemAssoc iat
-    restyp <- transType resiat
+    restyp <- transType $ getResultSubItemAssoc iat
     let rIsVoid = case res of { (LCA.DirectType LCA.TyVoid _ _) -> True; _ -> False }
     let rspec = if rIsVoid then mkVoid else mkADec restyp
     ps <- mapM (genParam iat) numpars

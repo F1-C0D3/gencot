@@ -1352,21 +1352,20 @@ getAllParamDesc iat@(iid,(LCA.FunctionType (LCA.FunType _ pds isVar) _)) = do
 makeGlobalStateParamDesc :: ((String, Bool), String) -> FTrav ParamDesc
 makeGlobalStateParamDesc ((iid,noro), gs) = do
     name <- mapIfUpper $ LCI.Ident (getParamName iid) 0 LCN.undefNode
+    props <- getProperties iid -- parameter properties
     gsvar <- getGlobalStateId gs -- global var item id or ""
     if null gsvar
        then do -- global variable not available, use type synonym as opaque type
-         let typ = makeReadOnlyIf (not noro) $ mkTypeName (globStateType gs)
-         props <- getProperties iid
-         return $ ParamDesc name typ props
-       else do -- global variable found, convert its type to pointer and add type synonym
+         return $ ParamDesc name (makeReadOnlyIf (not noro) $ mkTypeName $ globStateType gs) props
+       else do -- global variable found, adjust its type to pointer and add type synonym
          -- if the variable has an array type this is correct because transType ignores the pointer
-         mdec <- lookupGlobItem gsvar -- LCA.lookupObject $ LCI.Ident (getObjFunName gsvar) 0 LCN.undefNode
+         mdec <- lookupGlobItem gsvar
          case mdec of
               Nothing -> return $ ParamDesc "" unitType []
               Just decl -> do
-                  let piat = (iid,LCA.PtrType (LCA.declType decl) LCA.noTypeQuals LCA.noAttributes)
+                  sfn <- getFileName
+                  let piat = adjustItemAssocType $ getIndividualItemAssoc decl sfn
                   typ <- transType piat
-                  props <- getItemProperties piat
                   return $ ParamDesc name (addTypeSyn (globStateType gs) (rmMayNullIf True typ)) props
 
 -- | construct the parameter description for the HeapUse parameter.

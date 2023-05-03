@@ -128,10 +128,34 @@ implemented by Gencot either. The main reason for not supporting derived array a
 for defining a unique syntactical representation which is needed for the current implementation of the item property
 mechanism as described in Section~\ref{impl-itemprops}.
 
+Together, the rules for identifying items to declare properties for them are
+\begin{itemize}
+\item Basically, each item has a unique identifier. For a global item its identifier is derived from its name
+in the C program.
+\item For a sub-item its identifier is a path relative to the most general type item identifier of its nearest super-item for which
+the type is a typedef name or a struct or union type. If there is no such super-item, or it has no most general type item identifier,
+it is a path relative to the toplevel global item.
+\item If a typedef name \code{t1} is defined to denote another typedef name \code{t2}, then the type item identifier for \code{t2}
+is more general than that for \code{t1}. If a typedef name \code{t} is defined to denote a struct or union type \code{s}, then
+the type item identifier for \code{s} is more general than that for \code{t}.
+\item If the type of an item is an external typedef name which is always resolved (see Section~\ref{design-modular}) and the
+same holds for all more general type item identifiers, the item has no most general type item identifier.
+\item If the type of an item is a typedef name, a struct or union type, or an arbitrary deeply nested pointer to such a type
+the type item identifier and all more general type item identifiers can also be used to declare properties for the item.
+Properties declared for an item by different item identifiers are merged.
+\end{itemize}
+
 \subsubsection{Properties}
 
 The properties which can be declared for an item are usually specific for the item's type. If a property is declared
 for an item for which its type does not support the property, the property is silently ignored by Gencot.
+
+It is also possible to declare a negative property for an item. Negative properties have higher priority than normal
+properties and can be used to suppress properties declared elsewhere, for example using a more general type item
+identifier.
+
+For some items Gencot derives properties automatically from the C program. Explicit negative properties can also be used to
+suppress such properties.
 
 Gencot supports declaring the following item properties.
 
@@ -171,6 +195,9 @@ for items of array type.
 The No-String property is only supported for items of type \code{const char *}. If declared, Gencot uses the  
 type \code{(CPtr U8)!} instead of \code{String} for the translated item (see Section~\ref{design-types-pointer}).
 
+If the type of an item is a typedef name, the No-String property can only be declared using its most general
+type item identifier.
+
 \item[Heap-Use]
 
 The Heap-Use property is only supported for items of function type. If declared, the parameters and
@@ -178,6 +205,9 @@ result of the translated function are extended by a component of type \code{Heap
 In the body of the function definition the name \code{heap} is used for this additional component. If there
 is already another parameter named \code{heap} it is named \code{globheap<n>} where \code{<n>} is the lowest
 number starting with 1 so that there is no other parameter with this name.
+
+If the type of an item is a typedef name, the Heap-Use property can only be declared using its most general
+type item identifier.
 
 \item[Add-Result]
 
@@ -212,6 +242,9 @@ The Global-State property implicitly includes the Add-Result property. A paramet
 by a Global-State property always has a linear type in Cogent. Since the global variable cannot be deallocated the parameter
 must never be discarded and always be returned as part of the function result. Thus Gencot automatically treats the 
 virtual parameter in the same way as a parameter with the Add-Result property.
+
+The Global-State property also implicitly includes the Not-Null property. The pointer passed to the function is always
+a valid pointer to the global variable, it will never be \code{NULL}.
 
 The Global-State property for virtual parameters can be combined with the Read-Only property. In this case the 
 parameter type is made readonly and the implicit effect of the Add-Result property is omitted.

@@ -1,5 +1,5 @@
 {-# LANGUAGE PackageImports #-}
-module Gencot.Cogent.Simplify where
+module Gencot.Cogent.Post.Simplify where
 
 import Data.List (concatMap,nub,intersect,union,(\\),partition,find)
 import qualified Data.Map as M

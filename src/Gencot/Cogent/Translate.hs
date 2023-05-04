@@ -56,7 +56,7 @@ import Gencot.Cogent.Types (
   genType, mkTypeName, mkU32Type, mkBoolType, mkTupleType, mkFunType, mkArrayType, mkWrappedArrayType, mkRecordType, mkPtrType,
   addTypeSyn, useTypeSyn, mkReadonly, mkUnboxed, isArrayType, isUnboxed, mkMayNull,
   getBoxType, getNnlType, getResultType, getDerefType, getLeadType)
-import Gencot.Cogent.Postproc (postproc)
+import Gencot.Cogent.Post.Proc (postproc)
 import qualified Gencot.C.Ast as LQ (Stm(Exp,Block), Exp)
 import qualified Gencot.C.Translate as C (transStat, transExpr, transArrSizeExpr, transBlockItem)
 import Gencot.Traversal (

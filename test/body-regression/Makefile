@@ -23,7 +23,7 @@ cogent: $(foreach TST,$(TESTS),body-$(TST).cogent) unit
 
 dfltprops: $(foreach TST,$(TESTS),body-$(TST).c-dfltprops) test.unit-dfltprops
 
-itemprops: $(foreach TST,$(TESTS),body-$(TST).c-itemprops)
+mixprops: $(foreach TST,$(TESTS),body-$(TST).c-mixprops) test.unit-mixprops
 
 regression: $(foreach TST,$(TESTS),$(TST)-regression) unit-regression
 
@@ -31,16 +31,18 @@ expect-current: $(foreach TST,$(TESTS),$(TST)-expect-current) unit-expect-curren
 
 clean:  $(foreach TST,$(TESTS),$(TST)-clean)
 	-rm -f test.unit test.unit-errmess test.cogent $(foreach U,$(UNIT),test-$(U).cogent)
-	-rm -f test-external.items test.unit-dfltprops test.unit-itemprops
+	-rm -f test-external.items test.unit-dfltprops test.unit-mixprops test.unit-itemprops
 
-body-func.c-itemprops: body-func.c-dfltprops body-func.c-manprops
-	$(IT) mergeto body-func.c-dfltprops body-func.c-manprops > $@
+%.c-mixprops: %.c-dfltprops
+	@cp $*.c-dfltprops $@
+	@if [ -e $*.c-manprops ]; \
+	then \
+		$(IT) mergeto $@ $*.c-manprops > $*-hprops; mv $*-hprops $@; \
+	fi
 
-body-ro.c-itemprops: body-ro.c-dfltprops body-ro.c-manprops
-	$(IT) mergeto body-ro.c-dfltprops body-ro.c-manprops > $@
-
-%.c-itemprops: %.c-dfltprops common.types-manprops
-	@$(IT) merge common.types-manprops $*.c-dfltprops > $*.c-itemprops
+%.c-itemprops: %.c-mixprops test.unit-mixprops common.types-manprops
+	@$(IT) merge $*.c-mixprops test.unit-mixprops > $@
+	@$(IT) merge common.types-manprops $@ > $*-hprops; mv $*-hprops $@
 
 unit-regression: unit $(foreach U,$(UNIT),$(VARIANT)/test-$(U)-expected.cogent) $(foreach U,$(AUNIT),test.$(U) $(VARIANT)/test-expected.$(U)) test-external.items $(VARIANT)/test-external-expected.items
 	-@for u in $(UNIT); do \
@@ -91,14 +93,17 @@ test-external.items: test.unit test.unit-manitems
 	cp body-$*-errmess $(VARIANT)/body-$*-expected-errmess
 
 %-clean:
-	-rm -f body-$*.cogent body-$*.o body-$*.c-dfltprops body-$*.c-itemprops body-$*-entry.ac body-$*-errmess
+	-rm -f body-$*.cogent body-$*.o body-$*.c-dfltprops body-$*.c-itemprops body-$*.c-mixprops body-$*-entry.ac body-$*-errmess
 
-test.unit-itemprops: itemprops
-	@touch test.unit-itemprops
-	@for f in $(foreach TST,$(TESTS),body-$(TST).c-itemprops); do \
-	  $(IT) merge $$f test.unit-itemprops > iprops; \
-	  mv iprops test.unit-itemprops; \
+test.unit-mixprops: test.unit-dfltprops test.unit-manprops
+	@$(IT) mergeto test.unit-dfltprops test.unit-manprops > $@
+
+test.unit-itemprops: mixprops common.types-manprops
+	@cp test.unit-mixprops $@
+	@for f in $(foreach TST,$(TESTS),body-$(TST).c-mixprops); do \
+	  $(IT) merge $$f $@ > hprops; mv hprops $@; \
 	done
+	@$(IT) merge common.types-manprops $@ > hprops; mv hprops $@
 
 test.unit: 
 	@for f in $(foreach TST,$(TESTS),body-$(TST).c); do \

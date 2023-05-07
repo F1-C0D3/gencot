@@ -10,6 +10,7 @@ import Cogent.Surface as CS
 import Cogent.Common.Syntax as CCS
 
 import Gencot.Cogent.Ast
+import Gencot.Cogent.Post.Util (isLiteralExpr,freeInPatn,freeInIrrefPatn,freeInExpr',freeInExpr,freeUnderBinding,boundInBindings)
 
 {- Simplifying let expressions -}
 {-------------------------------}
@@ -160,38 +161,10 @@ matches (PTuple ips) (Tuple es) =
     (all (uncurry matches) $ zip (map irpatnOfGIP ips) (map exprOfGE es))
 matches _ _ = False
 
--- | Free variables in a pattern.
-freeInPatn :: GenPatn -> [VarName]
-freeInPatn = nub . CS.fvP . toRawPatn
-
--- | Free variables in an irrefutable pattern.
-freeInIrrefPatn :: GenIrrefPatn -> [VarName]
-freeInIrrefPatn = nub . CS.fvIP . toRawIrrefPatn
-
--- | Free variables in an expression.
-freeInExpr' :: ExprOfGE -> [VarName]
-freeInExpr' = nub . CS.fvE . toRawExpr'
-
--- | Free variables in an expression.
-freeInExpr :: GenExpr -> [VarName]
-freeInExpr = nub . CS.fvE . toRawExpr
-
--- | Free variables in a let expression, given by a sequence of bindings and the body.
-freeUnderBinding :: [GenBnd] -> ExprOfGE -> [VarName]
-freeUnderBinding [] e = freeInExpr' e
-freeUnderBinding ((CS.Binding ipb Nothing eb []) : bs) e =
-    nub ((freeInExpr eb) ++ ((freeUnderBinding bs e) \\ (freeInIrrefPatn ipb)))
-freeUnderBinding (b : _) _ = error ("unexpected binding in letproc/freeUnderBinding: " ++ (show b))
 
 -- | Variables bound in the patterns of a MatchMap.
 boundInMap :: MatchMap -> [VarName]
 boundInMap m = nub $ concatMap freeInIrrefPatn $ M.keys m
-
--- | Variables bound in a sequence of bindings.
-boundInBindings :: [GenBnd] -> [VarName]
-boundInBindings [] = []
-boundInBindings ((CS.Binding ipb Nothing eb []) : bs) = union (freeInIrrefPatn ipb) $ boundInBindings bs
-boundInBindings (b : _) = error ("unexpected binding in letproc/boundInBindings: " ++ (show b))
 
 -- | Reduce the binding (ip = e) to a set of variables.
 -- All variables bound in the pattern which are not in the set are replaced by a wildcard.
@@ -387,13 +360,6 @@ toEval op args e | op `elem` ["not"] =
     case exprOfGE $ head args of
          BoolLit b -> mapExprOfGE (const (BoolLit (not b))) e
          _ -> e
-         
-isLiteralExpr :: ExprOfGE -> Bool
-isLiteralExpr (IntLit _) = True
-isLiteralExpr (BoolLit _) = True
-isLiteralExpr (CharLit _) = True
-isLiteralExpr (StringLit _) = True
-isLiteralExpr _ = False
 
 evalIntPred :: OpName -> ExprOfGE -> ExprOfGE -> Bool
 evalIntPred op (IntLit i1) (IntLit i2) = 

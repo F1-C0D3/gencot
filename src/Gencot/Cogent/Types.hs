@@ -171,7 +171,7 @@ useTypeSyn t@(GenType _ _ Nothing) = t
 -- The following normal form is used: whenever TBang affects component types, only the outermost position is marked by TBang.
 -- For TTuple always only the components are marked by TBang.
 -- Type synonyms are retained because they are wrapped by TBang, with the exception of TTuple.
--- The abstract types CVoidPtr, MayNull, CArr*, and the pseudo type variadicTypeName are the only abstract types used by
+-- The abstract types CVoidPtr, MayNull, and the pseudo type variadicTypeName are the only abstract types used by
 -- Gencot which can be made readonly.
 -- After a type has been made readonly, the original type cannot be reconstructed from it.
 
@@ -206,14 +206,41 @@ rmRRO (GenType (CS.TArray t e s ts) o Nothing) =
     (GenType (CS.TArray (rmRRO t) e s ts) o Nothing)
 rmRRO (GenType (CS.TUnbox t) o Nothing) =
     (GenType (CS.TUnbox $ rmRRO t) o Nothing)
-rmRRO (GenType (CS.TCon tn ts s) o Nothing) | (elem tn [mapPtrVoid, mapMayNull]) || isArrDeriv tn  =
+rmRRO (GenType (CS.TCon tn ts s) o Nothing) | (elem tn [mapPtrVoid, mapMayNull])  =
     (GenType (CS.TCon tn (map rmRRO ts) s) o Nothing)
 rmRRO t = t
 
-isReadonly :: GenType -> Bool
-isReadonly (GenType (CS.TTuple ts) _ _) = all isReadonly ts
-isReadonly (GenType (CS.TBang _) _ _) = True
-isReadonly _ = False
+-- | Remove outermost Bang
+unbangType :: GenType -> GenType
+unbangType (GenType (CS.TBang t) _ _) = t
+unbangType t = t
+
+-- | Readonly or regular
+isNonlinear :: GenType -> Bool
+isNonlinear (GenType (CS.TBang _) _ _) = True
+isNonlinear (GenType (CS.TTuple ts) _ _) = all isNonlinear ts
+isNonlinear (GenType (CS.TCon tn _ _) _ _) | (elem tn [mapPtrVoid, mapMayNull, variadicTypeName]) = False
+isNonlinear (GenType (CS.TCon tn _ _) _ _) = True
+isNonlinear (GenType (CS.TFun _ _) _ _) = True
+isNonlinear (GenType CS.TUnit _ _) = True
+isNonlinear (GenType (CS.TUnbox t) _ _) = isNonlinearAsUnboxed t
+isNonlinear _ = False
+
+isNonlinearAsUnboxed :: GenType -> Bool
+isNonlinearAsUnboxed (GenType (CS.TRecord _ fs _) _ _) =
+    all (\(_, (t, tkn)) -> tkn || isNonlinear t) fs
+isNonlinearAsUnboxed (GenType (CS.TArray t _ _ _) _ _) = isNonlinear t
+isNonlinearAsUnboxed _ = True
+
+-- | Escapeable
+mayEscape :: GenType -> Bool
+mayEscape (GenType (CS.TBang _) _ _) = False
+mayEscape (GenType (CS.TTuple ts) _ _) = all mayEscape ts
+mayEscape (GenType (CS.TUnbox t) _ _) = mayEscape t
+mayEscape (GenType (CS.TRecord _ fs _) _ _) =
+    all (\(_, (t, tkn)) -> tkn || mayEscape t) fs
+mayEscape (GenType (CS.TArray t _ _ _) _ _) = mayEscape t
+mayEscape _ = True
 
 mkUnboxed :: GenType -> GenType
 mkUnboxed t@(GenType (CS.TUnbox _) _ _) = t
@@ -286,6 +313,9 @@ getDerefType t = mkUnboxed t
 
 getResultType :: GenType -> GenType
 getResultType (GenType (CS.TFun _ rt) _ _) = rt
+
+getParamType :: GenType -> GenType
+getParamType (GenType (CS.TFun pt _) _ _) = pt
 
 getLeadType :: GenType -> GenType
 getLeadType (GenType (CS.TTuple (t : ts)) _ _) = t

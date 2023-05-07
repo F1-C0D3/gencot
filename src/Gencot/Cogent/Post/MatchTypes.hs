@@ -9,6 +9,7 @@ import Data.Foldable (toList)
 import Cogent.Surface as CS
 import Cogent.Common.Syntax as CCS
 
+import Gencot.Traversal
 import Gencot.Cogent.Ast
 import Gencot.Cogent.Types (mkReadonly, isNonlinear, unbangType, getMemberType, getDerefType, getParamType)
 import Gencot.Cogent.Expr (TypedVar(TV))
@@ -32,9 +33,9 @@ import Gencot.Cogent.Post.Util (isValVar, freeInIrrefPatn, freeInBindings, bound
 --   array-takes only occur in such pairs.
 -- - a take or array-take has exactly one taken field or element
 
-roproc :: GenExpr -> GenExpr
+roproc :: GenExpr -> FTrav GenExpr
 -- TODO
-roproc e = e
+roproc e = return e
 
 -- | Test whether a variable is used in a non-readonly way in an expression.
 -- If no, the result is nothing, otherwise it returns the non-readonly type of the use.
@@ -146,6 +147,6 @@ needToTake cv fn t bs = cv `elem` freeInBindings bs || isModified cv (getMemberT
 {- to readonly context: try bang  -}
 {----------------------------------}
 
-bangproc :: GenExpr -> GenExpr
+bangproc :: GenExpr -> FTrav GenExpr
 -- TODO
-bangproc e = e
+bangproc e = return e

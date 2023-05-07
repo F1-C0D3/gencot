@@ -860,8 +860,8 @@ transBody fdes s = do
     resetVarCounters
     tconf <- getTConf
     b <- bindStat s
-    let e = cleanSrc $ postproc tconf $ mkBodyExpr b $ genFunResultExpr fdes
-    return [mkAlt (genFunParamPattern fdes) e]
+    ep <- postproc tconf $ mkBodyExpr b $ genFunResultExpr fdes
+    return [mkAlt (genFunParamPattern fdes) $ cleanSrc ep]
 {-
 transBody :: ItemAssocType -> LC.CStat -> [LCA.ParamDecl] -> FTrav GenExpr
 transBody fiat s pars = do
@@ -878,7 +878,8 @@ transExpr :: LC.CExpr -> FTrav GenExpr
 transExpr e = do
     tconf <- getTConf
     bp <- bindExpr e
-    return $ cleanSrc $ postproc tconf $ mkPlainExpr bp
+    ep <- postproc tconf $ mkPlainExpr bp
+    return $ cleanSrc ep
 
 bindStat :: LC.CStat -> FTrav GenBnd
 bindStat s@(LC.CExpr Nothing _) =

@@ -6,18 +6,18 @@ import qualified Data.Map as M
 import Data.Maybe (catMaybes,isNothing,isJust)
 import Data.Foldable (toList)
 
+import Language.C.Analysis as LCA (recordError)
+
 import Cogent.Surface as CS
 import Cogent.Common.Syntax as CCS
 
 import Gencot.Traversal
 import Gencot.Cogent.Ast
-import Gencot.Cogent.Types (mkReadonly, isNonlinear, unbangType, getMemberType, getDerefType, getParamType)
+import Gencot.Cogent.Error (typeMatch)
+import Gencot.Cogent.Types (mkReadonly, isNonlinear, mayEscape, unbangType, getMemberType, getDerefType, getParamType)
+import Gencot.Cogent.Bindings (replaceValVarType,replaceInGIP,mkDummyExpr)
 import Gencot.Cogent.Expr (TypedVar(TV))
 import Gencot.Cogent.Post.Util (isValVar, freeInIrrefPatn, freeInBindings, boundInBindings)
-
-{- Matching readonly subexpressions -}
-{- to linear context: always error  -}
-{------------------------------------}
 
 -- Assumption for all expressions:
 -- - expressions bound in a binding are only
@@ -33,25 +33,50 @@ import Gencot.Cogent.Post.Util (isValVar, freeInIrrefPatn, freeInBindings, bound
 --   array-takes only occur in such pairs.
 -- - a take or array-take has exactly one taken field or element
 
+{- Matching readonly subexpressions -}
+{- to linear context: always error  -}
+{------------------------------------}
+
 roproc :: GenExpr -> FTrav GenExpr
--- TODO
-roproc e = return e
+roproc e = mapMExprOfGE roproc' e
+
+roproc' :: ExprOfGE -> FTrav ExprOfGE
+roproc' (CS.Let bs bdy) = do
+    bs' <- roprocBindings bs bdy
+    bdy' <- roproc bdy
+    return $ CS.Let bs' bdy'
+roproc' e = mapM roproc e
+
+roprocBindings :: [GenBnd] -> GenExpr -> FTrav [GenBnd]
+roprocBindings [] _ = return []
+roprocBindings (b@(CS.Binding ip m e vs):bs) bdy =
+    case exprOfGE e of
+         CS.Var v | not $ isValVar v && (not $ mayEscape $ typOfGE e) ->
+            case nonRoUseInLet v bs bdy of
+                 Just t -> do
+                   recordError $ typeMatch (orgOfGE e) ("readonly variable " ++ v ++ " used in linear context")
+                   bs' <- roprocBindings (replaceValVarType t ip bs) bdy
+                   return $ ((CS.Binding (replaceInGIP t ip) m (mkDummyExpr t ("readonly variable " ++ v ++ " used in linear context")) vs)
+                             : bs')
+                 Nothing -> do
+                   bs' <- roprocBindings bs bdy
+                   return (b : bs')
 
 -- | Test whether a variable is used in a non-readonly way in an expression.
 -- If no, the result is nothing, otherwise it returns the non-readonly type of the use.
 nonRoUse :: CCS.VarName -> GenExpr -> Maybe GenType
 nonRoUse v e =
     case exprOfGE e of
-         Let bs bdy -> nonRoUseInLet v bs bdy
-         App f arg _ -> nonRoUseInApp v (getParamType $ typOfGE f) $ exprOfGE arg
+         CS.Let bs bdy -> nonRoUseInLet v bs bdy
+         CS.App f arg _ -> nonRoUseInApp v (getParamType $ typOfGE f) $ exprOfGE arg
          _ -> Nothing
 
 -- | Variable use as parameter in a function application
 nonRoUseInApp :: CCS.VarName -> GenType -> ExprOfGE -> Maybe GenType
-nonRoUseInApp v pt (Var w) | v == w = if isNonlinear pt then Nothing else Just pt
-nonRoUseInApp v pt (Tuple es) =
+nonRoUseInApp v pt (CS.Var w) | v == w = if isNonlinear pt then Nothing else Just pt
+nonRoUseInApp v pt (CS.Tuple es) =
     case typeOfGT pt of
-         TTuple pts -> case filter (\(e,t) -> e == Var v) $ zip (map exprOfGE es) pts of
+         CS.TTuple pts -> case filter (\(e,t) -> e == CS.Var v) $ zip (map exprOfGE es) pts of
                             [] -> Nothing
                             (_,t):_ -> if isNonlinear t then Nothing else Just t
          _ -> Nothing
@@ -64,17 +89,17 @@ nonRoUseInLet v ((CS.Binding ip _ e _):bs) bdy =
          Just t -> Just t
          Nothing ->
            case irpatnOfGIP ip of
-                PTake _ [Just (_,fip)] | (PVar cv) <- irpatnOfGIP fip ->
+                CS.PTake _ [Just (_,fip)] | (CS.PVar cv) <- irpatnOfGIP fip ->
                   case exprOfGE e of
-                       Var w | w == v ->
+                       CS.Var w | w == v ->
                          if (not $ isModified cv (mkReadonly $ typOfGIP fip) bs) && (isNothing $ nonRoUseInLet cv bs bdy)
                             then Nothing
                             else Just $ unbangType $ typOfGE e
                               -- may not be correct for cv, but type of cv is never compared with corresponding component type
                        _ -> Nothing
-                PTuple [atk,_] | (PArrayTake pv [(_,eip)]) <- irpatnOfGIP atk, (PVar cv) <- irpatnOfGIP eip ->
+                CS.PTuple [atk,_] | (CS.PArrayTake pv [(_,eip)]) <- irpatnOfGIP atk, (CS.PVar cv) <- irpatnOfGIP eip ->
                   case exprOfGE e of
-                       Tuple [ea,_] | (Var w) <- exprOfGE ea, w == v ->
+                       CS.Tuple [ea,_] | (CS.Var w) <- exprOfGE ea, w == v ->
                          if (not $ isModified cv (mkReadonly $ typOfGIP eip) bs) && (isNothing $ nonRoUseInLet cv bs bdy)
                             then Nothing
                             else Just $ unbangType $ typOfGE ea
@@ -100,18 +125,18 @@ nonRoUseInLet v ((CS.Binding ip _ e _):bs) bdy =
 boundTo :: CCS.VarName -> (GenIrrefPatn,ExprOfGE) -> Maybe TypedVar
 boundTo v (ip,Var w) | v == w =
     case irpatnOfGIP ip of
-         PVar pv -> Just $ TV pv $ typOfGIP ip
+         CS.PVar pv -> Just $ TV pv $ typOfGIP ip
          _ -> Nothing
-boundTo v (ip,Var w) = Nothing
-boundTo v (ip,Tuple es) =
+boundTo v (ip,CS.Var w) = Nothing
+boundTo v (ip,CS.Tuple es) =
     case irpatnOfGIP ip of
-         PTuple ips -> let sub = catMaybes $ map (boundTo v) $ zip ips (map exprOfGE es)
+         CS.PTuple ips -> let sub = catMaybes $ map (boundTo v) $ zip ips (map exprOfGE es)
                        in if null sub then Nothing else Just $ head sub
          _ -> Nothing
-boundTo v (ip,If _ _ e1 e2) =
+boundTo v (ip,CS.If _ _ e1 e2) =
     let r1 = boundTo v (ip,exprOfGE e1)
     in if isJust r1 then r1 else boundTo v (ip,exprOfGE e2)
-boundTo v (ip,Let bs e) =
+boundTo v (ip,CS.Let bs e) =
     if v `elem` boundInBindings bs
        then Nothing
        else boundTo v (ip,exprOfGE e)
@@ -123,11 +148,11 @@ boundTo v _ = Nothing
 -- The second argument is the type considered for the component.
 isModified :: CCS.VarName -> GenType -> [GenBnd] -> Bool
 isModified v t [] = False
-isModified v t ((CS.Binding ip _ _ _):bs) | (PTake pv [Just (fnam,fip)]) <- irpatnOfGIP ip, pv == v,
-                                            (PVar cv) <- irpatnOfGIP fip =
+isModified v t ((CS.Binding ip _ _ _):bs) | (CS.PTake pv [Just (fnam,fip)]) <- irpatnOfGIP ip, pv == v,
+                                            (CS.PVar cv) <- irpatnOfGIP fip =
     isModified cv (getMemberType fnam t) bs || needToTake cv fnam t bs
-isModified v t ((CS.Binding ip _ _ _):bs) | (PTuple [atk,_]) <- irpatnOfGIP ip, (PArrayTake pv [(_,eip)]) <- irpatnOfGIP atk, pv == v,
-                                            (PVar cv) <- irpatnOfGIP eip =
+isModified v t ((CS.Binding ip _ _ _):bs) | (CS.PTuple [atk,_]) <- irpatnOfGIP ip, (CS.PArrayTake pv [(_,eip)]) <- irpatnOfGIP atk, pv == v,
+                                            (CS.PVar cv) <- irpatnOfGIP eip =
     isModified cv (getDerefType t) bs || needToTake cv "" t bs
 isModified v t ((CS.Binding ip _ _ _):_) | v `elem` freeInIrrefPatn ip = True
 

@@ -30,3 +30,14 @@ instance Show NoParamError where show = showError "Missing function parameter"
 noParam :: (Pos a) => a -> String -> NoParamError
 noParam posSrc msg = NoParam (mkWarnInfo msg (posOf posSrc))
 
+-- | TypeMatchError is caused by a type differences
+newtype TypeMatchError = TypeMatch ErrorInfo
+
+instance Error TypeMatchError where
+    errorInfo (TypeMatch ei) = ei
+
+instance Show TypeMatchError where show = showError "Type mismatch"
+
+typeMatch :: (Pos a) => a -> String -> TypeMatchError
+typeMatch posSrc msg = TypeMatch (mkWarnInfo msg (posOf posSrc))
+

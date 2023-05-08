@@ -68,6 +68,11 @@ mapIrpatnOfGIP f g = GenIrrefPatn (f $ irpatnOfGIP g) (orgOfGIP g) (typOfGIP g)
 mapTypeOfGT :: (TypeOfGT -> TypeOfGT) -> GenType -> GenType
 mapTypeOfGT f g = GenType (f $ typeOfGT g) (orgOfGT g) (typSynOfGT g)
 
+mapMExprOfGE :: Monad m => (ExprOfGE -> m ExprOfGE) -> GenExpr -> m GenExpr
+mapMExprOfGE f g = do
+    e' <- f $ exprOfGE g
+    return $ GenExpr e' (orgOfGE g) (typOfGE g) (ccdOfGE g)
+
 toRawType :: GenType -> RawType
 toRawType = RT . fmap toRawType . ffmap toDLExpr . fffmap toRawExpr . typeOfGT
 

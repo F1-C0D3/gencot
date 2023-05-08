@@ -116,6 +116,10 @@ lvalVar (main,_) =
          _ -> (TV errVar $ typOfGE e)
     where (CS.Binding _ _ e _) = head main
 
+replaceValVarType :: GenType -> GenIrrefPatn -> [GenBnd] -> [GenBnd]
+-- TODO
+replaceValVarType t ip bs = bs
+
 -- Construct Toplevel Expressions
 ---------------------------------
 

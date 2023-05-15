@@ -1,15 +1,15 @@
 {-# LANGUAGE PackageImports #-}
 module Gencot.Cogent.Post.Proc where
 
-import Gencot.Traversal (FTrav)
 import Gencot.Cogent.Ast (GenExpr,toRawExpr)
+import Gencot.Cogent.Post.Util (ETrav)
 import Gencot.Cogent.Post.Simplify (letproc,ifproc,opproc)
 import Gencot.Cogent.Post.MatchTypes (roproc,bangproc)
 
-postproc :: String -> GenExpr -> FTrav GenExpr
+postproc :: String -> GenExpr -> ETrav GenExpr
 postproc tconf e = do
-    e1 <- runtypes tconf e
-    return $ runsimp tconf e1
+    -- e1 <- runtypes tconf e
+    return $ runsimp tconf e -- e1
 
 runsimp :: String -> GenExpr -> GenExpr
 runsimp tconf e = let e' = opproc' tconf $ ifproc' tconf $ letproc' tconf e
@@ -26,15 +26,15 @@ ifproc' _ e = ifproc e
 opproc' tconf e | elem 'o' tconf = e
 opproc' _ e = opproc e
 
-runtypes :: String -> GenExpr -> FTrav GenExpr
+runtypes :: String -> GenExpr -> ETrav GenExpr
 runtypes tconf e = do
     e1 <- roproc' tconf e
     bangproc' tconf e1
 
-roproc' :: String -> GenExpr -> FTrav GenExpr
+roproc' :: String -> GenExpr -> ETrav GenExpr
 roproc' tconf e | elem 'r' tconf = return e
 roproc' _ e = roproc e
 
-bangproc' :: String -> GenExpr -> FTrav GenExpr
+bangproc' :: String -> GenExpr -> ETrav GenExpr
 bangproc' tconf e | elem 'b' tconf = return e
 bangproc' _ e = bangproc e

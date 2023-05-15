@@ -179,17 +179,17 @@ useTypeSyn t@(GenType _ _ Nothing) = t
 -- If TBang and TUnbox or MayNull are combined, TBang is always the outer marker.
 -- TUnbox and MayNull cannot be combined, because MayNull is only used to mark linear types.
 
--- The type constructors TVariant, TRefine, TRPar, TLayout, TTake, TPut, TATake, TAPut are not covered because they are not used by Gencot.
+-- The type constructors TVariant, TRefine, TRPar, TLayout, TPut, TAPut are not covered because they are not used by Gencot.
 
 mkReadonly :: GenType -> GenType
 mkReadonly t@(GenType (CS.TVar _ _ _) _ _) = mkBangType t
 mkReadonly (GenType (CS.TTuple ts) o _) = (GenType (CS.TTuple $ map mkReadonly ts) o Nothing)
 mkReadonly (GenType (CS.TRecord rp fs s) o ms) =
     mkBangType (GenType (CS.TRecord rp (map (\(f,(t,tk)) -> (f,(rmRRO t,tk))) fs) s) o ms)
-mkReadonly (GenType (CS.TArray t e s ts) o ms) =
-    mkBangType (GenType (CS.TArray (rmRRO t) e s ts) o ms)
-mkReadonly (GenType (CS.TUnbox t) o ms) =
-    mkBangType (GenType (CS.TUnbox $ rmRRO t) o ms)
+mkReadonly (GenType (CS.TTake mfs t) o ms) = mkBangType (GenType (CS.TTake mfs $ mkReadonly t) o ms)
+mkReadonly (GenType (CS.TArray t e s ts) o ms) = mkBangType (GenType (CS.TArray (rmRRO t) e s ts) o ms)
+mkReadonly (GenType (CS.TATake es t) o ms) = mkBangType (GenType (CS.TATake es $ mkReadonly t) o ms)
+mkReadonly (GenType (CS.TUnbox t) o ms) = mkBangType (GenType (CS.TUnbox $ rmRRO t) o ms)
 mkReadonly (GenType (CS.TCon tn ts s) o ms) | (elem tn [mapPtrVoid, mapMayNull, variadicTypeName]) || isArrDeriv tn =
     mkBangType (GenType (CS.TCon tn (map rmRRO ts) s) o ms)
 mkReadonly t = t
@@ -202,11 +202,11 @@ rmRRO (GenType (CS.TBang t) _ Nothing) = t
 rmRRO (GenType (CS.TTuple ts) o Nothing) = (GenType (CS.TTuple (map rmRRO ts)) o Nothing)
 rmRRO (GenType (CS.TRecord rp fs s) o Nothing) =
     (GenType (CS.TRecord rp (map (\(f,(t,tk)) -> (f,(rmRRO t,tk))) fs) s) o Nothing)
-rmRRO (GenType (CS.TArray t e s ts) o Nothing) =
-    (GenType (CS.TArray (rmRRO t) e s ts) o Nothing)
-rmRRO (GenType (CS.TUnbox t) o Nothing) =
-    (GenType (CS.TUnbox $ rmRRO t) o Nothing)
-rmRRO (GenType (CS.TCon tn ts s) o Nothing) | (elem tn [mapPtrVoid, mapMayNull])  =
+rmRRO (GenType (CS.TTake mfs t) o Nothing) = (GenType (CS.TTake mfs $ rmRRO t) o Nothing)
+rmRRO (GenType (CS.TArray t e s ts) o Nothing) = (GenType (CS.TArray (rmRRO t) e s ts) o Nothing)
+rmRRO (GenType (CS.TATake es t) o Nothing) = (GenType (CS.TATake es $ rmRRO t) o Nothing)
+rmRRO (GenType (CS.TUnbox t) o Nothing) = (GenType (CS.TUnbox $ rmRRO t) o Nothing)
+rmRRO (GenType (CS.TCon tn ts s) o Nothing) | tn == mapMayNull =
     (GenType (CS.TCon tn (map rmRRO ts) s) o Nothing)
 rmRRO t = t
 
@@ -241,6 +241,24 @@ mayEscape (GenType (CS.TRecord _ fs _) _ _) =
     all (\(_, (t, tkn)) -> tkn || mayEscape t) fs
 mayEscape (GenType (CS.TArray t _ _ _) _ _) = mayEscape t
 mayEscape _ = True
+
+-- | Readonly compatible
+roCmpTypes :: GenType -> GenType -> Bool
+roCmpTypes (GenType (CS.TBang _) _ _) (GenType (CS.TBang _) _ _) = True
+roCmpTypes (GenType CS.TUnit _ _) (GenType CS.TUnit _ _) = True
+roCmpTypes (GenType (CS.TFun _ _) _ _) (GenType (CS.TFun _ _) _ _) = True
+roCmpTypes (GenType (CS.TTuple ts1) _ _) (GenType (CS.TTuple ts2) _ _) =
+    and $ map (uncurry roCmpTypes) $ zip ts1 ts2
+roCmpTypes (GenType (CS.TUnbox t1) _ _) (GenType (CS.TUnbox t2) _ _) = roCmpTypes t1 t2
+roCmpTypes (GenType (CS.TCon tn1 [t1] _) _ _) (GenType (CS.TCon tn2 [t2] _) _ _) | tn1 == mapMayNull && tn2 == mapMayNull =
+    roCmpTypes t1 t2
+roCmpTypes (GenType (CS.TCon _ _ _) _ _) (GenType (CS.TCon _ _ _) _ _) = True
+roCmpTypes (GenType (CS.TRecord _ fs1 _) _ _) (GenType (CS.TRecord _ fs2 _) _ _) =
+    and $ map (\((_,(t1,_)),(_,(t2,_))) -> roCmpTypes t1 t2) $ zip fs1 fs2
+roCmpTypes (GenType (CS.TArray t1 _ _ _) _ _) (GenType (CS.TArray t2 _ _ _) _ _) = roCmpTypes t1 t2
+roCmpTypes (GenType (CS.TVar _ _ _) _ _) (GenType (CS.TVar _ _ _) _ _) = True
+roCmpTypes _ _ = False
+
 
 mkUnboxed :: GenType -> GenType
 mkUnboxed t@(GenType (CS.TUnbox _) _ _) = t

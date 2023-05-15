@@ -7,12 +7,29 @@ import Data.Functor.Identity (Identity)
 
 import Language.C.Analysis.DefTable (DefTable)
 import Language.C.Data.Ident (SUERef,Ident,identToString)
-import Language.C.Analysis.TravMonad (TravT,runTrav,travErrors,withDefTable,getUserState,modifyUserState,getDefTable)
+import Language.C.Analysis.TravMonad (TravT,Trav,runTrav,travErrors,recordError,withDefTable,getDefTable,userState,getUserState,modifyUserState)
 import Language.C.Analysis.SemRep (IdentDecl)
 
 import Gencot.Input (showWarnings,errorOnLeft)
 import Gencot.Names (FileNameTrav,getFileName,NamePrefixMap,lookupPrefix,MapNamesTrav,matchPrefix)
 import Gencot.Items.Properties (ItemProperties)
+
+-- | Run a sub traversal and transfer error messages
+-- The result is the pair of the sub traversal's result and user state.
+runTravWithErrors :: (a,s) -> Trav s a -> Trav s' (a,s)
+runTravWithErrors (dflt,ustate) action = do
+    case runTrav ustate action of
+         Left errs -> do
+             mapM recordError errs
+             return (dflt,ustate)
+         Right (res,state) -> do
+             mapM recordError $ travErrors state
+             return (res, userState state)
+
+runTrav_WithErrors :: a -> Trav () a -> Trav s a
+runTrav_WithErrors dflt action = do
+    (res,()) <- runTravWithErrors (dflt,()) action
+    return res
 
 -- | Table for looking up item ids of local variables and parameters.
 -- The first component is a stack of contexts mapping C identifiers to item ids.

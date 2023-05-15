@@ -1,12 +1,26 @@
-{-# LANGUAGE PackageImports #-}
+{-# LANGUAGE PackageImports, TypeSynonymInstances, FlexibleInstances #-}
 module Gencot.Cogent.Post.Util where
 
 import Data.List (nub,union,(\\))
+import Data.Functor.Identity (Identity)
+
+import Language.C.Analysis.TravMonad (TravT,Trav)
 
 import Cogent.Surface as CS
 import Cogent.Common.Syntax as CCS
 
+import Gencot.Traversal (runTravWithErrors)
 import Gencot.Cogent.Ast
+import Gencot.Cogent.Expr (mkUnitExpr)
+
+-- | Monad with empty user state, used only for error recording.
+type ETrav = TravT () Identity
+
+instance MonadFail ETrav where
+  fail = error "ETrav monad failed"
+
+runTravExpr :: s -> Trav s GenExpr -> Trav s' (GenExpr,s)
+runTravExpr ustate action = runTravWithErrors (mkUnitExpr,ustate) action
 
 isValVar :: CCS.VarName -> Bool
 isValVar "" = False

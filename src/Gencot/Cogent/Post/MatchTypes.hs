@@ -6,18 +6,18 @@ import qualified Data.Map as M
 import Data.Maybe (catMaybes,isNothing,isJust)
 import Data.Foldable (toList)
 
-import Language.C.Analysis as LCA (recordError)
+import Language.C.Data.Error
+import Language.C.Analysis as LCA (Trav,recordError,modifyUserState)
 
 import Cogent.Surface as CS
 import Cogent.Common.Syntax as CCS
 
-import Gencot.Traversal
 import Gencot.Cogent.Ast
 import Gencot.Cogent.Error (typeMatch)
-import Gencot.Cogent.Types (mkReadonly, isNonlinear, mayEscape, unbangType, getMemberType, getDerefType, getParamType)
-import Gencot.Cogent.Bindings (replaceValVarType,replaceInGIP,mkDummyExpr)
-import Gencot.Cogent.Expr (TypedVar(TV))
-import Gencot.Cogent.Post.Util (isValVar, freeInIrrefPatn, freeInBindings, boundInBindings)
+import Gencot.Cogent.Types (mkReadonly, isNonlinear, mayEscape, roCmpTypes, unbangType, getMemberType, getDerefType, getParamType)
+import Gencot.Cogent.Bindings (errVar,replaceValVarType,replaceInGIP,mkDummyExpr)
+import Gencot.Cogent.Expr (TypedVar(TV),namOfTV,mkUnitExpr)
+import Gencot.Cogent.Post.Util (ETrav, runTravExpr, isValVar, freeInIrrefPatn, freeInBindings, boundInBindings)
 
 -- Assumption for all expressions:
 -- - expressions bound in a binding are only
@@ -37,17 +37,17 @@ import Gencot.Cogent.Post.Util (isValVar, freeInIrrefPatn, freeInBindings, bound
 {- to linear context: always error  -}
 {------------------------------------}
 
-roproc :: GenExpr -> FTrav GenExpr
+roproc :: GenExpr -> ETrav GenExpr
 roproc e = mapMExprOfGE roproc' e
 
-roproc' :: ExprOfGE -> FTrav ExprOfGE
+roproc' :: ExprOfGE -> ETrav ExprOfGE
 roproc' (CS.Let bs bdy) = do
     bs' <- roprocBindings bs bdy
     bdy' <- roproc bdy
     return $ CS.Let bs' bdy'
 roproc' e = mapM roproc e
 
-roprocBindings :: [GenBnd] -> GenExpr -> FTrav [GenBnd]
+roprocBindings :: [GenBnd] -> GenExpr -> ETrav [GenBnd]
 roprocBindings [] _ = return []
 roprocBindings (b@(CS.Binding ip m e vs):bs) bdy =
     case exprOfGE e of
@@ -172,6 +172,160 @@ needToTake cv fn t bs = cv `elem` freeInBindings bs || isModified cv (getMemberT
 {- to readonly context: try bang  -}
 {----------------------------------}
 
-bangproc :: GenExpr -> FTrav GenExpr
+bangproc :: GenExpr -> ETrav GenExpr
+bangproc e = mapMExprOfGE bangproc' e
+
+-- | Try to bang subexpressions where that is possible.
+bangproc' :: ExprOfGE -> ETrav ExprOfGE
+bangproc' (CS.Let bs bdy) = do
+    bsb <- bangprocInLet bs bdy
+    bdyp <- bangproc bdy
+    return $ CS.Let bsb bdyp
+bangproc' (CS.If e [] e1 e2) = do
+    (eb,bvs) <- runTravExpr [] $ tryBang e
+    -- type of eb is always escapeable because it is boolean
+    e1p <- bangproc e1
+    e2p <- bangproc e2
+    return $ CS.If eb bvs e1p e2p
+-- No bang tried in CS.Match, CS.LamC, CS.MultiWayIf, because these are not generated.
+bangproc' e = mapM bangproc e
+
+bangprocInLet :: [GenBnd] -> GenExpr -> ETrav [GenBnd]
+bangprocInLet [] _ = return []
+bangprocInLet bs bdy = do
+    (bb : bsr) <- tryBangBindings bs bdy
+    bsrp <- bangprocInLet bsr bdy
+    return (bb : bsrp)
+
+-- | Try to bang variables in a prefix of a binding sequence.
+-- The shortest prefix is used for which the result is escapeable.
+-- If successful, the prefix is converted to a single binding with banged variables.
+-- This binding binds (only) the variables which occur free in the remaining bindings followed by the expression.
+-- Otherwise the sequence is returned unmodified.
+tryBangBindings :: [GenBnd] -> GenExpr -> ETrav [GenBnd]
+tryBangBindings [] _ = return []
+tryBangBindings (b@(CS.Binding ip m e []):bs) bdy = do
+    (eb,bvs) <- runTravExpr [] $ tryBang e
+    if null bvs || (mayEscape $ typOfGE eb)
+       then do
+           bsb <- tryBangBindings bs bdy
+           return ((CS.Binding ip m eb bvs) : bsb)
+       else if null bs
+       then do
+           berr <- bangError b bvs eb
+           return [berr]
+       else tryBangBindings (combineBindings b (head bs) (tail bs) bdy) bdy
+
+-- | Handle a binding as a banging error.
+-- The bound expression could be made type correct by banging the variables in the list,
+-- but the resulting expression has no escapeable type.
+-- The third argument is the bound expression after banging the types of all variabes in the list.
+-- If it is the same as in the original binding, all variable occurreces are replaced by dummies,
+-- otherwise the expression is replaced as a whole by a dummy.
+-- Additionally for each dummy an error is recorded.
+bangError :: GenBnd -> [CCS.VarName] -> GenExpr -> ETrav GenBnd
 -- TODO
-bangproc e = return e
+bangError b bvs eb = return b
+
+-- | Combine two bindings to a single binding
+-- which binds the variables occurring free in a binding list followed by an expression.
+-- The result is the binding list with the combined binding prepended.
+combineBindings :: GenBnd -> GenBnd -> [GenBnd] -> GenExpr -> [GenBnd]
+-- TODO
+combineBindings b1 b2 bs bdy = bs
+
+-- | Resolve readonly type incompatibilities in an expression by banging variables.
+-- The result is the expression with resolved incompatibilities.
+-- Additionally the monadic state contains the set of variable names which must be banged
+-- to change the expression accordingly.
+-- If there are readonly type incompatibilities which cannot be resolved by banging variables
+-- they are resolved by using dummy expressions or the error variable and recording corresponding errors.
+tryBang :: GenExpr -> Trav [CCS.VarName] GenExpr
+tryBang e = tryBangVars [] e
+
+-- | Try to change variable types as specified in a list of typed variables.
+-- Resulting readonly type incompatibilities for other variables are resloved by changing
+-- their type to the banged type. All other incompatibilities are resolved by replacing
+-- expressions by dummy expressions or replacing bound variables by the error variable
+-- with errors recorded.
+-- The result is the changed expression without any readonly type incompatibilities.
+-- The monadic state contains the set of variable names for which the type has been changed.
+tryBangVars :: [TypedVar] -> GenExpr -> Trav [CCS.VarName] GenExpr
+tryBangVars vs e = do
+    modifyUserState (\s -> union (map namOfTV vs) s)
+    (eb,bvs) <- runTravExpr [] $ rslvRoDiffs vs [] M.empty e
+    if null bvs
+       then return eb
+       else tryBangVars bvs eb
+
+-- | Resolve readonly type incompatibilities after changing the type of variables.
+-- The first argument is a list of variables with their new types.
+-- The second argument is a list of variables which may not be modified after the change.
+-- The third argument is a map from value variables to the bound expression and
+-- from component variables to the outermost container expression.
+-- The result is the expression with changed types for the variables.
+-- Additionally the monadic state contains the set of additional variables to be banged
+-- for resolving readonly type incompatibilities, as variables typed by the banged type.
+-- All other readonly type incompatibilities are resolved by replacing the incompatible subexpression
+-- by a dummy expression and recording an error.
+-- Bindings to a variable in the second list are replaced by bindings to the error variable
+-- and an error is recorded.
+rslvRoDiffs :: [TypedVar] -> [CCS.VarName] -> (M.Map CCS.VarName GenExpr) -> GenExpr -> Trav [TypedVar] GenExpr
+rslvRoDiffs vs cvs vmap e@(GenExpr (CS.Var v) o t s) = do
+    case find (\tv -> namOfTV tv == v)  vs of
+         Nothing -> return e
+         Just (TV vn vt) -> return $ GenExpr (CS.Var vn) o vt s
+rslvRoDiffs vs cvs vmap e@(GenExpr (CS.PrimOp op es) o t s) = do
+    esb <- mapM (rslvRoDiffs vs cvs vmap) es
+    return $ GenExpr (CS.PrimOp op esb) o t s
+rslvRoDiffs vs cvs vmap e@(GenExpr (CS.If e0 bvs e1 e2) o t s) = do
+    e0b <- rslvRoDiffs vs cvs vmap e0
+    e1b <- rslvRoDiffs vs cvs vmap e1
+    e2b <- rslvRoDiffs vs cvs vmap e2
+    (e1bm,e2bm,tm) <- matchRoDiffs vmap e1b e2b
+    return $ GenExpr (CS.If e0b bvs e1bm e2bm) o tm s
+rslvRoDiffs vs cvs vmap e@(GenExpr e' o t s) = do
+    eb' <- rslvRoDiffs' vs cvs vmap e'
+    return $ GenExpr eb' o (retypeExpr' eb') s
+
+recordVariable :: TypedVar -> Trav [TypedVar] ()
+recordVariable v = modifyUserState (\tvs -> if elem v tvs then tvs else v:tvs)
+
+rslvRoDiffs' :: [TypedVar] -> [CCS.VarName] -> (M.Map CCS.VarName GenExpr) -> ExprOfGE -> Trav [TypedVar] ExprOfGE
+-- TODO
+rslvRoDiffs' vs cvs vmp e = return e
+
+retypeExpr' :: ExprOfGE -> GenType
+retypeExpr' e' = unitType
+
+-- | Resolve readonly type incompatiilities between two expressions.
+-- The first argument is a map from value variables to the bound expression and
+-- from component variables to the outermost container expression.
+-- If in the two resulting expressions the variables are retyped according to the resulting monadic state
+-- they both have a type which is readonly compatible to the resulting type.
+matchRoDiffs :: (M.Map CCS.VarName GenExpr) -> GenExpr -> GenExpr -> Trav [TypedVar] (GenExpr,GenExpr,GenType)
+-- TODO
+matchRoDiffs vmp e1 e2 | roCmpTypes (typOfGE e1) (typOfGE e2) = return (e1,e2,typOfGE e1)
+matchRoDiffs vmp e1@(GenExpr (CS.If ec bvs et ee) o t s) e2 = do
+    (e2mt,etm2,tt) <- matchRoDiffs vmp e2 et
+    (e2me,eem2,te) <- matchRoDiffs vmp e2 ee
+    -- ???
+    return (e1,e2,typOfGE e1)
+matchRoDiffs vmp e1 e2 = return $ (e1,e2,typOfGE e1)
+
+{-
+-- | Replace variable types in an expression.
+-- For every occurrence of a variable from the list in the expression its type is replaced by the type in the list.
+-- That type is also transferred to all affected value variables.
+replaceVarTypes :: [TypedVar] -> GenExpr -> GenExpr
+replaceVarTypes vs e = e
+
+-- | Try banging the variables in an expression.
+-- The list contains the variables with their banged types.
+-- If after replacing the types in the expression all readonly type matches are ok, the resulting expression is returned.
+-- Otherwise, if the match was not prevented by variables only, Nothing is returned.
+-- Otherwise the set of variables which prevented a match is returned as a hint to try banging them as well.
+tryBang :: [TypedVar] -> GenExpr -> Either GenExpr (Option [TypedVar])
+tryBang vs e =
+    rotest $ replaceVarTypes vs e
+    -}

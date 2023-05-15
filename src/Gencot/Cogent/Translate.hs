@@ -60,6 +60,7 @@ import Gencot.Cogent.Post.Proc (postproc)
 import qualified Gencot.C.Ast as LQ (Stm(Exp,Block), Exp)
 import qualified Gencot.C.Translate as C (transStat, transExpr, transArrSizeExpr, transBlockItem)
 import Gencot.Traversal (
+  runTrav_WithErrors,
   FTrav, markTagAsNested, isMarkedAsNested, hasProperty, getProperties, stopResolvTypeName,
   getFunDef, setFunDef, clrFunDef, enterItemScope, leaveItemScope, registerItemId, nextVarNum, resetVarNums,
   getValCounter, getCmpCounter, resetVarCounters, resetValCounter, lookupGlobItem, getTConf)
@@ -860,7 +861,7 @@ transBody fdes s = do
     resetVarCounters
     tconf <- getTConf
     b <- bindStat s
-    ep <- postproc tconf $ mkBodyExpr b $ genFunResultExpr fdes
+    ep <- runTrav_WithErrors mkUnitExpr $ postproc tconf $ mkBodyExpr b $ genFunResultExpr fdes
     return [mkAlt (genFunParamPattern fdes) $ cleanSrc ep]
 {-
 transBody :: ItemAssocType -> LC.CStat -> [LCA.ParamDecl] -> FTrav GenExpr
@@ -878,7 +879,7 @@ transExpr :: LC.CExpr -> FTrav GenExpr
 transExpr e = do
     tconf <- getTConf
     bp <- bindExpr e
-    ep <- postproc tconf $ mkPlainExpr bp
+    ep <- runTrav_WithErrors mkUnitExpr $ postproc tconf $ mkPlainExpr bp
     return $ cleanSrc ep
 
 bindStat :: LC.CStat -> FTrav GenBnd

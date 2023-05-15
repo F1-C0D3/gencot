@@ -151,7 +151,7 @@ mkRecordExpr flds = genExpr (mkRecordType (map (\(f,e) -> (f,typOfGE e)) flds)) 
 mkLambdaExpr :: GenIrrefPatn -> GenExpr -> GenExpr
 mkLambdaExpr p e = genExpr (mkFunType (typOfGIP p) (typOfGE e)) $ CS.Lam p Nothing e
 
--- Determine free typed variables in Expressions
+-- Determine free typed variables in expressions
 ------------------------------------------------
 
 -- | Retrieve the free variables with their types.

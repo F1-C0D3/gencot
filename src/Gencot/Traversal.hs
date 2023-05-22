@@ -5,6 +5,7 @@ import Control.Monad (liftM)
 import Data.Map as M (Map,findWithDefault,empty,keys,filterWithKey,insert,lookup)
 import Data.Functor.Identity (Identity)
 
+import Language.C.Data.Error (CError)
 import Language.C.Analysis.DefTable (DefTable)
 import Language.C.Data.Ident (SUERef,Ident,identToString)
 import Language.C.Analysis.TravMonad (TravT,Trav,runTrav,travErrors,recordError,withDefTable,getDefTable,userState,getUserState,modifyUserState)
@@ -14,21 +15,22 @@ import Gencot.Input (showWarnings,errorOnLeft)
 import Gencot.Names (FileNameTrav,getFileName,NamePrefixMap,lookupPrefix,MapNamesTrav,matchPrefix)
 import Gencot.Items.Properties (ItemProperties)
 
--- | Run a sub traversal and transfer error messages
--- The result is the pair of the sub traversal's result and user state.
-runTravWithErrors :: (a,s) -> Trav s a -> Trav s' (a,s)
-runTravWithErrors (dflt,ustate) action = do
+-- | Run a sub traversal and return its result together with user state and error messages.
+-- The first argument is the default result to be returned if fatal errors occur.
+-- The second argument is the initial user state.
+-- The result is the tripel of the sub traversal's result, user state, and error messages.
+runSubTrav :: a -> s -> Trav s a -> Trav s' (a,s,[CError])
+runSubTrav dflt ustate action = do
     case runTrav ustate action of
-         Left errs -> do
-             mapM recordError errs
-             return (dflt,ustate)
-         Right (res,state) -> do
-             mapM recordError $ travErrors state
-             return (res, userState state)
+         Left errs -> return (dflt, ustate, errs)
+         Right (res,state) -> return (res, userState state, travErrors state)
 
-runTrav_WithErrors :: a -> Trav () a -> Trav s a
-runTrav_WithErrors dflt action = do
-    (res,()) <- runTravWithErrors (dflt,()) action
+-- | Run a sub traversal with empty user state and transfer error messages to the main traversal.
+-- The first argument is the default result to be returned if fatal errors occur.
+runTravWithErrors :: a -> Trav () a -> Trav s a
+runTravWithErrors dflt action = do
+    (res,(),errs) <- runSubTrav dflt () action
+    mapM recordError errs
     return res
 
 -- | Table for looking up item ids of local variables and parameters.

@@ -1,19 +1,46 @@
 {-# LANGUAGE PackageImports #-}
 module Gencot.Cogent.Types where
 
-import Data.List (find)
+import Data.List (find, isPrefixOf)
+import Data.Maybe (Maybe)
 
 import Language.C.Analysis as LCA
 
 import Cogent.Surface as CS
 import Cogent.Common.Syntax as CCS
-import Cogent.Common.Types (readonly,bangSigil,Sigil(Unboxed,Boxed),RecursiveParameter(NonRec))
+import Cogent.Common.Types (readonly,unboxed,bangSigil,Sigil(Unboxed,Boxed),RecursiveParameter(NonRec))
 
 import Gencot.Cogent.Ast -- includes unitType
 import Gencot.Origin (noOrigin)
 import Gencot.Names (
   mapPtrDeriv, ptrDerivCompName, mapPtrVoid, mapMayNull, variadicTypeName, mapArrDeriv,
   isArrDeriv, arrDerivCompNam, arrDerivHasSize, mapFunDeriv)
+
+-- Types used by Gencot in the Cogent AST
+-----------------------------------------
+
+-- Only the following type variants are used and covered in the functions in this module:
+-- TCon: Basic types, function pointer, Gencot abstract types.
+--   Using sigil for readonly/unboxed.
+-- TRecord: struct types, wrappers for arrays and pointers.
+--   Using sigil for readonly/unboxed. Using take list for take/put.
+-- TArray: array types, always unboxed and wrapped in TRecord.
+--   Using take list for take/put.
+-- TFun: function types.
+-- TTuple: function parameters, function results, parallel bindings.
+-- TUnit: void type.
+
+-- Sigils
+---------
+
+-- In the Gencot Cogent AST the optional layout in the boxed sigil is never used and replaced by ().
+type GCSigil = Sigil (Maybe ())
+
+noSigil = Boxed False Nothing
+
+roSigil = Boxed True Nothing
+
+ubSigil = Unboxed
 
 -- Construct Types
 ------------------
@@ -22,12 +49,12 @@ genType t = GenType t noOrigin Nothing
 
 -- | Type constructor application.
 -- Sigil not used, always boxed so that pretty does not add an unbox marker.
-mkConstrType :: CCS.TypeName -> [GenType] -> GenType
-mkConstrType n ts = genType (CS.TCon n ts $ Boxed False Nothing)
+mkConstrType :: CCS.TypeName -> [GenType] -> GCSigil -> GenType
+mkConstrType n ts sg = genType (CS.TCon n ts sg)
 
 -- | Type name is a type constructor without arguments.
 mkTypeName :: CCS.TypeName -> GenType
-mkTypeName s = mkConstrType s []
+mkTypeName s = mkConstrType s [] noSigil
 
 mkU8Type :: GenType
 mkU8Type = mkTypeName "U8"
@@ -53,7 +80,7 @@ mkFunType :: GenType -> GenType -> GenType
 mkFunType pt rt = genType (CS.TFun pt rt)
 
 mkRecordType :: [(CCS.FieldName,GenType)] -> GenType
-mkRecordType fts = genType (CS.TRecord NonRec (map (\(f,t) -> (f,(t,False))) fts) $ Boxed False Nothing)
+mkRecordType fts = genType (CS.TRecord NonRec (map (\(f,t) -> (f,(t,False))) fts) noSigil)
 
 -- Array type:
 -- depends on mapping of size expression in type name.
@@ -65,10 +92,10 @@ mkArrayType :: String -> GenExpr -> GenType -> GenType
 mkArrayType tnam siz eltyp =
     if arrDerivHasSize tnam
        then addTypeSyn tnam $ mkWrappedArrayType tnam siz eltyp
-       else mkConstrType tnam [eltyp]
+       else mkConstrType tnam [eltyp] noSigil
 
 mkWrappedArrayType :: String -> GenExpr -> GenType -> GenType
-mkWrappedArrayType tnam siz eltyp = mkRecordType [(arrDerivCompNam tnam, genType $ CS.TArray eltyp siz Unboxed [])]
+mkWrappedArrayType tnam siz eltyp = mkRecordType [(arrDerivCompNam tnam, genType $ CS.TArray eltyp siz ubSigil [])]
 
 -- Pointer type:
 -- Wrapper record with cont component and synonym CPtr.
@@ -103,11 +130,109 @@ mkBangType t = genType (CS.TBang t)
 mkUnboxType :: GenType -> GenType
 mkUnboxType t = genType (CS.TUnbox t)
 
+-- Type synonyms
+----------------
+
+-- Used for: typedef names, struct tags, array alias with size (CArr<size>), pointer alias (CPtr).
+-- Type synonyms are represented by attaching the synonym name to the aliased type.
+-- Array and pointer aliases have a single type argument which is determined as part of the aliased type.
+-- All other type synonyms have no type arguent.
+-- From the C program, type synonyms can only be attached to TCon, TRecord, TFun, and TUnit.
+
+-- | Add a type synonym for a type.
+-- If the type has a sigil, it is copied to the synonym.
+-- If there is already a synonym, it is overwritten, preserving its sigil.
+-- For a MayNull type the synonym is always attached to the argument type.
+addTypeSyn :: CCS.TypeName -> GenType -> GenType
+addTypeSyn s (GenType (CS.TCon cstr [a] sg) o ms) | cstr == mapMayNull = GenType (CS.TCon cstr [(addTypeSyn s a)] sg) o ms
+addTypeSyn s (GenType t o _) = GenType t o $ Just s
+
+-- | Replace a type using its type synonym, if present.
+-- Transfer an existing sigil from the type to the synonym.
+-- Synonyms with a type argument (CArr<size> and CPtr) are treated specifically to transfer the argument
+useTypeSyn :: GenType -> GenType
+useTypeSyn (GenType (CS.TCon cstr [a] sg) o ms) | cstr == mapMayNull = GenType (CS.TCon cstr [(useTypeSyn a)] sg) o ms
+-- array type synonym of form CArr<size> with element type as argument
+useTypeSyn (GenType (CS.TRecord _ [(arrx,((GenType (CS.TArray et _ _ _) _ _),_))] sg) org (Just syn))
+        | isArrDeriv syn && arrDerivCompNam syn == arrx =
+    GenType (CS.TCon syn [et] sg) org Nothing
+-- pointer type synonym CPtr with referenced type as argument
+useTypeSyn (GenType (CS.TRecord _ [(cont,(rt,_))] sg) org (Just syn))
+        | syn == mapPtrDeriv && ptrDerivCompName == cont =
+    GenType (CS.TCon syn [rt] sg) org Nothing
+-- all other type synonyms resulting from typedef or tag names. Without type arguments.
+useTypeSyn (GenType (CS.TCon _ _ sg) org (Just syn)) = GenType (CS.TCon syn [] sg) org Nothing
+useTypeSyn (GenType (CS.TRecord _ _ sg) org (Just syn)) = GenType (CS.TCon syn [] sg) org Nothing
+useTypeSyn (GenType (CS.TArray _ _ sg _) org (Just syn)) = GenType (CS.TCon syn [] sg) org Nothing
+useTypeSyn (GenType (CS.TFun _ _) org (Just syn)) = GenType (CS.TCon syn [] noSigil) org Nothing
+useTypeSyn (GenType (CS.TUnit) org (Just syn)) = GenType (CS.TCon syn [] noSigil) org Nothing
+-- type without type synonym
+useTypeSyn t@(GenType _ _ Nothing) = t
+
+-- Readonly, Unboxed, and MayNull Types
+---------------------------------------
+
+-- Readonly types are represented in normal form. The bang marker is placed as deep as possible, i.e. at all TRecord,
+-- TArray, and TCon which are affected. All deeper bang markers are redundant and are removed.
+-- The only affected TCon are CVoidPtr, CArrXX, variadicTypeName, and MayNull (see below).
+-- This makes it possible to always represent the bang marker in the sigil without using TBang.
+-- After a type has been made readonly, the original type cannot be reconstructed from it.
+-- Attached type synonyms always use the sigil of the main type. If a synonym is attached to an unboxed
+-- TRecord/TArray/TCon, no bang marker is used for the synonym, even if the corresponding typedef name has been declared
+-- readonly by an item property.
+
+-- Unboxed types are also represented using the sigil without using TUnbox, and using it also for attached type synonyms.
+-- Thus a type or type synonym can never be marked readonly and unboxed at the same time.
+
+-- MayNull types are represented by a TCon with a single type argument. The type argument is always either a boxed TRecord
+-- or the boxed TCon for CVoidPtr or CArrXX. The sigil of the type argument is always repeated in the MayNull TCon so
+-- that it is printed in the generated code, for processing it is ignored.
+
+mkReadonly :: GenType -> GenType
+mkReadonly (GenType (CS.TTuple ts) o ms) = (GenType (CS.TTuple $ map mkReadonly ts) o ms)
+mkReadonly (GenType (CS.TRecord rp fs (Boxed _ _)) o ms) =
+    GenType (CS.TRecord rp (map (\(f,(t,tk)) -> (f,(rmRRO t,tk))) fs) roSigil) o ms
+mkReadonly (GenType (CS.TRecord rp fs Unboxed) o ms) =
+    GenType (CS.TRecord rp (map (\(f,(t,tk)) -> (f,(mkReadonly t,tk))) fs) ubSigil) o ms
+mkReadonly (GenType (CS.TArray t e Unboxed ts) o ms) = GenType (CS.TArray (mkReadonly t) e ubSigil ts) o ms
+mkReadonly (GenType (CS.TCon tn ts (Boxed _ _)) o ms) | (elem tn [mapPtrVoid, mapMayNull, variadicTypeName]) || isArrDeriv tn =
+    GenType (CS.TCon tn (map mkReadonly ts) roSigil) o ms
+mkReadonly t = t
+
+-- | Remove redundant readonly markers
+rmRRO :: GenType -> GenType
+rmRRO (GenType (CS.TTuple ts) o ms) = GenType (CS.TTuple (map rmRRO ts)) o ms
+rmRRO (GenType (CS.TRecord rp fs (Boxed _ _)) o ms) =
+    (GenType (CS.TRecord rp (map (\(f,(t,tk)) -> (f,(rmRRO t,tk))) fs) noSigil) o ms)
+rmRRO (GenType (CS.TArray t e Unboxed ts) o ms) = GenType (CS.TArray (rmRRO t) e ubSigil ts) o ms
+rmRRO (GenType (CS.TCon tn ts (Boxed _ _)) o ms) = GenType (CS.TCon tn (map rmRRO ts) noSigil) o ms
+rmRRO t = t
+
+-- | Remove outermost Bang marker
+-- (Should not be needed).
+unbangType :: GenType -> GenType
+unbangType (GenType (CS.TRecord rp fs (Boxed _ _)) o ms) = GenType (CS.TRecord rp fs noSigil) o ms
+unbangType (GenType (CS.TCon tn ts (Boxed _ _)) o ms) = GenType (CS.TCon tn ts noSigil) o ms
+unbangType t = t
+
+mkUnboxed :: GenType -> GenType
+mkUnboxed t@(GenType (CS.TCon tn _ _) _ _) | tn == mapMayNull = t
+mkUnboxed (GenType (CS.TCon tn ts (Boxed _ _)) o ms) = GenType (CS.TCon tn ts ubSigil) o ms
+mkUnboxed (GenType (CS.TRecord rp fs (Boxed _ _)) o ms) = GenType (CS.TRecord rp fs ubSigil) o ms
+mkUnboxed t = t
+
+mkMayNull :: GenType -> GenType
+mkMayNull t@(GenType (CS.TCon tn _ _) _ _) | tn == mapMayNull = t
+mkMayNull t@(GenType (CS.TCon _ _ sg) _ _) = mkConstrType mapMayNull [t] sg
+mkMayNull t@(GenType (CS.TRecord _ _ sg) _ _) = mkConstrType mapMayNull [t] sg
+mkMayNull t = mkConstrType mapMayNull [t] noSigil
+
 -- Type predicates
 ------------------
 
 isSizedArrayType :: GenType -> Bool
-isSizedArrayType (GenType (CS.TRecord NonRec [(_,((GenType (CS.TArray _ _ _ _) _ _),_))] _) _ (Just syn)) = isArrDeriv syn
+isSizedArrayType (GenType (CS.TRecord NonRec [(_,((GenType (CS.TArray _ _ _ _) _ _),_))] _) _ (Just syn)) =
+    isArrDeriv syn
 isSizedArrayType _ = False
 
 isUnsizedArrayType :: GenType -> Bool
@@ -118,12 +243,11 @@ isArrayType :: GenType -> Bool
 isArrayType t = isSizedArrayType t || isUnsizedArrayType t
 
 isUnboxedArrayType :: GenType -> Bool
-isUnboxedArrayType (GenType (CS.TBang t) _ _) = isUnboxedArrayType t
-isUnboxedArrayType (GenType (CS.TUnbox t) _ _) = isArrayType t
-isUnboxedArrayType _ = False
+isUnboxedArrayType t = isArrayType t && isUnboxed t
 
 isPtrType :: GenType -> Bool
-isPtrType (GenType (CS.TRecord NonRec [(cmpNam,_)] _) _ (Just syn)) = cmpNam == ptrDerivCompName && syn == mapPtrDeriv
+isPtrType (GenType (CS.TRecord NonRec [(cmpNam,_)] _) _ (Just syn)) =
+    cmpNam == ptrDerivCompName && syn == mapPtrDeriv
 isPtrType _ = False
 
 isVoidPtrType :: GenType -> Bool
@@ -134,151 +258,73 @@ isStringType :: GenType -> Bool
 isStringType (GenType (CS.TCon cstr [] _) _ _) = cstr == "String"
 isStringType _ = False
 
--- Type synonyms
-----------------
-
--- | Add a type synonym for a type.
--- Always attached inside of TBang, TUnbox, and MayNull, so that these modifiers are applied to the synonym.
--- If there is already a synonym, it is overwritten.
-addTypeSyn :: CCS.TypeName -> GenType -> GenType
-addTypeSyn s (GenType (CS.TBang t) o ms) = GenType (CS.TBang (addTypeSyn s t)) o ms
-addTypeSyn s (GenType (CS.TUnbox t) o ms) = GenType (CS.TUnbox (addTypeSyn s t)) o ms
-addTypeSyn s (GenType (CS.TCon cstr [t] sg) o ms) | cstr == mapMayNull = GenType (CS.TCon cstr [(addTypeSyn s t)] sg) o ms
-addTypeSyn s (GenType t o _) = GenType t o (Just s)
-
--- | Replace a type using its type synonym, if present.
-useTypeSyn :: GenType -> GenType
-useTypeSyn (GenType (CS.TBang t) o ms) = GenType (CS.TBang (useTypeSyn t)) o ms
-useTypeSyn (GenType (CS.TUnbox t) o ms) = GenType (CS.TUnbox (useTypeSyn t)) o ms
-useTypeSyn (GenType (CS.TCon cstr [t] sg) o ms) | cstr == mapMayNull = GenType (CS.TCon cstr [(useTypeSyn t)] sg) o ms
--- array type synonym of form CArr<size> with element type as argument
-useTypeSyn (GenType (TRecord _ [(arrx,((GenType (TArray et _ _ _) _ _),_))] _) org (Just syn))
-        | isArrDeriv syn && arrDerivCompNam syn == arrx =
-    GenType (CS.TCon syn [et] $ Boxed False Nothing) org Nothing
--- pointer type synonym CPtr with referenced type as argument
-useTypeSyn (GenType (TRecord _ [(cont,(rt,_))] _) org (Just syn))
-        | syn == mapPtrDeriv && ptrDerivCompName == cont =
-    GenType (CS.TCon mapPtrDeriv [rt] $ Boxed False Nothing) org Nothing
--- all other type synonyms resulting from typedef or tag names. Without type arguments.
-useTypeSyn (GenType _ org (Just syn)) = GenType (CS.TCon syn [] $ Boxed False Nothing) org Nothing
--- type without type synonym
-useTypeSyn t@(GenType _ _ Nothing) = t
-
--- Readonly, Unboxed, and MayNull Types
----------------------------------------
-
--- Readonly types are always represented by TBang, not in the sigil, so that pretty prints it also for type synonyms.
--- The following normal form is used: whenever TBang affects component types, only the outermost position is marked by TBang.
--- For TTuple always only the components are marked by TBang.
--- Type synonyms are retained because they are wrapped by TBang, with the exception of TTuple.
--- The abstract types CVoidPtr, MayNull, and the pseudo type variadicTypeName are the only abstract types used by
--- Gencot which can be made readonly.
--- After a type has been made readonly, the original type cannot be reconstructed from it.
-
--- Unboxed types are always represented by TUnbox for the same reason.
--- If TBang and TUnbox or MayNull are combined, TBang is always the outer marker.
--- TUnbox and MayNull cannot be combined, because MayNull is only used to mark linear types.
-
--- The type constructors TVariant, TRefine, TRPar, TLayout, TPut, TAPut are not covered because they are not used by Gencot.
-
-mkReadonly :: GenType -> GenType
-mkReadonly t@(GenType (CS.TVar _ _ _) _ _) = mkBangType t
-mkReadonly (GenType (CS.TTuple ts) o _) = (GenType (CS.TTuple $ map mkReadonly ts) o Nothing)
-mkReadonly (GenType (CS.TRecord rp fs s) o ms) =
-    mkBangType (GenType (CS.TRecord rp (map (\(f,(t,tk)) -> (f,(rmRRO t,tk))) fs) s) o ms)
-mkReadonly (GenType (CS.TTake mfs t) o ms) = mkBangType (GenType (CS.TTake mfs $ mkReadonly t) o ms)
-mkReadonly (GenType (CS.TArray t e s ts) o ms) = mkBangType (GenType (CS.TArray (rmRRO t) e s ts) o ms)
-mkReadonly (GenType (CS.TATake es t) o ms) = mkBangType (GenType (CS.TATake es $ mkReadonly t) o ms)
-mkReadonly (GenType (CS.TUnbox t) o ms) = mkBangType (GenType (CS.TUnbox $ rmRRO t) o ms)
-mkReadonly (GenType (CS.TCon tn ts s) o ms) | (elem tn [mapPtrVoid, mapMayNull, variadicTypeName]) || isArrDeriv tn =
-    mkBangType (GenType (CS.TCon tn (map rmRRO ts) s) o ms)
-mkReadonly t = t
-
--- | Remove redundant readonly markers
--- The outermost TBang markers outside of type synonyms are removed, if affected by making the type readonly.
-rmRRO :: GenType -> GenType
-rmRRO t@(GenType _ _ (Just s)) = t -- stop at type synonym
-rmRRO (GenType (CS.TBang t) _ Nothing) = t
-rmRRO (GenType (CS.TTuple ts) o Nothing) = (GenType (CS.TTuple (map rmRRO ts)) o Nothing)
-rmRRO (GenType (CS.TRecord rp fs s) o Nothing) =
-    (GenType (CS.TRecord rp (map (\(f,(t,tk)) -> (f,(rmRRO t,tk))) fs) s) o Nothing)
-rmRRO (GenType (CS.TTake mfs t) o Nothing) = (GenType (CS.TTake mfs $ rmRRO t) o Nothing)
-rmRRO (GenType (CS.TArray t e s ts) o Nothing) = (GenType (CS.TArray (rmRRO t) e s ts) o Nothing)
-rmRRO (GenType (CS.TATake es t) o Nothing) = (GenType (CS.TATake es $ rmRRO t) o Nothing)
-rmRRO (GenType (CS.TUnbox t) o Nothing) = (GenType (CS.TUnbox $ rmRRO t) o Nothing)
-rmRRO (GenType (CS.TCon tn ts s) o Nothing) | tn == mapMayNull =
-    (GenType (CS.TCon tn (map rmRRO ts) s) o Nothing)
-rmRRO t = t
-
--- | Remove outermost Bang
-unbangType :: GenType -> GenType
-unbangType (GenType (CS.TBang t) _ _) = t
-unbangType t = t
-
 -- | Readonly or regular
 isNonlinear :: GenType -> Bool
-isNonlinear (GenType (CS.TBang _) _ _) = True
 isNonlinear (GenType (CS.TTuple ts) _ _) = all isNonlinear ts
-isNonlinear (GenType (CS.TCon tn _ _) _ _) | (elem tn [mapPtrVoid, mapMayNull, variadicTypeName]) = False
-isNonlinear (GenType (CS.TCon tn _ _) _ _) = True
-isNonlinear (GenType (CS.TFun _ _) _ _) = True
-isNonlinear (GenType CS.TUnit _ _) = True
-isNonlinear (GenType (CS.TUnbox t) _ _) = isNonlinearAsUnboxed t
-isNonlinear _ = False
+isNonlinear (GenType (CS.TCon tn [t] _) _ _) | tn == mapMayNull = isNonlinear t
+isNonlinear (GenType (CS.TCon _ _ sg) _ _) = readonly sg || unboxed sg
+isNonlinear (GenType (CS.TRecord _ fs sg) _ _) = readonly sg || (unboxed sg && all (\(_,(t,tkn)) -> tkn || isNonlinear t) fs)
+isNonlinear (GenType (CS.TArray t _ Unboxed _) _ _) = isNonlinear t
+isNonlinear _ = True
 
 isNonlinearAsUnboxed :: GenType -> Bool
-isNonlinearAsUnboxed (GenType (CS.TRecord _ fs _) _ _) =
-    all (\(_, (t, tkn)) -> tkn || isNonlinear t) fs
+isNonlinearAsUnboxed (GenType (CS.TRecord _ fs _) _ _) = all (\(_, (t, tkn)) -> tkn || isNonlinear t) fs
 isNonlinearAsUnboxed (GenType (CS.TArray t _ _ _) _ _) = isNonlinear t
+isNonlinearAsUnboxed (GenType (CS.TCon tn [t] _) _ _) | tn == mapMayNull = isNonlinear t
 isNonlinearAsUnboxed _ = True
+
+isRegular :: GenType -> Bool
+isRegular (GenType (CS.TTuple ts) _ _) = all isRegular ts
+isRegular (GenType (CS.TCon tn _ _) _ _) | (elem tn [mapPtrVoid, mapMayNull, variadicTypeName]) || isArrDeriv tn = False
+isRegular (GenType (CS.TCon _ _ _) _ _) = True
+isRegular (GenType (CS.TRecord _ fs sg) _ _) = unboxed sg && all (\(_,(t,tkn)) -> tkn || isRegular t) fs
+isRegular (GenType (CS.TArray t _ Unboxed _) _ _) = isRegular t
+isRegular _ = True
 
 -- | Escapeable
 mayEscape :: GenType -> Bool
-mayEscape (GenType (CS.TBang _) _ _) = False
 mayEscape (GenType (CS.TTuple ts) _ _) = all mayEscape ts
-mayEscape (GenType (CS.TUnbox t) _ _) = mayEscape t
-mayEscape (GenType (CS.TRecord _ fs _) _ _) =
-    all (\(_, (t, tkn)) -> tkn || mayEscape t) fs
-mayEscape (GenType (CS.TArray t _ _ _) _ _) = mayEscape t
+mayEscape (GenType (CS.TRecord _ fs sg) _ _) =
+    (not $ readonly sg) && all (\(_, (t, tkn)) -> tkn || mayEscape t) fs
+mayEscape (GenType (CS.TArray t _ Unboxed _) _ _) = mayEscape t
+mayEscape (GenType (CS.TCon tn [t] _) _ _) | tn == mapMayNull = mayEscape t
+mayEscape (GenType (CS.TCon _ _ sg) _ _) = not $ readonly sg
 mayEscape _ = True
 
+isReadonly :: GenType -> Bool
+isReadonly (GenType (CS.TCon _ _ sg) _ _) = readonly sg
+isReadonly (GenType (CS.TRecord _ _ sg) _ _) = readonly sg
+isReadonly (GenType (CS.TArray _ _ Unboxed _) _ _) = False
+isReadonly _ = False
+
+isUnboxed :: GenType -> Bool
+isUnboxed (GenType (CS.TCon _ _ sg) _ _) = unboxed sg
+isUnboxed (GenType (CS.TRecord _ _ sg) _ _) = unboxed sg
+isUnboxed (GenType (CS.TArray _ _ Unboxed _) _ _) = True
+isUnboxed _ = False
+
+isMayNull :: GenType -> Bool
+isMayNull (GenType (CS.TCon cstr _ _) _ _) | cstr == mapMayNull = True
+isMayNull _ = False
+
 -- | Readonly compatible
+-- Assumes that types differ atmost by MayNull or read-only
 roCmpTypes :: GenType -> GenType -> Bool
-roCmpTypes (GenType (CS.TBang _) _ _) (GenType (CS.TBang _) _ _) = True
 roCmpTypes (GenType CS.TUnit _ _) (GenType CS.TUnit _ _) = True
 roCmpTypes (GenType (CS.TFun _ _) _ _) (GenType (CS.TFun _ _) _ _) = True
 roCmpTypes (GenType (CS.TTuple ts1) _ _) (GenType (CS.TTuple ts2) _ _) =
     and $ map (uncurry roCmpTypes) $ zip ts1 ts2
-roCmpTypes (GenType (CS.TUnbox t1) _ _) (GenType (CS.TUnbox t2) _ _) = roCmpTypes t1 t2
-roCmpTypes (GenType (CS.TCon tn1 [t1] _) _ _) (GenType (CS.TCon tn2 [t2] _) _ _) | tn1 == mapMayNull && tn2 == mapMayNull =
-    roCmpTypes t1 t2
-roCmpTypes (GenType (CS.TCon _ _ _) _ _) (GenType (CS.TCon _ _ _) _ _) = True
-roCmpTypes (GenType (CS.TRecord _ fs1 _) _ _) (GenType (CS.TRecord _ fs2 _) _ _) =
-    and $ map (\((_,(t1,_)),(_,(t2,_))) -> roCmpTypes t1 t2) $ zip fs1 fs2
-roCmpTypes (GenType (CS.TArray t1 _ _ _) _ _) (GenType (CS.TArray t2 _ _ _) _ _) = roCmpTypes t1 t2
-roCmpTypes (GenType (CS.TVar _ _ _) _ _) (GenType (CS.TVar _ _ _) _ _) = True
+roCmpTypes (GenType (CS.TCon tn1 [t1] _) _ _) t2 | tn1 == mapMayNull = roCmpTypes t1 t2
+roCmpTypes t1 (GenType (CS.TCon tn2 [t2] _) _ _) | tn2 == mapMayNull = roCmpTypes t1 t2
+roCmpTypes (GenType (CS.TCon _ _ sg1) _ _) (GenType (CS.TCon _ _ sg2) _ _) = sg1 == sg2
+roCmpTypes (GenType (CS.TRecord _ _ (Boxed True _)) _ _) (GenType (CS.TRecord _ _ (Boxed True _)) _ _) = True
+roCmpTypes (GenType (CS.TRecord _ fs1 sg1) _ _) (GenType (CS.TRecord _ fs2 sg2) _ _) =
+    sg1 == sg2 && (and $ map (\((_,(t1,_)),(_,(t2,_))) -> roCmpTypes t1 t2) $ zip fs1 fs2)
+roCmpTypes (GenType (CS.TArray _ _ (Boxed True _) _) _ _) (GenType (CS.TArray _ _ (Boxed True _) _) _ _) = True
+roCmpTypes (GenType (CS.TArray t1 _ sg1 _) _ _) (GenType (CS.TArray t2 _ sg2 _) _ _) =
+    sg1 == sg2 && (roCmpTypes t1 t2)
 roCmpTypes _ _ = False
 
-
-mkUnboxed :: GenType -> GenType
-mkUnboxed t@(GenType (CS.TUnbox _) _ _) = t
-mkUnboxed (GenType (CS.TBang t) o ms) = (GenType (CS.TBang $ mkUnboxed t) o ms)
-mkUnboxed t = mkUnboxType t
-
-isUnboxed :: GenType -> Bool
-isUnboxed (GenType (CS.TUnbox _) _ _) = True
-isUnboxed (GenType (CS.TBang t) _ _) = isUnboxed t
-isUnboxed _ = False
-
-mkMayNull :: GenType -> GenType
-mkMayNull t@(GenType (CS.TCon cstr _ _) _ _) | cstr == mapMayNull = t
-mkMayNull (GenType (CS.TBang t) o ms) = (GenType (CS.TBang $ mkMayNull t) o ms)
-mkMayNull t = mkConstrType mapMayNull [t]
-
-isMayNull :: GenType -> Bool
-isMayNull (GenType (CS.TCon cstr _ _) _ _) | cstr == mapMayNull = True
-isMayNull (GenType (CS.TBang t) _ _) = isMayNull t
-isMayNull _ = False
 
 -- Type selectors for components affected by making the type readonly.
 -- Insert TBang marker, if surrounding type is readonly
@@ -288,42 +334,36 @@ getMemberType :: CCS.FieldName -> GenType -> GenType
 getMemberType f (GenType (CS.TRecord _ fs s) _ _) =
     case find (\fld -> fst fld == f) fs of
          Nothing -> unitType
-         Just (_,(t,_)) ->
-           if isUnboxedArrayType t then getBoxType t else t
-getMemberType f (GenType (CS.TBang t) _ _) = mkBangType $ getMemberType f t
+         Just (_,(t,_)) -> if readonly s then mkReadonly t else t
 -- maynull wrapped type
 getMemberType f (GenType (CS.TCon n [t] _) _ _) | n == mapMayNull = getMemberType f t
--- unboxed type
-getMemberType f (GenType (CS.TUnbox t) _ _) = getMemberType f t
 -- other types -> unitType
 getMemberType f _ = unitType
 
 getBoxType :: GenType -> GenType
-getBoxType (GenType (CS.TUnbox t) _ _) = t
-getBoxType (GenType (CS.TBang t) _ _) = mkBangType $ getBoxType t
+getBoxType (GenType (CS.TCon tn ts sg) o ms) = GenType (CS.TCon tn ts noSigil) o ms
+getBoxType (GenType (CS.TRecord rp fs sg) o ms) = GenType (CS.TRecord rp fs noSigil) o ms
+getBoxType (GenType (CS.TArray et e sg tk) o ms) = GenType (CS.TArray et e noSigil tk) o ms
 getBoxType t = t
 
 getNnlType :: GenType -> GenType
 getNnlType (GenType (CS.TCon n [t] _) _ _) | n == mapMayNull = t
-getNnlType (GenType (CS.TBang t) _ _) = mkBangType $ getNnlType t
 getNnlType t = t
 
 -- Select referenced type for all possible translations of C pointer types.
 -- Not applicable to encoded function pointer types.
 getDerefType :: GenType -> GenType
--- readonly type
-getDerefType (GenType (CS.TBang t) _ _) = mkBangType $ getDerefType t
 -- void pointer
 getDerefType (GenType (CS.TCon n [] _) _ _) | n == mapPtrVoid = unitType
 -- explicit pointer
-getDerefType (GenType (CS.TRecord NonRec [(f,(t,_))] _) _ (Just syn)) | f == ptrDerivCompName && syn == mapPtrDeriv = t
+getDerefType (GenType (CS.TRecord NonRec [(f,(t,_))] _) _ (Just syn))
+    | f == ptrDerivCompName && syn == mapPtrDeriv = t
 -- maynull wrapped type
 getDerefType (GenType (CS.TCon n [t] _) _ _) | n == mapMayNull = getDerefType t
 -- array types -> element type
-getDerefType (GenType (CS.TRecord NonRec [(f,((GenType (CS.TArray t _ _ _) _ _),_))] _) _ (Just syn)) | isArrDeriv syn && f /= ptrDerivCompName =
-    if isUnboxedArrayType t then getBoxType t else t
-getDerefType (GenType (CS.TCon n [t] _) _ _) | isArrDeriv n && not (arrDerivHasSize n) =
-    if isUnboxedArrayType t then getBoxType t else t
+getDerefType (GenType (CS.TRecord NonRec [(f,((GenType (CS.TArray t _ _ _) _ _),_))] _) _ (Just syn))
+    | isArrDeriv syn && f /= ptrDerivCompName = t
+getDerefType (GenType (CS.TCon n [t] _) _ _) | isArrDeriv n && not (arrDerivHasSize n) = t
 -- other types -> make unboxed
 getDerefType t = mkUnboxed t
 
@@ -339,11 +379,3 @@ getLeadType :: GenType -> GenType
 getLeadType (GenType (CS.TTuple (t : ts)) _ _) = t
 getLeadType t = t
 
--- | Transfer property effects
-
--- | Transfer effects of Read-Only, Not-Null, and No-String from first argument to second.
-transferProperties :: GenType -> GenType -> GenType
-transferProperties (GenType (CS.TBang t) _ _) t2 = mkReadonly $ transferProperties t t2
-transferProperties t1 t2 | isStringType t2 && (not $ isStringType t1) = t1
-transferProperties t1 t2 | isMayNull t2 && (not $ isMayNull t1) = getNnlType t2
-transferProperties _ t = t

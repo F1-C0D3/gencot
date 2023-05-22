@@ -387,13 +387,13 @@ cogent_ffv25 g :: (GlobState1 =  { cont : U32 }) =
        , g ::  { cont : U32 }) = let (v' :: (GlobState1 =  { cont : U32 })
                                      , g ::  { cont : U32 }) = let v1' = 5 :: U32
          and v' = g :: (GlobState1 =  { cont : U32 })
-         and g { cont = p0' :: #(GlobState1 =  { cont : U32 }) } = v' :: (GlobState1 =  { cont : U32 })
-         and v' = p0' :: #(GlobState1 =  { cont : U32 })
+         and g { cont = p0' :: (GlobState1 =  #{ cont : U32 }) } = v' :: (GlobState1 =  { cont : U32 })
+         and v' = p0' :: (GlobState1 =  #{ cont : U32 })
          and v' = v1' :: U32
          and (v' :: (GlobState1 =  { cont : U32 })
-             , p0' :: #(GlobState1 =  { cont : U32 })) = (v' :: (GlobState1 =  { cont : U32 })
+             , p0' :: (GlobState1 =  #{ cont : U32 })) = (v' :: (GlobState1 =  { cont : U32 })
                                                          , v' :: (GlobState1 =  { cont : U32 }))
-         and g = g :: (GlobState1 =  { cont : U32 }) { cont = p0' :: #(GlobState1 =  { cont : U32 }) } ::  { cont : U32 }
+         and g = g :: (GlobState1 =  { cont : U32 }) { cont = p0' :: (GlobState1 =  #{ cont : U32 }) } ::  { cont : U32 }
          in (v' :: (GlobState1 =  { cont : U32 })
             , g ::  { cont : U32 }) :: ((GlobState1 =  { cont : U32 })
                                        ,  { cont : U32 })
@@ -407,12 +407,12 @@ cogent_ffv26 : (GlobState1 =  { cont : U32 }) -> (()
                                                  , (GlobState1 =  { cont : U32 }))
 cogent_ffv26 g :: (GlobState1 =  { cont : U32 }) =
    let _ = let v' = let v1' = 5 :: U32
-         and v' = gencotDummy :: String -> #() "Cannot access global variable: glob2" :: String :: #()
+         and v' = gencotDummy :: String -> () "Cannot access global variable: glob2" :: String :: ()
          and v' = v1' :: U32
-         and (v' :: #()
-             , err' :: #()) = (v' :: #()
-                              , v' :: #())
-         in v' :: #() :: #()
+         and (v' :: ()
+             , err' :: ()) = (v' :: ()
+                             , v' :: ())
+         in v' :: () :: ()
       in 0 :: U8 :: U8
    in (() :: ()
       , g :: (GlobState1 =  { cont : U32 })) :: (()
@@ -424,13 +424,13 @@ cogent_ffv27 g :: (GlobState1 =  { cont : U32 }) =
        , g ::  { cont : U32 }) = let (v' :: (GlobState1 =  { cont : U32 })
                                      , g ::  { cont : U32 }) = let v1' = 1 :: U32
          and v' = g :: (GlobState1 =  { cont : U32 })
-         and g { cont = p0' :: #(GlobState1 =  { cont : U32 }) } = v' :: (GlobState1 =  { cont : U32 })
-         and v' = p0' :: #(GlobState1 =  { cont : U32 })
+         and g { cont = p0' :: (GlobState1 =  #{ cont : U32 }) } = v' :: (GlobState1 =  { cont : U32 })
+         and v' = p0' :: (GlobState1 =  #{ cont : U32 })
          and v' = v' :: (GlobState1 =  { cont : U32 }) + v1' :: U32 :: U32
          and (v' :: (GlobState1 =  { cont : U32 })
-             , p0' :: #(GlobState1 =  { cont : U32 })) = (p0' :: #(GlobState1 =  { cont : U32 })
+             , p0' :: (GlobState1 =  #{ cont : U32 })) = (p0' :: (GlobState1 =  #{ cont : U32 })
                                                          , v' :: (GlobState1 =  { cont : U32 }))
-         and g = g :: (GlobState1 =  { cont : U32 }) { cont = p0' :: #(GlobState1 =  { cont : U32 }) } ::  { cont : U32 }
+         and g = g :: (GlobState1 =  { cont : U32 }) { cont = p0' :: (GlobState1 =  #{ cont : U32 }) } ::  { cont : U32 }
          in (v' :: (GlobState1 =  { cont : U32 })
             , g ::  { cont : U32 }) :: ((GlobState1 =  { cont : U32 })
                                        ,  { cont : U32 })
@@ -453,17 +453,17 @@ cogent_ffv28 (g1 :: (GlobState1 =  { cont : U32 })
        , g2 ::  { cont : U32 }) = let (v' :: (GlobState1 =  { cont : U32 })
                                       , g1 ::  { cont : U32 }
                                       , g2 ::  { cont : U32 }) = let v1' = g2 :: (GlobState2 =  { cont : U32 })
-         and g2 { cont = p1' :: #(GlobState2 =  { cont : U32 }) } = v1' :: (GlobState2 =  { cont : U32 })
-         and v1' = p1' :: #(GlobState2 =  { cont : U32 })
+         and g2 { cont = p1' :: (GlobState2 =  #{ cont : U32 }) } = v1' :: (GlobState2 =  { cont : U32 })
+         and v1' = p1' :: (GlobState2 =  #{ cont : U32 })
          and v' = g1 :: (GlobState1 =  { cont : U32 })
-         and g1 { cont = p0' :: #(GlobState1 =  { cont : U32 }) } = v' :: (GlobState1 =  { cont : U32 })
-         and v' = p0' :: #(GlobState1 =  { cont : U32 })
+         and g1 { cont = p0' :: (GlobState1 =  #{ cont : U32 }) } = v' :: (GlobState1 =  { cont : U32 })
+         and v' = p0' :: (GlobState1 =  #{ cont : U32 })
          and v' = v1' :: (GlobState2 =  { cont : U32 })
          and (v' :: (GlobState1 =  { cont : U32 })
-             , p0' :: #(GlobState1 =  { cont : U32 })) = (v' :: (GlobState1 =  { cont : U32 })
+             , p0' :: (GlobState1 =  #{ cont : U32 })) = (v' :: (GlobState1 =  { cont : U32 })
                                                          , v' :: (GlobState1 =  { cont : U32 }))
-         and g1 = g1 :: (GlobState1 =  { cont : U32 }) { cont = p0' :: #(GlobState1 =  { cont : U32 }) } ::  { cont : U32 }
-         and g2 = g2 :: (GlobState2 =  { cont : U32 }) { cont = p1' :: #(GlobState2 =  { cont : U32 }) } ::  { cont : U32 }
+         and g1 = g1 :: (GlobState1 =  { cont : U32 }) { cont = p0' :: (GlobState1 =  #{ cont : U32 }) } ::  { cont : U32 }
+         and g2 = g2 :: (GlobState2 =  { cont : U32 }) { cont = p1' :: (GlobState2 =  #{ cont : U32 }) } ::  { cont : U32 }
          in (v' :: (GlobState1 =  { cont : U32 })
             , g1 ::  { cont : U32 }
             , g2 ::  { cont : U32 }) :: ((GlobState1 =  { cont : U32 })
@@ -494,13 +494,13 @@ cogent_ffv31 (i :: MayNull (CPtr =  { cont : U32 })
          and i { cont = p1' :: U32 } = v1' :: MayNull (CPtr =  { cont : U32 })
          and v1' = p1' :: U32
          and v' = g :: (GlobState1 =  { cont : U32 })
-         and g { cont = p0' :: #(GlobState1 =  { cont : U32 }) } = v' :: (GlobState1 =  { cont : U32 })
-         and v' = p0' :: #(GlobState1 =  { cont : U32 })
+         and g { cont = p0' :: (GlobState1 =  #{ cont : U32 }) } = v' :: (GlobState1 =  { cont : U32 })
+         and v' = p0' :: (GlobState1 =  #{ cont : U32 })
          and v' = v1' :: MayNull (CPtr =  { cont : U32 })
          and (v' :: (GlobState1 =  { cont : U32 })
-             , p0' :: #(GlobState1 =  { cont : U32 })) = (v' :: (GlobState1 =  { cont : U32 })
+             , p0' :: (GlobState1 =  #{ cont : U32 })) = (v' :: (GlobState1 =  { cont : U32 })
                                                          , v' :: (GlobState1 =  { cont : U32 }))
-         and g = g :: (GlobState1 =  { cont : U32 }) { cont = p0' :: #(GlobState1 =  { cont : U32 }) } ::  { cont : U32 }
+         and g = g :: (GlobState1 =  { cont : U32 }) { cont = p0' :: (GlobState1 =  #{ cont : U32 }) } ::  { cont : U32 }
          and i = i :: MayNull (CPtr =  { cont : U32 }) { cont = p1' :: U32 } :: MayNull  { cont : U32 }
          in (v' :: (GlobState1 =  { cont : U32 })
             , g ::  { cont : U32 }
@@ -528,8 +528,8 @@ cogent_ffv32 (i :: MayNull (CPtr =  { cont : U32 })
        , g ::  { cont : U32 }) = let (v' :: MayNull (CPtr =  { cont : U32 })
                                      , i :: MayNull  { cont : U32 }
                                      , g ::  { cont : U32 }) = let v1' = g :: (GlobState1 =  { cont : U32 })
-         and g { cont = p1' :: #(GlobState1 =  { cont : U32 }) } = v1' :: (GlobState1 =  { cont : U32 })
-         and v1' = p1' :: #(GlobState1 =  { cont : U32 })
+         and g { cont = p1' :: (GlobState1 =  #{ cont : U32 }) } = v1' :: (GlobState1 =  { cont : U32 })
+         and v1' = p1' :: (GlobState1 =  #{ cont : U32 })
          and v' = i :: MayNull (CPtr =  { cont : U32 })
          and i { cont = p0' :: U32 } = v' :: MayNull (CPtr =  { cont : U32 })
          and v' = p0' :: U32
@@ -538,7 +538,7 @@ cogent_ffv32 (i :: MayNull (CPtr =  { cont : U32 })
              , p0' :: U32) = (v' :: MayNull (CPtr =  { cont : U32 })
                              , v' :: MayNull (CPtr =  { cont : U32 }))
          and i = i :: MayNull (CPtr =  { cont : U32 }) { cont = p0' :: U32 } :: MayNull  { cont : U32 }
-         and g = g :: (GlobState1 =  { cont : U32 }) { cont = p1' :: #(GlobState1 =  { cont : U32 }) } ::  { cont : U32 }
+         and g = g :: (GlobState1 =  { cont : U32 }) { cont = p1' :: (GlobState1 =  #{ cont : U32 }) } ::  { cont : U32 }
          in (v' :: MayNull (CPtr =  { cont : U32 })
             , i :: MayNull  { cont : U32 }
             , g ::  { cont : U32 }) :: (MayNull (CPtr =  { cont : U32 })
@@ -568,11 +568,11 @@ cogent_ffv33 (i :: MayNull (CPtr =  { cont : U32 })
                                      , i :: MayNull  { cont : U32 }
                                      , g ::  { cont : U32 }) = let v2' = 1 :: U32
          and v1' = g :: (GlobState1 =  { cont : U32 })
-         and g { cont = p1' :: #(GlobState1 =  { cont : U32 }) } = v1' :: (GlobState1 =  { cont : U32 })
-         and v1' = p1' :: #(GlobState1 =  { cont : U32 })
+         and g { cont = p1' :: (GlobState1 =  #{ cont : U32 }) } = v1' :: (GlobState1 =  { cont : U32 })
+         and v1' = p1' :: (GlobState1 =  #{ cont : U32 })
          and v1' = v1' :: (GlobState1 =  { cont : U32 }) + v2' :: U32 :: U32
          and (v1' :: (GlobState1 =  { cont : U32 })
-             , p1' :: #(GlobState1 =  { cont : U32 })) = (p1' :: #(GlobState1 =  { cont : U32 })
+             , p1' :: (GlobState1 =  #{ cont : U32 })) = (p1' :: (GlobState1 =  #{ cont : U32 })
                                                          , v1' :: (GlobState1 =  { cont : U32 }))
          and v' = i :: MayNull (CPtr =  { cont : U32 })
          and i { cont = p0' :: U32 } = v' :: MayNull (CPtr =  { cont : U32 })
@@ -582,7 +582,7 @@ cogent_ffv33 (i :: MayNull (CPtr =  { cont : U32 })
              , p0' :: U32) = (v' :: MayNull (CPtr =  { cont : U32 })
                              , v' :: MayNull (CPtr =  { cont : U32 }))
          and i = i :: MayNull (CPtr =  { cont : U32 }) { cont = p0' :: U32 } :: MayNull  { cont : U32 }
-         and g = g :: (GlobState1 =  { cont : U32 }) { cont = p1' :: #(GlobState1 =  { cont : U32 }) } ::  { cont : U32 }
+         and g = g :: (GlobState1 =  { cont : U32 }) { cont = p1' :: (GlobState1 =  #{ cont : U32 }) } ::  { cont : U32 }
          in (v' :: MayNull (CPtr =  { cont : U32 })
             , i :: MayNull  { cont : U32 }
             , g ::  { cont : U32 }) :: (MayNull (CPtr =  { cont : U32 })
@@ -617,8 +617,8 @@ cogent_ffv34 (i :: MayNull (CPtr =  { cont : U32 })
                                              , g ::  { cont : U32 }) = let (v' :: MayNull (CPtr =  { cont : U32 })
                                                                            , i :: MayNull  { cont : U32 }
                                                                            , g ::  { cont : U32 }) = let v1' = g :: (GlobState1 =  { cont : U32 })
-            and g { cont = p1' :: #(GlobState1 =  { cont : U32 }) } = v1' :: (GlobState1 =  { cont : U32 })
-            and v1' = p1' :: #(GlobState1 =  { cont : U32 })
+            and g { cont = p1' :: (GlobState1 =  #{ cont : U32 }) } = v1' :: (GlobState1 =  { cont : U32 })
+            and v1' = p1' :: (GlobState1 =  #{ cont : U32 })
             and v' = i :: MayNull (CPtr =  { cont : U32 })
             and i { cont = p0' :: U32 } = v' :: MayNull (CPtr =  { cont : U32 })
             and v' = p0' :: U32
@@ -627,7 +627,7 @@ cogent_ffv34 (i :: MayNull (CPtr =  { cont : U32 })
                 , p0' :: U32) = (v' :: MayNull (CPtr =  { cont : U32 })
                                 , v' :: MayNull (CPtr =  { cont : U32 }))
             and i = i :: MayNull (CPtr =  { cont : U32 }) { cont = p0' :: U32 } :: MayNull  { cont : U32 }
-            and g = g :: (GlobState1 =  { cont : U32 }) { cont = p1' :: #(GlobState1 =  { cont : U32 }) } ::  { cont : U32 }
+            and g = g :: (GlobState1 =  { cont : U32 }) { cont = p1' :: (GlobState1 =  #{ cont : U32 }) } ::  { cont : U32 }
             in (v' :: MayNull (CPtr =  { cont : U32 })
                , i :: MayNull  { cont : U32 }
                , g ::  { cont : U32 }) :: (MayNull (CPtr =  { cont : U32 })
@@ -651,13 +651,13 @@ cogent_ffv34 (i :: MayNull (CPtr =  { cont : U32 })
                   and j { cont = p3' :: U32 } = v1' :: MayNull (CPtr =  { cont : U32 })
                   and v1' = p3' :: U32
                   and v' = g :: (GlobState1 =  { cont : U32 })
-                  and g { cont = p2' :: #(GlobState1 =  { cont : U32 }) } = v' :: (GlobState1 =  { cont : U32 })
-                  and v' = p2' :: #(GlobState1 =  { cont : U32 })
+                  and g { cont = p2' :: (GlobState1 =  #{ cont : U32 }) } = v' :: (GlobState1 =  { cont : U32 })
+                  and v' = p2' :: (GlobState1 =  #{ cont : U32 })
                   and v' = v1' :: MayNull (CPtr =  { cont : U32 })
                   and (v' :: (GlobState1 =  { cont : U32 })
-                      , p2' :: #(GlobState1 =  { cont : U32 })) = (v' :: (GlobState1 =  { cont : U32 })
+                      , p2' :: (GlobState1 =  #{ cont : U32 })) = (v' :: (GlobState1 =  { cont : U32 })
                                                                   , v' :: (GlobState1 =  { cont : U32 }))
-                  and g = g :: (GlobState1 =  { cont : U32 }) { cont = p2' :: #(GlobState1 =  { cont : U32 }) } ::  { cont : U32 }
+                  and g = g :: (GlobState1 =  { cont : U32 }) { cont = p2' :: (GlobState1 =  #{ cont : U32 }) } ::  { cont : U32 }
                   and j = j :: MayNull (CPtr =  { cont : U32 }) { cont = p3' :: U32 } :: MayNull  { cont : U32 }
                   in (v' :: (GlobState1 =  { cont : U32 })
                      , g ::  { cont : U32 }
@@ -707,8 +707,8 @@ cogent_ffv35 (i :: MayNull (CPtr =  { cont : U32 })
                                              , g ::  { cont : U32 }) = let (v' :: MayNull (CPtr =  { cont : U32 })
                                                                            , i :: MayNull  { cont : U32 }
                                                                            , g ::  { cont : U32 }) = let v1' = g :: (GlobState1 =  { cont : U32 })
-            and g { cont = p1' :: #(GlobState1 =  { cont : U32 }) } = v1' :: (GlobState1 =  { cont : U32 })
-            and v1' = p1' :: #(GlobState1 =  { cont : U32 })
+            and g { cont = p1' :: (GlobState1 =  #{ cont : U32 }) } = v1' :: (GlobState1 =  { cont : U32 })
+            and v1' = p1' :: (GlobState1 =  #{ cont : U32 })
             and v' = i :: MayNull (CPtr =  { cont : U32 })
             and i { cont = p0' :: U32 } = v' :: MayNull (CPtr =  { cont : U32 })
             and v' = p0' :: U32
@@ -717,7 +717,7 @@ cogent_ffv35 (i :: MayNull (CPtr =  { cont : U32 })
                 , p0' :: U32) = (v' :: MayNull (CPtr =  { cont : U32 })
                                 , v' :: MayNull (CPtr =  { cont : U32 }))
             and i = i :: MayNull (CPtr =  { cont : U32 }) { cont = p0' :: U32 } :: MayNull  { cont : U32 }
-            and g = g :: (GlobState1 =  { cont : U32 }) { cont = p1' :: #(GlobState1 =  { cont : U32 }) } ::  { cont : U32 }
+            and g = g :: (GlobState1 =  { cont : U32 }) { cont = p1' :: (GlobState1 =  #{ cont : U32 }) } ::  { cont : U32 }
             in (v' :: MayNull (CPtr =  { cont : U32 })
                , i :: MayNull  { cont : U32 }
                , g ::  { cont : U32 }) :: (MayNull (CPtr =  { cont : U32 })
@@ -741,13 +741,13 @@ cogent_ffv35 (i :: MayNull (CPtr =  { cont : U32 })
                   and j { cont = p3' :: U32 } = v1' :: MayNull (CPtr =  { cont : U32 })
                   and v1' = p3' :: U32
                   and v' = g :: (GlobState1 =  { cont : U32 })
-                  and g { cont = p2' :: #(GlobState1 =  { cont : U32 }) } = v' :: (GlobState1 =  { cont : U32 })
-                  and v' = p2' :: #(GlobState1 =  { cont : U32 })
+                  and g { cont = p2' :: (GlobState1 =  #{ cont : U32 }) } = v' :: (GlobState1 =  { cont : U32 })
+                  and v' = p2' :: (GlobState1 =  #{ cont : U32 })
                   and v' = v1' :: MayNull (CPtr =  { cont : U32 })
                   and (v' :: (GlobState1 =  { cont : U32 })
-                      , p2' :: #(GlobState1 =  { cont : U32 })) = (v' :: (GlobState1 =  { cont : U32 })
+                      , p2' :: (GlobState1 =  #{ cont : U32 })) = (v' :: (GlobState1 =  { cont : U32 })
                                                                   , v' :: (GlobState1 =  { cont : U32 }))
-                  and g = g :: (GlobState1 =  { cont : U32 }) { cont = p2' :: #(GlobState1 =  { cont : U32 }) } ::  { cont : U32 }
+                  and g = g :: (GlobState1 =  { cont : U32 }) { cont = p2' :: (GlobState1 =  #{ cont : U32 }) } ::  { cont : U32 }
                   and j = j :: MayNull (CPtr =  { cont : U32 }) { cont = p3' :: U32 } :: MayNull  { cont : U32 }
                   in (v' :: (GlobState1 =  { cont : U32 })
                      , g ::  { cont : U32 }
@@ -804,8 +804,8 @@ cogent_ffv36 (i :: MayNull (CPtr =  { cont : U32 })
                                              , g1 ::  { cont : U32 }) = let (v' :: MayNull (CPtr =  { cont : U32 })
                                                                             , i :: MayNull  { cont : U32 }
                                                                             , g1 ::  { cont : U32 }) = let v1' = g1 :: (GlobState1 =  { cont : U32 })
-            and g1 { cont = p1' :: #(GlobState1 =  { cont : U32 }) } = v1' :: (GlobState1 =  { cont : U32 })
-            and v1' = p1' :: #(GlobState1 =  { cont : U32 })
+            and g1 { cont = p1' :: (GlobState1 =  #{ cont : U32 }) } = v1' :: (GlobState1 =  { cont : U32 })
+            and v1' = p1' :: (GlobState1 =  #{ cont : U32 })
             and v' = i :: MayNull (CPtr =  { cont : U32 })
             and i { cont = p0' :: U32 } = v' :: MayNull (CPtr =  { cont : U32 })
             and v' = p0' :: U32
@@ -814,7 +814,7 @@ cogent_ffv36 (i :: MayNull (CPtr =  { cont : U32 })
                 , p0' :: U32) = (v' :: MayNull (CPtr =  { cont : U32 })
                                 , v' :: MayNull (CPtr =  { cont : U32 }))
             and i = i :: MayNull (CPtr =  { cont : U32 }) { cont = p0' :: U32 } :: MayNull  { cont : U32 }
-            and g1 = g1 :: (GlobState1 =  { cont : U32 }) { cont = p1' :: #(GlobState1 =  { cont : U32 }) } ::  { cont : U32 }
+            and g1 = g1 :: (GlobState1 =  { cont : U32 }) { cont = p1' :: (GlobState1 =  #{ cont : U32 }) } ::  { cont : U32 }
             in (v' :: MayNull (CPtr =  { cont : U32 })
                , i :: MayNull  { cont : U32 }
                , g1 ::  { cont : U32 }) :: (MayNull (CPtr =  { cont : U32 })
@@ -839,13 +839,13 @@ cogent_ffv36 (i :: MayNull (CPtr =  { cont : U32 })
                   and j { cont = p3' :: U32 } = v1' :: MayNull (CPtr =  { cont : U32 })
                   and v1' = p3' :: U32
                   and v' = g2 :: (GlobState2 =  { cont : U32 })
-                  and g2 { cont = p2' :: #(GlobState2 =  { cont : U32 }) } = v' :: (GlobState2 =  { cont : U32 })
-                  and v' = p2' :: #(GlobState2 =  { cont : U32 })
+                  and g2 { cont = p2' :: (GlobState2 =  #{ cont : U32 }) } = v' :: (GlobState2 =  { cont : U32 })
+                  and v' = p2' :: (GlobState2 =  #{ cont : U32 })
                   and v' = v1' :: MayNull (CPtr =  { cont : U32 })
                   and (v' :: (GlobState2 =  { cont : U32 })
-                      , p2' :: #(GlobState2 =  { cont : U32 })) = (v' :: (GlobState2 =  { cont : U32 })
+                      , p2' :: (GlobState2 =  #{ cont : U32 })) = (v' :: (GlobState2 =  { cont : U32 })
                                                                   , v' :: (GlobState2 =  { cont : U32 }))
-                  and g2 = g2 :: (GlobState2 =  { cont : U32 }) { cont = p2' :: #(GlobState2 =  { cont : U32 }) } ::  { cont : U32 }
+                  and g2 = g2 :: (GlobState2 =  { cont : U32 }) { cont = p2' :: (GlobState2 =  #{ cont : U32 }) } ::  { cont : U32 }
                   and j = j :: MayNull (CPtr =  { cont : U32 }) { cont = p3' :: U32 } :: MayNull  { cont : U32 }
                   in (v' :: (GlobState2 =  { cont : U32 })
                      , g2 ::  { cont : U32 }
@@ -972,13 +972,13 @@ cogent_ffv45 (i :: MayNull (CPtr =  { cont : U32 })
          and i { cont = p1' :: U32 } = v1' :: MayNull (CPtr =  { cont : U32 })
          and v1' = p1' :: U32
          and v' = g :: (GlobState1 =  { cont : U32 })
-         and g { cont = p0' :: #(GlobState1 =  { cont : U32 }) } = v' :: (GlobState1 =  { cont : U32 })
-         and v' = p0' :: #(GlobState1 =  { cont : U32 })
+         and g { cont = p0' :: (GlobState1 =  #{ cont : U32 }) } = v' :: (GlobState1 =  { cont : U32 })
+         and v' = p0' :: (GlobState1 =  #{ cont : U32 })
          and v' = v1' :: MayNull (CPtr =  { cont : U32 })
          and (v' :: (GlobState1 =  { cont : U32 })
-             , p0' :: #(GlobState1 =  { cont : U32 })) = (v' :: (GlobState1 =  { cont : U32 })
+             , p0' :: (GlobState1 =  #{ cont : U32 })) = (v' :: (GlobState1 =  { cont : U32 })
                                                          , v' :: (GlobState1 =  { cont : U32 }))
-         and g = g :: (GlobState1 =  { cont : U32 }) { cont = p0' :: #(GlobState1 =  { cont : U32 }) } ::  { cont : U32 }
+         and g = g :: (GlobState1 =  { cont : U32 }) { cont = p0' :: (GlobState1 =  #{ cont : U32 }) } ::  { cont : U32 }
          and i = i :: MayNull (CPtr =  { cont : U32 }) { cont = p1' :: U32 } :: MayNull  { cont : U32 }
          in (v' :: (GlobState1 =  { cont : U32 })
             , g ::  { cont : U32 }
@@ -1011,8 +1011,8 @@ cogent_ffv46 (i :: MayNull (CPtr =  { cont : U32 })
        , g ::  { cont : U32 }) = let (v' :: MayNull (CPtr =  { cont : U32 })
                                      , i :: MayNull  { cont : U32 }
                                      , g ::  { cont : U32 }) = let v1' = g :: (GlobState1 =  { cont : U32 })
-         and g { cont = p1' :: #(GlobState1 =  { cont : U32 }) } = v1' :: (GlobState1 =  { cont : U32 })
-         and v1' = p1' :: #(GlobState1 =  { cont : U32 })
+         and g { cont = p1' :: (GlobState1 =  #{ cont : U32 }) } = v1' :: (GlobState1 =  { cont : U32 })
+         and v1' = p1' :: (GlobState1 =  #{ cont : U32 })
          and v' = i :: MayNull (CPtr =  { cont : U32 })
          and i { cont = p0' :: U32 } = v' :: MayNull (CPtr =  { cont : U32 })
          and v' = p0' :: U32
@@ -1021,7 +1021,7 @@ cogent_ffv46 (i :: MayNull (CPtr =  { cont : U32 })
              , p0' :: U32) = (v' :: MayNull (CPtr =  { cont : U32 })
                              , v' :: MayNull (CPtr =  { cont : U32 }))
          and i = i :: MayNull (CPtr =  { cont : U32 }) { cont = p0' :: U32 } :: MayNull  { cont : U32 }
-         and g = g :: (GlobState1 =  { cont : U32 }) { cont = p1' :: #(GlobState1 =  { cont : U32 }) } ::  { cont : U32 }
+         and g = g :: (GlobState1 =  { cont : U32 }) { cont = p1' :: (GlobState1 =  #{ cont : U32 }) } ::  { cont : U32 }
          in (v' :: MayNull (CPtr =  { cont : U32 })
             , i :: MayNull  { cont : U32 }
             , g ::  { cont : U32 }) :: (MayNull (CPtr =  { cont : U32 })
@@ -1054,11 +1054,11 @@ cogent_ffv47 (i :: MayNull (CPtr =  { cont : U32 })
        , i :: MayNull  { cont : U32 }
        , j :: MayNull  { cont : U32 }) = let (c' :: U8
                                              , i :: MayNull  { cont : U32 }) = let (v' :: MayNull (CPtr =  { cont : U32 })
-                                                                                   , i :: MayNull  { cont : U32 }) = let v1' = gencotDummy :: String -> #() "Cannot access global variable: glob1" :: String :: #()
+                                                                                   , i :: MayNull  { cont : U32 }) = let v1' = gencotDummy :: String -> () "Cannot access global variable: glob1" :: String :: ()
             and v' = i :: MayNull (CPtr =  { cont : U32 })
             and i { cont = p0' :: U32 } = v' :: MayNull (CPtr =  { cont : U32 })
             and v' = p0' :: U32
-            and v' = v1' :: #()
+            and v' = v1' :: ()
             and (v' :: MayNull (CPtr =  { cont : U32 })
                 , p0' :: U32) = (v' :: MayNull (CPtr =  { cont : U32 })
                                 , v' :: MayNull (CPtr =  { cont : U32 }))
@@ -1074,18 +1074,18 @@ cogent_ffv47 (i :: MayNull (CPtr =  { cont : U32 })
               , i :: MayNull  { cont : U32 }
               , j :: MayNull  { cont : U32 })
          else let (c' :: U8
-                  , j :: MayNull  { cont : U32 }) = let (v' :: #()
+                  , j :: MayNull  { cont : U32 }) = let (v' :: ()
                                                         , j :: MayNull  { cont : U32 }) = let v1' = j :: MayNull (CPtr =  { cont : U32 })
                   and j { cont = p1' :: U32 } = v1' :: MayNull (CPtr =  { cont : U32 })
                   and v1' = p1' :: U32
-                  and v' = gencotDummy :: String -> #() "Cannot access global variable: glob1" :: String :: #()
+                  and v' = gencotDummy :: String -> () "Cannot access global variable: glob1" :: String :: ()
                   and v' = v1' :: MayNull (CPtr =  { cont : U32 })
-                  and (v' :: #()
-                      , err' :: #()) = (v' :: #()
-                                       , v' :: #())
+                  and (v' :: ()
+                      , err' :: ()) = (v' :: ()
+                                      , v' :: ())
                   and j = j :: MayNull (CPtr =  { cont : U32 }) { cont = p1' :: U32 } :: MayNull  { cont : U32 }
-                  in (v' :: #()
-                     , j :: MayNull  { cont : U32 }) :: (#()
+                  in (v' :: ()
+                     , j :: MayNull  { cont : U32 }) :: (()
                                                         , MayNull  { cont : U32 })
                in (0 :: U8
                   , j :: MayNull  { cont : U32 }) :: (U8
@@ -1129,8 +1129,8 @@ cogent_ffv48 (i :: MayNull (CPtr =  { cont : U32 })
                                              , g ::  { cont : U32 }) = let (v' :: MayNull (CPtr =  { cont : U32 })
                                                                            , i :: MayNull  { cont : U32 }
                                                                            , g ::  { cont : U32 }) = let v1' = g :: (GlobState1 =  { cont : U32 })
-            and g { cont = p1' :: #(GlobState1 =  { cont : U32 }) } = v1' :: (GlobState1 =  { cont : U32 })
-            and v1' = p1' :: #(GlobState1 =  { cont : U32 })
+            and g { cont = p1' :: (GlobState1 =  #{ cont : U32 }) } = v1' :: (GlobState1 =  { cont : U32 })
+            and v1' = p1' :: (GlobState1 =  #{ cont : U32 })
             and v' = i :: MayNull (CPtr =  { cont : U32 })
             and i { cont = p0' :: U32 } = v' :: MayNull (CPtr =  { cont : U32 })
             and v' = p0' :: U32
@@ -1139,7 +1139,7 @@ cogent_ffv48 (i :: MayNull (CPtr =  { cont : U32 })
                 , p0' :: U32) = (v' :: MayNull (CPtr =  { cont : U32 })
                                 , v' :: MayNull (CPtr =  { cont : U32 }))
             and i = i :: MayNull (CPtr =  { cont : U32 }) { cont = p0' :: U32 } :: MayNull  { cont : U32 }
-            and g = g :: (GlobState1 =  { cont : U32 }) { cont = p1' :: #(GlobState1 =  { cont : U32 }) } ::  { cont : U32 }
+            and g = g :: (GlobState1 =  { cont : U32 }) { cont = p1' :: (GlobState1 =  #{ cont : U32 }) } ::  { cont : U32 }
             in (v' :: MayNull (CPtr =  { cont : U32 })
                , i :: MayNull  { cont : U32 }
                , g ::  { cont : U32 }) :: (MayNull (CPtr =  { cont : U32 })
@@ -1163,13 +1163,13 @@ cogent_ffv48 (i :: MayNull (CPtr =  { cont : U32 })
                   and j { cont = p3' :: U32 } = v1' :: MayNull (CPtr =  { cont : U32 })
                   and v1' = p3' :: U32
                   and v' = g :: (GlobState1 =  { cont : U32 })
-                  and g { cont = p2' :: #(GlobState1 =  { cont : U32 }) } = v' :: (GlobState1 =  { cont : U32 })
-                  and v' = p2' :: #(GlobState1 =  { cont : U32 })
+                  and g { cont = p2' :: (GlobState1 =  #{ cont : U32 }) } = v' :: (GlobState1 =  { cont : U32 })
+                  and v' = p2' :: (GlobState1 =  #{ cont : U32 })
                   and v' = v1' :: MayNull (CPtr =  { cont : U32 })
                   and (v' :: (GlobState1 =  { cont : U32 })
-                      , p2' :: #(GlobState1 =  { cont : U32 })) = (v' :: (GlobState1 =  { cont : U32 })
+                      , p2' :: (GlobState1 =  #{ cont : U32 })) = (v' :: (GlobState1 =  { cont : U32 })
                                                                   , v' :: (GlobState1 =  { cont : U32 }))
-                  and g = g :: (GlobState1 =  { cont : U32 }) { cont = p2' :: #(GlobState1 =  { cont : U32 }) } ::  { cont : U32 }
+                  and g = g :: (GlobState1 =  { cont : U32 }) { cont = p2' :: (GlobState1 =  #{ cont : U32 }) } ::  { cont : U32 }
                   and j = j :: MayNull (CPtr =  { cont : U32 }) { cont = p3' :: U32 } :: MayNull  { cont : U32 }
                   in (v' :: (GlobState1 =  { cont : U32 })
                      , g ::  { cont : U32 }
@@ -1762,13 +1762,13 @@ cogent_ffi25 g :: (GlobState1 =  { cont : U32 }) =
                           , g ::  { cont : U32 }) = let (v' :: (GlobState1 =  { cont : U32 })
                                                         , g ::  { cont : U32 }) = let v1' = 5 :: U32
             and v' = g :: (GlobState1 =  { cont : U32 })
-            and g { cont = p0' :: #(GlobState1 =  { cont : U32 }) } = v' :: (GlobState1 =  { cont : U32 })
-            and v' = p0' :: #(GlobState1 =  { cont : U32 })
+            and g { cont = p0' :: (GlobState1 =  #{ cont : U32 }) } = v' :: (GlobState1 =  { cont : U32 })
+            and v' = p0' :: (GlobState1 =  #{ cont : U32 })
             and v' = v1' :: U32
             and (v' :: (GlobState1 =  { cont : U32 })
-                , p0' :: #(GlobState1 =  { cont : U32 })) = (v' :: (GlobState1 =  { cont : U32 })
+                , p0' :: (GlobState1 =  #{ cont : U32 })) = (v' :: (GlobState1 =  { cont : U32 })
                                                             , v' :: (GlobState1 =  { cont : U32 }))
-            and g = g :: (GlobState1 =  { cont : U32 }) { cont = p0' :: #(GlobState1 =  { cont : U32 }) } ::  { cont : U32 }
+            and g = g :: (GlobState1 =  { cont : U32 }) { cont = p0' :: (GlobState1 =  #{ cont : U32 }) } ::  { cont : U32 }
             in (v' :: (GlobState1 =  { cont : U32 })
                , g ::  { cont : U32 }) :: ((GlobState1 =  { cont : U32 })
                                           ,  { cont : U32 })
@@ -1801,12 +1801,12 @@ cogent_ffi26 : (GlobState1 =  { cont : U32 }) -> (U32
 cogent_ffi26 g :: (GlobState1 =  { cont : U32 }) =
    let (_ :: (U8, U32)
        , r' :: U32) = let c' = let v' = let v1' = 5 :: U32
-            and v' = gencotDummy :: String -> #() "Cannot access global variable: glob2" :: String :: #()
+            and v' = gencotDummy :: String -> () "Cannot access global variable: glob2" :: String :: ()
             and v' = v1' :: U32
-            and (v' :: #()
-                , err' :: #()) = (v' :: #()
-                                 , v' :: #())
-            in v' :: #() :: #()
+            and (v' :: ()
+                , err' :: ()) = (v' :: ()
+                                , v' :: ())
+            in v' :: () :: ()
          in 0 :: U8 :: U8
       in if c' :: U8 > 0 :: U8 :: Bool
          then (c' :: U8, r' :: U32)
@@ -1831,13 +1831,13 @@ cogent_ffi27 g :: (GlobState1 =  { cont : U32 }) =
                           , g ::  { cont : U32 }) = let (v' :: (GlobState1 =  { cont : U32 })
                                                         , g ::  { cont : U32 }) = let v1' = 1 :: U32
             and v' = g :: (GlobState1 =  { cont : U32 })
-            and g { cont = p0' :: #(GlobState1 =  { cont : U32 }) } = v' :: (GlobState1 =  { cont : U32 })
-            and v' = p0' :: #(GlobState1 =  { cont : U32 })
+            and g { cont = p0' :: (GlobState1 =  #{ cont : U32 }) } = v' :: (GlobState1 =  { cont : U32 })
+            and v' = p0' :: (GlobState1 =  #{ cont : U32 })
             and v' = v' :: (GlobState1 =  { cont : U32 }) + v1' :: U32 :: U32
             and (v' :: (GlobState1 =  { cont : U32 })
-                , p0' :: #(GlobState1 =  { cont : U32 })) = (p0' :: #(GlobState1 =  { cont : U32 })
+                , p0' :: (GlobState1 =  #{ cont : U32 })) = (p0' :: (GlobState1 =  #{ cont : U32 })
                                                             , v' :: (GlobState1 =  { cont : U32 }))
-            and g = g :: (GlobState1 =  { cont : U32 }) { cont = p0' :: #(GlobState1 =  { cont : U32 }) } ::  { cont : U32 }
+            and g = g :: (GlobState1 =  { cont : U32 }) { cont = p0' :: (GlobState1 =  #{ cont : U32 }) } ::  { cont : U32 }
             in (v' :: (GlobState1 =  { cont : U32 })
                , g ::  { cont : U32 }) :: ((GlobState1 =  { cont : U32 })
                                           ,  { cont : U32 })
@@ -1882,17 +1882,17 @@ cogent_ffi28 (g1 :: (GlobState1 =  { cont : U32 })
                           , g2 ::  { cont : U32 }) = let (v' :: (GlobState1 =  { cont : U32 })
                                                          , g1 ::  { cont : U32 }
                                                          , g2 ::  { cont : U32 }) = let v1' = g2 :: (GlobState2 =  { cont : U32 })
-            and g2 { cont = p1' :: #(GlobState2 =  { cont : U32 }) } = v1' :: (GlobState2 =  { cont : U32 })
-            and v1' = p1' :: #(GlobState2 =  { cont : U32 })
+            and g2 { cont = p1' :: (GlobState2 =  #{ cont : U32 }) } = v1' :: (GlobState2 =  { cont : U32 })
+            and v1' = p1' :: (GlobState2 =  #{ cont : U32 })
             and v' = g1 :: (GlobState1 =  { cont : U32 })
-            and g1 { cont = p0' :: #(GlobState1 =  { cont : U32 }) } = v' :: (GlobState1 =  { cont : U32 })
-            and v' = p0' :: #(GlobState1 =  { cont : U32 })
+            and g1 { cont = p0' :: (GlobState1 =  #{ cont : U32 }) } = v' :: (GlobState1 =  { cont : U32 })
+            and v' = p0' :: (GlobState1 =  #{ cont : U32 })
             and v' = v1' :: (GlobState2 =  { cont : U32 })
             and (v' :: (GlobState1 =  { cont : U32 })
-                , p0' :: #(GlobState1 =  { cont : U32 })) = (v' :: (GlobState1 =  { cont : U32 })
+                , p0' :: (GlobState1 =  #{ cont : U32 })) = (v' :: (GlobState1 =  { cont : U32 })
                                                             , v' :: (GlobState1 =  { cont : U32 }))
-            and g1 = g1 :: (GlobState1 =  { cont : U32 }) { cont = p0' :: #(GlobState1 =  { cont : U32 }) } ::  { cont : U32 }
-            and g2 = g2 :: (GlobState2 =  { cont : U32 }) { cont = p1' :: #(GlobState2 =  { cont : U32 }) } ::  { cont : U32 }
+            and g1 = g1 :: (GlobState1 =  { cont : U32 }) { cont = p0' :: (GlobState1 =  #{ cont : U32 }) } ::  { cont : U32 }
+            and g2 = g2 :: (GlobState2 =  { cont : U32 }) { cont = p1' :: (GlobState2 =  #{ cont : U32 }) } ::  { cont : U32 }
             in (v' :: (GlobState1 =  { cont : U32 })
                , g1 ::  { cont : U32 }
                , g2 ::  { cont : U32 }) :: ((GlobState1 =  { cont : U32 })
@@ -1950,13 +1950,13 @@ cogent_ffi31 (i :: MayNull (CPtr =  { cont : U32 })
             and i { cont = p1' :: U32 } = v1' :: MayNull (CPtr =  { cont : U32 })
             and v1' = p1' :: U32
             and v' = g :: (GlobState1 =  { cont : U32 })
-            and g { cont = p0' :: #(GlobState1 =  { cont : U32 }) } = v' :: (GlobState1 =  { cont : U32 })
-            and v' = p0' :: #(GlobState1 =  { cont : U32 })
+            and g { cont = p0' :: (GlobState1 =  #{ cont : U32 }) } = v' :: (GlobState1 =  { cont : U32 })
+            and v' = p0' :: (GlobState1 =  #{ cont : U32 })
             and v' = v1' :: MayNull (CPtr =  { cont : U32 })
             and (v' :: (GlobState1 =  { cont : U32 })
-                , p0' :: #(GlobState1 =  { cont : U32 })) = (v' :: (GlobState1 =  { cont : U32 })
+                , p0' :: (GlobState1 =  #{ cont : U32 })) = (v' :: (GlobState1 =  { cont : U32 })
                                                             , v' :: (GlobState1 =  { cont : U32 }))
-            and g = g :: (GlobState1 =  { cont : U32 }) { cont = p0' :: #(GlobState1 =  { cont : U32 }) } ::  { cont : U32 }
+            and g = g :: (GlobState1 =  { cont : U32 }) { cont = p0' :: (GlobState1 =  #{ cont : U32 }) } ::  { cont : U32 }
             and i = i :: MayNull (CPtr =  { cont : U32 }) { cont = p1' :: U32 } :: MayNull  { cont : U32 }
             in (v' :: (GlobState1 =  { cont : U32 })
                , g ::  { cont : U32 }
@@ -2011,8 +2011,8 @@ cogent_ffi32 (i :: MayNull (CPtr =  { cont : U32 })
                           , g ::  { cont : U32 }) = let (v' :: MayNull (CPtr =  { cont : U32 })
                                                         , i :: MayNull  { cont : U32 }
                                                         , g ::  { cont : U32 }) = let v1' = g :: (GlobState1 =  { cont : U32 })
-            and g { cont = p1' :: #(GlobState1 =  { cont : U32 }) } = v1' :: (GlobState1 =  { cont : U32 })
-            and v1' = p1' :: #(GlobState1 =  { cont : U32 })
+            and g { cont = p1' :: (GlobState1 =  #{ cont : U32 }) } = v1' :: (GlobState1 =  { cont : U32 })
+            and v1' = p1' :: (GlobState1 =  #{ cont : U32 })
             and v' = i :: MayNull (CPtr =  { cont : U32 })
             and i { cont = p0' :: U32 } = v' :: MayNull (CPtr =  { cont : U32 })
             and v' = p0' :: U32
@@ -2021,7 +2021,7 @@ cogent_ffi32 (i :: MayNull (CPtr =  { cont : U32 })
                 , p0' :: U32) = (v' :: MayNull (CPtr =  { cont : U32 })
                                 , v' :: MayNull (CPtr =  { cont : U32 }))
             and i = i :: MayNull (CPtr =  { cont : U32 }) { cont = p0' :: U32 } :: MayNull  { cont : U32 }
-            and g = g :: (GlobState1 =  { cont : U32 }) { cont = p1' :: #(GlobState1 =  { cont : U32 }) } ::  { cont : U32 }
+            and g = g :: (GlobState1 =  { cont : U32 }) { cont = p1' :: (GlobState1 =  #{ cont : U32 }) } ::  { cont : U32 }
             in (v' :: MayNull (CPtr =  { cont : U32 })
                , i :: MayNull  { cont : U32 }
                , g ::  { cont : U32 }) :: (MayNull (CPtr =  { cont : U32 })
@@ -2078,11 +2078,11 @@ cogent_ffi33 (i :: MayNull (CPtr =  { cont : U32 })
                                                         , i :: MayNull  { cont : U32 }
                                                         , g ::  { cont : U32 }) = let v2' = 1 :: U32
             and v1' = g :: (GlobState1 =  { cont : U32 })
-            and g { cont = p1' :: #(GlobState1 =  { cont : U32 }) } = v1' :: (GlobState1 =  { cont : U32 })
-            and v1' = p1' :: #(GlobState1 =  { cont : U32 })
+            and g { cont = p1' :: (GlobState1 =  #{ cont : U32 }) } = v1' :: (GlobState1 =  { cont : U32 })
+            and v1' = p1' :: (GlobState1 =  #{ cont : U32 })
             and v1' = v1' :: (GlobState1 =  { cont : U32 }) + v2' :: U32 :: U32
             and (v1' :: (GlobState1 =  { cont : U32 })
-                , p1' :: #(GlobState1 =  { cont : U32 })) = (p1' :: #(GlobState1 =  { cont : U32 })
+                , p1' :: (GlobState1 =  #{ cont : U32 })) = (p1' :: (GlobState1 =  #{ cont : U32 })
                                                             , v1' :: (GlobState1 =  { cont : U32 }))
             and v' = i :: MayNull (CPtr =  { cont : U32 })
             and i { cont = p0' :: U32 } = v' :: MayNull (CPtr =  { cont : U32 })
@@ -2092,7 +2092,7 @@ cogent_ffi33 (i :: MayNull (CPtr =  { cont : U32 })
                 , p0' :: U32) = (v' :: MayNull (CPtr =  { cont : U32 })
                                 , v' :: MayNull (CPtr =  { cont : U32 }))
             and i = i :: MayNull (CPtr =  { cont : U32 }) { cont = p0' :: U32 } :: MayNull  { cont : U32 }
-            and g = g :: (GlobState1 =  { cont : U32 }) { cont = p1' :: #(GlobState1 =  { cont : U32 }) } ::  { cont : U32 }
+            and g = g :: (GlobState1 =  { cont : U32 }) { cont = p1' :: (GlobState1 =  #{ cont : U32 }) } ::  { cont : U32 }
             in (v' :: MayNull (CPtr =  { cont : U32 })
                , i :: MayNull  { cont : U32 }
                , g ::  { cont : U32 }) :: (MayNull (CPtr =  { cont : U32 })
@@ -2152,8 +2152,8 @@ cogent_ffi34 (i :: MayNull (CPtr =  { cont : U32 })
                           , g ::  { cont : U32 }) = let (v' :: MayNull (CPtr =  { cont : U32 })
                                                         , i :: MayNull  { cont : U32 }
                                                         , g ::  { cont : U32 }) = let v1' = g :: (GlobState1 =  { cont : U32 })
-            and g { cont = p1' :: #(GlobState1 =  { cont : U32 }) } = v1' :: (GlobState1 =  { cont : U32 })
-            and v1' = p1' :: #(GlobState1 =  { cont : U32 })
+            and g { cont = p1' :: (GlobState1 =  #{ cont : U32 }) } = v1' :: (GlobState1 =  { cont : U32 })
+            and v1' = p1' :: (GlobState1 =  #{ cont : U32 })
             and v' = i :: MayNull (CPtr =  { cont : U32 })
             and i { cont = p0' :: U32 } = v' :: MayNull (CPtr =  { cont : U32 })
             and v' = p0' :: U32
@@ -2162,7 +2162,7 @@ cogent_ffi34 (i :: MayNull (CPtr =  { cont : U32 })
                 , p0' :: U32) = (v' :: MayNull (CPtr =  { cont : U32 })
                                 , v' :: MayNull (CPtr =  { cont : U32 }))
             and i = i :: MayNull (CPtr =  { cont : U32 }) { cont = p0' :: U32 } :: MayNull  { cont : U32 }
-            and g = g :: (GlobState1 =  { cont : U32 }) { cont = p1' :: #(GlobState1 =  { cont : U32 }) } ::  { cont : U32 }
+            and g = g :: (GlobState1 =  { cont : U32 }) { cont = p1' :: (GlobState1 =  #{ cont : U32 }) } ::  { cont : U32 }
             in (v' :: MayNull (CPtr =  { cont : U32 })
                , i :: MayNull  { cont : U32 }
                , g ::  { cont : U32 }) :: (MayNull (CPtr =  { cont : U32 })
@@ -2190,13 +2190,13 @@ cogent_ffi34 (i :: MayNull (CPtr =  { cont : U32 })
                      and j { cont = p3' :: U32 } = v1' :: MayNull (CPtr =  { cont : U32 })
                      and v1' = p3' :: U32
                      and v' = g :: (GlobState1 =  { cont : U32 })
-                     and g { cont = p2' :: #(GlobState1 =  { cont : U32 }) } = v' :: (GlobState1 =  { cont : U32 })
-                     and v' = p2' :: #(GlobState1 =  { cont : U32 })
+                     and g { cont = p2' :: (GlobState1 =  #{ cont : U32 }) } = v' :: (GlobState1 =  { cont : U32 })
+                     and v' = p2' :: (GlobState1 =  #{ cont : U32 })
                      and v' = v1' :: MayNull (CPtr =  { cont : U32 })
                      and (v' :: (GlobState1 =  { cont : U32 })
-                         , p2' :: #(GlobState1 =  { cont : U32 })) = (v' :: (GlobState1 =  { cont : U32 })
+                         , p2' :: (GlobState1 =  #{ cont : U32 })) = (v' :: (GlobState1 =  { cont : U32 })
                                                                      , v' :: (GlobState1 =  { cont : U32 }))
-                     and g = g :: (GlobState1 =  { cont : U32 }) { cont = p2' :: #(GlobState1 =  { cont : U32 }) } ::  { cont : U32 }
+                     and g = g :: (GlobState1 =  { cont : U32 }) { cont = p2' :: (GlobState1 =  #{ cont : U32 }) } ::  { cont : U32 }
                      and j = j :: MayNull (CPtr =  { cont : U32 }) { cont = p3' :: U32 } :: MayNull  { cont : U32 }
                      in (v' :: (GlobState1 =  { cont : U32 })
                         , g ::  { cont : U32 }
@@ -2275,8 +2275,8 @@ cogent_ffi35 (i :: MayNull (CPtr =  { cont : U32 })
                           , g ::  { cont : U32 }) = let (v' :: MayNull (CPtr =  { cont : U32 })
                                                         , i :: MayNull  { cont : U32 }
                                                         , g ::  { cont : U32 }) = let v1' = g :: (GlobState1 =  { cont : U32 })
-            and g { cont = p1' :: #(GlobState1 =  { cont : U32 }) } = v1' :: (GlobState1 =  { cont : U32 })
-            and v1' = p1' :: #(GlobState1 =  { cont : U32 })
+            and g { cont = p1' :: (GlobState1 =  #{ cont : U32 }) } = v1' :: (GlobState1 =  { cont : U32 })
+            and v1' = p1' :: (GlobState1 =  #{ cont : U32 })
             and v' = i :: MayNull (CPtr =  { cont : U32 })
             and i { cont = p0' :: U32 } = v' :: MayNull (CPtr =  { cont : U32 })
             and v' = p0' :: U32
@@ -2285,7 +2285,7 @@ cogent_ffi35 (i :: MayNull (CPtr =  { cont : U32 })
                 , p0' :: U32) = (v' :: MayNull (CPtr =  { cont : U32 })
                                 , v' :: MayNull (CPtr =  { cont : U32 }))
             and i = i :: MayNull (CPtr =  { cont : U32 }) { cont = p0' :: U32 } :: MayNull  { cont : U32 }
-            and g = g :: (GlobState1 =  { cont : U32 }) { cont = p1' :: #(GlobState1 =  { cont : U32 }) } ::  { cont : U32 }
+            and g = g :: (GlobState1 =  { cont : U32 }) { cont = p1' :: (GlobState1 =  #{ cont : U32 }) } ::  { cont : U32 }
             in (v' :: MayNull (CPtr =  { cont : U32 })
                , i :: MayNull  { cont : U32 }
                , g ::  { cont : U32 }) :: (MayNull (CPtr =  { cont : U32 })
@@ -2313,13 +2313,13 @@ cogent_ffi35 (i :: MayNull (CPtr =  { cont : U32 })
                      and j { cont = p3' :: U32 } = v1' :: MayNull (CPtr =  { cont : U32 })
                      and v1' = p3' :: U32
                      and v' = g :: (GlobState1 =  { cont : U32 })
-                     and g { cont = p2' :: #(GlobState1 =  { cont : U32 }) } = v' :: (GlobState1 =  { cont : U32 })
-                     and v' = p2' :: #(GlobState1 =  { cont : U32 })
+                     and g { cont = p2' :: (GlobState1 =  #{ cont : U32 }) } = v' :: (GlobState1 =  { cont : U32 })
+                     and v' = p2' :: (GlobState1 =  #{ cont : U32 })
                      and v' = v1' :: MayNull (CPtr =  { cont : U32 })
                      and (v' :: (GlobState1 =  { cont : U32 })
-                         , p2' :: #(GlobState1 =  { cont : U32 })) = (v' :: (GlobState1 =  { cont : U32 })
+                         , p2' :: (GlobState1 =  #{ cont : U32 })) = (v' :: (GlobState1 =  { cont : U32 })
                                                                      , v' :: (GlobState1 =  { cont : U32 }))
-                     and g = g :: (GlobState1 =  { cont : U32 }) { cont = p2' :: #(GlobState1 =  { cont : U32 }) } ::  { cont : U32 }
+                     and g = g :: (GlobState1 =  { cont : U32 }) { cont = p2' :: (GlobState1 =  #{ cont : U32 }) } ::  { cont : U32 }
                      and j = j :: MayNull (CPtr =  { cont : U32 }) { cont = p3' :: U32 } :: MayNull  { cont : U32 }
                      in (v' :: (GlobState1 =  { cont : U32 })
                         , g ::  { cont : U32 }
@@ -2405,8 +2405,8 @@ cogent_ffi36 (i :: MayNull (CPtr =  { cont : U32 })
                           , g2 ::  { cont : U32 }) = let (v' :: MayNull (CPtr =  { cont : U32 })
                                                          , i :: MayNull  { cont : U32 }
                                                          , g2 ::  { cont : U32 }) = let v1' = g2 :: (GlobState2 =  { cont : U32 })
-            and g2 { cont = p1' :: #(GlobState2 =  { cont : U32 }) } = v1' :: (GlobState2 =  { cont : U32 })
-            and v1' = p1' :: #(GlobState2 =  { cont : U32 })
+            and g2 { cont = p1' :: (GlobState2 =  #{ cont : U32 }) } = v1' :: (GlobState2 =  { cont : U32 })
+            and v1' = p1' :: (GlobState2 =  #{ cont : U32 })
             and v' = i :: MayNull (CPtr =  { cont : U32 })
             and i { cont = p0' :: U32 } = v' :: MayNull (CPtr =  { cont : U32 })
             and v' = p0' :: U32
@@ -2415,7 +2415,7 @@ cogent_ffi36 (i :: MayNull (CPtr =  { cont : U32 })
                 , p0' :: U32) = (v' :: MayNull (CPtr =  { cont : U32 })
                                 , v' :: MayNull (CPtr =  { cont : U32 }))
             and i = i :: MayNull (CPtr =  { cont : U32 }) { cont = p0' :: U32 } :: MayNull  { cont : U32 }
-            and g2 = g2 :: (GlobState2 =  { cont : U32 }) { cont = p1' :: #(GlobState2 =  { cont : U32 }) } ::  { cont : U32 }
+            and g2 = g2 :: (GlobState2 =  { cont : U32 }) { cont = p1' :: (GlobState2 =  #{ cont : U32 }) } ::  { cont : U32 }
             in (v' :: MayNull (CPtr =  { cont : U32 })
                , i :: MayNull  { cont : U32 }
                , g2 ::  { cont : U32 }) :: (MayNull (CPtr =  { cont : U32 })
@@ -2444,13 +2444,13 @@ cogent_ffi36 (i :: MayNull (CPtr =  { cont : U32 })
                      and j { cont = p3' :: U32 } = v1' :: MayNull (CPtr =  { cont : U32 })
                      and v1' = p3' :: U32
                      and v' = g1 :: (GlobState1 =  { cont : U32 })
-                     and g1 { cont = p2' :: #(GlobState1 =  { cont : U32 }) } = v' :: (GlobState1 =  { cont : U32 })
-                     and v' = p2' :: #(GlobState1 =  { cont : U32 })
+                     and g1 { cont = p2' :: (GlobState1 =  #{ cont : U32 }) } = v' :: (GlobState1 =  { cont : U32 })
+                     and v' = p2' :: (GlobState1 =  #{ cont : U32 })
                      and v' = v1' :: MayNull (CPtr =  { cont : U32 })
                      and (v' :: (GlobState1 =  { cont : U32 })
-                         , p2' :: #(GlobState1 =  { cont : U32 })) = (v' :: (GlobState1 =  { cont : U32 })
+                         , p2' :: (GlobState1 =  #{ cont : U32 })) = (v' :: (GlobState1 =  { cont : U32 })
                                                                      , v' :: (GlobState1 =  { cont : U32 }))
-                     and g1 = g1 :: (GlobState1 =  { cont : U32 }) { cont = p2' :: #(GlobState1 =  { cont : U32 }) } ::  { cont : U32 }
+                     and g1 = g1 :: (GlobState1 =  { cont : U32 }) { cont = p2' :: (GlobState1 =  #{ cont : U32 }) } ::  { cont : U32 }
                      and j = j :: MayNull (CPtr =  { cont : U32 }) { cont = p3' :: U32 } :: MayNull  { cont : U32 }
                      in (v' :: (GlobState1 =  { cont : U32 })
                         , g1 ::  { cont : U32 }
@@ -2658,13 +2658,13 @@ cogent_ffi45 (i :: MayNull (CPtr =  { cont : U32 })
             and i { cont = p1' :: U32 } = v1' :: MayNull (CPtr =  { cont : U32 })
             and v1' = p1' :: U32
             and v' = g :: (GlobState1 =  { cont : U32 })
-            and g { cont = p0' :: #(GlobState1 =  { cont : U32 }) } = v' :: (GlobState1 =  { cont : U32 })
-            and v' = p0' :: #(GlobState1 =  { cont : U32 })
+            and g { cont = p0' :: (GlobState1 =  #{ cont : U32 }) } = v' :: (GlobState1 =  { cont : U32 })
+            and v' = p0' :: (GlobState1 =  #{ cont : U32 })
             and v' = v1' :: MayNull (CPtr =  { cont : U32 })
             and (v' :: (GlobState1 =  { cont : U32 })
-                , p0' :: #(GlobState1 =  { cont : U32 })) = (v' :: (GlobState1 =  { cont : U32 })
+                , p0' :: (GlobState1 =  #{ cont : U32 })) = (v' :: (GlobState1 =  { cont : U32 })
                                                             , v' :: (GlobState1 =  { cont : U32 }))
-            and g = g :: (GlobState1 =  { cont : U32 }) { cont = p0' :: #(GlobState1 =  { cont : U32 }) } ::  { cont : U32 }
+            and g = g :: (GlobState1 =  { cont : U32 }) { cont = p0' :: (GlobState1 =  #{ cont : U32 }) } ::  { cont : U32 }
             and i = i :: MayNull (CPtr =  { cont : U32 }) { cont = p1' :: U32 } :: MayNull  { cont : U32 }
             in (v' :: (GlobState1 =  { cont : U32 })
                , g ::  { cont : U32 }
@@ -2724,8 +2724,8 @@ cogent_ffi46 (i :: MayNull (CPtr =  { cont : U32 })
                           , g ::  { cont : U32 }) = let (v' :: MayNull (CPtr =  { cont : U32 })
                                                         , i :: MayNull  { cont : U32 }
                                                         , g ::  { cont : U32 }) = let v1' = g :: (GlobState1 =  { cont : U32 })
-            and g { cont = p1' :: #(GlobState1 =  { cont : U32 }) } = v1' :: (GlobState1 =  { cont : U32 })
-            and v1' = p1' :: #(GlobState1 =  { cont : U32 })
+            and g { cont = p1' :: (GlobState1 =  #{ cont : U32 }) } = v1' :: (GlobState1 =  { cont : U32 })
+            and v1' = p1' :: (GlobState1 =  #{ cont : U32 })
             and v' = i :: MayNull (CPtr =  { cont : U32 })
             and i { cont = p0' :: U32 } = v' :: MayNull (CPtr =  { cont : U32 })
             and v' = p0' :: U32
@@ -2734,7 +2734,7 @@ cogent_ffi46 (i :: MayNull (CPtr =  { cont : U32 })
                 , p0' :: U32) = (v' :: MayNull (CPtr =  { cont : U32 })
                                 , v' :: MayNull (CPtr =  { cont : U32 }))
             and i = i :: MayNull (CPtr =  { cont : U32 }) { cont = p0' :: U32 } :: MayNull  { cont : U32 }
-            and g = g :: (GlobState1 =  { cont : U32 }) { cont = p1' :: #(GlobState1 =  { cont : U32 }) } ::  { cont : U32 }
+            and g = g :: (GlobState1 =  { cont : U32 }) { cont = p1' :: (GlobState1 =  #{ cont : U32 }) } ::  { cont : U32 }
             in (v' :: MayNull (CPtr =  { cont : U32 })
                , i :: MayNull  { cont : U32 }
                , g ::  { cont : U32 }) :: (MayNull (CPtr =  { cont : U32 })
@@ -2792,11 +2792,11 @@ cogent_ffi47 (i :: MayNull (CPtr =  { cont : U32 })
        , j :: MayNull  { cont : U32 }
        , r' :: U32) = let (c' :: U8
                           , i :: MayNull  { cont : U32 }) = let (v' :: MayNull (CPtr =  { cont : U32 })
-                                                                , i :: MayNull  { cont : U32 }) = let v1' = gencotDummy :: String -> #() "Cannot access global variable: glob1" :: String :: #()
+                                                                , i :: MayNull  { cont : U32 }) = let v1' = gencotDummy :: String -> () "Cannot access global variable: glob1" :: String :: ()
             and v' = i :: MayNull (CPtr =  { cont : U32 })
             and i { cont = p0' :: U32 } = v' :: MayNull (CPtr =  { cont : U32 })
             and v' = p0' :: U32
-            and v' = v1' :: #()
+            and v' = v1' :: ()
             and (v' :: MayNull (CPtr =  { cont : U32 })
                 , p0' :: U32) = (v' :: MayNull (CPtr =  { cont : U32 })
                                 , v' :: MayNull (CPtr =  { cont : U32 }))
@@ -2815,18 +2815,18 @@ cogent_ffi47 (i :: MayNull (CPtr =  { cont : U32 })
          else let (c' :: U8
                   , j :: MayNull  { cont : U32 }
                   , r' :: U32) = let (c' :: U8
-                                     , j :: MayNull  { cont : U32 }) = let (v' :: #()
+                                     , j :: MayNull  { cont : U32 }) = let (v' :: ()
                                                                            , j :: MayNull  { cont : U32 }) = let v1' = j :: MayNull (CPtr =  { cont : U32 })
                      and j { cont = p1' :: U32 } = v1' :: MayNull (CPtr =  { cont : U32 })
                      and v1' = p1' :: U32
-                     and v' = gencotDummy :: String -> #() "Cannot access global variable: glob1" :: String :: #()
+                     and v' = gencotDummy :: String -> () "Cannot access global variable: glob1" :: String :: ()
                      and v' = v1' :: MayNull (CPtr =  { cont : U32 })
-                     and (v' :: #()
-                         , err' :: #()) = (v' :: #()
-                                          , v' :: #())
+                     and (v' :: ()
+                         , err' :: ()) = (v' :: ()
+                                         , v' :: ())
                      and j = j :: MayNull (CPtr =  { cont : U32 }) { cont = p1' :: U32 } :: MayNull  { cont : U32 }
-                     in (v' :: #()
-                        , j :: MayNull  { cont : U32 }) :: (#()
+                     in (v' :: ()
+                        , j :: MayNull  { cont : U32 }) :: (()
                                                            , MayNull  { cont : U32 })
                   in (0 :: U8
                      , j :: MayNull  { cont : U32 }) :: (U8
@@ -2894,8 +2894,8 @@ cogent_ffi48 (i :: MayNull (CPtr =  { cont : U32 })
                           , g ::  { cont : U32 }) = let (v' :: MayNull (CPtr =  { cont : U32 })
                                                         , i :: MayNull  { cont : U32 }
                                                         , g ::  { cont : U32 }) = let v1' = g :: (GlobState1 =  { cont : U32 })
-            and g { cont = p1' :: #(GlobState1 =  { cont : U32 }) } = v1' :: (GlobState1 =  { cont : U32 })
-            and v1' = p1' :: #(GlobState1 =  { cont : U32 })
+            and g { cont = p1' :: (GlobState1 =  #{ cont : U32 }) } = v1' :: (GlobState1 =  { cont : U32 })
+            and v1' = p1' :: (GlobState1 =  #{ cont : U32 })
             and v' = i :: MayNull (CPtr =  { cont : U32 })
             and i { cont = p0' :: U32 } = v' :: MayNull (CPtr =  { cont : U32 })
             and v' = p0' :: U32
@@ -2904,7 +2904,7 @@ cogent_ffi48 (i :: MayNull (CPtr =  { cont : U32 })
                 , p0' :: U32) = (v' :: MayNull (CPtr =  { cont : U32 })
                                 , v' :: MayNull (CPtr =  { cont : U32 }))
             and i = i :: MayNull (CPtr =  { cont : U32 }) { cont = p0' :: U32 } :: MayNull  { cont : U32 }
-            and g = g :: (GlobState1 =  { cont : U32 }) { cont = p1' :: #(GlobState1 =  { cont : U32 }) } ::  { cont : U32 }
+            and g = g :: (GlobState1 =  { cont : U32 }) { cont = p1' :: (GlobState1 =  #{ cont : U32 }) } ::  { cont : U32 }
             in (v' :: MayNull (CPtr =  { cont : U32 })
                , i :: MayNull  { cont : U32 }
                , g ::  { cont : U32 }) :: (MayNull (CPtr =  { cont : U32 })
@@ -2932,13 +2932,13 @@ cogent_ffi48 (i :: MayNull (CPtr =  { cont : U32 })
                      and j { cont = p3' :: U32 } = v1' :: MayNull (CPtr =  { cont : U32 })
                      and v1' = p3' :: U32
                      and v' = g :: (GlobState1 =  { cont : U32 })
-                     and g { cont = p2' :: #(GlobState1 =  { cont : U32 }) } = v' :: (GlobState1 =  { cont : U32 })
-                     and v' = p2' :: #(GlobState1 =  { cont : U32 })
+                     and g { cont = p2' :: (GlobState1 =  #{ cont : U32 }) } = v' :: (GlobState1 =  { cont : U32 })
+                     and v' = p2' :: (GlobState1 =  #{ cont : U32 })
                      and v' = v1' :: MayNull (CPtr =  { cont : U32 })
                      and (v' :: (GlobState1 =  { cont : U32 })
-                         , p2' :: #(GlobState1 =  { cont : U32 })) = (v' :: (GlobState1 =  { cont : U32 })
+                         , p2' :: (GlobState1 =  #{ cont : U32 })) = (v' :: (GlobState1 =  { cont : U32 })
                                                                      , v' :: (GlobState1 =  { cont : U32 }))
-                     and g = g :: (GlobState1 =  { cont : U32 }) { cont = p2' :: #(GlobState1 =  { cont : U32 }) } ::  { cont : U32 }
+                     and g = g :: (GlobState1 =  { cont : U32 }) { cont = p2' :: (GlobState1 =  #{ cont : U32 }) } ::  { cont : U32 }
                      and j = j :: MayNull (CPtr =  { cont : U32 }) { cont = p3' :: U32 } :: MayNull  { cont : U32 }
                      in (v' :: (GlobState1 =  { cont : U32 })
                         , g ::  { cont : U32 }

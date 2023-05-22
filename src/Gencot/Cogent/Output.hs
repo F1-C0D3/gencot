@@ -62,7 +62,7 @@ showCogentType t = (displayS $ renderCompact $ pretty $ toTrgType t) ""
 
 instance Pretty GenType where
     -- all other type synonyms resulting from typedef names. Without type arguments.
-    pretty (GenType t org (Just syn)) = lparen <> typename syn <+> symbol "=" <+> pretty (GenType t org Nothing) <> rparen
+    pretty (GenType t org (Just syn)) = lparen <> pretty syn <+> symbol "=" <+> pretty (GenType t org Nothing) <> rparen
     -- types without synonyms
     pretty (GenType t _ Nothing) = pretty t
 

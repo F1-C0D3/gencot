@@ -13,7 +13,7 @@ import Gencot.Cogent.Ast -- includes unitType
 import Gencot.Cogent.Types (
   mkU8Type, mkU32Type, mkStringType, mkBoolType, 
   mkTupleType, mkCtlType, mkFunType, mkRecordType, mkTakeType, mkArrTakeType, 
-  getMemberType, getDerefType, transferProperties)
+  getMemberType, getDerefType)
 import Gencot.Cogent.Expr (
   TypedVar(TV), namOfTV, typOfTV, TypedVarOrWild, TypedFun, funResultType,
   mkUnitExpr, mkIntLitExpr, mkCharLitExpr, mkStringLitExpr, mkBoolLitExpr,
@@ -131,10 +131,10 @@ mkBodyExpr b@(CS.Binding ip _ _ _) e = mkLetExpr [replaceLeadPatn (mkVarPattern 
 mkPlainExpr :: ([GenBnd],[GenBnd]) {-BindsPair-} -> GenExpr
 mkPlainExpr (main,putback) =
     if not $ null putback
-       then toDummyExpr e $ mkDummyExpr unitType "No putback obligations supported in plain expression."
+       then toDummyExpr e $ mkDummyExpr (typOfGE e) "No putback obligations supported in plain expression."
        else
        if (length vs) > 1
-          then toDummyExpr e $ mkDummyExpr unitType "No side effects supported in plain expression."
+          then toDummyExpr e $ mkDummyExpr (typOfGE e) "No side effects supported in plain expression."
           else mkLetExpr (reverse main) $ mkVarExpr $ head vs
     where (CS.Binding ip _ e _) = head main
           vs = tupleVars ip
@@ -144,9 +144,9 @@ mkPlainExpr (main,putback) =
 mkDummyExpr :: GenType -> String -> GenExpr
 mkDummyExpr t msg = mkAppExpr (mkVarExpr (TV "gencotDummy" $ mkFunType mkStringType t)) $ mkStringLitExpr msg
 
--- turn expression to dummy, preserving origin, type, and source
+-- turn expression to dummy, preserving origin and source
 toDummyExpr :: GenExpr -> GenExpr -> GenExpr
-toDummyExpr (GenExpr e o t src) (GenExpr dummy _ _ _) = (GenExpr dummy o t src)
+toDummyExpr (GenExpr _ o _ src) (GenExpr dummy _ t _) = (GenExpr dummy o t src)
 
 -- Construct Binding List Pairs
 -------------------------------
@@ -273,8 +273,7 @@ mkAssBindsPair post t op bpl bpr =
           lval = mkVarsTupleBinding [vl,v] [if post then e else el, el]
 
 -- | Conditional v<n>' = if bp1 then bp2 else bp3
--- The first argument is the result type but without the effect of properties,
--- these are taken from bp1, assuming that they are the same in bp2.
+-- The first argument is the result type.
 mkIfBindsPair :: GenType -> BindsPair -> BindsPair -> BindsPair -> BindsPair
 mkIfBindsPair t bp0 bp1 bp2 =
     addBinding (mkVarsBinding (vr : set) (mkIfExpr (mkVarExpr v0) e1 e2)) bp
@@ -283,7 +282,7 @@ mkIfBindsPair t bp0 bp1 bp2 =
           v0 = leadVar bp0
           v1 = leadVar bp1
           v2 = leadVar bp2
-          vr = TV (namOfTV v0) (transferProperties (typOfTV v1) t)
+          vr = TV (namOfTV v0) t
           set = union set1 set2
           (bp1l,e1) = if null set1
                          then ([bp1],mkVarTupleExpr (v1 : set))

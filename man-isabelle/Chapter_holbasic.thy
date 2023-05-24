@@ -60,6 +60,13 @@ An example for a datatype definition with two constructor specifications is
   Dim2 nat nat
 | Dim3 nat nat nat\<close>}
 Its value set is equivalent to the union of pairs and triples of natural numbers.
+
+An example for a recursive datatype definition with two constructor specifications is
+@{theory_text[display]
+\<open>datatype tree = 
+  Leaf nat
+| Tree nat tree tree\<close>}
+Its value set is equivalent to the set of all binary trees with a natural number in every node.
 \<close>
 
 subsection "Constructors"
@@ -296,7 +303,7 @@ subsubsection "Simplifier Rules"
 text\<open>
 The rules added by a datatype definition to the simpset (see Section~\ref{basic-methods-simp})
 support many ways for the simplifier to process terms with constructors and destructors. An
-example are rules of the form
+example are equations of the form
 @{text[display]
 \<open>sname\<^sub>i\<^sub>j (cname\<^sub>i x\<^sub>1 \<dots> x\<^sub>k\<^sub>i) = x\<^sub>j\<close>}
 
@@ -308,10 +315,10 @@ the simplifier processes terms for datatypes.
 subsubsection "Case Rule"
 
 text\<open>
-Every datatype definition introduces a case rule (see Section~\ref{basic-case-reasoning}) of the 
+Every definition for a datatype \<open>name\<close> introduces a case rule (see Section~\ref{basic-case-reasoning}) of the 
 form
 @{theory_text[display]
-\<open>lemma name.exhaust:
+\<open>theorem name.exhaust:
   "\<lbrakk>\<And>x\<^sub>1 \<dots> x\<^sub>k\<^sub>1. y = cname\<^sub>1 x\<^sub>1 \<dots> x\<^sub>k\<^sub>1 \<Longrightarrow> P;
     \<dots> ;
     \<And>x\<^sub>1 \<dots> x\<^sub>k\<^sub>n. y = cname\<^sub>n x\<^sub>1 \<dots> x\<^sub>k\<^sub>n \<Longrightarrow> P\<rbrakk> \<Longrightarrow> P"\<close>}
@@ -345,13 +352,94 @@ together with locally fixed variables.
 subsubsection "Split Rule"
 
 text\<open>
-**todo**
+A \<open>case\<close> term (see Section~\ref{holbasic-data-destr}) is only processed be the simplifier, if a
+corresponding split rule is configured for it (see Section~\ref{basic-methods-simp}). Every definition
+for a datatype \<open>name\<close> introduces such a split rule. It has the form
+@{theory_text[display]
+\<open>theorem name.split:
+  "P(case term of 
+      cname\<^sub>1 var\<^sub>1\<^sub>1 \<dots> var\<^sub>1\<^sub>k\<^sub>1 \<Rightarrow> term\<^sub>1 
+    | \<dots>
+    | cname\<^sub>n var\<^sub>n\<^sub>1 \<dots> var\<^sub>n\<^sub>k\<^sub>n \<Rightarrow> term\<^sub>n) = 
+  (   (term = cname\<^sub>1 var\<^sub>1\<^sub>1 \<dots> var\<^sub>1\<^sub>k\<^sub>1 \<longrightarrow> P(term\<^sub>1))
+    \<and> \<dots>
+    \<and> (term = cname\<^sub>n var\<^sub>n\<^sub>1 \<dots> var\<^sub>n\<^sub>k\<^sub>n \<longrightarrow> P(term\<^sub>n)))"\<close>}
+As described in Section~\ref{basic-methods-simp} it splits a goal with a \<open>case\<close> term for type \<open>name\<close>
+in the conclusion into goals where the \<open>case\<close> term is replaced by the \<open>term\<^sub>i\<close>.
+
+As an example, let \<open>cv\<close> be a variable or constant of type \<open>coord\<close>, as above. Then the goal
+@{text[display]
+\<open>sum = (case cv of Dim2 a b \<Rightarrow> a + b | Dim3 a b c \<Rightarrow> a + b + c)\<close>}
+is split by the split rule \<open>coord.split\<close> into the goals
+@{text[display]
+\<open>cv = Dim2 a b \<Longrightarrow> sum = a + b
+cv = Dim3 a b c \<Longrightarrow> sum = a + b + c\<close>}
 \<close>
 
 subsubsection "Induction Rule"
 
 text\<open>
-**todo**
+Every definition for a datatype \<open>name\<close> introduces an induction rule (see Section~\ref{basic-case-induction})
+of the form
+@{theory_text[display]
+\<open>theorem name.induct:
+  "\<lbrakk>\<And>x\<^sub>1 \<dots> x\<^sub>k\<^sub>1. \<lbrakk>?P x\<^sub>l\<^sub>1; \<dots> ?P x\<^sub>l\<^sub>m\<^sub>1\<rbrakk> \<Longrightarrow> ?P (cname\<^sub>1 x\<^sub>1 \<dots> x\<^sub>k\<^sub>1);
+    \<dots> ;
+    \<And>x\<^sub>1 \<dots> x\<^sub>k\<^sub>n. \<lbrakk>?P x\<^sub>l\<^sub>n; \<dots> ?P x\<^sub>l\<^sub>m\<^sub>n\<rbrakk> \<Longrightarrow> ?P (cname\<^sub>n x\<^sub>1 \<dots> x\<^sub>k\<^sub>n)\<rbrakk>
+   \<Longrightarrow> ?P ?a"\<close>}
+where the \<open>x\<^sub>l\<^sub>1 \<dots> x\<^sub>l\<^sub>m\<^sub>i\<close> are those \<open>x\<^sub>1 \<dots> x\<^sub>k\<^sub>i\<close> which have type \<open>name\<close> (i.e., the recursive
+occurrences of the type name). Like the case rule it is valid because the constructor applications 
+cover all possibilities of constructing a value \<open>?a\<close> of the datatype.
+
+If the datatype \<open>name\<close> is not recursive there are no \<open>x\<^sub>l\<^sub>1 \<dots> x\<^sub>l\<^sub>m\<^sub>i\<close> and the assumptions of all
+inner rules are empty, then the induction rule is simply a specialization of the case rule and is
+redundant. However, for a recursive datatype \<open>name\<close> induction using rule \<open>name.induct\<close> is the
+standard way of proving a property to hold for all values.
+
+The rule \<open>name.induct\<close> is associated with datatype \<open>name\<close> for use by the methods \<^theory_text>\<open>induction\<close> and
+\<^theory_text>\<open>induct\<close> (see Section~\ref{basic-case-induction}). Therefore the application of the method
+@{theory_text[display]
+\<open>induction x\<close>}
+where \<open>x\<close> is a variable of type \<open>name\<close> splits a goal into \<open>n\<close> subgoals where every subgoal uses
+a different constructor term in the place of \<open>x\<close> in its conclusion.
+
+As for the case rule and the \<^theory_text>\<open>cases\<close> method, the names for the named contexts created by the 
+methods \<^theory_text>\<open>induction\<close> and \<^theory_text>\<open>induct\<close> are simply the constructor names \<open>cname\<^sub>i\<close>. Therefore a structured
+proof using induction for a variable \<open>x\<close> of datatype \<open>name\<close> has the form
+@{theory_text[display]
+\<open>proof (induction x)
+  case (cname\<^sub>1 x\<^sub>1 \<dots> x\<^sub>k\<^sub>1) \<dots> show ?case \<proof>
+next
+\<dots>
+next
+  case (cname\<^sub>n x\<^sub>1 \<dots> x\<^sub>k\<^sub>n) \<dots> show ?case \<proof>
+qed\<close>}
+
+In the rule \<open>name.induct\<close> all inner assumptions are of the form \<open>?P x\<^sub>l\<^sub>i\<close>, i.e., they are induction
+hypotheses and are named \<open>"cname\<^sub>i.IH"\<close> by the \<^theory_text>\<open>induction\<close> method, the assumption set \<open>"cname\<^sub>i.hyps"\<close>
+is always empty. The \<^theory_text>\<open>induct\<close> method instead names all inner assumptions by \<open>"cname\<^sub>i.hyps"\<close>.
+
+As an example, the induction rule for the recursive datatype \<open>tree\<close> defined in 
+Section~\ref{holbasic-data-def} is
+@{theory_text[display]
+\<open>theorem tree.induct:
+  "\<lbrakk>\<And>x. ?P (Leaf x);
+    \<And>x\<^sub>1 x\<^sub>2 x\<^sub>3. \<lbrakk>?P x\<^sub>2; ?P x\<^sub>3\<rbrakk> \<Longrightarrow> ?P (Tree x\<^sub>1 x\<^sub>2 x\<^sub>3)\<rbrakk>
+   \<Longrightarrow> ?P ?a"\<close>}
+If \<open>p :: tree \<Rightarrow> bool\<close> is a predicate function for values of type \<open>tree\<close> the goal \<open>p x\<close> which states
+that \<open>p\<close> holds for all values is split by applying the method \<open>(induction x)\<close> into the goals
+@{text[display]
+\<open>\<And>x. p (Leaf x)
+\<And>x\<^sub>1 x\<^sub>2 x\<^sub>3. \<lbrakk>p x\<^sub>2; p x\<^sub>3\<rbrakk> \<Longrightarrow> p (Tree x\<^sub>1 x\<^sub>2 x\<^sub>3)\<close>}
+
+A structured proof for goal \<open>p x\<close> has the form
+@{theory_text[display]
+\<open>proof (induction x)
+  case (Leaf x) \<dots> show ?case \<proof>
+next
+  case (Tree x\<^sub>1 x\<^sub>2 x\<^sub>3) \<dots> show ?case \<proof>
+qed\<close>}
+and in the second case the assumptions \<open>p x\<^sub>2, p x\<^sub>3\<close> are named \<open>Tree.IH\<close>.
 \<close>
 
 section "Record Types"

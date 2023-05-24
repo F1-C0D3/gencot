@@ -2431,6 +2431,26 @@ must be configured explicitly in the form
 \<open>simp split: name\<^sub>1 \<dots> name\<^sub>n\<close>}
 where the \<open>name\<^sub>i\<close> are the names of the split rules to use. This configuration can be arbitrarily 
 combined with the other simplifier configuration options.
+
+The usual form of a split rule is
+@{theory_text[display]
+\<open>theorem name:
+  "?P(term) =
+  ((Q\<^sub>1 \<longrightarrow> ?P(term\<^sub>1)) \<and> \<dots> \<and> (Q\<^sub>n \<longrightarrow> ?P(term\<^sub>n)))"\<close>}
+where the \<open>term\<^sub>i\<close> are subterms of \<open>term\<close> and every \<open>Q\<^sub>i\<close> represents a condition for which \<open>term\<close>
+can be reduced to \<open>term\<^sub>i\<close>. The simplifier applies such a split rule to a goal \<open>\<lbrakk>A\<^sub>1;\<dots>;A\<^sub>m\<rbrakk> \<Longrightarrow> C\<close>
+by first unifying the left hand side with the conclusion \<open>C\<close> (which succeeds if \<open>term\<close> occurrs in
+\<open>C\<close>), then replacing it by the conjunction on the right, then splitting the goal into a separate
+goal for every conjunct, and finally moving every \<open>Q\<^sub>i\<close> to the assumptions of their goal. Thus the
+resulting goals have the form
+@{text[display]
+\<open>\<lbrakk>A\<^sub>1;\<dots>;A\<^sub>m;Q\<^sub>1\<rbrakk> \<Longrightarrow> C\<^sub>1
+\<dots>
+\<lbrakk>A\<^sub>1;\<dots>;A\<^sub>m;Q\<^sub>n\<rbrakk> \<Longrightarrow> C\<^sub>n\<close>}
+where \<open>C\<^sub>i\<close> is constructed from \<open>C\<close> by mainly replacing \<open>term\<close> by \<open>term\<^sub>i\<close>.
+
+Note that this form of a split rule can only be applied for splitting terms in the conclusion of a goal.
+See the Isabelle documentation for other forms which split terms in assumptions of a goal.
 \<close>
 
 subsubsection "Input Facts for the \<open>simp\<close> Method"

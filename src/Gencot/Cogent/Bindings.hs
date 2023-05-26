@@ -125,7 +125,7 @@ replaceValVarType t ip bs = bs
 
 -- construct let (_,...) = expr in e
 mkBodyExpr :: GenBnd -> GenExpr -> GenExpr
-mkBodyExpr b@(CS.Binding ip _ _ _) e = mkLetExpr [replaceLeadPatn (mkVarPattern (TV "_" $ typOfGIP ip)) b] e
+mkBodyExpr b@(CS.Binding ip _ _ _) e = mkLetExpr [replaceLeadPatn (mkVarPattern (TV "_" mkCtlType)) b] e
 
 -- construct let ... in v<n>'
 mkPlainExpr :: ([GenBnd],[GenBnd]) {-BindsPair-} -> GenExpr

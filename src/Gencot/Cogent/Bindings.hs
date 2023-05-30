@@ -52,17 +52,13 @@ typedCasVar n = TV (casVar n) mkBoolType
 -- The main list is represented in reverse order.
 type BindsPair = ([GenBnd],[GenBnd])
 
--- | Convert a binding list pair for an expression to a binding list pair for a statement. 
-etosBindsPair :: BindsPair -> BindsPair
-etosBindsPair (main,putback) =
-    ((mkVarBinding typedCtlVar $ mkCtlLitExpr 0) : main, putback)
-
 -- | Select side effect targets from a binding list pair.
--- For the actually occurring BindsPairs all resulting variables should have different names,
--- because they are mapped from C identifiers occurring in the same block, so every occurrence has the same type.
+-- For every variable name its last occurrence as bound variable in the sequence of bindings is returned.
+-- This is the binding effective at the end of the binding sequence with its associated type.
+-- Note that a container variable may have several different types with taken components in the binding sequence.
 sideEffectTargets :: BindsPair -> [TypedVarOrWild]
 sideEffectTargets (main,putback) =
-    sideEffectFilter $ union (boundVarsList main) (boundVarsList putback)
+    sideEffectFilter $ union (boundVarsList putback) (boundVarsList $ reverse main) -- union always retains the first occurrence
 
 -- | Select side effect targets from a list of typed variables.
 sideEffectFilter :: [TypedVarOrWild] -> [TypedVarOrWild]
@@ -76,8 +72,8 @@ tupleVars ip =
          CS.PVar v -> [TV v $ typOfGIP ip]
          CS.PUnderscore -> [TV "_" $ typOfGIP ip]
          CS.PTuple pvs -> concat $ map tupleVars pvs
-         CS.PTake v fs -> (TV v $ mkTakeType False (typOfGIP ip) (map fst $ catMaybes fs)) : (concat $ map (tupleVars . snd) $ catMaybes fs)
-         CS.PArrayTake v fs -> (TV v $ mkArrTakeType False (typOfGIP ip) (map fst fs)) : (concat $ map (tupleVars . snd) fs)
+         CS.PTake v fs -> (TV v $ typOfGIP ip) : (concat $ map (tupleVars . snd) $ catMaybes fs)
+         CS.PArrayTake v fs -> (TV v $ typOfGIP ip) : (concat $ map (tupleVars . snd) fs)
 
 -- | Typed variables bound in a binding
 -- For a valid binding all resulting variables have different names.
@@ -85,9 +81,9 @@ boundVars :: GenBnd -> [TypedVarOrWild]
 boundVars (CS.Binding ip _ _ _) = tupleVars ip
 
 -- | Typed variables bound in a binding list
--- The result may contain variables with the same name but different types.
+-- The result may contains for each variable name only the first occurrence with its associated type.
 boundVarsList :: [GenBnd] -> [TypedVarOrWild]
-boundVarsList bs = nub $ concat $ map boundVars bs
+boundVarsList bs = nub $ concat $ map boundVars bs -- nub always retains the first occurrence
 
 -- | The first typed variable bound in the final binding of the main list.
 leadVar :: BindsPair -> TypedVarOrWild
@@ -193,11 +189,12 @@ mkValVarBindsPair n v = mkSingleBindsPair $ mkValVarBinding n (typOfTV v) $ mkVa
 mkMemBindsPair :: Int -> CCS.FieldName -> BindsPair -> BindsPair
 mkMemBindsPair n f bp = 
     if isWild rv then mainbp else addPutback (mkVarBinding rv $ mkRecPutExpr rv cmp f) mainbp
-    where vv@(TV _ rt) = leadVar bp
+    where vv@(TV vnam rt) = leadVar bp
           ct = getMemberType f rt
           cmp = TV (cmpVar n) ct
           rv = lvalVar bp
-          mainbp = addBinding (mkVarBinding vv $ mkVarExpr cmp) $ 
+          vc = TV vnam ct
+          mainbp = addBinding (mkVarBinding vc $ mkVarExpr cmp) $
                      addBinding (mkBinding (mkRecTakePattern rv cmp f) $ mkVarExpr vv) bp
 
 -- | Array access (<v> @{@v<l>’=r<k>’},i<k>') = (v<n>',v<l>') and v<n>’ = r<k>’
@@ -205,13 +202,14 @@ mkMemBindsPair n f bp =
 mkIdxBindsPair :: Int -> BindsPair -> BindsPair -> BindsPair
 mkIdxBindsPair n bp1 bp2 = 
     if isWild rv then mainbp else addPutback (mkVarBinding rv $ mkArrPutExpr rv cmp idx) mainbp
-    where v1@(TV _ at) = leadVar bp1
+    where v1@(TV vnam at) = leadVar bp1
           v2@(TV _ it) = leadVar bp2
           et = getDerefType at
           cmp = TV (cmpVar n) et
           idx = TV (idxVar n) it
           rv = lvalVar bp1
-          mainbp = addBinding (mkVarBinding v1 $ mkVarExpr cmp) $ 
+          vc = TV vnam et
+          mainbp = addBinding (mkVarBinding vc $ mkVarExpr cmp) $
                      addBinding (mkBinding (mkArrTakePattern rv cmp idx v2) $ mkVarTupleExpr [v1,v2]) $ concatBindsPairs [bp2,bp1]
 
 -- | Pointer dereference, always <v>{cont=r<k>’} = v<n>' and v<n>’ = r<k>’
@@ -377,7 +375,7 @@ mkExpBinding bp = mkVarsBinding (typedCtlVar : vs) $ mkLetExpr [cmbBinds bp] $ m
     where vs = sideEffectTargets bp
 
 -- | Return statement: (c',r',v1..) = let ... in (3, v<n>',v1,..)
--- Second argument is the result type of the enclosing function.
+-- First argument is the result type of the enclosing function.
 mkRetBinding :: GenType -> BindsPair -> GenBnd
 mkRetBinding t bp = mkVarsBinding (typedCtlVar : ((TV resVar t) : vs)) $ mkLetExpr [cmbBinds bp] $ mkCtlVarTupleExpr 3 (v : vs)
     where v = leadVar bp

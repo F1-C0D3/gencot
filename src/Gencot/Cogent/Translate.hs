@@ -1157,7 +1157,8 @@ bindExpr e@(LC.CVar nam _) = do
                              return $ mkValVarBindsPair cnt $ TV v t
                  else do
                      fdes <- getContextFuncDesc
-                     let pdes = searchGlobalStateParamDesc fdes gs
+                     ptyp <- mkGlobalStateParamType (iid,ct) gs
+                     let pdes = searchGlobalStateParamDesc fdes (gs,ptyp)
                          pt = typeOfParamDesc pdes
                          pn = nameOfParamDesc pdes
                      if null pn
@@ -1265,7 +1266,12 @@ bindExpr e@(LC.CCall f es _) = do
 bindExpr e@(LC.CAssign op e1 e2 _) = do
     bp1 <- bindExpr e1
     bp2 <- bindExpr e2
-    insertExprSrc e $ mkAssBindsPair False unitType (transAssOp op) bp1 bp2
+    t <- if op == LC.CAssignOp
+            then return unitType
+            else do
+                ct <- exprType e
+                transType ("",ct)
+    insertExprSrc e $ mkAssBindsPair False t (transAssOp op) bp1 bp2
 bindExpr e@(LC.CCond e1 (Just e2) e3 _) = do
     bp1 <- bindExpr e1
     bp2 <- bindExpr e2
@@ -1338,7 +1344,6 @@ getAllParamDesc iat@(iid,(LCA.FunctionType (LCA.FunType _ pds isVar) _)) = do
     let nonvirt = map (\(n,t,p) -> ParamDesc n t p) $ zip3 pns pts pps
     gsps <- getGlobalStateSubItemIds iat -- the item ids of all gs parameters
     gsprops <- mapM getGlobalStateProperty $ map fst gsps -- the gs properties of all gs parameters
-    gsvars <- mapM getGlobalStateId gsprops -- the global var item ids or "" for all gs parameters
     gsvirtnosort <- mapM makeGlobalStateParamDesc $ zip gsps gsprops -- the descriptions for all gs parameters
     let gsvirt = map snd $ sortOn fst $ zip gsprops gsvirtnosort
     huprop <- isHeapUseItem iat
@@ -1360,15 +1365,24 @@ makeGlobalStateParamDesc ((iid,noro), gs) = do
        then do -- global variable not available, use type synonym as opaque type
          return $ ParamDesc name (makeReadOnlyIf (not noro) $ mkTypeName $ globStateType gs) props
        else do -- global variable found, adjust its type to pointer and add type synonym
-         -- if the variable has an array type this is correct because transType ignores the pointer
          mdec <- lookupGlobItem gsvar
          case mdec of
               Nothing -> return $ ParamDesc "" unitType []
               Just decl -> do
                   sfn <- getFileName
-                  let piat = adjustItemAssocType $ getIndividualItemAssoc decl sfn
-                  typ <- transType piat
-                  return $ ParamDesc name (addTypeSyn (globStateType gs) (rmMayNullIf True typ)) props
+                  typ <- mkGlobalStateParamType (getIndividualItemAssoc decl sfn) gs
+                  return $ ParamDesc name typ props
+
+-- | Construct the type of a GlobalState parameter.
+-- The first argument is the item associated type of the corresponding global variable.
+-- The second argument is the variable's GlobalState property
+-- The result is the translated pointer type to the variable's type without MayNull
+-- and with GlobalState type synonym added.
+-- If the variable has an array type this is correct because transType ignores the pointer
+mkGlobalStateParamType :: ItemAssocType -> String -> FTrav GenType
+mkGlobalStateParamType iat gs = do
+    typ <- transType $ adjustItemAssocType iat
+    return $ addTypeSyn (globStateType gs) (rmMayNullIf True typ)
 
 -- | construct the parameter description for the HeapUse parameter.
 -- The argument is the list of names of all other parameters.
@@ -1395,26 +1409,27 @@ getHeapUseParamDesc :: FuncDesc -> Maybe ParamDesc
 getHeapUseParamDesc fdes =
     find (\pdes -> elem "hu" $ propOfParamDesc pdes) $ parsOfFuncDesc fdes
 
--- | Return the sequence of GlobalState properties from the parameter descriptions.
-getGlobalStateParamProps :: FuncDesc -> [String]
+-- | Return the sequence of GlobalState properties and parameter types from the parameter descriptions.
+getGlobalStateParamProps :: FuncDesc -> [(String,GenType)]
 getGlobalStateParamProps fdes =
-    filter (not . null) $ map getGSProp $ parsOfFuncDesc fdes
-    where getGSProp = (fromMaybe "") . (find (\p -> "gs" `isPrefixOf` p)) . propOfParamDesc
+    filter (not . null . fst) $ map getGSProp $ parsOfFuncDesc fdes
+    where getGSProp = (\pdes -> (fromMaybe "" $ find (\p -> "gs" `isPrefixOf` p) $ propOfParamDesc pdes, typeOfParamDesc pdes))
 
 -- | Search a parameter description for a HeapUse parameter.
--- If not found return a description with empty name, unit type, and only the HeapUse property.
+-- If not found return a description with empty name, heap type, and only the HeapUse property.
 searchHeapUseParamDesc :: FuncDesc -> ParamDesc
 searchHeapUseParamDesc fdes =
     case getHeapUseParamDesc fdes of
-         Nothing -> ParamDesc "" unitType ["hu"]
+         Nothing -> ParamDesc "" makeHeapType ["hu"]
          Just pdes -> pdes
 
 -- | Search a parameter description with a specific GlobalState property.
--- If not found return a description with empty name, unit type, and only the GlobalState property.
-searchGlobalStateParamDesc :: FuncDesc -> String -> ParamDesc
-searchGlobalStateParamDesc fdes gsprop =
+-- The GlobalState property is specified together with the expected type of the parameter.
+-- If not found return a description with empty name, expected parameter type, and only the GlobalState property.
+searchGlobalStateParamDesc :: FuncDesc -> (String,GenType) -> ParamDesc
+searchGlobalStateParamDesc fdes (gsprop,gstyp) =
     case find (\pdes -> elem gsprop $ propOfParamDesc pdes) $ parsOfFuncDesc fdes of
-         Nothing -> ParamDesc "" unitType [gsprop]
+         Nothing -> ParamDesc "" gstyp [gsprop]
          Just pdes -> pdes
 
 isAddResultParam :: ParamDesc -> Bool

@@ -8,8 +8,8 @@ import Gencot.Cogent.Post.MatchTypes (bangproc)
 
 postproc :: String -> GenExpr -> ETrav GenExpr
 postproc tconf e = do
-    -- e1 <- runtypes tconf e
-    return $ runsimp tconf e -- e1
+    e1 <- runtypes tconf e
+    return $ runsimp tconf e1
 
 runsimp :: String -> GenExpr -> GenExpr
 runsimp tconf e = let e' = opproc' tconf $ ifproc' tconf $ letproc' tconf e

@@ -1,16 +1,24 @@
 GC=../../bin/gencot
 IT=../../bin/items
 
-VARIANT = plaingen
-TCONF = -tflG
+#VARIANT = plaingen
+#TCONF = -tflbG
 
 #VARIANT = plain
+#TCONF = -tflb
+
+VARIANT = banggen
+TCONF = -tflG
+
+#VARIANT = bangproc
 #TCONF = -tfl
 
 #VARIANT = letproc
+#TCONF = -tfb
 #TCONF = -tf
 
 #VARIANT = ifproc
+#TCONF = -tb
 #TCONF =
 
 TESTS = purexpr assignexpr stat loop func ro

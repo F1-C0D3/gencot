@@ -1,7 +1,7 @@
 {-# LANGUAGE PackageImports #-}
 module Gencot.Cogent.Post.MatchTypes where
 
-import Data.List (concatMap,nub,intersect,union,(\\),partition,find,zipWith)
+import Data.List (intercalate,concatMap,nub,intersect,union,(\\),partition,find,zipWith)
 import qualified Data.Map as M
 import Data.Maybe (catMaybes,isNothing,isJust)
 import Data.Foldable (toList)
@@ -15,7 +15,8 @@ import Cogent.Common.Syntax as CCS
 import Gencot.Cogent.Ast
 import Gencot.Cogent.Error (typeMatch)
 import Gencot.Cogent.Types (
-  mkTupleType, mkReadonly, isNonlinear, isRegular, mayEscape, roCmpTypes, unbangType, getMemberType, getDerefType, getParamType)
+  mkTupleType, mkTakeType, mkArrTakeType,
+  mkReadonly, isNonlinear, isRegular, mayEscape, roCmpTypes, unbangType, getMemberType, getDerefType, getParamType)
 import Gencot.Cogent.Bindings (errVar, replaceValVarType, replaceInGIP, mkDummyExpr, toDummyExpr, mkVarTuplePattern)
 import Gencot.Cogent.Expr (TypedVar(TV), namOfTV, mkUnitExpr, mkLetExpr, mkVarTupleExpr)
 import Gencot.Cogent.Post.Util (
@@ -247,20 +248,26 @@ tryBangBindings (b@(CS.Binding ip m e []):bs) bdy = do
            mapM recordError errs
            (ebe,bvse) <- if null errs then extendBang eb bvs else return (eb,bvs)
            bsb <- tryBangBindings bs bdy
-           if roCmpTypes (typOfGIP ip) (typOfGE ebe)
+           let (inoro,enoro) = matchRoTypes (typOfGIP ip) (typOfGE ebe)
+           if inoro == enoro
               then return ((CS.Binding ip m ebe bvse) : bsb)
+              else if enoro then do
+                  let bmsg = if null bvs then "L" else "After banging variable(s) " ++ (intercalate ", " bvs) ++ " l"
+                  let msg = bmsg ++ "inear expression is used in readonly context"
+                  recordError $ typeMatch (orgOfGIP ip) msg
+                  return ((CS.Binding ip m (toDummyExpr ebe $ mkDummyExpr (typOfGIP ip) msg) bvse) : bsb)
               else do
-                  let msg = "Linear expression " ++ (show ebe) ++ " after banging used in readonly context " ++ (show ip)
+                  let msg = "Readonly expression is used in linear context"
                   recordError $ typeMatch (orgOfGIP ip) msg
                   return ((CS.Binding ip m (toDummyExpr ebe $ mkDummyExpr (typOfGIP ip) msg) bvse) : bsb)
        else if null bs
        then do
            mapM recordError errs
-           recordError $ typeMatch (orgOfGIP ip) ("Necessary banging of variables " ++ (show bvs) ++ " leads to non-escapeable type")
+           let msg = "Necessary banging of variables " ++ (intercalate ", " bvs) ++ " leads to non-escapeable type"
+           recordError $ typeMatch (orgOfGIP ip) msg
            if roCmpTypes (typOfGIP ip) (typOfGE eb)
               then return $ [CS.Binding ip m (bangToError bvs eb) bvs]
-              else return $ [CS.Binding ip m (toDummyExpr eb $ mkDummyExpr (typOfGIP ip)
-                               "Necessary banging leads to non-escapeable type") []]
+              else return $ [CS.Binding ip m (toDummyExpr eb $ mkDummyExpr (typOfGIP ip) msg) []]
        else tryBangBindings (combineBindings b (head bs) (tail bs) bdy) bdy
 
 -- | Replace all occurrences of variables in a set by dummy expressions.
@@ -308,6 +315,7 @@ bangVars :: [CCS.VarName] -> GenExpr -> Trav [CCS.VarName] GenExpr
 bangVars vs e = do
     modifyUserState (\s -> union vs s)
     (eb,bvs,errs) <- runExprTrav [] $ rslvRoDiffs vs [] M.empty e
+    mapM recordError errs
     if null bvs
        then return eb
        else bangVars bvs eb
@@ -327,7 +335,7 @@ extendBangVars :: GenExpr -> [CCS.VarName] -> ETrav (GenExpr, [CCS.VarName])
 extendBangVars e [] = return (e,[])
 extendBangVars e (v:vs) = do
     (eb,bvs,errs) <- runExprTrav [] $ bangVars [v] e
-    if null errs
+    if null errs && (mayEscape $ typOfGE eb)
        then do
            (ebb,bbvs) <- extendBangVars eb (vs \\ bvs)
            return (ebb, union bbvs bvs)
@@ -344,20 +352,18 @@ getBangCandidates bvs e = nub $ concat $ fmap (getBangCandidates bvs) $ exprOfGE
 -- The first argument is the list of all variables not free in the bindings.
 getBangCandInBindings :: [CCS.VarName] -> [GenBnd] -> [CCS.VarName]
 getBangCandInBindings _ [] = []
-getBangCandInBindings bvs ((CS.Binding ip@(GenIrrefPatn ip' _ _) _ e _):bs) =
-    union (getBangCandInBind bvs ip' e) $ getBangCandInBindings (union bvs $ freeInIrrefPatn ip) bs
+getBangCandInBindings bvs ((CS.Binding ip _ e _):bs) =
+    union (union (getBangCandInPattern bvs ip) (getBangCandidates bvs e)) $ getBangCandInBindings (union bvs $ freeInIrrefPatn ip) bs
 
 -- | Return all free variables which occur as container with linear type in a take operation.
 -- The first argument is the list of all variables not free in the bound expression.
-getBangCandInBind :: [CCS.VarName] -> IrpatnOfGIP -> GenExpr -> [CCS.VarName]
-getBangCandInBind bvs (CS.PVar pv) e = getBangCandidates bvs e
-getBangCandInBind bvs CS.PUnderscore e = getBangCandidates bvs e
-getBangCandInBind bvs (CS.PTake pv [Just (_,(GenIrrefPatn (CS.PVar cv) _ _))]) e@(GenExpr _ _ t _) =
-    union (if not $ isNonlinear t then [pv] else []) $ getBangCandidates bvs e
-getBangCandInBind bvs (CS.PArrayTake pv [(_,(GenIrrefPatn (CS.PVar cv) _ _))]) e@(GenExpr _ _ t _) =
-    union (if not $ isNonlinear t then [pv] else []) $ getBangCandidates bvs e
-getBangCandInBind bvs (CS.PTuple (ip:_)) (GenExpr (CS.Tuple (e:_)) _ _ _) = getBangCandInBind bvs (irpatnOfGIP ip) e
-getBangCandInBind bvs (CS.PTuple _) e = getBangCandidates bvs e
+getBangCandInPattern :: [CCS.VarName] -> GenIrrefPatn -> [CCS.VarName]
+getBangCandInPattern bvs (GenIrrefPatn (CS.PTake pv [Just (_,(GenIrrefPatn (CS.PVar cv) _ _))]) _ t)
+    | (not $ elem pv bvs) && (not $ isNonlinear t) = [pv]
+getBangCandInPattern bvs (GenIrrefPatn (CS.PArrayTake pv [(_,(GenIrrefPatn (CS.PVar cv) _ _))]) _ t)
+    | (not $ elem pv bvs) && (not $ isNonlinear t) = [pv]
+getBangCandInPattern bvs (GenIrrefPatn (CS.PTuple ips) _ _) = nub $ concat $ map (getBangCandInPattern bvs) ips
+getBangCandInPattern _ _ = []
 
 -- | Variable source map.
 -- It maps value variables and component variables to their set of source variables.
@@ -402,7 +408,7 @@ addVarSourcesFromBinding vmap (GenIrrefPatn (CS.PArrayTake pv [(_,(GenIrrefPatn 
     | not $ isRegular t = M.insert cv ess vmap
 addVarSourcesFromBinding vmap _ = vmap
 
--- | Bang variable types and resolve readonly type incompatibilities.
+-- | Bang variable types and resolve readonly type incompatibilities in an expression.
 -- The first argument is a list of variables for which the type must be banged at every occurrence.
 -- The second argument is a list of variables which may not be modified after the change.
 -- The third argument is the variable source map for all variables of linear type bound in the context.
@@ -426,48 +432,136 @@ rslvRoDiffs vs cvs vmap (GenExpr (CS.If e0 bvs e1 e2) o t s) = do
     return $ GenExpr (CS.If e0b bvs e1bm e2bm) o tm s
 rslvRoDiffs vs cvs vmap (GenExpr (CS.App f e infx) o t s) = do
     eb <- rslvRoDiffs vs cvs vmap e
-    ebm <- matchRoExpr vmap (getParamType $ typOfGE f) e
+    ebm <- matchRoExpr vmap (getParamType $ typOfGE f) eb
     return $ GenExpr (CS.App f ebm infx) o t s
 rslvRoDiffs vs cvs vmap (GenExpr (CS.Let bs bdy) o t s) = do
     (bsb,bdyb) <- rslvRoDiffsInLet vs cvs vmap bs bdy
     return (GenExpr (CS.Let bsb bdyb) o (typOfGE bdyb) s)
+rslvRoDiffs vs cvs vmap (GenExpr (CS.Tuple es) o t s) = do
+    esb <- mapM (rslvRoDiffs vs cvs vmap) es
+    return $ GenExpr (CS.Tuple esb) o (mkTupleType $ map typOfGE esb) s
+rslvRoDiffs vs cvs vmap (GenExpr (CS.Put ec [Just (f,ev)]) o t s) = do
+    ecb <- rslvRoDiffs vs cvs vmap ec
+    evb <- rslvRoDiffs vs cvs vmap ev
+    return (GenExpr (CS.Put ecb [Just (f,evb)]) o (mkTakeType False (typOfGE ecb) [f]) s)
+rslvRoDiffs vs cvs vmap (GenExpr (CS.ArrayPut ec [(i,ev)]) o t s) = do
+    ecb <- rslvRoDiffs vs cvs vmap ec
+    -- i is an index variable and thus not affected by banging
+    evb <- rslvRoDiffs vs cvs vmap ev
+    return (GenExpr (CS.ArrayPut ecb [(i,evb)]) o (mkArrTakeType False (typOfGE ecb) [i]) s)
 rslvRoDiffs vs cvs vmap e =
     mapMExprOfGE (mapM (rslvRoDiffs vs cvs vmap)) e
 
+-- | Bang variable types and resolve readonly type incompatibilities in a binding sequence and a body expression.
+-- Works as for rslvRoDiffs.
 rslvRoDiffsInLet :: [CCS.VarName] -> [CCS.VarName] -> VarSourceMap -> [GenBnd] -> GenExpr -> Trav [CCS.VarName] ([GenBnd],GenExpr)
 rslvRoDiffsInLet vs cvs vmap [] bdy = do
     bdyb <- rslvRoDiffs vs cvs vmap bdy
     return ([],bdyb)
 rslvRoDiffsInLet vs cvs vmap ((CS.Binding ip m e bvs):bs) bdy = do
     eb <- rslvRoDiffs vs cvs vmap e
+    let ipb = bangInPattern vs vmap esrcs ip
+    ebm <- rslvRoDiffsInBinding vmap ipb eb
+    ipbm <- cmpNotModified cvs ipb
+{-
     bb <- if isRegular $ typOfGIP ip
              then return $ CS.Binding ip m eb bvs
              else do
                  iebs <- mapM (rslvRoDiffsInBinding vs cvs vmap) $ zip ips $ getExprList eb
                  let (ipsb,ebsb) = unzip iebs
                  return $ CS.Binding (mkIPatternFromList ipsb) m (mkExprFromList ebsb) bvs
-    let cvs' = addToCvs ips cvs
-        vmap' = addVarSourcesFromBinding vmap (ip, getExprSources vmap $ exprOfGE e)
+                 -}
+    let cvs' = union cvs $ getCvs vs vmap ip
+        vmap' = addVarSourcesFromBinding vmap (ip, esrcs)
     (bsb,bdyb) <- rslvRoDiffsInLet vs cvs' vmap' bs bdy
-    return (bb:bsb,bdyb)
-    where ips = getIPatternsList ip
+    return ((CS.Binding ipbm m ebm bvs):bsb,bdyb)
+    where esrcs = getExprSources vmap $ exprOfGE e
+          {-
+          ips = getIPatternsList ip
           mkIPatternFromList :: [GenIrrefPatn] -> GenIrrefPatn
           mkIPatternFromList [ip] = ip
           mkIPatternFromList ips = GenIrrefPatn (CS.PTuple ips) (orgOfGIP ip) (typOfGIP ip)
           mkExprFromList :: [GenExpr] -> GenExpr
           mkExprFromList [e] = e
           mkExprFromList es = GenExpr (CS.Tuple es) (orgOfGE e) (mkTupleType $ map typOfGE es) (ccdOfGE e)
-          addToCvs [] cvs = cvs
-          addToCvs ((GenIrrefPatn (CS.PTake pv [Just (_,(GenIrrefPatn (CS.PVar cv) _ _))]) _ _):ips) cvs =
-              let cvs' = addToCvs ips cvs
-              in if elem cv cvs' then cvs' else cv:cvs'
-          addToCvs ((GenIrrefPatn (CS.PArrayTake pv [(_,(GenIrrefPatn (CS.PVar cv) _ _))]) _ _):ips) cvs =
-              let cvs' = addToCvs ips cvs
-              in if elem cv cvs' then cvs' else cv:cvs'
-          addToCvs (_:ips) cvs = addToCvs ips cvs
+          -}
+          getCvs vs vmap (GenIrrefPatn (CS.PTuple ips) _ _) = nub $ concatMap (getCvs vs vmap) ips
+          getCvs vs vmap (GenIrrefPatn (CS.PTake pv [Just (_,(GenIrrefPatn (CS.PVar cv) _ _))]) _ _)
+              | not $ null $ intersect vs $ getVarSources vmap pv = [cv]
+          getCvs vs vmap (GenIrrefPatn (CS.PArrayTake pv [(_,(GenIrrefPatn (CS.PVar cv) _ _))]) _ _)
+              | not $ null $ intersect vs $ getVarSources vmap pv = [cv]
+          getCvs _ _ _ = []
 
+-- | Bang variable types in a pattern.
+-- The first argument is a list of variables for which the type must be banged at every occurrence.
+-- The second argument is the variable source map for all variables of linear type bound in the context.
+-- The third argument is the list of source variables of the bound expression, according to the pattern seen as tuple.
+-- Value variables and wildcards are banged according to the source variables of the bound expression.
+-- Other variables are banged according to their own source variables.
+-- In take patterns both variables are banged according to the source variables of the container.
+bangInPattern :: [CCS.VarName] -> VarSourceMap -> [[CCS.VarName]] -> GenIrrefPatn -> GenIrrefPatn
+bangInPattern vs vmap esrcs ip@(GenIrrefPatn (CS.PVar pv) o t) =
+    if null $ intersect vs srcs
+       then ip
+       else GenIrrefPatn (CS.PVar pv) o $ mkReadonly t
+    where srcs = if isValVar pv then head esrcs else getVarSources vmap pv
+bangInPattern vs _ esrcs ip@(GenIrrefPatn CS.PUnderscore o t) =
+    if null $ intersect vs $ head esrcs
+       then ip
+       else GenIrrefPatn CS.PUnderscore o $ mkReadonly t
+bangInPattern vs vmap _ ip@(GenIrrefPatn (CS.PTake pv [Just (f,(GenIrrefPatn (CS.PVar cv) co ct))]) o t) =
+    if null $ intersect vs $ getVarSources vmap pv
+       then ip
+       else GenIrrefPatn (CS.PTake pv [Just (f,(GenIrrefPatn (CS.PVar cv) co $ mkReadonly ct))]) o $ mkReadonly t
+bangInPattern vs vmap _ ip@(GenIrrefPatn (CS.PArrayTake pv [(i,(GenIrrefPatn (CS.PVar cv) co ct))]) o t) =
+    if null $ intersect vs $ getVarSources vmap pv
+       then ip
+       else GenIrrefPatn (CS.PArrayTake pv [(i,(GenIrrefPatn (CS.PVar cv) co $ mkReadonly ct))]) o $ mkReadonly t
+bangInPattern vs vmap esrcs (GenIrrefPatn (CS.PTuple ips) o t) =
+    GenIrrefPatn (CS.PTuple ipsb) o (mkTupleType (map typOfGIP ipsb))
+    where ipsb = map (\(ip,esrc) -> bangInPattern vs vmap [esrc] ip) $ zip ips esrcs
+bangInPattern _ _ _ ip = ip
+
+-- | Resolve readonly type incompatibilities in a binding, given by a pattern and an expression.
+-- The first argument is the variable source map for all variables of linear type bound in the context.
+-- If the pattern is readonly, the expression is linear, and it has source variables: register the source variables for banging.
+-- Otherwise replace the expression by a dummy with a type compatible to the pattern type and record an error.
+rslvRoDiffsInBinding :: VarSourceMap -> GenIrrefPatn -> GenExpr -> Trav [CCS.VarName] GenExpr
+rslvRoDiffsInBinding vmap ip@(GenIrrefPatn (CS.PTuple _) _ _) (GenExpr (CS.Let bs bdy) o t s) = do
+    bdyb <- rslvRoDiffsInBinding (addVarSourcesFromBindings vmap bs) ip bdy
+    return $ GenExpr (CS.Let bs bdyb) o (typOfGE bdyb) s
+rslvRoDiffsInBinding vmap ip@(GenIrrefPatn (CS.PTuple _) _ _) (GenExpr (CS.If e0 bvs e1 e2) o t s) = do
+    e1b <- rslvRoDiffsInBinding vmap ip e1
+    e2b <- rslvRoDiffsInBinding vmap ip e2
+    return $ GenExpr (CS.If e0 bvs e1b e2b) o (typOfGE e1b) s
+rslvRoDiffsInBinding vmap (GenIrrefPatn (CS.PTuple ips) _ _) (GenExpr (CS.Tuple es) o t s) = do
+    esb <- mapM (\(ip,e) -> rslvRoDiffsInBinding vmap ip e) $ zip ips es
+    return $ GenExpr (CS.Tuple esb) o (mkTupleType (map typOfGE esb)) s
+rslvRoDiffsInBinding vmap (GenIrrefPatn _ _ pt) e = matchRoExpr vmap pt e
+
+-- | Check whether a variable is modified by a pattern.
+-- The first argument is a list of variables which may not be modified.
+-- If it occurs in the pattern it is replaced by the error variable and an error is recorded.
+cmpNotModified :: [CCS.VarName] -> GenIrrefPatn -> Trav [CCS.VarName] GenIrrefPatn
+cmpNotModified cvs ip@(GenIrrefPatn (CS.PVar pv) o t) | elem pv cvs = do
+    recordError $ typeMatch o "Component of readonly struct modified"
+    return $ GenIrrefPatn (CS.PVar errVar) o t
+cmpNotModified cvs (GenIrrefPatn (CS.PTuple ips) o t) = do
+    ipsm <- mapM (cmpNotModified cvs) ips
+    return $ GenIrrefPatn (CS.PTuple ipsm) o t
+cmpNotModified _ ip = return ip
+
+
+
+-- | Bang variable types and resolve readonly type incompatibilities in a binding given by a pattern and the bound expression.
+{-}
 rslvRoDiffsInBinding :: [CCS.VarName] -> [CCS.VarName] -> VarSourceMap -> (GenIrrefPatn,GenExpr)
     -> Trav [CCS.VarName] (GenIrrefPatn,GenExpr)
+rslvRoDiffsInBinding vs cvs vmap (ip@(GenIrrefPatn (CS.PTuple _) _ _), (GenExpr (CS.Let bs bdy) o t s)) = do
+    (ipb,bdyb) <- rslvRoDiffsInBinding vs cvs (addVarSourcesFromBindings bs) (ip,bdy)
+    return (ipb, GenExpr (CS.Let bs bdyb) o (typOfGE bdyb) s)
+rslvRoDiffsInBinding vs cvs vmap (ip@(GenIrrefPatn (CS.PTuple _) _ _), (GenExpr (CS.If e0 bvs e1 e2) o t s)) = do
+
 rslvRoDiffsInBinding vs cvs vmap (ip@(GenIrrefPatn (CS.PVar pv) o t), e) | isValVar pv =
     if not $ null $ intersect vs $ head $ getExprSources vmap $ exprOfGE e
        then return (GenIrrefPatn (CS.PVar pv) o $ mkReadonly t, e)
@@ -494,6 +588,7 @@ rslvRoDiffsInBinding vs cvs vmap (ip@(GenIrrefPatn (CS.PArrayTake pv [(i,(GenIrr
     if null $ intersect vs $ getVarSources vmap pv
        then return (ip,e)
        else return (GenIrrefPatn (CS.PArrayTake pv [(i,(GenIrrefPatn (CS.PVar cv) co (mkReadonly ct)))]) o $ mkReadonly t, e)
+-}
 
 -- | Resolve readonly type incompatibilities between a type and an expression.
 -- If the type must be banged the result is a dummy expression of the type and an error is recorded.
@@ -508,11 +603,11 @@ matchRoExpr vmap t e =
        then do
            recordError $ typeMatch (orgOfGE e) msg
            return $ toDummyExpr e $ mkDummyExpr t msg
-       else if not eb
-       then return e
-       else tryBang vmap e
+       else if eb
+       then tryBang vmap e
+       else return e
     where (tb,eb) = matchRoTypes t $ typOfGE e
-          msg = "readonly expression used in linear context"
+          msg = "Readonly expression used in linear context"
 
 -- | Try to bang an expression.
 -- If it is no variable or has no source variables the result is a dummy expression of the banged type and an error is recorded.
@@ -531,7 +626,7 @@ tryBang vmap e =
              recordError $ typeMatch (orgOfGE e) msg
              return $ toDummyExpr e $ mkDummyExpr t msg
     where t = mkReadonly $ typOfGE e
-          msg = "linear expression used in readonly context"
+          msg = "Linear expression used in readonly context"
 
 -- | Resolve readonly type incompatibilities between two expressions.
 -- For the expression(s) to be banged, the source variables are added to the state and the expression is returned.
@@ -558,7 +653,8 @@ matchRoExprs vmap e1 e2 =
 
 -- | Resolve readonly type incompatibilities between two types.
 -- The result is True for the type(s) which must be banged so that both are readonly compatible.
--- Assumes that the types differ atmost by MayNull and read-only.
+-- Assumes that the types differ atmost by MayNull and read-only
+-- or one is String and the other is array of U8.
 matchRoTypes :: GenType -> GenType -> (Bool,Bool)
 matchRoTypes t1 t2 | roCmpTypes t1 t2 = (False,False)
 matchRoTypes t1 t2 =

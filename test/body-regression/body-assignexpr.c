@@ -1,6 +1,6 @@
 int fac1(int v) { return v=42,v; }
 char fac2(char v) { return v='x',v; }
-char* fac4(char* v) { return v="abc",v; }
+const char* fac4(const char* v) { return v="abc",v; }
 float fac5(float v) { return v=1.5,v; }
 int fav1(int v, int w) { return v=w,v; }
 int fav2(int xyz_123,int w) { return xyz_123=w,xyz_123; }

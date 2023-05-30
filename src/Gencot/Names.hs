@@ -161,6 +161,9 @@ arrDerivHasSize nam = nam /= "CArrXX"
 arrDerivCompNam :: String -> String
 arrDerivCompNam ('C' : 'A' : rest) = 'a' : rest
 
+isArrDerivComp :: String -> Bool
+isArrDerivComp s = "arr" `isPrefixOf` s
+
 arrDerivToUbox :: String -> String
 arrDerivToUbox ('C' : rest) = "U" ++ rest
 

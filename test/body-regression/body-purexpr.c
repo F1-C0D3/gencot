@@ -1,7 +1,7 @@
 int fc1(void) { return 42; }
 char fc2(void) { return 'x'; }
 char fc3(void) { return 'xx'; }
-char* fc4(void) { return "abc"; }
+const char* fc4(void) { return "abc"; }
 float fc5(void) { return 1.5; }
 int fv1(int v) { return v; }
 int fv2(int xyz_123) { return xyz_123; }

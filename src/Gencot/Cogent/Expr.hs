@@ -17,7 +17,7 @@ import Gencot.Cogent.Types (
 data TypedVar = TV {
     namOfTV :: CCS.VarName,
     typOfTV :: GenType
-}
+} deriving (Show)
 -- Equality by name only
 instance Eq TypedVar where
     v1 == v2 = (namOfTV v1) == (namOfTV v2)

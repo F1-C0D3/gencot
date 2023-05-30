@@ -14,7 +14,7 @@ import Gencot.Cogent.Ast -- includes unitType
 import Gencot.Origin (noOrigin)
 import Gencot.Names (
   mapPtrDeriv, ptrDerivCompName, mapPtrVoid, mapMayNull, variadicTypeName, mapArrDeriv,
-  isArrDeriv, arrDerivCompNam, arrDerivHasSize, mapFunDeriv)
+  isArrDeriv, isArrDerivComp, arrDerivCompNam, arrDerivHasSize, mapFunDeriv)
 
 -- Types used by Gencot in the Cogent AST
 -----------------------------------------
@@ -107,16 +107,12 @@ mkVoidPtrType :: GenType
 mkVoidPtrType = mkTypeName mapPtrVoid
 
 mkTakeType :: Bool -> GenType -> [CCS.FieldName] -> GenType
-mkTakeType b (GenType (CS.TBang t) o s) tfs = GenType (CS.TBang (mkTakeType b t tfs)) o s
-mkTakeType b (GenType (CS.TUnbox t) o s) tfs = GenType (CS.TUnbox (mkTakeType b t tfs)) o s
 mkTakeType b (GenType (CS.TCon cstr [t] sg) o s) tfs | cstr == mapMayNull = GenType (CS.TCon cstr [(mkTakeType b t tfs)] sg) o s
 mkTakeType b (GenType (CS.TRecord rp fs s) o _) tfs =
     GenType (CS.TRecord rp fs' s) o Nothing
     where fs' = map (\fld@(fn, (tp, tk)) -> if elem fn tfs then (fn,(tp,b)) else fld) fs
 
 mkArrTakeType :: Bool -> GenType -> [GenExpr] -> GenType
-mkArrTakeType b (GenType (CS.TBang t) o s) es = GenType (CS.TBang (mkArrTakeType b t es)) o s
-mkArrTakeType b (GenType (CS.TUnbox t) o s) es = GenType (CS.TUnbox (mkArrTakeType b t es)) o s
 mkArrTakeType b (GenType (CS.TCon cstr [t] sg) o s) es | cstr == mapMayNull = GenType (CS.TCon cstr [(mkArrTakeType b t es)] sg) o s
 mkArrTakeType b (GenType (CS.TRecord rp [(arr,(t,tk))] s) o syn) es = GenType (CS.TRecord rp [(arr,(mkArrTakeType b t es,tk))] s) o syn
 mkArrTakeType b (GenType (CS.TArray eltp siz s tels) o _) es =
@@ -262,7 +258,8 @@ isStringType _ = False
 isNonlinear :: GenType -> Bool
 isNonlinear (GenType (CS.TTuple ts) _ _) = all isNonlinear ts
 isNonlinear (GenType (CS.TCon tn [t] _) _ _) | tn == mapMayNull = isNonlinear t
-isNonlinear (GenType (CS.TCon _ _ sg) _ _) = readonly sg || unboxed sg
+isNonlinear (GenType (CS.TCon tn _ sg) _ _) | (elem tn [mapPtrVoid, variadicTypeName]) || isArrDeriv tn = readonly sg || unboxed sg
+isNonlinear (GenType (CS.TCon _ _ _) _ _) = True
 isNonlinear (GenType (CS.TRecord _ fs sg) _ _) = readonly sg || (unboxed sg && all (\(_,(t,tkn)) -> tkn || isNonlinear t) fs)
 isNonlinear (GenType (CS.TArray t _ Unboxed _) _ _) = isNonlinear t
 isNonlinear _ = True
@@ -309,6 +306,7 @@ isMayNull _ = False
 
 -- | Readonly compatible
 -- Assumes that types differ atmost by MayNull or read-only
+-- or one is String and the other is array of U8.
 roCmpTypes :: GenType -> GenType -> Bool
 roCmpTypes (GenType CS.TUnit _ _) (GenType CS.TUnit _ _) = True
 roCmpTypes (GenType (CS.TFun _ _) _ _) (GenType (CS.TFun _ _) _ _) = True
@@ -316,6 +314,9 @@ roCmpTypes (GenType (CS.TTuple ts1) _ _) (GenType (CS.TTuple ts2) _ _) =
     and $ map (uncurry roCmpTypes) $ zip ts1 ts2
 roCmpTypes (GenType (CS.TCon tn1 [t1] _) _ _) t2 | tn1 == mapMayNull = roCmpTypes t1 t2
 roCmpTypes t1 (GenType (CS.TCon tn2 [t2] _) _ _) | tn2 == mapMayNull = roCmpTypes t1 t2
+roCmpTypes (GenType (CS.TCon tn1 _ _) _ _) (GenType (CS.TCon tn2 _ _) _ _) | tn1 == "String" && tn2 == "String" = True
+roCmpTypes (GenType (CS.TCon tn1 _ _) _ _) t2 | tn1 == "String" = isReadonly t2
+roCmpTypes t1 (GenType (CS.TCon tn2 _ _) _ _) | tn2 == "String" = isReadonly t1
 roCmpTypes (GenType (CS.TCon _ _ sg1) _ _) (GenType (CS.TCon _ _ sg2) _ _) = sg1 == sg2
 roCmpTypes (GenType (CS.TRecord _ _ (Boxed True _)) _ _) (GenType (CS.TRecord _ _ (Boxed True _)) _ _) = True
 roCmpTypes (GenType (CS.TRecord _ fs1 sg1) _ _) (GenType (CS.TRecord _ fs2 sg2) _ _) =
@@ -361,8 +362,8 @@ getDerefType (GenType (CS.TRecord NonRec [(f,(t,_))] _) _ (Just syn))
 -- maynull wrapped type
 getDerefType (GenType (CS.TCon n [t] _) _ _) | n == mapMayNull = getDerefType t
 -- array types -> element type
-getDerefType (GenType (CS.TRecord NonRec [(f,((GenType (CS.TArray t _ _ _) _ _),_))] _) _ (Just syn))
-    | isArrDeriv syn && f /= ptrDerivCompName = t
+getDerefType (GenType (CS.TRecord NonRec [(f,((GenType (CS.TArray t _ _ _) _ _),_))] _) _ (Just _))
+    | isArrDerivComp f = t
 getDerefType (GenType (CS.TCon n [t] _) _ _) | isArrDeriv n && not (arrDerivHasSize n) = t
 -- other types -> make unboxed
 getDerefType t = mkUnboxed t

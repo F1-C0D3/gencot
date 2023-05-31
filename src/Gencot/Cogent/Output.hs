@@ -87,7 +87,13 @@ instance Pretty GenIrrefPatn where
 instance PatnType GenIrrefPatn where
   isPVar  (GenIrrefPatn ip _ _) = isPVar ip
   prettyP (GenIrrefPatn ip _ _) = prettyP ip
-  prettyB (GenIrrefPatn ip _ _,mt,e) = prettyB (ip,mt,e)
+  prettyB (GenIrrefPatn ip@(PTuple _) _ _,mt,e) i = prettyB (ip,mt,e) i
+  prettyB (GenIrrefPatn ip _ ti, Just t, e) i
+    = group (pretty ip <+> symbol "::" <+> pretty ti <+> symbol ":" <+> pretty t <+> symbol "=" <+>
+             (if i then (prettyPrec 100) else pretty) e)
+  prettyB (GenIrrefPatn ip _ ti, Nothing, e) i
+    = group (pretty ip <+> symbol "::" <+> pretty ti <+> symbol "=" <+>
+             (if i then (prettyPrec 100) else pretty) e)
 
 instance Prec GenExpr where
   prec (GenExpr e _ _ _) = prec e

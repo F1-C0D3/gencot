@@ -244,8 +244,8 @@ isUnboxedArrayType :: GenType -> Bool
 isUnboxedArrayType t = isArrayType t && isUnboxed t
 
 isPtrType :: GenType -> Bool
-isPtrType (GenType (CS.TRecord NonRec [(cmpNam,_)] _) _ (Just syn)) =
-    cmpNam == ptrDerivCompName && syn == mapPtrDeriv
+isPtrType (GenType (CS.TRecord NonRec [(cmpNam,_)] _) _ (Just _)) =
+    cmpNam == ptrDerivCompName -- may have arbitrary type synonym!
 isPtrType _ = False
 
 isVoidPtrType :: GenType -> Bool
@@ -359,9 +359,9 @@ getNnlType t = t
 getDerefType :: GenType -> GenType
 -- void pointer
 getDerefType (GenType (CS.TCon n [] _) _ _) | n == mapPtrVoid = unitType
--- explicit pointer
-getDerefType (GenType (CS.TRecord NonRec [(f,(t,_))] _) _ (Just syn))
-    | f == ptrDerivCompName && syn == mapPtrDeriv = t
+-- explicit pointer (may have arbitrary type synonym)
+getDerefType (GenType (CS.TRecord NonRec [(f,(t,_))] _) _ (Just _))
+    | f == ptrDerivCompName = t
 -- maynull wrapped type
 getDerefType (GenType (CS.TCon n [t] _) _ _) | n == mapMayNull = getDerefType t
 -- array types -> element type

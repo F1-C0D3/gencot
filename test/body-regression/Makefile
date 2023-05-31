@@ -1,14 +1,14 @@
 GC=../../bin/gencot
 IT=../../bin/items
 
-#VARIANT = plaingen
-#TCONF = -tflbG
+VARIANT = plaingen
+TCONF = -tflbG
 
 #VARIANT = plain
 #TCONF = -tflb
 
-VARIANT = banggen
-TCONF = -tflG
+#VARIANT = banggen
+#TCONF = -tflG
 
 #VARIANT = bangproc
 #TCONF = -tfl

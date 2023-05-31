@@ -219,11 +219,12 @@ mkDerefBindsPair :: Int -> BindsPair -> BindsPair
 mkDerefBindsPair n bp =
     if isWild rv then mainbp else addPutback (mkVarBinding rv $ mkRecPutExpr rv cmp f) mainbp
     where f = ptrDerivCompName
-          vv@(TV _ rt) = leadVar bp
+          vv@(TV vnam rt) = leadVar bp
           ct = getDerefType rt
           cmp = TV (cmpVar n) ct
           rv = lvalVar bp
-          mainbp = addBinding (mkVarBinding vv $ mkVarExpr cmp) $
+          vres = TV vnam ct
+          mainbp = addBinding (mkVarBinding vres $ mkVarExpr cmp) $
                      addBinding (mkBinding (mkRecTakePattern rv cmp f) $ mkVarExpr vv) bp
 
 -- | Operator application v<n>' = op [bp...]
@@ -260,7 +261,7 @@ mkAppBindsPair fbp rpat pbps =
 -- The fifth argument is the operator argument BindsPair or the assigned BindsPair for a plain assignment. 
 mkAssBindsPair :: Bool -> GenType -> CCS.OpName -> BindsPair -> BindsPair -> BindsPair
 mkAssBindsPair post t op bpl bpr =
-    addBinding lval $ addBinding (mkVarBinding vl er') $ concatBindsPairs [bpr,bpl]
+    addBinding lval $ addBinding (mkVarBinding vres er') $ concatBindsPairs [bpr,bpl]
     where vl = leadVar bpl
           vr = leadVar bpr
           el = mkVarExpr vl
@@ -268,7 +269,9 @@ mkAssBindsPair post t op bpl bpr =
           er' = if null op then er else mkOpExpr t op [el,er]
           v = lvalVar bpl
           e = mkVarExpr v
-          lval = mkVarsTupleBinding [vl,v] [if post then e else el, el]
+          vres = TV (namOfTV vl) (typOfGE er')
+          eres = mkVarExpr vres
+          lval = mkVarsTupleBinding [vres,v] [if post then e else eres, eres]
 
 -- | Conditional v<n>' = if bp1 then bp2 else bp3
 mkIfBindsPair :: BindsPair -> BindsPair -> BindsPair -> BindsPair
@@ -538,12 +541,12 @@ mkRecordPattern flds = genIrrefPatn (mkRecordType (map (\(f,ip) -> (f,typOfGIP i
 
 -- construct v1{f=v2}
 mkRecTakePattern :: TypedVarOrWild -> TypedVarOrWild -> CCS.FieldName -> GenIrrefPatn
-mkRecTakePattern tv1@(TV v1 t1) tv2 f = genIrrefPatn (mkTakeType False t1 [f]) $ CS.PTake v1 [Just (f, mkVarPattern tv2)]
+mkRecTakePattern tv1@(TV v1 t1) tv2 f = genIrrefPatn t1 $ CS.PTake v1 [Just (f, mkVarPattern tv2)]
 
 -- construct (v1 @{@v4=v2},v3)
 mkArrTakePattern :: TypedVarOrWild -> TypedVarOrWild -> TypedVarOrWild -> TypedVar -> GenIrrefPatn
 mkArrTakePattern tv1@(TV v1 t1) tv2 tv3 tv4 =
-    mkTuplePattern [genIrrefPatn (mkArrTakeType False t1 [ie3]) $ CS.PArrayTake v1 [(mkVarExpr tv4,mkVarPattern tv2)], ip3]
+    mkTuplePattern [genIrrefPatn t1 $ CS.PArrayTake v1 [(mkVarExpr tv4,mkVarPattern tv2)], ip3]
     where ip3 = mkVarPattern tv3
           ie3 = mkVarExpr tv3
 

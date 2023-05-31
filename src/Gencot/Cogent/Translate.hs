@@ -1191,9 +1191,7 @@ bindExpr e@(LC.CUnary LC.CNegOp e1 _) = do
     let c0 = mkIntLitBindsPair cnt t1 0
     cnt <- getValCounter
     let c1 = mkIntLitBindsPair cnt t1 1
-    ct <- exprType e
-    t <- transType ("",ct)
-    insertExprSrc e $ mkIfBindsPair t (mkOpBindsPair mkBoolType "==" [bp1,c0]) c1 c0
+    insertExprSrc e $ mkIfBindsPair (mkOpBindsPair mkBoolType "==" [bp1,c0]) c1 c0
 bindExpr e@(LC.CUnary LC.CIndOp e1 _) = do
     bp1 <- bindExpr e1
     ct1 <- exprType e1
@@ -1228,22 +1226,18 @@ bindExpr e@(LC.CBinary LC.CLndOp e1 e2 _) = do
     bp2 <- bindExpr e2
     ct2 <- exprType e2
     t2 <- transType ("",ct2)
-    ct <- exprType e
-    t <- transType ("",ct)
     cnt <- getValCounter
     let c0 = mkIntLitBindsPair cnt t2 0
-    insertExprSrc e $ mkIfBindsPair t bp1 bp2 c0
+    insertExprSrc e $ mkIfBindsPair bp1 bp2 c0
 bindExpr e@(LC.CBinary LC.CLorOp e1 e2 _) = do
     -- e1 || e2 -> if e1 then 1 else e2
     bp1 <- bindExpr e1
     bp2 <- bindExpr e2
     ct2 <- exprType e2
     t2 <- transType ("",ct2)
-    ct <- exprType e
-    t <- transType ("",ct)
     cnt <- getValCounter
     let c1 = mkIntLitBindsPair cnt t2 1
-    insertExprSrc e $ mkIfBindsPair t bp1 c1 bp2
+    insertExprSrc e $ mkIfBindsPair bp1 c1 bp2
 bindExpr e@(LC.CBinary op e1 e2 _) = do
     bp1 <- bindExpr e1
     bp2 <- bindExpr e2
@@ -1276,9 +1270,7 @@ bindExpr e@(LC.CCond e1 (Just e2) e3 _) = do
     bp1 <- bindExpr e1
     bp2 <- bindExpr e2
     bp3 <- bindExpr e3
-    ct <- exprType e
-    t <- transType ("",ct)
-    insertExprSrc e $ mkIfBindsPair t bp1 bp2 bp3
+    insertExprSrc e $ mkIfBindsPair bp1 bp2 bp3
 bindExpr e@(LC.CComma es _) = do
     bps <- mapM bindExpr es
     insertExprSrc e $ concatBindsPairs bps

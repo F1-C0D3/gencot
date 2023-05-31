@@ -184,14 +184,16 @@ useTypeSyn t@(GenType _ _ Nothing) = t
 -- or the boxed TCon for CVoidPtr or CArrXX. The sigil of the type argument is always repeated in the MayNull TCon so
 -- that it is printed in the generated code, for processing it is ignored.
 
+-- | Make readonly.
+-- Unchanged if already readonly.
 mkReadonly :: GenType -> GenType
 mkReadonly (GenType (CS.TTuple ts) o ms) = (GenType (CS.TTuple $ map mkReadonly ts) o ms)
-mkReadonly (GenType (CS.TRecord rp fs (Boxed _ _)) o ms) =
+mkReadonly (GenType (CS.TRecord rp fs (Boxed False _)) o ms) =
     GenType (CS.TRecord rp (map (\(f,(t,tk)) -> (f,(rmRRO t,tk))) fs) roSigil) o ms
 mkReadonly (GenType (CS.TRecord rp fs Unboxed) o ms) =
     GenType (CS.TRecord rp (map (\(f,(t,tk)) -> (f,(mkReadonly t,tk))) fs) ubSigil) o ms
 mkReadonly (GenType (CS.TArray t e Unboxed ts) o ms) = GenType (CS.TArray (mkReadonly t) e ubSigil ts) o ms
-mkReadonly (GenType (CS.TCon tn ts (Boxed _ _)) o ms) | (elem tn [mapPtrVoid, mapMayNull, variadicTypeName]) || isArrDeriv tn =
+mkReadonly (GenType (CS.TCon tn ts (Boxed False _)) o ms) | (elem tn [mapPtrVoid, mapMayNull, variadicTypeName]) || isArrDeriv tn =
     GenType (CS.TCon tn (map mkReadonly ts) roSigil) o ms
 mkReadonly t = t
 
@@ -247,6 +249,7 @@ isPtrType (GenType (CS.TRecord NonRec [(cmpNam,_)] _) _ (Just syn)) =
 isPtrType _ = False
 
 isVoidPtrType :: GenType -> Bool
+isVoidPtrType (GenType (CS.TCon cstr [t] _) _ _) | cstr == mapMayNull = isVoidPtrType t
 isVoidPtrType (GenType (CS.TCon cstr [] _) _ _) = cstr == mapPtrVoid
 isVoidPtrType _ = False
 
@@ -306,7 +309,7 @@ isMayNull _ = False
 
 -- | Readonly compatible
 -- Assumes that types differ atmost by MayNull or read-only
--- or one is String and the other is array of U8.
+-- or one is String and the other is pointer to U8.
 roCmpTypes :: GenType -> GenType -> Bool
 roCmpTypes (GenType CS.TUnit _ _) (GenType CS.TUnit _ _) = True
 roCmpTypes (GenType (CS.TFun _ _) _ _) (GenType (CS.TFun _ _) _ _) = True
@@ -380,3 +383,35 @@ getLeadType :: GenType -> GenType
 getLeadType (GenType (CS.TTuple (t : ts)) _ _) = t
 getLeadType t = t
 
+-- | Type adaptation
+-- Types which are compatible in C may be incompatible after translation to Cogent.
+-- These will be adapted during postprocessing by converting one Cogent type to the other.
+-- It is always possible to determine the resulting type from both Cogent types.
+-- This is used for typing conditional expressions from the types of the branches.
+
+adaptTypes :: GenType -> GenType -> GenType
+-- for tuple types all components are adapted
+adaptTypes t1@(GenType (CS.TTuple ts1) _ _) t2@(GenType (CS.TTuple ts2) _ _) =
+    mkTupleType $ map (uncurry adaptTypes) $ zip ts1 ts2
+-- String and char pointer is adapted to String
+adaptTypes t1 t2 | isStringType t1 = t1
+adaptTypes t1 t2 | isStringType t2 = t2
+-- Readonly and linear is adapted to readonly
+adaptTypes t1 t2 | not $ roCmpTypes t1 t2 =
+    adaptTypes (mkReadonly t1) (mkReadonly t2)
+-- With and without MayNull is adapted to MayNull
+adaptTypes t1 t2 | isMayNull t1 /= isMayNull t2 =
+    adaptTypes (mkMayNull t1) (mkMayNull t2)
+-- CVoidPtr is adapted to the specific pointer
+adaptTypes t1 t2 | isVoidPtrType t1 = t2
+adaptTypes t1 t2 | isVoidPtrType t2 = t1
+-- U* is adapted to the larger type
+adaptTypes t1@(GenType (CS.TCon n [] _) _ _) t2 | n == "U64" = t1
+adaptTypes t1 t2@(GenType (CS.TCon n [] _) _ _) | n == "U64" = t2
+adaptTypes t1@(GenType (CS.TCon n [] _) _ _) t2 | n == "U32" = t1
+adaptTypes t1 t2@(GenType (CS.TCon n [] _) _ _) | n == "U32" = t2
+adaptTypes t1@(GenType (CS.TCon n [] _) _ _) t2 | n == "U16" = t1
+adaptTypes t1 t2@(GenType (CS.TCon n [] _) _ _) | n == "U16" = t2
+-- In all other cases types should be compatible in Cogent
+-- (i.e., only differ in origin or type synonyms).
+adaptTypes t1 t2 = t1

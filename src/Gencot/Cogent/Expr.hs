@@ -134,8 +134,9 @@ mkArrPutExpr tv1@(TV v1 t1) tv2 tv3 = genExpr (mkArrTakeType False t1 [e3]) $ CS
     where e3 = mkVarExpr tv3
 
 -- construct if e0 then e1 else e2
-mkIfExpr :: GenExpr -> GenExpr -> GenExpr -> GenExpr
-mkIfExpr e0 e1 e2 = genExpr (typOfGE e1) $ CS.If e0 [] e1 e2
+-- The first argument is the type of the resulting expression.
+mkIfExpr :: GenType -> GenExpr -> GenExpr -> GenExpr -> GenExpr
+mkIfExpr t e0 e1 e2 = genExpr t $ CS.If e0 [] e1 e2
 
 -- construct e | C1 v11 .. v1n1 -> e1 | ... | Ck vk1 .. vknk -> ek
 mkMatchExpr :: GenExpr -> [(CCS.TagName,[GenIrrefPatn],GenExpr)] -> GenExpr

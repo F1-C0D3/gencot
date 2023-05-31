@@ -13,7 +13,7 @@ import Gencot.Cogent.Ast -- includes unitType
 import Gencot.Cogent.Types (
   mkU8Type, mkU32Type, mkStringType, mkBoolType, 
   mkTupleType, mkCtlType, mkFunType, mkRecordType, mkTakeType, mkArrTakeType, 
-  getMemberType, getDerefType)
+  getMemberType, getDerefType, adaptTypes)
 import Gencot.Cogent.Expr (
   TypedVar(TV), namOfTV, typOfTV, TypedVarOrWild, TypedFun, funResultType,
   mkUnitExpr, mkIntLitExpr, mkCharLitExpr, mkStringLitExpr, mkBoolLitExpr,
@@ -271,17 +271,18 @@ mkAssBindsPair post t op bpl bpr =
           lval = mkVarsTupleBinding [vl,v] [if post then e else el, el]
 
 -- | Conditional v<n>' = if bp1 then bp2 else bp3
--- The first argument is the result type.
-mkIfBindsPair :: GenType -> BindsPair -> BindsPair -> BindsPair -> BindsPair
-mkIfBindsPair t bp0 bp1 bp2 =
-    addBinding (mkVarsBinding (vr : set) (mkIfExpr (mkVarExpr v0) e1 e2)) bp
+mkIfBindsPair :: BindsPair -> BindsPair -> BindsPair -> BindsPair
+mkIfBindsPair bp0 bp1 bp2 =
+    addBinding (mkVarsBinding (vr : set) (mkIfExpr rts (mkVarExpr v0) e1 e2)) bp
     where set1 = sideEffectTargets bp1
           set2 = sideEffectTargets bp2
           v0 = leadVar bp0
           v1 = leadVar bp1
           v2 = leadVar bp2
-          vr = TV (namOfTV v0) t
           set = union set1 set2
+          rt = adaptTypes (typOfTV v1) (typOfTV v2)
+          rts = mkTupleType (rt : (map typOfTV set))
+          vr = TV (namOfTV v0) rt
           (bp1l,e1) = if null set1
                          then ([bp1],mkVarTupleExpr (v1 : set))
                          else ([],boundExpr $ cmbExtBinds set bp1)
@@ -392,13 +393,14 @@ mkContBinding = mkVarBinding typedCtlVar $ mkCtlLitExpr 1
 -- | Conditional statement (c',z1..) = let (v<n>',v1..) = expr in if v<n>' then let b1 in (c',z1..) else let b2 in (c',z1..)
 mkIfBinding :: BindsPair -> GenBnd -> GenBnd -> GenBnd
 mkIfBinding bp b1 b2 =
-    mkVarsBinding vs $ mkLetExpr [cmbBinds bp] $ mkIfExpr (mkVarExpr (leadVar bp)) e1 e2
+    mkVarsBinding vs $ mkLetExpr [cmbBinds bp] $ mkIfExpr (typOfGE evs) (mkVarExpr (leadVar bp)) e1 e2
     where set0 = sideEffectTargets bp
           set1 = sideEffectFilter $ boundVars b1
           set2 = sideEffectFilter $ boundVars b2
           vs = typedCtlVar : (union set0 $ union set1 set2)
-          e1 = mkLetExpr [b1] $ mkVarTupleExpr vs
-          e2 = mkLetExpr [b2] $ mkVarTupleExpr vs
+          evs = mkVarTupleExpr vs
+          e1 = mkLetExpr [b1] evs
+          e2 = mkLetExpr [b2] evs
 
 -- | Switch statement (c',z1..) = let (s',v1..) = expr and (s1',...) = (s' == expr1,...) 
 --         and (c',x1..) = exprb in (if c'=2 then 0 else c',z1..)
@@ -415,16 +417,17 @@ mkSwitchBinding bp mbps b =
           casVal Nothing = mkBoolLitExpr True
           casVal (Just bp) = mkBoolOpExpr "==" [mkVarExpr typedSwtVar, mkPlainExpr bp]
           mbps' = mkVarsTupleBinding casVars $ map casVal mbps
-          c = mkIfExpr (mkBoolOpExpr "==" [mkVarExpr typedCtlVar,mkCtlLitExpr 2]) (mkCtlLitExpr 0) (mkVarExpr typedCtlVar)
+          c = mkIfExpr mkCtlType (mkBoolOpExpr "==" [mkVarExpr typedCtlVar,mkCtlLitExpr 2]) (mkCtlLitExpr 0) (mkVarExpr typedCtlVar)
 
 -- | Switch group (c',x1..) = if cond then let b in (c',x1..) else (0,x1..)
 mkCaseBinding :: GenBnd -> Int -> Int -> Bool -> GenBnd
 mkCaseBinding b nr grps dfltSeen = 
     if dfltSeen && nr == grps
-       then mkVarsBinding vs $ mkLetExpr [b] $ mkVarTupleExpr vs
-       else mkVarsBinding vs $ mkIfExpr (cond dfltSeen) (mkLetExpr [b] $ mkVarTupleExpr vs) $ mk0VarTupleExpr set
+       then mkVarsBinding vs $ mkLetExpr [b] evs
+       else mkVarsBinding vs $ mkIfExpr (typOfGE evs) (cond dfltSeen) (mkLetExpr [b] evs) $ mk0VarTupleExpr set
     where set = sideEffectFilter $ boundVars b
           vs = typedCtlVar : set
+          evs = mkVarTupleExpr vs
           cond False = mkDisjExpr $ map (mkVarExpr . typedCasVar) $ take nr $ iterate (1+) 1
           cond True = mkBoolOpExpr "not" [mkDisjExpr $ map (mkVarExpr . typedCasVar) $ take (grps-nr) $ iterate (1+) (nr+1)]
 
@@ -432,7 +435,7 @@ mkCaseBinding b nr grps dfltSeen =
 mkSeqBinding :: GenBnd -> GenBnd -> GenBnd
 mkSeqBinding b bs =
     mkVarsBinding vs $ mkLetExpr [b] $ 
-      mkIfExpr (mkBoolOpExpr ">" [mkVarExpr typedCtlVar,mkCtlLitExpr 0]) e $ mkLetExpr [bs] $ e
+      mkIfExpr (typOfGE e) (mkBoolOpExpr ">" [mkVarExpr typedCtlVar,mkCtlLitExpr 0]) e $ mkLetExpr [bs] $ e
     where set1 = sideEffectFilter $ boundVars b
           set2 = sideEffectFilter $ boundVars bs
           vs = typedCtlVar : (union set1 set2)
@@ -473,16 +476,17 @@ mkForBinding bpm ebp1 bp2 bp3 b =
          (Right ds) -> mkDeclBinding ds bindloop
     where b3 = cmbBinds bp3
           accvars = union (sideEffectFilter $ boundVars b) (sideEffectFilter $ boundVars b3)
-          exprstep = mkLetExpr [b] $ mkIfExpr ctlcond accexpr $ mkLetExpr [b3] $ mk0VarTupleExpr accvars
+          exprstep = mkLetExpr [b] $ mkIfExpr (typOfGE accexpr) ctlcond accexpr $ mkLetExpr [b3] $ mk0VarTupleExpr accvars
           b2@(CS.Binding _ _ expr2 _) = cmbBinds bp2
           freevars = union (getFreeTypedVars exprstep) (getFreeTypedVars expr2)
           accpat = mkVarTuplePattern (typedCtlVar : accvars) -- (c',y1..)
           accexpr = mkVarTupleExpr (typedCtlVar : accvars) -- (c',y1..)
-          ctlcond = mkBoolOpExpr ">" [mkVarExpr typedCtlVar,mkCtlLitExpr 1] -- c' > 1
+          ctlvar = mkVarExpr typedCtlVar
+          ctlcond = mkBoolOpExpr ">" [ctlvar,mkCtlLitExpr 1] -- c' > 1
           accpatwild = mkVarTuplePattern ((TV "_" mkCtlType) : accvars) -- (_,y1..)
           obsvars = freevars \\ accvars
           obsvpat = mkVarTuplePattern obsvars
-          repeatctl = mkIfExpr (mkBoolOpExpr "==" [mkVarExpr typedCtlVar,mkCtlLitExpr 2]) (mkCtlLitExpr 0) (mkVarExpr typedCtlVar)
+          repeatctl = mkIfExpr mkCtlType (mkBoolOpExpr "==" [ctlvar,mkCtlLitExpr 2]) (mkCtlLitExpr 0) ctlvar
           repeatargexpr = mkRecordExpr [("n",exprmax),("stop",stopfun),("step",stepfun),("acc",iniacc),("obsv",iniobsv)]
           exprmax = mkPlainExpr bpm
           iniacc = mk0VarTupleExpr accvars

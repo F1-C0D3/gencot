@@ -519,6 +519,12 @@ text\<open>
 **todo**
 \<close>
 
+subsection "Equality"
+text_raw\<open>\label{holbasic-common-equal}\<close>
+
+text\<open>
+**todo**
+\<close>
 subsection "Undefined Value"
 text_raw\<open>\label{holbasic-common-undefined}\<close>
 

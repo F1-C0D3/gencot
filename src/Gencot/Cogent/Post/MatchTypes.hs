@@ -15,8 +15,8 @@ import Cogent.Common.Syntax as CCS
 import Gencot.Cogent.Ast
 import Gencot.Cogent.Error (typeMatch)
 import Gencot.Cogent.Types (
-  mkTupleType, mkTakeType, mkArrTakeType,
-  mkReadonly, isNonlinear, isRegular, mayEscape, roCmpTypes, unbangType, getMemberType, getDerefType, getParamType)
+  mkTupleType, mkReadonly,
+  isNonlinear, isRegular, mayEscape, isReadonly, roCmpTypes, unbangType, getMemberType, getDerefType, getParamType, getResultType)
 import Gencot.Cogent.Bindings (errVar, replaceValVarType, replaceInGIP, mkDummyExpr, toDummyExpr, mkVarTuplePattern)
 import Gencot.Cogent.Expr (TypedVar(TV), namOfTV, mkUnitExpr, mkLetExpr, mkVarTupleExpr)
 import Gencot.Cogent.Post.Util (
@@ -173,6 +173,63 @@ needToTake cv "" t bs = cv `elem` freeInBindings bs || isModified cv (getDerefTy
 needToTake cv fn t bs = cv `elem` freeInBindings bs || isModified cv (getMemberType fn t) bs
 -}
 
+
+{- Modification of Readonly Containers -}
+{- Detect and record errors.           -}
+{---------------------------------------}
+
+romodproc :: GenExpr -> ETrav GenExpr
+romodproc e = romodprocVars [] e
+
+-- | Check component variables for being modified.
+-- The first argument is a set of component variables which must not be modified.
+-- In the expression, additional component variables may not be modified if they are taken from a readonly container.
+romodprocVars :: [CCS.VarName] -> GenExpr -> ETrav GenExpr
+romodprocVars cvs e = mapMExprOfGE (romodprocVars' cvs) e
+
+romodprocVars' :: [CCS.VarName] -> ExprOfGE -> ETrav ExprOfGE
+romodprocVars' cvs e@(CS.Let _ _) = romodprocInLet cvs e
+romodprocVars' cvs e = mapM (romodprocVars cvs) e
+
+romodprocInLet :: [CCS.VarName] -> ExprOfGE -> ETrav ExprOfGE
+romodprocInLet cvs (CS.Let [] bdy) = do
+    bdyr <- romodprocVars cvs bdy
+    return $ CS.Let [] bdyr
+romodprocInLet cvs (CS.Let ((CS.Binding ip m e bvs) : bs) bdy) = do
+    er <- romodprocVars cvs e
+    (ipr,cvs') <- romodprocPattern cvs ip $ isPutExpr $ exprOfGE e
+    (CS.Let bsr bdyr) <- romodprocInLet cvs' (CS.Let bs bdy)
+    return $ CS.Let ((CS.Binding ipr m er bvs) : bsr) bdyr
+
+romodprocPattern :: [CCS.VarName] -> GenIrrefPatn -> [Bool] -> ETrav (GenIrrefPatn, [CCS.VarName])
+romodprocPattern cvs ip@(GenIrrefPatn (CS.PTake pv [Just (_,(GenIrrefPatn (CS.PVar cv) _ _))]) _ t) _ =
+    return (ip, if (isReadonly t) || (elem pv cvs) then union cvs [cv] else cvs)
+romodprocPattern cvs ip@(GenIrrefPatn (CS.PArrayTake pv [(_,(GenIrrefPatn (CS.PVar cv) _ _))]) _ t) _ =
+    return (ip, if (isReadonly t) || (elem pv cvs) then union cvs [cv] else cvs)
+romodprocPattern cvs (GenIrrefPatn (CS.PTuple ips) o t) ispts = do
+    ipcvss <- mapM (\(ip,ispt) -> romodprocPattern cvs ip [ispt]) $ zip ips ispts
+    let (ipsr,cvss) = unzip ipcvss
+    return (GenIrrefPatn (CS.PTuple ipsr) o t, nub $ concat cvss)
+romodprocPattern cvs (GenIrrefPatn (CS.PVar pv) o t) [False] | elem pv cvs = do
+    recordError $ typeMatch o "Component of readonly struct modified"
+    return (GenIrrefPatn (CS.PVar errVar) o t, cvs)
+romodprocPattern cvs ip _ = return (ip,cvs)
+
+-- | Whether an expression seen as tuple is a put expression.
+isPutExpr :: ExprOfGE -> [Bool]
+isPutExpr (CS.Put _ _) = [True]
+isPutExpr (CS.ArrayPut _ _) = [True]
+isPutExpr (CS.Tuple es) = concat $ map (isPutExpr . exprOfGE) es
+isPutExpr (CS.If _ _ e1 e2) =
+    -- mostly irrelevant because branches never contain put expressions,
+    -- but must be mapped so that the list has the correct number of entries.
+    map (\(b1,b2) -> b1 || b2) $ zip (isPutExpr $ exprOfGE e1) (isPutExpr $ exprOfGE e2)
+isPutExpr (CS.Let _ bdy) = isPutExpr $ exprOfGE bdy
+isPutExpr (CS.App f e _) = case typeOfGT $ getResultType $ typOfGE f of
+                              CS.TTuple ts -> map (const False) ts
+                              _ -> [False]
+isPutExpr _ = [False]
+
 {- Matching linear subexpressions -}
 {- to readonly context: try bang  -}
 {----------------------------------}
@@ -211,6 +268,7 @@ roDiffsBang e = do
            return ep
        else do
            mapM recordError errs
+           modifyUserState (\tvs -> union tvs bvs)
            return eb
 
 -- | Does an expression contain syntactic possibilities for banging variables.
@@ -443,12 +501,12 @@ rslvRoDiffs vs cvs vmap (GenExpr (CS.Tuple es) o t s) = do
 rslvRoDiffs vs cvs vmap (GenExpr (CS.Put ec [Just (f,ev)]) o t s) = do
     ecb <- rslvRoDiffs vs cvs vmap ec
     evb <- rslvRoDiffs vs cvs vmap ev
-    return (GenExpr (CS.Put ecb [Just (f,evb)]) o (mkTakeType False (typOfGE ecb) [f]) s)
+    return (GenExpr (CS.Put ecb [Just (f,evb)]) o (typOfGE ecb) s)
 rslvRoDiffs vs cvs vmap (GenExpr (CS.ArrayPut ec [(i,ev)]) o t s) = do
     ecb <- rslvRoDiffs vs cvs vmap ec
     -- i is an index variable and thus not affected by banging
     evb <- rslvRoDiffs vs cvs vmap ev
-    return (GenExpr (CS.ArrayPut ecb [(i,evb)]) o (mkArrTakeType False (typOfGE ecb) [i]) s)
+    return (GenExpr (CS.ArrayPut ecb [(i,evb)]) o (typOfGE ecb) s)
 rslvRoDiffs vs cvs vmap e =
     mapMExprOfGE (mapM (rslvRoDiffs vs cvs vmap)) e
 
@@ -486,9 +544,9 @@ rslvRoDiffsInLet vs cvs vmap ((CS.Binding ip m e bvs):bs) bdy = do
           mkExprFromList es = GenExpr (CS.Tuple es) (orgOfGE e) (mkTupleType $ map typOfGE es) (ccdOfGE e)
           -}
           getCvs vs vmap (GenIrrefPatn (CS.PTuple ips) _ _) = nub $ concatMap (getCvs vs vmap) ips
-          getCvs vs vmap (GenIrrefPatn (CS.PTake pv [Just (_,(GenIrrefPatn (CS.PVar cv) _ _))]) _ _)
+          getCvs vs vmap (GenIrrefPatn (CS.PTake pv [Just (_,(GenIrrefPatn (CS.PVar cv) _ _))]) _ t)
               | not $ null $ intersect vs $ getVarSources vmap pv = [cv]
-          getCvs vs vmap (GenIrrefPatn (CS.PArrayTake pv [(_,(GenIrrefPatn (CS.PVar cv) _ _))]) _ _)
+          getCvs vs vmap (GenIrrefPatn (CS.PArrayTake pv [(_,(GenIrrefPatn (CS.PVar cv) _ _))]) _ t)
               | not $ null $ intersect vs $ getVarSources vmap pv = [cv]
           getCvs _ _ _ = []
 

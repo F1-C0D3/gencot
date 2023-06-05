@@ -65,7 +65,7 @@ int fap11(struct as3 *p) { return p->m6->m1 = 42, p->m6->m1; }
 int fap12(aa3 p) { return *(p[3]) = 42,*(p[3]); }
 int fap13(int *p) { return (*p)++; }
 int fap14(struct as1 *p) { return p->m1++; }
-int fap15(aa3 p) { return *(p[3])++; }
+int fap15(aa3 p) { return (*(p[3]))++; }
 
 int fam1(int v1, int v2) { return (v1 = 17) + (v2 = 4); }
 int fam2(int v1, int v2) { return (v1 = 17) + (v2 = 4),v1; }

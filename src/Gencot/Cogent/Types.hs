@@ -360,14 +360,15 @@ getDerefType :: GenType -> GenType
 -- void pointer
 getDerefType (GenType (CS.TCon n [] _) _ _) | n == mapPtrVoid = unitType
 -- explicit pointer (may have arbitrary type synonym)
-getDerefType (GenType (CS.TRecord NonRec [(f,(t,_))] _) _ (Just _))
-    | f == ptrDerivCompName = t
+getDerefType (GenType (CS.TRecord NonRec [(f,(t,_))] s) _ (Just _))
+    | f == ptrDerivCompName = if readonly s then mkReadonly t else t
 -- maynull wrapped type
 getDerefType (GenType (CS.TCon n [t] _) _ _) | n == mapMayNull = getDerefType t
 -- array types -> element type
-getDerefType (GenType (CS.TRecord NonRec [(f,((GenType (CS.TArray t _ _ _) _ _),_))] _) _ (Just _))
-    | isArrDerivComp f = t
-getDerefType (GenType (CS.TCon n [t] _) _ _) | isArrDeriv n && not (arrDerivHasSize n) = t
+getDerefType (GenType (CS.TRecord NonRec [(f,((GenType (CS.TArray t _ _ _) _ _),_))] s) _ (Just _))
+    | isArrDerivComp f = if readonly s then mkReadonly t else t
+getDerefType (GenType (CS.TCon n [t] s) _ _) | isArrDeriv n && not (arrDerivHasSize n) =
+    if readonly s then mkReadonly t else t
 -- other types -> make unboxed
 getDerefType t = mkUnboxed t
 

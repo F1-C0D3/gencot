@@ -20,11 +20,9 @@ TCONF = -tflG
 #TCONF = -tfl
 
 #VARIANT = letproc
-#TCONF = -tfbr
 #TCONF = -tf
 
 #VARIANT = ifproc
-#TCONF = -tbr
 #TCONF =
 
 TESTS = purexpr assignexpr stat loop func ro

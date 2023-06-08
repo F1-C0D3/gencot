@@ -116,9 +116,8 @@ cogent_f21ln g =
          and g { cont = p0' } = v'
          and v' = p0'
          and v' = v1'
-         and (v'
-             , p0') = gencotDummy "Readonly expression is used in linear context"
-            {- *g = cogent_frro(); -}
+         and (v', p0') = (v'
+                         , gencotDummy "Readonly expression used in linear context")
          and g = g { cont = p0' }
          in (v', g)
       in (0, g)
@@ -144,9 +143,8 @@ cogent_f22ln pln =
          and v1' = v1' ()
          and v' = pln
          and v' = v1'
-         and (v'
-             , pln) = gencotDummy "Readonly expression is used in linear context"
-            {- pln = cogent_frro(); -}
+         and (v', pln) = (v'
+                         , gencotDummy "Readonly expression used in linear context")
          in (v', pln)
       in (0, pln)
    in ((), pln)
@@ -166,8 +164,11 @@ cogent_f22ro pro =
 cogent_f31ln : () -> CPtr U32
 cogent_f31ln () =
    let (_
-       , r') = gencotDummy "Readonly expression is used in linear context"
-      {- return cogent_frro(); -}
+       , r') = let v' = let v' = cogent_frro
+         and v' = v' ()
+         in v'
+      in (3
+         , gencotDummy "Readonly expression used in linear context")
    in r'
 cogent_f31ro : () -> (CPtr U32)!
 cogent_f31ro () =
@@ -263,7 +264,8 @@ cogent_f53ln pro =
          and pro { mln = p0' } = v'
          and v' = p0'
          and v' = v1'
-         and (v', err') = (v', v')
+         and (v', err') = (v'
+                          , gencotDummy "Linear expression used in readonly context")
          and pro = pro { mln = p0' }
          in (v', pro)
       in (0, pro)
@@ -342,9 +344,8 @@ cogent_f56ln (pro, g) =
          and g { cont = p0' } = v'
          and v' = p0'
          and v' = v1'
-         and (v'
-             , p0') = gencotDummy "Readonly expression is used in linear context"
-            {- *g = pro->mln; -}
+         and (v', p0') = (v'
+                         , gencotDummy "Readonly expression used in linear context")
          and g = g { cont = p0' }
          and pro = pro { mln = p1' }
          in (v', g, pro)
@@ -376,9 +377,8 @@ cogent_f57ln (pro, pln) =
          and v1' = p0'
          and v' = pln
          and v' = v1'
-         and (v'
-             , pln) = gencotDummy "Readonly expression is used in linear context"
-            {- pln = pro->mln; -}
+         and (v', pln) = (v'
+                         , gencotDummy "Readonly expression used in linear context")
          and pro = pro { mln = p0' }
          in (v', pro, pln)
       in (0, pro, pln)
@@ -399,10 +399,15 @@ cogent_f57ro (pro, qro) =
    in ()
 cogent_f58ln : Struct_Cogent_ros1! -> CPtr U32
 cogent_f58ln pro =
-   let (_
-       , r'
-       , pro) = gencotDummy "Readonly expression is used in linear context"
-      {- return pro->mln; -}
+   let (_, r', pro) = let (v'
+                          , pro) = let v' = pro
+         and pro { mln = p0' } = v'
+         and v' = p0'
+         and pro = pro { mln = p0' }
+         in (v', pro)
+      in (3
+         , gencotDummy "Readonly expression used in linear context"
+         , pro)
    in r'
 cogent_f58ro : Struct_Cogent_ros1! -> (CPtr U32)!
 cogent_f58ro pro =
@@ -416,20 +421,21 @@ cogent_f58ro pro =
    in r'
 cogent_f59ln : ( Struct_Cogent_ros1!, CPtr U32, U32 ) -> ( (), CPtr U32 )
 cogent_f59ln (pro, qln, i) =
-   let (_, pro) = let (v'
-                      , pro) = let v' = cogent_fcro
-         and v1' = i
-         and v3' = qln
-         and (v1', pro) = if v1'
-            then let v2' = pro
-               and pro { mln = p0' } = v2'
-               and v2' = p0'
-               and pro = pro { mln = p0' }
-               in (v2', pro)
-            else (v3', pro)
-         and v' = v' v1'
-         in (v', pro)
-      in (0, pro)
+   let (_, pro) = (let (v'
+                       , pro) = let v' = cogent_fcro
+            and v1' = i
+            and v3' = gencotDummy "Necessary banging of qln leads to non-escapeable type"
+               {- qln; -}
+            and (v1', pro) = if v1'
+               then let v2' = pro
+                  and pro { mln = p0' } = v2'
+                  and v2' = p0'
+                  and pro = pro { mln = p0' }
+                  in (v2', pro)
+               else (v3', pro)
+            and v' = v' v1'
+            in (v', pro)
+         in (0, pro)) !qln
    in ((), qln)
 cogent_f59ro : ( Struct_Cogent_ros1!, (CPtr U32)!, U32 ) -> ()
 cogent_f59ro (pro, qro, i) =
@@ -519,7 +525,8 @@ cogent_f63ln pro =
          and p0' { mln = p1' } = v'
          and v' = p1'
          and v' = v1'
-         and (v', err') = (v', v')
+         and (v', err') = (v'
+                          , gencotDummy "Linear expression used in readonly context")
          and p0' = p0' { mln = p1' }
          and pro = pro { sln = p0' }
          in (v', pro)
@@ -535,6 +542,37 @@ cogent_f63ro pro =
          and v' = p1'
          and p0' = p0' { mln = p1' }
          and pro = pro { sln = p0' }
+         in (v', pro)
+      in (0, pro)
+   in ()
+cogent_f64ln : Struct_Cogent_ros2! -> ()
+cogent_f64ln pro =
+   let (_, pro) = let (v'
+                      , pro) = let v1' = cogent_frln
+         and v1' = v1' ()
+         and v' = pro
+         and pro { sub = p0' } = v'
+         and v' = p0'
+         and p0' { mln = p1' } = v'
+         and v' = p1'
+         and v' = v1'
+         and (v', err') = (v'
+                          , gencotDummy "Linear expression used in readonly context")
+         and p0' = p0' { mln = p1' }
+         and pro = pro { sub = p0' }
+         in (v', pro)
+      in (0, pro)
+   in ()
+cogent_f64ro : Struct_Cogent_ros2! -> ()
+cogent_f64ro pro =
+   let (_, pro) = let (v'
+                      , pro) = let v' = pro
+         and pro { sub = p0' } = v'
+         and v' = p0'
+         and p0' { mln = p1' } = v'
+         and v' = p1'
+         and p0' = p0' { mln = p1' }
+         and pro = pro { sub = p0' }
          in (v', pro)
       in (0, pro)
    in ()
@@ -606,7 +644,8 @@ cogent_f73ln pro =
              , i0') = (v', v1')
          and v' = p0'
          and v' = v2'
-         and (v', err') = (v', v')
+         and (v', err') = (v'
+                          , gencotDummy "Linear expression used in readonly context")
          and pro = pro @{ @i0' = p0' }
          in (v', pro)
       in (0, pro)
@@ -697,9 +736,8 @@ cogent_f76ln (pro, g) =
          and g { cont = p0' } = v'
          and v' = p0'
          and v' = v1'
-         and (v'
-             , p0') = gencotDummy "Readonly expression is used in linear context"
-            {- *g = pro[1]; -}
+         and (v', p0') = (v'
+                         , gencotDummy "Readonly expression used in linear context")
          and g = g { cont = p0' }
          and pro = pro @{ @i1' = p1' }
          in (v', g, pro)
@@ -735,9 +773,8 @@ cogent_f77ln (pro, qln) =
          and v1' = p0'
          and v' = qln
          and v' = v1'
-         and (v'
-             , qln) = gencotDummy "Readonly expression is used in linear context"
-            {- qln = pro[1]; -}
+         and (v', qln) = (v'
+                         , gencotDummy "Readonly expression used in linear context")
          and pro = pro @{ @i0' = p0' }
          in (v', pro, qln)
       in (0, pro, qln)
@@ -760,10 +797,17 @@ cogent_f77ro (pro, qro) =
    in ()
 cogent_f78ln : Cogent_roa3! -> CPtr U32
 cogent_f78ln pro =
-   let (_
-       , r'
-       , pro) = gencotDummy "Readonly expression is used in linear context"
-      {- return pro[1]; -}
+   let (_, r', pro) = let (v'
+                          , pro) = let v1' = 1
+         and v' = pro
+         and (pro @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and pro = pro @{ @i0' = p0' }
+         in (v', pro)
+      in (3
+         , gencotDummy "Readonly expression used in linear context"
+         , pro)
    in r'
 cogent_f78ro : Cogent_roa3! -> (CPtr U32)!
 cogent_f78ro pro =
@@ -779,22 +823,23 @@ cogent_f78ro pro =
    in r'
 cogent_f79ln : ( Cogent_roa3!, CPtr U32, U32 ) -> ( (), CPtr U32 )
 cogent_f79ln (pro, qln, i) =
-   let (_, pro) = let (v'
-                      , pro) = let v' = cogent_fcro
-         and v1' = i
-         and v4' = qln
-         and (v1', pro) = if v1'
-            then let v3' = 1
-               and v2' = pro
-               and (pro @{ @v3' = p0' }
-                   , i0') = (v2', v3')
-               and v2' = p0'
-               and pro = pro @{ @i0' = p0' }
-               in (v2', pro)
-            else (v4', pro)
-         and v' = v' v1'
-         in (v', pro)
-      in (0, pro)
+   let (_, pro) = (let (v'
+                       , pro) = let v' = cogent_fcro
+            and v1' = i
+            and v4' = gencotDummy "Necessary banging of qln leads to non-escapeable type"
+               {- qln; -}
+            and (v1', pro) = if v1'
+               then let v3' = 1
+                  and v2' = pro
+                  and (pro @{ @v3' = p0' }
+                      , i0') = (v2', v3')
+                  and v2' = p0'
+                  and pro = pro @{ @i0' = p0' }
+                  in (v2', pro)
+               else (v4', pro)
+            and v' = v' v1'
+            in (v', pro)
+         in (0, pro)) !qln
    in ((), qln)
 cogent_f79ro : ( Cogent_roa3!, (CPtr U32)!, U32 ) -> ()
 cogent_f79ro (pro, qro, i) =
@@ -906,7 +951,8 @@ cogent_f83ln pro =
              , i1') = (v', v2')
          and v' = p1'
          and v' = v3'
-         and (v', err') = (v', v')
+         and (v', err') = (v'
+                          , gencotDummy "Linear expression used in readonly context")
          and p0' = p0' @{ @i1' = p1' }
          and pro = pro @{ @i0' = p0' }
          in (v', pro)
@@ -940,9 +986,8 @@ cogent_f91ln pln =
          and pln { mln = p0' } = v'
          and v' = p0'
          and v' = v1'
-         and (v'
-             , p0') = gencotDummy "Readonly expression is used in linear context"
-            {- pln->mln = cogent_frro(); -}
+         and (v', p0') = (v'
+                         , gencotDummy "Readonly expression used in linear context")
          and pln = pln { mln = p0' }
          in (v', pln)
       in (0, pln)
@@ -972,9 +1017,8 @@ cogent_f92ln pln =
              , i0') = (v', v1')
          and v' = p0'
          and v' = v2'
-         and (v'
-             , p0') = gencotDummy "Readonly expression is used in linear context"
-            {- pln[1] = cogent_frro(); -}
+         and (v', p0') = (v'
+                         , gencotDummy "Readonly expression used in linear context")
          and pln = pln @{ @i0' = p0' }
          in (v', pln)
       in (0, pln)

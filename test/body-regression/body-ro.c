@@ -76,6 +76,8 @@ void f62ln(struct ros2 *pro) { pro->sln->mro = frro(); }
 void f62ro(struct ros2 *pro) { pro->sln->mro; }
 void f63ln(struct ros2 *pro) { pro->sln->mln = frln(); }
 void f63ro(struct ros2 *pro) { pro->sln->mln; }
+void f64ln(struct ros2 *pro) { pro->sub.mln = frln(); }
+void f64ro(struct ros2 *pro) { pro->sub.mln; }
 
 // Probe used by accessing an array element
 void f71ln(roa1 pro) { pro[1] = 5; }

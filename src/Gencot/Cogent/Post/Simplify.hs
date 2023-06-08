@@ -26,13 +26,16 @@ letproc e =
                   else mapExprOfGE (const (Let bs' $ mapExprOfGE (const bdy') bdy)) e
          _ -> mapExprOfGE (fmap letproc) e
 
--- | Process all bindings in a let expression.
+-- | Process all bindings without banged variables in a let expression.
 -- If there are several and-concatenated bindings, the are processed from the last one backwards.
 bindsproc :: [GenBnd] -> ExprOfGE -> ([GenBnd],ExprOfGE)
 bindsproc [] bdy = ([], bdy)
 bindsproc ((Binding ip Nothing e []) : bs) bdy = 
     let (bs',bdy') = bindsproc bs bdy
     in bindproc ip (letproc e) bs' bdy'
+bindsproc ((Binding ip Nothing e bvs) : bs) bdy =
+    let (bs',bdy') = bindsproc bs bdy
+    in ((Binding ip Nothing (letproc e) bvs): bs',bdy')
 bindsproc (b : _) _ = error ("unexpected binding in letproc/bindsproc: " ++ (show b))
 
 -- | Process the binding (ip = e) by substituting it in expression (let bs in bdy).

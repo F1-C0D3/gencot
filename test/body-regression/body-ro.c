@@ -11,7 +11,8 @@ int *globcro;
 int *glob; // global const-val variable
 int *frro(void); // (external) function with readonly result
 
-// source of linear value:
+// global linear probes:
+int *globln; // global const-val variable
 int *frln(void); // (external) function with linear result
 
 // struct probes:
@@ -112,3 +113,86 @@ void f91ro(struct ros1 *pln) { pln->mro = frro(); }
 void f92ln(roa3 pln) { pln[1] = frro(); }
 void f92ro(roa2 pln) { pln[1] = frro(); }
 
+// Using values of linear type (can be banged).
+
+// Direct use of probe in context
+void g11ln(int *pln) { fcln(pln); }
+void g11ro(int *pln) { fcro(pln); }
+void g12ln(void) { fcln(globln); }
+void g12ro(void) { fcro(globln); }
+void g13ln(void) { fcln(frln()); }
+void g13ro(void) { fcro(frln()); }
+void g14ln(int *pln, int *qln, int i) { fcln(i?pln:qln); }
+void g14ro(int *pln, int *qln, int i) { fcro(i?pln:qln); }
+
+// Probe assigned to variable
+void g21ln(void) { globcln = frln(); }
+void g21ro(void) { globcro = frln(); }
+void g22ln(int *pln) { pln = frln(); }
+void g22ro(int *pro) { pro = frln(); }
+
+// Probe returned as result
+int *g31ln(void) { return frln(); }
+int *g31ro(void) { return frln(); }
+
+// Probe used by accessing a struct component
+void g51ln(struct ros1 *pln) { pln->mrg = 5; }
+void g51ro(struct ros1 *pln) { pln->mrg; }
+void g52ln(struct ros1 *pln) { pln->mro = frln(); }
+void g52ro(struct ros1 *pln) { pln->mro; }
+void g53ln(struct ros1 *pln) { pln->mln = frln(); }
+void g53ro(struct ros1 *pln) { pln->mln; }
+void g54ln(struct ros1 *pln) { *(pln->mln) = 5; }
+void g54ro(struct ros1 *pln) { *(pln->mln); }
+void g55ln(struct ros1 *pln) { fcln(pln->mln); }
+void g55ro(struct ros1 *pln) { fcro(pln->mln); }
+void g56ln(struct ros1 *pln) { globcln = pln->mln; }
+void g56ro(struct ros1 *pln) { globcro = pln->mln; }
+void g57ln(struct ros1 *pln, int *qln) { qln = pln->mln; }
+void g57ro(struct ros1 *pln, int *qro) { qro = pln->mln; }
+int *g58ln(struct ros1 *pln) { return pln->mln; }
+int *g58ro(struct ros1 *pln) { return pln->mln; }
+void g59ln(struct ros1 *pln, int *qln, int i) { fcro(i?pln->mln:qln); }
+void g59ro(struct ros1 *pln, int *qro, int i) { fcro(i?pln->mln:qro); }
+
+void g61ln(struct ros2 *pln) { pln->sln->mrg = 5; }
+void g61ro(struct ros2 *pln) { pln->sln->mrg; }
+void g62ln(struct ros2 *pln) { pln->sln->mro = frln(); }
+void g62ro(struct ros2 *pln) { pln->sln->mro; }
+void g63ln(struct ros2 *pln) { pln->sln->mln = frln(); }
+void g63ro(struct ros2 *pln) { pln->sln->mln; }
+void g64ln(struct ros2 *pln) { pln->sub.mro = frln(); }
+void g64ro(struct ros2 *pln) { pln->sub.mro; }
+
+// Probe used by accessing an array element
+void g71ln(roa1 pln) { pln[1] = 5; }
+void g71ro(roa1 pln) { pln[1]; }
+void g72ln(roa2 pln) { pln[1] = frln(); }
+void g72ro(roa2 pln) { pln[1]; }
+void g73ln(roa3 pln) { pln[1] = frln(); }
+void g73ro(roa3 pln) { pln[1]; }
+void g74ln(roa3 pln) { *(pln[1]) = 5; }
+void g74ro(roa3 pln) { *(pln[1]); }
+void g75ln(roa3 pln) { fcln(pln[1]); }
+void g75ro(roa3 pln) { fcro(pln[1]); }
+void g76ln(roa3 pln) { globcln = pln[1]; }
+void g76ro(roa3 pln) { globcro = pln[1]; }
+void g77ln(roa3 pln, int *qln) { qln = pln[1]; }
+void g77ro(roa3 pln, int *qro) { qro = pln[1]; }
+int *g78ln(roa3 pln) { return pln[1]; }
+int *g78ro(roa3 pln) { return pln[1]; }
+void g79ln(roa3 pln, int *qln, int i) { fcro(i?pln[1]:qln); }
+void g79ro(roa3 pln, int *qro, int i) { fcro(i?pln[1]:qro); }
+
+void g81ln(roa4 pln) { pln[1][1] = 5; }
+void g81ro(roa4 pln) { pln[1][1]; }
+void g82ln(roa5 pln) { pln[1][1] = frln(); }
+void g82ro(roa5 pln) { pln[1][1]; }
+void g83ln(roa6 pln) { pln[1][1] = frln(); }
+void g83ro(roa6 pln) { pln[1][1]; }
+
+// probe assigned to struct component or array element
+void g91ln(struct ros1 *pln) { pln->mln = frln(); }
+void g91ro(struct ros1 *pln) { pln->mro = frln(); }
+void g92ln(roa3 pln) { pln[1] = frln(); }
+void g92ro(roa2 pln) { pln[1] = frln(); }

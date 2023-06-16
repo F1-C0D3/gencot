@@ -3,6 +3,7 @@ module Gencot.Cogent.Post.Util where
 
 import Data.List (nub,union,(\\))
 import Data.Functor.Identity (Identity)
+import Data.Functor.Compose
 
 import Language.C.Data.Error (CError)
 import Language.C.Analysis.TravMonad (TravT,Trav)
@@ -39,27 +40,56 @@ isLiteralExpr (CharLit _) = True
 isLiteralExpr (StringLit _) = True
 isLiteralExpr _ = False
 
--- | Free variables in a pattern.
+-- | Free variables in an alternative.
+freeInAlt :: GenAlt -> [VarName]
+freeInAlt (Alt p _ e) =
+    let locals = freeInPatn p
+    in filter (`notElem` locals) (freeInExpr e)
+
+-- | Free variables (bound) in a pattern.
 freeInPatn :: GenPatn -> [VarName]
-freeInPatn = nub . CS.fvP . toRawPatn
+{- freeInPatn = nub . CS.fvP . toRawPatn -}
+freeInPatn (GenPatn (PIrrefutable ip) _ _) = freeInIrrefPatn ip
+freeInPatn _ = []
 
--- | Free variables in an irrefutable pattern.
+-- | Free variables (bound) in an irrefutable pattern.
 freeInIrrefPatn :: GenIrrefPatn -> [VarName]
-freeInIrrefPatn = nub . CS.fvIP . toRawIrrefPatn
+{- freeInIrrefPatn = nub . CS.fvIP . toRawIrrefPatn -}
+freeInIrrefPatn = freeInIrrefPatn' . irpatnOfGIP
 
--- | Free variables in an expression.
-freeInExpr' :: ExprOfGE -> [VarName]
-freeInExpr' = nub . CS.fvE . toRawExpr'
+freeInIrrefPatn' :: IrpatnOfGIP -> [VarName]
+freeInIrrefPatn' (PVar pv) = [pv]
+freeInIrrefPatn' (PTuple ips) = nub $ foldMap freeInIrrefPatn ips
+freeInIrrefPatn' (PUnboxedRecord mfs) = nub $ foldMap (freeInIrrefPatn . snd) (Compose mfs)
+freeInIrrefPatn' (PTake pv mfs) = nub (pv : foldMap (freeInIrrefPatn . snd) (Compose mfs))
+freeInIrrefPatn' (PArrayTake pv hs) = nub (pv : foldMap (freeInIrrefPatn . snd) hs)
+freeInIrrefPatn' _ = []
+
+-- | Free variables occurring in (an index) in an irrefutable pattern.
+freeInIndex :: GenIrrefPatn -> [VarName]
+freeInIndex (GenIrrefPatn (PTuple ips) _ _) = nub $ foldMap freeInIndex ips
+freeInIndex (GenIrrefPatn (PArrayTake _ hs) _ _) = nub $ foldMap (freeInExpr . fst) hs
+freeInIndex _ = []
 
 -- | Free variables in an expression.
 freeInExpr :: GenExpr -> [VarName]
-freeInExpr = nub . CS.fvE . toRawExpr
+{- freeInExpr = nub . CS.fvE . toRawExpr -}
+freeInExpr = freeInExpr' . exprOfGE
+
+freeInExpr' :: ExprOfGE -> [VarName]
+{- freeInExpr' = nub . CS.fvE . toRawExpr' -}
+freeInExpr' (Var v) = [v]
+freeInExpr' (Let bs bdy) = freeUnderBinding bs $ exprOfGE bdy
+freeInExpr' (Match e _ alts) = union (freeInExpr e) (nub $ foldMap freeInAlt alts)
+freeInExpr' (TLApp v ts _ _) = [v]
+freeInExpr' (Lam p t e) = filter (`notElem` freeInIrrefPatn p) (freeInExpr e)
+freeInExpr' e = nub $ foldMap freeInExpr e
 
 -- | Free variables in a let expression, given by a sequence of bindings and the body.
 freeUnderBinding :: [GenBnd] -> ExprOfGE -> [VarName]
 freeUnderBinding [] e = freeInExpr' e
-freeUnderBinding ((CS.Binding ipb Nothing eb []) : bs) e =
-    nub ((freeInExpr eb) ++ ((freeUnderBinding bs e) \\ (freeInIrrefPatn ipb)))
+freeUnderBinding ((Binding ipb Nothing eb []) : bs) e =
+    nub ((freeInExpr eb) ++ (freeInIndex ipb) ++((freeUnderBinding bs e) \\ (freeInIrrefPatn ipb)))
 freeUnderBinding (b : _) _ = error ("unexpected binding in freeUnderBinding: " ++ (show b))
 
 -- | Free variables in a sequence of bindings.
@@ -69,17 +99,17 @@ freeInBindings bs = freeUnderBinding bs CS.Unitel
 -- | Variables bound in a sequence of bindings.
 boundInBindings :: [GenBnd] -> [VarName]
 boundInBindings [] = []
-boundInBindings ((CS.Binding ipb Nothing eb []) : bs) = union (freeInIrrefPatn ipb) $ boundInBindings bs
+boundInBindings ((Binding ipb Nothing eb []) : bs) = union (freeInIrrefPatn ipb) $ boundInBindings bs
 boundInBindings (b : _) = error ("unexpected binding in boundInBindings: " ++ (show b))
 
 {- Convert patterns and expressions to lists -}
 
 getIPatternsList :: GenIrrefPatn -> [GenIrrefPatn]
-getIPatternsList (GenIrrefPatn (CS.PTuple ips) _ _) = ips
+getIPatternsList (GenIrrefPatn (PTuple ips) _ _) = ips
 getIPatternsList ip = [ip]
 
 getExprList :: GenExpr -> [GenExpr]
-getExprList (GenExpr (CS.Tuple es) _ _ _) = es
+getExprList (GenExpr (Tuple es) _ _ _) = es
 getExprList e = [e]
 
 

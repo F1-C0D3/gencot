@@ -1019,3 +1019,969 @@ cogent_f92ro pln =
          in (v', pln)
       in (0, pln)
    in ((), pln)
+
+-- Using values of linear type (can be banged).
+
+-- Direct use of probe in context
+cogent_g11ln : CPtr U32 -> ()
+cogent_g11ln pln =
+   let _ = let v' = let v' = cogent_fcln
+         and v1' = pln
+         and v' = v' v1'
+         in v'
+      in 0
+   in ()
+cogent_g11ro : CPtr U32 -> ()
+cogent_g11ro pln =
+   let _ = let v' = let v' = cogent_fcro
+         and v1' = pln
+         and v' = v' v1'
+         in v'
+      in 0
+   in ()
+cogent_g12ln : () -> ()
+cogent_g12ln () =
+   let _ = let v' = let v' = cogent_fcln
+         and v1' = cogent_globln ()
+         and v' = v' v1'
+         in v'
+      in 0
+   in ()
+cogent_g12ro : () -> ()
+cogent_g12ro () =
+   let _ = let v' = let v' = cogent_fcro
+         and v1' = cogent_globln ()
+         and v' = v' v1'
+         in v'
+      in 0
+   in ()
+cogent_g13ln : () -> ()
+cogent_g13ln () =
+   let _ = let v' = let v' = cogent_fcln
+         and v1' = cogent_frln
+         and v1' = v1' ()
+         and v' = v' v1'
+         in v'
+      in 0
+   in ()
+cogent_g13ro : () -> ()
+cogent_g13ro () =
+   let _ = let v' = let v' = cogent_fcro
+         and v1' = cogent_frln
+         and v1' = v1' ()
+         and v' = v' v1'
+         in v'
+      in 0
+   in ()
+cogent_g14ln : ( CPtr U32, CPtr U32, U32 ) -> ()
+cogent_g14ln (pln, qln, i) =
+   let _ = let v' = let v' = cogent_fcln
+         and v1' = i
+         and v2' = pln
+         and v3' = qln
+         and v1' = if v1'
+            then v2'
+            else v3'
+         and v' = v' v1'
+         in v'
+      in 0
+   in ()
+cogent_g14ro : ( CPtr U32, CPtr U32, U32 ) -> ()
+cogent_g14ro (pln, qln, i) =
+   let _ = let v' = let v' = cogent_fcro
+         and v1' = i
+         and v2' = pln
+         and v3' = qln
+         and v1' = if v1'
+            then v2'
+            else v3'
+         and v' = v' v1'
+         in v'
+      in 0
+   in ()
+
+-- Probe assigned to variable
+cogent_g21ln : GlobState1 -> ( (), GlobState1 )
+cogent_g21ln g =
+   let (_, g) = let (v'
+                    , g) = let v1' = cogent_frln
+         and v1' = v1' ()
+         and v' = g
+         and g { cont = p0' } = v'
+         and v' = p0'
+         and v' = v1'
+         and (v', p0') = (v', v')
+         and g = g { cont = p0' }
+         in (v', g)
+      in (0, g)
+   in ((), g)
+cogent_g21ro : GlobState2 -> ( (), GlobState2 )
+cogent_g21ro g =
+   let (_, g) = let (v'
+                    , g) = let v1' = cogent_frln
+         and v1' = v1' ()
+         and v' = g
+         and g { cont = p0' } = v'
+         and v' = p0'
+         and v' = v1'
+         and (v', p0') = (v', v')
+         and g = g { cont = p0' }
+         in (v', g)
+      in (0, g)
+   in ((), g)
+cogent_g22ln : CPtr U32 -> ()
+cogent_g22ln pln =
+   let (_, pln) = let (v'
+                      , pln) = let v1' = cogent_frln
+         and v1' = v1' ()
+         and v' = pln
+         and v' = v1'
+         and (v', pln) = (v', v')
+         in (v', pln)
+      in (0, pln)
+   in ()
+cogent_g22ro : (CPtr U32)! -> ()
+cogent_g22ro pro =
+   let (_, pro) = let (v'
+                      , pro) = let v1' = cogent_frln
+         and v1' = v1' ()
+         and v' = pro
+         and v' = v1'
+         and (v', pro) = (v', v')
+         in (v', pro)
+      in (0, pro)
+   in ()
+
+-- Probe returned as result
+cogent_g31ln : () -> CPtr U32
+cogent_g31ln () =
+   let (_
+       , r') = let v' = let v' = cogent_frln
+         and v' = v' ()
+         in v'
+      in (3, v')
+   in r'
+cogent_g31ro : () -> (CPtr U32)!
+cogent_g31ro () =
+   let (_
+       , r') = let v' = let v' = cogent_frln
+         and v' = v' ()
+         in v'
+      in (3, v')
+   in r'
+
+-- Probe used by accessing a struct component
+cogent_g51ln : Struct_Cogent_ros1 -> ()
+cogent_g51ln pln =
+   let (_, pln) = let (v'
+                      , pln) = let v1' = 5
+         and v' = pln
+         and pln { mrg = p0' } = v'
+         and v' = p0'
+         and v' = v1'
+         and (v', p0') = (v', v')
+         and pln = pln { mrg = p0' }
+         in (v', pln)
+      in (0, pln)
+   in ()
+cogent_g51ro : Struct_Cogent_ros1 -> ()
+cogent_g51ro pln =
+   let (_, pln) = let (v'
+                      , pln) = let v' = pln
+         and pln { mrg = p0' } = v'
+         and v' = p0'
+         and pln = pln { mrg = p0' }
+         in (v', pln)
+      in (0, pln)
+   in ()
+cogent_g52ln : Struct_Cogent_ros1 -> ()
+cogent_g52ln pln =
+   let (_, pln) = let (v'
+                      , pln) = let v1' = cogent_frln
+         and v1' = v1' ()
+         and v' = pln
+         and pln { mro = p0' } = v'
+         and v' = p0'
+         and v' = v1'
+         and (v', p0') = (v', v')
+         and pln = pln { mro = p0' }
+         in (v', pln)
+      in (0, pln)
+   in ()
+cogent_g52ro : Struct_Cogent_ros1 -> ()
+cogent_g52ro pln =
+   let (_, pln) = let (v'
+                      , pln) = let v' = pln
+         and pln { mro = p0' } = v'
+         and v' = p0'
+         and pln = pln { mro = p0' }
+         in (v', pln)
+      in (0, pln)
+   in ()
+cogent_g53ln : Struct_Cogent_ros1 -> ()
+cogent_g53ln pln =
+   let (_, pln) = let (v'
+                      , pln) = let v1' = cogent_frln
+         and v1' = v1' ()
+         and v' = pln
+         and pln { mln = p0' } = v'
+         and v' = p0'
+         and v' = v1'
+         and (v', p0') = (v', v')
+         and pln = pln { mln = p0' }
+         in (v', pln)
+      in (0, pln)
+   in ()
+cogent_g53ro : Struct_Cogent_ros1 -> ()
+cogent_g53ro pln =
+   let (_, pln) = let (v'
+                      , pln) = let v' = pln
+         and pln { mln = p0' } = v'
+         and v' = p0'
+         and pln = pln { mln = p0' }
+         in (v', pln)
+      in (0, pln)
+   in ()
+cogent_g54ln : Struct_Cogent_ros1 -> ()
+cogent_g54ln pln =
+   let (_, pln) = let (v'
+                      , pln) = let v1' = 5
+         and v' = pln
+         and pln { mln = p0' } = v'
+         and v' = p0'
+         and p0' { cont = p1' } = v'
+         and v' = p1'
+         and v' = v1'
+         and (v', p1') = (v', v')
+         and p0' = p0' { cont = p1' }
+         and pln = pln { mln = p0' }
+         in (v', pln)
+      in (0, pln)
+   in ()
+cogent_g54ro : Struct_Cogent_ros1 -> ()
+cogent_g54ro pln =
+   let (_, pln) = let (v'
+                      , pln) = let v' = pln
+         and pln { mln = p0' } = v'
+         and v' = p0'
+         and p0' { cont = p1' } = v'
+         and v' = p1'
+         and p0' = p0' { cont = p1' }
+         and pln = pln { mln = p0' }
+         in (v', pln)
+      in (0, pln)
+   in ()
+cogent_g55ln : Struct_Cogent_ros1 -> ()
+cogent_g55ln pln =
+   let (_, pln) = let (v'
+                      , pln) = let v' = cogent_fcln
+         and v1' = pln
+         and pln { mln = p0' } = v1'
+         and v1' = p0'
+         and v' = v' v1'
+         and pln = pln { mln = p0' }
+         in (v', pln)
+      in (0, pln)
+   in ()
+cogent_g55ro : Struct_Cogent_ros1 -> ()
+cogent_g55ro pln =
+   let (_, pln) = let (v'
+                      , pln) = let v' = cogent_fcro
+         and v1' = pln
+         and pln { mln = p0' } = v1'
+         and v1' = p0'
+         and v' = v' v1'
+         and pln = pln { mln = p0' }
+         in (v', pln)
+      in (0, pln)
+   in ()
+cogent_g56ln : ( Struct_Cogent_ros1, GlobState1 ) -> ( (), GlobState1 )
+cogent_g56ln (pln, g) =
+   let (_, g, pln) = let (v'
+                         , g
+                         , pln) = let v1' = pln
+         and pln { mln = p1' } = v1'
+         and v1' = p1'
+         and v' = g
+         and g { cont = p0' } = v'
+         and v' = p0'
+         and v' = v1'
+         and (v', p0') = (v', v')
+         and g = g { cont = p0' }
+         and pln = pln { mln = p1' }
+         in (v', g, pln)
+      in (0, g, pln)
+   in ((), g)
+cogent_g56ro : ( Struct_Cogent_ros1, GlobState2 ) -> ( (), GlobState2 )
+cogent_g56ro (pln, g) =
+   let (_, g, pln) = let (v'
+                         , g
+                         , pln) = let v1' = pln
+         and pln { mln = p1' } = v1'
+         and v1' = p1'
+         and v' = g
+         and g { cont = p0' } = v'
+         and v' = p0'
+         and v' = v1'
+         and (v', p0') = (v', v')
+         and g = g { cont = p0' }
+         and pln = pln { mln = p1' }
+         in (v', g, pln)
+      in (0, g, pln)
+   in ((), g)
+cogent_g57ln : ( Struct_Cogent_ros1, CPtr U32 ) -> ()
+cogent_g57ln (pln, qln) =
+   let (_, pln, qln) = let (v'
+                           , pln
+                           , qln) = let v1' = pln
+         and pln { mln = p0' } = v1'
+         and v1' = p0'
+         and v' = qln
+         and v' = v1'
+         and (v', qln) = (v', v')
+         and pln = pln { mln = p0' }
+         in (v', pln, qln)
+      in (0, pln, qln)
+   in ()
+cogent_g57ro : ( Struct_Cogent_ros1, (CPtr U32)! ) -> ()
+cogent_g57ro (pln, qro) =
+   let (_, pln, qro) = let (v'
+                           , pln
+                           , qro) = let v1' = pln
+         and pln { mln = p0' } = v1'
+         and v1' = p0'
+         and v' = qro
+         and v' = v1'
+         and (v', qro) = (v', v')
+         and pln = pln { mln = p0' }
+         in (v', pln, qro)
+      in (0, pln, qro)
+   in ()
+cogent_g58ln : Struct_Cogent_ros1 -> CPtr U32
+cogent_g58ln pln =
+   let (_, r', pln) = let (v'
+                          , pln) = let v' = pln
+         and pln { mln = p0' } = v'
+         and v' = p0'
+         and pln = pln { mln = p0' }
+         in (v', pln)
+      in (3, v', pln)
+   in r'
+cogent_g58ro : Struct_Cogent_ros1 -> (CPtr U32)!
+cogent_g58ro pln =
+   let (_, r', pln) = let (v'
+                          , pln) = let v' = pln
+         and pln { mln = p0' } = v'
+         and v' = p0'
+         and pln = pln { mln = p0' }
+         in (v', pln)
+      in (3, v', pln)
+   in r'
+cogent_g59ln : ( Struct_Cogent_ros1, CPtr U32, U32 ) -> ( (), CPtr U32 )
+cogent_g59ln (pln, qln, i) =
+   let (_, pln) = let (v'
+                      , pln) = let v' = cogent_fcro
+         and v1' = i
+         and v3' = qln
+         and (v1', pln) = if v1'
+            then let v2' = pln
+               and pln { mln = p0' } = v2'
+               and v2' = p0'
+               and pln = pln { mln = p0' }
+               in (v2', pln)
+            else (v3', pln)
+         and v' = v' v1'
+         in (v', pln)
+      in (0, pln)
+   in ((), qln)
+cogent_g59ro : ( Struct_Cogent_ros1, (CPtr U32)!, U32 ) -> ()
+cogent_g59ro (pln, qro, i) =
+   let (_, pln) = let (v'
+                      , pln) = let v' = cogent_fcro
+         and v1' = i
+         and v3' = qro
+         and (v1', pln) = if v1'
+            then let v2' = pln
+               and pln { mln = p0' } = v2'
+               and v2' = p0'
+               and pln = pln { mln = p0' }
+               in (v2', pln)
+            else (v3', pln)
+         and v' = v' v1'
+         in (v', pln)
+      in (0, pln)
+   in ()
+
+cogent_g61ln : Struct_Cogent_ros2 -> ()
+cogent_g61ln pln =
+   let (_, pln) = let (v'
+                      , pln) = let v1' = 5
+         and v' = pln
+         and pln { sln = p0' } = v'
+         and v' = p0'
+         and p0' { mrg = p1' } = v'
+         and v' = p1'
+         and v' = v1'
+         and (v', p1') = (v', v')
+         and p0' = p0' { mrg = p1' }
+         and pln = pln { sln = p0' }
+         in (v', pln)
+      in (0, pln)
+   in ()
+cogent_g61ro : Struct_Cogent_ros2 -> ()
+cogent_g61ro pln =
+   let (_, pln) = let (v'
+                      , pln) = let v' = pln
+         and pln { sln = p0' } = v'
+         and v' = p0'
+         and p0' { mrg = p1' } = v'
+         and v' = p1'
+         and p0' = p0' { mrg = p1' }
+         and pln = pln { sln = p0' }
+         in (v', pln)
+      in (0, pln)
+   in ()
+cogent_g62ln : Struct_Cogent_ros2 -> ()
+cogent_g62ln pln =
+   let (_, pln) = let (v'
+                      , pln) = let v1' = cogent_frln
+         and v1' = v1' ()
+         and v' = pln
+         and pln { sln = p0' } = v'
+         and v' = p0'
+         and p0' { mro = p1' } = v'
+         and v' = p1'
+         and v' = v1'
+         and (v', p1') = (v', v')
+         and p0' = p0' { mro = p1' }
+         and pln = pln { sln = p0' }
+         in (v', pln)
+      in (0, pln)
+   in ()
+cogent_g62ro : Struct_Cogent_ros2 -> ()
+cogent_g62ro pln =
+   let (_, pln) = let (v'
+                      , pln) = let v' = pln
+         and pln { sln = p0' } = v'
+         and v' = p0'
+         and p0' { mro = p1' } = v'
+         and v' = p1'
+         and p0' = p0' { mro = p1' }
+         and pln = pln { sln = p0' }
+         in (v', pln)
+      in (0, pln)
+   in ()
+cogent_g63ln : Struct_Cogent_ros2 -> ()
+cogent_g63ln pln =
+   let (_, pln) = let (v'
+                      , pln) = let v1' = cogent_frln
+         and v1' = v1' ()
+         and v' = pln
+         and pln { sln = p0' } = v'
+         and v' = p0'
+         and p0' { mln = p1' } = v'
+         and v' = p1'
+         and v' = v1'
+         and (v', p1') = (v', v')
+         and p0' = p0' { mln = p1' }
+         and pln = pln { sln = p0' }
+         in (v', pln)
+      in (0, pln)
+   in ()
+cogent_g63ro : Struct_Cogent_ros2 -> ()
+cogent_g63ro pln =
+   let (_, pln) = let (v'
+                      , pln) = let v' = pln
+         and pln { sln = p0' } = v'
+         and v' = p0'
+         and p0' { mln = p1' } = v'
+         and v' = p1'
+         and p0' = p0' { mln = p1' }
+         and pln = pln { sln = p0' }
+         in (v', pln)
+      in (0, pln)
+   in ()
+cogent_g64ln : Struct_Cogent_ros2 -> ()
+cogent_g64ln pln =
+   let (_, pln) = let (v'
+                      , pln) = let v1' = cogent_frln
+         and v1' = v1' ()
+         and v' = pln
+         and pln { sub = p0' } = v'
+         and v' = p0'
+         and p0' { mro = p1' } = v'
+         and v' = p1'
+         and v' = v1'
+         and (v', p1') = (v', v')
+         and p0' = p0' { mro = p1' }
+         and pln = pln { sub = p0' }
+         in (v', pln)
+      in (0, pln)
+   in ()
+cogent_g64ro : Struct_Cogent_ros2 -> ()
+cogent_g64ro pln =
+   let (_, pln) = let (v'
+                      , pln) = let v' = pln
+         and pln { sub = p0' } = v'
+         and v' = p0'
+         and p0' { mro = p1' } = v'
+         and v' = p1'
+         and p0' = p0' { mro = p1' }
+         and pln = pln { sub = p0' }
+         in (v', pln)
+      in (0, pln)
+   in ()
+
+-- Probe used by accessing an array element
+cogent_g71ln : Cogent_roa1 -> ()
+cogent_g71ln pln =
+   let (_, pln) = let (v'
+                      , pln) = let v2' = 5
+         and v1' = 1
+         and v' = pln
+         and (pln @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and v' = v2'
+         and (v', p0') = (v', v')
+         and pln = pln @{ @i0' = p0' }
+         in (v', pln)
+      in (0, pln)
+   in ()
+cogent_g71ro : Cogent_roa1 -> ()
+cogent_g71ro pln =
+   let (_, pln) = let (v'
+                      , pln) = let v1' = 1
+         and v' = pln
+         and (pln @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and pln = pln @{ @i0' = p0' }
+         in (v', pln)
+      in (0, pln)
+   in ()
+cogent_g72ln : Cogent_roa2 -> ()
+cogent_g72ln pln =
+   let (_, pln) = let (v'
+                      , pln) = let v2' = cogent_frln
+         and v2' = v2' ()
+         and v1' = 1
+         and v' = pln
+         and (pln @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and v' = v2'
+         and (v', p0') = (v', v')
+         and pln = pln @{ @i0' = p0' }
+         in (v', pln)
+      in (0, pln)
+   in ()
+cogent_g72ro : Cogent_roa2 -> ()
+cogent_g72ro pln =
+   let (_, pln) = let (v'
+                      , pln) = let v1' = 1
+         and v' = pln
+         and (pln @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and pln = pln @{ @i0' = p0' }
+         in (v', pln)
+      in (0, pln)
+   in ()
+cogent_g73ln : Cogent_roa3 -> ()
+cogent_g73ln pln =
+   let (_, pln) = let (v'
+                      , pln) = let v2' = cogent_frln
+         and v2' = v2' ()
+         and v1' = 1
+         and v' = pln
+         and (pln @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and v' = v2'
+         and (v', p0') = (v', v')
+         and pln = pln @{ @i0' = p0' }
+         in (v', pln)
+      in (0, pln)
+   in ()
+cogent_g73ro : Cogent_roa3 -> ()
+cogent_g73ro pln =
+   let (_, pln) = let (v'
+                      , pln) = let v1' = 1
+         and v' = pln
+         and (pln @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and pln = pln @{ @i0' = p0' }
+         in (v', pln)
+      in (0, pln)
+   in ()
+cogent_g74ln : Cogent_roa3 -> ()
+cogent_g74ln pln =
+   let (_, pln) = let (v'
+                      , pln) = let v2' = 5
+         and v1' = 1
+         and v' = pln
+         and (pln @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and p0' { cont = p1' } = v'
+         and v' = p1'
+         and v' = v2'
+         and (v', p1') = (v', v')
+         and p0' = p0' { cont = p1' }
+         and pln = pln @{ @i0' = p0' }
+         in (v', pln)
+      in (0, pln)
+   in ()
+cogent_g74ro : Cogent_roa3 -> ()
+cogent_g74ro pln =
+   let (_, pln) = let (v'
+                      , pln) = let v1' = 1
+         and v' = pln
+         and (pln @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and p0' { cont = p1' } = v'
+         and v' = p1'
+         and p0' = p0' { cont = p1' }
+         and pln = pln @{ @i0' = p0' }
+         in (v', pln)
+      in (0, pln)
+   in ()
+cogent_g75ln : Cogent_roa3 -> ()
+cogent_g75ln pln =
+   let (_, pln) = let (v'
+                      , pln) = let v' = cogent_fcln
+         and v2' = 1
+         and v1' = pln
+         and (pln @{ @v2' = p0' }
+             , i0') = (v1', v2')
+         and v1' = p0'
+         and v' = v' v1'
+         and pln = pln @{ @i0' = p0' }
+         in (v', pln)
+      in (0, pln)
+   in ()
+cogent_g75ro : Cogent_roa3 -> ()
+cogent_g75ro pln =
+   let (_, pln) = let (v'
+                      , pln) = let v' = cogent_fcro
+         and v2' = 1
+         and v1' = pln
+         and (pln @{ @v2' = p0' }
+             , i0') = (v1', v2')
+         and v1' = p0'
+         and v' = v' v1'
+         and pln = pln @{ @i0' = p0' }
+         in (v', pln)
+      in (0, pln)
+   in ()
+cogent_g76ln : ( Cogent_roa3, GlobState1 ) -> ( (), GlobState1 )
+cogent_g76ln (pln, g) =
+   let (_, g, pln) = let (v'
+                         , g
+                         , pln) = let v2' = 1
+         and v1' = pln
+         and (pln @{ @v2' = p1' }
+             , i1') = (v1', v2')
+         and v1' = p1'
+         and v' = g
+         and g { cont = p0' } = v'
+         and v' = p0'
+         and v' = v1'
+         and (v', p0') = (v', v')
+         and g = g { cont = p0' }
+         and pln = pln @{ @i1' = p1' }
+         in (v', g, pln)
+      in (0, g, pln)
+   in ((), g)
+cogent_g76ro : ( Cogent_roa3, GlobState2 ) -> ( (), GlobState2 )
+cogent_g76ro (pln, g) =
+   let (_, g, pln) = let (v'
+                         , g
+                         , pln) = let v2' = 1
+         and v1' = pln
+         and (pln @{ @v2' = p1' }
+             , i1') = (v1', v2')
+         and v1' = p1'
+         and v' = g
+         and g { cont = p0' } = v'
+         and v' = p0'
+         and v' = v1'
+         and (v', p0') = (v', v')
+         and g = g { cont = p0' }
+         and pln = pln @{ @i1' = p1' }
+         in (v', g, pln)
+      in (0, g, pln)
+   in ((), g)
+cogent_g77ln : ( Cogent_roa3, CPtr U32 ) -> ( (), CPtr U32 )
+cogent_g77ln (pln, qln) =
+   let (_, pln, qln) = let (v'
+                           , pln
+                           , qln) = let v2' = 1
+         and v1' = pln
+         and (pln @{ @v2' = p0' }
+             , i0') = (v1', v2')
+         and v1' = p0'
+         and v' = qln
+         and v' = v1'
+         and (v', qln) = (v', v')
+         and pln = pln @{ @i0' = p0' }
+         in (v', pln, qln)
+      in (0, pln, qln)
+   in ((), qln)
+cogent_g77ro : ( Cogent_roa3, (CPtr U32)! ) -> ()
+cogent_g77ro (pln, qro) =
+   let (_, pln, qro) = let (v'
+                           , pln
+                           , qro) = let v2' = 1
+         and v1' = pln
+         and (pln @{ @v2' = p0' }
+             , i0') = (v1', v2')
+         and v1' = p0'
+         and v' = qro
+         and v' = v1'
+         and (v', qro) = (v', v')
+         and pln = pln @{ @i0' = p0' }
+         in (v', pln, qro)
+      in (0, pln, qro)
+   in ()
+cogent_g78ln : Cogent_roa3 -> CPtr U32
+cogent_g78ln pln =
+   let (_, r', pln) = let (v'
+                          , pln) = let v1' = 1
+         and v' = pln
+         and (pln @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and pln = pln @{ @i0' = p0' }
+         in (v', pln)
+      in (3, v', pln)
+   in r'
+cogent_g78ro : Cogent_roa3 -> (CPtr U32)!
+cogent_g78ro pln =
+   let (_, r', pln) = let (v'
+                          , pln) = let v1' = 1
+         and v' = pln
+         and (pln @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and pln = pln @{ @i0' = p0' }
+         in (v', pln)
+      in (3, v', pln)
+   in r'
+cogent_g79ln : ( Cogent_roa3, CPtr U32, U32 ) -> ( (), CPtr U32 )
+cogent_g79ln (pln, qln, i) =
+   let (_, pln) = let (v'
+                      , pln) = let v' = cogent_fcro
+         and v1' = i
+         and v4' = qln
+         and (v1', pln) = if v1'
+            then let v3' = 1
+               and v2' = pln
+               and (pln @{ @v3' = p0' }
+                   , i0') = (v2', v3')
+               and v2' = p0'
+               and pln = pln @{ @i0' = p0' }
+               in (v2', pln)
+            else (v4', pln)
+         and v' = v' v1'
+         in (v', pln)
+      in (0, pln)
+   in ((), qln)
+cogent_g79ro : ( Cogent_roa3, (CPtr U32)!, U32 ) -> ()
+cogent_g79ro (pln, qro, i) =
+   let (_, pln) = let (v'
+                      , pln) = let v' = cogent_fcro
+         and v1' = i
+         and v4' = qro
+         and (v1', pln) = if v1'
+            then let v3' = 1
+               and v2' = pln
+               and (pln @{ @v3' = p0' }
+                   , i0') = (v2', v3')
+               and v2' = p0'
+               and pln = pln @{ @i0' = p0' }
+               in (v2', pln)
+            else (v4', pln)
+         and v' = v' v1'
+         in (v', pln)
+      in (0, pln)
+   in ()
+
+cogent_g81ln : Cogent_roa4 -> ()
+cogent_g81ln pln =
+   let (_, pln) = let (v'
+                      , pln) = let v3' = 5
+         and v2' = 1
+         and v1' = 1
+         and v' = pln
+         and (pln @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and (p0' @{ @v2' = p1' }
+             , i1') = (v', v2')
+         and v' = p1'
+         and v' = v3'
+         and (v', p1') = (v', v')
+         and p0' = p0' @{ @i1' = p1' }
+         and pln = pln @{ @i0' = p0' }
+         in (v', pln)
+      in (0, pln)
+   in ()
+cogent_g81ro : Cogent_roa4 -> ()
+cogent_g81ro pln =
+   let (_, pln) = let (v'
+                      , pln) = let v2' = 1
+         and v1' = 1
+         and v' = pln
+         and (pln @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and (p0' @{ @v2' = p1' }
+             , i1') = (v', v2')
+         and v' = p1'
+         and p0' = p0' @{ @i1' = p1' }
+         and pln = pln @{ @i0' = p0' }
+         in (v', pln)
+      in (0, pln)
+   in ()
+cogent_g82ln : Cogent_roa5 -> ()
+cogent_g82ln pln =
+   let (_, pln) = let (v'
+                      , pln) = let v3' = cogent_frln
+         and v3' = v3' ()
+         and v2' = 1
+         and v1' = 1
+         and v' = pln
+         and (pln @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and (p0' @{ @v2' = p1' }
+             , i1') = (v', v2')
+         and v' = p1'
+         and v' = v3'
+         and (v', p1') = (v', v')
+         and p0' = p0' @{ @i1' = p1' }
+         and pln = pln @{ @i0' = p0' }
+         in (v', pln)
+      in (0, pln)
+   in ()
+cogent_g82ro : Cogent_roa5 -> ()
+cogent_g82ro pln =
+   let (_, pln) = let (v'
+                      , pln) = let v2' = 1
+         and v1' = 1
+         and v' = pln
+         and (pln @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and (p0' @{ @v2' = p1' }
+             , i1') = (v', v2')
+         and v' = p1'
+         and p0' = p0' @{ @i1' = p1' }
+         and pln = pln @{ @i0' = p0' }
+         in (v', pln)
+      in (0, pln)
+   in ()
+cogent_g83ln : Cogent_roa6 -> ()
+cogent_g83ln pln =
+   let (_, pln) = let (v'
+                      , pln) = let v3' = cogent_frln
+         and v3' = v3' ()
+         and v2' = 1
+         and v1' = 1
+         and v' = pln
+         and (pln @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and (p0' @{ @v2' = p1' }
+             , i1') = (v', v2')
+         and v' = p1'
+         and v' = v3'
+         and (v', p1') = (v', v')
+         and p0' = p0' @{ @i1' = p1' }
+         and pln = pln @{ @i0' = p0' }
+         in (v', pln)
+      in (0, pln)
+   in ()
+cogent_g83ro : Cogent_roa6 -> ()
+cogent_g83ro pln =
+   let (_, pln) = let (v'
+                      , pln) = let v2' = 1
+         and v1' = 1
+         and v' = pln
+         and (pln @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and (p0' @{ @v2' = p1' }
+             , i1') = (v', v2')
+         and v' = p1'
+         and p0' = p0' @{ @i1' = p1' }
+         and pln = pln @{ @i0' = p0' }
+         in (v', pln)
+      in (0, pln)
+   in ()
+
+-- probe assigned to struct component or array element
+cogent_g91ln : Struct_Cogent_ros1 -> ()
+cogent_g91ln pln =
+   let (_, pln) = let (v'
+                      , pln) = let v1' = cogent_frln
+         and v1' = v1' ()
+         and v' = pln
+         and pln { mln = p0' } = v'
+         and v' = p0'
+         and v' = v1'
+         and (v', p0') = (v', v')
+         and pln = pln { mln = p0' }
+         in (v', pln)
+      in (0, pln)
+   in ()
+cogent_g91ro : Struct_Cogent_ros1 -> ()
+cogent_g91ro pln =
+   let (_, pln) = let (v'
+                      , pln) = let v1' = cogent_frln
+         and v1' = v1' ()
+         and v' = pln
+         and pln { mro = p0' } = v'
+         and v' = p0'
+         and v' = v1'
+         and (v', p0') = (v', v')
+         and pln = pln { mro = p0' }
+         in (v', pln)
+      in (0, pln)
+   in ()
+cogent_g92ln : Cogent_roa3 -> ( (), Cogent_roa3 )
+cogent_g92ln pln =
+   let (_, pln) = let (v'
+                      , pln) = let v2' = cogent_frln
+         and v2' = v2' ()
+         and v1' = 1
+         and v' = pln
+         and (pln @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and v' = v2'
+         and (v', p0') = (v', v')
+         and pln = pln @{ @i0' = p0' }
+         in (v', pln)
+      in (0, pln)
+   in ((), pln)
+cogent_g92ro : Cogent_roa2 -> ( (), Cogent_roa2 )
+cogent_g92ro pln =
+   let (_, pln) = let (v'
+                      , pln) = let v2' = cogent_frln
+         and v2' = v2' ()
+         and v1' = 1
+         and v' = pln
+         and (pln @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and v' = v2'
+         and (v', p0') = (v', v')
+         and pln = pln @{ @i0' = p0' }
+         in (v', pln)
+      in (0, pln)
+   in ((), pln)

@@ -10,7 +10,71 @@ import Cogent.Surface as CS
 import Cogent.Common.Syntax as CCS
 
 import Gencot.Cogent.Ast
+import Gencot.Cogent.Types (mkTupleType)
+import Gencot.Cogent.Expr (mkUnitExpr)
 import Gencot.Cogent.Post.Util (isLiteralExpr,freeInPatn,freeInIrrefPatn,freeInExpr',freeInExpr,freeUnderBinding,boundInBindings)
+
+{- Pre Simplification:        -}
+{- Eliminate unused variables -}
+{------------------------------}
+
+presimp :: GenExpr -> GenExpr
+presimp e =
+    case exprOfGE e of
+         (Let bs bdy) ->
+            let bdy' = presimp bdy
+                xbdy' = exprOfGE bdy'
+                bs' = presimpBinds bs xbdy'
+            in if null bs'
+                  then mapExprOfGE (const xbdy') e
+                  else mapExprOfGE (const (Let bs' $ mapExprOfGE (const xbdy') bdy)) e
+         _ -> mapExprOfGE (fmap presimp) e
+
+-- | Process all bindings in a binding sequence by removing unused bound variables.
+-- The second argument is an expression where the variables may be used.
+-- The bindings in the sequence are processed from the last one backwards.
+presimpBinds :: [GenBnd] -> ExprOfGE -> [GenBnd]
+presimpBinds [] bdy = []
+presimpBinds ((Binding ip Nothing e []) : bs) bdy =
+    let bs' = presimpBinds bs bdy
+    in case presimpBind ip e $ freeUnderBinding bs' bdy of
+            Just (ip', e') -> ((Binding ip' Nothing (presimp e') []) : bs')
+            _ -> bs'
+
+-- | Process the binding (ip = e) by removing bindings to variables not in a given set.
+-- If all components can be removed the result is Nothing
+presimpBind :: GenIrrefPatn -> GenExpr -> [VarName] -> Maybe (GenIrrefPatn,GenExpr)
+presimpBind ip@(GenIrrefPatn (PVar pv) _ _) e vs =
+    if elem pv vs then Just (ip,e) else Nothing
+presimpBind ip@(GenIrrefPatn (PTake pv [Just (_, GenIrrefPatn (PVar cv) _ _)]) _ _) e vs =
+    if elem pv vs || elem cv vs then Just (ip,e) else Nothing
+presimpBind ip@(GenIrrefPatn (PArrayTake pv [(_, GenIrrefPatn (PVar cv) _ _)]) _ _) e vs =
+    if elem pv vs || elem cv vs then Just (ip,e) else Nothing
+presimpBind ip@(GenIrrefPatn PUnitel _ _) e vs = Nothing
+presimpBind ip@(GenIrrefPatn PUnderscore _ _) e vs = Nothing
+presimpBind ip@(GenIrrefPatn (PTuple ips) op tp) (GenExpr (Let ebs ebdy) oe te ce) vs =
+    case presimpBind ip ebdy vs of
+         Just (ip', ebdy') -> Just (ip', GenExpr (Let ebs ebdy') oe (typOfGE ebdy') ce)
+         _ -> Nothing
+presimpBind ip@(GenIrrefPatn (PTuple ips) op tp) (GenExpr (If e0 [] e1 e2) oe te ce) vs =
+    case presimpBind ip e1 vs of
+         Just (ip', e1') ->
+            let Just (_, e2') = presimpBind ip e2 vs
+            in Just (ip', GenExpr (If e0 [] e1' e2') oe (typOfGE e1') ce)
+         _ -> Nothing
+presimpBind (GenIrrefPatn (PTuple ips) op tp) (GenExpr (Tuple es) oe te ce) vs =
+     let bs' = catMaybes $ map (\(ip,e) -> presimpBind ip e vs) $ zip ips es
+     in if null bs'
+           then Nothing
+           else if null $ tail bs'
+           then Just $ head bs'
+           else let  (ips',es') = unzip bs'
+                in Just $ (GenIrrefPatn (PTuple ips') op (mkTupleType $ map typOfGIP ips'),
+                           GenExpr (Tuple es') oe (mkTupleType $ map typOfGE es') ce)
+presimpBind ip@(GenIrrefPatn (PTuple ips) _ _) e@(GenExpr (App _ _ _) _ _ _) vs =
+    if null $ catMaybes $ map (\cip -> presimpBind cip mkUnitExpr vs) ips -- all components of ip unused in vs
+       then Nothing
+       else Just (ip,e)
 
 {- Simplifying let expressions -}
 {-------------------------------}
@@ -27,7 +91,7 @@ letproc e =
          _ -> mapExprOfGE (fmap letproc) e
 
 -- | Process all bindings without banged variables in a let expression.
--- If there are several and-concatenated bindings, the are processed from the last one backwards.
+-- If there are several and-concatenated bindings, they are processed from the last one backwards.
 bindsproc :: [GenBnd] -> ExprOfGE -> ([GenBnd],ExprOfGE)
 bindsproc [] bdy = ([], bdy)
 bindsproc ((Binding ip Nothing e []) : bs) bdy = 
@@ -65,9 +129,11 @@ substMatches :: MatchMap -> [GenBnd] -> ExprOfGE -> ([GenBnd],ExprOfGE)
 substMatches m bs bdy | null m = (bs,bdy)
 substMatches m [] bdy = ([],substMatchesE m bdy)
 substMatches m ((Binding ipp Nothing ep []) : bs) bdy =
-    (Binding ipp Nothing ep'' [] : bs',bdy')
+    (Binding ipp'' Nothing ep'' [] : bs',bdy')
     where (_,ep') = substMatches m [] $ exprOfGE ep
           ep'' = mapExprOfGE (const ep') ep
+          ipp' = substMatchesIP m $ irpatnOfGIP ipp
+          ipp'' = mapIrpatnOfGIP (const ipp') ipp
           m' = removeMatches (freeInIrrefPatn ipp) m
           (bs',bdy') = substMatches m' bs bdy
 
@@ -86,6 +152,12 @@ substMatchesE m e =
 substMatchesA :: MatchMap -> GenAlt -> GenAlt
 substMatchesA m (Alt p l bdy) = 
     Alt p l $ mapExprOfGE (substMatchesE (removeMatches (freeInPatn p) m)) bdy
+
+substMatchesIP :: MatchMap -> IrpatnOfGIP -> IrpatnOfGIP
+substMatchesIP m (PArrayTake pv [(e,ip)]) =
+    PArrayTake pv [(mapExprOfGE (substMatchesE m) e,ip)]
+substMatchesIP m (PTuple ips) = PTuple $ map (mapIrpatnOfGIP (substMatchesIP m)) ips
+substMatchesIP _ ip = ip
 
 -- | Retain bindings for which the substitution would grow the expression too much.
 -- Not yet implemented.
@@ -115,9 +187,10 @@ findMatches :: GenIrrefPatn -> GenExpr -> [GenBnd] -> ExprOfGE -> MatchMap
 findMatches ip e bs@((Binding ipp Nothing ep []) : bs') bdy =
     if isUnitPattern ip'
        then M.empty
-       else combineMatches [msp, ms1, ms2]
+       else combineMatches [msp, msi, ms1, ms2]
     where (ip',e') = reduceBinding (freeUnderBinding bs bdy) ip e
           msp = findMatches ip' e' [] $ exprOfGE ep
+          msi = findMatchesInIndex ip' e' $ irpatnOfGIP ipp
           ((ip1,e1),(ip2,e2)) = splitBinding (freeInIrrefPatn ipp) ip' e'
           ms1 = findMatches ip1 e1 bs' bdy
           ms2 = retainOrDrop $ findMatches ip2 e2 bs' bdy
@@ -127,6 +200,17 @@ findMatches ip e [] bdy =
        then M.empty
        else findFullMatches ip' e' bdy
     where (ip',e') = reduceBinding (freeInExpr' bdy) ip e
+
+findMatchesInIndex :: GenIrrefPatn -> GenExpr -> IrpatnOfGIP -> MatchMap
+findMatchesInIndex ip e (PArrayTake _ [(idx,_)]) =
+    if isUnitPattern ip'
+       then M.empty
+       else findFullMatches ip' e' idx'
+    where idx' = exprOfGE idx
+          (ip',e') = reduceBinding (freeInExpr' idx') ip e
+findMatchesInIndex ip e (PTuple ips) =
+    combineMatches $ map (findMatchesInIndex ip e . irpatnOfGIP) ips
+findMatchesInIndex _ _ _ = M.empty
 
 -- | Find matches of a binding in an expression.
 -- The binding binds only variables which occur free in the expression.

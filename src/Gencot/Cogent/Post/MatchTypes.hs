@@ -140,26 +140,51 @@ bangprocInBindings :: [GenBnd] -> ExprOfGE -> ETrav [GenBnd]
 bangprocInBindings [] _ = return []
 bangprocInBindings (b@(CS.Binding ip m e []):bs) bdy = do
     (eb,bvs,errs) <- runExprTrav [] $ bangprocExpr e
-    if null bvs || (mayEscape $ typOfGE eb)
+    let (ipr,ebr) = reduceBangedBinding bvs ip eb
+    if null bvs || (mayEscape $ typOfGE ebr)
        then do
            mapM recordError errs
-           (ebe,bvse) <- if null errs then extendBangExpr eb bvs else return (eb,bvs)
+           (ebre,bvse) <- if null errs then extendBangExpr ebr bvs else return (ebr,bvs)
            bsb <- bangprocInBindings bs bdy
-           let (ibs,ebs) = matchRoTypes (typOfGIP ip) (typOfGE ebe)
+           let (ibs,ebs) = matchRoTypes (typOfGIP ipr) (typOfGE ebre)
                msgp = if null bvse then "" else "After banging variable(s)"
-           ebeb <- markLinearAsError msgp ebs ebe
-           (ebebb,_,errs2) <- runExprTrav [] $ markReadonlyAsError ibs (typOfGIP ip) ebeb
+           ebreb <- markLinearAsError msgp ebs ebre
+           (ebrebb,_,errs2) <- runExprTrav [] $ markReadonlyAsError ibs (typOfGIP ipr) ebreb
            mapM recordError errs2
-           return ((CS.Binding ip m ebebb bvse) : bsb)
+           return ((CS.Binding ipr m ebrebb bvse) : bsb)
        else if null bs
        then do
            mapM recordError errs
            let msg = "Necessary banging of variables " ++ (intercalate ", " bvs) ++ " leads to non-escapeable type"
            recordError $ typeMatch (orgOfGIP ip) msg
-           if roCmpTypes (typOfGIP ip) (typOfGE eb)
-              then return $ [CS.Binding ip m (bangToError bvs eb) bvs]
-              else return $ [CS.Binding ip m (toDummyExpr eb $ mkDummyExpr (typOfGIP ip) msg) []]
+           if roCmpTypes (typOfGIP ipr) (typOfGE ebr)
+              then return $ [CS.Binding ipr m (bangToError bvs ebr) bvs]
+              else return $ [CS.Binding ipr m (toDummyExpr ebr $ mkDummyExpr (typOfGIP ipr) msg) []]
        else bangprocInBindings (combineBindings b (head bs) (tail bs) bdy) bdy
+
+-- | Reduce a binding by removing components which are obsolete after banging variables.
+-- Such components are bindings of a banged variable to itself or a put expression for itself.
+-- If the variable is banged in the binding it cannot be modified in the bound expression, hence it needs no re-binding.
+-- It is crucial to remove such components, otherwise the type of the bound expression becomes unescapeable
+-- which would prevent the banging.
+reduceBangedBinding :: [CCS.VarName] -> GenIrrefPatn -> GenExpr -> (GenIrrefPatn, GenExpr)
+reduceBangedBinding [] ip e = (ip,e)
+reduceBangedBinding bvs ip@(GenIrrefPatn (CS.PTuple ips) op tp) (GenExpr (CS.Let bs bdy) oe te ce) =
+    (ip', GenExpr (CS.Let bs bdy') oe (typOfGE bdy') ce)
+    where (ip',bdy') = reduceBangedBinding bvs ip bdy
+-- Not sure how to handle this case and whether it is necessary to be handled at all:
+reduceBangedBinding bvs ip@(GenIrrefPatn (CS.PTuple ips) op tp) e@(GenExpr (CS.If e0 _ e1 e2) oe te ce) = (ip,e)
+reduceBangedBinding bvs (GenIrrefPatn (CS.PTuple ips) op tp) (GenExpr (CS.Tuple es) oe te ce) =
+    let (ips',es') = unzip $ filter retain $ zip ips es
+    in (GenIrrefPatn (CS.PTuple ips') op (mkTupleType $ map typOfGIP ips'), GenExpr (CS.Tuple es') oe (mkTupleType $ map typOfGE es') ce)
+    where retain (GenIrrefPatn (CS.PVar pv) _ _, GenExpr (CS.Var v) _ _ _)
+            | pv == v && elem v bvs = False
+          retain (GenIrrefPatn (CS.PVar pv) _ _, GenExpr (CS.Put (GenExpr (CS.Var v) _ _ _) _) _ _ _)
+            | pv == v && elem v bvs = False
+          retain (GenIrrefPatn (CS.PVar pv) _ _, GenExpr (CS.ArrayPut (GenExpr (CS.Var v) _ _ _) _) _ _ _)
+            | pv == v && elem v bvs = False
+          retain _ = True
+reduceBangedBinding _ ip e = (ip,e)
 
 -- | Replace some subexpressions of linear type by dummy expressions.
 -- The first argument is a string to be prepended to the error messages.

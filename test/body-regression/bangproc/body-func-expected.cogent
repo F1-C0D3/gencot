@@ -26,18 +26,18 @@ cogent_ffv15 : ( MayNull (CPtr U32), MayNull (CPtr U32) ) -> ()
 cogent_ffv15 (i, j) = () -- i: -ar, j: -ar
 cogent_ffv16 : ( MayNull (CPtr U32), MayNull (CPtr U32) ) -> ( (), MayNull (CPtr U32) )
 cogent_ffv16 (i, j) =
-   let i = (let (c'
-                , i) = let i = let v1' = j
-               and j { cont = p1' } = v1'
-               and v1' = p1'
-               and v' = i
-               and i { cont = p0' } = v'
-               and v' = v1'
-               and p0' = v'
-               and i = i { cont = p0' }
-               in i
-            in (0, i)
-         in if c' > 0 then i else i) !j
+   let i = let (c'
+               , i) = let i = let v1' = j
+            and j { cont = p1' } = v1'
+            and v1' = p1'
+            and v' = i
+            and i { cont = p0' } = v'
+            and v' = v1'
+            and p0' = v'
+            and i = i { cont = p0' }
+            in i
+         in (0, i)
+      in if c' > 0 then i else i
    in ((), i) -- j: -ar
 cogent_ffv17 : ( MayNull (CPtr U32), MayNull (CPtr U32) ) -> ( (), MayNull (CPtr U32) )
 cogent_ffv17 (i, j) =
@@ -143,16 +143,16 @@ cogent_ffv28 (g1, g2) =
 
 cogent_ffv31 : ( MayNull (CPtr U32), GlobState1 ) -> ( (), GlobState1 )
 cogent_ffv31 (i, g) =
-   let g = (let g = let v1' = i
-            and i { cont = p1' } = v1'
-            and v1' = p1'
-            and v' = g
-            and g { cont = p0' } = v'
-            and v' = v1'
-            and p0' = v'
-            and g = g { cont = p0' }
-            in g
-         in g) !i
+   let g = let g = let v1' = i
+         and i { cont = p1' } = v1'
+         and v1' = p1'
+         and v' = g
+         and g { cont = p0' } = v'
+         and v' = v1'
+         and p0' = v'
+         and g = g { cont = p0' }
+         in g
+      in g
    in ((), g) -- i: -ar, g: gs1
 cogent_ffv32 : ( MayNull (CPtr U32), GlobState1 ) -> ( (), MayNull (CPtr U32), GlobState1 )
 cogent_ffv32 (i, g) =
@@ -189,32 +189,32 @@ cogent_ffv33 (i, g) =
    in ((), i, g) -- g: gs1
 cogent_ffv34 : ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1 ) -> ( (), MayNull (CPtr U32), GlobState1 )
 cogent_ffv34 (i, j, g) =
-   let (i, g) = (let (c'
-                     , i
-                     , g) = let (i, g) = let v1' = g
-               and g { cont = p1' } = v1'
-               and v1' = p1'
-               and v' = i
-               and i { cont = p0' } = v'
-               and v' = v1'
-               and p0' = v'
-               and i = i { cont = p0' }
-               and g = g { cont = p1' }
-               in (i, g)
-            in (0, i, g)
-         in if c' > 0
-            then (i, g)
-            else let g = let g = let v1' = j
-                     and j { cont = p3' } = v1'
-                     and v1' = p3'
-                     and v' = g
-                     and g { cont = p2' } = v'
-                     and v' = v1'
-                     and p2' = v'
-                     and g = g { cont = p2' }
-                     in g
+   let (i, g) = let (c'
+                    , i
+                    , g) = let (i, g) = let v1' = g
+            and g { cont = p1' } = v1'
+            and v1' = p1'
+            and v' = i
+            and i { cont = p0' } = v'
+            and v' = v1'
+            and p0' = v'
+            and i = i { cont = p0' }
+            and g = g { cont = p1' }
+            in (i, g)
+         in (0, i, g)
+      in if c' > 0
+         then (i, g)
+         else let g = let g = let v1' = j
+                  and j { cont = p3' } = v1'
+                  and v1' = p3'
+                  and v' = g
+                  and g { cont = p2' } = v'
+                  and v' = v1'
+                  and p2' = v'
+                  and g = g { cont = p2' }
                   in g
-               in (i, g)) !j
+               in g
+            in (i, g)
    in ((), i, g) -- j: -ar, g: gs1
 cogent_ffv35 : ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1 ) -> ( (), MayNull (CPtr U32), MayNull (CPtr U32), GlobState1 )
 cogent_ffv35 (i, j, g) =
@@ -301,16 +301,16 @@ cogent_ffv44 (i, heap) =
    in ((), i, heap) -- ffv44: hu
 cogent_ffv45 : ( MayNull (CPtr U32), GlobState1, Heap ) -> ( (), GlobState1, Heap )
 cogent_ffv45 (i, g, heap) =
-   let g = (let g = let v1' = i
-            and i { cont = p1' } = v1'
-            and v1' = p1'
-            and v' = g
-            and g { cont = p0' } = v'
-            and v' = v1'
-            and p0' = v'
-            and g = g { cont = p0' }
-            in g
-         in g) !i
+   let g = let g = let v1' = i
+         and i { cont = p1' } = v1'
+         and v1' = p1'
+         and v' = g
+         and g { cont = p0' } = v'
+         and v' = v1'
+         and p0' = v'
+         and g = g { cont = p0' }
+         in g
+      in g
    in ((), g, heap) -- i: -ar, g: gs1, ffv45: hu
 cogent_ffv46 : ( MayNull (CPtr U32), GlobState1, Heap ) -> ( (), MayNull (CPtr U32), GlobState1, Heap )
 cogent_ffv46 (i, g, heap) =
@@ -447,28 +447,28 @@ cogent_ffi15 (i, j) =
    in r' -- i: -ar, j: -ar 
 cogent_ffi16 : ( MayNull (CPtr U32), MayNull (CPtr U32) ) -> ( U32, MayNull (CPtr U32) )
 cogent_ffi16 (i, j) =
-   let (i, r') = (let (c'
-                      , i) = let i = let v1' = j
-               and j { cont = p1' } = v1'
-               and v1' = p1'
-               and v' = i
-               and i { cont = p0' } = v'
-               and v' = v1'
-               and p0' = v'
-               and i = i { cont = p0' }
-               in i
-            in (0, i)
-         in if c' > 0
-            then (i, r')
-            else let r' = let c' = 0
-                  in if c' > 0
-                     then r'
-                     else
-                        let r' = let v' = let v' = 2
-                              in v'
+   let (i, r') = let (c'
+                     , i) = let i = let v1' = j
+            and j { cont = p1' } = v1'
+            and v1' = p1'
+            and v' = i
+            and i { cont = p0' } = v'
+            and v' = v1'
+            and p0' = v'
+            and i = i { cont = p0' }
+            in i
+         in (0, i)
+      in if c' > 0
+         then (i, r')
+         else let r' = let c' = 0
+               in if c' > 0
+                  then r'
+                  else
+                     let r' = let v' = let v' = 2
                            in v'
-                        in r'
-               in (i, r')) !j
+                        in v'
+                     in r'
+            in (i, r')
    in (r', i) -- j: -ar
 cogent_ffi17 : ( MayNull (CPtr U32), MayNull (CPtr U32) ) -> ( U32, MayNull (CPtr U32) )
 cogent_ffi17 (i, j) =
@@ -635,24 +635,24 @@ cogent_ffi28 (g1, g2) =
 
 cogent_ffi31 : ( MayNull (CPtr U32), GlobState1 ) -> ( U32, GlobState1 )
 cogent_ffi31 (i, g) =
-   let (g, r') = (let (c'
-                      , g) = let g = let v1' = i
-               and i { cont = p1' } = v1'
-               and v1' = p1'
-               and v' = g
-               and g { cont = p0' } = v'
-               and v' = v1'
-               and p0' = v'
-               and g = g { cont = p0' }
-               in g
-            in (0, g)
-         in if c' > 0
-            then (g, r')
-            else
-               let r' = let v' = let v' = 2
-                     in v'
+   let (g, r') = let (c'
+                     , g) = let g = let v1' = i
+            and i { cont = p1' } = v1'
+            and v1' = p1'
+            and v' = g
+            and g { cont = p0' } = v'
+            and v' = v1'
+            and p0' = v'
+            and g = g { cont = p0' }
+            in g
+         in (0, g)
+      in if c' > 0
+         then (g, r')
+         else
+            let r' = let v' = let v' = 2
                   in v'
-               in (g, r')) !i
+               in v'
+            in (g, r')
    in (r', g) -- i: -ar, g: gs1
 cogent_ffi32 : ( MayNull (CPtr U32), GlobState1 ) -> ( U32, MayNull (CPtr U32), GlobState1 )
 cogent_ffi32 (i, g) =
@@ -705,40 +705,40 @@ cogent_ffi33 (i, g) =
    in (r', i, g) -- g: gs1
 cogent_ffi34 : ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1 ) -> ( U32, MayNull (CPtr U32), GlobState1 )
 cogent_ffi34 (i, j, g) =
-   let (i, g, r') = (let (c'
-                         , i
-                         , g) = let (i, g) = let v1' = g
-               and g { cont = p1' } = v1'
-               and v1' = p1'
-               and v' = i
-               and i { cont = p0' } = v'
-               and v' = v1'
-               and p0' = v'
-               and i = i { cont = p0' }
-               and g = g { cont = p1' }
-               in (i, g)
-            in (0, i, g)
-         in if c' > 0
-            then (i, g, r')
-            else let (g, r') = let (c'
-                                   , g) = let g = let v1' = j
-                        and j { cont = p3' } = v1'
-                        and v1' = p3'
-                        and v' = g
-                        and g { cont = p2' } = v'
-                        and v' = v1'
-                        and p2' = v'
-                        and g = g { cont = p2' }
-                        in g
-                     in (0, g)
-                  in if c' > 0
-                     then (g, r')
-                     else
-                        let r' = let v' = let v' = 2
-                              in v'
+   let (i, g, r') = let (c'
+                        , i
+                        , g) = let (i, g) = let v1' = g
+            and g { cont = p1' } = v1'
+            and v1' = p1'
+            and v' = i
+            and i { cont = p0' } = v'
+            and v' = v1'
+            and p0' = v'
+            and i = i { cont = p0' }
+            and g = g { cont = p1' }
+            in (i, g)
+         in (0, i, g)
+      in if c' > 0
+         then (i, g, r')
+         else let (g, r') = let (c'
+                                , g) = let g = let v1' = j
+                     and j { cont = p3' } = v1'
+                     and v1' = p3'
+                     and v' = g
+                     and g { cont = p2' } = v'
+                     and v' = v1'
+                     and p2' = v'
+                     and g = g { cont = p2' }
+                     in g
+                  in (0, g)
+               in if c' > 0
+                  then (g, r')
+                  else
+                     let r' = let v' = let v' = 2
                            in v'
-                        in (g, r')
-               in (i, g, r')) !j
+                        in v'
+                     in (g, r')
+            in (i, g, r')
    in (r', i, g) -- j: -ar, g: gs1
 cogent_ffi35 : ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1 ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32), GlobState1 )
 cogent_ffi35 (i, j, g) =
@@ -864,24 +864,24 @@ cogent_ffi44 (i, heap) =
    in (r', i, heap) -- ffv44: hu
 cogent_ffi45 : ( MayNull (CPtr U32), GlobState1, Heap ) -> ( U32, GlobState1, Heap )
 cogent_ffi45 (i, g, heap) =
-   let (g, r') = (let (c'
-                      , g) = let g = let v1' = i
-               and i { cont = p1' } = v1'
-               and v1' = p1'
-               and v' = g
-               and g { cont = p0' } = v'
-               and v' = v1'
-               and p0' = v'
-               and g = g { cont = p0' }
-               in g
-            in (0, g)
-         in if c' > 0
-            then (g, r')
-            else
-               let r' = let v' = let v' = 2
-                     in v'
+   let (g, r') = let (c'
+                     , g) = let g = let v1' = i
+            and i { cont = p1' } = v1'
+            and v1' = p1'
+            and v' = g
+            and g { cont = p0' } = v'
+            and v' = v1'
+            and p0' = v'
+            and g = g { cont = p0' }
+            in g
+         in (0, g)
+      in if c' > 0
+         then (g, r')
+         else
+            let r' = let v' = let v' = 2
                   in v'
-               in (g, r')) !i
+               in v'
+            in (g, r')
    in (r', g, heap) -- i: -ar, g: gs1, ffv45: hu
 cogent_ffi46 : ( MayNull (CPtr U32), GlobState1, Heap ) -> ( U32, MayNull (CPtr U32), GlobState1, Heap )
 cogent_ffi46 (i, g, heap) =

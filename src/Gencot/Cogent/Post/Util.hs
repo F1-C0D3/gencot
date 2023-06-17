@@ -86,11 +86,12 @@ freeInExpr' (Lam p t e) = filter (`notElem` freeInIrrefPatn p) (freeInExpr e)
 freeInExpr' e = nub $ foldMap freeInExpr e
 
 -- | Free variables in a let expression, given by a sequence of bindings and the body.
+-- Banged variables are not considered to be free because their type is changed,
+-- therefore they cannot be substituted from the context.
 freeUnderBinding :: [GenBnd] -> ExprOfGE -> [VarName]
 freeUnderBinding [] e = freeInExpr' e
-freeUnderBinding ((Binding ipb Nothing eb []) : bs) e =
-    nub ((freeInExpr eb) ++ (freeInIndex ipb) ++((freeUnderBinding bs e) \\ (freeInIrrefPatn ipb)))
-freeUnderBinding (b : _) _ = error ("unexpected binding in freeUnderBinding: " ++ (show b))
+freeUnderBinding ((Binding ipb Nothing eb bvs) : bs) e =
+    nub (((freeInExpr eb) \\ bvs) ++ (freeInIndex ipb) ++((freeUnderBinding bs e) \\ (freeInIrrefPatn ipb)))
 
 -- | Free variables in a sequence of bindings.
 freeInBindings :: [GenBnd] -> [VarName]
@@ -99,8 +100,7 @@ freeInBindings bs = freeUnderBinding bs CS.Unitel
 -- | Variables bound in a sequence of bindings.
 boundInBindings :: [GenBnd] -> [VarName]
 boundInBindings [] = []
-boundInBindings ((Binding ipb Nothing eb []) : bs) = union (freeInIrrefPatn ipb) $ boundInBindings bs
-boundInBindings (b : _) = error ("unexpected binding in boundInBindings: " ++ (show b))
+boundInBindings ((Binding ipb Nothing eb _) : bs) = union (freeInIrrefPatn ipb) $ boundInBindings bs
 
 {- Convert patterns and expressions to lists -}
 

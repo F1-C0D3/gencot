@@ -15,7 +15,7 @@ import Cogent.Common.Syntax as CCS
 import Gencot.Cogent.Ast
 import Gencot.Cogent.Error (typeMatch)
 import Gencot.Cogent.Types (
-  mkTupleType, mkReadonly,
+  mkTupleType, mkFunType, mkReadonly,
   isNonlinear, isRegular, mayEscape, isReadonly, roCmpTypes, unbangType, getMemberType, getDerefType, getParamType, getResultType)
 import Gencot.Cogent.Bindings (errVar, replaceValVarType, replaceInGIP, mkDummyExpr, toDummyExpr, mkVarTuplePattern)
 import Gencot.Cogent.Expr (TypedVar(TV), namOfTV, mkUnitExpr, mkLetExpr, mkVarTupleExpr)
@@ -48,6 +48,8 @@ romodproc e = romodprocVars [] e
 -- | Check component variables for being modified.
 -- The first argument is a set of component variables which must not be modified.
 -- In the expression, additional component variables may not be modified if they are taken from a readonly container.
+-- Modified variables are replaced by the error variable in their binding.
+-- All types remain unchanged.
 romodprocVars :: [CCS.VarName] -> GenExpr -> ETrav GenExpr
 romodprocVars cvs e = mapMExprOfGE (romodprocVars' cvs) e
 
@@ -106,6 +108,8 @@ bangproc e = mapMExprOfGE bangproc' e
 -- | Try to bang variables in subexpressions where that is possible.
 -- Banging is possible in conditions of conditional expressions and in bindings.
 -- No bang tried in CS.Match, CS.LamC, CS.MultiWayIf, because these are not generated.
+-- Since variables are only banged in sub-contexts, and the effects may not escape these sub-contexts,
+-- the type of the expression remains unchanged.
 bangproc' :: ExprOfGE -> ETrav ExprOfGE
 bangproc' (CS.Let bs bdy) = do
     bsb <- bangprocInLet bs $ exprOfGE bdy
@@ -428,6 +432,10 @@ rslvRoDiffs vs cvs vmap (GenExpr (CS.ArrayPut ec [(i,ev)]) o t s) = do
     -- i is an index variable and thus not affected by banging
     evb <- rslvRoDiffs vs cvs vmap ev
     return (GenExpr (CS.ArrayPut ecb [(i,evb)]) o (typOfGE ecb) s)
+rslvRoDiffs vs cvs vmap (GenExpr (CS.Lam ip lt e) o t s) = do
+    eb <- rslvRoDiffs [] [] M.empty e -- all free variables in e must be bound in ip
+    return (GenExpr (CS.Lam ip lt eb) o (mkFunType (getParamType t) (typOfGE eb)) s)
+-- for all other expressions occurring here a recursive application will not change the type
 rslvRoDiffs vs cvs vmap e =
     mapMExprOfGE (mapM (rslvRoDiffs vs cvs vmap)) e
 

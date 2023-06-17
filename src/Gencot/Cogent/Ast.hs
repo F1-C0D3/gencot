@@ -56,6 +56,12 @@ type GenAlt = CS.Alt GenPatn GenExpr
 mapToplOfGTL :: (ToplOfGTL -> ToplOfGTL) -> GenToplv -> GenToplv
 mapToplOfGTL f g = GenToplv (f $ toplOfGTL g) $ orgOfGTL g
 
+mapTypeOfGT :: (TypeOfGT -> TypeOfGT) -> GenType -> GenType
+mapTypeOfGT f g = GenType (f $ typeOfGT g) (orgOfGT g) (typSynOfGT g)
+
+-- Beware: the following four functions do not adapt the type,
+-- they may only be used if f does not change the type of the expression or pattern!
+
 mapExprOfGE :: (ExprOfGE -> ExprOfGE) -> GenExpr -> GenExpr
 mapExprOfGE f g = GenExpr (f $ exprOfGE g) (orgOfGE g) (typOfGE g) (ccdOfGE g)
 
@@ -64,9 +70,6 @@ mapPatnOfGP f g = GenPatn (f $ patnOfGP g) (orgOfGP g) (typOfGP g)
 
 mapIrpatnOfGIP :: (IrpatnOfGIP -> IrpatnOfGIP) -> GenIrrefPatn -> GenIrrefPatn
 mapIrpatnOfGIP f g = GenIrrefPatn (f $ irpatnOfGIP g) (orgOfGIP g) (typOfGIP g)
-
-mapTypeOfGT :: (TypeOfGT -> TypeOfGT) -> GenType -> GenType
-mapTypeOfGT f g = GenType (f $ typeOfGT g) (orgOfGT g) (typSynOfGT g)
 
 mapMExprOfGE :: Monad m => (ExprOfGE -> m ExprOfGE) -> GenExpr -> m GenExpr
 mapMExprOfGE f g = do

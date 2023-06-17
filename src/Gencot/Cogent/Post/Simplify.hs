@@ -10,7 +10,7 @@ import Cogent.Surface as CS
 import Cogent.Common.Syntax as CCS
 
 import Gencot.Cogent.Ast
-import Gencot.Cogent.Types (mkTupleType)
+import Gencot.Cogent.Types (mkTupleType, adaptTypes)
 import Gencot.Cogent.Expr (mkUnitExpr)
 import Gencot.Cogent.Post.Util (isLiteralExpr,freeInPatn,freeInIrrefPatn,freeInExpr',freeInExpr,freeUnderBinding,boundInBindings)
 
@@ -60,7 +60,7 @@ presimpBind ip@(GenIrrefPatn (PTuple ips) op tp) (GenExpr (If e0 [] e1 e2) oe te
     case presimpBind ip e1 vs of
          Just (ip', e1') ->
             let Just (_, e2') = presimpBind ip e2 vs
-            in Just (ip', GenExpr (If e0 [] e1' e2') oe (typOfGE e1') ce)
+            in Just (ip', GenExpr (If e0 [] e1' e2') oe (adaptTypes (typOfGE e1') (typOfGE e2')) ce)
          _ -> Nothing
 presimpBind (GenIrrefPatn (PTuple ips) op tp) (GenExpr (Tuple es) oe te ce) vs =
      let bs' = catMaybes $ map (\(ip,e) -> presimpBind ip e vs) $ zip ips es
@@ -270,7 +270,7 @@ reduceBinding vs ip e =
         uvars = pvars \\ ivars
 
 toUnitBinding :: GenIrrefPatn -> GenExpr -> (GenIrrefPatn,GenExpr)
-toUnitBinding ip e = (mapIrpatnOfGIP (const PUnitel) ip, mapExprOfGE (const Unitel) e)
+toUnitBinding ip e = (GenIrrefPatn PUnitel (orgOfGIP ip) unitType, GenExpr Unitel (orgOfGE e) unitType (ccdOfGE e))
 
 isUnitPattern :: GenIrrefPatn -> Bool
 isUnitPattern ip = (irpatnOfGIP ip) == PUnitel
@@ -314,13 +314,13 @@ removeWildcards ip e =
                  If c vs et ee -> 
                    let (ipt,et') = removeWildcards ip et
                        (ipe,ee') = removeWildcards ip ee
-                       e' = mapExprOfGE (const (If c vs et' ee')) e
+                       e' = GenExpr (If c vs et' ee') (orgOfGE e) (adaptTypes (typOfGE et') (typOfGE ee')) (ccdOfGE e)
                    in if ip == ipt || ipt /= ipe
                          then (ip, e)
                          else (ipt, e')
                  Let bs bdy ->
                    let (ip',bdy') = removeWildcards ip bdy
-                       e' = mapExprOfGE (const (Let bs bdy')) e
+                       e' = GenExpr (Let bs bdy') (orgOfGE e) (typOfGE bdy') (ccdOfGE e)
                    in if ip == ip' 
                          then (ip,e)
                          else (ip', letproc e')
@@ -364,8 +364,8 @@ toTupleBind bs ip e =
        else if (length bs) == 1
                then head bs
                else let ubs = unzip bs
-                    in (mapIrpatnOfGIP (const (PTuple (fst ubs))) ip,
-                        mapExprOfGE (const (Tuple (snd ubs))) e)
+                    in (GenIrrefPatn (PTuple (fst ubs)) (orgOfGIP ip) (mkTupleType $ map typOfGIP $ fst ubs),
+                        GenExpr (Tuple (snd ubs)) (orgOfGE e) (mkTupleType $ map typOfGE $ snd ubs) (ccdOfGE e))
 
 -- | Split the binding (ip = e) according to a set of variables.
 -- The binding is split into a maximal part where no variable in the set 

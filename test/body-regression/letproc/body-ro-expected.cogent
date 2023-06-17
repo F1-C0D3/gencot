@@ -1,10 +1,10 @@
 -- Using values of readonly type.
 
 -- Functions used as context:
-cogent_fcln : CPtr U32 -> ()
-cogent_fcln i = ()
-cogent_fcro : (CPtr U32)! -> ()
-cogent_fcro i = ()
+cogent_fcln : CPtr U32 -> U32
+cogent_fcln i = 0
+cogent_fcro : (CPtr U32)! -> U32
+cogent_fcro i = 0
 -- Global variables used as context:
 type GlobState1 =
    CPtr (CPtr U32)
@@ -29,22 +29,32 @@ type Cogent_roa6 =
    CArr5 #Cogent_roa3 -- array elements
 
 -- Direct use of probe in context
-cogent_f11ln : (CPtr U32)! -> ()
-cogent_f11ln pro = ()
-cogent_f11ro : (CPtr U32)! -> ()
-cogent_f11ro pro = ()
-cogent_f12ln : () -> ()
-cogent_f12ln () = ()
-cogent_f12ro : () -> ()
-cogent_f12ro () = ()
-cogent_f13ln : () -> ()
-cogent_f13ln () = ()
-cogent_f13ro : () -> ()
-cogent_f13ro () = ()
-cogent_f14ln : ( (CPtr U32)!, (CPtr U32)!, U32 ) -> ()
-cogent_f14ln (pro, qro, i) = ()
-cogent_f14ro : ( (CPtr U32)!, (CPtr U32)!, U32 ) -> ()
-cogent_f14ro (pro, qro, i) = ()
+cogent_f11ln : (CPtr U32)! -> U32
+cogent_f11ln pro =
+   cogent_fcln (gencotDummy "Readonly expression used in linear context")
+cogent_f11ro : (CPtr U32)! -> U32
+cogent_f11ro pro =
+   cogent_fcro pro
+cogent_f12ln : () -> U32
+cogent_f12ln () =
+   cogent_fcln (gencotDummy "Readonly expression used in linear context")
+cogent_f12ro : () -> U32
+cogent_f12ro () =
+   cogent_fcro (cogent_glob ())
+cogent_f13ln : () -> U32
+cogent_f13ln () =
+   cogent_fcln (gencotDummy "Readonly expression used in linear context")
+cogent_f13ro : () -> U32
+cogent_f13ro () =
+   cogent_fcro (cogent_frro ())
+cogent_f14ln : ( (CPtr U32)!, (CPtr U32)!, U32 ) -> U32
+cogent_f14ln (pro, qro, i) =
+   cogent_fcln (gencotDummy "Readonly expression used in linear context")
+cogent_f14ro : ( (CPtr U32)!, (CPtr U32)!, U32 ) -> U32
+cogent_f14ro (pro, qro, i) =
+   cogent_fcro (if i
+      then pro
+      else qro)
 
 -- Probe assigned to variable
 cogent_f21ln : GlobState1 -> ( (), GlobState1 )
@@ -61,8 +71,13 @@ cogent_f22ln : CPtr U32 -> ( (), CPtr U32 )
 cogent_f22ln pln =
    (()
    , gencotDummy "Readonly expression used in linear context")
-cogent_f22ro : (CPtr U32)! -> ()
-cogent_f22ro pro = ()
+cogent_f22ro : (CPtr U32)! -> U32
+cogent_f22ro pro =
+   if 0 > 0
+   then r'
+   else
+      let pro { cont = p0' } = cogent_frro ()
+      in p0'
 
 -- Probe returned as result
 cogent_f31ln : () -> CPtr U32
@@ -72,34 +87,69 @@ cogent_f31ro : () -> (CPtr U32)!
 cogent_f31ro () = cogent_frro ()
 
 -- Probe used in conditional expression with other branch as context
-cogent_f41ln : ( (CPtr U32)!, CPtr U32, U32 ) -> ( (), CPtr U32 )
+cogent_f41ln : ( (CPtr U32)!, CPtr U32, U32 ) -> ( U32, CPtr U32 )
 cogent_f41ln (pro, qln, i) =
-   ((), qln)
-cogent_f42ln : ( CPtr U32, (CPtr U32)!, U32 ) -> ( (), CPtr U32 )
+   let r' = cogent_fcro (if i
+         then pro
+         else qln) !qln
+   in (r', qln)
+cogent_f42ln : ( CPtr U32, (CPtr U32)!, U32 ) -> ( U32, CPtr U32 )
 cogent_f42ln (pln, qro, i) =
-   ((), pln)
+   let r' = cogent_fcro (if i
+         then pln
+         else qro) !pln
+   in (r', pln)
 
 -- Probe used by accessing a struct component
-cogent_f51ln : Struct_Cogent_ros1! -> ()
-cogent_f51ln pro = ()
-cogent_f51ro : Struct_Cogent_ros1! -> ()
-cogent_f51ro pro = ()
-cogent_f52ln : Struct_Cogent_ros1! -> ()
-cogent_f52ln pro = ()
-cogent_f52ro : Struct_Cogent_ros1! -> ()
-cogent_f52ro pro = ()
-cogent_f53ln : Struct_Cogent_ros1! -> ()
-cogent_f53ln pro = ()
-cogent_f53ro : Struct_Cogent_ros1! -> ()
-cogent_f53ro pro = ()
-cogent_f54ln : Struct_Cogent_ros1! -> ()
-cogent_f54ln pro = ()
-cogent_f54ro : Struct_Cogent_ros1! -> ()
-cogent_f54ro pro = ()
-cogent_f55ln : Struct_Cogent_ros1! -> ()
-cogent_f55ln pro = ()
-cogent_f55ro : Struct_Cogent_ros1! -> ()
-cogent_f55ro pro = ()
+cogent_f51ln : Struct_Cogent_ros1! -> Struct_Cogent_ros1!
+cogent_f51ln pro =
+   if 0 > 0
+   then r'
+   else let pro { mrg = p0' } = pro
+      in pro { mrg = p0' }
+cogent_f51ro : Struct_Cogent_ros1! -> U32
+cogent_f51ro pro =
+   let pro { mrg = p0' } = pro
+   in p0'
+cogent_f52ln : Struct_Cogent_ros1! -> Struct_Cogent_ros1!
+cogent_f52ln pro =
+   if 0 > 0
+   then r'
+   else let pro { mro = p0' } = pro
+      in pro { mro = p0' }
+cogent_f52ro : Struct_Cogent_ros1! -> (CPtr U32)!
+cogent_f52ro pro =
+   let pro { mro = p0' } = pro
+   in p0'
+cogent_f53ln : Struct_Cogent_ros1! -> Struct_Cogent_ros1!
+cogent_f53ln pro =
+   if 0 > 0
+   then r'
+   else let pro { mln = p0' } = pro
+      in pro { mln = p0' }
+cogent_f53ro : Struct_Cogent_ros1! -> (CPtr U32)!
+cogent_f53ro pro =
+   let pro { mln = p0' } = pro
+   in p0'
+cogent_f54ln : Struct_Cogent_ros1! -> Struct_Cogent_ros1!
+cogent_f54ln pro =
+   if 0 > 0
+   then r'
+   else let pro { mln = p0' } = pro
+      and p0' { cont = p1' } = p0'
+      in pro { mln = p0' { cont = p1' } }
+cogent_f54ro : Struct_Cogent_ros1! -> U32
+cogent_f54ro pro =
+   let pro { mln = p0' } = pro
+   and p0' { cont = p1' } = p0'
+   in p1'
+cogent_f55ln : Struct_Cogent_ros1! -> U32
+cogent_f55ln pro =
+   cogent_fcln (gencotDummy "Readonly expression used in linear context")
+cogent_f55ro : Struct_Cogent_ros1! -> U32
+cogent_f55ro pro =
+   let pro { mln = p0' } = pro
+   in cogent_fcro p0'
 cogent_f56ln : ( Struct_Cogent_ros1!, GlobState1 ) -> ( (), GlobState1 )
 cogent_f56ln (pro, g) =
    (()
@@ -115,8 +165,14 @@ cogent_f57ln : ( Struct_Cogent_ros1!, CPtr U32 ) -> ( (), CPtr U32 )
 cogent_f57ln (pro, pln) =
    (()
    , gencotDummy "Readonly expression used in linear context")
-cogent_f57ro : ( Struct_Cogent_ros1!, (CPtr U32)! ) -> ()
-cogent_f57ro (pro, qro) = ()
+cogent_f57ro : ( Struct_Cogent_ros1!, (CPtr U32)! ) -> U32
+cogent_f57ro (pro, qro) =
+   if 0 > 0
+   then r'
+   else
+      let qro { cont = p1' } = let pro { mln = p0' } = pro
+         in p0'
+      in p1'
 cogent_f58ln : Struct_Cogent_ros1! -> CPtr U32
 cogent_f58ln pro =
    gencotDummy "Readonly expression used in linear context"
@@ -124,50 +180,131 @@ cogent_f58ro : Struct_Cogent_ros1! -> (CPtr U32)!
 cogent_f58ro pro =
    let pro { mln = p0' } = pro
    in p0'
-cogent_f59ln : ( Struct_Cogent_ros1!, CPtr U32, U32 ) -> ( (), CPtr U32 )
+cogent_f59ln : ( Struct_Cogent_ros1!, CPtr U32, U32 ) -> ( U32, CPtr U32 )
 cogent_f59ln (pro, qln, i) =
-   ((), qln)
-cogent_f59ro : ( Struct_Cogent_ros1!, (CPtr U32)!, U32 ) -> ()
-cogent_f59ro (pro, qro, i) = ()
+   let r' = cogent_fcro (if i
+         then let pro { mln = p0' } = pro
+            in p0'
+         else qln) !qln
+   in (r', qln)
+cogent_f59ro : ( Struct_Cogent_ros1!, (CPtr U32)!, U32 ) -> U32
+cogent_f59ro (pro, qro, i) =
+   cogent_fcro (if i
+      then let pro { mln = p0' } = pro
+         in p0'
+      else qro)
 
-cogent_f61ln : Struct_Cogent_ros2! -> ()
-cogent_f61ln pro = ()
-cogent_f61ro : Struct_Cogent_ros2! -> ()
-cogent_f61ro pro = ()
-cogent_f62ln : Struct_Cogent_ros2! -> ()
-cogent_f62ln pro = ()
-cogent_f62ro : Struct_Cogent_ros2! -> ()
-cogent_f62ro pro = ()
-cogent_f63ln : Struct_Cogent_ros2! -> ()
-cogent_f63ln pro = ()
-cogent_f63ro : Struct_Cogent_ros2! -> ()
-cogent_f63ro pro = ()
-cogent_f64ln : Struct_Cogent_ros2! -> ()
-cogent_f64ln pro = ()
-cogent_f64ro : Struct_Cogent_ros2! -> ()
-cogent_f64ro pro = ()
+cogent_f61ln : Struct_Cogent_ros2! -> Struct_Cogent_ros2!
+cogent_f61ln pro =
+   if 0 > 0
+   then r'
+   else let pro { sln = p0' } = pro
+      and p0' { mrg = p1' } = p0'
+      in pro { sln = p0' { mrg = p1' } }
+cogent_f61ro : Struct_Cogent_ros2! -> U32
+cogent_f61ro pro =
+   let pro { sln = p0' } = pro
+   and p0' { mrg = p1' } = p0'
+   in p1'
+cogent_f62ln : Struct_Cogent_ros2! -> Struct_Cogent_ros2!
+cogent_f62ln pro =
+   if 0 > 0
+   then r'
+   else let pro { sln = p0' } = pro
+      and p0' { mro = p1' } = p0'
+      in pro { sln = p0' { mro = p1' } }
+cogent_f62ro : Struct_Cogent_ros2! -> (CPtr U32)!
+cogent_f62ro pro =
+   let pro { sln = p0' } = pro
+   and p0' { mro = p1' } = p0'
+   in p1'
+cogent_f63ln : Struct_Cogent_ros2! -> Struct_Cogent_ros2!
+cogent_f63ln pro =
+   if 0 > 0
+   then r'
+   else let pro { sln = p0' } = pro
+      and p0' { mln = p1' } = p0'
+      in pro { sln = p0' { mln = p1' } }
+cogent_f63ro : Struct_Cogent_ros2! -> (CPtr U32)!
+cogent_f63ro pro =
+   let pro { sln = p0' } = pro
+   and p0' { mln = p1' } = p0'
+   in p1'
+cogent_f64ln : Struct_Cogent_ros2! -> Struct_Cogent_ros2!
+cogent_f64ln pro =
+   if 0 > 0
+   then r'
+   else let pro { sub = p0' } = pro
+      and p0' { mln = p1' } = p0'
+      in pro { sub = p0' { mln = p1' } }
+cogent_f64ro : Struct_Cogent_ros2! -> (CPtr U32)!
+cogent_f64ro pro =
+   let pro { sub = p0' } = pro
+   and p0' { mln = p1' } = p0'
+   in p1'
 
 -- Probe used by accessing an array element
-cogent_f71ln : Cogent_roa1! -> ()
-cogent_f71ln pro = ()
-cogent_f71ro : Cogent_roa1! -> ()
-cogent_f71ro pro = ()
-cogent_f72ln : Cogent_roa2! -> ()
-cogent_f72ln pro = ()
-cogent_f72ro : Cogent_roa2! -> ()
-cogent_f72ro pro = ()
-cogent_f73ln : Cogent_roa3! -> ()
-cogent_f73ln pro = ()
-cogent_f73ro : Cogent_roa3! -> ()
-cogent_f73ro pro = ()
-cogent_f74ln : Cogent_roa3! -> ()
-cogent_f74ln pro = ()
-cogent_f74ro : Cogent_roa3! -> ()
-cogent_f74ro pro = ()
-cogent_f75ln : Cogent_roa3! -> ()
-cogent_f75ln pro = ()
-cogent_f75ro : Cogent_roa3! -> ()
-cogent_f75ro pro = ()
+cogent_f71ln : Cogent_roa1! -> U32
+cogent_f71ln pro =
+   if 0 > 0
+   then r'
+   else
+      let pro @{ @1 = p1' } = let (pro @{ @1 = p0' }
+                                  , i0') = (pro, 1)
+         in pro @{ @i0' = p0' }
+      in p1'
+cogent_f71ro : Cogent_roa1! -> U32
+cogent_f71ro pro =
+   let pro @{ @1 = p0' } = pro
+   in p0'
+cogent_f72ln : Cogent_roa2! -> (CPtr U32)!
+cogent_f72ln pro =
+   if 0 > 0
+   then r'
+   else
+      let pro @{ @1 = p1' } = let (pro @{ @1 = p0' }
+                                  , i0') = (pro, 1)
+         in pro @{ @i0' = p0' }
+      in p1'
+cogent_f72ro : Cogent_roa2! -> (CPtr U32)!
+cogent_f72ro pro =
+   let pro @{ @1 = p0' } = pro
+   in p0'
+cogent_f73ln : Cogent_roa3! -> (CPtr U32)!
+cogent_f73ln pro =
+   if 0 > 0
+   then r'
+   else
+      let pro @{ @1 = p1' } = let (pro @{ @1 = p0' }
+                                  , i0') = (pro, 1)
+         in pro @{ @i0' = p0' }
+      in p1'
+cogent_f73ro : Cogent_roa3! -> (CPtr U32)!
+cogent_f73ro pro =
+   let pro @{ @1 = p0' } = pro
+   in p0'
+cogent_f74ln : Cogent_roa3! -> (CPtr U32)!
+cogent_f74ln pro =
+   if 0 > 0
+   then r'
+   else
+      let pro @{ @1 = p2' } = let (pro @{ @1 = p0' }
+                                  , i0') = (pro, 1)
+         and p0' { cont = p1' } = p0'
+         in pro @{ @i0' = p0' { cont = p1' } }
+      in p2'
+cogent_f74ro : Cogent_roa3! -> U32
+cogent_f74ro pro =
+   let pro @{ @1 = p0' } = pro
+   and p0' { cont = p1' } = p0'
+   in p1'
+cogent_f75ln : Cogent_roa3! -> U32
+cogent_f75ln pro =
+   cogent_fcln (gencotDummy "Readonly expression used in linear context")
+cogent_f75ro : Cogent_roa3! -> U32
+cogent_f75ro pro =
+   let pro @{ @1 = p0' } = pro
+   in cogent_fcro p0'
 cogent_f76ln : ( Cogent_roa3!, GlobState1 ) -> ( (), GlobState1 )
 cogent_f76ln (pro, g) =
    (()
@@ -183,8 +320,14 @@ cogent_f77ln : ( Cogent_roa3!, CPtr U32 ) -> ( (), CPtr U32 )
 cogent_f77ln (pro, qln) =
    (()
    , gencotDummy "Readonly expression used in linear context")
-cogent_f77ro : ( Cogent_roa3!, (CPtr U32)! ) -> ()
-cogent_f77ro (pro, qro) = ()
+cogent_f77ro : ( Cogent_roa3!, (CPtr U32)! ) -> U32
+cogent_f77ro (pro, qro) =
+   if 0 > 0
+   then r'
+   else
+      let qro { cont = p1' } = let pro @{ @1 = p0' } = pro
+         in p0'
+      in p1'
 cogent_f78ln : Cogent_roa3! -> CPtr U32
 cogent_f78ln pro =
    gencotDummy "Readonly expression used in linear context"
@@ -192,24 +335,71 @@ cogent_f78ro : Cogent_roa3! -> (CPtr U32)!
 cogent_f78ro pro =
    let pro @{ @1 = p0' } = pro
    in p0'
-cogent_f79ln : ( Cogent_roa3!, CPtr U32, U32 ) -> ( (), CPtr U32 )
+cogent_f79ln : ( Cogent_roa3!, CPtr U32, U32 ) -> ( U32, CPtr U32 )
 cogent_f79ln (pro, qln, i) =
-   ((), qln)
-cogent_f79ro : ( Cogent_roa3!, (CPtr U32)!, U32 ) -> ()
-cogent_f79ro (pro, qro, i) = ()
+   let r' = cogent_fcro (if i
+         then let pro @{ @1 = p0' } = pro
+            in p0'
+         else qln) !qln
+   in (r', qln)
+cogent_f79ro : ( Cogent_roa3!, (CPtr U32)!, U32 ) -> U32
+cogent_f79ro (pro, qro, i) =
+   cogent_fcro (if i
+      then let pro @{ @1 = p0' } = pro
+         in p0'
+      else qro)
 
-cogent_f81ln : Cogent_roa4! -> ()
-cogent_f81ln pro = ()
-cogent_f81ro : Cogent_roa4! -> ()
-cogent_f81ro pro = ()
-cogent_f82ln : Cogent_roa5! -> ()
-cogent_f82ln pro = ()
-cogent_f82ro : Cogent_roa5! -> ()
-cogent_f82ro pro = ()
-cogent_f83ln : Cogent_roa6! -> ()
-cogent_f83ln pro = ()
-cogent_f83ro : Cogent_roa6! -> ()
-cogent_f83ro pro = ()
+cogent_f81ln : Cogent_roa4! -> U32
+cogent_f81ln pro =
+   if 0 > 0
+   then r'
+   else
+      let pro @{ @1 = p2' } = let (pro @{ @1 = p0' }
+                                  , i0') = (pro, 1)
+         and (p0' @{ @1 = p1' }
+             , i1') = (p0', 1)
+         in pro @{ @i0' = p0' @{ @i1' = p1' } }
+      and p2' @{ @1 = p3' } = p2'
+      in p3'
+cogent_f81ro : Cogent_roa4! -> U32
+cogent_f81ro pro =
+   let pro @{ @1 = p0' } = pro
+   and p0' @{ @1 = p1' } = p0'
+   in p1'
+cogent_f82ln : Cogent_roa5! -> (CPtr U32)!
+cogent_f82ln pro =
+   if 0 > 0
+   then r'
+   else
+      let pro @{ @1 = p2' } = let (pro @{ @1 = p0' }
+                                  , i0') = (pro, 1)
+         and (p0' @{ @1 = p1' }
+             , i1') = (p0', 1)
+         in pro @{ @i0' = p0' @{ @i1' = p1' } }
+      and p2' @{ @1 = p3' } = p2'
+      in p3'
+cogent_f82ro : Cogent_roa5! -> (CPtr U32)!
+cogent_f82ro pro =
+   let pro @{ @1 = p0' } = pro
+   and p0' @{ @1 = p1' } = p0'
+   in p1'
+cogent_f83ln : Cogent_roa6! -> (CPtr U32)!
+cogent_f83ln pro =
+   if 0 > 0
+   then r'
+   else
+      let pro @{ @1 = p2' } = let (pro @{ @1 = p0' }
+                                  , i0') = (pro, 1)
+         and (p0' @{ @1 = p1' }
+             , i1') = (p0', 1)
+         in pro @{ @i0' = p0' @{ @i1' = p1' } }
+      and p2' @{ @1 = p3' } = p2'
+      in p3'
+cogent_f83ro : Cogent_roa6! -> (CPtr U32)!
+cogent_f83ro pro =
+   let pro @{ @1 = p0' } = pro
+   and p0' @{ @1 = p1' } = p0'
+   in p1'
 
 -- probe assigned to struct component or array element
 cogent_f91ln : Struct_Cogent_ros1 -> ( (), Struct_Cogent_ros1 )
@@ -238,22 +428,36 @@ cogent_f92ro pln =
 -- Using values of linear type (can be banged).
 
 -- Direct use of probe in context
-cogent_g11ln : CPtr U32 -> ()
-cogent_g11ln pln = ()
-cogent_g11ro : CPtr U32 -> ()
-cogent_g11ro pln = ()
-cogent_g12ln : () -> ()
-cogent_g12ln () = ()
-cogent_g12ro : () -> ()
-cogent_g12ro () = ()
-cogent_g13ln : () -> ()
-cogent_g13ln () = ()
-cogent_g13ro : () -> ()
-cogent_g13ro () = ()
-cogent_g14ln : ( CPtr U32, CPtr U32, U32 ) -> ()
-cogent_g14ln (pln, qln, i) = ()
-cogent_g14ro : ( CPtr U32, CPtr U32, U32 ) -> ()
-cogent_g14ro (pln, qln, i) = ()
+cogent_g11ln : CPtr U32 -> U32
+cogent_g11ln pln =
+   cogent_fcln pln
+cogent_g11ro : CPtr U32 -> U32
+cogent_g11ro pln =
+   let r' = cogent_fcro pln !pln
+   in r'
+cogent_g12ln : () -> U32
+cogent_g12ln () =
+   cogent_fcln (cogent_globln ())
+cogent_g12ro : () -> U32
+cogent_g12ro () =
+   cogent_fcro (gencotDummy "Linear expression used in readonly context")
+cogent_g13ln : () -> U32
+cogent_g13ln () =
+   cogent_fcln (cogent_frln ())
+cogent_g13ro : () -> U32
+cogent_g13ro () =
+   cogent_fcro (gencotDummy "Linear expression used in readonly context")
+cogent_g14ln : ( CPtr U32, CPtr U32, U32 ) -> U32
+cogent_g14ln (pln, qln, i) =
+   cogent_fcln (if i
+      then pln
+      else qln)
+cogent_g14ro : ( CPtr U32, CPtr U32, U32 ) -> U32
+cogent_g14ro (pln, qln, i) =
+   let r' = cogent_fcro (if i
+         then pln
+         else qln) !pln !qln
+   in r'
 
 -- Probe assigned to variable
 cogent_g21ln : GlobState1 -> ( (), GlobState1 )
@@ -266,10 +470,16 @@ cogent_g21ro g =
    (()
    , let g { cont = _ } = g
    in g { cont = gencotDummy "Linear expression used in readonly context" })
-cogent_g22ln : CPtr U32 -> ()
-cogent_g22ln pln = ()
-cogent_g22ro : (CPtr U32)! -> ()
-cogent_g22ro pro = ()
+cogent_g22ln : CPtr U32 -> ( (), CPtr U32 )
+cogent_g22ln pln =
+   ((), cogent_frln ())
+cogent_g22ro : (CPtr U32)! -> U32
+cogent_g22ro pro =
+   if 0 > 0
+   then r'
+   else
+      let pro { cont = p0' } = gencotDummy "Linear expression used in readonly context"
+      in p0'
 
 -- Probe returned as result
 cogent_g31ln : () -> CPtr U32
@@ -279,26 +489,55 @@ cogent_g31ro () =
    gencotDummy "Linear expression used in readonly context"
 
 -- Probe used by accessing a struct component
-cogent_g51ln : Struct_Cogent_ros1 -> ()
-cogent_g51ln pln = ()
-cogent_g51ro : Struct_Cogent_ros1 -> ()
-cogent_g51ro pln = ()
-cogent_g52ln : Struct_Cogent_ros1 -> ()
-cogent_g52ln pln = ()
-cogent_g52ro : Struct_Cogent_ros1 -> ()
-cogent_g52ro pln = ()
-cogent_g53ln : Struct_Cogent_ros1 -> ()
-cogent_g53ln pln = ()
-cogent_g53ro : Struct_Cogent_ros1 -> ()
-cogent_g53ro pln = ()
-cogent_g54ln : Struct_Cogent_ros1 -> ()
-cogent_g54ln pln = ()
-cogent_g54ro : Struct_Cogent_ros1 -> ()
-cogent_g54ro pln = ()
-cogent_g55ln : Struct_Cogent_ros1 -> ()
-cogent_g55ln pln = ()
-cogent_g55ro : Struct_Cogent_ros1 -> ()
-cogent_g55ro pln = ()
+cogent_g51ln : Struct_Cogent_ros1 -> ( (), Struct_Cogent_ros1 )
+cogent_g51ln pln =
+   (()
+   , let pln { mrg = _ } = pln
+   in pln { mrg = 5 })
+cogent_g51ro : Struct_Cogent_ros1 -> U32
+cogent_g51ro pln =
+   let r' = (let pln { mrg = p0' } = pln
+         in p0') !pln
+   in r'
+cogent_g52ln : Struct_Cogent_ros1 -> ( (), Struct_Cogent_ros1 )
+cogent_g52ln pln =
+   (()
+   , let pln { mro = _ } = pln
+   in pln { mro = gencotDummy "Linear expression used in readonly context" })
+cogent_g52ro : Struct_Cogent_ros1 -> ( (CPtr U32)!, Struct_Cogent_ros1 )
+cogent_g52ro pln =
+   let pln { mro = p0' } = pln
+   in (p0', pln { mro = p0' })
+cogent_g53ln : Struct_Cogent_ros1 -> ( (), Struct_Cogent_ros1 )
+cogent_g53ln pln =
+   (()
+   , let pln { mln = _ } = pln
+   in pln { mln = cogent_frln () })
+cogent_g53ro : Struct_Cogent_ros1 -> ( CPtr U32, Struct_Cogent_ros1 )
+cogent_g53ro pln =
+   let pln { mln = p0' } = pln
+   in (p0', pln { mln = p0' })
+cogent_g54ln : Struct_Cogent_ros1 -> ( U32, Struct_Cogent_ros1 )
+cogent_g54ln pln =
+   (r'
+   , let pln { mln = p0' } = pln
+   and p0' { cont = _ } = p0'
+   in pln { mln = p0' { cont = 5 } })
+cogent_g54ro : Struct_Cogent_ros1 -> ( U32, Struct_Cogent_ros1 )
+cogent_g54ro pln =
+   (r'
+   , let pln { mln = p0' } = pln
+   and p0' { cont = p1' } = p0'
+   in pln { mln = p0' { cont = p1' } })
+cogent_g55ln : Struct_Cogent_ros1 -> U32
+cogent_g55ln pln =
+   let pln { mln = p0' } = pln
+   in cogent_fcln p0'
+cogent_g55ro : Struct_Cogent_ros1 -> U32
+cogent_g55ro pln =
+   let r' = (let pln { mln = p0' } = pln
+         in cogent_fcro p0') !pln
+   in r'
 cogent_g56ln : ( Struct_Cogent_ros1, GlobState1 ) -> ( (), GlobState1 )
 cogent_g56ln (pln, g) =
    (()
@@ -311,10 +550,20 @@ cogent_g56ro (pln, g) =
          and g { cont = _ } = g
          in g { cont = p1' }) !pln
    in ((), g)
-cogent_g57ln : ( Struct_Cogent_ros1, CPtr U32 ) -> ()
-cogent_g57ln (pln, qln) = ()
-cogent_g57ro : ( Struct_Cogent_ros1, (CPtr U32)! ) -> ()
-cogent_g57ro (pln, qro) = ()
+cogent_g57ln : ( Struct_Cogent_ros1, CPtr U32 ) -> ( (), CPtr U32 )
+cogent_g57ln (pln, qln) =
+   (()
+   , let pln { mln = p0' } = pln
+   in p0')
+cogent_g57ro : ( Struct_Cogent_ros1, (CPtr U32)! ) -> U32
+cogent_g57ro (pln, qro) =
+   let r' = (if 0 > 0
+         then r'
+         else
+            let qro { cont = p1' } = let pln { mln = p0' } = pln
+               in p0'
+            in p1') !pln
+   in r'
 cogent_g58ln : Struct_Cogent_ros1 -> CPtr U32
 cogent_g58ln pln =
    let pln { mln = p0' } = pln
@@ -322,50 +571,124 @@ cogent_g58ln pln =
 cogent_g58ro : Struct_Cogent_ros1 -> (CPtr U32)!
 cogent_g58ro pln =
    gencotDummy "Linear expression used in readonly context"
-cogent_g59ln : ( Struct_Cogent_ros1, CPtr U32, U32 ) -> ( (), CPtr U32 )
+cogent_g59ln : ( Struct_Cogent_ros1, CPtr U32, U32 ) -> ( U32, CPtr U32 )
 cogent_g59ln (pln, qln, i) =
-   ((), qln)
-cogent_g59ro : ( Struct_Cogent_ros1, (CPtr U32)!, U32 ) -> ()
-cogent_g59ro (pln, qro, i) = ()
+   let r' = cogent_fcro (if i
+         then let pln { mln = p0' } = pln
+            in p0'
+         else qln) !pln !qln
+   in (r', qln)
+cogent_g59ro : ( Struct_Cogent_ros1, (CPtr U32)!, U32 ) -> U32
+cogent_g59ro (pln, qro, i) =
+   let v' = cogent_fcro (if i
+         then let pln { mln = p0' } = pln
+            in p0'
+         else qro) !pln
+   in v'
 
-cogent_g61ln : Struct_Cogent_ros2 -> ()
-cogent_g61ln pln = ()
-cogent_g61ro : Struct_Cogent_ros2 -> ()
-cogent_g61ro pln = ()
-cogent_g62ln : Struct_Cogent_ros2 -> ()
-cogent_g62ln pln = ()
-cogent_g62ro : Struct_Cogent_ros2 -> ()
-cogent_g62ro pln = ()
-cogent_g63ln : Struct_Cogent_ros2 -> ()
-cogent_g63ln pln = ()
-cogent_g63ro : Struct_Cogent_ros2 -> ()
-cogent_g63ro pln = ()
-cogent_g64ln : Struct_Cogent_ros2 -> ()
-cogent_g64ln pln = ()
-cogent_g64ro : Struct_Cogent_ros2 -> ()
-cogent_g64ro pln = ()
+cogent_g61ln : Struct_Cogent_ros2 -> ( (), Struct_Cogent_ros2 )
+cogent_g61ln pln =
+   (()
+   , let pln { sln = p0' } = pln
+   and p0' { mrg = _ } = p0'
+   in pln { sln = p0' { mrg = 5 } })
+cogent_g61ro : Struct_Cogent_ros2 -> ( U32, Struct_Cogent_ros2 )
+cogent_g61ro pln =
+   let pln { sln = p0' } = pln
+   and p0' { mrg = p1' } = p0'
+   in (p1'
+      , pln { sln = p0' { mrg = p1' } })
+cogent_g62ln : Struct_Cogent_ros2 -> ( (), Struct_Cogent_ros2 )
+cogent_g62ln pln =
+   (()
+   , let pln { sln = p0' } = pln
+   and p0' { mro = _ } = p0'
+   in pln { sln = p0' { mro = gencotDummy "Linear expression used in readonly context" } })
+cogent_g62ro : Struct_Cogent_ros2 -> ( (CPtr U32)!, Struct_Cogent_ros2 )
+cogent_g62ro pln =
+   let pln { sln = p0' } = pln
+   and p0' { mro = p1' } = p0'
+   in (p1'
+      , pln { sln = p0' { mro = p1' } })
+cogent_g63ln : Struct_Cogent_ros2 -> ( (), Struct_Cogent_ros2 )
+cogent_g63ln pln =
+   (()
+   , let pln { sln = p0' } = pln
+   and p0' { mln = _ } = p0'
+   in pln { sln = p0' { mln = cogent_frln () } })
+cogent_g63ro : Struct_Cogent_ros2 -> ( CPtr U32, Struct_Cogent_ros2 )
+cogent_g63ro pln =
+   let pln { sln = p0' } = pln
+   and p0' { mln = p1' } = p0'
+   in (p1'
+      , pln { sln = p0' { mln = p1' } })
+cogent_g64ln : Struct_Cogent_ros2 -> ( (), Struct_Cogent_ros2 )
+cogent_g64ln pln =
+   (()
+   , let pln { sub = p0' } = pln
+   and p0' { mro = _ } = p0'
+   in pln { sub = p0' { mro = gencotDummy "Linear expression used in readonly context" } })
+cogent_g64ro : Struct_Cogent_ros2 -> ( (CPtr U32)!, Struct_Cogent_ros2 )
+cogent_g64ro pln =
+   let pln { sub = p0' } = pln
+   and p0' { mro = p1' } = p0'
+   in (p1'
+      , pln { sub = p0' { mro = p1' } })
 
 -- Probe used by accessing an array element
-cogent_g71ln : Cogent_roa1 -> ()
-cogent_g71ln pln = ()
-cogent_g71ro : Cogent_roa1 -> ()
-cogent_g71ro pln = ()
-cogent_g72ln : Cogent_roa2 -> ()
-cogent_g72ln pln = ()
-cogent_g72ro : Cogent_roa2 -> ()
-cogent_g72ro pln = ()
-cogent_g73ln : Cogent_roa3 -> ()
-cogent_g73ln pln = ()
-cogent_g73ro : Cogent_roa3 -> ()
-cogent_g73ro pln = ()
-cogent_g74ln : Cogent_roa3 -> ()
-cogent_g74ln pln = ()
-cogent_g74ro : Cogent_roa3 -> ()
-cogent_g74ro pln = ()
-cogent_g75ln : Cogent_roa3 -> ()
-cogent_g75ln pln = ()
-cogent_g75ro : Cogent_roa3 -> ()
-cogent_g75ro pln = ()
+cogent_g71ln : Cogent_roa1 -> ( (), Cogent_roa1 )
+cogent_g71ln pln =
+   (()
+   , let (pln @{ @1 = _ }
+         , i0') = (pln, 1)
+   in pln @{ @i0' = 5 })
+cogent_g71ro : Cogent_roa1 -> U32
+cogent_g71ro pln =
+   let r' = (let pln @{ @1 = p0' } = pln
+         in p0') !pln
+   in r'
+cogent_g72ln : Cogent_roa2 -> ( (), Cogent_roa2 )
+cogent_g72ln pln =
+   (()
+   , let (pln @{ @1 = _ }
+         , i0') = (pln, 1)
+   in pln @{ @i0' = gencotDummy "Linear expression used in readonly context" })
+cogent_g72ro : Cogent_roa2 -> (CPtr U32)!
+cogent_g72ro pln =
+   let pln @{ @1 = p0' } = pln
+   in p0'
+cogent_g73ln : Cogent_roa3 -> ( (), Cogent_roa3 )
+cogent_g73ln pln =
+   (()
+   , let (pln @{ @1 = _ }
+         , i0') = (pln, 1)
+   in pln @{ @i0' = cogent_frln () })
+cogent_g73ro : Cogent_roa3 -> CPtr U32
+cogent_g73ro pln =
+   let pln @{ @1 = p0' } = pln
+   in p0'
+cogent_g74ln : Cogent_roa3 -> ( (), Cogent_roa3 )
+cogent_g74ln pln =
+   (()
+   , let (pln @{ @1 = p0' }
+         , i0') = (pln, 1)
+   and p0' { cont = _ } = p0'
+   in pln @{ @i0' = p0' { cont = 5 } })
+cogent_g74ro : Cogent_roa3 -> U32
+cogent_g74ro pln =
+   let r' = (let pln @{ @1 = p0' } = pln
+         and p0' { cont = p1' } = p0'
+         in p1') !pln
+   in r'
+cogent_g75ln : Cogent_roa3 -> U32
+cogent_g75ln pln =
+   let pln @{ @1 = p0' } = pln
+   in cogent_fcln p0'
+cogent_g75ro : Cogent_roa3 -> U32
+cogent_g75ro pln =
+   let r' = (let pln @{ @1 = p0' } = pln
+         in cogent_fcro p0') !pln
+   in r'
 cogent_g76ln : ( Cogent_roa3, GlobState1 ) -> ( (), GlobState1 )
 cogent_g76ln (pln, g) =
    (()
@@ -383,8 +706,15 @@ cogent_g77ln (pln, qln) =
    (()
    , let pln @{ @1 = p0' } = pln
    in p0')
-cogent_g77ro : ( Cogent_roa3, (CPtr U32)! ) -> ()
-cogent_g77ro (pln, qro) = ()
+cogent_g77ro : ( Cogent_roa3, (CPtr U32)! ) -> U32
+cogent_g77ro (pln, qro) =
+   let r' = (if 0 > 0
+         then r'
+         else
+            let qro { cont = p1' } = let pln @{ @1 = p0' } = pln
+               in p0'
+            in p1') !pln
+   in r'
 cogent_g78ln : Cogent_roa3 -> CPtr U32
 cogent_g78ln pln =
    let pln @{ @1 = p0' } = pln
@@ -392,30 +722,73 @@ cogent_g78ln pln =
 cogent_g78ro : Cogent_roa3 -> (CPtr U32)!
 cogent_g78ro pln =
    gencotDummy "Linear expression used in readonly context"
-cogent_g79ln : ( Cogent_roa3, CPtr U32, U32 ) -> ( (), CPtr U32 )
+cogent_g79ln : ( Cogent_roa3, CPtr U32, U32 ) -> ( U32, CPtr U32 )
 cogent_g79ln (pln, qln, i) =
-   ((), qln)
-cogent_g79ro : ( Cogent_roa3, (CPtr U32)!, U32 ) -> ()
-cogent_g79ro (pln, qro, i) = ()
+   let r' = cogent_fcro (if i
+         then let pln @{ @1 = p0' } = pln
+            in p0'
+         else qln) !pln !qln
+   in (r', qln)
+cogent_g79ro : ( Cogent_roa3, (CPtr U32)!, U32 ) -> U32
+cogent_g79ro (pln, qro, i) =
+   let v' = cogent_fcro (if i
+         then let pln @{ @1 = p0' } = pln
+            in p0'
+         else qro) !pln
+   in v'
 
-cogent_g81ln : Cogent_roa4 -> ()
-cogent_g81ln pln = ()
-cogent_g81ro : Cogent_roa4 -> ()
-cogent_g81ro pln = ()
-cogent_g82ln : Cogent_roa5 -> ()
-cogent_g82ln pln = ()
-cogent_g82ro : Cogent_roa5 -> ()
-cogent_g82ro pln = ()
-cogent_g83ln : Cogent_roa6 -> ()
-cogent_g83ln pln = ()
-cogent_g83ro : Cogent_roa6 -> ()
-cogent_g83ro pln = ()
+cogent_g81ln : Cogent_roa4 -> ( (), Cogent_roa4 )
+cogent_g81ln pln =
+   (()
+   , let (pln @{ @1 = p0' }
+         , i0') = (pln, 1)
+   and (p0' @{ @1 = _ }
+       , i1') = (p0', 1)
+   in pln @{ @i0' = p0' @{ @i1' = 5 } })
+cogent_g81ro : Cogent_roa4 -> U32
+cogent_g81ro pln =
+   let r' = (let pln @{ @1 = p0' } = pln
+         and p0' @{ @1 = p1' } = p0'
+         in p1') !pln
+   in r'
+cogent_g82ln : Cogent_roa5 -> ( (), Cogent_roa5 )
+cogent_g82ln pln =
+   (()
+   , let (pln @{ @1 = p0' }
+         , i0') = (pln, 1)
+   and (p0' @{ @1 = _ }
+       , i1') = (p0', 1)
+   in pln @{ @i0' = p0' @{ @i1' = gencotDummy "Linear expression used in readonly context" } })
+cogent_g82ro : Cogent_roa5 -> (CPtr U32)!
+cogent_g82ro pln =
+   let pln @{ @1 = p0' } = pln
+   and p0' @{ @1 = p1' } = p0'
+   in p1'
+cogent_g83ln : Cogent_roa6 -> ( (), Cogent_roa6 )
+cogent_g83ln pln =
+   (()
+   , let (pln @{ @1 = p0' }
+         , i0') = (pln, 1)
+   and (p0' @{ @1 = _ }
+       , i1') = (p0', 1)
+   in pln @{ @i0' = p0' @{ @i1' = cogent_frln () } })
+cogent_g83ro : Cogent_roa6 -> CPtr U32
+cogent_g83ro pln =
+   let pln @{ @1 = p0' } = pln
+   and p0' @{ @1 = p1' } = p0'
+   in p1'
 
 -- probe assigned to struct component or array element
-cogent_g91ln : Struct_Cogent_ros1 -> ()
-cogent_g91ln pln = ()
-cogent_g91ro : Struct_Cogent_ros1 -> ()
-cogent_g91ro pln = ()
+cogent_g91ln : Struct_Cogent_ros1 -> ( (), Struct_Cogent_ros1 )
+cogent_g91ln pln =
+   (()
+   , let pln { mln = _ } = pln
+   in pln { mln = cogent_frln () })
+cogent_g91ro : Struct_Cogent_ros1 -> ( (), Struct_Cogent_ros1 )
+cogent_g91ro pln =
+   (()
+   , let pln { mro = _ } = pln
+   in pln { mro = gencotDummy "Linear expression used in readonly context" })
 cogent_g92ln : Cogent_roa3 -> ( (), Cogent_roa3 )
 cogent_g92ln pln =
    (()

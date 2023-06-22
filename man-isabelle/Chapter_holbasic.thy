@@ -19,7 +19,7 @@ support the definition of new types.
 HOL extends the basic type introduction mechanisms of Isabelle (see Section~\ref{basic-theory-types})
 by several ways of specifying the set of values of a new type. This section introduces four of
 them: algebraic types, records, subtypes, and quotient types. Additionally it introduces 
-``let''-terms which can be used with arbitrary types.
+some type independent mechanisms which can be used in HOL for arbitrary types.
 \<close>
 
 section "Algebraic Types"
@@ -516,33 +516,71 @@ section "Type Independent Mechanisms"
 text_raw\<open>\label{holbasic-common}\<close>
 
 text\<open>
-**todo**
+This section describes some mechanisms introduced by HOL which can be used for all types.
 \<close>
 
 subsection "Equality"
 text_raw\<open>\label{holbasic-common-equal}\<close>
 
 text\<open>
-**todo**
+HOL introduces the equality predicate as a function
+@{text[display]
+\<open>eq :: "'a \<Rightarrow> 'a \<Rightarrow> bool"\<close>}
+with the alternative operator symbol \<open>=\<close> for infix notation.
+
+Inequality can be denoted by
+@{text[display]
+\<open>not_equal :: "'a \<Rightarrow> 'a \<Rightarrow> bool"\<close>}
+with the alternative operator symbol \<open>\<noteq>\<close> for infix notation.
+
+Both functions are overloaded and can be applied to terms of arbitrary type, however, 
+they can only be used to compare two terms which have the same type. Therefore the
+proposition
+@{text[display]
+\<open>True \<noteq> 1\<close>}
+is syntactically wrong and Isabelle will signal an error for it.
 \<close>
+
 subsection "Undefined Value"
 text_raw\<open>\label{holbasic-common-undefined}\<close>
 
 text\<open>
-**todo**
-\<close>
+HOL introduces the undefined value
+@{text[display]
+\<open>undefined :: "'a"\<close>}
+which is overloeaded for arbitrary types. It is underspecified as described in
+Section~\ref{basic-theory-terms}, i.e., no further information is given about it.
 
-(*
-definition "f x \<equiv> undefined"
-definition "g x \<equiv> undefined"
-lemma "f x = g y" by (simp add: f_def g_def)
-*)
+Despite its name it is a well defined value for every type \<open>'a\<close>. It is typically used for 
+values which are irrelevant, such as in the definition\<close>
+definition f :: "nat \<Rightarrow> nat" where "f x \<equiv> undefined"
+text\<open>
+Although the function \<open>f\<close> looks like a completely undefined function, it is not possible to define
+true partial functions this way. Functions in Isabelle are always total. Function \<open>f\<close> maps every
+natural number to the (same) value \<open>undefined\<close>, which is of type \<open>nat\<close>, but it cannot be proven to
+be equal to a specific natural number such as \<open>1\<close> or \<open>5\<close>. However, since it is a single value the
+following equality holds:
+\<close>
+lemma "f x = f y" by (simp add: f_def)
 
 subsection "Let Terms"
 text_raw\<open>\label{holbasic-common-let}\<close>
 
 text\<open>
-**todo**
+HOL extends the inner syntax for terms described in Section~\ref{basic-theory-terms} by terms of
+the following form
+@{text[display]
+\<open>let x\<^sub>1 = term\<^sub>1; \<dots>; x\<^sub>n = term\<^sub>n in term\<close>}
+where \<open>x\<^sub>1, \<dots>, x\<^sub>n\<close> are variables. The variable bindings are sequential, i.e., if \<open>i<j\<close> variable
+\<open>x\<^sub>i\<close> may occur in \<open>term\<^sub>j\<close> and denotes \<open>term\<^sub>i\<close> there. In other words, the scope of \<open>x\<^sub>i\<close> are the 
+terms \<open>term\<^sub>j\<close> with \<open>i<j\<close> and the \<open>term\<close>. If \<open>x\<^sub>i\<close> and \<open>x\<^sub>j\<close> are the same variable, the binding of 
+its second occurrence shadows the binding of the first and ends the scope of the first occurrence.
+
+Let terms are useful to introduce local variables as abbreviations for sub-terms.
+
+The let term specified above is simply an alternative syntax for the term
+@{text[display]
+\<open>\<lambda>x\<^sub>1.(\<dots> (\<lambda>x\<^sub>n.term) term\<^sub>n \<dots>) term\<^sub>1\<close>}
 \<close>
 
 (*

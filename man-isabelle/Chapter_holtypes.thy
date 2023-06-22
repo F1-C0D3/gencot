@@ -19,21 +19,51 @@ section "Boolean Values"
 text_raw\<open>\label{holtypes-bool}\<close>
 
 text\<open>
-**todo**
+The type of boolean values is specified equivalent to an algebraic type of the form
+of the enmeration type (see Section~\ref{holbasic-data-constr})
+@{theory_text[display]
+\<open>datatype bool = True | False\<close>}
+
+The type \<open>bool\<close> plays a special role in HOL since it is the type of all terms which are used 
+as propositions and facts (see Section~\ref{basic-theory-prop}.
+\<close>
+
+subsection "Values"
+text_raw\<open>\label{holtypes-bool-values}\<close>
+
+text\<open>
+Values of type \<open>bool\<close> can directly be denoted by the parameterless constructors \<open>True\<close> and \<open>False\<close>.
+\<close>
+
+subsection "Destructors and Conditional Terms"
+text_raw\<open>\label{holtypes-bool-destrs}\<close>
+
+text\<open>
+Since both constructors are constant no selectors can be defined. Discriminators are not required
+since the constants are already boolean values.
+
+A \<open>case\<close> term for type \<open>bool\<close> has the form
+@{text[display]
+\<open>case term of True \<Rightarrow> term\<^sub>1 | False \<Rightarrow> term\<^sub>2\<close>}
+where \<open>term\<close> is a term of type \<open>bool\<close>.
+
+As an alternative syntax Isabelle provides the usual form
+@{text[display]
+\<open>if term then term\<^sub>1 else term\<^sub>2\<close>}
+\<close>
+
+subsection "Functions"
+text_raw\<open>\label{holtypes-bool-funcs}\<close>
+
+text\<open>
+The usual logical functions are defined for type \<open>bool\<close>: \<open>conj, disj, implies, iff\<close>
+of type \<open>bool \<Rightarrow> bool \<Rightarrow> bool\<close> with infix forms \<open>\<and>, \<or>, \<longrightarrow>, \<longleftrightarrow>\<close> and the unary negation \<open>Not\<close>
+of type \<open>bool \<Rightarrow> bool\<close> and alternate form \<open>\<not>\<close>.
 \<close>
 
 text \<open>
-\<^item> \<open>\<and>, \<or>, \<not>, \<longrightarrow>\<close>
-\<^item> \<open>=, \<noteq>, \<longleftrightarrow>\<close>
 \<^item> \<open>\<forall>, \<exists>\<close>
 \<^item> intro
-\<close>
-
-subsection "Conditional Terms"
-text_raw\<open>\label{holtypes-bool-if}\<close>
-
-text\<open>
-**todo**
 \<close>
 
 subsection "Logic Rules"

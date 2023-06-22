@@ -115,7 +115,7 @@ subsubsection "Constant Constructors and Enumeration Types"
 
 text\<open>
 A constructor specification may consist of a single constructor name \<open>cname\<^sub>i\<close>, then the constructor 
-functions has no arguments and always constructs the same single value. The constructor is equivalent 
+function has no arguments and always constructs the same single value. The constructor is equivalent 
 to a constant of type \<open>name\<close>. As a consequence an ``enumeration type'' can be defined in the form
 @{theory_text[display]
 \<open>datatype three = Zero | One | Two\<close>}

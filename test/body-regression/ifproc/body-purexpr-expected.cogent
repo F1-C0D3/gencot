@@ -105,25 +105,21 @@ type Cogent_a2 =
    CArr5 #Struct_Cogent_s1
 cogent_fa1 : Cogent_a1 -> ( U32, Cogent_a1 )
 cogent_fa1 a =
-   let (a @{ @3 = p0' }, i0') = (a
-                                , 3)
-   in (p0', a @{ @i0' = p0' })
+   let r' = (let a @{ @3 = p0' } = a
+         in p0') !a
+   in (r', a)
 cogent_fa2 : Cogent_a1 -> ( U32, Cogent_a1 )
 cogent_fa2 a =
-   let (a @{ @3 = p0' }, i0') = (a
-                                , 3)
-   and (a @{ @1 = p1' }, i1') = (a
-                                , 1)
-   in (p0' + p1'
-      , a @{ @i1' = p1' } @{ @i0' = p0' })
+   let r' = (let a @{ @3 = p0' } = a
+         and a @{ @1 = p1' } = a
+         in p0' + p1') !a
+   in (r', a)
 cogent_fa3 : Cogent_a1 -> ( U32, Cogent_a1 )
 cogent_fa3 a =
-   let (a @{ @2 = p0' }, i0') = (a
-                                , 2)
-   and (a @{ @p0' = p1' }
-       , i1') = (a, p0')
-   in (p1'
-      , a @{ @i1' = p1' } @{ @i0' = p0' })
+   let r' = (let a @{ @2 = p0' } = a
+         and a @{ @p0' = p1' } = a
+         in p1') !a
+   in (r', a)
 cogent_fa4 : Cogent_a2 -> ( U32, Cogent_a2 )
 cogent_fa4 a =
    let (a @{ @3 = p0' }, i0') = (a
@@ -147,8 +143,9 @@ type Cogent_a3 =
    CArr5 (MayNull (CPtr U32))
 cogent_fp1 : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
 cogent_fp1 p =
-   let p { cont = p0' } = p
-   in (p0', p { cont = p0' })
+   let r' = (let p { cont = p0' } = p
+         in p0') !p
+   in (r', p)
 cogent_fp2 : MayNull Struct_Cogent_s1 -> ( U32, MayNull Struct_Cogent_s1 )
 cogent_fp2 p =
    let p { cont = p0' } = p
@@ -157,8 +154,9 @@ cogent_fp2 p =
       , p { cont = p0' { m1 = p1' } })
 cogent_fp3 : MayNull Struct_Cogent_s1 -> ( U32, MayNull Struct_Cogent_s1 )
 cogent_fp3 p =
-   let p { m1 = p0' } = p
-   in (p0', p { m1 = p0' })
+   let r' = (let p { m1 = p0' } = p
+         in p0') !p
+   in (r', p)
 cogent_fp4 : MayNull Struct_Cogent_s3 -> ( U32, MayNull Struct_Cogent_s3 )
 cogent_fp4 p =
    let p { m6 = p0' } = p

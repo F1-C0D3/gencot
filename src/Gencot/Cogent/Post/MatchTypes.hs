@@ -16,7 +16,8 @@ import Gencot.Cogent.Ast
 import Gencot.Cogent.Error (typeMatch)
 import Gencot.Cogent.Types (
   mkTupleType, mkFunType, mkReadonly,
-  isNonlinear, isRegular, mayEscape, isReadonly, roCmpTypes, unbangType, getMemberType, getDerefType, getParamType, getResultType)
+  isNonlinear, isRegular, mayEscape, isReadonly, roCmpTypes,
+  unbangType, getMemberType, getDerefType, getParamType, getResultType, adaptTypes)
 import Gencot.Cogent.Bindings (errVar, replaceValVarType, replaceInGIP, mkDummyExpr, toDummyExpr, mkVarTuplePattern)
 import Gencot.Cogent.Expr (TypedVar(TV), namOfTV, mkUnitExpr, mkLetExpr, mkVarTupleExpr)
 import Gencot.Cogent.Post.Util (
@@ -148,14 +149,14 @@ bangprocInBindings (b@(CS.Binding ip m e []):bs) bdy = do
     if null bvs || (mayEscape $ typOfGE ebr)
        then do
            mapM recordError errs
-           (ebre,bvse) <- if null errs then extendBangExpr ebr bvs else return (ebr,bvs)
+           (ipre,ebre,bvse) <- if null errs then extendBangBinding ipr ebr bvs else return (ipr,ebr,bvs)
            bsb <- bangprocInBindings bs bdy
-           let (ibs,ebs) = matchRoTypes (typOfGIP ipr) (typOfGE ebre)
+           let (ibs,ebs) = matchRoTypes (typOfGIP ipre) (typOfGE ebre)
                msgp = if null bvse then "" else "After banging variable(s)"
            ebreb <- markLinearAsError msgp ebs ebre
-           (ebrebb,_,errs2) <- runExprTrav [] $ markReadonlyAsError ibs (typOfGIP ipr) ebreb
+           (ebrebb,_,errs2) <- runExprTrav [] $ markReadonlyAsError ibs (typOfGIP ipre) ebreb
            mapM recordError errs2
-           return ((CS.Binding ipr m ebrebb bvse) : bsb)
+           return ((CS.Binding ipre m ebrebb bvse) : bsb)
        else if null bs
        then do
            mapM recordError errs
@@ -176,11 +177,19 @@ reduceBangedBinding [] ip e = (ip,e)
 reduceBangedBinding bvs ip@(GenIrrefPatn (CS.PTuple ips) op tp) (GenExpr (CS.Let bs bdy) oe te ce) =
     (ip', GenExpr (CS.Let bs bdy') oe (typOfGE bdy') ce)
     where (ip',bdy') = reduceBangedBinding bvs ip bdy
--- Not sure how to handle this case and whether it is necessary to be handled at all:
-reduceBangedBinding bvs ip@(GenIrrefPatn (CS.PTuple ips) op tp) e@(GenExpr (CS.If e0 _ e1 e2) oe te ce) = (ip,e)
+reduceBangedBinding bvs ip@(GenIrrefPatn (CS.PTuple ips) op tp) e@(GenExpr (CS.If e0 bvs0 e1 e2) oe te ce) =
+    if ip1' == ip2'
+       then (ip1', GenExpr (CS.If e0 bvs0 e1' e2') oe (adaptTypes (typOfGE e1') (typOfGE e2')) ce)
+       else (ip,e)
+    where (ip1',e1') = reduceBangedBinding bvs ip e1
+          (ip2',e2') = reduceBangedBinding bvs ip e2
 reduceBangedBinding bvs (GenIrrefPatn (CS.PTuple ips) op tp) (GenExpr (CS.Tuple es) oe te ce) =
     let (ips',es') = unzip $ filter retain $ zip ips es
-    in (GenIrrefPatn (CS.PTuple ips') op (mkTupleType $ map typOfGIP ips'), GenExpr (CS.Tuple es') oe (mkTupleType $ map typOfGE es') ce)
+    in if null ips'
+          then (GenIrrefPatn CS.PUnitel op unitType, GenExpr CS.Unitel oe unitType ce)
+          else if null $ tail ips'
+          then (head ips', head es')
+          else (GenIrrefPatn (CS.PTuple ips') op (mkTupleType $ map typOfGIP ips'), GenExpr (CS.Tuple es') oe (mkTupleType $ map typOfGE es') ce)
     where retain (GenIrrefPatn (CS.PVar pv) _ _, GenExpr (CS.Var v) _ _ _)
             | pv == v && elem v bvs = False
           retain (GenIrrefPatn (CS.PVar pv) _ _, GenExpr (CS.Put (GenExpr (CS.Var v) _ _ _) _) _ _ _)
@@ -252,7 +261,7 @@ addTypeFromPatterns (_:ips) v = addTypeFromPatterns ips v
 -- If it is not possible to resolve all readonly type incompatibilities in this way,
 -- and the expression contains bang positions, it is instead processed by bangproc to try the inner bang positions.
 -- Otherwise in the monadic state a minimal set of variables is returned which must be banged.
--- Remaining incompatibiliteis are resolved using dummy expressions, returning corresponding error messages in the monadic state.
+-- Remaining incompatibilities are resolved using dummy expressions, returning corresponding error messages in the monadic state.
 -- In the returned expressions all readonly type incompatibilities have been resolved.
 bangprocExpr :: GenExpr -> Trav [CCS.VarName] GenExpr
 bangprocExpr e = do
@@ -308,6 +317,36 @@ extendBangVars e (v:vs) = do
            (ebb,bbvs) <- extendBangVars eb (vs \\ bvs)
            return (ebb, union bbvs bvs)
        else extendBangVars e vs
+
+-- | Try to bang additional variables in a bound expression.
+-- Candidates are all free variables which occur as container with linear type in a take operation.
+-- Successfully banged variables are removed from the expression result and the binding pattern.
+-- Returned are the new pattern and expression with additional types banged and the extended set of variables to bang.
+extendBangBinding :: GenIrrefPatn -> GenExpr -> [CCS.VarName] -> ETrav (GenIrrefPatn, GenExpr, [CCS.VarName])
+extendBangBinding ip e vs = do
+    (ipb,eb,bvs) <- extendBangBindingVars ip e $ getBangCandidates [] e
+    return (ipb,eb,union vs bvs)
+
+-- | Try to change variable types to readonly in an expression according to a list of typed variables.
+-- Variables with successfully changed type are removed from the expression result and the binding pattern.
+-- eturned are the new pattern and expression together with the list of all variables
+-- where the type has been successfully changed.
+extendBangBindingVars :: GenIrrefPatn -> GenExpr -> [CCS.VarName] -> ETrav (GenIrrefPatn, GenExpr, [CCS.VarName])
+extendBangBindingVars ip e [] = return (ip,e,[])
+extendBangBindingVars ip e (v:vs) = do
+    --_ <- if v == "g" || v == "i" then return ()
+    --                 else error ("extend ip = " ++ (show ip) ++ "\ne = " ++ (show e) ++ "\nv = " ++ (show v) ++ "\nvs = " ++ (show vs))
+    (eb,bvs,errs) <- runExprTrav [] $ bangVars [v] e
+    --_ <- if v == "g" || v == "i" then return ()
+    --                 else error ("extend eb = " ++ (show eb) ++ "\nbvs = " ++ (show bvs) ++ "\nerrs = " ++ (show errs))
+    let (ipr,ebr) = reduceBangedBinding bvs ip eb
+    --_ <- if v == "g" || v == "i" then return ()
+    --                 else error ("extend ipr = " ++ (show ipr) ++ "\nebr = " ++ (show ebr))
+    if null errs && (mayEscape $ typOfGE ebr)
+       then do
+           (iprb,ebb,bbvs) <- extendBangBindingVars ipr ebr (vs \\ bvs)
+           return (iprb, ebb, union bbvs bvs)
+       else extendBangBindingVars ip e vs
 
 -- | Return all free variables which occur as container with linear type in a take operation.
 -- The first argument is the list of all variables not free in the expression.
@@ -564,20 +603,6 @@ markReadonlyAsError bools t (GenExpr (CS.If e0 bvs e1 e2) o _ s) = do
 -- Otherwise its source variables are added to the state and the expression is returned.
 changeLinToRoInExpr :: VarSourceMap -> [Bool] -> GenExpr -> Trav [CCS.VarName] GenExpr
 changeLinToRoInExpr _ bools e | not $ or bools = return e
-changeLinToRoInExpr vmap [True] e =
-    case exprOfGE e of
-         CS.Var v -> if null $ getVarSources vmap v
-                        then do
-                            recordError $ typeMatch (orgOfGE e) msg
-                            return $ toDummyExpr e $ mkDummyExpr t msg
-                        else do
-                            recordSources vmap v
-                            return e
-         _ -> do
-             recordError $ typeMatch (orgOfGE e) msg
-             return $ toDummyExpr e $ mkDummyExpr t msg
-    where t = mkReadonly $ typOfGE e
-          msg = "Linear expression used in readonly context"
 changeLinToRoInExpr vmap bools (GenExpr (CS.Tuple es) o t s) = do
     esb <- mapM (\(b,e) -> changeLinToRoInExpr vmap [b] e) $ zip bools es
     return $ GenExpr (CS.Tuple esb) o (mkTupleType (map typOfGE esb)) s
@@ -593,6 +618,14 @@ changeLinToRoInExpr vmap bools (GenExpr (CS.If e0 bvs e1 e2) o t s) = do
     e1b <- changeLinToRoInExpr vmap bools e1
     e2b <- changeLinToRoInExpr vmap bools e2
     return $ GenExpr (CS.If e0 bvs e1b e2b) o (typOfGE e1b) s
+changeLinToRoInExpr vmap [True] e@(GenExpr (CS.Var v) _ _ _) | not $ null $ getVarSources vmap v = do
+    recordSources vmap v
+    return e
+changeLinToRoInExpr vmap [True] e = do
+    recordError $ typeMatch (orgOfGE e) msg
+    return $ toDummyExpr e $ mkDummyExpr t msg
+    where t = mkReadonly $ typOfGE e
+          msg = "Linear expression used in readonly context"
 
 -- | Change some linear type components to readonly to resolve incompatibilities between two types.
 -- The first and second arguments are boolean vectors specifying the type components to be changed,

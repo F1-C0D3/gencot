@@ -196,3 +196,5 @@ void g91ln(struct ros1 *pln) { pln->mln = frln(); }
 void g91ro(struct ros1 *pln) { pln->mro = frln(); }
 void g92ln(roa3 pln) { pln[1] = frln(); }
 void g92ro(roa2 pln) { pln[1] = frln(); }
+
+// banging in nested bang positions

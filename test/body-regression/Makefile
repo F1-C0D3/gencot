@@ -13,8 +13,8 @@ IT=../../bin/items
 #VARIANT = preproc
 #TCONF = -tflbr
 
-VARIANT = romodgen
-TCONF = -tflbG
+#VARIANT = romodgen
+#TCONF = -tflbG
 
 #VARIANT = romodproc
 #TCONF = -tflb
@@ -22,8 +22,8 @@ TCONF = -tflbG
 #VARIANT = banggen
 #TCONF = -tflG
 
-#VARIANT = bangproc
-#TCONF = -tfl
+VARIANT = bangproc
+TCONF = -tfl
 
 #VARIANT = letproc
 #TCONF = -tf

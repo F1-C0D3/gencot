@@ -1198,11 +1198,11 @@ cogent_g51ln pln =
    in ((), pln)
 cogent_g51ro : Struct_Cogent_ros1 -> U32
 cogent_g51ro pln =
-   let r' = let v' = let v' = pln
-         and pln { mrg = p0' } = v'
-         and v' = p0'
-         in v'
-      in v'
+   let r' = (let v' = let v' = pln
+            and pln { mrg = p0' } = v'
+            and v' = p0'
+            in v'
+         in v') !pln
    in r'
 cogent_g52ln : Struct_Cogent_ros1 -> ( (), Struct_Cogent_ros1 )
 cogent_g52ln pln =
@@ -1410,16 +1410,16 @@ cogent_g61ln pln =
    in ((), pln)
 cogent_g61ro : Struct_Cogent_ros2 -> ( U32, Struct_Cogent_ros2 )
 cogent_g61ro pln =
-   let (r', pln) = let (v'
-                       , pln) = let v' = pln
-         and pln { sln = p0' } = v'
-         and v' = p0'
-         and p0' { mrg = p1' } = v'
-         and v' = p1'
-         and p0' = p0' { mrg = p1' }
-         and pln = pln { sln = p0' }
-         in (v', pln)
-      in (v', pln)
+   let r' = (let (v'
+                 , pln) = let v' = pln
+            and pln { sln = p0' } = v'
+            and v' = p0'
+            and p0' { mrg = p1' } = v'
+            and v' = p1'
+            and p0' = p0' { mrg = p1' }
+            and pln = pln { sln = p0' }
+            in (v', pln)
+         in v') !pln
    in (r', pln)
 cogent_g62ln : Struct_Cogent_ros2 -> ( (), Struct_Cogent_ros2 )
 cogent_g62ln pln =
@@ -1522,12 +1522,12 @@ cogent_g71ln pln =
    in ((), pln)
 cogent_g71ro : Cogent_roa1 -> U32
 cogent_g71ro pln =
-   let r' = let v' = let v1' = 1
-         and v' = pln
-         and pln @{ @v1' = p0' } = v'
-         and v' = p0'
-         in v'
-      in v'
+   let r' = (let v' = let v1' = 1
+            and v' = pln
+            and pln @{ @v1' = p0' } = v'
+            and v' = p0'
+            in v'
+         in v') !pln
    in r'
 cogent_g72ln : Cogent_roa2 -> ( (), Cogent_roa2 )
 cogent_g72ln pln =
@@ -1593,14 +1593,14 @@ cogent_g74ln pln =
    in ((), pln)
 cogent_g74ro : Cogent_roa3 -> U32
 cogent_g74ro pln =
-   let r' = let v' = let v1' = 1
-         and v' = pln
-         and pln @{ @v1' = p0' } = v'
-         and v' = p0'
-         and p0' { cont = p1' } = v'
-         and v' = p1'
-         in v'
-      in v'
+   let r' = (let v' = let v1' = 1
+            and v' = pln
+            and pln @{ @v1' = p0' } = v'
+            and v' = p0'
+            and p0' { cont = p1' } = v'
+            and v' = p1'
+            in v'
+         in v') !pln
    in r'
 cogent_g75ln : Cogent_roa3 -> U32
 cogent_g75ln pln =
@@ -1752,15 +1752,15 @@ cogent_g81ln pln =
    in ((), pln)
 cogent_g81ro : Cogent_roa4 -> U32
 cogent_g81ro pln =
-   let r' = let v' = let v2' = 1
-         and v1' = 1
-         and v' = pln
-         and pln @{ @v1' = p0' } = v'
-         and v' = p0'
-         and p0' @{ @v2' = p1' } = v'
-         and v' = p1'
-         in v'
-      in v'
+   let r' = (let v' = let v2' = 1
+            and v1' = 1
+            and v' = pln
+            and pln @{ @v1' = p0' } = v'
+            and v' = p0'
+            and p0' @{ @v2' = p1' } = v'
+            and v' = p1'
+            in v'
+         in v') !pln
    in r'
 cogent_g82ln : Cogent_roa5 -> ( (), Cogent_roa5 )
 cogent_g82ln pln =
@@ -1883,16 +1883,15 @@ cogent_g92ro pln =
 cogent_n11 : ( Struct_Cogent_ros1, U32 ) -> ( Struct_Cogent_ros1, Struct_Cogent_ros1 )
 cogent_n11 (pln, i) =
    let (pln, r') = let (c'
-                       , pln
-                       , i) = let (pln
-                                  , i) = let v1' = pln
-            and pln { mrg = p0' } = v1'
-            and v1' = p0'
-            and v' = v1'
-            and i = v'
-            and pln = pln { mrg = p0' }
-            in (pln, i)
-         in (0, pln, i)
+                       , i) = (let (pln
+                                   , i) = let v1' = pln
+               and pln { mrg = p0' } = v1'
+               and v1' = p0'
+               and v' = v1'
+               and i = v'
+               and pln = pln { mrg = p0' }
+               in (pln, i)
+            in (0, i)) !pln
       in if c' > 0
          then (pln, r')
          else let (pln, r') = let (c'
@@ -1919,33 +1918,31 @@ cogent_n11 (pln, i) =
 cogent_n12 : ( Struct_Cogent_ros1, U32 ) -> ( Struct_Cogent_ros1, Struct_Cogent_ros1 )
 cogent_n12 (pln, i) =
    let (pln, r') = let (c'
-                       , pln
-                       , i) = let (pln
-                                  , i) = let v1' = pln
-            and pln { mrg = p0' } = v1'
-            and v1' = p0'
-            and v' = v1'
-            and i = v'
-            and pln = pln { mrg = p0' }
-            in (pln, i)
-         in (0, pln, i)
+                       , i) = (let (pln
+                                   , i) = let v1' = pln
+               and pln { mrg = p0' } = v1'
+               and v1' = p0'
+               and v' = v1'
+               and i = v'
+               and pln = pln { mrg = p0' }
+               in (pln, i)
+            in (0, i)) !pln
       in if c' > 0
          then (pln, r')
          else let (pln, r') = let (c'
-                                  , pln
-                                  , i) = let (pln
-                                             , i) = let v1' = pln
-                     and pln { mro = p1' } = v1'
-                     and v1' = p1'
-                     and p1' { cont = p2' } = v1'
-                     and v1' = p2'
-                     and v' = i
-                     and v' = v' + v1'
-                     and i = v'
-                     and p1' = p1' { cont = p2' }
-                     and pln = pln { mro = p1' }
-                     in (pln, i)
-                  in (0, pln, i)
+                                  , i) = (let (pln
+                                              , i) = let v1' = pln
+                        and pln { mro = p1' } = v1'
+                        and v1' = p1'
+                        and p1' { cont = p2' } = v1'
+                        and v1' = p2'
+                        and v' = i
+                        and v' = v' + v1'
+                        and i = v'
+                        and p1' = p1' { cont = p2' }
+                        and pln = pln { mro = p1' }
+                        in (pln, i)
+                     in (0, i)) !pln
                in if c' > 0
                   then (pln, r')
                   else let (pln, r') = let (c'

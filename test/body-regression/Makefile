@@ -2,28 +2,34 @@ GC=../../bin/gencot
 IT=../../bin/items
 
 #VARIANT = plaingen
-#TCONF = -tflbrpG
+#TCONF = -tflebrpG
 
 #VARIANT = plain
-#TCONF = -tflbrp
+#TCONF = -tflebrp
 
 #VARIANT = pregen
-#TCONF = -tflbrG
+#TCONF = -tflebrG
 
 #VARIANT = preproc
-#TCONF = -tflbr
+#TCONF = -tflebr
 
 #VARIANT = romodgen
-#TCONF = -tflbG
+#TCONF = -tflebG
 
 #VARIANT = romodproc
-#TCONF = -tflb
+#TCONF = -tfleb
 
 #VARIANT = banggen
-#TCONF = -tflG
+#TCONF = -tfleG
 
 VARIANT = bangproc
-TCONF = -tfl
+TCONF = -tfle
+
+#VARIANT = ebanggen
+#TCONF = -tflG
+
+#VARIANT = ebangproc
+#TCONF = -tfl
 
 #VARIANT = letproc
 #TCONF = -tf

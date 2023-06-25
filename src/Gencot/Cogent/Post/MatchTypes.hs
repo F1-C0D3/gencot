@@ -106,7 +106,7 @@ isPutExpr _ = [False]
 bangproc :: GenExpr -> ETrav GenExpr
 bangproc e = mapMExprOfGE bangproc' e
 
--- | Try to bang variables in subexpressions where that is possible.
+-- | Resolve readonly type incompatibilities by banging variables or using dummy expressions with error messages.
 -- Banging is possible in conditions of conditional expressions and in bindings.
 -- No bang tried in CS.Match, CS.LamC, CS.MultiWayIf, because these are not generated.
 -- Since variables are only banged in sub-contexts, and the effects may not escape these sub-contexts,
@@ -120,13 +120,12 @@ bangproc' (CS.If e [] e1 e2) = do
     (eb,bvs,errs) <- runExprTrav [] $ bangprocExpr e
     -- type of eb is always escapeable because it is boolean
     mapM recordError errs
-    (ebe,bvse) <- if null errs then extendBangExpr eb bvs else return (eb,bvs)
     e1p <- bangproc e1
     e2p <- bangproc e2
-    return $ CS.If ebe bvse e1p e2p
+    return $ CS.If eb bvs e1p e2p
 bangproc' e = mapM bangproc e
 
--- | Try to bang variables in the bindings of a let expressions.
+-- | Resolve readonly type incompatibilities in the bindings of a let expressions.
 -- The let body is required to determine the variables used in it, it is not processed.
 -- Bindings are processed in their order in the let expression.
 bangprocInLet :: [GenBnd] -> ExprOfGE -> ETrav [GenBnd]
@@ -136,8 +135,8 @@ bangprocInLet bs bdy = do
     bsrp <- bangprocInLet bsr bdy
     return (bb : bsrp)
 
--- | Try to bang variables in a prefix of a binding sequence.
--- The shortest prefix is used for which the result is escapeable.
+-- | Resolve readonly type incompatibilities in a prefix of a binding sequence.
+-- For banging variables, the shortest prefix is used for which the result is escapeable.
 -- If successful, the prefix is converted to a single binding with banged variables.
 -- This binding binds (only) the variables which occur free in the remaining bindings followed by the expression.
 -- Otherwise the sequence is returned unmodified.
@@ -149,18 +148,14 @@ bangprocInBindings (b@(CS.Binding ip m e []):bs) bdy = do
     if null bvs || (mayEscape $ typOfGE ebr)
        then do
            mapM recordError errs
-           (ipre,ebre,bvse) <- if null errs then extendBangBinding ipr ebr bvs else return (ipr,ebr,bvs)
-           --_ <- case irpatnOfGIP ipr of
-           --          PTuple [_,_] -> return ()
-           --          _ -> error ("extend ipre = " ++ (show ipre) ++ "\nebre = " ++ (show ebre) ++ "\nbvse = " ++ (show bvse) ++ "\nerrs = " ++ (show errs))
-           let (ibs,ebs) = matchRoTypes (typOfGIP ipre) (typOfGE ebre)
-               msgp = if null bvse then "" else "After banging variable(s)"
-           ebreb <- markLinearAsError msgp ebs ebre
-           (ebrebb,_,errs2) <- runExprTrav [] $ markReadonlyAsError ibs (typOfGIP ipre) ebreb
+           let (ibs,ebs) = matchRoTypes (typOfGIP ipr) (typOfGE ebr)
+               msgp = if null bvs then "" else "After banging variable(s)"
+           ebreb <- markLinearAsError msgp ebs ebr
+           (ebrebb,_,errs2) <- runExprTrav [] $ markReadonlyAsError ibs (typOfGIP ipr) ebreb
            mapM recordError errs2
            ebrebbb <- bangproc ebrebb
            bsb <- bangprocInBindings bs bdy
-           return ((CS.Binding ipre m ebrebbb bvse) : bsb)
+           return ((CS.Binding ipr m ebrebbb bvs) : bsb)
        else if null bs
        then do
            mapM recordError errs
@@ -300,81 +295,6 @@ hasInnerBangPositions _ = False
 -- they are resolved by using dummy expressions and recording corresponding errors.
 tryBangExpr :: GenExpr -> Trav [CCS.VarName] GenExpr
 tryBangExpr e = bangVars [] e
-
--- | Try to bang additional variables in an expression.
--- Candidates are all free variables which occur as container with linear type in a take operation.
--- The result is the expression with additional types banged and the extended set of variables to bang.
-extendBangExpr :: GenExpr -> [CCS.VarName] -> ETrav (GenExpr, [CCS.VarName])
-extendBangExpr e vs = do
-    (eb,bvs) <- extendBangVars e $ getBangCandidates [] e
-    return (eb,union vs bvs)
-
--- | Try to change variable types to readonly in an expression according to a list of typed variables.
--- The result is the modified expression together with the list of all variables
--- where the type has been successfully changed.
-extendBangVars :: GenExpr -> [CCS.VarName] -> ETrav (GenExpr, [CCS.VarName])
-extendBangVars e [] = return (e,[])
-extendBangVars e (v:vs) = do
-    (eb,bvs,errs) <- runExprTrav [] $ bangVars [v] e
-    if null errs && (mayEscape $ typOfGE eb)
-       then do
-           (ebb,bbvs) <- extendBangVars eb (vs \\ bvs)
-           return (ebb, union bbvs bvs)
-       else extendBangVars e vs
-
--- | Try to bang additional variables in a bound expression.
--- Candidates are all free variables which occur as container with linear type in a take operation.
--- Successfully banged variables are removed from the expression result and the binding pattern.
--- Returned are the new pattern and expression with additional types banged and the extended set of variables to bang.
-extendBangBinding :: GenIrrefPatn -> GenExpr -> [CCS.VarName] -> ETrav (GenIrrefPatn, GenExpr, [CCS.VarName])
-extendBangBinding ip e vs = do
-    (ipb,eb,bvs) <- extendBangBindingVars ip e $ getBangCandidates [] e
-    --_ <- case irpatnOfGIP ip of
-    --          PTuple [_,_] -> return ()
-    --          _ -> error ("extend cand = " ++ (show $ getBangCandidates [] e))
-    return (ipb,eb,union vs bvs)
-
--- | Try to change variable types to readonly in an expression according to a list of typed variables.
--- Variables with successfully changed type are removed from the expression result and the binding pattern.
--- eturned are the new pattern and expression together with the list of all variables
--- where the type has been successfully changed.
-extendBangBindingVars :: GenIrrefPatn -> GenExpr -> [CCS.VarName] -> ETrav (GenIrrefPatn, GenExpr, [CCS.VarName])
-extendBangBindingVars ip e [] = return (ip,e,[])
-extendBangBindingVars ip e (v:vs) = do
-    (eb,bvs,errs) <- runExprTrav [] $ bangVars [v] e
-    let (ipr,ebr) = reduceBangedBinding bvs ip eb
-    --_ <- case irpatnOfGIP ip of
-    --          PTuple [_,_] -> return ()
-    --          _ -> error ("extend ipr = " ++ (show ipr) ++ "\nebr = " ++ (show ebr) ++ "\nbvs = " ++ (show bvs) ++ "\nerrs = " ++ (show errs))
-    if null errs && (mayEscape $ typOfGE ebr)
-       then do
-           (iprb,ebb,bbvs) <- extendBangBindingVars ipr ebr (vs \\ bvs)
-           return (iprb, ebb, union bbvs bvs)
-       else extendBangBindingVars ip e vs
-
--- | Return all free variables which occur as container with linear type in a take operation.
--- The first argument is the list of all variables not free in the expression.
-getBangCandidates :: [CCS.VarName] -> GenExpr -> [CCS.VarName]
-getBangCandidates bvs (GenExpr (CS.Let bs bdy) _ _ _) =
-    union (getBangCandInBindings bvs bs) (getBangCandidates (boundInBindings bs) bdy)
-getBangCandidates bvs e = nub $ concat $ fmap (getBangCandidates bvs) $ exprOfGE e
-
--- | Return all free variables which occur as container with linear type in a take operation.
--- The first argument is the list of all variables not free in the bindings.
-getBangCandInBindings :: [CCS.VarName] -> [GenBnd] -> [CCS.VarName]
-getBangCandInBindings _ [] = []
-getBangCandInBindings bvs ((CS.Binding ip _ e _):bs) =
-    union (union (getBangCandInPattern bvs ip) (getBangCandidates bvs e)) $ getBangCandInBindings (union bvs $ freeInIrrefPatn ip) bs
-
--- | Return all free variables which occur as container with linear type in a take operation.
--- The first argument is the list of all variables not free in the bound expression.
-getBangCandInPattern :: [CCS.VarName] -> GenIrrefPatn -> [CCS.VarName]
-getBangCandInPattern bvs (GenIrrefPatn (CS.PTake pv [Just (_,(GenIrrefPatn (CS.PVar cv) _ _))]) _ t)
-    | (not $ elem pv bvs) && (not $ isNonlinear t) = [pv]
-getBangCandInPattern bvs (GenIrrefPatn (CS.PArrayTake pv [(_,(GenIrrefPatn (CS.PVar cv) _ _))]) _ t)
-    | (not $ elem pv bvs) && (not $ isNonlinear t) = [pv]
-getBangCandInPattern bvs (GenIrrefPatn (CS.PTuple ips) _ _) = nub $ concat $ map (getBangCandInPattern bvs) ips
-getBangCandInPattern _ _ = []
 
 -- | Change the types to readonly at every occurrence of variables in the given list.
 -- Resulting readonly type incompatibilities for other variables are resolved
@@ -661,3 +581,124 @@ matchRoTypes' t1 t2 =
        else if roCmpTypes t1 (mkReadonly t2)
        then (False,True)
        else (True,True)
+
+{- Try to bang additional linear variables -}
+{- of container types                      -}
+{-------------------------------------------}
+
+ebangproc :: GenExpr -> ETrav GenExpr
+ebangproc e = mapMExprOfGE ebangproc' e
+
+-- | Try to bang additional variables in subexpressions where that is possible.
+-- Banging is possible in conditions of conditional expressions and in bindings.
+-- No bang tried in CS.Match, CS.LamC, CS.MultiWayIf, because these are not generated.
+-- Since variables are only banged in sub-contexts, and the effects may not escape these sub-contexts,
+-- the type of the expression remains unchanged.
+ebangproc' :: ExprOfGE -> ETrav ExprOfGE
+ebangproc' (CS.Let bs bdy) = do
+    bsb <- ebangprocInLet bs $ exprOfGE bdy
+    bdyp <- ebangproc bdy
+    return $ CS.Let bsb bdyp
+ebangproc' (CS.If e bvs e1 e2) = do
+    -- type of e is always escapeable because it is boolean
+    (ebe,bvse) <- extendBangExpr e bvs
+    e1p <- ebangproc e1
+    e2p <- ebangproc e2
+    return $ CS.If ebe bvse e1p e2p
+ebangproc' e = mapM ebangproc e
+
+-- | Try to bang additional variables in the bindings of a let expressions.
+-- The let body is required to determine the variables used in it, it is not processed.
+-- Bindings are processed in their order in the let expression.
+ebangprocInLet :: [GenBnd] -> ExprOfGE -> ETrav [GenBnd]
+ebangprocInLet [] _ = return []
+ebangprocInLet bs bdy = do
+    (bb : bsr) <- ebangprocInBindings bs bdy
+    bsrp <- ebangprocInLet bsr bdy
+    return (bb : bsrp)
+
+-- | Try to bang additional variables in a prefix of a binding sequence.
+-- The shortest prefix is used for which the result is escapeable.
+-- If successful, the prefix is converted to a single binding with banged variables.
+-- This binding binds (only) the variables which occur free in the remaining bindings followed by the expression.
+-- Otherwise the sequence is returned unmodified.
+ebangprocInBindings :: [GenBnd] -> ExprOfGE -> ETrav [GenBnd]
+ebangprocInBindings [] _ = return []
+ebangprocInBindings (b@(CS.Binding ip m e bvs):bs) bdy = do
+           (ipre,ebre,bvse) <- extendBangBinding ip e bvs
+           ebrebbb <- if (hasInnerBangPositions $ exprOfGE ebre)
+                         then ebangproc ebre
+                         else return ebre
+           bsb <- ebangprocInBindings bs bdy
+           return ((CS.Binding ipre m ebrebbb bvse) : bsb)
+
+-- | Try to bang additional variables in an expression.
+-- Candidates are all free variables which occur as container with linear type in a take operation.
+-- The result is the expression with additional types banged and the extended set of variables to bang.
+extendBangExpr :: GenExpr -> [CCS.VarName] -> ETrav (GenExpr, [CCS.VarName])
+extendBangExpr e vs = do
+    (eb,bvs) <- extendBangVars e $ getBangCandidates [] e
+    return (eb,union vs bvs)
+
+-- | Try to change variable types to readonly in an expression according to a list of typed variables.
+-- The result is the modified expression together with the list of all variables
+-- where the type has been successfully changed.
+extendBangVars :: GenExpr -> [CCS.VarName] -> ETrav (GenExpr, [CCS.VarName])
+extendBangVars e [] = return (e,[])
+extendBangVars e (v:vs) = do
+    (eb,bvs,errs) <- runExprTrav [] $ bangVars [v] e
+    if null errs && (mayEscape $ typOfGE eb)
+       then do
+           (ebb,bbvs) <- extendBangVars eb (vs \\ bvs)
+           return (ebb, union bbvs bvs)
+       else extendBangVars e vs
+
+-- | Try to bang additional variables in a bound expression.
+-- Candidates are all free variables which occur as container with linear type in a take operation.
+-- Successfully banged variables are removed from the expression result and the binding pattern.
+-- Returned are the new pattern, the expression with additional types banged and the extended set of variables to bang.
+-- The remaining component types in the pattern are unchanged.
+extendBangBinding :: GenIrrefPatn -> GenExpr -> [CCS.VarName] -> ETrav (GenIrrefPatn, GenExpr, [CCS.VarName])
+extendBangBinding ip e vs = do
+    (ipb,eb,bvs) <- extendBangBindingVars ip e $ getBangCandidates [] e
+    return (ipb,eb,union vs bvs)
+
+-- | Try to change variable types to readonly in an expression according to a list of typed variables.
+-- Variables with successfully changed type are removed from the expression result and the binding pattern.
+-- eturned are the new pattern and expression together with the list of all variables
+-- where the type has been successfully changed.
+extendBangBindingVars :: GenIrrefPatn -> GenExpr -> [CCS.VarName] -> ETrav (GenIrrefPatn, GenExpr, [CCS.VarName])
+extendBangBindingVars ip e [] = return (ip,e,[])
+extendBangBindingVars ip e (v:vs) = do
+    (eb,bvs,errs) <- runExprTrav [] $ bangVars [v] e
+    let (ipr,ebr) = reduceBangedBinding bvs ip eb
+    if null errs && (mayEscape $ typOfGE ebr)
+       then do
+           (iprb,ebb,bbvs) <- extendBangBindingVars ipr ebr (vs \\ bvs)
+           return (iprb, ebb, union bbvs bvs)
+       else extendBangBindingVars ip e vs
+
+-- | Return all free variables which occur as container with linear type in a take operation.
+-- The first argument is the list of all variables not free in the expression.
+getBangCandidates :: [CCS.VarName] -> GenExpr -> [CCS.VarName]
+getBangCandidates bvs (GenExpr (CS.Let bs bdy) _ _ _) =
+    union (getBangCandInBindings bvs bs) (getBangCandidates (boundInBindings bs) bdy)
+getBangCandidates bvs e = nub $ concat $ fmap (getBangCandidates bvs) $ exprOfGE e
+
+-- | Return all free variables which occur as container with linear type in a take operation.
+-- The first argument is the list of all variables not free in the bindings.
+getBangCandInBindings :: [CCS.VarName] -> [GenBnd] -> [CCS.VarName]
+getBangCandInBindings _ [] = []
+getBangCandInBindings bvs ((CS.Binding ip _ e _):bs) =
+    union (union (getBangCandInPattern bvs ip) (getBangCandidates bvs e)) $ getBangCandInBindings (union bvs $ freeInIrrefPatn ip) bs
+
+-- | Return all free variables which occur as container with linear type in a take operation.
+-- The first argument is the list of all variables not free in the bound expression.
+getBangCandInPattern :: [CCS.VarName] -> GenIrrefPatn -> [CCS.VarName]
+getBangCandInPattern bvs (GenIrrefPatn (CS.PTake pv [Just (_,(GenIrrefPatn (CS.PVar cv) _ _))]) _ t)
+    | (not $ elem pv bvs) && (not $ isNonlinear t) = [pv]
+getBangCandInPattern bvs (GenIrrefPatn (CS.PArrayTake pv [(_,(GenIrrefPatn (CS.PVar cv) _ _))]) _ t)
+    | (not $ elem pv bvs) && (not $ isNonlinear t) = [pv]
+getBangCandInPattern bvs (GenIrrefPatn (CS.PTuple ips) _ _) = nub $ concat $ map (getBangCandInPattern bvs) ips
+getBangCandInPattern _ _ = []
+

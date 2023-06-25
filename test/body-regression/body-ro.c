@@ -198,3 +198,8 @@ void g92ln(roa3 pln) { pln[1] = frln(); }
 void g92ro(roa2 pln) { pln[1] = frln(); }
 
 // banging in nested bang positions
+struct ros1 *n11(struct ros1 *pln, int i) { i = pln->mrg; *(pln->mln) = i; return pln; }
+struct ros1 *n12(struct ros1 *pln, int i) { i = pln->mrg; i += *(pln-> mro); *(pln->mln) = i; return pln; }
+
+// banging in binding sequences
+struct ros1 *bs11(struct ros1 *pln, int i) { return i = pln->mrg, *(pln->mln) = i, pln; }

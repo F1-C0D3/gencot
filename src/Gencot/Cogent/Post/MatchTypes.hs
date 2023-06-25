@@ -150,13 +150,17 @@ bangprocInBindings (b@(CS.Binding ip m e []):bs) bdy = do
        then do
            mapM recordError errs
            (ipre,ebre,bvse) <- if null errs then extendBangBinding ipr ebr bvs else return (ipr,ebr,bvs)
-           bsb <- bangprocInBindings bs bdy
+           --_ <- case irpatnOfGIP ipr of
+           --          PTuple [_,_] -> return ()
+           --          _ -> error ("extend ipre = " ++ (show ipre) ++ "\nebre = " ++ (show ebre) ++ "\nbvse = " ++ (show bvse) ++ "\nerrs = " ++ (show errs))
            let (ibs,ebs) = matchRoTypes (typOfGIP ipre) (typOfGE ebre)
                msgp = if null bvse then "" else "After banging variable(s)"
            ebreb <- markLinearAsError msgp ebs ebre
            (ebrebb,_,errs2) <- runExprTrav [] $ markReadonlyAsError ibs (typOfGIP ipre) ebreb
            mapM recordError errs2
-           return ((CS.Binding ipre m ebrebb bvse) : bsb)
+           ebrebbb <- bangproc ebrebb
+           bsb <- bangprocInBindings bs bdy
+           return ((CS.Binding ipre m ebrebbb bvse) : bsb)
        else if null bs
        then do
            mapM recordError errs
@@ -325,6 +329,9 @@ extendBangVars e (v:vs) = do
 extendBangBinding :: GenIrrefPatn -> GenExpr -> [CCS.VarName] -> ETrav (GenIrrefPatn, GenExpr, [CCS.VarName])
 extendBangBinding ip e vs = do
     (ipb,eb,bvs) <- extendBangBindingVars ip e $ getBangCandidates [] e
+    --_ <- case irpatnOfGIP ip of
+    --          PTuple [_,_] -> return ()
+    --          _ -> error ("extend cand = " ++ (show $ getBangCandidates [] e))
     return (ipb,eb,union vs bvs)
 
 -- | Try to change variable types to readonly in an expression according to a list of typed variables.
@@ -334,14 +341,11 @@ extendBangBinding ip e vs = do
 extendBangBindingVars :: GenIrrefPatn -> GenExpr -> [CCS.VarName] -> ETrav (GenIrrefPatn, GenExpr, [CCS.VarName])
 extendBangBindingVars ip e [] = return (ip,e,[])
 extendBangBindingVars ip e (v:vs) = do
-    --_ <- if v == "g" || v == "i" then return ()
-    --                 else error ("extend ip = " ++ (show ip) ++ "\ne = " ++ (show e) ++ "\nv = " ++ (show v) ++ "\nvs = " ++ (show vs))
     (eb,bvs,errs) <- runExprTrav [] $ bangVars [v] e
-    --_ <- if v == "g" || v == "i" then return ()
-    --                 else error ("extend eb = " ++ (show eb) ++ "\nbvs = " ++ (show bvs) ++ "\nerrs = " ++ (show errs))
     let (ipr,ebr) = reduceBangedBinding bvs ip eb
-    --_ <- if v == "g" || v == "i" then return ()
-    --                 else error ("extend ipr = " ++ (show ipr) ++ "\nebr = " ++ (show ebr))
+    --_ <- case irpatnOfGIP ip of
+    --          PTuple [_,_] -> return ()
+    --          _ -> error ("extend ipr = " ++ (show ipr) ++ "\nebr = " ++ (show ebr) ++ "\nbvs = " ++ (show bvs) ++ "\nerrs = " ++ (show errs))
     if null errs && (mayEscape $ typOfGE ebr)
        then do
            (iprb,ebb,bbvs) <- extendBangBindingVars ipr ebr (vs \\ bvs)
@@ -488,7 +492,7 @@ rslvRoDiffsInLet vs cvs vmap ((CS.Binding ip m e bvs):bs) bdy = do
     eb <- rslvRoDiffs vs cvs vmap e
     let ipb = bangInPattern vs vmap esrcs ip
     ebm <- matchRoExpr vmap (typOfGIP ipb) eb
-    ipbm <- cmpNotModified cvs ipb
+    ipbm <- cmpNotModified cvs ipb $ isPutExpr $ exprOfGE e
     let cvs' = union cvs $ getCvs vs vmap ip
         vmap' = addVarSourcesFromBinding vmap (ip, esrcs)
     (bsb,bdyb) <- rslvRoDiffsInLet vs cvs' vmap' bs bdy
@@ -534,14 +538,14 @@ bangInPattern _ _ _ ip = ip
 -- | Check whether a variable is modified by a pattern.
 -- The first argument is a list of variables which may not be modified.
 -- If it occurs in the pattern it is replaced by the error variable and an error is recorded.
-cmpNotModified :: [CCS.VarName] -> GenIrrefPatn -> Trav [CCS.VarName] GenIrrefPatn
-cmpNotModified cvs ip@(GenIrrefPatn (CS.PVar pv) o t) | elem pv cvs = do
+cmpNotModified :: [CCS.VarName] -> GenIrrefPatn -> [Bool] ->Trav [CCS.VarName] GenIrrefPatn
+cmpNotModified cvs ip@(GenIrrefPatn (CS.PVar pv) o t) [False] | elem pv cvs = do
     recordError $ typeMatch o "Component of readonly struct modified"
     return $ GenIrrefPatn (CS.PVar errVar) o t
-cmpNotModified cvs (GenIrrefPatn (CS.PTuple ips) o t) = do
-    ipsm <- mapM (cmpNotModified cvs) ips
+cmpNotModified cvs (GenIrrefPatn (CS.PTuple ips) o t) isputs = do
+    ipsm <- mapM (\(ip,isput) -> cmpNotModified cvs ip [isput]) $ zip ips isputs
     return $ GenIrrefPatn (CS.PTuple ipsm) o t
-cmpNotModified _ ip = return ip
+cmpNotModified _ ip _ = return ip
 
 -- | Resolve readonly type incompatibilities between a type and an expression.
 -- If the type must be banged the result is a dummy expression of the type and an error is recorded.

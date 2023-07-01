@@ -261,9 +261,7 @@ reduceBinding :: [VarName] -> GenIrrefPatn -> GenExpr -> (GenIrrefPatn,GenExpr)
 reduceBinding vs ip e =
     if null ivars
        then toUnitBinding ip e
-       else if null uvars
-               then removeWildcards ip e
-               else removeWildcards (mapIrpatnOfGIP (replaceVarsInPattern uvars) ip) e
+       else removeWildcards (mapIrpatnOfGIP (replaceVarsInPattern uvars) ip) e
     where 
         pvars = freeInIrrefPatn ip
         ivars = intersect vs pvars
@@ -277,6 +275,7 @@ isUnitPattern ip = (irpatnOfGIP ip) == PUnitel
 
 -- | Replace occurrences of variables in a pattern by the wildcard pattern.
 -- Variables bound to the container in a take pattern are not replaced, since that would drop the container.
+-- Unit patterns are also replaced by wildcards so that they will be eliminated as well, if they occur in a tuple pattern.
 replaceVarsInPattern :: [VarName] -> IrpatnOfGIP -> IrpatnOfGIP
 replaceVarsInPattern vs ip@(PVar v) = 
     if elem v vs then PUnderscore else ip
@@ -285,7 +284,7 @@ replaceVarsInPattern vs (PTuple ips) =
 replaceVarsInPattern vs (PUnboxedRecord flds) =
     PUnboxedRecord $ map (fmap (\(n,ip) -> (n,mapIrpatnOfGIP (replaceVarsInPattern vs) ip))) flds
 replaceVarsInPattern vs PUnderscore = PUnderscore
-replaceVarsInPattern vs PUnitel = PUnitel
+replaceVarsInPattern vs PUnitel = PUnderscore
 replaceVarsInPattern vs (PTake v flds) = 
     PTake v $ map (fmap (\(n,ip) -> (n,mapIrpatnOfGIP (replaceVarsInPattern vs) ip))) flds
 replaceVarsInPattern vs (PArray ips) = 

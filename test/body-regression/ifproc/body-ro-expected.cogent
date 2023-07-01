@@ -540,11 +540,11 @@ cogent_g61ln pln =
    in pln { sln = p0' { mrg = 5 } })
 cogent_g61ro : Struct_Cogent_ros2 -> ( U32, Struct_Cogent_ros2 )
 cogent_g61ro pln =
-   let (r', ()) = (let (v'
-                       , ()) = let pln { sln = p0' } = pln
-            and p0' { mrg = p1' } = p0'
-            in (p1', ())
-         in (v', ())) !pln
+   let (r'
+       , ()) = (let pln { sln = p0' } = pln
+               and p0' { mrg = p1' } = p0'
+               in p1'
+               , ()) !pln
    in (r', pln)
 cogent_g62ln : Struct_Cogent_ros2 -> ( (), Struct_Cogent_ros2 )
 cogent_g62ln pln =
@@ -750,19 +750,19 @@ cogent_g92ro pln =
 -- banging in nested bang positions
 cogent_n11 : ( Struct_Cogent_ros1, U32 ) -> ( Struct_Cogent_ros1, Struct_Cogent_ros1 )
 cogent_n11 (pln, i) =
-   (let (c', (), i) = (let (()
-                           , i) = let pln { mrg = p0' } = pln
-            in ((), p0')
-         in (0, (), i)) !pln
+   (let (c', (), i) = (0
+                      , ()
+                      , let pln { mrg = p0' } = pln
+                      in p0') !pln
    in if c' > 0
       then r'
       else let pln { mln = p1' } = pln
          and p1' { cont = _ } = p1'
          in pln { mln = p1' { cont = i } }
-   , let (c', (), i) = (let (()
-                            , i) = let pln { mrg = p0' } = pln
-            in ((), p0')
-         in (0, (), i)) !pln
+   , let (c', (), i) = (0
+                       , ()
+                       , let pln { mrg = p0' } = pln
+                       in p0') !pln
    in if c' > 0
       then pln
       else let pln { mln = p1' } = pln
@@ -770,31 +770,31 @@ cogent_n11 (pln, i) =
          in pln { mln = p1' { cont = i } })
 cogent_n12 : ( Struct_Cogent_ros1, U32 ) -> ( Struct_Cogent_ros1, Struct_Cogent_ros1 )
 cogent_n12 (pln, i) =
-   (let (c', (), i) = (let (()
-                           , i) = let pln { mrg = p0' } = pln
-            in ((), p0')
-         in (0, (), i)) !pln
+   (let (c', (), i) = (0
+                      , ()
+                      , let pln { mrg = p0' } = pln
+                      in p0') !pln
    in if c' > 0
       then r'
-      else let (c', (), i) = (let (()
-                                  , i) = let pln { mro = p1' } = pln
-                  and p1' { cont = p2' } = p1'
-                  in ((), i + p2')
-               in (0, (), i)) !pln
+      else let (c', (), i) = (0
+                             , ()
+                             , let pln { mro = p1' } = pln
+                             and p1' { cont = p2' } = p1'
+                             in i + p2') !pln
          in let pln { mln = p3' } = pln
             and p3' { cont = _ } = p3'
             in pln { mln = p3' { cont = i } }
-   , let (c', (), i) = (let (()
-                            , i) = let pln { mrg = p0' } = pln
-            in ((), p0')
-         in (0, (), i)) !pln
+   , let (c', (), i) = (0
+                       , ()
+                       , let pln { mrg = p0' } = pln
+                       in p0') !pln
    in if c' > 0
       then pln
-      else let (c', (), i) = (let (()
-                                  , i) = let pln { mro = p1' } = pln
-                  and p1' { cont = p2' } = p1'
-                  in ((), i + p2')
-               in (0, (), i)) !pln
+      else let (c', (), i) = (0
+                             , ()
+                             , let pln { mro = p1' } = pln
+                             and p1' { cont = p2' } = p1'
+                             in i + p2') !pln
          in let pln { mln = p3' } = pln
             and p3' { cont = _ } = p3'
             in pln { mln = p3' { cont = i } })

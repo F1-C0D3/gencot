@@ -166,37 +166,103 @@ bangprocInBindings (b@(CS.Binding ip m e []):bs) bdy = do
               else return $ [CS.Binding ipr m (toDummyExpr ebr $ mkDummyExpr (typOfGIP ipr) msg) []]
        else bangprocInBindings (combineBindings b (head bs) (tail bs) bdy) bdy
 
--- | Reduce a binding by removing components which are obsolete after banging variables.
--- Such components are bindings of a banged variable to itself or a put expression for itself.
+-- | Reduce a binding by replacing components which are obsolete after banging variables.
+-- Obsolete components are replaced by unit bindings.
+-- Obsolete components are bindings of a banged variable to itself or a put expression for itself.
 -- If the variable is banged in the binding it cannot be modified in the bound expression, hence it needs no re-binding.
--- It is crucial to remove such components, otherwise the type of the bound expression becomes unescapeable
+-- Bindings of a variable to a take pattern for itself as container are also obsolete, but must be retained for binding the component variable.
+-- However, such bindings do no prevent to replace a component in the binding for the surrounding let expression.
+-- It is crucial to replace obsolete components, otherwise the type of the bound expression becomes unescapeable
 -- which would prevent the banging.
 reduceBangedBinding :: [CCS.VarName] -> GenIrrefPatn -> GenExpr -> (GenIrrefPatn, GenExpr)
-reduceBangedBinding [] ip e = (ip,e)
-reduceBangedBinding bvs ip@(GenIrrefPatn (CS.PTuple ips) op tp) (GenExpr (CS.Let bs bdy) oe te ce) =
-    (ip', GenExpr (CS.Let bs bdy') oe (typOfGE bdy') ce)
-    where (ip',bdy') = reduceBangedBinding bvs ip bdy
-reduceBangedBinding bvs ip@(GenIrrefPatn (CS.PTuple ips) op tp) e@(GenExpr (CS.If e0 bvs0 e1 e2) oe te ce) =
-    if ip1' == ip2'
-       then (ip1', GenExpr (CS.If e0 bvs0 e1' e2') oe (adaptTypes (typOfGE e1') (typOfGE e2')) ce)
-       else (ip,e)
-    where (ip1',e1') = reduceBangedBinding bvs ip e1
-          (ip2',e2') = reduceBangedBinding bvs ip e2
-reduceBangedBinding bvs (GenIrrefPatn (CS.PTuple ips) op tp) (GenExpr (CS.Tuple es) oe te ce) =
-    let (ips',es') = unzip $ filter retain $ zip ips es
-    in if null ips'
-          then (GenIrrefPatn CS.PUnitel op unitType, GenExpr CS.Unitel oe unitType ce)
-          else if null $ tail ips'
-          then (head ips', head es')
-          else (GenIrrefPatn (CS.PTuple ips') op (mkTupleType $ map typOfGIP ips'), GenExpr (CS.Tuple es') oe (mkTupleType $ map typOfGE es') ce)
-    where retain (GenIrrefPatn (CS.PVar pv) _ _, GenExpr (CS.Var v) _ _ _)
-            | pv == v && elem v bvs = False
-          retain (GenIrrefPatn (CS.PVar pv) _ _, GenExpr (CS.Put (GenExpr (CS.Var v) _ _ _) _) _ _ _)
-            | pv == v && elem v bvs = False
-          retain (GenIrrefPatn (CS.PVar pv) _ _, GenExpr (CS.ArrayPut (GenExpr (CS.Var v) _ _ _) _) _ _ _)
-            | pv == v && elem v bvs = False
-          retain _ = True
-reduceBangedBinding _ ip e = (ip,e)
+reduceBangedBinding bvs ip e = (ip',toUnitExprs ip' e')
+    where (ip',e') = reduceBangedPatterns bvs ip e
+
+-- | First pass: Only replace variable patterns by unit patterns
+-- This makes it possible to restore the original pattern in case of alternatives where not all can be reduced.
+-- The type of the expression remains unchanged.
+reduceBangedPatterns :: [CCS.VarName] -> GenIrrefPatn -> GenExpr -> (GenIrrefPatn, GenExpr)
+reduceBangedPatterns [] ip e = (ip,e)
+reduceBangedPatterns bvs ip (GenExpr (CS.Let bs bdy) oe te ce) =
+    (ip', GenExpr (CS.Let bs' bdy') oe te ce)
+    where bs' = reduceBangedPatternsInBindings bvs bs
+          bvs' = filter (unmodifiedInReducedBindings bs') bvs
+          (ip',bdy') = reduceBangedPatterns bvs' ip bdy
+reduceBangedPatterns bvs ip (GenExpr (CS.If e0 bvs0 e1 e2) oe te ce) =
+    (mergeReducedPatterns ip1' ip2', GenExpr (CS.If e0 bvs0 e1' e2') oe te ce)
+    where (ip1',e1') = reduceBangedPatterns bvs ip e1
+          (ip2',e2') = reduceBangedPatterns bvs ip e2
+-- if the expression is a tuple the pattern must also be a tuple
+reduceBangedPatterns bvs (GenIrrefPatn (CS.PTuple ips) op tp) (GenExpr (CS.Tuple es) oe te ce) =
+    (GenIrrefPatn (CS.PTuple ips') op (mkTupleType $ map typOfGIP ips'), GenExpr (CS.Tuple es') oe te ce)
+    where (ips',es') = unzip $ map (uncurry $ reduceBangedPatterns bvs) $ zip ips es
+reduceBangedPatterns bvs (GenIrrefPatn (CS.PVar pv) op tp) e@(GenExpr (CS.Var v) _ _ _)
+    | pv == v && elem v bvs = (GenIrrefPatn CS.PUnitel op unitType,e)
+reduceBangedPatterns bvs (GenIrrefPatn (CS.PVar pv) op tp) e@(GenExpr (CS.Put (GenExpr (CS.Var v) _ _ _) _) _ _ _)
+    | pv == v && elem v bvs = (GenIrrefPatn CS.PUnitel op unitType,e)
+reduceBangedPatterns bvs (GenIrrefPatn (CS.PVar pv) op tp) e@(GenExpr (CS.ArrayPut (GenExpr (CS.Var v) _ _ _) _) _ _ _)
+    | pv == v && elem v bvs = (GenIrrefPatn CS.PUnitel op unitType,e)
+reduceBangedPatterns _ ip e = (ip,e)
+
+-- | Merge two reduced patterns.
+-- The resulting pattern uses a unit pattern only if both input patterns do.
+mergeReducedPatterns :: GenIrrefPatn -> GenIrrefPatn -> GenIrrefPatn
+mergeReducedPatterns (GenIrrefPatn (CS.PTuple ips1) op _) (GenIrrefPatn (CS.PTuple ips2) _ _) =
+    GenIrrefPatn (CS.PTuple ips) op (mkTupleType $ map typOfGIP ips)
+    where ips = map (uncurry mergeReducedPatterns) $ zip ips1 ips2
+mergeReducedPatterns ip1 (GenIrrefPatn CS.PUnitel _ _) = ip1
+mergeReducedPatterns (GenIrrefPatn CS.PUnitel _ _) ip2 = ip2
+mergeReducedPatterns ip1 _ = ip1
+
+-- | Second pass: Replace bound expression by unit if corresponding pattern is unit.
+toUnitExprs :: GenIrrefPatn -> GenExpr -> GenExpr
+toUnitExprs ip (GenExpr (CS.Let bs bdy) oe te ce) =
+    GenExpr (CS.Let bs' bdy') oe (toUnitTypes ip te) ce
+    where bs' = toUnitExprsInBindings bs
+          bdy' = toUnitExprs ip bdy
+toUnitExprs ip (GenExpr (CS.If e0 bvs0 e1 e2) oe te ce) =
+    GenExpr (CS.If e0 bvs0 e1' e2') oe (toUnitTypes ip te) ce
+    where e1' = toUnitExprs ip e1
+          e2' = toUnitExprs ip e2
+toUnitExprs ip@(GenIrrefPatn (CS.PTuple ips) _ _) (GenExpr (CS.Tuple es) oe te ce) =
+    GenExpr (CS.Tuple $ map (uncurry toUnitExprs) $ zip ips es) oe (toUnitTypes ip te) ce
+toUnitExprs (GenIrrefPatn CS.PUnitel _ _) _ = mkUnitExpr
+toUnitExprs _ e = e
+
+toUnitExprsInBindings :: [GenBnd] -> [GenBnd]
+toUnitExprsInBindings [] = []
+toUnitExprsInBindings ((CS.Binding ip m e bvs) : bs) =
+    (CS.Binding ip m e' bvs) : (toUnitExprsInBindings bs)
+    where e' = toUnitExprs ip e
+
+toUnitTypes :: GenIrrefPatn -> GenType -> GenType
+toUnitTypes (GenIrrefPatn CS.PUnitel _ _) _ = unitType
+toUnitTypes (GenIrrefPatn (CS.PTuple ips) _ _) (GenType (CS.TTuple ts) ot _) =
+    mkTupleType $ map (uncurry toUnitTypes) $ zip ips ts
+toUnitTypes _ t = t
+
+-- | Reduce all bindings in a binding sequence.
+reduceBangedPatternsInBindings :: [CCS.VarName] -> [GenBnd] -> [GenBnd]
+reduceBangedPatternsInBindings bvs [] = []
+reduceBangedPatternsInBindings bvs ((CS.Binding ip m e vs):bs) =
+    (CS.Binding ip' m e' vs):bs'
+    where (ip',e') = reduceBangedPatterns bvs ip e
+          bs' = reduceBangedPatternsInBindings bvs bs
+
+-- | Test whether a variable is modified in a binding sequence.
+-- This is the case if it is atmost bound as container in a take binding.
+-- We assume that take patterns are always bound to their own container variable.
+unmodifiedInReducedBindings :: [GenBnd] -> CCS.VarName -> Bool
+unmodifiedInReducedBindings [] _ = True
+unmodifiedInReducedBindings ((CS.Binding ip _ _ _):bs) v =
+    unmodifiedInReducedPattern v ip && unmodifiedInReducedBindings bs v
+
+unmodifiedInReducedPattern :: CCS.VarName -> GenIrrefPatn -> Bool
+unmodifiedInReducedPattern v (GenIrrefPatn (CS.PTuple ips) _ _) =
+    all (unmodifiedInReducedPattern v) ips
+unmodifiedInReducedPattern v (GenIrrefPatn (CS.PVar pv) _ _) = v /= pv
+unmodifiedInReducedPattern v _ = True
+
 
 -- | Replace some subexpressions of linear type by dummy expressions.
 -- The first argument is a string to be prepended to the error messages.

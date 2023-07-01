@@ -203,3 +203,4 @@ struct ros1 *n12(struct ros1 *pln, int i) { i = pln->mrg; i += *(pln-> mro); *(p
 
 // banging in binding sequences
 struct ros1 *bs11(struct ros1 *pln, int i) { return i = pln->mrg, *(pln->mln) = i, pln; }
+//struct ros1 *bs12(struct ros1 *pln, int *qro, int i) { return qro = pln->mln, i = *qro, pln->mrg = i, pln; }

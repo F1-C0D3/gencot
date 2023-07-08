@@ -42,9 +42,9 @@ import Gencot.Cogent.Bindings (
   mkBodyExpr, mkPlainExpr,
   mkEmptyBindsPair, mkDummyBindsPair, mkUnitBindsPair, mkDefaultBindsPair, mkIntLitBindsPair, mkCharLitBindsPair, mkStringLitBindsPair,
   mkValVarBindsPair, mkMemBindsPair, mkIdxBindsPair, mkOpBindsPair, mkConstAppBindsPair, mkAppBindsPair, mkAssBindsPair,
-  mkIfBindsPair, mkTupleBindsPair, mkDerefBindsPair, mkFunDerefBindsPair, concatBindsPairs,
+  mkIfBindsPair, mkTupleBindsPair, mkDerefBindsPair, mkFunDerefBindsPair, concatBindsPairs, joinPutbacks,
   processMFpropForBindsPairs,
-  replaceBoundVarType,
+      {- replaceBoundVarType, -}
   mkDummyBinding, mkNullBinding, mkExpBinding, mkRetBinding, mkBreakBinding, mkContBinding, 
   mkIfBinding, mkSwitchBinding, mkCaseBinding, mkSeqBinding, mkDecBinding, mkForBinding,
   mkTuplePattern, mkVarPattern, mkVarTuplePattern,
@@ -1173,16 +1173,24 @@ bindExpr e@(LC.CVar nam _) = do
                             return $ mkDerefBindsPair cntp $ mkValVarBindsPair cnt $ TV pn pt
           else return $ mkValVarBindsPair cnt $ TV v t
     insertExprSrc e bp
-bindExpr e@(LC.CMember e1 nam arrow _) = do
-    bp1 <- bindExpr e1
-    m <- mapIfUpper nam
-    cnt <- getCmpCounter
-    insertExprSrc e $ mkMemBindsPair cnt m bp1
-bindExpr e@(LC.CIndex e1 e2 _) = do
-    bp1 <- bindExpr e1
-    bp2 <- bindExpr e2
-    cnt <- getCmpCounter
-    insertExprSrc e $ mkIdxBindsPair cnt bp1 bp2
+bindExpr e@(LC.CMember _ _ _ _) = do
+    bp <- bindComponent e
+    insertExprSrc e $ joinPutbacks bp
+bindExpr e@(LC.CIndex _ _ _) = do
+    bp <- bindComponent e
+    insertExprSrc e $ joinPutbacks bp
+bindExpr e@(LC.CUnary LC.CIndOp e1 _) = do
+    t <- exprType e1
+    bp <- if isFunPointer t
+             then do
+                 bp1 <- bindExpr e1
+                 iid <- getExprItemId e1
+                 ft <- transType (iid,t)
+                 return $ mkFunDerefBindsPair ft bp1
+             else do
+                 bp <- bindComponent e
+                 return $ joinPutbacks bp
+    insertExprSrc e bp
 bindExpr e@(LC.CUnary LC.CNegOp e1 _) = do
     -- not i -> if i==0 then 1 else 0
     bp1 <- bindExpr e1
@@ -1192,33 +1200,20 @@ bindExpr e@(LC.CUnary LC.CNegOp e1 _) = do
     cnt <- getValCounter
     let c1 = mkIntLitBindsPair cnt t1 1
     insertExprSrc e $ mkIfBindsPair (mkOpBindsPair mkBoolType "==" [bp1,c0]) c1 c0
-bindExpr e@(LC.CUnary LC.CIndOp e1 _) = do
-    bp1 <- bindExpr e1
-    ct1 <- exprType e1
-    bp <-
-      if isFunPointer ct1
-         then do
-             iid <- getExprItemId e1
-             ft <- transType (iid,ct1)
-             return $ mkFunDerefBindsPair ft bp1
-         else do
-             cnt <- getCmpCounter
-             return $ mkDerefBindsPair cnt bp1
-    insertExprSrc e bp
 bindExpr e@(LC.CUnary op e1 _) | elem op [LC.CPlusOp,LC.CMinOp,LC.CCompOp] = do
     bp1 <- bindExpr e1
     ct <- exprType e
     t <- transType ("",ct)
     insertExprSrc e $ mkOpBindsPair t (transUnOp op) [bp1]
 bindExpr e@(LC.CUnary op e1 _) | elem op [LC.CPreIncOp,LC.CPreDecOp,LC.CPostIncOp,LC.CPostDecOp] = do
-    bp1 <- bindExpr e1
     ct1 <- exprType e1
     t1 <- transType ("",ct1)
     cnt <- getValCounter
     let bp2 = mkIntLitBindsPair cnt t1 1
     ct <- exprType e
     t <- transType ("",ct)
-    insertExprSrc e $ mkAssBindsPair post t (transUnOp op) bp1 bp2
+    bp <- bindLvalue post (transUnOp op, t) bp2 e1
+    insertExprSrc e bp
     where post = elem op [LC.CPostIncOp,LC.CPostDecOp]
 bindExpr e@(LC.CBinary LC.CLndOp e1 e2 _) = do
     -- e1 && e2 -> if e1 then e2 else 0
@@ -1258,14 +1253,14 @@ bindExpr e@(LC.CCall f es _) = do
     (pbps,rpat) <- processParamVals (leadVar fbp') fd bps
     insertExprSrc e $ mkAppBindsPair fbp' rpat pbps
 bindExpr e@(LC.CAssign op e1 e2 _) = do
-    bp1 <- bindExpr e1
     bp2 <- bindExpr e2
     t <- if op == LC.CAssignOp
             then return unitType
             else do
                 ct <- exprType e
                 transType ("",ct)
-    insertExprSrc e $ mkAssBindsPair False t (transAssOp op) bp1 bp2
+    bp <- bindLvalue False (transAssOp op,t) bp2 e1
+    insertExprSrc e bp
 bindExpr e@(LC.CCond e1 (Just e2) e3 _) = do
     bp1 <- bindExpr e1
     bp2 <- bindExpr e2
@@ -1280,6 +1275,39 @@ bindExpr e = do
     cnt <- getValCounter
     recordError $ unSupported e "expression"
     insertExprSrc e $ mkDummyBindsPair cnt t "Translation of expression not yet implemented"
+
+-- | Translate an expression as a modified lvalue
+-- The first argument is True for modification by a postfix inc/dec operator, otherwise false.
+-- The second argument is a pair of the operator op for constructing the new value and its result type.
+-- For modification by plain assignment, op is "" and the type is the unit type.
+-- The third argument is the translated second op argument or the new value for plain assignment.
+bindLvalue :: Bool -> (CCS.OpName, GenType) -> BindsPair -> LC.CExpr -> FTrav BindsPair
+bindLvalue post op rbp e = do
+    bp <- bindComponent e
+    return $ concatBindsPairs [rbp, joinPutbacks $ mkAssBindsPair post op rbp bp]
+
+-- | Translate an expression to a pair of binding lists.
+-- The first list may contain take operations, then the second list contains the corresponding put operations.
+bindComponent :: LC.CExpr -> FTrav BindsPair
+bindComponent e@(LC.CMember e1 nam arrow _) = do
+    bp1 <- bindComponent e1
+    m <- mapIfUpper nam
+    cnt <- getCmpCounter
+    return $ mkMemBindsPair cnt m bp1
+bindComponent e@(LC.CIndex e1 e2 _) = do
+    bp1 <- bindComponent e1
+    bp2 <- bindExpr e2
+    cnt <- getCmpCounter
+    return $ mkIdxBindsPair cnt bp1 bp2
+bindComponent e@(LC.CUnary LC.CIndOp e1 _) = do
+    t <- exprType e1
+    if isFunPointer t
+       then bindExpr e
+       else do
+          bp1 <- bindComponent e1
+          cnt <- getCmpCounter
+          return $ mkDerefBindsPair cnt bp1
+bindComponent e = bindExpr e
 
 -- | Add a statement source to a binding
 insertStatSrc :: LC.CStat -> GenBnd -> FTrav GenBnd

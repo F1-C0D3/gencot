@@ -147,9 +147,9 @@ cogent_f56ln (pro, g) =
 cogent_f56ro : ( Struct_Cogent_ros1!, GlobState2 ) -> ( (), GlobState2 )
 cogent_f56ro (pro, g) =
    (()
-   , let pro { mln = p1' } = pro
+   , let pro { mln = p0' } = pro
    and g { cont = _ } = g
-   in g { cont = p1' })
+   in g { cont = p0' })
 cogent_f57ln : ( Struct_Cogent_ros1!, CPtr U32 ) -> ( (), CPtr U32 )
 cogent_f57ln (pro, pln) =
    (()
@@ -279,9 +279,9 @@ cogent_f76ln (pro, g) =
 cogent_f76ro : ( Cogent_roa3!, GlobState2 ) -> ( (), GlobState2 )
 cogent_f76ro (pro, g) =
    (()
-   , let pro @{ @1 = p1' } = pro
+   , let pro @{ @1 = p0' } = pro
    and g { cont = _ } = g
-   in g { cont = p1' })
+   in g { cont = p0' })
 cogent_f77ln : ( Cogent_roa3!, CPtr U32 ) -> ( (), CPtr U32 )
 cogent_f77ln (pro, qln) =
    (()
@@ -490,14 +490,14 @@ cogent_g55ro pln =
 cogent_g56ln : ( Struct_Cogent_ros1, GlobState1 ) -> ( (), GlobState1 )
 cogent_g56ln (pln, g) =
    (()
-   , let pln { mln = p1' } = pln
+   , let pln { mln = p0' } = pln
    and g { cont = _ } = g
-   in g { cont = p1' })
+   in g { cont = p0' })
 cogent_g56ro : ( Struct_Cogent_ros1, GlobState2 ) -> ( (), GlobState2 )
 cogent_g56ro (pln, g) =
-   let g = (let pln { mln = p1' } = gencotDummy "Necessary banging of pln leads to non-escapeable type"
+   let g = (let pln { mln = p0' } = gencotDummy "Necessary banging of pln leads to non-escapeable type"
          and g { cont = _ } = g
-         in g { cont = p1' }) !pln
+         in g { cont = p0' }) !pln
    in ((), g)
 cogent_g57ln : ( Struct_Cogent_ros1, CPtr U32 ) -> ( (), CPtr U32 )
 cogent_g57ln (pln, qln) =
@@ -640,14 +640,14 @@ cogent_g75ro pln =
 cogent_g76ln : ( Cogent_roa3, GlobState1 ) -> ( (), GlobState1 )
 cogent_g76ln (pln, g) =
    (()
-   , let pln @{ @1 = p1' } = pln
+   , let pln @{ @1 = p0' } = pln
    and g { cont = _ } = g
-   in g { cont = p1' })
+   in g { cont = p0' })
 cogent_g76ro : ( Cogent_roa3, GlobState2 ) -> ( (), GlobState2 )
 cogent_g76ro (pln, g) =
-   let g = (let pln @{ @1 = p1' } = gencotDummy "Necessary banging of pln leads to non-escapeable type"
+   let g = (let pln @{ @1 = p0' } = gencotDummy "Necessary banging of pln leads to non-escapeable type"
          and g { cont = _ } = g
-         in g { cont = p1' }) !pln
+         in g { cont = p0' }) !pln
    in ((), g)
 cogent_g77ln : ( Cogent_roa3, CPtr U32 ) -> ( (), CPtr U32 )
 cogent_g77ln (pln, qln) =
@@ -803,7 +803,8 @@ cogent_n12 (pln, i) =
 cogent_bs11 : ( Struct_Cogent_ros1, U32 ) -> ( Struct_Cogent_ros1, Struct_Cogent_ros1 )
 cogent_bs11 (pln, i) =
    let pln { mrg = p0' } = pln
+   and pln = pln { mrg = p0' }
    and pln { mln = p1' } = pln
    and p1' { cont = _ } = p1'
-   in (pln
-      , pln { mln = p1' { cont = p0' } } { mrg = p0' })
+   in (pln { mln = p1' { cont = p0' } }
+      , pln { mln = p1' { cont = p0' } })

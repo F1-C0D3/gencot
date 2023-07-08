@@ -255,13 +255,13 @@ mkAppBindsPair fbp rpat pbps =
 
 -- | Assignment v<n>' = v<n>' op v<k>', (v<n>',v) = (v<n>',v<n>') or (v,v<n>')
 -- The first argument is True for a postfix inc/dec operator, otherwise false.
--- The second argument is the type of the result of applying op, or the unit type if op is empty.
--- The third argument is empty for a plain assignment, otherwise the operator op to be used.
+-- The second argument is a pair of the operator op for constructing the new value and its result type.
+-- For plain assignment, op is "" and the type is the unit type.
+-- The third argument is the operator argument expression or the assigned expression for a plain assignment.
 -- The fourth argument is the lvalue BindsPair.
--- The fifth argument is the operator argument BindsPair or the assigned BindsPair for a plain assignment. 
-mkAssBindsPair :: Bool -> GenType -> CCS.OpName -> BindsPair -> BindsPair -> BindsPair
-mkAssBindsPair post t op bpl bpr =
-    addBinding lval $ addBinding (mkVarBinding vres er') $ concatBindsPairs [bpr,bpl]
+mkAssBindsPair :: Bool -> (CCS.OpName, GenType) -> BindsPair -> BindsPair -> BindsPair
+mkAssBindsPair post (op,t) bpr bpl =
+    addBinding lval $ addBinding (mkVarBinding vres er') bpl
     where vl = leadVar bpl
           vr = leadVar bpr
           el = mkVarExpr vl
@@ -303,6 +303,7 @@ mkTupleBindsPair _ [bp] = bp
 mkTupleBindsPair _ bps = 
     addBinding (mkVarBinding (leadVar $ head bps) $ mkTupleExpr (map (mkVarExpr . leadVar) bps)) $ concatBindsPairs bps
 
+{-
 -- | Replace the type in the leading value variable of a pattern by a given type.
 -- The pattern must be a single variable or wildcard or a tuple with a variable or wildcard as first component.
 replaceBoundVarType :: GenType -> BindsPair -> BindsPair 
@@ -317,6 +318,7 @@ replaceInGIP t (GenIrrefPatn (CS.PTuple pvs) o (GenType (CS.TTuple ts) ot _)) =
     where ip' = (replaceInGIP t $ head pvs)
           pvs' = ip' : (tail pvs)
           ts' = (typOfGIP ip') : (tail ts)
+-}
 
 -- | Add binding to the main list
 addBinding :: GenBnd -> BindsPair -> BindsPair
@@ -331,6 +333,15 @@ addPutback b (main,putback) = (main, b : putback)
 concatBindsPairs :: [BindsPair] -> BindsPair
 concatBindsPairs bps = (concat mains,concat putbacks)
     where (mains,putbacks) = unzip $ reverse bps
+
+-- | Append the putback list to the main list and use a new empty putback list.
+-- Rebind a non-wildcard leadvar of the main list afterwards, if the putback list was not empty.
+joinPutbacks :: BindsPair -> BindsPair
+joinPutbacks bp@(_, []) = bp
+joinPutbacks bp@(main,putback) = (mrebnd ++ (reverse putback) ++ main, [])
+    where tv = leadVar bp
+          rebnd = mkVarBinding tv $ mkVarExpr tv
+          mrebnd = if isWild tv then [] else [rebnd]
 
 -- Construct Bindings
 ---------------------

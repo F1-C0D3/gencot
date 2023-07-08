@@ -383,6 +383,7 @@ cogent_fs1 s :: (Struct_Cogent_s1 =  #{ m1 : U32
                                         , m2 : U32 }) = s :: (Struct_Cogent_s1 =  #{ m1 : U32
                                                                                    , m2 : U32 }) { m1 = p0' :: U32 } :: (Struct_Cogent_s1 =  #{ m1 : U32
                                                                                                                                               , m2 : U32 })
+         and v' :: U32 = v' :: U32
          in (v' :: U32
             , s :: (Struct_Cogent_s1 =  #{ m1 : U32
                                          , m2 : U32 })) :: (U32
@@ -412,6 +413,11 @@ cogent_fs2 s :: (Struct_Cogent_s1 =  #{ m1 : U32
                                                             , m2 : U32 }) = v' :: (Struct_Cogent_s1 =  #{ m1 : U32
                                                                                                         , m2 : U32 })
          and v' :: U32 = p0' :: U32
+         and s :: (Struct_Cogent_s1 =  #{ m1 : U32
+                                        , m2 : U32 }) = s :: (Struct_Cogent_s1 =  #{ m1 : U32
+                                                                                   , m2 : U32 }) { m1 = p0' :: U32 } :: (Struct_Cogent_s1 =  #{ m1 : U32
+                                                                                                                                              , m2 : U32 })
+         and v' :: U32 = v' :: U32
          and v1' :: (Struct_Cogent_s1 =  #{ m1 : U32
                                           , m2 : U32 }) = s :: (Struct_Cogent_s1 =  #{ m1 : U32
                                                                                      , m2 : U32 })
@@ -419,15 +425,12 @@ cogent_fs2 s :: (Struct_Cogent_s1 =  #{ m1 : U32
                                                             , m2 : U32 }) = v1' :: (Struct_Cogent_s1 =  #{ m1 : U32
                                                                                                          , m2 : U32 })
          and v1' :: U32 = p1' :: U32
-         and v' :: U32 = v' :: U32 + v1' :: U32 :: U32
          and s :: (Struct_Cogent_s1 =  #{ m1 : U32
                                         , m2 : U32 }) = s :: (Struct_Cogent_s1 =  #{ m1 : U32
                                                                                    , m2 : U32 }) { m2 = p1' :: U32 } :: (Struct_Cogent_s1 =  #{ m1 : U32
                                                                                                                                               , m2 : U32 })
-         and s :: (Struct_Cogent_s1 =  #{ m1 : U32
-                                        , m2 : U32 }) = s :: (Struct_Cogent_s1 =  #{ m1 : U32
-                                                                                   , m2 : U32 }) { m1 = p0' :: U32 } :: (Struct_Cogent_s1 =  #{ m1 : U32
-                                                                                                                                              , m2 : U32 })
+         and v1' :: U32 = v1' :: U32
+         and v' :: U32 = v' :: U32 + v1' :: U32 :: U32
          in (v' :: U32
             , s :: (Struct_Cogent_s1 =  #{ m1 : U32
                                          , m2 : U32 })) :: (U32
@@ -484,6 +487,7 @@ cogent_fs3 s :: (Struct_Cogent_s2 =  #{ m3 : U32
                                                                                                                                                                                                      , m2 : U32 }) } :: (Struct_Cogent_s2 =  #{ m3 : U32
                                                                                                                                                                                                                                               , m4 : (Struct_Cogent_s1 =  #{ m1 : U32
                                                                                                                                                                                                                                                                            , m2 : U32 }) })
+         and v' :: U32 = v' :: U32
          in (v' :: U32
             , s :: (Struct_Cogent_s2 =  #{ m3 : U32
                                          , m4 : (Struct_Cogent_s1 =  #{ m1 : U32
@@ -532,6 +536,19 @@ cogent_fs4 s :: (Struct_Cogent_s2 =  #{ m3 : U32
                                                               , m2 : U32 }) = v' :: (Struct_Cogent_s1 =  #{ m1 : U32
                                                                                                           , m2 : U32 })
          and v' :: U32 = p1' :: U32
+         and p0' :: (Struct_Cogent_s1 =  #{ m1 : U32
+                                          , m2 : U32 }) = p0' :: (Struct_Cogent_s1 =  #{ m1 : U32
+                                                                                       , m2 : U32 }) { m1 = p1' :: U32 } :: (Struct_Cogent_s1 =  #{ m1 : U32
+                                                                                                                                                  , m2 : U32 })
+         and s :: (Struct_Cogent_s2 =  #{ m3 : U32
+                                        , m4 : (Struct_Cogent_s1 =  #{ m1 : U32
+                                                                     , m2 : U32 }) }) = s :: (Struct_Cogent_s2 =  #{ m3 : U32
+                                                                                                                   , m4 : (Struct_Cogent_s1 =  #{ m1 : U32
+                                                                                                                                                , m2 : U32 }) }) { m4 = p0' :: (Struct_Cogent_s1 =  #{ m1 : U32
+                                                                                                                                                                                                     , m2 : U32 }) } :: (Struct_Cogent_s2 =  #{ m3 : U32
+                                                                                                                                                                                                                                              , m4 : (Struct_Cogent_s1 =  #{ m1 : U32
+                                                                                                                                                                                                                                                                           , m2 : U32 }) })
+         and v' :: U32 = v' :: U32
          and v1' :: (Struct_Cogent_s2 =  #{ m3 : U32
                                           , m4 : (Struct_Cogent_s1 =  #{ m1 : U32
                                                                        , m2 : U32 }) }) = s :: (Struct_Cogent_s2 =  #{ m3 : U32
@@ -550,26 +567,6 @@ cogent_fs4 s :: (Struct_Cogent_s2 =  #{ m3 : U32
                                                               , m2 : U32 }) = v1' :: (Struct_Cogent_s1 =  #{ m1 : U32
                                                                                                            , m2 : U32 })
          and v1' :: U32 = p3' :: U32
-         and v' :: U32 = v' :: U32 + v1' :: U32 :: U32
-         and v2' :: (Struct_Cogent_s2 =  #{ m3 : U32
-                                          , m4 : (Struct_Cogent_s1 =  #{ m1 : U32
-                                                                       , m2 : U32 }) }) = s :: (Struct_Cogent_s2 =  #{ m3 : U32
-                                                                                                                     , m4 : (Struct_Cogent_s1 =  #{ m1 : U32
-                                                                                                                                                  , m2 : U32 }) })
-         and s { m3 = p4' :: U32 } :: (Struct_Cogent_s2 =  #{ m3 : U32
-                                                            , m4 : (Struct_Cogent_s1 =  #{ m1 : U32
-                                                                                         , m2 : U32 }) }) = v2' :: (Struct_Cogent_s2 =  #{ m3 : U32
-                                                                                                                                         , m4 : (Struct_Cogent_s1 =  #{ m1 : U32
-                                                                                                                                                                      , m2 : U32 }) })
-         and v2' :: U32 = p4' :: U32
-         and v' :: U32 = v' :: U32 + v2' :: U32 :: U32
-         and s :: (Struct_Cogent_s2 =  #{ m3 : U32
-                                        , m4 : (Struct_Cogent_s1 =  #{ m1 : U32
-                                                                     , m2 : U32 }) }) = s :: (Struct_Cogent_s2 =  #{ m3 : U32
-                                                                                                                   , m4 : (Struct_Cogent_s1 =  #{ m1 : U32
-                                                                                                                                                , m2 : U32 }) }) { m3 = p4' :: U32 } :: (Struct_Cogent_s2 =  #{ m3 : U32
-                                                                                                                                                                                                              , m4 : (Struct_Cogent_s1 =  #{ m1 : U32
-                                                                                                                                                                                                                                           , m2 : U32 }) })
          and p2' :: (Struct_Cogent_s1 =  #{ m1 : U32
                                           , m2 : U32 }) = p2' :: (Struct_Cogent_s1 =  #{ m1 : U32
                                                                                        , m2 : U32 }) { m2 = p3' :: U32 } :: (Struct_Cogent_s1 =  #{ m1 : U32
@@ -582,18 +579,28 @@ cogent_fs4 s :: (Struct_Cogent_s2 =  #{ m3 : U32
                                                                                                                                                                                                      , m2 : U32 }) } :: (Struct_Cogent_s2 =  #{ m3 : U32
                                                                                                                                                                                                                                               , m4 : (Struct_Cogent_s1 =  #{ m1 : U32
                                                                                                                                                                                                                                                                            , m2 : U32 }) })
-         and p0' :: (Struct_Cogent_s1 =  #{ m1 : U32
-                                          , m2 : U32 }) = p0' :: (Struct_Cogent_s1 =  #{ m1 : U32
-                                                                                       , m2 : U32 }) { m1 = p1' :: U32 } :: (Struct_Cogent_s1 =  #{ m1 : U32
-                                                                                                                                                  , m2 : U32 })
+         and v1' :: U32 = v1' :: U32
+         and v' :: U32 = v' :: U32 + v1' :: U32 :: U32
+         and v2' :: (Struct_Cogent_s2 =  #{ m3 : U32
+                                          , m4 : (Struct_Cogent_s1 =  #{ m1 : U32
+                                                                       , m2 : U32 }) }) = s :: (Struct_Cogent_s2 =  #{ m3 : U32
+                                                                                                                     , m4 : (Struct_Cogent_s1 =  #{ m1 : U32
+                                                                                                                                                  , m2 : U32 }) })
+         and s { m3 = p4' :: U32 } :: (Struct_Cogent_s2 =  #{ m3 : U32
+                                                            , m4 : (Struct_Cogent_s1 =  #{ m1 : U32
+                                                                                         , m2 : U32 }) }) = v2' :: (Struct_Cogent_s2 =  #{ m3 : U32
+                                                                                                                                         , m4 : (Struct_Cogent_s1 =  #{ m1 : U32
+                                                                                                                                                                      , m2 : U32 }) })
+         and v2' :: U32 = p4' :: U32
          and s :: (Struct_Cogent_s2 =  #{ m3 : U32
                                         , m4 : (Struct_Cogent_s1 =  #{ m1 : U32
                                                                      , m2 : U32 }) }) = s :: (Struct_Cogent_s2 =  #{ m3 : U32
                                                                                                                    , m4 : (Struct_Cogent_s1 =  #{ m1 : U32
-                                                                                                                                                , m2 : U32 }) }) { m4 = p0' :: (Struct_Cogent_s1 =  #{ m1 : U32
-                                                                                                                                                                                                     , m2 : U32 }) } :: (Struct_Cogent_s2 =  #{ m3 : U32
-                                                                                                                                                                                                                                              , m4 : (Struct_Cogent_s1 =  #{ m1 : U32
-                                                                                                                                                                                                                                                                           , m2 : U32 }) })
+                                                                                                                                                , m2 : U32 }) }) { m3 = p4' :: U32 } :: (Struct_Cogent_s2 =  #{ m3 : U32
+                                                                                                                                                                                                              , m4 : (Struct_Cogent_s1 =  #{ m1 : U32
+                                                                                                                                                                                                                                           , m2 : U32 }) })
+         and v2' :: U32 = v2' :: U32
+         and v' :: U32 = v' :: U32 + v2' :: U32 :: U32
          in (v' :: U32
             , s :: (Struct_Cogent_s2 =  #{ m3 : U32
                                          , m4 : (Struct_Cogent_s1 =  #{ m1 : U32
@@ -628,6 +635,7 @@ cogent_fa1 a :: (Cogent_a1 =  { arr5 : U32#[() :: ()] }) =
                              , v1' :: U32)
          and v' :: U32 = p0' :: U32
          and a :: (Cogent_a1 =  { arr5 : U32#[() :: ()] }) = a :: (Cogent_a1 =  { arr5 : U32#[() :: ()] }) @{ @i0' :: U32 = p0' :: U32 } :: (Cogent_a1 =  { arr5 : U32#[() :: ()] })
+         and v' :: U32 = v' :: U32
          in (v' :: U32
             , a :: (Cogent_a1 =  { arr5 : U32#[() :: ()] })) :: (U32
                                                                 , (Cogent_a1 =  { arr5 : U32#[() :: ()] }))
@@ -651,15 +659,17 @@ cogent_fa2 a :: (Cogent_a1 =  { arr5 : U32#[() :: ()] }) =
              , i0' :: U32) = (v' :: (Cogent_a1 =  { arr5 : U32#[() :: ()] })
                              , v1' :: U32)
          and v' :: U32 = p0' :: U32
+         and a :: (Cogent_a1 =  { arr5 : U32#[() :: ()] }) = a :: (Cogent_a1 =  { arr5 : U32#[() :: ()] }) @{ @i0' :: U32 = p0' :: U32 } :: (Cogent_a1 =  { arr5 : U32#[() :: ()] })
+         and v' :: U32 = v' :: U32
          and v3' :: U32 = 1 :: U32
          and v2' :: (Cogent_a1 =  { arr5 : U32#[() :: ()] }) = a :: (Cogent_a1 =  { arr5 : U32#[() :: ()] })
          and (a @{ @v3' :: U32 = p1' :: U32 } :: (Cogent_a1 =  { arr5 : U32#[() :: ()] })
              , i1' :: U32) = (v2' :: (Cogent_a1 =  { arr5 : U32#[() :: ()] })
                              , v3' :: U32)
          and v2' :: U32 = p1' :: U32
-         and v' :: U32 = v' :: U32 + v2' :: U32 :: U32
          and a :: (Cogent_a1 =  { arr5 : U32#[() :: ()] }) = a :: (Cogent_a1 =  { arr5 : U32#[() :: ()] }) @{ @i1' :: U32 = p1' :: U32 } :: (Cogent_a1 =  { arr5 : U32#[() :: ()] })
-         and a :: (Cogent_a1 =  { arr5 : U32#[() :: ()] }) = a :: (Cogent_a1 =  { arr5 : U32#[() :: ()] }) @{ @i0' :: U32 = p0' :: U32 } :: (Cogent_a1 =  { arr5 : U32#[() :: ()] })
+         and v2' :: U32 = v2' :: U32
+         and v' :: U32 = v' :: U32 + v2' :: U32 :: U32
          in (v' :: U32
             , a :: (Cogent_a1 =  { arr5 : U32#[() :: ()] })) :: (U32
                                                                 , (Cogent_a1 =  { arr5 : U32#[() :: ()] }))
@@ -683,13 +693,15 @@ cogent_fa3 a :: (Cogent_a1 =  { arr5 : U32#[() :: ()] }) =
              , i0' :: U32) = (v1' :: (Cogent_a1 =  { arr5 : U32#[() :: ()] })
                              , v2' :: U32)
          and v1' :: U32 = p0' :: U32
+         and a :: (Cogent_a1 =  { arr5 : U32#[() :: ()] }) = a :: (Cogent_a1 =  { arr5 : U32#[() :: ()] }) @{ @i0' :: U32 = p0' :: U32 } :: (Cogent_a1 =  { arr5 : U32#[() :: ()] })
+         and v1' :: U32 = v1' :: U32
          and v' :: (Cogent_a1 =  { arr5 : U32#[() :: ()] }) = a :: (Cogent_a1 =  { arr5 : U32#[() :: ()] })
          and (a @{ @v1' :: U32 = p1' :: U32 } :: (Cogent_a1 =  { arr5 : U32#[() :: ()] })
              , i1' :: U32) = (v' :: (Cogent_a1 =  { arr5 : U32#[() :: ()] })
                              , v1' :: U32)
          and v' :: U32 = p1' :: U32
          and a :: (Cogent_a1 =  { arr5 : U32#[() :: ()] }) = a :: (Cogent_a1 =  { arr5 : U32#[() :: ()] }) @{ @i1' :: U32 = p1' :: U32 } :: (Cogent_a1 =  { arr5 : U32#[() :: ()] })
-         and a :: (Cogent_a1 =  { arr5 : U32#[() :: ()] }) = a :: (Cogent_a1 =  { arr5 : U32#[() :: ()] }) @{ @i0' :: U32 = p0' :: U32 } :: (Cogent_a1 =  { arr5 : U32#[() :: ()] })
+         and v' :: U32 = v' :: U32
          in (v' :: U32
             , a :: (Cogent_a1 =  { arr5 : U32#[() :: ()] })) :: (U32
                                                                 , (Cogent_a1 =  { arr5 : U32#[() :: ()] }))
@@ -738,6 +750,7 @@ cogent_fa4 a :: (Cogent_a2 =  { arr5 : (Struct_Cogent_s1 =  #{ m1 : U32
                                                                                                                                                , m2 : U32 })#[() :: ()] }) @{ @i0' :: U32 = p0' :: (Struct_Cogent_s1 =  #{ m1 : U32
                                                                                                                                                                                                                          , m2 : U32 }) } :: (Cogent_a2 =  { arr5 : (Struct_Cogent_s1 =  #{ m1 : U32
                                                                                                                                                                                                                                                                                          , m2 : U32 })#[() :: ()] })
+         and v' :: U32 = v' :: U32
          in (v' :: U32
             , a :: (Cogent_a2 =  { arr5 : (Struct_Cogent_s1 =  #{ m1 : U32
                                                                 , m2 : U32 })#[() :: ()] })) :: (U32
@@ -783,6 +796,16 @@ cogent_fa5 a :: (Cogent_a2 =  { arr5 : (Struct_Cogent_s1 =  #{ m1 : U32
                                                               , m2 : U32 }) = v1' :: (Struct_Cogent_s1 =  #{ m1 : U32
                                                                                                            , m2 : U32 })
          and v1' :: U32 = p1' :: U32
+         and p0' :: (Struct_Cogent_s1 =  #{ m1 : U32
+                                          , m2 : U32 }) = p0' :: (Struct_Cogent_s1 =  #{ m1 : U32
+                                                                                       , m2 : U32 }) { m2 = p1' :: U32 } :: (Struct_Cogent_s1 =  #{ m1 : U32
+                                                                                                                                                  , m2 : U32 })
+         and a :: (Cogent_a2 =  { arr5 : (Struct_Cogent_s1 =  #{ m1 : U32
+                                                               , m2 : U32 })#[() :: ()] }) = a :: (Cogent_a2 =  { arr5 : (Struct_Cogent_s1 =  #{ m1 : U32
+                                                                                                                                               , m2 : U32 })#[() :: ()] }) @{ @i0' :: U32 = p0' :: (Struct_Cogent_s1 =  #{ m1 : U32
+                                                                                                                                                                                                                         , m2 : U32 }) } :: (Cogent_a2 =  { arr5 : (Struct_Cogent_s1 =  #{ m1 : U32
+                                                                                                                                                                                                                                                                                         , m2 : U32 })#[() :: ()] })
+         and v1' :: U32 = v1' :: U32
          and v' :: (Cogent_a2 =  { arr5 : (Struct_Cogent_s1 =  #{ m1 : U32
                                                                 , m2 : U32 })#[() :: ()] }) = a :: (Cogent_a2 =  { arr5 : (Struct_Cogent_s1 =  #{ m1 : U32
                                                                                                                                                 , m2 : U32 })#[() :: ()] })
@@ -808,15 +831,7 @@ cogent_fa5 a :: (Cogent_a2 =  { arr5 : (Struct_Cogent_s1 =  #{ m1 : U32
                                                                                                                                                , m2 : U32 })#[() :: ()] }) @{ @i2' :: U32 = p2' :: (Struct_Cogent_s1 =  #{ m1 : U32
                                                                                                                                                                                                                          , m2 : U32 }) } :: (Cogent_a2 =  { arr5 : (Struct_Cogent_s1 =  #{ m1 : U32
                                                                                                                                                                                                                                                                                          , m2 : U32 })#[() :: ()] })
-         and p0' :: (Struct_Cogent_s1 =  #{ m1 : U32
-                                          , m2 : U32 }) = p0' :: (Struct_Cogent_s1 =  #{ m1 : U32
-                                                                                       , m2 : U32 }) { m2 = p1' :: U32 } :: (Struct_Cogent_s1 =  #{ m1 : U32
-                                                                                                                                                  , m2 : U32 })
-         and a :: (Cogent_a2 =  { arr5 : (Struct_Cogent_s1 =  #{ m1 : U32
-                                                               , m2 : U32 })#[() :: ()] }) = a :: (Cogent_a2 =  { arr5 : (Struct_Cogent_s1 =  #{ m1 : U32
-                                                                                                                                               , m2 : U32 })#[() :: ()] }) @{ @i0' :: U32 = p0' :: (Struct_Cogent_s1 =  #{ m1 : U32
-                                                                                                                                                                                                                         , m2 : U32 }) } :: (Cogent_a2 =  { arr5 : (Struct_Cogent_s1 =  #{ m1 : U32
-                                                                                                                                                                                                                                                                                         , m2 : U32 })#[() :: ()] })
+         and v' :: U32 = v' :: U32
          in (v' :: U32
             , a :: (Cogent_a2 =  { arr5 : (Struct_Cogent_s1 =  #{ m1 : U32
                                                                 , m2 : U32 })#[() :: ()] })) :: (U32
@@ -850,6 +865,7 @@ cogent_fp1 p :: MayNull (CPtr =  { cont : U32 }) =
          and p { cont = p0' :: U32 } :: MayNull (CPtr =  { cont : U32 }) = v' :: MayNull (CPtr =  { cont : U32 })
          and v' :: U32 = p0' :: U32
          and p :: MayNull (CPtr =  { cont : U32 }) = p :: MayNull (CPtr =  { cont : U32 }) { cont = p0' :: U32 } :: MayNull (CPtr =  { cont : U32 })
+         and v' :: U32 = v' :: U32
          in (v' :: U32
             , p :: MayNull (CPtr =  { cont : U32 })) :: (U32
                                                         , MayNull (CPtr =  { cont : U32 }))
@@ -895,6 +911,7 @@ cogent_fp2 p :: MayNull (Struct_Cogent_s1 =  { m1 : U32
                                                                                                  , m2 : U32 }) { cont = p0' :: (Struct_Cogent_s1 =  #{ m1 : U32
                                                                                                                                                      , m2 : U32 }) } :: MayNull (Struct_Cogent_s1 =  { m1 : U32
                                                                                                                                                                                                      , m2 : U32 })
+         and v' :: U32 = v' :: U32
          in (v' :: U32
             , p :: MayNull (Struct_Cogent_s1 =  { m1 : U32
                                                 , m2 : U32 })) :: (U32
@@ -934,6 +951,7 @@ cogent_fp3 p :: MayNull (Struct_Cogent_s1 =  { m1 : U32
                                                , m2 : U32 }) = p :: MayNull (Struct_Cogent_s1 =  { m1 : U32
                                                                                                  , m2 : U32 }) { m1 = p0' :: U32 } :: MayNull (Struct_Cogent_s1 =  { m1 : U32
                                                                                                                                                                    , m2 : U32 })
+         and v' :: U32 = v' :: U32
          in (v' :: U32
             , p :: MayNull (Struct_Cogent_s1 =  { m1 : U32
                                                 , m2 : U32 })) :: (U32
@@ -1009,6 +1027,7 @@ cogent_fp4 p :: MayNull (Struct_Cogent_s3 =  { m5 : U32
                                                                                                                                                                                                                                         , m2 : U32 }) } :: MayNull (Struct_Cogent_s3 =  { m5 : U32
                                                                                                                                                                                                                                                                                         , m6 : MayNull (Struct_Cogent_s1 =  { m1 : U32
                                                                                                                                                                                                                                                                                                                             , m2 : U32 }) })
+         and v' :: U32 = v' :: U32
          in (v' :: U32
             , p :: MayNull (Struct_Cogent_s3 =  { m5 : U32
                                                 , m6 : MayNull (Struct_Cogent_s1 =  { m1 : U32
@@ -1078,6 +1097,7 @@ cogent_fp5 p :: MayNull (Struct_Cogent_s3 =  { m5 : U32
                                                                                                                                                                                                                                         , m2 : U32 }) } :: MayNull (Struct_Cogent_s3 =  { m5 : U32
                                                                                                                                                                                                                                                                                         , m6 : MayNull (Struct_Cogent_s1 =  { m1 : U32
                                                                                                                                                                                                                                                                                                                             , m2 : U32 }) })
+         and v' :: U32 = v' :: U32
          in (v' :: U32
             , p :: MayNull (Struct_Cogent_s3 =  { m5 : U32
                                                 , m6 : MayNull (Struct_Cogent_s1 =  { m1 : U32
@@ -1117,6 +1137,7 @@ cogent_fp6 p :: (Cogent_a3 =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() ::
          and v' :: U32 = p1' :: U32
          and p0' :: MayNull (CPtr =  { cont : U32 }) = p0' :: MayNull (CPtr =  { cont : U32 }) { cont = p1' :: U32 } :: MayNull (CPtr =  { cont : U32 })
          and p :: (Cogent_a3 =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] }) = p :: (Cogent_a3 =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] }) @{ @i0' :: U32 = p0' :: MayNull (CPtr =  { cont : U32 }) } :: (Cogent_a3 =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+         and v' :: U32 = v' :: U32
          in (v' :: U32
             , p :: (Cogent_a3 =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })) :: (U32
                                                                                                , (Cogent_a3 =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] }))

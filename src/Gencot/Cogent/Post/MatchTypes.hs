@@ -18,10 +18,11 @@ import Gencot.Cogent.Types (
   mkTupleType, mkFunType, mkReadonly,
   isNonlinear, isRegular, mayEscape, isReadonly, roCmpTypes,
   unbangType, getMemberType, getDerefType, getParamType, getResultType, adaptTypes)
-import Gencot.Cogent.Bindings (errVar, replaceValVarType, replaceInGIP, mkDummyExpr, toDummyExpr, mkVarTuplePattern)
+import Gencot.Cogent.Bindings (errVar, mkDummyExpr, toDummyExpr, mkVarTuplePattern)
 import Gencot.Cogent.Expr (TypedVar(TV), namOfTV, mkUnitExpr, mkLetExpr, mkVarTupleExpr)
 import Gencot.Cogent.Post.Util (
   ETrav, runExprTrav, isValVar, isCVar, freeInIrrefPatn, freeInBindings, freeUnderBinding, boundInBindings,
+  freeTypedVarsInExpr, freeTypedVarsUnderBinding,
   getIPatternsList, getExprList)
 
 -- Assumption for all expressions:
@@ -113,7 +114,8 @@ bangproc e = mapMExprOfGE bangproc' e
 -- the type of the expression remains unchanged.
 bangproc' :: ExprOfGE -> ETrav ExprOfGE
 bangproc' (CS.Let bs bdy) = do
-    bsb <- bangprocInLet bs $ exprOfGE bdy
+    bsb <- bangprocInLet' bs bdy
+    -- bsb <- bangprocInLet bs $ exprOfGE bdy
     bdyp <- bangproc bdy
     return $ CS.Let bsb bdyp
 bangproc' (CS.If e [] e1 e2) = do
@@ -128,12 +130,86 @@ bangproc' e = mapM bangproc e
 -- | Resolve readonly type incompatibilities in the bindings of a let expressions.
 -- The let body is required to determine the variables used in it, it is not processed.
 -- Bindings are processed in their order in the let expression.
+bangprocInLet' :: [GenBnd] -> GenExpr -> ETrav [GenBnd]
+bangprocInLet' [] _ = return []
+bangprocInLet' bs bdy = do
+    (bb : bsr) <- bangprocInBindings' bs [] $ freeTypedVarsInExpr bdy
+--    bsrp <- bangprocInLet' bsr bdy
+    return (bb : bsr)
+
+-- | Resolve readonly type incompatibilities in the bindings of a let expressions.
+-- The let body is required to determine the variables used in it, it is not processed.
+-- Bindings are processed in their order in the let expression.
 bangprocInLet :: [GenBnd] -> ExprOfGE -> ETrav [GenBnd]
 bangprocInLet [] _ = return []
 bangprocInLet bs bdy = do
     (bb : bsr) <- bangprocInBindings bs bdy
     bsrp <- bangprocInLet bsr bdy
     return (bb : bsrp)
+
+-- | Resolve readonly type incompatibilities in a binding sequence by banging sub-sequences.
+-- For banging variables, maximal sub-sequences are banged for which the type of the results used in the rest of the sequence is escapeable.
+-- Such sub-sequences are converted to a single binding with banged variables.
+-- The second argument is a part of the sequence for which the first part cannot be extended to a valid sub-sequence.
+-- The third argument is the set of variables which are used after both parts of the sequence.
+-- The result is a sequence which is equivalent to both parts and where all readonly type incompatibilities
+-- have been resolved, either by banging variables or by using dummy expressions and error messages.
+-- In case of error, the result sequence may contain banged scopes with non-escapeable type.
+bangprocInBindings' :: [GenBnd] -> [GenBnd] -> [TypedVar] -> ETrav [GenBnd]
+bangprocInBindings' [] [] _ = return []
+bangprocInBindings' [] _ _ = error "Empty binding sequence in bangprocInBindings" -- should not happen.
+bangprocInBindings' [CS.Binding ip m e []] br fvs = do
+    (eb,bvs,errs) <- runExprTrav [] $ bangprocExpr e
+    let (ipr,ebr) = reduceBangedBinding bvs ip eb
+    if null bvs || (mayEscape $ typOfGE ebr)
+       then do -- successfully resolved bound expression in single binding. Match to pattern and process br.
+           mapM recordError errs
+           brb <- bangprocInBindings' br [] fvs
+           let (ibs,ebs) = matchRoTypes (typOfGIP ipr) (typOfGE ebr)
+               msgp = if null bvs then "" else "After banging variable(s)"
+           ebreb <- markLinearAsError msgp ebs ebr
+           (ebrebb,_,errs2) <- runExprTrav [] $ markReadonlyAsError ibs (typOfGIP ipr) ebreb
+           mapM recordError errs2
+           --ebrebbb <- bangproc ebrebb
+           return ((CS.Binding ipr m ebrebb bvs) : brb)
+       else do -- not successful for single binding. Record error and generate non-escapeable banging.
+           mapM recordError errs
+           brb <- bangprocInBindings' br [] fvs
+           let msg = "Necessary banging of variables " ++ (intercalate ", " bvs) ++ " leads to non-escapeable type"
+           recordError $ typeMatch (orgOfGIP ip) msg
+           if roCmpTypes (typOfGIP ipr) (typOfGE ebr)
+              then return $ ((CS.Binding ipr m (bangToError bvs ebr) bvs) : brb)
+              else return $ ((CS.Binding ipr m (toDummyExpr ebr $ mkDummyExpr (typOfGIP ipr) msg) []) : brb)
+bangprocInBindings' [CS.Binding _ _ _ bvs] _ _ = error "Binding already banged in bangprocInBindings" -- should not happen
+bangprocInBindings' bs br fvs = do
+    -- _ <- if (length bs) == 14
+    --        then error ("bangprocInBindings': br = " ++ (show br) ++ "\nfvs = " ++ (show fvs) ++ "\nbs = " ++ (show bs))
+    --        else return ()
+    (eb,bvs,errs) <- runExprTrav [] $ tryBangExpr e
+    -- _ <- if (length bs) == 14
+    --        then error ("bangprocInBindings': errs = " ++ (show errs) ++ "\nbvs = " ++ (show bvs) ++ "\neb = " ++ (show eb))
+    --        else return ()
+    if null bvs -- no banging required. Use resolved bs and process br.
+       then do
+           let (GenExpr (CS.Let bsb _) _ _ _) = eb
+           mapM recordError errs
+           brb <- bangprocInBindings' br [] fvs
+           return (bsb ++ brb)
+       else do
+           let (ipr,ebr) = reduceBangedBinding bvs ip eb
+           _ <- if (length bs) == 14
+                   then error ("bangprocInBindings': ipr = " ++ (show ipr) ++ "\nmayescape = " ++ (show $ mayEscape $ typOfGE ebr))
+                   else return ()
+           if (mayEscape $ typOfGE ebr)
+           then do -- successfully resolved in bs. Bang bvs in bs and process br.
+               mapM recordError errs
+               brb <- bangprocInBindings' br [] fvs
+               return ((CS.Binding ipr Nothing ebr bvs) : brb)
+           else -- not successful for bs, try to bang sub-sequence
+               bangprocInBindings' (init bs) ((last bs) : br) $ freeTypedVarsUnderBinding [last bs] rvs
+    where rvs = freeTypedVarsUnderBinding br fvs -- variables used after bs
+          e = mkLetExpr bs $ mkVarTupleExpr $ rvs -- expression for representing bs as a single binding
+          ip = mkVarTuplePattern rvs -- pattern for representing bs as a single binding
 
 -- | Resolve readonly type incompatibilities in a prefix of a binding sequence.
 -- For banging variables, the shortest prefix is used for which the result is escapeable.
@@ -402,6 +478,10 @@ getExprSources vmap (CS.Tuple es) = concatMap ((getExprSources vmap) . exprOfGE)
 getExprSources vmap (CS.Put e pts) = getExprSources vmap $ exprOfGE e
 getExprSources vmap (CS.ArrayPut e pts) = getExprSources vmap $ exprOfGE e
 getExprSources vmap (CS.Let bs bdy) = getExprSources (addVarSourcesFromBindings vmap bs) $ exprOfGE bdy
+getExprSources vmap (CS.App f e _) =
+    case typeOfGT $ getResultType $ typOfGE f of
+         CS.TTuple ts -> map (const []) ts
+         _ -> [[]]
 getExprSources _ _ = [[]]
 
 addVarSourcesFromBindings :: VarSourceMap -> [GenBnd] -> VarSourceMap

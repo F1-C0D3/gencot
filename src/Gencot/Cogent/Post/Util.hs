@@ -13,7 +13,7 @@ import Cogent.Common.Syntax as CCS
 
 import Gencot.Traversal (runSubTrav)
 import Gencot.Cogent.Ast
-import Gencot.Cogent.Expr (mkUnitExpr)
+import Gencot.Cogent.Expr (mkUnitExpr, TypedVar(TV))
 
 -- | Monad with empty user state, used only for error recording.
 type ETrav = TravT () Identity
@@ -101,6 +101,55 @@ freeInBindings bs = freeUnderBinding bs CS.Unitel
 boundInBindings :: [GenBnd] -> [VarName]
 boundInBindings [] = []
 boundInBindings ((Binding ipb Nothing eb _) : bs) = union (freeInIrrefPatn ipb) $ boundInBindings bs
+
+{- Typed Variables -}
+
+-- | Free typed variables in an expression.
+-- These are the variables which must be bound in the context.
+freeTypedVarsInExpr :: GenExpr -> [TypedVar]
+freeTypedVarsInExpr (GenExpr (CS.Var v) _ t _) = [TV v t]
+freeTypedVarsInExpr (GenExpr (CS.Tuple es) _ _ _) =
+    nub $ concat $ map freeTypedVarsInExpr es
+freeTypedVarsInExpr (GenExpr (CS.Let bs bdy) _ _ _) =
+    freeTypedVarsUnderBinding bs $ freeTypedVarsInExpr bdy
+freeTypedVarsInExpr (GenExpr (CS.Match e _ alts) _ _ _) = union (freeTypedVarsInExpr e) (nub $ foldMap freeTypedVarsInAlt alts)
+freeTypedVarsInExpr (GenExpr (CS.TLApp v ts _ _) _ t _) = [TV v t]
+freeTypedVarsInExpr (GenExpr (CS.Lam ip t e) _ _ _) = filter (`notElem` freeTypedVarsInIrrefPatn ip) (freeTypedVarsInExpr e)
+freeTypedVarsInExpr e = nub $ foldMap freeTypedVarsInExpr $ exprOfGE e
+
+
+freeTypedVarsInAlt :: GenAlt -> [TypedVar]
+freeTypedVarsInAlt (Alt p _ e) =
+    let locals = freeTypedVarsInPatn p
+    in filter (`notElem` locals) (freeTypedVarsInExpr e)
+
+-- | Free variables (bound) in a pattern.
+freeTypedVarsInPatn :: GenPatn -> [TypedVar]
+freeTypedVarsInPatn (GenPatn (PIrrefutable ip) _ _) = freeTypedVarsInIrrefPatn ip
+freeTypedVarsInPatn _ = []
+
+-- | Free variables (bound) in an irrefutable pattern.
+freeTypedVarsInIrrefPatn :: GenIrrefPatn -> [TypedVar]
+freeTypedVarsInIrrefPatn (GenIrrefPatn (PVar pv) _ t) = [TV pv t]
+freeTypedVarsInIrrefPatn (GenIrrefPatn (PTuple ips) _ _) = nub $ foldMap freeTypedVarsInIrrefPatn ips
+freeTypedVarsInIrrefPatn (GenIrrefPatn (PUnboxedRecord mfs) _ _) = nub $ foldMap (freeTypedVarsInIrrefPatn . snd) (Compose mfs)
+freeTypedVarsInIrrefPatn (GenIrrefPatn (PTake pv mfs) _ t) = nub ((TV pv t) : foldMap (freeTypedVarsInIrrefPatn . snd) (Compose mfs))
+freeTypedVarsInIrrefPatn (GenIrrefPatn (PArrayTake pv hs) _ t) = nub ((TV pv t) : foldMap (freeTypedVarsInIrrefPatn . snd) hs)
+freeTypedVarsInIrrefPatn _ = []
+
+-- | Free typed variables occurring in (an index) in an irrefutable pattern.
+freeTypedVarsInIndex :: GenIrrefPatn -> [TypedVar]
+freeTypedVarsInIndex (GenIrrefPatn (PTuple ips) _ _) = nub $ foldMap freeTypedVarsInIndex ips
+freeTypedVarsInIndex (GenIrrefPatn (PArrayTake _ hs) _ _) = nub $ foldMap (freeTypedVarsInExpr . fst) hs
+freeTypedVarsInIndex _ = []
+
+-- | Free typed variables in a let expression, given by a sequence of bindings and the free typed variables in the body.
+-- Banged variables are ignored because they must be bound in the context if they are free in the banged context.
+freeTypedVarsUnderBinding :: [GenBnd] -> [TypedVar] -> [TypedVar]
+freeTypedVarsUnderBinding [] fvs = fvs
+freeTypedVarsUnderBinding ((Binding ip _ e bvs) : bs) fvs =
+    nub ((freeTypedVarsInExpr e) ++ (freeTypedVarsInIndex ip) ++((freeTypedVarsUnderBinding bs fvs) \\ (freeTypedVarsInIrrefPatn ip)))
+
 
 {- Convert patterns and expressions to lists -}
 

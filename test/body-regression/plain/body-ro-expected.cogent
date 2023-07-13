@@ -3,16 +3,12 @@
 -- Functions used as context:
 cogent_fcln : CPtr U32 -> U32
 cogent_fcln i =
-   let (_
-       , r') = let v' = let v' = 0
-         in v'
+   let (c', r') = let v' = 0
       in (3, v')
    in r'
 cogent_fcro : (CPtr U32)! -> U32
 cogent_fcro i =
-   let (_
-       , r') = let v' = let v' = 0
-         in v'
+   let (c', r') = let v' = 0
       in (3, v')
    in r'
 -- Global variables used as context:
@@ -41,7 +37,7 @@ type Cogent_roa6 =
 -- Direct use of probe in context
 cogent_f11ln : (CPtr U32)! -> U32
 cogent_f11ln pro =
-   let (_
+   let (c'
        , r') = let v' = let v' = cogent_fcln
          and v1' = pro
          and v' = v' v1'
@@ -50,7 +46,7 @@ cogent_f11ln pro =
    in r'
 cogent_f11ro : (CPtr U32)! -> U32
 cogent_f11ro pro =
-   let (_
+   let (c'
        , r') = let v' = let v' = cogent_fcro
          and v1' = pro
          and v' = v' v1'
@@ -59,7 +55,7 @@ cogent_f11ro pro =
    in r'
 cogent_f12ln : () -> U32
 cogent_f12ln () =
-   let (_
+   let (c'
        , r') = let v' = let v' = cogent_fcln
          and v1' = cogent_glob ()
          and v' = v' v1'
@@ -68,7 +64,7 @@ cogent_f12ln () =
    in r'
 cogent_f12ro : () -> U32
 cogent_f12ro () =
-   let (_
+   let (c'
        , r') = let v' = let v' = cogent_fcro
          and v1' = cogent_glob ()
          and v' = v' v1'
@@ -77,7 +73,7 @@ cogent_f12ro () =
    in r'
 cogent_f13ln : () -> U32
 cogent_f13ln () =
-   let (_
+   let (c'
        , r') = let v' = let v' = cogent_fcln
          and v1' = cogent_frro
          and v1' = v1' ()
@@ -87,7 +83,7 @@ cogent_f13ln () =
    in r'
 cogent_f13ro : () -> U32
 cogent_f13ro () =
-   let (_
+   let (c'
        , r') = let v' = let v' = cogent_fcro
          and v1' = cogent_frro
          and v1' = v1' ()
@@ -97,7 +93,7 @@ cogent_f13ro () =
    in r'
 cogent_f14ln : ( (CPtr U32)!, (CPtr U32)!, U32 ) -> U32
 cogent_f14ln (pro, qro, i) =
-   let (_
+   let (c'
        , r') = let v' = let v' = cogent_fcln
          and v1' = i
          and v2' = pro
@@ -111,7 +107,7 @@ cogent_f14ln (pro, qro, i) =
    in r'
 cogent_f14ro : ( (CPtr U32)!, (CPtr U32)!, U32 ) -> U32
 cogent_f14ro (pro, qro, i) =
-   let (_
+   let (c'
        , r') = let v' = let v' = cogent_fcro
          and v1' = i
          and v2' = pro
@@ -127,8 +123,8 @@ cogent_f14ro (pro, qro, i) =
 -- Probe assigned to variable
 cogent_f21ln : GlobState1 -> ( (), GlobState1 )
 cogent_f21ln g =
-   let (_, g) = let (v1'
-                    , g) = let v' = cogent_frro
+   let (c', g) = let (v1'
+                     , g) = let v' = cogent_frro
          and v' = v' ()
          and v1' = g
          and g { cont = p0' } = v1'
@@ -136,14 +132,13 @@ cogent_f21ln g =
          and v1' = v'
          and (v1', p0') = (v1', v1')
          and g = g { cont = p0' }
-         and v1' = v1'
          in (v1', g)
       in (0, g)
    in ((), g)
 cogent_f21ro : GlobState2 -> ( (), GlobState2 )
 cogent_f21ro g =
-   let (_, g) = let (v1'
-                    , g) = let v' = cogent_frro
+   let (c', g) = let (v1'
+                     , g) = let v' = cogent_frro
          and v' = v' ()
          and v1' = g
          and g { cont = p0' } = v1'
@@ -151,14 +146,13 @@ cogent_f21ro g =
          and v1' = v'
          and (v1', p0') = (v1', v1')
          and g = g { cont = p0' }
-         and v1' = v1'
          in (v1', g)
       in (0, g)
    in ((), g)
 cogent_f22ln : CPtr U32 -> ( (), CPtr U32 )
 cogent_f22ln pln =
-   let (_, pln) = let (v1'
-                      , pln) = let v' = cogent_frro
+   let (c', pln) = let (v1'
+                       , pln) = let v' = cogent_frro
          and v' = v' ()
          and v1' = pln
          and v1' = v'
@@ -168,9 +162,9 @@ cogent_f22ln pln =
    in ((), pln)
 cogent_f22ro : (CPtr U32)! -> U32
 cogent_f22ro pro =
-   let (_, pro, r') = let (c'
-                          , pro) = let (v1'
-                                       , pro) = let v' = cogent_frro
+   let (c', pro, r') = let (c'
+                           , pro) = let (v1'
+                                        , pro) = let v' = cogent_frro
             and v' = v' ()
             and v1' = pro
             and v1' = v'
@@ -184,7 +178,6 @@ cogent_f22ro pro =
                   and pro { cont = p0' } = v'
                   and v' = p0'
                   and pro = pro { cont = p0' }
-                  and v' = v'
                   in (v', pro)
                in (3, v', pro)
             in (c', pro, r')
@@ -193,7 +186,7 @@ cogent_f22ro pro =
 -- Probe returned as result
 cogent_f31ln : () -> CPtr U32
 cogent_f31ln () =
-   let (_
+   let (c'
        , r') = let v' = let v' = cogent_frro
          and v' = v' ()
          in v'
@@ -201,7 +194,7 @@ cogent_f31ln () =
    in r'
 cogent_f31ro : () -> (CPtr U32)!
 cogent_f31ro () =
-   let (_
+   let (c'
        , r') = let v' = let v' = cogent_frro
          and v' = v' ()
          in v'
@@ -211,7 +204,7 @@ cogent_f31ro () =
 -- Probe used in conditional expression with other branch as context
 cogent_f41ln : ( (CPtr U32)!, CPtr U32, U32 ) -> ( U32, CPtr U32 )
 cogent_f41ln (pro, qln, i) =
-   let (_
+   let (c'
        , r') = let v' = let v' = cogent_fcro
          and v1' = i
          and v2' = pro
@@ -225,7 +218,7 @@ cogent_f41ln (pro, qln, i) =
    in (r', qln)
 cogent_f42ln : ( CPtr U32, (CPtr U32)!, U32 ) -> ( U32, CPtr U32 )
 cogent_f42ln (pln, qro, i) =
-   let (_
+   let (c'
        , r') = let v' = let v' = cogent_fcro
          and v1' = i
          and v2' = pln
@@ -241,42 +234,38 @@ cogent_f42ln (pln, qro, i) =
 -- Probe used by accessing a struct component
 cogent_f51ln : Struct_Cogent_ros1! -> Struct_Cogent_ros1!
 cogent_f51ln pro =
-   let (_, pro, r') = let (c'
-                          , pro) = let (v1'
-                                       , pro) = let v' = 5
+   let (c', pro, r') = let (c'
+                           , pro) = let (v1'
+                                        , pro) = let v' = 5
             and v1' = pro
             and pro { mrg = p0' } = v1'
             and v1' = p0'
             and v1' = v'
             and (v1', p0') = (v1', v1')
             and pro = pro { mrg = p0' }
-            and v1' = v1'
             in (v1', pro)
          in (0, pro)
       in if c' > 0
          then (c', pro, r')
-         else let (c'
-                  , r') = let v' = let v' = pro
-                  in v'
+         else let (c', r') = let v' = pro
                in (3, v')
             in (c', pro, r')
    in r'
 cogent_f51ro : Struct_Cogent_ros1! -> U32
 cogent_f51ro pro =
-   let (_, r', pro) = let (v'
-                          , pro) = let v' = pro
+   let (c', r', pro) = let (v'
+                           , pro) = let v' = pro
          and pro { mrg = p0' } = v'
          and v' = p0'
          and pro = pro { mrg = p0' }
-         and v' = v'
          in (v', pro)
       in (3, v', pro)
    in r'
 cogent_f52ln : Struct_Cogent_ros1! -> Struct_Cogent_ros1!
 cogent_f52ln pro =
-   let (_, pro, r') = let (c'
-                          , pro) = let (v1'
-                                       , pro) = let v' = cogent_frro
+   let (c', pro, r') = let (c'
+                           , pro) = let (v1'
+                                        , pro) = let v' = cogent_frro
             and v' = v' ()
             and v1' = pro
             and pro { mro = p0' } = v1'
@@ -284,33 +273,29 @@ cogent_f52ln pro =
             and v1' = v'
             and (v1', p0') = (v1', v1')
             and pro = pro { mro = p0' }
-            and v1' = v1'
             in (v1', pro)
          in (0, pro)
       in if c' > 0
          then (c', pro, r')
-         else let (c'
-                  , r') = let v' = let v' = pro
-                  in v'
+         else let (c', r') = let v' = pro
                in (3, v')
             in (c', pro, r')
    in r'
 cogent_f52ro : Struct_Cogent_ros1! -> (CPtr U32)!
 cogent_f52ro pro =
-   let (_, r', pro) = let (v'
-                          , pro) = let v' = pro
+   let (c', r', pro) = let (v'
+                           , pro) = let v' = pro
          and pro { mro = p0' } = v'
          and v' = p0'
          and pro = pro { mro = p0' }
-         and v' = v'
          in (v', pro)
       in (3, v', pro)
    in r'
 cogent_f53ln : Struct_Cogent_ros1! -> Struct_Cogent_ros1!
 cogent_f53ln pro =
-   let (_, pro, r') = let (c'
-                          , pro) = let (v1'
-                                       , pro) = let v' = cogent_frln
+   let (c', pro, r') = let (c'
+                           , pro) = let (v1'
+                                        , pro) = let v' = cogent_frln
             and v' = v' ()
             and v1' = pro
             and pro { mln = p0' } = v1'
@@ -318,33 +303,29 @@ cogent_f53ln pro =
             and v1' = v'
             and (v1', p0') = (v1', v1')
             and pro = pro { mln = p0' }
-            and v1' = v1'
             in (v1', pro)
          in (0, pro)
       in if c' > 0
          then (c', pro, r')
-         else let (c'
-                  , r') = let v' = let v' = pro
-                  in v'
+         else let (c', r') = let v' = pro
                in (3, v')
             in (c', pro, r')
    in r'
 cogent_f53ro : Struct_Cogent_ros1! -> (CPtr U32)!
 cogent_f53ro pro =
-   let (_, r', pro) = let (v'
-                          , pro) = let v' = pro
+   let (c', r', pro) = let (v'
+                           , pro) = let v' = pro
          and pro { mln = p0' } = v'
          and v' = p0'
          and pro = pro { mln = p0' }
-         and v' = v'
          in (v', pro)
       in (3, v', pro)
    in r'
 cogent_f54ln : Struct_Cogent_ros1! -> Struct_Cogent_ros1!
 cogent_f54ln pro =
-   let (_, pro, r') = let (c'
-                          , pro) = let (v1'
-                                       , pro) = let v' = 5
+   let (c', pro, r') = let (c'
+                           , pro) = let (v1'
+                                        , pro) = let v' = 5
             and v1' = pro
             and pro { mln = p0' } = v1'
             and v1' = p0'
@@ -354,104 +335,93 @@ cogent_f54ln pro =
             and (v1', p1') = (v1', v1')
             and p0' = p0' { cont = p1' }
             and pro = pro { mln = p0' }
-            and v1' = v1'
             in (v1', pro)
          in (0, pro)
       in if c' > 0
          then (c', pro, r')
-         else let (c'
-                  , r') = let v' = let v' = pro
-                  in v'
+         else let (c', r') = let v' = pro
                in (3, v')
             in (c', pro, r')
    in r'
 cogent_f54ro : Struct_Cogent_ros1! -> U32
 cogent_f54ro pro =
-   let (_, r', pro) = let (v'
-                          , pro) = let v' = pro
+   let (c', r', pro) = let (v'
+                           , pro) = let v' = pro
          and pro { mln = p0' } = v'
          and v' = p0'
          and p0' { cont = p1' } = v'
          and v' = p1'
          and p0' = p0' { cont = p1' }
          and pro = pro { mln = p0' }
-         and v' = v'
          in (v', pro)
       in (3, v', pro)
    in r'
 cogent_f55ln : Struct_Cogent_ros1! -> U32
 cogent_f55ln pro =
-   let (_, r', pro) = let (v'
-                          , pro) = let v' = cogent_fcln
+   let (c', r', pro) = let (v'
+                           , pro) = let v' = cogent_fcln
          and v1' = pro
          and pro { mln = p0' } = v1'
          and v1' = p0'
          and pro = pro { mln = p0' }
-         and v1' = v1'
          and v' = v' v1'
          in (v', pro)
       in (3, v', pro)
    in r'
 cogent_f55ro : Struct_Cogent_ros1! -> U32
 cogent_f55ro pro =
-   let (_, r', pro) = let (v'
-                          , pro) = let v' = cogent_fcro
+   let (c', r', pro) = let (v'
+                           , pro) = let v' = cogent_fcro
          and v1' = pro
          and pro { mln = p0' } = v1'
          and v1' = p0'
          and pro = pro { mln = p0' }
-         and v1' = v1'
          and v' = v' v1'
          in (v', pro)
       in (3, v', pro)
    in r'
 cogent_f56ln : ( Struct_Cogent_ros1!, GlobState1 ) -> ( (), GlobState1 )
 cogent_f56ln (pro, g) =
-   let (_, pro, g) = let (v1'
-                         , pro
-                         , g) = let v' = pro
+   let (c', pro, g) = let (v1'
+                          , pro
+                          , g) = let v' = pro
          and pro { mln = p0' } = v'
          and v' = p0'
          and pro = pro { mln = p0' }
-         and v' = v'
          and v1' = g
          and g { cont = p1' } = v1'
          and v1' = p1'
          and v1' = v'
          and (v1', p1') = (v1', v1')
          and g = g { cont = p1' }
-         and v1' = v1'
          in (v1', pro, g)
       in (0, pro, g)
    in ((), g)
 cogent_f56ro : ( Struct_Cogent_ros1!, GlobState2 ) -> ( (), GlobState2 )
 cogent_f56ro (pro, g) =
-   let (_, pro, g) = let (v1'
-                         , pro
-                         , g) = let v' = pro
+   let (c', pro, g) = let (v1'
+                          , pro
+                          , g) = let v' = pro
          and pro { mln = p0' } = v'
          and v' = p0'
          and pro = pro { mln = p0' }
-         and v' = v'
          and v1' = g
          and g { cont = p1' } = v1'
          and v1' = p1'
          and v1' = v'
          and (v1', p1') = (v1', v1')
          and g = g { cont = p1' }
-         and v1' = v1'
          in (v1', pro, g)
       in (0, pro, g)
    in ((), g)
 cogent_f57ln : ( Struct_Cogent_ros1!, CPtr U32 ) -> ( (), CPtr U32 )
 cogent_f57ln (pro, pln) =
-   let (_, pro, pln) = let (v1'
-                           , pro
-                           , pln) = let v' = pro
+   let (c', pro, pln) = let (v1'
+                            , pro
+                            , pln) = let v' = pro
          and pro { mln = p0' } = v'
          and v' = p0'
          and pro = pro { mln = p0' }
-         and v' = v'
          and v1' = pln
          and v1' = v'
          and (v1', pln) = (v1', v1')
@@ -460,15 +430,14 @@ cogent_f57ln (pro, pln) =
    in ((), pln)
 cogent_f57ro : ( Struct_Cogent_ros1!, (CPtr U32)! ) -> U32
 cogent_f57ro (pro, qro) =
-   let (_, pro, qro, r') = let (c'
-                               , pro
-                               , qro) = let (v1'
-                                            , pro
-                                            , qro) = let v' = pro
+   let (c', pro, qro, r') = let (c'
+                                , pro
+                                , qro) = let (v1'
+                                             , pro
+                                             , qro) = let v' = pro
             and pro { mln = p0' } = v'
             and v' = p0'
             and pro = pro { mln = p0' }
-            and v' = v'
             and v1' = qro
             and v1' = v'
             and (v1', qro) = (v1', v1')
@@ -481,37 +450,34 @@ cogent_f57ro (pro, qro) =
                   and qro { cont = p1' } = v'
                   and v' = p1'
                   and qro = qro { cont = p1' }
-                  and v' = v'
                   in (v', qro)
                in (3, v', qro)
             in (c', pro, qro, r')
    in r'
 cogent_f58ln : Struct_Cogent_ros1! -> CPtr U32
 cogent_f58ln pro =
-   let (_, r', pro) = let (v'
-                          , pro) = let v' = pro
+   let (c', r', pro) = let (v'
+                           , pro) = let v' = pro
          and pro { mln = p0' } = v'
          and v' = p0'
          and pro = pro { mln = p0' }
-         and v' = v'
          in (v', pro)
       in (3, v', pro)
    in r'
 cogent_f58ro : Struct_Cogent_ros1! -> (CPtr U32)!
 cogent_f58ro pro =
-   let (_, r', pro) = let (v'
-                          , pro) = let v' = pro
+   let (c', r', pro) = let (v'
+                           , pro) = let v' = pro
          and pro { mln = p0' } = v'
          and v' = p0'
          and pro = pro { mln = p0' }
-         and v' = v'
          in (v', pro)
       in (3, v', pro)
    in r'
 cogent_f59ln : ( Struct_Cogent_ros1!, CPtr U32, U32 ) -> ( U32, CPtr U32 )
 cogent_f59ln (pro, qln, i) =
-   let (_, r', pro) = let (v'
-                          , pro) = let v' = cogent_fcro
+   let (c', r', pro) = let (v'
+                           , pro) = let v' = cogent_fcro
          and v1' = i
          and v3' = qln
          and (v1', pro) = if v1'
@@ -519,7 +485,6 @@ cogent_f59ln (pro, qln, i) =
                and pro { mln = p0' } = v2'
                and v2' = p0'
                and pro = pro { mln = p0' }
-               and v2' = v2'
                in (v2', pro)
             else (v3', pro)
          and v' = v' v1'
@@ -528,8 +493,8 @@ cogent_f59ln (pro, qln, i) =
    in (r', qln)
 cogent_f59ro : ( Struct_Cogent_ros1!, (CPtr U32)!, U32 ) -> U32
 cogent_f59ro (pro, qro, i) =
-   let (_, r', pro) = let (v'
-                          , pro) = let v' = cogent_fcro
+   let (c', r', pro) = let (v'
+                           , pro) = let v' = cogent_fcro
          and v1' = i
          and v3' = qro
          and (v1', pro) = if v1'
@@ -537,7 +502,6 @@ cogent_f59ro (pro, qro, i) =
                and pro { mln = p0' } = v2'
                and v2' = p0'
                and pro = pro { mln = p0' }
-               and v2' = v2'
                in (v2', pro)
             else (v3', pro)
          and v' = v' v1'
@@ -547,9 +511,9 @@ cogent_f59ro (pro, qro, i) =
 
 cogent_f61ln : Struct_Cogent_ros2! -> Struct_Cogent_ros2!
 cogent_f61ln pro =
-   let (_, pro, r') = let (c'
-                          , pro) = let (v1'
-                                       , pro) = let v' = 5
+   let (c', pro, r') = let (c'
+                           , pro) = let (v1'
+                                        , pro) = let v' = 5
             and v1' = pro
             and pro { sln = p0' } = v1'
             and v1' = p0'
@@ -559,36 +523,32 @@ cogent_f61ln pro =
             and (v1', p1') = (v1', v1')
             and p0' = p0' { mrg = p1' }
             and pro = pro { sln = p0' }
-            and v1' = v1'
             in (v1', pro)
          in (0, pro)
       in if c' > 0
          then (c', pro, r')
-         else let (c'
-                  , r') = let v' = let v' = pro
-                  in v'
+         else let (c', r') = let v' = pro
                in (3, v')
             in (c', pro, r')
    in r'
 cogent_f61ro : Struct_Cogent_ros2! -> U32
 cogent_f61ro pro =
-   let (_, r', pro) = let (v'
-                          , pro) = let v' = pro
+   let (c', r', pro) = let (v'
+                           , pro) = let v' = pro
          and pro { sln = p0' } = v'
          and v' = p0'
          and p0' { mrg = p1' } = v'
          and v' = p1'
          and p0' = p0' { mrg = p1' }
          and pro = pro { sln = p0' }
-         and v' = v'
          in (v', pro)
       in (3, v', pro)
    in r'
 cogent_f62ln : Struct_Cogent_ros2! -> Struct_Cogent_ros2!
 cogent_f62ln pro =
-   let (_, pro, r') = let (c'
-                          , pro) = let (v1'
-                                       , pro) = let v' = cogent_frro
+   let (c', pro, r') = let (c'
+                           , pro) = let (v1'
+                                        , pro) = let v' = cogent_frro
             and v' = v' ()
             and v1' = pro
             and pro { sln = p0' } = v1'
@@ -599,36 +559,32 @@ cogent_f62ln pro =
             and (v1', p1') = (v1', v1')
             and p0' = p0' { mro = p1' }
             and pro = pro { sln = p0' }
-            and v1' = v1'
             in (v1', pro)
          in (0, pro)
       in if c' > 0
          then (c', pro, r')
-         else let (c'
-                  , r') = let v' = let v' = pro
-                  in v'
+         else let (c', r') = let v' = pro
                in (3, v')
             in (c', pro, r')
    in r'
 cogent_f62ro : Struct_Cogent_ros2! -> (CPtr U32)!
 cogent_f62ro pro =
-   let (_, r', pro) = let (v'
-                          , pro) = let v' = pro
+   let (c', r', pro) = let (v'
+                           , pro) = let v' = pro
          and pro { sln = p0' } = v'
          and v' = p0'
          and p0' { mro = p1' } = v'
          and v' = p1'
          and p0' = p0' { mro = p1' }
          and pro = pro { sln = p0' }
-         and v' = v'
          in (v', pro)
       in (3, v', pro)
    in r'
 cogent_f63ln : Struct_Cogent_ros2! -> Struct_Cogent_ros2!
 cogent_f63ln pro =
-   let (_, pro, r') = let (c'
-                          , pro) = let (v1'
-                                       , pro) = let v' = cogent_frln
+   let (c', pro, r') = let (c'
+                           , pro) = let (v1'
+                                        , pro) = let v' = cogent_frln
             and v' = v' ()
             and v1' = pro
             and pro { sln = p0' } = v1'
@@ -639,36 +595,32 @@ cogent_f63ln pro =
             and (v1', p1') = (v1', v1')
             and p0' = p0' { mln = p1' }
             and pro = pro { sln = p0' }
-            and v1' = v1'
             in (v1', pro)
          in (0, pro)
       in if c' > 0
          then (c', pro, r')
-         else let (c'
-                  , r') = let v' = let v' = pro
-                  in v'
+         else let (c', r') = let v' = pro
                in (3, v')
             in (c', pro, r')
    in r'
 cogent_f63ro : Struct_Cogent_ros2! -> (CPtr U32)!
 cogent_f63ro pro =
-   let (_, r', pro) = let (v'
-                          , pro) = let v' = pro
+   let (c', r', pro) = let (v'
+                           , pro) = let v' = pro
          and pro { sln = p0' } = v'
          and v' = p0'
          and p0' { mln = p1' } = v'
          and v' = p1'
          and p0' = p0' { mln = p1' }
          and pro = pro { sln = p0' }
-         and v' = v'
          in (v', pro)
       in (3, v', pro)
    in r'
 cogent_f64ln : Struct_Cogent_ros2! -> Struct_Cogent_ros2!
 cogent_f64ln pro =
-   let (_, pro, r') = let (c'
-                          , pro) = let (v1'
-                                       , pro) = let v' = cogent_frln
+   let (c', pro, r') = let (c'
+                           , pro) = let (v1'
+                                        , pro) = let v' = cogent_frln
             and v' = v' ()
             and v1' = pro
             and pro { sub = p0' } = v1'
@@ -679,28 +631,24 @@ cogent_f64ln pro =
             and (v1', p1') = (v1', v1')
             and p0' = p0' { mln = p1' }
             and pro = pro { sub = p0' }
-            and v1' = v1'
             in (v1', pro)
          in (0, pro)
       in if c' > 0
          then (c', pro, r')
-         else let (c'
-                  , r') = let v' = let v' = pro
-                  in v'
+         else let (c', r') = let v' = pro
                in (3, v')
             in (c', pro, r')
    in r'
 cogent_f64ro : Struct_Cogent_ros2! -> (CPtr U32)!
 cogent_f64ro pro =
-   let (_, r', pro) = let (v'
-                          , pro) = let v' = pro
+   let (c', r', pro) = let (v'
+                           , pro) = let v' = pro
          and pro { sub = p0' } = v'
          and v' = p0'
          and p0' { mln = p1' } = v'
          and v' = p1'
          and p0' = p0' { mln = p1' }
          and pro = pro { sub = p0' }
-         and v' = v'
          in (v', pro)
       in (3, v', pro)
    in r'
@@ -708,9 +656,9 @@ cogent_f64ro pro =
 -- Probe used by accessing an array element
 cogent_f71ln : Cogent_roa1! -> U32
 cogent_f71ln pro =
-   let (_, pro, r') = let (c'
-                          , pro) = let (v1'
-                                       , pro) = let v' = 5
+   let (c', pro, r') = let (c'
+                           , pro) = let (v1'
+                                        , pro) = let v' = 5
             and v2' = 1
             and v1' = pro
             and (pro @{ @v2' = p0' }
@@ -719,7 +667,6 @@ cogent_f71ln pro =
             and v1' = v'
             and (v1', p0') = (v1', v1')
             and pro = pro @{ @i0' = p0' }
-            and v1' = v1'
             in (v1', pro)
          in (0, pro)
       in if c' > 0
@@ -731,29 +678,27 @@ cogent_f71ln pro =
                       , i1') = (v', v1')
                   and v' = p1'
                   and pro = pro @{ @i1' = p1' }
-                  and v' = v'
                   in (v', pro)
                in (3, v', pro)
             in (c', pro, r')
    in r'
 cogent_f71ro : Cogent_roa1! -> U32
 cogent_f71ro pro =
-   let (_, r', pro) = let (v'
-                          , pro) = let v1' = 1
+   let (c', r', pro) = let (v'
+                           , pro) = let v1' = 1
          and v' = pro
          and (pro @{ @v1' = p0' }
              , i0') = (v', v1')
          and v' = p0'
          and pro = pro @{ @i0' = p0' }
-         and v' = v'
          in (v', pro)
       in (3, v', pro)
    in r'
 cogent_f72ln : Cogent_roa2! -> (CPtr U32)!
 cogent_f72ln pro =
-   let (_, pro, r') = let (c'
-                          , pro) = let (v1'
-                                       , pro) = let v' = cogent_frro
+   let (c', pro, r') = let (c'
+                           , pro) = let (v1'
+                                        , pro) = let v' = cogent_frro
             and v' = v' ()
             and v2' = 1
             and v1' = pro
@@ -763,7 +708,6 @@ cogent_f72ln pro =
             and v1' = v'
             and (v1', p0') = (v1', v1')
             and pro = pro @{ @i0' = p0' }
-            and v1' = v1'
             in (v1', pro)
          in (0, pro)
       in if c' > 0
@@ -775,29 +719,27 @@ cogent_f72ln pro =
                       , i1') = (v', v1')
                   and v' = p1'
                   and pro = pro @{ @i1' = p1' }
-                  and v' = v'
                   in (v', pro)
                in (3, v', pro)
             in (c', pro, r')
    in r'
 cogent_f72ro : Cogent_roa2! -> (CPtr U32)!
 cogent_f72ro pro =
-   let (_, r', pro) = let (v'
-                          , pro) = let v1' = 1
+   let (c', r', pro) = let (v'
+                           , pro) = let v1' = 1
          and v' = pro
          and (pro @{ @v1' = p0' }
              , i0') = (v', v1')
          and v' = p0'
          and pro = pro @{ @i0' = p0' }
-         and v' = v'
          in (v', pro)
       in (3, v', pro)
    in r'
 cogent_f73ln : Cogent_roa3! -> (CPtr U32)!
 cogent_f73ln pro =
-   let (_, pro, r') = let (c'
-                          , pro) = let (v1'
-                                       , pro) = let v' = cogent_frln
+   let (c', pro, r') = let (c'
+                           , pro) = let (v1'
+                                        , pro) = let v' = cogent_frln
             and v' = v' ()
             and v2' = 1
             and v1' = pro
@@ -807,7 +749,6 @@ cogent_f73ln pro =
             and v1' = v'
             and (v1', p0') = (v1', v1')
             and pro = pro @{ @i0' = p0' }
-            and v1' = v1'
             in (v1', pro)
          in (0, pro)
       in if c' > 0
@@ -819,29 +760,27 @@ cogent_f73ln pro =
                       , i1') = (v', v1')
                   and v' = p1'
                   and pro = pro @{ @i1' = p1' }
-                  and v' = v'
                   in (v', pro)
                in (3, v', pro)
             in (c', pro, r')
    in r'
 cogent_f73ro : Cogent_roa3! -> (CPtr U32)!
 cogent_f73ro pro =
-   let (_, r', pro) = let (v'
-                          , pro) = let v1' = 1
+   let (c', r', pro) = let (v'
+                           , pro) = let v1' = 1
          and v' = pro
          and (pro @{ @v1' = p0' }
              , i0') = (v', v1')
          and v' = p0'
          and pro = pro @{ @i0' = p0' }
-         and v' = v'
          in (v', pro)
       in (3, v', pro)
    in r'
 cogent_f74ln : Cogent_roa3! -> (CPtr U32)!
 cogent_f74ln pro =
-   let (_, pro, r') = let (c'
-                          , pro) = let (v1'
-                                       , pro) = let v' = 5
+   let (c', pro, r') = let (c'
+                           , pro) = let (v1'
+                                        , pro) = let v' = 5
             and v2' = 1
             and v1' = pro
             and (pro @{ @v2' = p0' }
@@ -853,7 +792,6 @@ cogent_f74ln pro =
             and (v1', p1') = (v1', v1')
             and p0' = p0' { cont = p1' }
             and pro = pro @{ @i0' = p0' }
-            and v1' = v1'
             in (v1', pro)
          in (0, pro)
       in if c' > 0
@@ -865,15 +803,14 @@ cogent_f74ln pro =
                       , i2') = (v', v1')
                   and v' = p2'
                   and pro = pro @{ @i2' = p2' }
-                  and v' = v'
                   in (v', pro)
                in (3, v', pro)
             in (c', pro, r')
    in r'
 cogent_f74ro : Cogent_roa3! -> U32
 cogent_f74ro pro =
-   let (_, r', pro) = let (v'
-                          , pro) = let v1' = 1
+   let (c', r', pro) = let (v'
+                           , pro) = let v1' = 1
          and v' = pro
          and (pro @{ @v1' = p0' }
              , i0') = (v', v1')
@@ -882,93 +819,85 @@ cogent_f74ro pro =
          and v' = p1'
          and p0' = p0' { cont = p1' }
          and pro = pro @{ @i0' = p0' }
-         and v' = v'
          in (v', pro)
       in (3, v', pro)
    in r'
 cogent_f75ln : Cogent_roa3! -> U32
 cogent_f75ln pro =
-   let (_, r', pro) = let (v'
-                          , pro) = let v' = cogent_fcln
+   let (c', r', pro) = let (v'
+                           , pro) = let v' = cogent_fcln
          and v2' = 1
          and v1' = pro
          and (pro @{ @v2' = p0' }
              , i0') = (v1', v2')
          and v1' = p0'
          and pro = pro @{ @i0' = p0' }
-         and v1' = v1'
          and v' = v' v1'
          in (v', pro)
       in (3, v', pro)
    in r'
 cogent_f75ro : Cogent_roa3! -> U32
 cogent_f75ro pro =
-   let (_, r', pro) = let (v'
-                          , pro) = let v' = cogent_fcro
+   let (c', r', pro) = let (v'
+                           , pro) = let v' = cogent_fcro
          and v2' = 1
          and v1' = pro
          and (pro @{ @v2' = p0' }
              , i0') = (v1', v2')
          and v1' = p0'
          and pro = pro @{ @i0' = p0' }
-         and v1' = v1'
          and v' = v' v1'
          in (v', pro)
       in (3, v', pro)
    in r'
 cogent_f76ln : ( Cogent_roa3!, GlobState1 ) -> ( (), GlobState1 )
 cogent_f76ln (pro, g) =
-   let (_, pro, g) = let (v2'
-                         , pro
-                         , g) = let v1' = 1
+   let (c', pro, g) = let (v2'
+                          , pro
+                          , g) = let v1' = 1
          and v' = pro
          and (pro @{ @v1' = p0' }
              , i0') = (v', v1')
          and v' = p0'
          and pro = pro @{ @i0' = p0' }
-         and v' = v'
          and v2' = g
          and g { cont = p1' } = v2'
          and v2' = p1'
          and v2' = v'
          and (v2', p1') = (v2', v2')
          and g = g { cont = p1' }
-         and v2' = v2'
          in (v2', pro, g)
       in (0, pro, g)
    in ((), g)
 cogent_f76ro : ( Cogent_roa3!, GlobState2 ) -> ( (), GlobState2 )
 cogent_f76ro (pro, g) =
-   let (_, pro, g) = let (v2'
-                         , pro
-                         , g) = let v1' = 1
+   let (c', pro, g) = let (v2'
+                          , pro
+                          , g) = let v1' = 1
          and v' = pro
          and (pro @{ @v1' = p0' }
              , i0') = (v', v1')
          and v' = p0'
          and pro = pro @{ @i0' = p0' }
-         and v' = v'
          and v2' = g
          and g { cont = p1' } = v2'
          and v2' = p1'
          and v2' = v'
          and (v2', p1') = (v2', v2')
          and g = g { cont = p1' }
-         and v2' = v2'
          in (v2', pro, g)
       in (0, pro, g)
    in ((), g)
 cogent_f77ln : ( Cogent_roa3!, CPtr U32 ) -> ( (), CPtr U32 )
 cogent_f77ln (pro, qln) =
-   let (_, pro, qln) = let (v2'
-                           , pro
-                           , qln) = let v1' = 1
+   let (c', pro, qln) = let (v2'
+                            , pro
+                            , qln) = let v1' = 1
          and v' = pro
          and (pro @{ @v1' = p0' }
              , i0') = (v', v1')
          and v' = p0'
          and pro = pro @{ @i0' = p0' }
-         and v' = v'
          and v2' = qln
          and v2' = v'
          and (v2', qln) = (v2', v2')
@@ -977,17 +906,16 @@ cogent_f77ln (pro, qln) =
    in ((), qln)
 cogent_f77ro : ( Cogent_roa3!, (CPtr U32)! ) -> U32
 cogent_f77ro (pro, qro) =
-   let (_, pro, qro, r') = let (c'
-                               , pro
-                               , qro) = let (v2'
-                                            , pro
-                                            , qro) = let v1' = 1
+   let (c', pro, qro, r') = let (c'
+                                , pro
+                                , qro) = let (v2'
+                                             , pro
+                                             , qro) = let v1' = 1
             and v' = pro
             and (pro @{ @v1' = p0' }
                 , i0') = (v', v1')
             and v' = p0'
             and pro = pro @{ @i0' = p0' }
-            and v' = v'
             and v2' = qro
             and v2' = v'
             and (v2', qro) = (v2', v2')
@@ -1000,41 +928,38 @@ cogent_f77ro (pro, qro) =
                   and qro { cont = p1' } = v'
                   and v' = p1'
                   and qro = qro { cont = p1' }
-                  and v' = v'
                   in (v', qro)
                in (3, v', qro)
             in (c', pro, qro, r')
    in r'
 cogent_f78ln : Cogent_roa3! -> CPtr U32
 cogent_f78ln pro =
-   let (_, r', pro) = let (v'
-                          , pro) = let v1' = 1
+   let (c', r', pro) = let (v'
+                           , pro) = let v1' = 1
          and v' = pro
          and (pro @{ @v1' = p0' }
              , i0') = (v', v1')
          and v' = p0'
          and pro = pro @{ @i0' = p0' }
-         and v' = v'
          in (v', pro)
       in (3, v', pro)
    in r'
 cogent_f78ro : Cogent_roa3! -> (CPtr U32)!
 cogent_f78ro pro =
-   let (_, r', pro) = let (v'
-                          , pro) = let v1' = 1
+   let (c', r', pro) = let (v'
+                           , pro) = let v1' = 1
          and v' = pro
          and (pro @{ @v1' = p0' }
              , i0') = (v', v1')
          and v' = p0'
          and pro = pro @{ @i0' = p0' }
-         and v' = v'
          in (v', pro)
       in (3, v', pro)
    in r'
 cogent_f79ln : ( Cogent_roa3!, CPtr U32, U32 ) -> ( U32, CPtr U32 )
 cogent_f79ln (pro, qln, i) =
-   let (_, r', pro) = let (v'
-                          , pro) = let v' = cogent_fcro
+   let (c', r', pro) = let (v'
+                           , pro) = let v' = cogent_fcro
          and v1' = i
          and v4' = qln
          and (v1', pro) = if v1'
@@ -1044,7 +969,6 @@ cogent_f79ln (pro, qln, i) =
                    , i0') = (v2', v3')
                and v2' = p0'
                and pro = pro @{ @i0' = p0' }
-               and v2' = v2'
                in (v2', pro)
             else (v4', pro)
          and v' = v' v1'
@@ -1053,8 +977,8 @@ cogent_f79ln (pro, qln, i) =
    in (r', qln)
 cogent_f79ro : ( Cogent_roa3!, (CPtr U32)!, U32 ) -> U32
 cogent_f79ro (pro, qro, i) =
-   let (_, r', pro) = let (v'
-                          , pro) = let v' = cogent_fcro
+   let (c', r', pro) = let (v'
+                           , pro) = let v' = cogent_fcro
          and v1' = i
          and v4' = qro
          and (v1', pro) = if v1'
@@ -1064,7 +988,6 @@ cogent_f79ro (pro, qro, i) =
                    , i0') = (v2', v3')
                and v2' = p0'
                and pro = pro @{ @i0' = p0' }
-               and v2' = v2'
                in (v2', pro)
             else (v4', pro)
          and v' = v' v1'
@@ -1074,9 +997,9 @@ cogent_f79ro (pro, qro, i) =
 
 cogent_f81ln : Cogent_roa4! -> U32
 cogent_f81ln pro =
-   let (_, pro, r') = let (c'
-                          , pro) = let (v1'
-                                       , pro) = let v' = 5
+   let (c', pro, r') = let (c'
+                           , pro) = let (v1'
+                                        , pro) = let v' = 5
             and v3' = 1
             and v2' = 1
             and v1' = pro
@@ -1090,7 +1013,6 @@ cogent_f81ln pro =
             and (v1', p1') = (v1', v1')
             and p0' = p0' @{ @i1' = p1' }
             and pro = pro @{ @i0' = p0' }
-            and v1' = v1'
             in (v1', pro)
          in (0, pro)
       in if c' > 0
@@ -1107,15 +1029,14 @@ cogent_f81ln pro =
                   and v' = p3'
                   and p2' = p2' @{ @i3' = p3' }
                   and pro = pro @{ @i2' = p2' }
-                  and v' = v'
                   in (v', pro)
                in (3, v', pro)
             in (c', pro, r')
    in r'
 cogent_f81ro : Cogent_roa4! -> U32
 cogent_f81ro pro =
-   let (_, r', pro) = let (v'
-                          , pro) = let v2' = 1
+   let (c', r', pro) = let (v'
+                           , pro) = let v2' = 1
          and v1' = 1
          and v' = pro
          and (pro @{ @v1' = p0' }
@@ -1126,15 +1047,14 @@ cogent_f81ro pro =
          and v' = p1'
          and p0' = p0' @{ @i1' = p1' }
          and pro = pro @{ @i0' = p0' }
-         and v' = v'
          in (v', pro)
       in (3, v', pro)
    in r'
 cogent_f82ln : Cogent_roa5! -> (CPtr U32)!
 cogent_f82ln pro =
-   let (_, pro, r') = let (c'
-                          , pro) = let (v1'
-                                       , pro) = let v' = cogent_frro
+   let (c', pro, r') = let (c'
+                           , pro) = let (v1'
+                                        , pro) = let v' = cogent_frro
             and v' = v' ()
             and v3' = 1
             and v2' = 1
@@ -1149,7 +1069,6 @@ cogent_f82ln pro =
             and (v1', p1') = (v1', v1')
             and p0' = p0' @{ @i1' = p1' }
             and pro = pro @{ @i0' = p0' }
-            and v1' = v1'
             in (v1', pro)
          in (0, pro)
       in if c' > 0
@@ -1166,15 +1085,14 @@ cogent_f82ln pro =
                   and v' = p3'
                   and p2' = p2' @{ @i3' = p3' }
                   and pro = pro @{ @i2' = p2' }
-                  and v' = v'
                   in (v', pro)
                in (3, v', pro)
             in (c', pro, r')
    in r'
 cogent_f82ro : Cogent_roa5! -> (CPtr U32)!
 cogent_f82ro pro =
-   let (_, r', pro) = let (v'
-                          , pro) = let v2' = 1
+   let (c', r', pro) = let (v'
+                           , pro) = let v2' = 1
          and v1' = 1
          and v' = pro
          and (pro @{ @v1' = p0' }
@@ -1185,15 +1103,14 @@ cogent_f82ro pro =
          and v' = p1'
          and p0' = p0' @{ @i1' = p1' }
          and pro = pro @{ @i0' = p0' }
-         and v' = v'
          in (v', pro)
       in (3, v', pro)
    in r'
 cogent_f83ln : Cogent_roa6! -> (CPtr U32)!
 cogent_f83ln pro =
-   let (_, pro, r') = let (c'
-                          , pro) = let (v1'
-                                       , pro) = let v' = cogent_frln
+   let (c', pro, r') = let (c'
+                           , pro) = let (v1'
+                                        , pro) = let v' = cogent_frln
             and v' = v' ()
             and v3' = 1
             and v2' = 1
@@ -1208,7 +1125,6 @@ cogent_f83ln pro =
             and (v1', p1') = (v1', v1')
             and p0' = p0' @{ @i1' = p1' }
             and pro = pro @{ @i0' = p0' }
-            and v1' = v1'
             in (v1', pro)
          in (0, pro)
       in if c' > 0
@@ -1225,15 +1141,14 @@ cogent_f83ln pro =
                   and v' = p3'
                   and p2' = p2' @{ @i3' = p3' }
                   and pro = pro @{ @i2' = p2' }
-                  and v' = v'
                   in (v', pro)
                in (3, v', pro)
             in (c', pro, r')
    in r'
 cogent_f83ro : Cogent_roa6! -> (CPtr U32)!
 cogent_f83ro pro =
-   let (_, r', pro) = let (v'
-                          , pro) = let v2' = 1
+   let (c', r', pro) = let (v'
+                           , pro) = let v2' = 1
          and v1' = 1
          and v' = pro
          and (pro @{ @v1' = p0' }
@@ -1244,7 +1159,6 @@ cogent_f83ro pro =
          and v' = p1'
          and p0' = p0' @{ @i1' = p1' }
          and pro = pro @{ @i0' = p0' }
-         and v' = v'
          in (v', pro)
       in (3, v', pro)
    in r'
@@ -1252,8 +1166,8 @@ cogent_f83ro pro =
 -- probe assigned to struct component or array element
 cogent_f91ln : Struct_Cogent_ros1 -> ( (), Struct_Cogent_ros1 )
 cogent_f91ln pln =
-   let (_, pln) = let (v1'
-                      , pln) = let v' = cogent_frro
+   let (c', pln) = let (v1'
+                       , pln) = let v' = cogent_frro
          and v' = v' ()
          and v1' = pln
          and pln { mln = p0' } = v1'
@@ -1261,14 +1175,13 @@ cogent_f91ln pln =
          and v1' = v'
          and (v1', p0') = (v1', v1')
          and pln = pln { mln = p0' }
-         and v1' = v1'
          in (v1', pln)
       in (0, pln)
    in ((), pln)
 cogent_f91ro : Struct_Cogent_ros1 -> ( (), Struct_Cogent_ros1 )
 cogent_f91ro pln =
-   let (_, pln) = let (v1'
-                      , pln) = let v' = cogent_frro
+   let (c', pln) = let (v1'
+                       , pln) = let v' = cogent_frro
          and v' = v' ()
          and v1' = pln
          and pln { mro = p0' } = v1'
@@ -1276,14 +1189,13 @@ cogent_f91ro pln =
          and v1' = v'
          and (v1', p0') = (v1', v1')
          and pln = pln { mro = p0' }
-         and v1' = v1'
          in (v1', pln)
       in (0, pln)
    in ((), pln)
 cogent_f92ln : Cogent_roa3 -> ( (), Cogent_roa3 )
 cogent_f92ln pln =
-   let (_, pln) = let (v1'
-                      , pln) = let v' = cogent_frro
+   let (c', pln) = let (v1'
+                       , pln) = let v' = cogent_frro
          and v' = v' ()
          and v2' = 1
          and v1' = pln
@@ -1293,14 +1205,13 @@ cogent_f92ln pln =
          and v1' = v'
          and (v1', p0') = (v1', v1')
          and pln = pln @{ @i0' = p0' }
-         and v1' = v1'
          in (v1', pln)
       in (0, pln)
    in ((), pln)
 cogent_f92ro : Cogent_roa2 -> ( (), Cogent_roa2 )
 cogent_f92ro pln =
-   let (_, pln) = let (v1'
-                      , pln) = let v' = cogent_frro
+   let (c', pln) = let (v1'
+                       , pln) = let v' = cogent_frro
          and v' = v' ()
          and v2' = 1
          and v1' = pln
@@ -1310,7 +1221,6 @@ cogent_f92ro pln =
          and v1' = v'
          and (v1', p0') = (v1', v1')
          and pln = pln @{ @i0' = p0' }
-         and v1' = v1'
          in (v1', pln)
       in (0, pln)
    in ((), pln)
@@ -1320,7 +1230,7 @@ cogent_f92ro pln =
 -- Direct use of probe in context
 cogent_g11ln : CPtr U32 -> U32
 cogent_g11ln pln =
-   let (_
+   let (c'
        , r') = let v' = let v' = cogent_fcln
          and v1' = pln
          and v' = v' v1'
@@ -1329,7 +1239,7 @@ cogent_g11ln pln =
    in r'
 cogent_g11ro : CPtr U32 -> U32
 cogent_g11ro pln =
-   let (_
+   let (c'
        , r') = let v' = let v' = cogent_fcro
          and v1' = pln
          and v' = v' v1'
@@ -1338,7 +1248,7 @@ cogent_g11ro pln =
    in r'
 cogent_g12ln : () -> U32
 cogent_g12ln () =
-   let (_
+   let (c'
        , r') = let v' = let v' = cogent_fcln
          and v1' = cogent_globln ()
          and v' = v' v1'
@@ -1347,7 +1257,7 @@ cogent_g12ln () =
    in r'
 cogent_g12ro : () -> U32
 cogent_g12ro () =
-   let (_
+   let (c'
        , r') = let v' = let v' = cogent_fcro
          and v1' = cogent_globln ()
          and v' = v' v1'
@@ -1356,7 +1266,7 @@ cogent_g12ro () =
    in r'
 cogent_g13ln : () -> U32
 cogent_g13ln () =
-   let (_
+   let (c'
        , r') = let v' = let v' = cogent_fcln
          and v1' = cogent_frln
          and v1' = v1' ()
@@ -1366,7 +1276,7 @@ cogent_g13ln () =
    in r'
 cogent_g13ro : () -> U32
 cogent_g13ro () =
-   let (_
+   let (c'
        , r') = let v' = let v' = cogent_fcro
          and v1' = cogent_frln
          and v1' = v1' ()
@@ -1376,7 +1286,7 @@ cogent_g13ro () =
    in r'
 cogent_g14ln : ( CPtr U32, CPtr U32, U32 ) -> U32
 cogent_g14ln (pln, qln, i) =
-   let (_
+   let (c'
        , r') = let v' = let v' = cogent_fcln
          and v1' = i
          and v2' = pln
@@ -1390,7 +1300,7 @@ cogent_g14ln (pln, qln, i) =
    in r'
 cogent_g14ro : ( CPtr U32, CPtr U32, U32 ) -> U32
 cogent_g14ro (pln, qln, i) =
-   let (_
+   let (c'
        , r') = let v' = let v' = cogent_fcro
          and v1' = i
          and v2' = pln
@@ -1406,8 +1316,8 @@ cogent_g14ro (pln, qln, i) =
 -- Probe assigned to variable
 cogent_g21ln : GlobState1 -> ( (), GlobState1 )
 cogent_g21ln g =
-   let (_, g) = let (v1'
-                    , g) = let v' = cogent_frln
+   let (c', g) = let (v1'
+                     , g) = let v' = cogent_frln
          and v' = v' ()
          and v1' = g
          and g { cont = p0' } = v1'
@@ -1415,14 +1325,13 @@ cogent_g21ln g =
          and v1' = v'
          and (v1', p0') = (v1', v1')
          and g = g { cont = p0' }
-         and v1' = v1'
          in (v1', g)
       in (0, g)
    in ((), g)
 cogent_g21ro : GlobState2 -> ( (), GlobState2 )
 cogent_g21ro g =
-   let (_, g) = let (v1'
-                    , g) = let v' = cogent_frln
+   let (c', g) = let (v1'
+                     , g) = let v' = cogent_frln
          and v' = v' ()
          and v1' = g
          and g { cont = p0' } = v1'
@@ -1430,14 +1339,13 @@ cogent_g21ro g =
          and v1' = v'
          and (v1', p0') = (v1', v1')
          and g = g { cont = p0' }
-         and v1' = v1'
          in (v1', g)
       in (0, g)
    in ((), g)
 cogent_g22ln : CPtr U32 -> ( (), CPtr U32 )
 cogent_g22ln pln =
-   let (_, pln) = let (v1'
-                      , pln) = let v' = cogent_frln
+   let (c', pln) = let (v1'
+                       , pln) = let v' = cogent_frln
          and v' = v' ()
          and v1' = pln
          and v1' = v'
@@ -1447,9 +1355,9 @@ cogent_g22ln pln =
    in ((), pln)
 cogent_g22ro : (CPtr U32)! -> U32
 cogent_g22ro pro =
-   let (_, pro, r') = let (c'
-                          , pro) = let (v1'
-                                       , pro) = let v' = cogent_frln
+   let (c', pro, r') = let (c'
+                           , pro) = let (v1'
+                                        , pro) = let v' = cogent_frln
             and v' = v' ()
             and v1' = pro
             and v1' = v'
@@ -1463,7 +1371,6 @@ cogent_g22ro pro =
                   and pro { cont = p0' } = v'
                   and v' = p0'
                   and pro = pro { cont = p0' }
-                  and v' = v'
                   in (v', pro)
                in (3, v', pro)
             in (c', pro, r')
@@ -1472,7 +1379,7 @@ cogent_g22ro pro =
 -- Probe returned as result
 cogent_g31ln : () -> CPtr U32
 cogent_g31ln () =
-   let (_
+   let (c'
        , r') = let v' = let v' = cogent_frln
          and v' = v' ()
          in v'
@@ -1480,7 +1387,7 @@ cogent_g31ln () =
    in r'
 cogent_g31ro : () -> (CPtr U32)!
 cogent_g31ro () =
-   let (_
+   let (c'
        , r') = let v' = let v' = cogent_frln
          and v' = v' ()
          in v'
@@ -1490,33 +1397,31 @@ cogent_g31ro () =
 -- Probe used by accessing a struct component
 cogent_g51ln : Struct_Cogent_ros1 -> ( (), Struct_Cogent_ros1 )
 cogent_g51ln pln =
-   let (_, pln) = let (v1'
-                      , pln) = let v' = 5
+   let (c', pln) = let (v1'
+                       , pln) = let v' = 5
          and v1' = pln
          and pln { mrg = p0' } = v1'
          and v1' = p0'
          and v1' = v'
          and (v1', p0') = (v1', v1')
          and pln = pln { mrg = p0' }
-         and v1' = v1'
          in (v1', pln)
       in (0, pln)
    in ((), pln)
 cogent_g51ro : Struct_Cogent_ros1 -> U32
 cogent_g51ro pln =
-   let (_, r', pln) = let (v'
-                          , pln) = let v' = pln
+   let (c', r', pln) = let (v'
+                           , pln) = let v' = pln
          and pln { mrg = p0' } = v'
          and v' = p0'
          and pln = pln { mrg = p0' }
-         and v' = v'
          in (v', pln)
       in (3, v', pln)
    in r'
 cogent_g52ln : Struct_Cogent_ros1 -> ( (), Struct_Cogent_ros1 )
 cogent_g52ln pln =
-   let (_, pln) = let (v1'
-                      , pln) = let v' = cogent_frln
+   let (c', pln) = let (v1'
+                       , pln) = let v' = cogent_frln
          and v' = v' ()
          and v1' = pln
          and pln { mro = p0' } = v1'
@@ -1524,25 +1429,23 @@ cogent_g52ln pln =
          and v1' = v'
          and (v1', p0') = (v1', v1')
          and pln = pln { mro = p0' }
-         and v1' = v1'
          in (v1', pln)
       in (0, pln)
    in ((), pln)
 cogent_g52ro : Struct_Cogent_ros1 -> ( (CPtr U32)!, Struct_Cogent_ros1 )
 cogent_g52ro pln =
-   let (_, r', pln) = let (v'
-                          , pln) = let v' = pln
+   let (c', r', pln) = let (v'
+                           , pln) = let v' = pln
          and pln { mro = p0' } = v'
          and v' = p0'
          and pln = pln { mro = p0' }
-         and v' = v'
          in (v', pln)
       in (3, v', pln)
    in (r', pln)
 cogent_g53ln : Struct_Cogent_ros1 -> ( (), Struct_Cogent_ros1 )
 cogent_g53ln pln =
-   let (_, pln) = let (v1'
-                      , pln) = let v' = cogent_frln
+   let (c', pln) = let (v1'
+                       , pln) = let v' = cogent_frln
          and v' = v' ()
          and v1' = pln
          and pln { mln = p0' } = v1'
@@ -1550,25 +1453,23 @@ cogent_g53ln pln =
          and v1' = v'
          and (v1', p0') = (v1', v1')
          and pln = pln { mln = p0' }
-         and v1' = v1'
          in (v1', pln)
       in (0, pln)
    in ((), pln)
 cogent_g53ro : Struct_Cogent_ros1 -> ( CPtr U32, Struct_Cogent_ros1 )
 cogent_g53ro pln =
-   let (_, r', pln) = let (v'
-                          , pln) = let v' = pln
+   let (c', r', pln) = let (v'
+                           , pln) = let v' = pln
          and pln { mln = p0' } = v'
          and v' = p0'
          and pln = pln { mln = p0' }
-         and v' = v'
          in (v', pln)
       in (3, v', pln)
    in (r', pln)
 cogent_g54ln : Struct_Cogent_ros1 -> ( U32, Struct_Cogent_ros1 )
 cogent_g54ln pln =
-   let (_, pln) = let (v1'
-                      , pln) = let v' = 5
+   let (c', pln) = let (v1'
+                       , pln) = let v' = 5
          and v1' = pln
          and pln { mln = p0' } = v1'
          and v1' = p0'
@@ -1578,97 +1479,88 @@ cogent_g54ln pln =
          and (v1', p1') = (v1', v1')
          and p0' = p0' { cont = p1' }
          and pln = pln { mln = p0' }
-         and v1' = v1'
          in (v1', pln)
       in (0, pln)
    in (r', pln)
 cogent_g54ro : Struct_Cogent_ros1 -> ( U32, Struct_Cogent_ros1 )
 cogent_g54ro pln =
-   let (_, pln) = let (v'
-                      , pln) = let v' = pln
+   let (c', pln) = let (v'
+                       , pln) = let v' = pln
          and pln { mln = p0' } = v'
          and v' = p0'
          and p0' { cont = p1' } = v'
          and v' = p1'
          and p0' = p0' { cont = p1' }
          and pln = pln { mln = p0' }
-         and v' = v'
          in (v', pln)
       in (0, pln)
    in (r', pln)
 cogent_g55ln : Struct_Cogent_ros1 -> U32
 cogent_g55ln pln =
-   let (_, r', pln) = let (v'
-                          , pln) = let v' = cogent_fcln
+   let (c', r', pln) = let (v'
+                           , pln) = let v' = cogent_fcln
          and v1' = pln
          and pln { mln = p0' } = v1'
          and v1' = p0'
          and pln = pln { mln = p0' }
-         and v1' = v1'
          and v' = v' v1'
          in (v', pln)
       in (3, v', pln)
    in r'
 cogent_g55ro : Struct_Cogent_ros1 -> U32
 cogent_g55ro pln =
-   let (_, r', pln) = let (v'
-                          , pln) = let v' = cogent_fcro
+   let (c', r', pln) = let (v'
+                           , pln) = let v' = cogent_fcro
          and v1' = pln
          and pln { mln = p0' } = v1'
          and v1' = p0'
          and pln = pln { mln = p0' }
-         and v1' = v1'
          and v' = v' v1'
          in (v', pln)
       in (3, v', pln)
    in r'
 cogent_g56ln : ( Struct_Cogent_ros1, GlobState1 ) -> ( (), GlobState1 )
 cogent_g56ln (pln, g) =
-   let (_, pln, g) = let (v1'
-                         , pln
-                         , g) = let v' = pln
+   let (c', pln, g) = let (v1'
+                          , pln
+                          , g) = let v' = pln
          and pln { mln = p0' } = v'
          and v' = p0'
          and pln = pln { mln = p0' }
-         and v' = v'
          and v1' = g
          and g { cont = p1' } = v1'
          and v1' = p1'
          and v1' = v'
          and (v1', p1') = (v1', v1')
          and g = g { cont = p1' }
-         and v1' = v1'
          in (v1', pln, g)
       in (0, pln, g)
    in ((), g)
 cogent_g56ro : ( Struct_Cogent_ros1, GlobState2 ) -> ( (), GlobState2 )
 cogent_g56ro (pln, g) =
-   let (_, pln, g) = let (v1'
-                         , pln
-                         , g) = let v' = pln
+   let (c', pln, g) = let (v1'
+                          , pln
+                          , g) = let v' = pln
          and pln { mln = p0' } = v'
          and v' = p0'
          and pln = pln { mln = p0' }
-         and v' = v'
          and v1' = g
          and g { cont = p1' } = v1'
          and v1' = p1'
          and v1' = v'
          and (v1', p1') = (v1', v1')
          and g = g { cont = p1' }
-         and v1' = v1'
          in (v1', pln, g)
       in (0, pln, g)
    in ((), g)
 cogent_g57ln : ( Struct_Cogent_ros1, CPtr U32 ) -> ( (), CPtr U32 )
 cogent_g57ln (pln, qln) =
-   let (_, pln, qln) = let (v1'
-                           , pln
-                           , qln) = let v' = pln
+   let (c', pln, qln) = let (v1'
+                            , pln
+                            , qln) = let v' = pln
          and pln { mln = p0' } = v'
          and v' = p0'
          and pln = pln { mln = p0' }
-         and v' = v'
          and v1' = qln
          and v1' = v'
          and (v1', qln) = (v1', v1')
@@ -1677,15 +1569,14 @@ cogent_g57ln (pln, qln) =
    in ((), qln)
 cogent_g57ro : ( Struct_Cogent_ros1, (CPtr U32)! ) -> U32
 cogent_g57ro (pln, qro) =
-   let (_, pln, qro, r') = let (c'
-                               , pln
-                               , qro) = let (v1'
-                                            , pln
-                                            , qro) = let v' = pln
+   let (c', pln, qro, r') = let (c'
+                                , pln
+                                , qro) = let (v1'
+                                             , pln
+                                             , qro) = let v' = pln
             and pln { mln = p0' } = v'
             and v' = p0'
             and pln = pln { mln = p0' }
-            and v' = v'
             and v1' = qro
             and v1' = v'
             and (v1', qro) = (v1', v1')
@@ -1698,37 +1589,34 @@ cogent_g57ro (pln, qro) =
                   and qro { cont = p1' } = v'
                   and v' = p1'
                   and qro = qro { cont = p1' }
-                  and v' = v'
                   in (v', qro)
                in (3, v', qro)
             in (c', pln, qro, r')
    in r'
 cogent_g58ln : Struct_Cogent_ros1 -> CPtr U32
 cogent_g58ln pln =
-   let (_, r', pln) = let (v'
-                          , pln) = let v' = pln
+   let (c', r', pln) = let (v'
+                           , pln) = let v' = pln
          and pln { mln = p0' } = v'
          and v' = p0'
          and pln = pln { mln = p0' }
-         and v' = v'
          in (v', pln)
       in (3, v', pln)
    in r'
 cogent_g58ro : Struct_Cogent_ros1 -> (CPtr U32)!
 cogent_g58ro pln =
-   let (_, r', pln) = let (v'
-                          , pln) = let v' = pln
+   let (c', r', pln) = let (v'
+                           , pln) = let v' = pln
          and pln { mln = p0' } = v'
          and v' = p0'
          and pln = pln { mln = p0' }
-         and v' = v'
          in (v', pln)
       in (3, v', pln)
    in r'
 cogent_g59ln : ( Struct_Cogent_ros1, CPtr U32, U32 ) -> ( U32, CPtr U32 )
 cogent_g59ln (pln, qln, i) =
-   let (_, r', pln) = let (v'
-                          , pln) = let v' = cogent_fcro
+   let (c', r', pln) = let (v'
+                           , pln) = let v' = cogent_fcro
          and v1' = i
          and v3' = qln
          and (v1', pln) = if v1'
@@ -1736,7 +1624,6 @@ cogent_g59ln (pln, qln, i) =
                and pln { mln = p0' } = v2'
                and v2' = p0'
                and pln = pln { mln = p0' }
-               and v2' = v2'
                in (v2', pln)
             else (v3', pln)
          and v' = v' v1'
@@ -1745,8 +1632,8 @@ cogent_g59ln (pln, qln, i) =
    in (r', qln)
 cogent_g59ro : ( Struct_Cogent_ros1, (CPtr U32)!, U32 ) -> U32
 cogent_g59ro (pln, qro, i) =
-   let (_, r', pln) = let (v'
-                          , pln) = let v' = cogent_fcro
+   let (c', r', pln) = let (v'
+                           , pln) = let v' = cogent_fcro
          and v1' = i
          and v3' = qro
          and (v1', pln) = if v1'
@@ -1754,7 +1641,6 @@ cogent_g59ro (pln, qro, i) =
                and pln { mln = p0' } = v2'
                and v2' = p0'
                and pln = pln { mln = p0' }
-               and v2' = v2'
                in (v2', pln)
             else (v3', pln)
          and v' = v' v1'
@@ -1764,8 +1650,8 @@ cogent_g59ro (pln, qro, i) =
 
 cogent_g61ln : Struct_Cogent_ros2 -> ( (), Struct_Cogent_ros2 )
 cogent_g61ln pln =
-   let (_, pln) = let (v1'
-                      , pln) = let v' = 5
+   let (c', pln) = let (v1'
+                       , pln) = let v' = 5
          and v1' = pln
          and pln { sln = p0' } = v1'
          and v1' = p0'
@@ -1775,28 +1661,26 @@ cogent_g61ln pln =
          and (v1', p1') = (v1', v1')
          and p0' = p0' { mrg = p1' }
          and pln = pln { sln = p0' }
-         and v1' = v1'
          in (v1', pln)
       in (0, pln)
    in ((), pln)
 cogent_g61ro : Struct_Cogent_ros2 -> ( U32, Struct_Cogent_ros2 )
 cogent_g61ro pln =
-   let (_, r', pln) = let (v'
-                          , pln) = let v' = pln
+   let (c', r', pln) = let (v'
+                           , pln) = let v' = pln
          and pln { sln = p0' } = v'
          and v' = p0'
          and p0' { mrg = p1' } = v'
          and v' = p1'
          and p0' = p0' { mrg = p1' }
          and pln = pln { sln = p0' }
-         and v' = v'
          in (v', pln)
       in (3, v', pln)
    in (r', pln)
 cogent_g62ln : Struct_Cogent_ros2 -> ( (), Struct_Cogent_ros2 )
 cogent_g62ln pln =
-   let (_, pln) = let (v1'
-                      , pln) = let v' = cogent_frln
+   let (c', pln) = let (v1'
+                       , pln) = let v' = cogent_frln
          and v' = v' ()
          and v1' = pln
          and pln { sln = p0' } = v1'
@@ -1807,28 +1691,26 @@ cogent_g62ln pln =
          and (v1', p1') = (v1', v1')
          and p0' = p0' { mro = p1' }
          and pln = pln { sln = p0' }
-         and v1' = v1'
          in (v1', pln)
       in (0, pln)
    in ((), pln)
 cogent_g62ro : Struct_Cogent_ros2 -> ( (CPtr U32)!, Struct_Cogent_ros2 )
 cogent_g62ro pln =
-   let (_, r', pln) = let (v'
-                          , pln) = let v' = pln
+   let (c', r', pln) = let (v'
+                           , pln) = let v' = pln
          and pln { sln = p0' } = v'
          and v' = p0'
          and p0' { mro = p1' } = v'
          and v' = p1'
          and p0' = p0' { mro = p1' }
          and pln = pln { sln = p0' }
-         and v' = v'
          in (v', pln)
       in (3, v', pln)
    in (r', pln)
 cogent_g63ln : Struct_Cogent_ros2 -> ( (), Struct_Cogent_ros2 )
 cogent_g63ln pln =
-   let (_, pln) = let (v1'
-                      , pln) = let v' = cogent_frln
+   let (c', pln) = let (v1'
+                       , pln) = let v' = cogent_frln
          and v' = v' ()
          and v1' = pln
          and pln { sln = p0' } = v1'
@@ -1839,28 +1721,26 @@ cogent_g63ln pln =
          and (v1', p1') = (v1', v1')
          and p0' = p0' { mln = p1' }
          and pln = pln { sln = p0' }
-         and v1' = v1'
          in (v1', pln)
       in (0, pln)
    in ((), pln)
 cogent_g63ro : Struct_Cogent_ros2 -> ( CPtr U32, Struct_Cogent_ros2 )
 cogent_g63ro pln =
-   let (_, r', pln) = let (v'
-                          , pln) = let v' = pln
+   let (c', r', pln) = let (v'
+                           , pln) = let v' = pln
          and pln { sln = p0' } = v'
          and v' = p0'
          and p0' { mln = p1' } = v'
          and v' = p1'
          and p0' = p0' { mln = p1' }
          and pln = pln { sln = p0' }
-         and v' = v'
          in (v', pln)
       in (3, v', pln)
    in (r', pln)
 cogent_g64ln : Struct_Cogent_ros2 -> ( (), Struct_Cogent_ros2 )
 cogent_g64ln pln =
-   let (_, pln) = let (v1'
-                      , pln) = let v' = cogent_frln
+   let (c', pln) = let (v1'
+                       , pln) = let v' = cogent_frln
          and v' = v' ()
          and v1' = pln
          and pln { sub = p0' } = v1'
@@ -1871,21 +1751,19 @@ cogent_g64ln pln =
          and (v1', p1') = (v1', v1')
          and p0' = p0' { mro = p1' }
          and pln = pln { sub = p0' }
-         and v1' = v1'
          in (v1', pln)
       in (0, pln)
    in ((), pln)
 cogent_g64ro : Struct_Cogent_ros2 -> ( (CPtr U32)!, Struct_Cogent_ros2 )
 cogent_g64ro pln =
-   let (_, r', pln) = let (v'
-                          , pln) = let v' = pln
+   let (c', r', pln) = let (v'
+                           , pln) = let v' = pln
          and pln { sub = p0' } = v'
          and v' = p0'
          and p0' { mro = p1' } = v'
          and v' = p1'
          and p0' = p0' { mro = p1' }
          and pln = pln { sub = p0' }
-         and v' = v'
          in (v', pln)
       in (3, v', pln)
    in (r', pln)
@@ -1893,8 +1771,8 @@ cogent_g64ro pln =
 -- Probe used by accessing an array element
 cogent_g71ln : Cogent_roa1 -> ( (), Cogent_roa1 )
 cogent_g71ln pln =
-   let (_, pln) = let (v1'
-                      , pln) = let v' = 5
+   let (c', pln) = let (v1'
+                       , pln) = let v' = 5
          and v2' = 1
          and v1' = pln
          and (pln @{ @v2' = p0' }
@@ -1903,27 +1781,25 @@ cogent_g71ln pln =
          and v1' = v'
          and (v1', p0') = (v1', v1')
          and pln = pln @{ @i0' = p0' }
-         and v1' = v1'
          in (v1', pln)
       in (0, pln)
    in ((), pln)
 cogent_g71ro : Cogent_roa1 -> U32
 cogent_g71ro pln =
-   let (_, r', pln) = let (v'
-                          , pln) = let v1' = 1
+   let (c', r', pln) = let (v'
+                           , pln) = let v1' = 1
          and v' = pln
          and (pln @{ @v1' = p0' }
              , i0') = (v', v1')
          and v' = p0'
          and pln = pln @{ @i0' = p0' }
-         and v' = v'
          in (v', pln)
       in (3, v', pln)
    in r'
 cogent_g72ln : Cogent_roa2 -> ( (), Cogent_roa2 )
 cogent_g72ln pln =
-   let (_, pln) = let (v1'
-                      , pln) = let v' = cogent_frln
+   let (c', pln) = let (v1'
+                       , pln) = let v' = cogent_frln
          and v' = v' ()
          and v2' = 1
          and v1' = pln
@@ -1933,27 +1809,25 @@ cogent_g72ln pln =
          and v1' = v'
          and (v1', p0') = (v1', v1')
          and pln = pln @{ @i0' = p0' }
-         and v1' = v1'
          in (v1', pln)
       in (0, pln)
    in ((), pln)
 cogent_g72ro : Cogent_roa2 -> (CPtr U32)!
 cogent_g72ro pln =
-   let (_, r', pln) = let (v'
-                          , pln) = let v1' = 1
+   let (c', r', pln) = let (v'
+                           , pln) = let v1' = 1
          and v' = pln
          and (pln @{ @v1' = p0' }
              , i0') = (v', v1')
          and v' = p0'
          and pln = pln @{ @i0' = p0' }
-         and v' = v'
          in (v', pln)
       in (3, v', pln)
    in r'
 cogent_g73ln : Cogent_roa3 -> ( (), Cogent_roa3 )
 cogent_g73ln pln =
-   let (_, pln) = let (v1'
-                      , pln) = let v' = cogent_frln
+   let (c', pln) = let (v1'
+                       , pln) = let v' = cogent_frln
          and v' = v' ()
          and v2' = 1
          and v1' = pln
@@ -1963,27 +1837,25 @@ cogent_g73ln pln =
          and v1' = v'
          and (v1', p0') = (v1', v1')
          and pln = pln @{ @i0' = p0' }
-         and v1' = v1'
          in (v1', pln)
       in (0, pln)
    in ((), pln)
 cogent_g73ro : Cogent_roa3 -> CPtr U32
 cogent_g73ro pln =
-   let (_, r', pln) = let (v'
-                          , pln) = let v1' = 1
+   let (c', r', pln) = let (v'
+                           , pln) = let v1' = 1
          and v' = pln
          and (pln @{ @v1' = p0' }
              , i0') = (v', v1')
          and v' = p0'
          and pln = pln @{ @i0' = p0' }
-         and v' = v'
          in (v', pln)
       in (3, v', pln)
    in r'
 cogent_g74ln : Cogent_roa3 -> ( (), Cogent_roa3 )
 cogent_g74ln pln =
-   let (_, pln) = let (v1'
-                      , pln) = let v' = 5
+   let (c', pln) = let (v1'
+                       , pln) = let v' = 5
          and v2' = 1
          and v1' = pln
          and (pln @{ @v2' = p0' }
@@ -1995,14 +1867,13 @@ cogent_g74ln pln =
          and (v1', p1') = (v1', v1')
          and p0' = p0' { cont = p1' }
          and pln = pln @{ @i0' = p0' }
-         and v1' = v1'
          in (v1', pln)
       in (0, pln)
    in ((), pln)
 cogent_g74ro : Cogent_roa3 -> U32
 cogent_g74ro pln =
-   let (_, r', pln) = let (v'
-                          , pln) = let v1' = 1
+   let (c', r', pln) = let (v'
+                           , pln) = let v1' = 1
          and v' = pln
          and (pln @{ @v1' = p0' }
              , i0') = (v', v1')
@@ -2011,93 +1882,85 @@ cogent_g74ro pln =
          and v' = p1'
          and p0' = p0' { cont = p1' }
          and pln = pln @{ @i0' = p0' }
-         and v' = v'
          in (v', pln)
       in (3, v', pln)
    in r'
 cogent_g75ln : Cogent_roa3 -> U32
 cogent_g75ln pln =
-   let (_, r', pln) = let (v'
-                          , pln) = let v' = cogent_fcln
+   let (c', r', pln) = let (v'
+                           , pln) = let v' = cogent_fcln
          and v2' = 1
          and v1' = pln
          and (pln @{ @v2' = p0' }
              , i0') = (v1', v2')
          and v1' = p0'
          and pln = pln @{ @i0' = p0' }
-         and v1' = v1'
          and v' = v' v1'
          in (v', pln)
       in (3, v', pln)
    in r'
 cogent_g75ro : Cogent_roa3 -> U32
 cogent_g75ro pln =
-   let (_, r', pln) = let (v'
-                          , pln) = let v' = cogent_fcro
+   let (c', r', pln) = let (v'
+                           , pln) = let v' = cogent_fcro
          and v2' = 1
          and v1' = pln
          and (pln @{ @v2' = p0' }
              , i0') = (v1', v2')
          and v1' = p0'
          and pln = pln @{ @i0' = p0' }
-         and v1' = v1'
          and v' = v' v1'
          in (v', pln)
       in (3, v', pln)
    in r'
 cogent_g76ln : ( Cogent_roa3, GlobState1 ) -> ( (), GlobState1 )
 cogent_g76ln (pln, g) =
-   let (_, pln, g) = let (v2'
-                         , pln
-                         , g) = let v1' = 1
+   let (c', pln, g) = let (v2'
+                          , pln
+                          , g) = let v1' = 1
          and v' = pln
          and (pln @{ @v1' = p0' }
              , i0') = (v', v1')
          and v' = p0'
          and pln = pln @{ @i0' = p0' }
-         and v' = v'
          and v2' = g
          and g { cont = p1' } = v2'
          and v2' = p1'
          and v2' = v'
          and (v2', p1') = (v2', v2')
          and g = g { cont = p1' }
-         and v2' = v2'
          in (v2', pln, g)
       in (0, pln, g)
    in ((), g)
 cogent_g76ro : ( Cogent_roa3, GlobState2 ) -> ( (), GlobState2 )
 cogent_g76ro (pln, g) =
-   let (_, pln, g) = let (v2'
-                         , pln
-                         , g) = let v1' = 1
+   let (c', pln, g) = let (v2'
+                          , pln
+                          , g) = let v1' = 1
          and v' = pln
          and (pln @{ @v1' = p0' }
              , i0') = (v', v1')
          and v' = p0'
          and pln = pln @{ @i0' = p0' }
-         and v' = v'
          and v2' = g
          and g { cont = p1' } = v2'
          and v2' = p1'
          and v2' = v'
          and (v2', p1') = (v2', v2')
          and g = g { cont = p1' }
-         and v2' = v2'
          in (v2', pln, g)
       in (0, pln, g)
    in ((), g)
 cogent_g77ln : ( Cogent_roa3, CPtr U32 ) -> ( (), CPtr U32 )
 cogent_g77ln (pln, qln) =
-   let (_, pln, qln) = let (v2'
-                           , pln
-                           , qln) = let v1' = 1
+   let (c', pln, qln) = let (v2'
+                            , pln
+                            , qln) = let v1' = 1
          and v' = pln
          and (pln @{ @v1' = p0' }
              , i0') = (v', v1')
          and v' = p0'
          and pln = pln @{ @i0' = p0' }
-         and v' = v'
          and v2' = qln
          and v2' = v'
          and (v2', qln) = (v2', v2')
@@ -2106,17 +1969,16 @@ cogent_g77ln (pln, qln) =
    in ((), qln)
 cogent_g77ro : ( Cogent_roa3, (CPtr U32)! ) -> U32
 cogent_g77ro (pln, qro) =
-   let (_, pln, qro, r') = let (c'
-                               , pln
-                               , qro) = let (v2'
-                                            , pln
-                                            , qro) = let v1' = 1
+   let (c', pln, qro, r') = let (c'
+                                , pln
+                                , qro) = let (v2'
+                                             , pln
+                                             , qro) = let v1' = 1
             and v' = pln
             and (pln @{ @v1' = p0' }
                 , i0') = (v', v1')
             and v' = p0'
             and pln = pln @{ @i0' = p0' }
-            and v' = v'
             and v2' = qro
             and v2' = v'
             and (v2', qro) = (v2', v2')
@@ -2129,41 +1991,38 @@ cogent_g77ro (pln, qro) =
                   and qro { cont = p1' } = v'
                   and v' = p1'
                   and qro = qro { cont = p1' }
-                  and v' = v'
                   in (v', qro)
                in (3, v', qro)
             in (c', pln, qro, r')
    in r'
 cogent_g78ln : Cogent_roa3 -> CPtr U32
 cogent_g78ln pln =
-   let (_, r', pln) = let (v'
-                          , pln) = let v1' = 1
+   let (c', r', pln) = let (v'
+                           , pln) = let v1' = 1
          and v' = pln
          and (pln @{ @v1' = p0' }
              , i0') = (v', v1')
          and v' = p0'
          and pln = pln @{ @i0' = p0' }
-         and v' = v'
          in (v', pln)
       in (3, v', pln)
    in r'
 cogent_g78ro : Cogent_roa3 -> (CPtr U32)!
 cogent_g78ro pln =
-   let (_, r', pln) = let (v'
-                          , pln) = let v1' = 1
+   let (c', r', pln) = let (v'
+                           , pln) = let v1' = 1
          and v' = pln
          and (pln @{ @v1' = p0' }
              , i0') = (v', v1')
          and v' = p0'
          and pln = pln @{ @i0' = p0' }
-         and v' = v'
          in (v', pln)
       in (3, v', pln)
    in r'
 cogent_g79ln : ( Cogent_roa3, CPtr U32, U32 ) -> ( U32, CPtr U32 )
 cogent_g79ln (pln, qln, i) =
-   let (_, r', pln) = let (v'
-                          , pln) = let v' = cogent_fcro
+   let (c', r', pln) = let (v'
+                           , pln) = let v' = cogent_fcro
          and v1' = i
          and v4' = qln
          and (v1', pln) = if v1'
@@ -2173,7 +2032,6 @@ cogent_g79ln (pln, qln, i) =
                    , i0') = (v2', v3')
                and v2' = p0'
                and pln = pln @{ @i0' = p0' }
-               and v2' = v2'
                in (v2', pln)
             else (v4', pln)
          and v' = v' v1'
@@ -2182,8 +2040,8 @@ cogent_g79ln (pln, qln, i) =
    in (r', qln)
 cogent_g79ro : ( Cogent_roa3, (CPtr U32)!, U32 ) -> U32
 cogent_g79ro (pln, qro, i) =
-   let (_, r', pln) = let (v'
-                          , pln) = let v' = cogent_fcro
+   let (c', r', pln) = let (v'
+                           , pln) = let v' = cogent_fcro
          and v1' = i
          and v4' = qro
          and (v1', pln) = if v1'
@@ -2193,7 +2051,6 @@ cogent_g79ro (pln, qro, i) =
                    , i0') = (v2', v3')
                and v2' = p0'
                and pln = pln @{ @i0' = p0' }
-               and v2' = v2'
                in (v2', pln)
             else (v4', pln)
          and v' = v' v1'
@@ -2203,8 +2060,8 @@ cogent_g79ro (pln, qro, i) =
 
 cogent_g81ln : Cogent_roa4 -> ( (), Cogent_roa4 )
 cogent_g81ln pln =
-   let (_, pln) = let (v1'
-                      , pln) = let v' = 5
+   let (c', pln) = let (v1'
+                       , pln) = let v' = 5
          and v3' = 1
          and v2' = 1
          and v1' = pln
@@ -2218,14 +2075,13 @@ cogent_g81ln pln =
          and (v1', p1') = (v1', v1')
          and p0' = p0' @{ @i1' = p1' }
          and pln = pln @{ @i0' = p0' }
-         and v1' = v1'
          in (v1', pln)
       in (0, pln)
    in ((), pln)
 cogent_g81ro : Cogent_roa4 -> U32
 cogent_g81ro pln =
-   let (_, r', pln) = let (v'
-                          , pln) = let v2' = 1
+   let (c', r', pln) = let (v'
+                           , pln) = let v2' = 1
          and v1' = 1
          and v' = pln
          and (pln @{ @v1' = p0' }
@@ -2236,14 +2092,13 @@ cogent_g81ro pln =
          and v' = p1'
          and p0' = p0' @{ @i1' = p1' }
          and pln = pln @{ @i0' = p0' }
-         and v' = v'
          in (v', pln)
       in (3, v', pln)
    in r'
 cogent_g82ln : Cogent_roa5 -> ( (), Cogent_roa5 )
 cogent_g82ln pln =
-   let (_, pln) = let (v1'
-                      , pln) = let v' = cogent_frln
+   let (c', pln) = let (v1'
+                       , pln) = let v' = cogent_frln
          and v' = v' ()
          and v3' = 1
          and v2' = 1
@@ -2258,14 +2113,13 @@ cogent_g82ln pln =
          and (v1', p1') = (v1', v1')
          and p0' = p0' @{ @i1' = p1' }
          and pln = pln @{ @i0' = p0' }
-         and v1' = v1'
          in (v1', pln)
       in (0, pln)
    in ((), pln)
 cogent_g82ro : Cogent_roa5 -> (CPtr U32)!
 cogent_g82ro pln =
-   let (_, r', pln) = let (v'
-                          , pln) = let v2' = 1
+   let (c', r', pln) = let (v'
+                           , pln) = let v2' = 1
          and v1' = 1
          and v' = pln
          and (pln @{ @v1' = p0' }
@@ -2276,14 +2130,13 @@ cogent_g82ro pln =
          and v' = p1'
          and p0' = p0' @{ @i1' = p1' }
          and pln = pln @{ @i0' = p0' }
-         and v' = v'
          in (v', pln)
       in (3, v', pln)
    in r'
 cogent_g83ln : Cogent_roa6 -> ( (), Cogent_roa6 )
 cogent_g83ln pln =
-   let (_, pln) = let (v1'
-                      , pln) = let v' = cogent_frln
+   let (c', pln) = let (v1'
+                       , pln) = let v' = cogent_frln
          and v' = v' ()
          and v3' = 1
          and v2' = 1
@@ -2298,14 +2151,13 @@ cogent_g83ln pln =
          and (v1', p1') = (v1', v1')
          and p0' = p0' @{ @i1' = p1' }
          and pln = pln @{ @i0' = p0' }
-         and v1' = v1'
          in (v1', pln)
       in (0, pln)
    in ((), pln)
 cogent_g83ro : Cogent_roa6 -> CPtr U32
 cogent_g83ro pln =
-   let (_, r', pln) = let (v'
-                          , pln) = let v2' = 1
+   let (c', r', pln) = let (v'
+                           , pln) = let v2' = 1
          and v1' = 1
          and v' = pln
          and (pln @{ @v1' = p0' }
@@ -2316,7 +2168,6 @@ cogent_g83ro pln =
          and v' = p1'
          and p0' = p0' @{ @i1' = p1' }
          and pln = pln @{ @i0' = p0' }
-         and v' = v'
          in (v', pln)
       in (3, v', pln)
    in r'
@@ -2324,8 +2175,8 @@ cogent_g83ro pln =
 -- probe assigned to struct component or array element
 cogent_g91ln : Struct_Cogent_ros1 -> ( (), Struct_Cogent_ros1 )
 cogent_g91ln pln =
-   let (_, pln) = let (v1'
-                      , pln) = let v' = cogent_frln
+   let (c', pln) = let (v1'
+                       , pln) = let v' = cogent_frln
          and v' = v' ()
          and v1' = pln
          and pln { mln = p0' } = v1'
@@ -2333,14 +2184,13 @@ cogent_g91ln pln =
          and v1' = v'
          and (v1', p0') = (v1', v1')
          and pln = pln { mln = p0' }
-         and v1' = v1'
          in (v1', pln)
       in (0, pln)
    in ((), pln)
 cogent_g91ro : Struct_Cogent_ros1 -> ( (), Struct_Cogent_ros1 )
 cogent_g91ro pln =
-   let (_, pln) = let (v1'
-                      , pln) = let v' = cogent_frln
+   let (c', pln) = let (v1'
+                       , pln) = let v' = cogent_frln
          and v' = v' ()
          and v1' = pln
          and pln { mro = p0' } = v1'
@@ -2348,14 +2198,13 @@ cogent_g91ro pln =
          and v1' = v'
          and (v1', p0') = (v1', v1')
          and pln = pln { mro = p0' }
-         and v1' = v1'
          in (v1', pln)
       in (0, pln)
    in ((), pln)
 cogent_g92ln : Cogent_roa3 -> ( (), Cogent_roa3 )
 cogent_g92ln pln =
-   let (_, pln) = let (v1'
-                      , pln) = let v' = cogent_frln
+   let (c', pln) = let (v1'
+                       , pln) = let v' = cogent_frln
          and v' = v' ()
          and v2' = 1
          and v1' = pln
@@ -2365,14 +2214,13 @@ cogent_g92ln pln =
          and v1' = v'
          and (v1', p0') = (v1', v1')
          and pln = pln @{ @i0' = p0' }
-         and v1' = v1'
          in (v1', pln)
       in (0, pln)
    in ((), pln)
 cogent_g92ro : Cogent_roa2 -> ( (), Cogent_roa2 )
 cogent_g92ro pln =
-   let (_, pln) = let (v1'
-                      , pln) = let v' = cogent_frln
+   let (c', pln) = let (v1'
+                       , pln) = let v' = cogent_frln
          and v' = v' ()
          and v2' = 1
          and v1' = pln
@@ -2382,7 +2230,6 @@ cogent_g92ro pln =
          and v1' = v'
          and (v1', p0') = (v1', v1')
          and pln = pln @{ @i0' = p0' }
-         and v1' = v1'
          in (v1', pln)
       in (0, pln)
    in ((), pln)
@@ -2390,15 +2237,14 @@ cogent_g92ro pln =
 -- banging in nested bang positions
 cogent_n11 : ( Struct_Cogent_ros1, U32 ) -> ( Struct_Cogent_ros1, Struct_Cogent_ros1 )
 cogent_n11 (pln, i) =
-   let (_, pln, i, r') = let (c'
-                             , pln
-                             , i) = let (v1'
-                                        , pln
-                                        , i) = let v' = pln
+   let (c', pln, i, r') = let (c'
+                              , pln
+                              , i) = let (v1'
+                                         , pln
+                                         , i) = let v' = pln
             and pln { mrg = p0' } = v'
             and v' = p0'
             and pln = pln { mrg = p0' }
-            and v' = v'
             and v1' = i
             and v1' = v'
             and (v1', i) = (v1', v1')
@@ -2418,29 +2264,25 @@ cogent_n11 (pln, i) =
                      and (v1', p2') = (v1', v1')
                      and p1' = p1' { cont = p2' }
                      and pln = pln { mln = p1' }
-                     and v1' = v1'
                      in (v1', pln)
                   in (0, pln)
                in if c' > 0
                   then (c', pln, r')
-                  else let (c'
-                           , r') = let v' = let v' = pln
-                           in v'
+                  else let (c', r') = let v' = pln
                         in (3, v')
                      in (c', pln, r')
             in (c', pln, i, r')
    in (r', pln)
 cogent_n12 : ( Struct_Cogent_ros1, U32 ) -> ( Struct_Cogent_ros1, Struct_Cogent_ros1 )
 cogent_n12 (pln, i) =
-   let (_, pln, i, r') = let (c'
-                             , pln
-                             , i) = let (v1'
-                                        , pln
-                                        , i) = let v' = pln
+   let (c', pln, i, r') = let (c'
+                              , pln
+                              , i) = let (v1'
+                                         , pln
+                                         , i) = let v' = pln
             and pln { mrg = p0' } = v'
             and v' = p0'
             and pln = pln { mrg = p0' }
-            and v' = v'
             and v1' = i
             and v1' = v'
             and (v1', i) = (v1', v1')
@@ -2462,7 +2304,6 @@ cogent_n12 (pln, i) =
                      and v' = p2'
                      and p1' = p1' { cont = p2' }
                      and pln = pln { mro = p1' }
-                     and v' = v'
                      and v1' = i
                      and v1' = v1' + v'
                      and (v1', i) = (v1', v1')
@@ -2482,14 +2323,11 @@ cogent_n12 (pln, i) =
                               and (v1', p4') = (v1', v1')
                               and p3' = p3' { cont = p4' }
                               and pln = pln { mln = p3' }
-                              and v1' = v1'
                               in (v1', pln)
                            in (0, pln)
                         in if c' > 0
                            then (c', pln, r')
-                           else let (c'
-                                    , r') = let v' = let v' = pln
-                                    in v'
+                           else let (c', r') = let v' = pln
                                  in (3, v')
                               in (c', pln, r')
                      in (c', pln, i, r')
@@ -2499,13 +2337,12 @@ cogent_n12 (pln, i) =
 -- banging in binding sequences
 cogent_bs11 : ( Struct_Cogent_ros1, U32 ) -> ( Struct_Cogent_ros1, Struct_Cogent_ros1 )
 cogent_bs11 (pln, i) =
-   let (_, r', pln, i) = let (v4'
-                             , pln
-                             , i) = let v' = pln
+   let (c', r', pln, i) = let (v4'
+                              , pln
+                              , i) = let v' = pln
          and pln { mrg = p0' } = v'
          and v' = p0'
          and pln = pln { mrg = p0' }
-         and v' = v'
          and v1' = i
          and v1' = v'
          and (v1', i) = (v1', v1')
@@ -2519,14 +2356,13 @@ cogent_bs11 (pln, i) =
          and (v3', p2') = (v3', v3')
          and p1' = p1' { cont = p2' }
          and pln = pln { mln = p1' }
-         and v3' = v3'
          and v4' = pln
          in (v4', pln, i)
       in (3, v4', pln, i)
    in (r', pln)
 cogent_bs12 : ( Struct_Cogent_ros1, (CPtr U32)!, U32 ) -> ( Struct_Cogent_ros1, Struct_Cogent_ros1 )
 cogent_bs12 (pln, qro, i) =
-   let (_
+   let (c'
        , r'
        , pln
        , qro
@@ -2537,7 +2373,6 @@ cogent_bs12 (pln, qro, i) =
          and pln { mln = p0' } = v'
          and v' = p0'
          and pln = pln { mln = p0' }
-         and v' = v'
          and v1' = qro
          and v1' = v'
          and (v1', qro) = (v1', v1')
@@ -2545,7 +2380,6 @@ cogent_bs12 (pln, qro, i) =
          and qro { cont = p1' } = v2'
          and v2' = p1'
          and qro = qro { cont = p1' }
-         and v2' = v2'
          and v3' = i
          and v3' = v2'
          and (v3', i) = (v3', v3')
@@ -2556,14 +2390,13 @@ cogent_bs12 (pln, qro, i) =
          and v5' = v4'
          and (v5', p2') = (v5', v5')
          and pln = pln { mrg = p2' }
-         and v5' = v5'
          and v6' = pln
          in (v6', pln, qro, i)
       in (3, v6', pln, qro, i)
    in (r', pln)
 cogent_bs13 : ( Struct_Cogent_ros1, (CPtr U32)!, MayNull (CPtr U32) ) -> ( Struct_Cogent_ros1, Struct_Cogent_ros1, MayNull (CPtr U32) )
 cogent_bs13 (pln, qro, i) =
-   let (_
+   let (c'
        , r'
        , pln
        , qro
@@ -2574,7 +2407,6 @@ cogent_bs13 (pln, qro, i) =
          and pln { mln = p0' } = v'
          and v' = p0'
          and pln = pln { mln = p0' }
-         and v' = v'
          and v1' = qro
          and v1' = v'
          and (v1', qro) = (v1', v1')
@@ -2582,14 +2414,12 @@ cogent_bs13 (pln, qro, i) =
          and qro { cont = p1' } = v2'
          and v2' = p1'
          and qro = qro { cont = p1' }
-         and v2' = v2'
          and v3' = i
          and i { cont = p2' } = v3'
          and v3' = p2'
          and v3' = v2'
          and (v3', p2') = (v3', v3')
          and i = i { cont = p2' }
-         and v3' = v3'
          and v4' = i
          and v5' = pln
          and pln { mln = p3' } = v5'
@@ -2597,7 +2427,6 @@ cogent_bs13 (pln, qro, i) =
          and v5' = v4'
          and (v5', p3') = (v5', v5')
          and pln = pln { mln = p3' }
-         and v5' = v5'
          and v6' = pln
          in (v6', pln, qro, i)
       in (3, v6', pln, qro, i)

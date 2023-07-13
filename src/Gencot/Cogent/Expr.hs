@@ -22,9 +22,6 @@ data TypedVar = TV {
 instance Eq TypedVar where
     v1 == v2 = (namOfTV v1) == (namOfTV v2)
 
--- | A synonym for marking the case where a typed variable may also be (TV "_" unitType)
-type TypedVarOrWild = TypedVar
-
 -- Function name together with its type
 type TypedFun = (CCS.FunName,GenType)
 

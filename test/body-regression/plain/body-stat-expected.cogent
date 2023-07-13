@@ -1,27 +1,23 @@
 cogent_sv1 : () -> ()
-cogent_sv1 () = let _ = 0 in ()
+cogent_sv1 () = let c' = 0 in ()
 cogent_sv2 : U32 -> ()
-cogent_sv2 i = let _ = 0 in ()
+cogent_sv2 i = let c' = 0 in ()
 cogent_sv3 : () -> ()
-cogent_sv3 () = let _ = 0 in ()
+cogent_sv3 () = let c' = 0 in ()
 cogent_sv4 : () -> ()
 cogent_sv4 () =
-   let (_
-       , r') = let v' = let v' = ()
-         in v'
+   let (c', r') = let v' = ()
       in (3, v')
    in ()
 
 cogent_se1 : U32 -> U32
 cogent_se1 i =
-   let (_
-       , r') = let v' = let v' = i
-         in v'
+   let (c', r') = let v' = i
       in (3, v')
    in r'
 cogent_se2 : U32 -> U32
 cogent_se2 i =
-   let (_
+   let (c'
        , r') = let v' = let v' = i
          and v1' = 5
          and v' = v' + v1'
@@ -32,8 +28,8 @@ cogent_se2 i =
    in r'
 cogent_se3 : U32 -> U32
 cogent_se3 i =
-   let (_, i, r') = let (c'
-                        , i) = let (v1', i) = let v' = 1
+   let (c', i, r') = let (c'
+                         , i) = let (v1', i) = let v' = 1
             and v1' = i
             and v1' = v1' + v'
             and (v1', i) = (i, v1')
@@ -41,16 +37,14 @@ cogent_se3 i =
          in (0, i)
       in if c' > 0
          then (c', i, r')
-         else let (c'
-                  , r') = let v' = let v' = i
-                  in v'
+         else let (c', r') = let v' = i
                in (3, v')
             in (c', i, r')
    in r'
 cogent_se4 : U32 -> U32
 cogent_se4 i =
-   let (_, i, r') = let (c'
-                        , i) = let (v1', i) = let v' = 1
+   let (c', i, r') = let (c'
+                         , i) = let (v1', i) = let v' = 1
             and v1' = i
             and v1' = v1' + v'
             and (v1', i) = (i, v1')
@@ -67,17 +61,15 @@ cogent_se4 i =
                   in (0, i)
                in if c' > 0
                   then (c', i, r')
-                  else let (c'
-                           , r') = let v' = let v' = i
-                           in v'
+                  else let (c', r') = let v' = i
                         in (3, v')
                      in (c', i, r')
             in (c', i, r')
    in r'
 cogent_se5 : U32 -> U32
 cogent_se5 i =
-   let (_, i, r') = let (c'
-                        , i) = let (v1', i) = let v' = 1
+   let (c', i, r') = let (c'
+                         , i) = let (v1', i) = let v' = 1
             and v1' = i
             and v1' = v1' + v'
             and (v1', i) = (i, v1')
@@ -97,50 +89,42 @@ cogent_se5 i =
 
 cogent_si1 : ( U32, U32 ) -> U32
 cogent_si1 (i, j) =
-   let (_
+   let (c'
        , r') = let v' = let v' = i
          and v1' = 0
          and v' = v' == v1'
          in v'
       in if v'
-         then let (c'
-                  , r') = let v' = let v' = j
-                  in v'
+         then let (c', r') = let v' = j
                in (3, v')
             in (c', r')
-         else let (c'
-                  , r') = let v' = let v' = i
-                  in v'
+         else let (c', r') = let v' = i
                in (3, v')
             in (c', r')
    in r'
 cogent_si2 : ( U32, U32 ) -> U32
 cogent_si2 (i, j) =
-   let (_, r') = let (c'
-                     , r') = let v' = let v' = i
+   let (c', r') = let (c'
+                      , r') = let v' = let v' = i
             and v1' = 0
             and v' = v' == v1'
             in v'
          in if v'
-            then let (c'
-                     , r') = let v' = let v' = j
-                     in v'
+            then let (c', r') = let v' = j
                   in (3, v')
                in (c', r')
             else let c' = 0
                in (c', r')
       in if c' > 0
          then (c', r')
-         else let (c'
-                  , r') = let v' = let v' = i
-                  in v'
+         else let (c', r') = let v' = i
                in (3, v')
             in (c', r')
    in r'
 cogent_si3 : ( U32, U32 ) -> U32
 cogent_si3 (i, j) =
-   let (_, i, r') = let (c'
-                        , i) = let v' = let v' = i
+   let (c', i, r') = let (c'
+                         , i) = let v' = let v' = i
             and v1' = 0
             and v' = v' == v1'
             in v'
@@ -163,17 +147,15 @@ cogent_si3 (i, j) =
                in (c', i)
       in if c' > 0
          then (c', i, r')
-         else let (c'
-                  , r') = let v' = let v' = i
-                  in v'
+         else let (c', r') = let v' = i
                in (3, v')
             in (c', i, r')
    in r'
 cogent_si4 : ( U32, U32 ) -> U32
 cogent_si4 (i, j) =
-   let (_, i, j, r') = let (c'
-                           , i
-                           , j) = let v' = let v' = i
+   let (c', i, j, r') = let (c'
+                            , i
+                            , j) = let v' = let v' = i
             and v1' = 0
             and v' = v' == v1'
             in v'
@@ -222,9 +204,9 @@ cogent_si4 (i, j) =
    in r'
 cogent_si5 : ( U32, U32 ) -> U32
 cogent_si5 (i, j) =
-   let (_, i, j, r') = let (c'
-                           , i
-                           , j) = let v' = let v' = i
+   let (c', i, j, r') = let (c'
+                            , i
+                            , j) = let v' = let v' = i
             and v1' = 0
             and v' = v' == v1'
             in v'
@@ -289,10 +271,10 @@ cogent_si5 (i, j) =
    in r'
 cogent_si6 : ( U32, U32 ) -> U32
 cogent_si6 (i, j) =
-   let (_, i, r', j) = let (c'
-                           , i
-                           , r'
-                           , j) = let v' = let v' = i
+   let (c', i, r', j) = let (c'
+                            , i
+                            , r'
+                            , j) = let v' = let v' = i
             and v1' = 0
             and v' = v' == v1'
             in v'
@@ -359,9 +341,9 @@ cogent_si6 (i, j) =
    in r'
 cogent_si8 : ( U32, U32 ) -> U32
 cogent_si8 (i, j) =
-   let (_, j, i, r') = let (c'
-                           , j
-                           , i) = let v' = let v' = i
+   let (c', j, i, r') = let (c'
+                            , j
+                            , i) = let v' = let v' = i
             and v1' = 0
             and v' = v' == v1'
             in v'
@@ -406,9 +388,9 @@ cogent_si8 (i, j) =
    in r'
 cogent_si9 : ( U32, U32 ) -> U32
 cogent_si9 (i, j) =
-   let (_, j, i, r') = let (c'
-                           , j
-                           , i) = let v' = let v' = i
+   let (c', j, i, r') = let (c'
+                            , j
+                            , i) = let v' = let v' = i
             and v1' = 0
             and v' = v' == v1'
             in v'
@@ -454,8 +436,8 @@ cogent_si9 (i, j) =
 
 cogent_sc1 : ( U32, U32 ) -> U32
 cogent_sc1 (i, j) =
-   let (_, i, j, r') = let (c'
-                           , i) = let (v2', i) = let v' = 2
+   let (c', i, j, r') = let (c'
+                            , i) = let (v2', i) = let v' = 2
             and v1' = j
             and v' = v' * v1'
             and v2' = i
@@ -502,8 +484,8 @@ cogent_sc1 (i, j) =
    in r'
 cogent_sc2 : ( U32, U32 ) -> U32
 cogent_sc2 (i, j) =
-   let (_, i, j, r') = let (c'
-                           , i) = let (v2', i) = let v' = 2
+   let (c', i, j, r') = let (c'
+                            , i) = let (v2', i) = let v' = 2
             and v1' = j
             and v' = v' * v1'
             and v2' = i
@@ -596,9 +578,7 @@ cogent_sc2 (i, j) =
                                     in (0, i)
                                  in if c' > 0
                                     then (c', i, r')
-                                    else let (c'
-                                             , r') = let v' = let v' = i
-                                             in v'
+                                    else let (c', r') = let v' = i
                                           in (3, v')
                                        in (c', i, r')
                               in (c', j, i, r')
@@ -608,8 +588,8 @@ cogent_sc2 (i, j) =
 
 cogent_sd1 : ( U32, U32 ) -> U32
 cogent_sd1 (i, j) =
-   let (_, i, j, r') = let (c'
-                           , i) = let (v2', i) = let v' = 2
+   let (c', i, j, r') = let (c'
+                            , i) = let (v2', i) = let v' = 2
             and v1' = j
             and v' = v' * v1'
             and v2' = i
@@ -649,9 +629,7 @@ cogent_sd1 (i, j) =
                                  in (0, k)
                               in if c' > 0
                                  then (c', k, r')
-                                 else let (c'
-                                          , r') = let v' = let v' = k
-                                          in v'
+                                 else let (c', r') = let v' = k
                                        in (3, v')
                                     in (c', k, r')
                            in (c', j, k, r')
@@ -661,8 +639,8 @@ cogent_sd1 (i, j) =
    in r'
 cogent_sd2 : ( U32, U32 ) -> U32
 cogent_sd2 (i, j) =
-   let (_, i, j, r') = let (c'
-                           , i) = let (v2', i) = let v' = 2
+   let (c', i, j, r') = let (c'
+                            , i) = let (v2', i) = let v' = 2
             and v1' = j
             and v' = v' * v1'
             and v2' = i
@@ -703,17 +681,15 @@ cogent_sd2 (i, j) =
                   in (c', j)
                in if c' > 0
                   then (c', j, r')
-                  else let (c'
-                           , r') = let v' = let v' = i
-                           in v'
+                  else let (c', r') = let v' = i
                         in (3, v')
                      in (c', j, r')
             in (c', i, j, r')
    in r'
 cogent_sd3 : ( U32, U32 ) -> U32
 cogent_sd3 (i, j) =
-   let (_, i, j, r') = let (c'
-                           , i) = let (v2', i) = let v' = 2
+   let (c', i, j, r') = let (c'
+                            , i) = let (v2', i) = let v' = 2
             and v1' = j
             and v' = v' * v1'
             and v2' = i
@@ -766,9 +742,7 @@ cogent_sd3 (i, j) =
                            in (0, i)
                         in if c' > 0
                            then (c', i, r')
-                           else let (c'
-                                    , r') = let v' = let v' = i
-                                    in v'
+                           else let (c', r') = let v' = i
                                  in (3, v')
                               in (c', i, r')
                      in (c', j, i, r')
@@ -776,8 +750,8 @@ cogent_sd3 (i, j) =
    in r'
 cogent_sd4 : ( U32, U32 ) -> U32
 cogent_sd4 (i, j) =
-   let (_, i, j, r') = let (c'
-                           , i) = let (v2', i) = let v' = 2
+   let (c', i, j, r') = let (c'
+                            , i) = let (v2', i) = let v' = 2
             and v1' = j
             and v' = v' * v1'
             and v2' = i
@@ -848,9 +822,7 @@ cogent_sd4 (i, j) =
                            in (0, i)
                         in if c' > 0
                            then (c', i, r')
-                           else let (c'
-                                    , r') = let v' = let v' = i
-                                    in v'
+                           else let (c', r') = let v' = i
                                  in (3, v')
                               in (c', i, r')
                      in (c', j, i, r')
@@ -858,8 +830,8 @@ cogent_sd4 (i, j) =
    in r'
 cogent_sd5 : ( U32, U32 ) -> U32
 cogent_sd5 (i, j) =
-   let (_, i, j, r') = let (c'
-                           , i) = let (v2', i) = let v' = 2
+   let (c', i, j, r') = let (c'
+                            , i) = let (v2', i) = let v' = 2
             and v1' = j
             and v' = v' * v1'
             and v2' = i
@@ -871,14 +843,12 @@ cogent_sd5 (i, j) =
          then (c', i, j, r')
          else let (c'
                   , j
-                  , r') = let v' = let v' = defaultVal[U32]{{}} ()
-                  in v'
+                  , r') = let v' = defaultVal[U32]{{}} ()
                and (c', j, r') = let k1 = v'
                   and (c'
                       , k1
                       , j
-                      , r') = let v' = let v' = defaultVal[U32]{{}} ()
-                        in v'
+                      , r') = let v' = defaultVal[U32]{{}} ()
                      and (c'
                          , k1
                          , j
@@ -941,8 +911,7 @@ cogent_sd5 (i, j) =
                                                       in if c' > 0
                                                          then (c', k1, r')
                                                          else let (c'
-                                                                  , r') = let v' = let v' = k1
-                                                                  in v'
+                                                                  , r') = let v' = k1
                                                                in (3, v')
                                                             in (c', k1, r')
                                                    in (c', j, k1, r')
@@ -956,8 +925,8 @@ cogent_sd5 (i, j) =
    in r'
 cogent_sd6 : ( U32, U32 ) -> U32
 cogent_sd6 (i, j) =
-   let (_, i, j, r') = let (c'
-                           , i) = let (v2', i) = let v' = 2
+   let (c', i, j, r') = let (c'
+                            , i) = let (v2', i) = let v' = 2
             and v1' = j
             and v' = v' * v1'
             and v2' = i
@@ -969,14 +938,12 @@ cogent_sd6 (i, j) =
          then (c', i, j, r')
          else let (c'
                   , j
-                  , r') = let v' = let v' = defaultVal[U32]{{}} ()
-                  in v'
+                  , r') = let v' = defaultVal[U32]{{}} ()
                and (c', j, r') = let k1 = v'
                   and (c'
                       , k1
                       , j
-                      , r') = let v' = let v' = 42
-                        in v'
+                      , r') = let v' = 42
                      and (c'
                          , k1
                          , j
@@ -1019,9 +986,7 @@ cogent_sd6 (i, j) =
                                                 in (0, k1)
                                              in if c' > 0
                                                 then (c', k1, r')
-                                                else let (c'
-                                                         , r') = let v' = let v' = k1
-                                                         in v'
+                                                else let (c', r') = let v' = k1
                                                       in (3, v')
                                                    in (c', k1, r')
                                           in (c', j, k1, r')
@@ -1035,16 +1000,11 @@ cogent_sd6 (i, j) =
 
 cogent_ss1 : U32 -> U32
 cogent_ss1 i =
-   let (_
-       , r') = let s' = let v' = i
-         in v'
-      and s1' = s' == (let v' = 0
-            in v')
+   let (c', r') = let s' = i
+      and s1' = s' == 0
       and (c', r') = let (c'
                          , r') = if s1'
-            then let (c'
-                     , r') = let v' = let v' = i
-                     in v'
+            then let (c', r') = let v' = i
                   in (3, v')
                in (c', r')
             else (0, r')
@@ -1058,14 +1018,11 @@ cogent_ss1 i =
 
 cogent_ss2 : U32 -> U32
 cogent_ss2 i =
-   let (_
-       , r') = let s' = let v' = i
-         in v'
+   let (c', r') = let s' = i
       and s1' = True
       and (c', r') = let (c'
                          , r') = let (c'
-                                     , r') = let v' = let v' = 0
-                  in v'
+                                     , r') = let v' = 0
                in (3, v')
             in (c', r')
          in if c' > 0
@@ -1078,18 +1035,11 @@ cogent_ss2 i =
 
 cogent_ss3 : U32 -> U32
 cogent_ss3 i =
-   let (_
-       , r') = let s' = let v' = i
-         in v'
-      and (s1'
-          , s2') = (s' == (let v' = 0
-                      in v')
-                   , True)
+   let (c', r') = let s' = i
+      and (s1', s2') = (s' == 0, True)
       and (c', r') = let (c'
                          , r') = if s1'
-            then let (c'
-                     , r') = let v' = let v' = i
-                     in v'
+            then let (c', r') = let v' = i
                   in (3, v')
                in (c', r')
             else (0, r')
@@ -1097,8 +1047,7 @@ cogent_ss3 i =
             then (c', r')
             else let (c', r') = let (c'
                                     , r') = let (c'
-                                                , r') = let v' = let v' = 0
-                           in v'
+                                                , r') = let v' = 0
                         in (3, v')
                      in (c', r')
                   in if c' > 0
@@ -1112,21 +1061,13 @@ cogent_ss3 i =
 
 cogent_ss4 : U32 -> U32
 cogent_ss4 i =
-   let (_
-       , r') = let s' = let v' = i
-         in v'
-      and (s1'
-          , s2'
-          , s3') = (s' == (let v' = 0
-                      in v')
-                   , s' == (let v' = 1
-                      in v')
-                   , True)
+   let (c', r') = let s' = i
+      and (s1', s2', s3') = (s' == 0
+                            , s' == 1
+                            , True)
       and (c', r') = let (c'
                          , r') = if s1'
-            then let (c'
-                     , r') = let v' = let v' = i
-                     in v'
+            then let (c', r') = let v' = i
                   in (3, v')
                in (c', r')
             else (0, r')
@@ -1146,8 +1087,7 @@ cogent_ss4 i =
                      then (c', r')
                      else let (c', r') = let (c'
                                              , r') = let (c'
-                                                         , r') = let v' = let v' = 0
-                                    in v'
+                                                         , r') = let v' = 0
                                  in (3, v')
                               in (c', r')
                            in if c' > 0
@@ -1162,21 +1102,13 @@ cogent_ss4 i =
 
 cogent_ss5 : U32 -> U32
 cogent_ss5 i =
-   let (_
-       , r') = let s' = let v' = i
-         in v'
-      and (s1'
-          , s2'
-          , s3') = (s' == (let v' = 0
-                      in v')
-                   , True
-                   , s' == (let v' = 1
-                      in v'))
+   let (c', r') = let s' = i
+      and (s1', s2', s3') = (s' == 0
+                            , True
+                            , s' == 1)
       and (c', r') = let (c'
                          , r') = if s1'
-            then let (c'
-                     , r') = let v' = let v' = i
-                     in v'
+            then let (c', r') = let v' = i
                   in (3, v')
                in (c', r')
             else (0, r')
@@ -1184,9 +1116,7 @@ cogent_ss5 i =
             then (c', r')
             else let (c', r') = let (c'
                                     , r') = if not s3'
-                     then let (c'
-                              , r') = let v' = let v' = 0
-                              in v'
+                     then let (c', r') = let v' = 0
                            in (3, v')
                         in (c', r')
                      else (0, r')
@@ -1212,20 +1142,13 @@ cogent_ss5 i =
 
 cogent_ss6 : ( U32, U32 ) -> U32
 cogent_ss6 (i, j) =
-   let (_
-       , j
-       , i
-       , r') = let s' = let v' = i
-         in v'
+   let (c', j, i, r') = let s' = i
       and (s1'
           , s2'
           , s3'
-          , s4') = (s' == (let v' = 0
-                      in v')
-                   , s' == (let v' = 1
-                      in v')
-                   , s' == (let v' = 2
-                      in v')
+          , s4') = (s' == 0
+                   , s' == 1
+                   , s' == 2
                    , True)
       and (c', j, i, r') = let (c'
                                , j) = if s1'
@@ -1271,8 +1194,7 @@ cogent_ss6 (i, j) =
                               then (c', j, r')
                               else let (c', r') = let (c'
                                                       , r') = let (c'
-                                                                  , r') = let v' = let v' = j
-                                             in v'
+                                                                  , r') = let v' = j
                                           in (3, v')
                                        in (c', r')
                                     in if c' > 0
@@ -1290,17 +1212,12 @@ cogent_ss6 (i, j) =
 
 cogent_ss7 : ( U32, U32 ) -> U32
 cogent_ss7 (i, j) =
-   let (_, j, i, r') = let (c'
-                           , j
-                           , i) = let s' = let v' = i in v'
-         and (s1'
-             , s2'
-             , s3') = (s' == (let v' = 0
-                         in v')
-                      , s' == (let v' = 1
-                         in v')
-                      , s' == (let v' = 2
-                         in v'))
+   let (c', j, i, r') = let (c'
+                            , j
+                            , i) = let s' = i
+         and (s1', s2', s3') = (s' == 0
+                               , s' == 1
+                               , s' == 2)
          and (c', j, i) = let (c'
                               , j) = if s1'
                then let (c', j) = let (v1'
@@ -1353,27 +1270,19 @@ cogent_ss7 (i, j) =
             , i)
       in if c' > 0
          then (c', j, i, r')
-         else let (c'
-                  , r') = let v' = let v' = j
-                  in v'
+         else let (c', r') = let v' = j
                in (3, v')
             in (c', j, i, r')
    in r'
 
 cogent_ss8 : ( U32, U32 ) -> U32
 cogent_ss8 (i, j) =
-   let (_, j, r') = let (c'
-                        , j
-                        , r') = let s' = let v' = i
-            in v'
-         and (s1'
-             , s2'
-             , s3') = (s' == (let v' = 0
-                         in v')
-                      , s' == (let v' = 1
-                         in v')
-                      , s' == (let v' = 2
-                         in v'))
+   let (c', j, r') = let (c'
+                         , j
+                         , r') = let s' = i
+         and (s1', s2', s3') = (s' == 0
+                               , s' == 1
+                               , s' == 2)
          and (c', j, r') = let (c'
                                , j) = if s1'
                then let (c', j) = let (v1'
@@ -1389,18 +1298,11 @@ cogent_ss8 (i, j) =
                then (c', j, r')
                else let (c', r', j) = let (c'
                                           , r') = if s1' || s2'
-                        then let (c'
-                                 , r') = let s' = let v' = j
-                                 in v'
-                              and (s1'
-                                  , s2') = (s' == (let v' = 0
-                                              in v')
-                                           , True)
+                        then let (c', r') = let s' = j
+                              and (s1', s2') = (s' == 0, True)
                               and (c', r') = let (c'
                                                  , r') = if s1'
-                                    then let (c'
-                                             , r') = let v' = let v' = 17
-                                             in v'
+                                    then let (c', r') = let v' = 17
                                           in (3, v')
                                        in (c', r')
                                     else (0, r')
@@ -1408,8 +1310,7 @@ cogent_ss8 (i, j) =
                                     then (c', r')
                                     else let (c', r') = let (c'
                                                             , r') = let (c'
-                                                                        , r') = let v' = let v' = i
-                                                   in v'
+                                                                        , r') = let v' = i
                                                 in (3, v')
                                              in (c', r')
                                           in if c' > 0
@@ -1445,17 +1346,14 @@ cogent_ss8 (i, j) =
             , r')
       in if c' > 0
          then (c', j, r')
-         else let (c'
-                  , r') = let v' = let v' = j
-                  in v'
+         else let (c', r') = let v' = j
                in (3, v')
             in (c', j, r')
    in r'
 
 cogent_ss10 : U32 -> U32
 cogent_ss10 i =
-   let _ = let s' = let v' = i
-         in v'
+   let c' = let s' = i
       and () = ()
       and c' = gencotDummy "Unsupported switch body"
          {- return i; -}
@@ -1464,9 +1362,8 @@ cogent_ss10 i =
 
 cogent_ss11 : U32 -> U32
 cogent_ss11 i =
-   let (_
-       , r') = let c' = let s' = let v' = i
-            in v'
+   let (c'
+       , r') = let c' = let s' = i
          and () = ()
          and c' = gencotDummy "Unsupported switch body"
             {- if (i == 0)
@@ -1474,41 +1371,30 @@ cogent_ss11 i =
          in if c' == 2 then 0 else c'
       in if c' > 0
          then (c', r')
-         else let (c'
-                  , r') = let v' = let v' = i
-                  in v'
+         else let (c', r') = let v' = i
                in (3, v')
             in (c', r')
    in r'
 
 cogent_ss12 : U32 -> U32
 cogent_ss12 i =
-   let (_
-       , r') = let c' = let s' = let v' = i
-            in v'
+   let (c'
+       , r') = let c' = let s' = i
          and () = ()
          and c' = gencotDummy "Unsupported switch body"
             {- i = 5; -}
          in if c' == 2 then 0 else c'
       in if c' > 0
          then (c', r')
-         else let (c'
-                  , r') = let v' = let v' = i
-                  in v'
+         else let (c', r') = let v' = i
                in (3, v')
             in (c', r')
    in r'
 
 cogent_ss13 : ( U32, U32 ) -> U32
 cogent_ss13 (i, j) =
-   let (_
-       , j
-       , r') = let s' = let v' = i
-         in v'
-      and (s1'
-          , s2') = (s' == (let v' = 0
-                      in v')
-                   , True)
+   let (c', j, r') = let s' = i
+      and (s1', s2') = (s' == 0, True)
       and (c', j, r') = let (c'
                             , j) = if s1'
             then let (c', j) = let (c'
@@ -1564,8 +1450,7 @@ cogent_ss13 (i, j) =
             then (c', j, r')
             else let (c', r') = let (c'
                                     , r') = let (c'
-                                                , r') = let v' = let v' = 0
-                           in v'
+                                                , r') = let v' = 0
                         in (3, v')
                      in (c', r')
                   in if c' > 0
@@ -1580,17 +1465,11 @@ cogent_ss13 (i, j) =
 
 cogent_ss14 : U32 -> U32
 cogent_ss14 i =
-   let (_
-       , r') = let c' = let s' = let v' = i
-            in v'
-         and (s1'
-             , s2'
-             , s3') = (s' == (let v' = 0
-                         in v')
-                      , s' == (let v' = 1
-                         in v')
-                      , s' == (let v' = 2
-                         in v'))
+   let (c'
+       , r') = let c' = let s' = i
+         and (s1', s2', s3') = (s' == 0
+                               , s' == 1
+                               , s' == 2)
          and c' = gencotDummy "Declarations not supported in switch body"
             {-
                 U32 j = 0;
@@ -1609,26 +1488,18 @@ cogent_ss14 i =
          in if c' == 2 then 0 else c'
       in if c' > 0
          then (c', r')
-         else let (c'
-                  , r') = let v' = let v' = i
-                  in v'
+         else let (c', r') = let v' = i
                in (3, v')
             in (c', r')
    in r'
 
 cogent_ss15 : ( U32, U32 ) -> U32
 cogent_ss15 (i, j) =
-   let (_
-       , r') = let c' = let s' = let v' = i
-            in v'
-         and (s1'
-             , s2'
-             , s3') = (s' == (let v' = 0
-                         in v')
-                      , s' == (let v' = 1
-                         in v')
-                      , s' == (let v' = 2
-                         in v'))
+   let (c'
+       , r') = let c' = let s' = i
+         and (s1', s2', s3') = (s' == 0
+                               , s' == 1
+                               , s' == 2)
          and c' = gencotDummy "Declarations not supported in switch body"
             {-
                 
@@ -1648,9 +1519,7 @@ cogent_ss15 (i, j) =
          in if c' == 2 then 0 else c'
       in if c' > 0
          then (c', r')
-         else let (c'
-                  , r') = let v' = let v' = j
-                  in v'
+         else let (c', r') = let v' = j
                in (3, v')
             in (c', r')
    in r'

@@ -38,20 +38,18 @@ import Gencot.Items.Identifier (
   getParamName, getObjFunName, isToplevelObjectId, isParameterId)
 import Gencot.Cogent.Ast
 import Gencot.Cogent.Bindings (
-  BindsPair, valVar, leadVar, lvalVar, resVar,
-  mkBodyExpr, mkPlainExpr,
-  mkEmptyBindsPair, mkDummyBindsPair, mkUnitBindsPair, mkDefaultBindsPair, mkIntLitBindsPair, mkCharLitBindsPair, mkStringLitBindsPair,
-  mkValVarBindsPair, mkMemBindsPair, mkIdxBindsPair, mkOpBindsPair, mkConstAppBindsPair, mkAppBindsPair, mkAssBindsPair,
-  mkIfBindsPair, mkTupleBindsPair, mkDerefBindsPair, mkFunDerefBindsPair, concatBindsPairs, joinPutbacks,
-  processMFpropForBindsPairs,
-      {- replaceBoundVarType, -}
-  mkDummyBinding, mkNullBinding, mkExpBinding, mkRetBinding, mkBreakBinding, mkContBinding, 
+  ExprBinds, valVar, leadVar, lvalVar, resVar,
+  mkPlainExpr,
+  mkEmptyExprBinds, mkDummyExprBinds, mkUnitExprBinds, mkDefaultExprBinds, mkIntLitExprBinds, mkCharLitExprBinds, mkStringLitExprBinds,
+  mkValVarExprBinds, mkMemExprBinds, mkIdxExprBinds, mkOpExprBinds, mkConstAppExprBinds, mkAppExprBinds, mkAssExprBinds,
+  mkIfExprBinds, mkTupleExprBinds, mkDerefExprBinds, mkFunDerefExprBinds, concatExprBinds, joinPutbacks,
+  mkDummyBinding, mkRecPutBinding, mkArrPutBinding, mkDerefPutBinding,
+  mkNullBinding, mkExpBinding, mkRetBinding, mkBreakBinding, mkContBinding,
   mkIfBinding, mkSwitchBinding, mkCaseBinding, mkSeqBinding, mkDecBinding, mkForBinding,
   mkTuplePattern, mkVarPattern, mkVarTuplePattern,
-  mkAlt,
-  processMFpropForPatterns)
+  mkAlt)
 import Gencot.Cogent.Error (unSupported, noParam)
-import Gencot.Cogent.Expr (TypedVar(TV), typOfTV, namOfTV, mkUnitExpr, mkVarExpr, mkExpVarTupleExpr)
+import Gencot.Cogent.Expr (TypedVar(TV), typOfTV, namOfTV, mkUnitExpr, mkVarExpr, mkExpVarTupleExpr, mkLetExpr)
 import Gencot.Cogent.Types (
   genType, mkTypeName, mkU32Type, mkBoolType, mkTupleType, mkFunType, mkArrayType, mkWrappedArrayType, mkRecordType, mkPtrType,
   addTypeSyn, useTypeSyn, mkReadonly, mkUnboxed, isArrayType, isUnboxed, mkMayNull,
@@ -339,19 +337,6 @@ genDerivedTypeDefs nam iat@(iid,pt@(LCA.PtrType _ _ _)) = do
           getName (GenType (CS.TUnbox t) _ _) = getName t
 genDerivedTypeDefs _ _ = return []
 
-{-
--- | Extend a result expression according to the properties.
--- The Add-Result and Global-State properties of the function parameters 
--- and the Heap-Use property of the function are processed.
--- The first argument is the item associated type of the function.
-extendExpr :: ItemAssocType -> GenExpr -> [LCA.ParamDecl] -> FTrav GenExpr
-extendExpr iat e pars = do
-    pns <- makeResParamNames iat pars
-    return $ mkGenExpr $ addres (map (genExpr . CS.Var) pns) e
-    where addres res (GenExpr CS.Unitel _ _) = res
-          addres res e = e : res
--}
-
 aggBitfields :: [LCA.MemberDecl] -> [LCA.MemberDecl]
 aggBitfields ms = foldl accu [] ms
     where accu :: [LCA.MemberDecl] -> LCA.MemberDecl -> [LCA.MemberDecl]
@@ -405,51 +390,6 @@ transMember iat mdecl@(LCA.MemberDecl (LCA.VarDecl (LCA.VarName idnam _) _ _) _ 
     return (mnam, setOrigin n ut)
     where miat@(_,mtyp) = getMemberSubItemAssoc iat mdecl
 {- LCA.AnonBitField cannot occur since it is always replaced by aggBitfields -}
-
-{-
--- | Translate a sequence of parameter declarations to a pattern for binding the parameter names.
--- The first argument is the item associated type of the function.
--- The second argument tells whether the function is variadic.
-transParamNames :: ItemAssocType -> Bool -> [LCA.ParamDecl] -> FTrav GenPatn
-transParamNames fiat variadic pars = do
-    pns <- makeParamNames fiat variadic pars
-    let porigs = map noComOrigin pars
-    let vps = map (\(nam,orig) -> GenIrrefPatn (CS.PVar nam) orig) $ zip pns (porigs ++ (repeat noOrigin))
-    return $ if null vps 
-                then GenPatn (CS.PIrrefutable $ GenIrrefPatn CS.PUnitel noOrigin) noOrigin 
-                else case vps of
-                          [pn] -> GenPatn (CS.PIrrefutable pn) noOrigin
-                          _ -> GenPatn (CS.PIrrefutable $ GenIrrefPatn (CS.PTuple vps) noOrigin) noOrigin
-
--- | Construct the list of parameter names for a translated function.
--- The Global-State property of the parameters and the Heap-Use property of the function are processed.
--- The first argument is the item associated type of the function.
--- The second argument tells whether the function is variadic.
-makeParamNames :: ItemAssocType -> Bool -> [LCA.ParamDecl] -> FTrav [String]
-makeParamNames fiat variadic pars = do
-    psn <- mapM (mapIfUpper . LCA.declIdent) pars
-    gspars <- makeGlobalStateParams fiat
-    let psgn = map (fst . fst) gspars
-    huProp <- isHeapUseItem fiat
-    let hun = if huProp then [heapParamName (psn ++ psgn)] else []
-    let vn = if variadic then [variadicParamName] else []
-    return (psn ++ psgn ++ hun ++ vn)
-
--- | Construct the list of parameter names to be returned as part of the result for a translated function.
--- The properties Add-Result, Global-State, and Read-Only of the parameters 
--- and the Heap-Use property of the function are processed.
--- The first argument is the item associated type of the function.
-makeResParamNames :: ItemAssocType -> [LCA.ParamDecl] -> FTrav [String]
-makeResParamNames fiat pars = do
-    psn <- mapM (mapIfUpper . LCA.declIdent) pars
-    arProps <- getAddResultProperties fiat
-    let arpsn = map snd $ filter fst $ zip arProps psn
-    gspars <- makeGlobalStateParams fiat
-    let psgn = map (fst . fst) $ filter snd gspars
-    huProp <- isHeapUseItem fiat
-    let hun = if huProp then [heapParamName (psn ++ psgn)] else []
-    return (arpsn ++ psgn ++ hun)
--}
 
 -- | Translate a C type specification to a Cogent type.
 -- The C type is specified as an ItemAssocType, so that its item properties can be respected.
@@ -761,62 +701,6 @@ addReadOnlyStepIf True t@('R' : '_' : _) = t
 addReadOnlyStepIf True t = mapRoStep ++ t
 addReadOnlyStepIf False t = t
 
-{-
-getTag :: LCA.Type -> String
-getTag (LCA.DirectType (LCA.TyComp (LCA.CompTypeRef sueref knd _)) _ _) = 
-    kndstr ++ "|" ++ (sueRefToString sueref)
-    where kndstr = case knd of
-                    LCA.StructTag -> "struct"
-                    LCA.UnionTag -> "union"
-getTag (LCA.DirectType (LCA.TyEnum (LCA.EnumTypeRef sueref _)) _ _) = 
-    "enum|" ++ (sueRefToString sueref)
-getTag (LCA.TypeDefType (LCA.TypeDefRef _ typ _) _ _) = getTag typ
-getTag _ = ""
-
-
-getTypedefName :: LCA.Type -> String
-getTypedefName (LCA.TypeDefType (LCA.TypeDefRef nam _ _) _ _) = identToString nam
-getTypedefName t = ""
-
--- | Apply item properties to a mapped function type.
--- The first parameter is the item associated type of the function.
--- First add all parameters with a Global-State property.
--- Then for every parameter which has the Add-Result or Global-State property and no Read-Only property
--- its type is appended to the result type.
--- Then if the function has a Heap-Use property, the Heap type is appended to the parameters 
--- and the result type.
--- Comment markers are removed from these types to avoid duplication of comments.
-applyProperties :: ItemAssocType -> GenType -> FTrav GenType
-applyProperties iat (GenType (CS.TFun pt rt) o _) = do
-    arProps <- getAddResultProperties iat
-    let artypes = map snd $ filter fst $ zip arProps ptl
-    gspars <- makeGlobalStateParams iat
-    gstypes <- mapM makeGlobalStateType $ map (snd . fst) gspars
-    gsartypes <- mapM makeGlobalStateType $ map (snd . fst) $ filter snd gspars
-    huProp <- isHeapUseItem iat
-    let hutype = if huProp then [makeHeapType] else []
-    let allpartypes = ptl ++ gstypes ++ hutype
-    let arpartypes = artypes ++ gsartypes ++ hutype
-    return $ GenType (CS.TFun (mkParType allpartypes) (mkParType $ addPars rt $ map remComment $ arpartypes)) o Nothing
-    where addPars (GenType CS.TUnit _ _) ps = ps
-          addPars r ps = r : ps
-          ptl = ptlist pt
-          ptlist (GenType CS.TUnit _ _) = []
-          ptlist (GenType (CS.TTuple ts) _ _) = ts
-          ptlist gt = [gt]
-
-shallAddResultGS :: GenType -> Bool
-shallAddResultGS t = not $ isReadOnly t
-
--- | Determine the Cogent type from the item associated type of a global state parameter
--- The type is ignored, the Cogent type is determined from the Global-State property only.
-makeGlobalStateType :: ItemAssocType -> FTrav GenType
-makeGlobalStateType iat@(iid,_) = do
-    ro <- isReadOnlyItem iat
-    gs <- getGlobalStateProperty iid
-    return $ makeReadOnlyIf ro $ mkTypeName (globStateType gs)
--}
-
 makeHeapType :: GenType
 makeHeapType = mkTypeName heapType
 
@@ -837,15 +721,6 @@ encodeParamType iat ipd@(_,pd) = do
        then return $ mapStringPair rmUboxStep typp
        else return typp
 
-{-
-arraySizeType :: LCA.ArraySize -> GenType
-arraySizeType (LCA.ArraySize _ (LCS.CConst (LCS.CIntConst ci _))) =
-    mkTypeName tnam
-    where tnam = if i < 257 then "U8" else if i < 65537 then "U16" else "U32"
-          i = LC.getCInteger ci
-arraySizeType _ = mkU32Type
--}
-
 {- Translating function bodies -}
 {- --------------------------- -}
 
@@ -861,19 +736,8 @@ transBody fdes s = do
     resetVarCounters
     tconf <- getTConf
     b <- bindStat s
-    ep <- runTravWithErrors mkUnitExpr $ postproc tconf $ mkBodyExpr b $ genFunResultExpr fdes
+    ep <- runTravWithErrors mkUnitExpr $ postproc tconf $ mkLetExpr [b] $ genFunResultExpr fdes
     return [mkAlt (genFunParamPattern fdes) $ cleanSrc ep]
-{-
-transBody :: ItemAssocType -> LC.CStat -> [LCA.ParamDecl] -> FTrav GenExpr
-transBody fiat s pars = do
-    resetVarCounters
-    tconf <- getTConf
-    b <- bindStat s
-    riat <- getResultSubItemAssoc fiat
-    let r = if isVoid $ snd riat then mkUnitExpr else mkVarExpr (TV resVar unitType) -- resVar
-    e <- error "" {-extendExpr fiat r pars-}
-    return $ cleanSrc $ postproc tconf $ mkBodyExpr b e
--}
 
 transExpr :: LC.CExpr -> FTrav GenExpr
 transExpr e = do
@@ -892,7 +756,7 @@ bindStat s@(LC.CExpr (Just e) _) = do
 bindStat s@(LC.CReturn Nothing _) = do
     fdes <- getContextFuncDesc
     let rt = getLeadType $ getResultType $ typeOfFuncDesc fdes
-    insertStatSrc s $ mkRetBinding rt $ mkUnitBindsPair 0
+    insertStatSrc s $ mkRetBinding rt $ mkUnitExprBinds 0
 bindStat s@(LC.CReturn (Just e) _) = do
     fdes <- getContextFuncDesc
     let rt = getLeadType $ getResultType $ typeOfFuncDesc fdes
@@ -982,7 +846,7 @@ bindSwitchBody s _ = do
     recordError $ unSupported s "switch body"
     insertStatSrc s $ mkDummyBinding "Unsupported switch body"
 
-bindSwitchLabels :: [LC.CBlockItem] -> FTrav [Maybe BindsPair]
+bindSwitchLabels :: [LC.CBlockItem] -> FTrav [Maybe ExprBinds]
 bindSwitchLabels [] = return []
 bindSwitchLabels ((LC.CBlockStmt (LC.CCase e _ _)) : bis) = do
     resetValCounter
@@ -1060,7 +924,7 @@ processDeclSpecs specs = do
 
 -- | Standalone processing of a declaration in a for loop
 -- The main difference is the handling of the source.
-bindForDecl :: LC.CDecl -> FTrav [(TypedVar,BindsPair)]
+bindForDecl :: LC.CDecl -> FTrav [(TypedVar,ExprBinds)]
 bindForDecl dc@(LC.CDecl specs dcs _) = do
     pspecs <- processDeclSpecs specs
     mapM (uncurry bindDeclr) (zip (repeat pspecs) dcs)
@@ -1076,7 +940,7 @@ bindDeclrs pspecs (dc : dcs) bis = do
 
 -- | Process a single declarator.
 -- The content copies the relevant steps from LCA.analyseDecl.
-bindDeclr :: ProcDeclSpecs -> DeclElem -> FTrav (TypedVar,BindsPair)
+bindDeclr :: ProcDeclSpecs -> DeclElem -> FTrav (TypedVar,ExprBinds)
 bindDeclr (ss,a,tq,tsa,fs) (Just declr@(LC.CDeclr (Just nam) _ _ _ _),mi,me) = do
     v <- mapIfUpper nam
     vardeclInfo@(VarDeclInfo _ _ _ _ typ _) <-
@@ -1103,41 +967,41 @@ bindDeclr (ss,a,tq,tsa,fs) (Just declr@(LC.CDeclr (Just nam) _ _ _ _),mi,me) = d
     registerItemId s vid
     return ((TV v t),bp)
     where s = LCI.identToString nam
-bindDeclr _ _ = return ((TV "" unitType),mkEmptyBindsPair)
+bindDeclr _ _ = return ((TV "" unitType),mkEmptyExprBinds)
 
-bindInit :: Maybe LC.CInit -> GenType -> FTrav BindsPair
+bindInit :: Maybe LC.CInit -> GenType -> FTrav ExprBinds
 bindInit Nothing t = do
     cnt <- getValCounter
-    return $ mkDefaultBindsPair cnt t
+    return $ mkDefaultExprBinds cnt t
 bindInit (Just (LC.CInitExpr e _)) _ = bindExpr e
 bindInit (Just i@(LC.CInitList il _)) t = do
     cnt <- getValCounter
     recordError $ unSupported i "non-scalar initializer"
-    return $ mkDummyBindsPair cnt t "Non-scalar initializers not yet implemented"
+    return $ mkDummyExprBinds cnt t "Non-scalar initializers not yet implemented"
 
-bindExpr :: LC.CExpr -> FTrav BindsPair
+bindExpr :: LC.CExpr -> FTrav ExprBinds
 bindExpr e@(LC.CConst (LC.CIntConst i _)) = do
     cnt <- getValCounter
     ct <- exprType e
     t <- transType ("",ct)
-    insertExprSrc e $ mkIntLitBindsPair cnt t $ LC.getCInteger i
+    insertExprSrc e $ mkIntLitExprBinds cnt t $ LC.getCInteger i
 bindExpr e@(LC.CConst (LC.CCharConst c n)) = do
     cnt <- getValCounter
     if length ch == 1
-       then insertExprSrc e $ mkCharLitBindsPair cnt $ head ch
+       then insertExprSrc e $ mkCharLitExprBinds cnt $ head ch
        else do
            recordError $ unSupported e "multi character constant"
-           insertExprSrc e $ mkDummyBindsPair cnt mkU32Type "Multi character constants not supported"
+           insertExprSrc e $ mkDummyExprBinds cnt mkU32Type "Multi character constants not supported"
     where ch = LC.getCChar c
 bindExpr e@(LC.CConst (LC.CFloatConst _ n)) = do
     ct <- exprType e
     t <- transType ("",ct)
     cnt <- getValCounter
     recordError $ unSupported e "float literal"
-    insertExprSrc e $ mkDummyBindsPair cnt t "Float literals not supported"
+    insertExprSrc e $ mkDummyExprBinds cnt t "Float literals not supported"
 bindExpr e@(LC.CConst (LC.CStrConst s _)) = do
     cnt <- getValCounter
-    insertExprSrc e $ mkStringLitBindsPair cnt $ LC.getCString s
+    insertExprSrc e $ mkStringLitExprBinds cnt $ LC.getCString s
 bindExpr e@(LC.CVar nam _) = do
     v <- transObjName nam
     cnt <- getValCounter
@@ -1152,9 +1016,9 @@ bindExpr e@(LC.CVar nam _) = do
                  then do
                      cv <- isConstValItem (iid,ct)
                      if cv -- Const-Val property: invoke access function named v
-                        then return $ mkConstAppBindsPair cnt $ (v, mkFunType unitType t)
+                        then return $ mkConstAppExprBinds cnt $ (v, mkFunType unitType t)
                         else -- assume preprocessor constant: access Cogent constant named v
-                             return $ mkValVarBindsPair cnt $ TV v t
+                             return $ mkValVarExprBinds cnt $ TV v t
                  else do
                      fdes <- getContextFuncDesc
                      ptyp <- mkGlobalStateParamType (iid,ct) gs
@@ -1164,21 +1028,22 @@ bindExpr e@(LC.CVar nam _) = do
                      if null pn
                         then do
                             recordError $ noParam e ("for accessing " ++ (LCI.identToString nam))
-                            return $ mkDummyBindsPair cnt (if isArrayType pt then pt else getDerefType pt)
+                            return $ mkDummyExprBinds cnt (if isArrayType pt then pt else getDerefType pt)
                                         ("Cannot access global variable: " ++ (LCI.identToString nam))
                         else if isArrayType pt
-                        then return $ mkValVarBindsPair cnt $ TV pn pt
+                        then return $ mkValVarExprBinds cnt $ TV pn pt
                         else do
                             cntp <- getCmpCounter
-                            return $ mkDerefBindsPair cntp $ mkValVarBindsPair cnt $ TV pn pt
-          else return $ mkValVarBindsPair cnt $ TV v t
+                            return $ joinPutbacks (mkDerefExprBinds cntp $ mkValVarExprBinds cnt $ TV pn pt) [(mkDerefPutBinding cntp $ TV pn pt)]
+                            -- return $ mkDerefExprBinds cntp $ mkValVarExprBinds cnt $ TV pn pt
+          else return $ mkValVarExprBinds cnt $ TV v t
     insertExprSrc e bp
 bindExpr e@(LC.CMember _ _ _ _) = do
-    bp <- bindComponent e
-    insertExprSrc e $ joinPutbacks bp
+    (bp, pb) <- bindComponent e
+    insertExprSrc e $ joinPutbacks bp pb
 bindExpr e@(LC.CIndex _ _ _) = do
-    bp <- bindComponent e
-    insertExprSrc e $ joinPutbacks bp
+    (bp, pb) <- bindComponent e
+    insertExprSrc e $ joinPutbacks bp pb
 bindExpr e@(LC.CUnary LC.CIndOp e1 _) = do
     t <- exprType e1
     bp <- if isFunPointer t
@@ -1186,30 +1051,30 @@ bindExpr e@(LC.CUnary LC.CIndOp e1 _) = do
                  bp1 <- bindExpr e1
                  iid <- getExprItemId e1
                  ft <- transType (iid,t)
-                 return $ mkFunDerefBindsPair ft bp1
+                 return $ mkFunDerefExprBinds ft bp1
              else do
-                 bp <- bindComponent e
-                 return $ joinPutbacks bp
+                 (bp, pb) <- bindComponent e
+                 return $ joinPutbacks bp pb
     insertExprSrc e bp
 bindExpr e@(LC.CUnary LC.CNegOp e1 _) = do
     -- not i -> if i==0 then 1 else 0
     bp1 <- bindExpr e1
     let t1 = typOfTV (leadVar bp1)
     cnt <- getValCounter
-    let c0 = mkIntLitBindsPair cnt t1 0
+    let c0 = mkIntLitExprBinds cnt t1 0
     cnt <- getValCounter
-    let c1 = mkIntLitBindsPair cnt t1 1
-    insertExprSrc e $ mkIfBindsPair (mkOpBindsPair mkBoolType "==" [bp1,c0]) c1 c0
+    let c1 = mkIntLitExprBinds cnt t1 1
+    insertExprSrc e $ mkIfExprBinds (mkOpExprBinds mkBoolType "==" [bp1,c0]) c1 c0
 bindExpr e@(LC.CUnary op e1 _) | elem op [LC.CPlusOp,LC.CMinOp,LC.CCompOp] = do
     bp1 <- bindExpr e1
     ct <- exprType e
     t <- transType ("",ct)
-    insertExprSrc e $ mkOpBindsPair t (transUnOp op) [bp1]
+    insertExprSrc e $ mkOpExprBinds t (transUnOp op) [bp1]
 bindExpr e@(LC.CUnary op e1 _) | elem op [LC.CPreIncOp,LC.CPreDecOp,LC.CPostIncOp,LC.CPostDecOp] = do
     ct1 <- exprType e1
     t1 <- transType ("",ct1)
     cnt <- getValCounter
-    let bp2 = mkIntLitBindsPair cnt t1 1
+    let bp2 = mkIntLitExprBinds cnt t1 1
     ct <- exprType e
     t <- transType ("",ct)
     bp <- bindLvalue post (transUnOp op, t) bp2 e1
@@ -1222,8 +1087,8 @@ bindExpr e@(LC.CBinary LC.CLndOp e1 e2 _) = do
     ct2 <- exprType e2
     t2 <- transType ("",ct2)
     cnt <- getValCounter
-    let c0 = mkIntLitBindsPair cnt t2 0
-    insertExprSrc e $ mkIfBindsPair bp1 bp2 c0
+    let c0 = mkIntLitExprBinds cnt t2 0
+    insertExprSrc e $ mkIfExprBinds bp1 bp2 c0
 bindExpr e@(LC.CBinary LC.CLorOp e1 e2 _) = do
     -- e1 || e2 -> if e1 then 1 else e2
     bp1 <- bindExpr e1
@@ -1231,14 +1096,14 @@ bindExpr e@(LC.CBinary LC.CLorOp e1 e2 _) = do
     ct2 <- exprType e2
     t2 <- transType ("",ct2)
     cnt <- getValCounter
-    let c1 = mkIntLitBindsPair cnt t2 1
-    insertExprSrc e $ mkIfBindsPair bp1 c1 bp2
+    let c1 = mkIntLitExprBinds cnt t2 1
+    insertExprSrc e $ mkIfExprBinds bp1 c1 bp2
 bindExpr e@(LC.CBinary op e1 e2 _) = do
     bp1 <- bindExpr e1
     bp2 <- bindExpr e2
     ct <- exprType e
     t <- transType ("",ct)
-    insertExprSrc e $ mkOpBindsPair t (transBinOp op) [bp1,bp2]
+    insertExprSrc e $ mkOpExprBinds t (transBinOp op) [bp1,bp2]
 bindExpr e@(LC.CCall f es _) = do
     fbp <- bindExpr f
     cft <- exprType f
@@ -1246,12 +1111,12 @@ bindExpr e@(LC.CCall f es _) = do
     fbp' <- if isFunPointer cft
                then do
                    ft <- transType (iid,cft)
-                   return $ mkFunDerefBindsPair ft fbp
+                   return $ mkFunDerefExprBinds ft fbp
                else return fbp
     fd <- getFuncDesc (iid,resolveTypedef cft) -- a declared function may have a typedef as type
     bps <- mapM bindExpr es
     (pbps,rpat) <- processParamVals (leadVar fbp') fd bps
-    insertExprSrc e $ mkAppBindsPair fbp' rpat pbps
+    insertExprSrc e $ mkAppExprBinds fbp' rpat pbps
 bindExpr e@(LC.CAssign op e1 e2 _) = do
     bp2 <- bindExpr e2
     t <- if op == LC.CAssignOp
@@ -1265,49 +1130,75 @@ bindExpr e@(LC.CCond e1 (Just e2) e3 _) = do
     bp1 <- bindExpr e1
     bp2 <- bindExpr e2
     bp3 <- bindExpr e3
-    insertExprSrc e $ mkIfBindsPair bp1 bp2 bp3
+    insertExprSrc e $ mkIfExprBinds bp1 bp2 bp3
 bindExpr e@(LC.CComma es _) = do
     bps <- mapM bindExpr es
-    insertExprSrc e $ concatBindsPairs bps
+    insertExprSrc e $ concatExprBinds bps
 bindExpr e = do
     ct <- exprType e
     t <- transType ("",ct)
     cnt <- getValCounter
     recordError $ unSupported e "expression"
-    insertExprSrc e $ mkDummyBindsPair cnt t "Translation of expression not yet implemented"
+    insertExprSrc e $ mkDummyExprBinds cnt t "Translation of expression not yet implemented"
 
 -- | Translate an expression as a modified lvalue
 -- The first argument is True for modification by a postfix inc/dec operator, otherwise false.
 -- The second argument is a pair of the operator op for constructing the new value and its result type.
 -- For modification by plain assignment, op is "" and the type is the unit type.
 -- The third argument is the translated second op argument or the new value for plain assignment.
-bindLvalue :: Bool -> (CCS.OpName, GenType) -> BindsPair -> LC.CExpr -> FTrav BindsPair
+bindLvalue :: Bool -> (CCS.OpName, GenType) -> ExprBinds -> LC.CExpr -> FTrav ExprBinds
 bindLvalue post op rbp e = do
-    bp <- bindComponent e
-    return $ concatBindsPairs [rbp, joinPutbacks $ mkAssBindsPair post op rbp bp]
+    (bp, pb) <- bindComponent e
+    return $ concatExprBinds [rbp, joinPutbacks (mkAssExprBinds post op rbp bp) pb]
 
 -- | Translate an expression to a pair of binding lists.
 -- The first list may contain take operations, then the second list contains the corresponding put operations.
-bindComponent :: LC.CExpr -> FTrav BindsPair
+bindComponent :: LC.CExpr -> FTrav (ExprBinds, [GenBnd])
 bindComponent e@(LC.CMember e1 nam arrow _) = do
-    bp1 <- bindComponent e1
+    (bp1, pb1) <- bindComponent e1
     m <- mapIfUpper nam
     cnt <- getCmpCounter
-    return $ mkMemBindsPair cnt m bp1
+    return $ (mkMemExprBinds cnt m bp1, (mkRecPutBinding cnt m $ lvalVar bp1) : pb1)
 bindComponent e@(LC.CIndex e1 e2 _) = do
-    bp1 <- bindComponent e1
+    (bp1, pb1) <- bindComponent e1
     bp2 <- bindExpr e2
     cnt <- getCmpCounter
-    return $ mkIdxBindsPair cnt bp1 bp2
+    return $ (mkIdxExprBinds cnt bp1 bp2, (mkArrPutBinding cnt (leadVar bp2) $ lvalVar bp1) : pb1)
 bindComponent e@(LC.CUnary LC.CIndOp e1 _) = do
     t <- exprType e1
     if isFunPointer t
-       then bindExpr e
+       then bindExprAsComponent e
        else do
-          bp1 <- bindComponent e1
+          (bp1, pb1) <- bindComponent e1
           cnt <- getCmpCounter
-          return $ mkDerefBindsPair cnt bp1
-bindComponent e = bindExpr e
+          return $ (mkDerefExprBinds cnt bp1, (mkDerefPutBinding cnt $ lvalVar bp1) : pb1)
+bindComponent e@(LC.CVar nam _) = do
+    ct <- exprType e
+    iid <- getObjectItemId nam
+    if (isToplevelObjectId iid) && (not $ isFunction ct) -- global variable
+       then do
+           gs <- getGlobalStateProperty iid
+           if null gs
+              then bindExprAsComponent e
+              else do
+                  fdes <- getContextFuncDesc
+                  ptyp <- mkGlobalStateParamType (iid,ct) gs
+                  let pdes = searchGlobalStateParamDesc fdes (gs,ptyp)
+                      pt = typeOfParamDesc pdes
+                      pn = nameOfParamDesc pdes
+                  if null pn || isArrayType pt
+                     then bindExprAsComponent e
+                     else do
+                         cnt <- getValCounter
+                         cntp <- getCmpCounter
+                         return $ (mkDerefExprBinds cntp $ mkValVarExprBinds cnt $ TV pn pt, [(mkDerefPutBinding cntp $ TV pn pt)])
+                         -- return $ mkDerefExprBinds cntp $ mkValVarExprBinds cnt $ TV pn pt
+       else bindExprAsComponent e
+bindComponent e = bindExprAsComponent e
+
+bindExprAsComponent e = do
+    bp1 <- bindExpr e
+    return (bp1, [])
 
 -- | Add a statement source to a binding
 insertStatSrc :: LC.CStat -> GenBnd -> FTrav GenBnd
@@ -1317,7 +1208,7 @@ insertStatSrc src (CS.Binding ip t (GenExpr e o et _) v) = do
 
 -- | Add an expression source to the final binding in the main list
 -- The expression is inserted as an expression statement.
-insertExprSrc :: LC.CExpr -> BindsPair -> FTrav BindsPair
+insertExprSrc :: LC.CExpr -> ExprBinds -> FTrav ExprBinds
 insertExprSrc src (main,putback) = do
     src' <- C.transExpr src
     let srcstat = (LQ.Exp (Just src') noOrigin)
@@ -1492,22 +1383,22 @@ getVirtParamsFromContext fdes = do
                     Just pdes -> [pdes]
     return (gspdes ++ hupdes ++ vrpdes)
 
--- | Determine actual parameters as list of BindsPairs and pattern to bind the result of a function call.
+-- | Determine actual parameters as list of ExprBindss and pattern to bind the result of a function call.
 -- The first argument is the variable to reuse for the dunction result
 -- The second argument is the description of the invoked function.
 -- The third argument is the list of translated C argument expressions.
-processParamVals :: TypedVar -> FuncDesc -> [BindsPair] -> FTrav ([BindsPair], GenIrrefPatn)
+processParamVals :: TypedVar -> FuncDesc -> [ExprBinds] -> FTrav ([ExprBinds], GenIrrefPatn)
 processParamVals v fdes pvals = do
-    -- construct BindsPairs for all virtual parameters
+    -- construct ExprBindss for all virtual parameters
     vpds <- getVirtParamsFromContext fdes
     vpbps <- mapM (\pdes -> do
                                cnt <- getValCounter
                                if null $ nameOfParamDesc pdes
                                   then do
                                       recordError $ noParam LCN.undefNode ("for property " ++ (head $ propOfParamDesc pdes))
-                                      return $ mkDummyBindsPair cnt (typeOfParamDesc pdes)
+                                      return $ mkDummyExprBinds cnt (typeOfParamDesc pdes)
                                           ("no context parameter for property " ++ (head $ propOfParamDesc pdes))
-                                  else return $ mkValVarBindsPair cnt $ getTypedVarFromParamDesc pdes) vpds
+                                  else return $ mkValVarExprBinds cnt $ getTypedVarFromParamDesc pdes) vpds
     let -- the list of all actual parameters
         allpbps = pvals ++ vpbps
     let -- additional result variables
@@ -1629,47 +1520,6 @@ cleanSrc (GenExpr e o t (Just src)) =
     case e of
          CS.App (GenExpr (CS.Var "gencotDummy") _ _ _) _ _ -> GenExpr (fmap cleanSrc e) o t (Just src)
          _ -> GenExpr (fmap cleanSrc e) o t Nothing
-
-{-
--- | Construct a function's parameter type from the sequence of translated C parameter types.
--- The result is either the unit type, a single type, or a tuple type (for more than 1 parameter).
-mkParType :: [GenType] -> GenType
-mkParType [] = genType CS.TUnit
-mkParType [gt] = gt
-mkParType gts = genType $ CS.TTuple gts 
-
-mkGenExpr :: [GenExpr] -> GenExpr
-mkGenExpr [] = genExpr CS.Unitel
-mkGenExpr [re] = re
-mkGenExpr res = genExpr $ CS.Tuple res
-
-mkRawExpr :: [RawExpr] -> RawExpr
-mkRawExpr [] = CS.RE CS.Unitel
-mkRawExpr [re] = re
-mkRawExpr res = CS.RE $ CS.Tuple res
-
-setBoxed :: GenType -> GenType
-setBoxed (GenType (CS.TCon nam p _) o ms) = (GenType (CS.TCon nam p markBox) o ms)
-setBoxed (GenType (CS.TRecord rp fields _) o ms) = (GenType (CS.TRecord rp fields markBox) o ms)
-setBoxed (GenType (CS.TUnbox (GenType t _ ms)) o _) = (GenType t o ms)
-
-setUnboxed :: GenType -> GenType
-setUnboxed (GenType (CS.TCon nam p _) o ms) = (GenType (CS.TCon nam p markUnbox) o ms)
-setUnboxed (GenType (CS.TRecord rp fields _) o ms) = (GenType (CS.TRecord rp fields markUnbox) o ms)
-setUnboxed (GenType t o ms) = (GenType (CS.TUnbox (GenType t noOrigin ms)) o Nothing)
-
-markBox = CCT.Boxed False Nothing
-markUnbox = CCT.Unboxed
-
-isReadOnly :: GenType -> Bool
-isReadOnly (GenType (CS.TBang t) _ _) = True
-isReadOnly _ = False
-
-isString :: GenType -> Bool
-isString (GenType (CS.TBang t) _ _) = isString t
-isString (GenType (CS.TCon "String" _ _) _ _) = True
-isString _ = False
--}
 
 setOrigin :: LCN.NodeInfo -> GenType -> GenType
 setOrigin n t = (GenType (typeOfGT t) (mkOrigin n) (typSynOfGT t))

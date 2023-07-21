@@ -4,8 +4,8 @@ IT=../../bin/items
 #VARIANT = plaingen
 #TCONF = -tflebrpG
 
-#VARIANT = plain
-#TCONF = -tflebrp
+VARIANT = plain
+TCONF = -tflebrp
 
 #VARIANT = pregen
 #TCONF = -tflebrG
@@ -22,8 +22,8 @@ IT=../../bin/items
 #VARIANT = banggen
 #TCONF = -tfleG
 
-VARIANT = bangproc
-TCONF = -tfle
+#VARIANT = bangproc
+#TCONF = -tfle
 
 #VARIANT = ebanggen
 #TCONF = -tflG

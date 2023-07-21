@@ -171,6 +171,10 @@ mkCharLitExprBinds n i = mkSingleExprBinds $ mkValVarBinding n mkU32Type $ mkCha
 mkStringLitExprBinds :: Int -> String -> ExprBinds
 mkStringLitExprBinds n s = mkSingleExprBinds $ mkValVarBinding n mkStringType $ mkStringLitExpr s
 
+-- | Single binding v<n>' = b
+mkBoolLitExprBinds :: Int -> Bool -> ExprBinds
+mkBoolLitExprBinds n b = mkSingleExprBinds $ mkValVarBinding n mkBoolType $ mkBoolLitExpr b
+
 -- | Single binding v<n>' = v
 mkValVarExprBinds :: Int -> TypedVar -> ExprBinds
 mkValVarExprBinds n v = mkSingleExprBinds $ mkValVarBinding n (typOfTV v) $ mkVarExpr v

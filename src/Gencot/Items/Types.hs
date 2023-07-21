@@ -180,20 +180,6 @@ getGlobalStateSubItemIds (fid,_) = do
     return $ zip gsids isnorogsids
     where fidslash = fid ++ "/"
 
-{-
--- | Construct the Global-State parameters of a function.
--- The result is the list of parameter names and their ItemAssocTypes, together with a not-Read-Only flag,
--- sorted according to the Global-State properties.
--- As type always the type void is used as a dummy, we only need the item associatd type to access its properties.
-makeGlobalStateParams :: ItemAssocType -> FTrav [((String,ItemAssocType),Bool)]
-makeGlobalStateParams fiat = do
-    iids <- getGlobalStateSubItemIds fiat
-    let iats = map (\iid -> (iid, LCA.DirectType LCA.TyVoid LCA.noTypeQuals LCA.noAttributes)) $ map fst iids
-    gsps <- mapM getGlobalStateProperty $ map fst iids
-    gsn <- mapM (\n -> mapIfUpper $ LCI.Ident n 0 LCN.undefNode) $ map (getParamName .fst) iids
-    return $ map fst $ sortOn snd $ zip (zip (zip gsn iats) (map snd iids)) gsps
--}
-
 -- | Get the Global-State property for an item.
 -- If not present return the empty string.
 getGlobalStateProperty :: String -> FTrav String

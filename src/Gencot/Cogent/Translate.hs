@@ -40,7 +40,8 @@ import Gencot.Cogent.Ast
 import Gencot.Cogent.Bindings (
   ExprBinds, valVar, leadVar, lvalVar, resVar,
   mkPlainExpr,
-  mkEmptyExprBinds, mkDummyExprBinds, mkUnitExprBinds, mkDefaultExprBinds, mkIntLitExprBinds, mkCharLitExprBinds, mkStringLitExprBinds,
+  mkEmptyExprBinds, mkDummyExprBinds, mkUnitExprBinds, mkDefaultExprBinds,
+  mkIntLitExprBinds, mkCharLitExprBinds, mkStringLitExprBinds, mkBoolLitExprBinds,
   mkValVarExprBinds, mkMemExprBinds, mkIdxExprBinds, mkOpExprBinds, mkConstAppExprBinds, mkAppExprBinds, mkAssExprBinds,
   mkIfExprBinds, mkTupleExprBinds, mkDerefExprBinds, mkFunDerefExprBinds, concatExprBinds, joinPutbacks,
   mkDummyBinding, mkRecPutBinding, mkArrPutBinding, mkDerefPutBinding,
@@ -53,7 +54,7 @@ import Gencot.Cogent.Expr (TypedVar(TV), typOfTV, namOfTV, mkUnitExpr, mkVarExpr
 import Gencot.Cogent.Types (
   genType, mkTypeName, mkU32Type, mkBoolType, mkTupleType, mkFunType, mkArrayType, mkWrappedArrayType, mkRecordType, mkPtrType,
   addTypeSyn, useTypeSyn, mkReadonly, mkUnboxed, isArrayType, isUnboxed, mkMayNull,
-  getBoxType, getNnlType, getResultType, getDerefType, getLeadType)
+  getBoxType, getNnlType, getResultType, getParamType, getDerefType, getLeadType)
 import Gencot.Cogent.Post.Proc (postproc)
 import qualified Gencot.C.Ast as LQ (Stm(Exp,Block), Exp)
 import qualified Gencot.C.Translate as C (transStat, transExpr, transArrSizeExpr, transBlockItem)
@@ -65,7 +66,8 @@ import Gencot.Traversal (
 import Gencot.Util.Types (
   carriedTypes, isExtern, isCompOrFunc, isCompPointer, isNamedFunPointer, isFunPointer, isPointer, isAggregate, isFunction, 
   isTypeDefRef, isComplete, isArray, isVoid, isTagRef, containsTypedefs, resolveTypedef, resolveAllTypedefs, isComposite,
-  isLinearType, isLinearParType, isReadOnlyType, isReadOnlyParType, isDerivedType, isExternTypeDef, wrapFunAsPointer, getTagDef)
+  isLinearType, isLinearParType, isReadOnlyType, isReadOnlyParType, isDerivedType, isExternTypeDef,
+  getDerefCType, wrapFunAsPointer, getTagDef)
 import Gencot.Util.Expr (checkForTrans, getFreeInCExpr, getFreeInCStat)
 import Gencot.Util.Decl (localVarDecl)
 
@@ -1035,7 +1037,6 @@ bindExpr e@(LC.CVar nam _) = do
                         else do
                             cntp <- getCmpCounter
                             return $ joinPutbacks (mkDerefExprBinds cntp $ mkValVarExprBinds cnt $ TV pn pt) [(mkDerefPutBinding cntp $ TV pn pt)]
-                            -- return $ mkDerefExprBinds cntp $ mkValVarExprBinds cnt $ TV pn pt
           else return $ mkValVarExprBinds cnt $ TV v t
     insertExprSrc e bp
 bindExpr e@(LC.CMember _ _ _ _) = do
@@ -1050,21 +1051,15 @@ bindExpr e@(LC.CUnary LC.CIndOp e1 _) = do
              then do
                  bp1 <- bindExpr e1
                  iid <- getExprItemId e1
-                 ft <- transType (iid,t)
+                 ft <- transType (refSubItemId iid, getDerefCType t)
                  return $ mkFunDerefExprBinds ft bp1
              else do
                  (bp, pb) <- bindComponent e
                  return $ joinPutbacks bp pb
     insertExprSrc e bp
 bindExpr e@(LC.CUnary LC.CNegOp e1 _) = do
-    -- not i -> if i==0 then 1 else 0
     bp1 <- bindExpr e1
-    let t1 = typOfTV (leadVar bp1)
-    cnt <- getValCounter
-    let c0 = mkIntLitExprBinds cnt t1 0
-    cnt <- getValCounter
-    let c1 = mkIntLitExprBinds cnt t1 1
-    insertExprSrc e $ mkIfExprBinds (mkOpExprBinds mkBoolType "==" [bp1,c0]) c1 c0
+    insertExprSrc e $ mkOpExprBinds mkBoolType (transUnOp LC.CNegOp) [bp1]
 bindExpr e@(LC.CUnary op e1 _) | elem op [LC.CPlusOp,LC.CMinOp,LC.CCompOp] = do
     bp1 <- bindExpr e1
     ct <- exprType e
@@ -1081,23 +1076,23 @@ bindExpr e@(LC.CUnary op e1 _) | elem op [LC.CPreIncOp,LC.CPreDecOp,LC.CPostIncO
     insertExprSrc e bp
     where post = elem op [LC.CPostIncOp,LC.CPostDecOp]
 bindExpr e@(LC.CBinary LC.CLndOp e1 e2 _) = do
-    -- e1 && e2 -> if e1 then e2 else 0
+    -- e1 && e2 -> if e1 then e2 else False
     bp1 <- bindExpr e1
     bp2 <- bindExpr e2
-    ct2 <- exprType e2
-    t2 <- transType ("",ct2)
     cnt <- getValCounter
-    let c0 = mkIntLitExprBinds cnt t2 0
+    let c0 = mkBoolLitExprBinds cnt False
     insertExprSrc e $ mkIfExprBinds bp1 bp2 c0
 bindExpr e@(LC.CBinary LC.CLorOp e1 e2 _) = do
-    -- e1 || e2 -> if e1 then 1 else e2
+    -- e1 || e2 -> if e1 then True else e2
     bp1 <- bindExpr e1
     bp2 <- bindExpr e2
-    ct2 <- exprType e2
-    t2 <- transType ("",ct2)
     cnt <- getValCounter
-    let c1 = mkIntLitExprBinds cnt t2 1
+    let c1 = mkBoolLitExprBinds cnt True
     insertExprSrc e $ mkIfExprBinds bp1 c1 bp2
+bindExpr e@(LC.CBinary op e1 e2 _) | elem op [LC.CLeOp, LC.CGrOp, LC.CLeqOp, LC.CGeqOp, LC.CEqOp, LC.CNeqOp] = do
+    bp1 <- bindExpr e1
+    bp2 <- bindExpr e2
+    insertExprSrc e $ mkOpExprBinds mkBoolType (transBinOp op) [bp1,bp2]
 bindExpr e@(LC.CBinary op e1 e2 _) = do
     bp1 <- bindExpr e1
     bp2 <- bindExpr e2
@@ -1108,12 +1103,13 @@ bindExpr e@(LC.CCall f es _) = do
     fbp <- bindExpr f
     cft <- exprType f
     iid <- getExprItemId f
+    let (iid',cft') = if isFunPointer cft then (refSubItemId iid, getDerefCType cft) else (iid, cft)
     fbp' <- if isFunPointer cft
                then do
-                   ft <- transType (iid,cft)
+                   ft <- transType (iid', cft')
                    return $ mkFunDerefExprBinds ft fbp
                else return fbp
-    fd <- getFuncDesc (iid,resolveTypedef cft) -- a declared function may have a typedef as type
+    fd <- getFuncDesc (iid', cft')
     bps <- mapM bindExpr es
     (pbps,rpat) <- processParamVals (leadVar fbp') fd bps
     insertExprSrc e $ mkAppExprBinds fbp' rpat pbps
@@ -1192,7 +1188,6 @@ bindComponent e@(LC.CVar nam _) = do
                          cnt <- getValCounter
                          cntp <- getCmpCounter
                          return $ (mkDerefExprBinds cntp $ mkValVarExprBinds cnt $ TV pn pt, [(mkDerefPutBinding cntp $ TV pn pt)])
-                         -- return $ mkDerefExprBinds cntp $ mkValVarExprBinds cnt $ TV pn pt
        else bindExprAsComponent e
 bindComponent e = bindExprAsComponent e
 
@@ -1237,6 +1232,18 @@ data FuncDesc = FuncDesc {
 
 -- | Construct a function description from the functions item associated type
 getFuncDesc :: ItemAssocType -> FTrav FuncDesc
+getFuncDesc iat@(iid, (LCA.TypeDefType (LCA.TypeDefRef idnam typ _) _ _)) = do
+    dt <- LCA.getDefTable
+    srtn <- stopResolvTypeName idnam
+    let ignoreTypeName = (isExternTypeDef dt idnam) && not srtn
+    -- translate type, use typedef name as item id if not ignored
+    let rslviat = (if not ignoreTypeName then getTypedefItemAssoc idnam typ else (iid,typ))
+    fdes <- getFuncDesc rslviat
+    if ignoreTypeName
+       then return fdes
+       else do -- add typedef name to the function type
+            tn <- mapNameToUpper idnam
+            return $ FuncDesc (addTypeSyn tn $ typeOfFuncDesc fdes) (propOfFuncDesc fdes) (parsOfFuncDesc fdes)
 getFuncDesc iat = do
     rtyp <- transType $ getResultSubItemAssoc iat
     props <- getItemProperties iat
@@ -1244,8 +1251,6 @@ getFuncDesc iat = do
     return $ FuncDesc (genFunType parms rtyp) props parms
 
 -- | Construct the descriptions for all parameters of a function
--- The parameter types are not taken from the translated function type, because
--- there they may have been rearranged by processing a ModificationFunction property.
 -- If parameter names are not available they are left empty, they are automatically not used in such situations.
 getAllParamDesc :: ItemAssocType -> FTrav [ParamDesc]
 getAllParamDesc iat@(iid,(LCA.FunctionType (LCA.FunType _ pds isVar) _)) = do
@@ -1383,8 +1388,8 @@ getVirtParamsFromContext fdes = do
                     Just pdes -> [pdes]
     return (gspdes ++ hupdes ++ vrpdes)
 
--- | Determine actual parameters as list of ExprBindss and pattern to bind the result of a function call.
--- The first argument is the variable to reuse for the dunction result
+-- | Determine actual parameters as list of ExprBinds and pattern to bind the result of a function call.
+-- The first argument is the variable to reuse for the function result
 -- The second argument is the description of the invoked function.
 -- The third argument is the list of translated C argument expressions.
 processParamVals :: TypedVar -> FuncDesc -> [ExprBinds] -> FTrav ([ExprBinds], GenIrrefPatn)
@@ -1443,8 +1448,8 @@ getExprItemId (LC.CMember e1 nam arrow _) = do
     if null iid
        then return ""
        else if arrow
-       then return $ memberSubItemId s $ refSubItemId iid
-       else return $ memberSubItemId s iid
+       then return $ memberSubItemId (refSubItemId iid) s
+       else return $ memberSubItemId iid s
     where s = LCI.identToString nam
 getExprItemId (LC.CIndex e1 e2 _) = do
     iid <- getExprItemId e1
@@ -1466,9 +1471,6 @@ getExprItemId (LC.CCall e _ _) = do
        else return $ resultSubItemId iid
 getExprItemId (LC.CAssign _ e1 _ _) = getExprItemId e1
 getExprItemId _ = return ""
-
-fvGB :: GenBnd -> [CCS.VarName]
-fvGB b = [] -- TODO using conversion to raw and CS.fvB
 
 transUnOp :: LC.CUnaryOp -> CCS.OpName
 transUnOp LC.CPreIncOp = "+"

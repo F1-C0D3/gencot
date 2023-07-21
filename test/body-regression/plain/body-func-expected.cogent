@@ -482,7 +482,7 @@ cogent_ffv47 (i, j, heap) =
    let (c', i, j) = let (c'
                         , i) = let (v1'
                                    , i) = let v' = gencotDummy "Cannot access global variable: glob1"
-               {- *; -}
+               {- *i = *; -}
             and v1' = i
             and i { cont = p0' } = v1'
             and v1' = p0'
@@ -1160,7 +1160,7 @@ cogent_ffi47 (i, j, heap) =
    let (c', i, j, r') = let (c'
                             , i) = let (v1'
                                        , i) = let v' = gencotDummy "Cannot access global variable: glob1"
-               {- *; -}
+               {- *i = *; -}
             and v1' = i
             and i { cont = p0' } = v1'
             and v1' = p0'
@@ -1849,3 +1849,511 @@ cogent_cffi49 (i, j, g, heap) =
          in (v', i, j, g, heap)
       in (3, v', i, j, g, heap)
    in (r', i, j, g, heap) -- g: gs1, cffv49: hu
+
+-- Function Pointers
+
+type Cogent_fpfvv =
+   #CFunPtr_FXX_Void
+type Cogent_ffvv = () -> ()
+type Cogent_ffvi =
+   MayNull (CPtr U32) -> ( (), MayNull (CPtr U32) )
+type Cogent_fpfvi =
+   #CFunPtr_FXM_N_P_U32X_Void
+type Cogent_fpfiv =
+   #CFunPtr_FXX_U32
+type Cogent_ffiv = () -> U32
+type Cogent_fpfii =
+   #CFunPtr_FXM_N_P_U32X_U32
+type Cogent_ffii =
+   MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
+
+type Struct_Cogent_fstd = { fvv : #Cogent_fpfvv, fvi : #Cogent_fpfvi, fiv : #Cogent_fpfiv, fii : #Cogent_fpfii }
+type Struct_Cogent_fsptd = { fvv : #CFunPtr_Cogent_ffvv, fvi : #CFunPtr_Cogent_ffvi, fiv : #CFunPtr_Cogent_ffiv, fii : #CFunPtr_Cogent_ffii }
+type Struct_Cogent_fsdir = { fvv : #CFunPtr_FXX_Void, fvi : #CFunPtr_FXM_N_P_U32X_Void, fiv : #CFunPtr_FXX_U32, fii : #CFunPtr_FXM_N_P_U32X_U32 }
+type Struct_Cogent_fsro = { fvi : #Cogent_fpfvi, fii : #Cogent_fpfii } -- fvi/1: ro, fii/1: ro
+
+cogent_ffp1vv : #Struct_Cogent_fstd -> #Cogent_fpfvv
+cogent_ffp1vv s =
+   let (c', r', s) = let (v'
+                         , s) = let v' = s
+         and s { fvv = p0' } = v'
+         and v' = p0'
+         and s = s { fvv = p0' }
+         in (v', s)
+      in (3, v', s)
+   in r'
+cogent_ffp1vi : #Struct_Cogent_fstd -> #Cogent_fpfvi
+cogent_ffp1vi s =
+   let (c', r', s) = let (v'
+                         , s) = let v' = s
+         and s { fvi = p0' } = v'
+         and v' = p0'
+         and s = s { fvi = p0' }
+         in (v', s)
+      in (3, v', s)
+   in r'
+cogent_ffp1iv : #Struct_Cogent_fstd -> #Cogent_fpfiv
+cogent_ffp1iv s =
+   let (c', r', s) = let (v'
+                         , s) = let v' = s
+         and s { fiv = p0' } = v'
+         and v' = p0'
+         and s = s { fiv = p0' }
+         in (v', s)
+      in (3, v', s)
+   in r'
+cogent_ffp1ii : #Struct_Cogent_fstd -> #Cogent_fpfii
+cogent_ffp1ii s =
+   let (c', r', s) = let (v'
+                         , s) = let v' = s
+         and s { fii = p0' } = v'
+         and v' = p0'
+         and s = s { fii = p0' }
+         in (v', s)
+      in (3, v', s)
+   in r'
+
+cogent_cfpv1 : #Struct_Cogent_fstd -> ()
+cogent_cfpv1 s =
+   let (c', s) = let (v'
+                     , s) = let v' = s
+         and s { fvv = p0' } = v'
+         and v' = p0'
+         and s = s { fvv = p0' }
+         and v' = fromFunPtr[() -> ()
+                            , #Cogent_fpfvv]{{}} v'
+         and v' = v' ()
+         in (v', s)
+      in (0, s)
+   in ()
+cogent_cfpv2 : #Struct_Cogent_fstd -> ()
+cogent_cfpv2 s =
+   let (c', s) = let (v'
+                     , s) = let v' = s
+         and s { fvv = p0' } = v'
+         and v' = p0'
+         and s = s { fvv = p0' }
+         and v' = fromFunPtr[() -> ()
+                            , #Cogent_fpfvv]{{}} v'
+         and v' = v' ()
+         in (v', s)
+      in (0, s)
+   in ()
+cogent_cfpv3 : #Struct_Cogent_fsptd -> ()
+cogent_cfpv3 s =
+   let (c', s) = let (v'
+                     , s) = let v' = s
+         and s { fvv = p0' } = v'
+         and v' = p0'
+         and s = s { fvv = p0' }
+         and v' = fromFunPtr[Cogent_ffvv
+                            , #CFunPtr_Cogent_ffvv]{{}} v'
+         and v' = v' ()
+         in (v', s)
+      in (0, s)
+   in ()
+cogent_cfpv4 : #Struct_Cogent_fsdir -> ()
+cogent_cfpv4 s =
+   let (c', s) = let (v'
+                     , s) = let v' = s
+         and s { fvv = p0' } = v'
+         and v' = p0'
+         and s = s { fvv = p0' }
+         and v' = fromFunPtr[() -> ()
+                            , #CFunPtr_FXX_Void]{{}} v'
+         and v' = v' ()
+         in (v', s)
+      in (0, s)
+   in ()
+cogent_cfpv5 : CArr5 #Cogent_fpfvv -> ( (), CArr5 #Cogent_fpfvv )
+cogent_cfpv5 a =
+   let (c', a) = let (v'
+                     , a) = let v1' = 1
+         and v' = a
+         and (a @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and a = a @{ @i0' = p0' }
+         and v' = fromFunPtr[() -> ()
+                            , #Cogent_fpfvv]{{}} v'
+         and v' = v' ()
+         in (v', a)
+      in (0, a)
+   in ((), a)
+cogent_cfpv6 : CArr5 #Cogent_fpfvv -> ( (), CArr5 #Cogent_fpfvv )
+cogent_cfpv6 a =
+   let (c', a) = let (v'
+                     , a) = let v1' = 1
+         and v' = a
+         and (a @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and a = a @{ @i0' = p0' }
+         and v' = fromFunPtr[() -> ()
+                            , #Cogent_fpfvv]{{}} v'
+         and v' = v' ()
+         in (v', a)
+      in (0, a)
+   in ((), a)
+cogent_cfpv7 : #Struct_Cogent_fstd -> ()
+cogent_cfpv7 s =
+   let c' = let v' = let v' = cogent_ffp1vv
+         and v1' = s
+         and v' = v' v1'
+         and v' = fromFunPtr[() -> ()
+                            , #Cogent_fpfvv]{{}} v'
+         and v' = v' ()
+         in v'
+      in 0
+   in ()
+cogent_cfpv8 : #Struct_Cogent_fstd -> ()
+cogent_cfpv8 s =
+   let c' = let v' = let v' = cogent_ffp1vv
+         and v1' = s
+         and v' = v' v1'
+         and v' = fromFunPtr[() -> ()
+                            , #Cogent_fpfvv]{{}} v'
+         and v' = v' ()
+         in v'
+      in 0
+   in ()
+cogent_cfpv9 : #Cogent_fpfvv -> ()
+cogent_cfpv9 f =
+   let c' = let v' = let v' = f
+         and v' = fromFunPtr[() -> ()
+                            , #Cogent_fpfvv]{{}} v'
+         and v' = v' ()
+         in v'
+      in 0
+   in ()
+
+cogent_cfpv11 : ( #Struct_Cogent_fstd, MayNull (CPtr U32) ) -> ( (), MayNull (CPtr U32) )
+cogent_cfpv11 (s, i) =
+   let (c', s) = let (v'
+                     , s) = let v' = s
+         and s { fvi = p0' } = v'
+         and v' = p0'
+         and s = s { fvi = p0' }
+         and v' = fromFunPtr[MayNull (CPtr U32) -> ()
+                            , #Cogent_fpfvi]{{}} v'
+         and v1' = i
+         and v' = v' v1'
+         in (v', s)
+      in (0, s)
+   in ((), i)
+cogent_cfpv12 : ( #Struct_Cogent_fsptd, MayNull (CPtr U32) ) -> ( (), MayNull (CPtr U32) )
+cogent_cfpv12 (s, i) =
+   let (c', s, i) = let (v'
+                        , s
+                        , i) = let v' = s
+         and s { fvi = p0' } = v'
+         and v' = p0'
+         and s = s { fvi = p0' }
+         and v' = fromFunPtr[Cogent_ffvi
+                            , #CFunPtr_Cogent_ffvi]{{}} v'
+         and v1' = i
+         and (v', i) = v' v1'
+         in (v', s, i)
+      in (0, s, i)
+   in ((), i)
+cogent_cfpv13 : ( #Struct_Cogent_fsdir, MayNull (CPtr U32) ) -> ( (), MayNull (CPtr U32) )
+cogent_cfpv13 (s, i) =
+   let (c', s) = let (v'
+                     , s) = let v' = s
+         and s { fvi = p0' } = v'
+         and v' = p0'
+         and s = s { fvi = p0' }
+         and v' = fromFunPtr[MayNull (CPtr U32) -> ()
+                            , #CFunPtr_FXM_N_P_U32X_Void]{{}} v'
+         and v1' = i
+         and v' = v' v1'
+         in (v', s)
+      in (0, s)
+   in ((), i)
+cogent_cfpv14 : ( #Struct_Cogent_fsro, MayNull (CPtr U32) ) -> ( (), MayNull (CPtr U32) )
+cogent_cfpv14 (s, i) =
+   let (c', s) = let (v'
+                     , s) = let v' = s
+         and s { fvi = p0' } = v'
+         and v' = p0'
+         and s = s { fvi = p0' }
+         and v' = fromFunPtr[MayNull (CPtr U32) -> ()
+                            , #Cogent_fpfvi -- fvi/1: ro, fii/1: ro
+                            ]{{}} v'
+         and v1' = i
+         and v' = v' v1'
+         in (v', s)
+      in (0, s)
+   in ((), i)
+cogent_cfpv15 : ( CArr5 #Cogent_fpfvi, MayNull (CPtr U32) ) -> ( (), CArr5 #Cogent_fpfvi, MayNull (CPtr U32) )
+cogent_cfpv15 (a, i) =
+   let (c', a) = let (v'
+                     , a) = let v1' = 1
+         and v' = a
+         and (a @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and a = a @{ @i0' = p0' }
+         and v' = fromFunPtr[MayNull (CPtr U32) -> ()
+                            , #Cogent_fpfvi]{{}} v'
+         and v2' = i
+         and v' = v' v2'
+         in (v', a)
+      in (0, a)
+   in ((), a, i)
+cogent_cfpv16 : ( #Struct_Cogent_fstd, MayNull (CPtr U32) ) -> ( (), MayNull (CPtr U32) )
+cogent_cfpv16 (s, i) =
+   let c' = let v' = let v' = cogent_ffp1vi
+         and v1' = s
+         and v' = v' v1'
+         and v' = fromFunPtr[MayNull (CPtr U32) -> ()
+                            , #Cogent_fpfvi]{{}} v'
+         and v2' = i
+         and v' = v' v2'
+         in v'
+      in 0
+   in ((), i)
+cogent_cfpv17 : ( #Cogent_fpfvi, MayNull (CPtr U32) ) -> ( (), MayNull (CPtr U32) )
+cogent_cfpv17 (f, i) =
+   let c' = let v' = let v' = f
+         and v' = fromFunPtr[MayNull (CPtr U32) -> ()
+                            , #Cogent_fpfvi]{{}} v'
+         and v1' = i
+         and v' = v' v1'
+         in v'
+      in 0
+   in ((), i)
+cogent_cfpv18 : ( #CFunPtr_Cogent_ffvi, MayNull (CPtr U32) ) -> ( (), MayNull (CPtr U32) )
+cogent_cfpv18 (f, i) =
+   let (c', i) = let (v'
+                     , i) = let v' = f
+         and v1' = i
+         and (v', i) = v' v1'
+         in (v', i)
+      in (0, i)
+   in ((), i)
+
+cogent_cfpi1 : #Struct_Cogent_fstd -> U32
+cogent_cfpi1 s =
+   let (c', r', s) = let (v'
+                         , s) = let v' = s
+         and s { fiv = p0' } = v'
+         and v' = p0'
+         and s = s { fiv = p0' }
+         and v' = fromFunPtr[() -> U32
+                            , #Cogent_fpfiv]{{}} v'
+         and v' = v' ()
+         in (v', s)
+      in (3, v', s)
+   in r'
+cogent_cfpi2 : #Struct_Cogent_fstd -> U32
+cogent_cfpi2 s =
+   let (c', r', s) = let (v'
+                         , s) = let v' = s
+         and s { fiv = p0' } = v'
+         and v' = p0'
+         and s = s { fiv = p0' }
+         and v' = fromFunPtr[() -> U32
+                            , #Cogent_fpfiv]{{}} v'
+         and v' = v' ()
+         in (v', s)
+      in (3, v', s)
+   in r'
+cogent_cfpi3 : #Struct_Cogent_fsptd -> U32
+cogent_cfpi3 s =
+   let (c', r', s) = let (v'
+                         , s) = let v' = s
+         and s { fiv = p0' } = v'
+         and v' = p0'
+         and s = s { fiv = p0' }
+         and v' = fromFunPtr[Cogent_ffiv
+                            , #CFunPtr_Cogent_ffiv]{{}} v'
+         and v' = v' ()
+         in (v', s)
+      in (3, v', s)
+   in r'
+cogent_cfpi4 : #Struct_Cogent_fsdir -> U32
+cogent_cfpi4 s =
+   let (c', r', s) = let (v'
+                         , s) = let v' = s
+         and s { fiv = p0' } = v'
+         and v' = p0'
+         and s = s { fiv = p0' }
+         and v' = fromFunPtr[() -> U32
+                            , #CFunPtr_FXX_U32]{{}} v'
+         and v' = v' ()
+         in (v', s)
+      in (3, v', s)
+   in r'
+cogent_cfpi5 : CArr5 #Cogent_fpfiv -> ( U32, CArr5 #Cogent_fpfiv )
+cogent_cfpi5 a =
+   let (c', r', a) = let (v'
+                         , a) = let v1' = 1
+         and v' = a
+         and (a @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and a = a @{ @i0' = p0' }
+         and v' = fromFunPtr[() -> U32
+                            , #Cogent_fpfiv]{{}} v'
+         and v' = v' ()
+         in (v', a)
+      in (3, v', a)
+   in (r', a)
+cogent_cfpi6 : CArr5 #Cogent_fpfiv -> ( U32, CArr5 #Cogent_fpfiv )
+cogent_cfpi6 a =
+   let (c', r', a) = let (v'
+                         , a) = let v1' = 1
+         and v' = a
+         and (a @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and a = a @{ @i0' = p0' }
+         and v' = fromFunPtr[() -> U32
+                            , #Cogent_fpfiv]{{}} v'
+         and v' = v' ()
+         in (v', a)
+      in (3, v', a)
+   in (r', a)
+cogent_cfpi7 : #Struct_Cogent_fstd -> U32
+cogent_cfpi7 s =
+   let (c'
+       , r') = let v' = let v' = cogent_ffp1iv
+         and v1' = s
+         and v' = v' v1'
+         and v' = fromFunPtr[() -> U32
+                            , #Cogent_fpfiv]{{}} v'
+         and v' = v' ()
+         in v'
+      in (3, v')
+   in r'
+cogent_cfpi8 : #Struct_Cogent_fstd -> U32
+cogent_cfpi8 s =
+   let (c'
+       , r') = let v' = let v' = cogent_ffp1iv
+         and v1' = s
+         and v' = v' v1'
+         and v' = fromFunPtr[() -> U32
+                            , #Cogent_fpfiv]{{}} v'
+         and v' = v' ()
+         in v'
+      in (3, v')
+   in r'
+cogent_cfpi9 : #Cogent_fpfiv -> U32
+cogent_cfpi9 f =
+   let (c'
+       , r') = let v' = let v' = f
+         and v' = fromFunPtr[() -> U32
+                            , #Cogent_fpfiv]{{}} v'
+         and v' = v' ()
+         in v'
+      in (3, v')
+   in r'
+
+cogent_cfpi11 : ( #Struct_Cogent_fstd, MayNull (CPtr U32) ) -> ( U32, MayNull (CPtr U32) )
+cogent_cfpi11 (s, i) =
+   let (c', r', s) = let (v'
+                         , s) = let v' = s
+         and s { fii = p0' } = v'
+         and v' = p0'
+         and s = s { fii = p0' }
+         and v' = fromFunPtr[MayNull (CPtr U32) -> U32
+                            , #Cogent_fpfii]{{}} v'
+         and v1' = i
+         and v' = v' v1'
+         in (v', s)
+      in (3, v', s)
+   in (r', i)
+cogent_cfpi12 : ( #Struct_Cogent_fsptd, MayNull (CPtr U32) ) -> ( U32, MayNull (CPtr U32) )
+cogent_cfpi12 (s, i) =
+   let (c', r', s, i) = let (v'
+                            , s
+                            , i) = let v' = s
+         and s { fii = p0' } = v'
+         and v' = p0'
+         and s = s { fii = p0' }
+         and v' = fromFunPtr[Cogent_ffii
+                            , #CFunPtr_Cogent_ffii]{{}} v'
+         and v1' = i
+         and (v', i) = v' v1'
+         in (v', s, i)
+      in (3, v', s, i)
+   in (r', i)
+cogent_cfpi13 : ( #Struct_Cogent_fsdir, MayNull (CPtr U32) ) -> ( U32, MayNull (CPtr U32) )
+cogent_cfpi13 (s, i) =
+   let (c', r', s) = let (v'
+                         , s) = let v' = s
+         and s { fii = p0' } = v'
+         and v' = p0'
+         and s = s { fii = p0' }
+         and v' = fromFunPtr[MayNull (CPtr U32) -> U32
+                            , #CFunPtr_FXM_N_P_U32X_U32]{{}} v'
+         and v1' = i
+         and v' = v' v1'
+         in (v', s)
+      in (3, v', s)
+   in (r', i)
+cogent_cfpi14 : ( #Struct_Cogent_fsro, MayNull (CPtr U32) ) -> ( U32, MayNull (CPtr U32) )
+cogent_cfpi14 (s, i) =
+   let (c', r', s) = let (v'
+                         , s) = let v' = s
+         and s { fii = p0' } = v'
+         and v' = p0'
+         and s = s { fii = p0' }
+         and v' = fromFunPtr[MayNull (CPtr U32) -> U32
+                            , #Cogent_fpfii -- fvi/1: ro, fii/1: ro
+                            ]{{}} v'
+         and v1' = i
+         and v' = v' v1'
+         in (v', s)
+      in (3, v', s)
+   in (r', i)
+cogent_cfpi15 : ( CArr5 #Cogent_fpfii, MayNull (CPtr U32) ) -> ( U32, CArr5 #Cogent_fpfii, MayNull (CPtr U32) )
+cogent_cfpi15 (a, i) =
+   let (c', r', a) = let (v'
+                         , a) = let v1' = 1
+         and v' = a
+         and (a @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and a = a @{ @i0' = p0' }
+         and v' = fromFunPtr[MayNull (CPtr U32) -> U32
+                            , #Cogent_fpfii]{{}} v'
+         and v2' = i
+         and v' = v' v2'
+         in (v', a)
+      in (3, v', a)
+   in (r', a, i)
+cogent_cfpi16 : ( #Struct_Cogent_fstd, MayNull (CPtr U32) ) -> ( U32, MayNull (CPtr U32) )
+cogent_cfpi16 (s, i) =
+   let (c'
+       , r') = let v' = let v' = cogent_ffp1ii
+         and v1' = s
+         and v' = v' v1'
+         and v' = fromFunPtr[MayNull (CPtr U32) -> U32
+                            , #Cogent_fpfii]{{}} v'
+         and v2' = i
+         and v' = v' v2'
+         in v'
+      in (3, v')
+   in (r', i)
+cogent_cfpi17 : ( #Cogent_fpfii, MayNull (CPtr U32) ) -> ( U32, MayNull (CPtr U32) )
+cogent_cfpi17 (f, i) =
+   let (c'
+       , r') = let v' = let v' = f
+         and v' = fromFunPtr[MayNull (CPtr U32) -> U32
+                            , #Cogent_fpfii]{{}} v'
+         and v1' = i
+         and v' = v' v1'
+         in v'
+      in (3, v')
+   in (r', i)
+cogent_cfpi18 : ( #CFunPtr_Cogent_ffii, MayNull (CPtr U32) ) -> ( U32, MayNull (CPtr U32) )
+cogent_cfpi18 (f, i) =
+   let (c', r', i) = let (v'
+                         , i) = let v' = f
+         and v1' = i
+         and (v', i) = v' v1'
+         in (v', i)
+      in (3, v', i)
+   in (r', i)

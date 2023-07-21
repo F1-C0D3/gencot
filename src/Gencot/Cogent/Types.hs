@@ -257,6 +257,10 @@ isStringType :: GenType -> Bool
 isStringType (GenType (CS.TCon cstr [] _) _ _) = cstr == "String"
 isStringType _ = False
 
+isBoolType :: GenType -> Bool
+isBoolType (GenType (CS.TCon cstr [] _) _ _) = cstr == "Bool"
+isBoolType _ = False
+
 -- | Readonly or regular
 isNonlinear :: GenType -> Bool
 isNonlinear (GenType (CS.TTuple ts) _ _) = all isNonlinear ts
@@ -397,6 +401,9 @@ adaptTypes t1@(GenType (CS.TTuple ts1) _ _) t2@(GenType (CS.TTuple ts2) _ _) =
 -- String and char pointer is adapted to String
 adaptTypes t1 t2 | isStringType t1 = t1
 adaptTypes t1 t2 | isStringType t2 = t2
+-- Bool and other type is adapted to Bool
+adaptTypes t1 t2 | isBoolType t1 = t1
+adaptTypes t1 t2 | isBoolType t2 = t2
 -- Readonly and linear is adapted to readonly
 adaptTypes t1 t2 | not $ roCmpTypes t1 t2 =
     adaptTypes (mkReadonly t1) (mkReadonly t2)

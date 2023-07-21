@@ -3,8 +3,8 @@ Section~\ref{impl-ccode-cexpr} and~\ref{impl-ccode-cstats} is in general neither
 Therefore it must be improved, which is done by postprocessing. The postprocessing is done directly in the Cogent AST.
 
 This approach taken by Gencot has several advantages over generating the Cogent code in a single phase.
-First, the actual translation step ist rather simple and straightforward and even needs not take the C types
-into account. Second, the postprocessing is done on a restricted subset of a purely functional language where 
+First, the actual translation step ist rather simple and straightforward. Second, the postprocessing
+is done on a restricted subset of a purely functional language where
 there is no difference between statements and expressions, so it tends to be simpler. Third, it can be separated
 into arbitrary many different processing steps which can be freely combined, since they all process the same
 data structures (the Cogent AST). The drawback is that the code generation is not very efficient, because it
@@ -12,13 +12,27 @@ first builds a quite voluminous code which is then simplified by the postprocess
 of the resulting code has been considered more important than the performance of the Gencot translation.
 
 In the following sections the postprocessing steps are described independently of each other and the last
-section describes how they are combined. Every postprocessing step corresponds to a transformation from
-a Cogent expression to a Cogent expression and is implemented by a Haskell function of the form
+section describes how they are combined.
+
+Every postprocessing step corresponds to a transformation from a Cogent expression to a Cogent expression.
+All required information is already present in the processed expression, in particular, the Cogent types
+which have been added as described in Section~\ref{impl-ccode-type}. The C symbol table and other global state
+information is not used. However, a postprocessing step may detect error situations. In this case usually a
+dummy expression is inserted into the Cogent AST, as described in Section~\ref{design-cstats-dummy}, and an
+error message is registered for display. For the latter the language-c \code{Trav} monad is used, as described
+in Section~\ref{impl-ccode-trav}. Since no other global information is required, the monad is always used
+with an empty user state and an empty symbol table. The type \code{ETrav} is defined in module
+\code{Gencot.Cogent.Post.Util} for monads of this kind.
+
+All postprocessing steps are defined in submodules of \code{Gencot.Cogent.Post}, they are either implemented
+by a monadic action of the form
+\begin{verbatim}
+  Xproc :: GenExpr -> ETrav GenExpr
+\end{verbatim}
+or, if no error messages are generated, by a Haskell function of the form
 \begin{verbatim}
   Xproc :: GenExpr -> GenExpr
 \end{verbatim}
-Note that no monadic actions are used, all information required for the processing must already be present in the 
-expressions.
 
 Postprocessing is applied to all expressions which occur in the generated Cogent program. These are function 
 body expressions, the expressions in constant definitions, and the expressions in array type size specifications.
@@ -29,11 +43,12 @@ body expressions, the expressions in constant definitions, and the expressions i
 In several cases the original translation phase or postprocessing steps result in constant expressions built
 from predefined operators. Such expressions can be statically evaluated and the resulting constant then may
 enable other postprocessing steps. Therefore a constant expression evaluation is defined as auxiliary 
-function for other postprocessing steps. It is implemented by the function
+function for other postprocessing steps. It never detects and signals an error. Therefore it is implemented
+by the function
 \begin{verbatim}
   evalproc :: GenExpr -> GenExpr
 \end{verbatim}
-defined in module \code{Gencot.Cogent.Simplify}.
+defined in module \code{Gencot.Cogent.Post.Simplify}.
 
 The \code{evalproc} step is not applied on its own to arbitrary expressions. The reason is that a constant
 expression may be intentionally present in the C program to show how a value is calculated. In that case the 
@@ -62,11 +77,11 @@ to the rules
 Currently only the first argument is treated this way, because only that case occurs in actual examples of translation
 and postprocessing, mainly for the translation of \code{switch} statements.
 
-Simplifying operator expressions using these rules is implemented by the function
+Simplifying operator expressions using these rules never detects and signals an error, therefore is implemented by the function
 \begin{verbatim}
   opproc :: GenExpr -> GenExpr
 \end{verbatim}
-defined in module \code{Gencot.Cogent.Simplify}.
+defined in module \code{Gencot.Cogent.Post.Simplify}.
 
 \subsection{Simplifying \code{let}-Expressions}
 \label{impl-post-let}
@@ -85,6 +100,12 @@ possible if after the substitution all free variables in \code{expr1} are still 
 they are not ``drawn under a binding'' in \code{expr2}. This could be avoided by consistent renaming of variables bound in 
 \code{expr2}. Gencot never renames variables and does not substitute in this case.
 
+The Gencot translation may produce code where the types of \code{v} and \code{expr1} differ. Then the type differences are
+resolved by postprocessing, as described in Section~\ref{impl-post-types}. If the substitution would be performed before,
+it may be more difficult to resolve the difference, because the variable and its type have been eliminated and the type
+difference may now occur between \code{expr1} and its context in \code{expr2} at several places. Therefore Gencot performs
+the substitution only if the types of \code{v} and \code{expr1} are the same.
+
 This scheme can directly be extended to expressions of the form \code{let v1 = e1 and ... vn = en in e} using the
 equivalence to an expression of the form \code{let v1 = e1 in let ... in let vn = en in e}.
 
@@ -101,7 +122,7 @@ irrefutable patterns. In other words, it is a complex structure of variables whi
 of a type for which the values have a corresponding structure. Every variable may occur only once in a pattern.
 
 Currently, the translation phase only creates bindings with patterns which are either a single variable, or a flat tuple pattern where
-all components are variables or wildcards, or a take pattern where all sub patterns are variables. The postprocessing does not 
+all components are variables, or a take pattern where all sub patterns are variables. The postprocessing does not
 introduce more complex patterns. However, to make the code more robust, these restrictions are not assumed for binding processing,
 the processing is always implemented to work for arbitrary patterns.
 
@@ -122,11 +143,11 @@ Simplifying a \code{let} expression by substitution can reduce the variables whi
 parts of the pattern \code{p} occur free in \code{expr2}, then \code{expr1} is removed and all variables which only occur free
 in \code{expr1} are removed with it.
 
-Simplifying \code{let} expressions is implemented by the function
+Simplifying \code{let} expressions can never detect and signal an error, therefore it is implemented by the function
 \begin{verbatim}
   letproc :: GenExpr -> GenExpr
 \end{verbatim}
-defined in module \code{Gencot.Cogent.Simplify}.
+defined in module \code{Gencot.Cogent.Post.Simplify}.
 
 \subsubsection{Processing Subexpressions}
 
@@ -195,11 +216,8 @@ such variable exists the binding can be completely removed from the \code{let} e
 If \code{p} contains a \code{take} pattern for a record or array it can only match a \code{put} subexpression 
 of exactly the same form in \code{expr2}. That is only present if the component is taken and put back without modifying it or the 
 remaining record or array. In this case the \code{put} expression is replaced by the part of \code{expr1} corresponding to 
-the \code{take} pattern.
-
-Wildcards in a \code{take} pattern can only be removed if the corresponding part of \code{expr1} is a \code{put} expression. 
-In the original translation phase Gencot always generates all put operations after all take operations in a sequence of bindings.
-However, during postprocessing bindings may be rearranged, so that this case may occur.
+the \code{take} pattern. Wildcards in a \code{take} pattern can only be removed if the corresponding part of \code{expr1}
+is a \code{put} expression.
 
 Even if a part of the binding successfully matches in \code{expr2}, substitution may be prevented because it would draw a 
 free variable in \code{expr1} under a binding. Such a binding may be the retained part of the original binding or it may 
@@ -274,6 +292,35 @@ relative to the number of subexpressions. Therefore the growth limit factor shou
 factor and a good selection for it must be determined by practical tests. Alternatively the factor could be specified as an input 
 parameter for Gencot so that it can be selected specifically for every translated C program.
 
+\subsubsection{Pre-Simplifying Unused Variables}
+
+If in an expression
+\begin{verbatim}
+  let p = expr1 in expr2
+\end{verbatim}
+a variable bound in \code{p} does not occur free in \code{expr2} it can be removed from the binding \code{p = expr1} as described above,
+without substituting it in \code{expr2}. This case is much simpler than the general case described above in several aspects:
+\begin{itemize}
+\item it is not necessary to search for matchings in \code{expr2},
+\item it is not possible to draw free variables in \code{expr1} under a binding,
+\item the expression will never grow by the simplification,
+\item type differences between \code{p} and \code{expr1} do not matter.
+\end{itemize}
+
+The Gencot translation produces many such cases of unused variables, because it translates expressions without regarding whether
+their values are used in the context. For example, the value of an assignment expression is normally not used in the context. On the
+other hand unused variables may prevent resolving a type difference by banging, if the variable has non-escapeable type (possibly
+caused by the banging itself) and leaves the scope of the banging. Therefore it is crucial to remove bindings of unused variables
+early during postprocessing, in particular, before trying to apply banging, whereas normal simplification of \code{let} expression
+is only done after resolving type differences.
+
+This is facilitated by implementing the removal of unused variables in a separate postprocessing step
+\begin{verbatim}
+  presimp :: GenExpr -> GenExpr
+\end{verbatim}
+also defined in module \code{Gencot.Cogent.Post.Simplify}. Thus it can be applied independently from \code{letproc}. Note, that
+\code{letproc} will still remove variables which have become unused by other postprocessing steps after applying \code{presimp}.
+
 \subsection{Simplifying If-Expressions}
 \label{impl-post-if}
 
@@ -308,11 +355,11 @@ This transformation may enable the static evaluation of the resulting branches.
 All these rules have been selected, because they specifically apply to conditional expressions resulting from the Gencot translation
 and postprocessing, in particular for the control variable.
 
-Simplifying \code{if} expressions using these rules is implemented by the function
+Simplifying \code{if} expressions using these rules never detects and signals errors, therefore it is implemented by the function
 \begin{verbatim}
   ifproc :: GenExpr -> GenExpr
 \end{verbatim}
-defined in module \code{Gencot.Cogent.Simplify}.
+defined in module \code{Gencot.Cogent.Post.Simplify}.
 
 \subsubsection{Unused Transformations}
 
@@ -374,25 +421,125 @@ not occur as a whole in the branches. As an example, the following transformatio
 \end{verbatim}
 It has not yet been considered, whether such transformations would be useful for cases occurring during translations of C programs.
 
-\subsection{Function Processing}
-\label{impl-post-function}
+\subsection{Processing Type Differences}
+\label{impl-post-types}
 
-After the translation to Cogent, functions may have additional parameters or additional result components and parameters may have
-been rearranged. Additionally, the parameter and/or result types may be translated in different ways. Function definitions and
-function calls must be adapted to these possible modifications. The translation described in Section~\ref{impl-ccode-cstats} 
-translates all C functions exactly as they are structured in C, the adaptations are done by postprocessing.
+Even if the translated C program is type-correct, the Gencot translation may result in type incompatibilities in the generated
+Cogent code. These originate from two possible sources:
+\begin{itemize}
+\item Type differences in the C program which are automatically resolved by the C compiler by conversions.
+\item Application of item properties which affect the item's type during the Gencot translation.
+\end{itemize}
 
-Postprocessing for functions is implemented by the function
+The first case only occurs for C operators. They are conceptually polymorphic, the actual function is determined by the type
+of the argument(s). For binary operators the argument types may be different, then in some cases they are adapted to a common
+type which then determines the function of the operator. The same holds for the ternary conditional operator for the two
+branches. Operators in C are either arithmetic, relational or comparison operators or the conditional operator. The first
+two kinds are only applied to numeric arguments. Since Gencot does not support floating point types only integer arguments
+are relevant here. The comparison operators \code{==} and \code{!=} can also be applied to pointer arguments and the branches
+of a conditional operator can be of arbitrary type. In some cases the type differences can also be resolved in Cogent by
+applying conversion functions, in other cases Gencot does not support a translation and signals an error.
+
+The second case may occur for the item properties Read-Only, Not-Null, and No-String. All three only affect items of pointer
+types. Since they may be specified manually, differences may be errors which should be detected and signaled by Gencot. In some
+cases it is also possible to resolve differences by inserting conversions during postprocessing.
+
+Most type incompatibilities have the form of a sub expression having one type and its context, where the sub expression occurs,
+having a different type. Such type clashes can occur in the following situations:
+\begin{itemize}
+\item in a binding between the type of a variable in the pattern and the type of the corresponding component of the bound
+expression. This will never happen for a value variable, since for them the type is always determined by the bound expression
+component. It may happen for translated C variables and parameters and for component variables,
+\item in a function application between the formal type of a parameter according the the function's type and the type of
+the corresponding component of the actual argument tuple,
+\item between the arguments of a binary operator including the branches of a conditional expression.
+\end{itemize}
+
+Whenever Gencot cannot resolve a type difference it signals an error and additionally replaces sub expressions with the wrong type
+by dummy expressions which specify the error reason and have the correct expected type according to the context of the expression.
+Thus, after processing them no type clashes remain in the resulting Cogent code, even if there where errors.
+
+\subsubsection{Readonly Modifications}
+
+Applying the Read-Only item property changes the item's Cogent type \code{t} to the readonly type \code{t!}. The main incompatibility
+for values of readonly types occurs when they are modified. Modifications can only be applied to container values, by replacing
+or setting a component.
+
+As described in Section~\ref{impl-ccode-cexpr} container modifications are translated to a pair of \code{take}- and \code{put}-bindings
+with a re-binding of the component variable to a new value in between. In case of a nested component there are several \code{take}-
+and \code{put}-bindings surrounding the re-binding.
+
+If the container has readonly type every modification of a component is an error, independent of the component type. Gencot detects
+such modifications as follows: for every \code{take}-binding with readonly container type all bindings of the component
+variable in their scope which are not \code{put}-bindings are modifications. A \code{put}-binding without a re-binding of the
+component variable puts back the original value and does not cause a modification.
+
+Since it is not possible to convert a readonly type back to a modifyable type these modifications cannot be corrected by
+applying a conversion. Hence Gencot always signals an error message and also replaces the component variable in the erroneous
+binding by the error variable \code{err'}. This will remove all such modifications, the resulting code never modifies a
+readonly container. Since \code{err'} is never referenced the binding will be eliminated when unused variables are eliminated
+in later postprocessing steps.
+
+Postprocessing for detecting and removing modifications of readonly containers is implemented by the monadic action
 \begin{verbatim}
-  funproc :: GenExpr -> GenExpr
+  romodproc :: GenExpr -> ETrav GenExpr
 \end{verbatim}
-defined in module \code{Gencot.Cogent.Functions}.
+defined in module \code{Gencot.Cogent.Post.MatchTypes}.
 
-Function postprocessing also applies to operators in C, which are translated to Cogent operators in some cases, and to predefined
-Cogent functions in others.
+\subsubsection{Readonly Processing}
 
-\subsection{Readonly Processing}
-\label{impl-post-readonly}
+Another incompatibility for readonly types are type clashes with the corresponding linear type. Since values of linear type
+can be converted to values of readonly type by applying the ``bang'' operation, such type clashes may be resolved by conversion
+so that both types are readonly.
+
+However, the application of the bang operator in Cogent is strongly restricted. It cannot be applied to arbitrary expressions
+but only to single variables. It can only be applied at specific positions in the code (at bindings, at conditions in conditional
+expressions, and at match expressions). The effect of the bang operator is restricted to a scope determined by the position of
+application. No value with escape-restricted type (containing a read-only part) may leave this scope. Due to these restrictions
+a systematic construction of bang applications so that a maximum of readonly type clashes are resolved, is a complex optimization
+problem.
+
+Gencot uses a specific heuristics to find bang applications which resolve readonly type clashes. Remaining clashes are then
+resolved by dummy expressions and signaling them as errors. In such cases it may be possible to remove readonly type clashes
+manually with the help of the Read-Only item property.
+
+The heuristics only bangs variables which correspond to translated C variables and parameters. If a component variable would
+be banged, the scope of the banging would either include the putback binding, which would cause a type clash with the type of
+the container component, or it would exclude it, then the value has to leave the scope because it is required for the putback
+binding, but that is not possible, since by banging it its type has become non-escapeable. If a value variable would be banged
+this makes only sense if its single use is in the scope of the banging. But then the value outside the scope is not used, it
+is discarded which is not allowed for a value of linear type in Cogent. If the result variable would be banged, it must always
+leave the scope of the banging, since its value must be returned by the function body, again, that is not possible because its
+type is non-escapeable by the banging. The other variable kinds (index, control, switch, and case variables) cannot have a linear
+type, therefore banging is not applicable to them.
+
+When Gencot searches for readonly type clashes which may be resolved by banging, it maintains a map of ``source variables'' for
+value and component variables. These are the C variables which, if banged, change the type of the value variable or component
+variable to readonly. For a component variable the source variables are those of the container. Usually, a variable has only
+one source variable, but for a variable bound to a conditional expression there may be different source variables in the branches,
+so in general every variable has a set of source variables. If the set is empty the variable's type cannot be made readonly
+by banging variables, this is the case for example for a variable bound to the result of a function application.
+
+
+
+The scope of a bang application is always an expression. In the case of a conditional, it is the condition expression, in the
+case of a binding it is the bound expression.
+
+Postprocessing for readonly processing is implemented by the monadic action
+\begin{verbatim}
+  bangproc :: GenExpr -> ETrav GenExpr
+\end{verbatim}
+defined in module \code{Gencot.Cogent.Post.MatchTypes}.
+
+\subsubsection{Boolean Value Processing}
+
+\subsubsection{NULL Pointer Processing}
+
+\subsubsection{String Processing}
+
+\subsubsection{Integer Adaptation}
+
+\subsubsection{Pointer Adaptation}
 
 \subsection{Take/Put Processing}
 \label{impl-post-takeput}
@@ -418,7 +565,7 @@ Postprocessing for \code{take} and \code{put} bindings is implemented by the fun
 \begin{verbatim}
   tpproc :: GenExpr -> GenExpr
 \end{verbatim}
-defined in module \code{Gencot.Cogent.Takeput}.
+defined in module \code{Gencot.Cogent.Post.Takeput}.
 
 The take/put pairs are postprocessed in two major steps. In the first step single take or put bindings are eliminated, because the component
 has nonlinear type. In the second step, some of the remaining take/put pairs are converted to applications of the \code{modify} operation
@@ -427,7 +574,7 @@ has nonlinear type. In the second step, some of the remaining take/put pairs are
   tpelimproc :: GenExpr -> GenExpr
   tpmodifproc :: GenExpr -> GenExpr
 \end{verbatim}
-defined in module \code{Gencot.Cogent.Takeput}.
+defined in module \code{Gencot.Cogent.Post.Takeput}.
 
 \subsubsection{Banging \code{take} Bindings}
 
@@ -457,14 +604,13 @@ recursively before.
 
 The only possible other uses of \code{pk'} are:
 \begin{itemize}
-\item Actual parameter of an invoked function. If the formal parameter has a readonly type, \code{pk'} must be banged before (see 
-Section~\ref{impl-post-function}, otherwise it is used unbanged.
+\item Actual parameter of an invoked function. If the formal parameter has a readonly type, \code{pk'} must be banged before,
+otherwise it is used unbanged.
 \item Assignment to a variable or container component, or return value of the surrounding function. That must be unbanged, 
 otherwise it would escape the banged context.
 \item Dereferencing it using \code{*} or \code{->} in C. This is translated like a component access to a take/put pair and is
 handled by the recursive processing of the \code{take} bindings.
-\item Comparison with another pointer in C. There it will always be banged by the comparison postprocessing described in 
-Section~\ref{impl-post-function}.
+\item Comparison with another pointer in C. There it will always be banged by the comparison postprocessing.
 \end{itemize}
 Together, it is sufficient to check whether all free occurrencies of \code{pk'} have been explicitly banged by previous 
 postprocessings or the recursive \code{take} processing.
@@ -477,7 +623,7 @@ The banging of \code{take} bindings is implemented by the function
 \begin{verbatim}
   tpbangproc :: GenExpr -> GenExpr
 \end{verbatim}
-defined in module \code{Gencot.Cogent.Takeput}.
+defined in module \code{Gencot.Cogent.Post.Takeput}.
 
 If a \code{take} binding is banged, the explicit bangings of the \code{pk'} are redundant. However, they are only removed after
 \code{tpelimproc} because they allow to check locally whether the container in a \code{take} binding is readonly.

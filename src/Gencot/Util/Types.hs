@@ -507,6 +507,11 @@ wrapFunAsPointer :: (String,LCA.Type) -> (String,LCA.Type)
 wrapFunAsPointer (iid,t@(LCA.FunctionType _ _)) = ("&" ++ iid, (LCA.PtrType t LCA.noTypeQuals []))
 wrapFunAsPointer t = t
 
+getDerefCType :: LCA.Type -> LCA.Type
+getDerefCType td@(LCA.TypeDefType _ _ _) = getDerefCType $ resolveTypedef td
+getDerefCType (LCA.PtrType typ _ _) = typ
+getDerefCType _ = error "No pointer type passed to getDerefCType"
+
 getFunType :: LCA.Type -> LCA.FunType
 getFunType t | isFunction t = rt
     where (LCA.FunctionType rt _) = resolveTypedef t

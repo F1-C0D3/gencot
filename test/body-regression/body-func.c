@@ -137,3 +137,57 @@ int cffi46(int *i) { return ffi46(i); } // heap: gs1, cffv46: hu
 int cffi48(int *i, int *j) { return ffi48(i,j); } // g: gs1, cffv48: hu
 int cffi49(int *i, int *j) { return ffi49(i,j); } // g: gs1, cffv49: hu
 
+// Function Pointers
+
+typedef void (*fpfvv) (void), ffvv (void);
+typedef void (*fpfvi) (int*), ffvi (int*);
+typedef int (*fpfiv) (void),  ffiv (void);
+typedef int (*fpfii) (int*),  ffii (int*);
+
+struct fstd { fpfvv fvv; fpfvi fvi; fpfiv fiv; fpfii fii; };
+struct fsptd { ffvv *fvv; ffvi *fvi; ffiv *fiv; ffii *fii; };
+struct fsdir { void (*fvv)(void); void (*fvi)(int*); int (*fiv)(void); int (*fii)(int*); };
+struct fsro { fpfvi fvi; fpfii fii; }; // fvi/1: ro, fii/1: ro
+
+fpfvv ffp1vv(struct fstd s) { return s.fvv; }
+fpfvi ffp1vi(struct fstd s) { return s.fvi; }
+fpfiv ffp1iv(struct fstd s) { return s.fiv; }
+fpfii ffp1ii(struct fstd s) { return s.fii; }
+
+void cfpv1(struct fstd s) { s.fvv(); }
+void cfpv2(struct fstd s) { (*s.fvv)(); }
+void cfpv3(struct fsptd s) { s.fvv(); }
+void cfpv4(struct fsdir s) { s.fvv(); }
+void cfpv5(fpfvv a[5]) { a[1](); }
+void cfpv6(fpfvv a[5]) { (*a[1])(); }
+void cfpv7(struct fstd s) { ffp1vv(s)(); }
+void cfpv8(struct fstd s) { (*ffp1vv(s))(); }
+void cfpv9(fpfvv f) { f(); }
+
+void cfpv11(struct fstd s, int *i) { s.fvi(i); }
+void cfpv12(struct fsptd s, int *i) { s.fvi(i); }
+void cfpv13(struct fsdir s, int *i) { s.fvi(i); }
+void cfpv14(struct fsro s, int *i) { s.fvi(i); }
+void cfpv15(fpfvi a[5], int *i) { a[1](i); }
+void cfpv16(struct fstd s, int *i) { ffp1vi(s)(i); }
+void cfpv17(fpfvi f, int *i) { f(i); }
+void cfpv18(ffvi f, int *i) { f(i); }
+
+int cfpi1(struct fstd s) { return s.fiv(); }
+int cfpi2(struct fstd s) { return (*s.fiv)(); }
+int cfpi3(struct fsptd s) { return s.fiv(); }
+int cfpi4(struct fsdir s) { return s.fiv(); }
+int cfpi5(fpfiv a[5]) { return a[1](); }
+int cfpi6(fpfiv a[5]) { return (*a[1])(); }
+int cfpi7(struct fstd s) { return ffp1iv(s)(); }
+int cfpi8(struct fstd s) { return (*ffp1iv(s))(); }
+int cfpi9(fpfiv f) { return f(); }
+
+int cfpi11(struct fstd s, int *i) { return s.fii(i); }
+int cfpi12(struct fsptd s, int *i) { return s.fii(i); }
+int cfpi13(struct fsdir s, int *i) { return s.fii(i); }
+int cfpi14(struct fsro s, int *i) { return s.fii(i); }
+int cfpi15(fpfii a[5], int *i) { return a[1](i); }
+int cfpi16(struct fstd s, int *i) { return ffp1ii(s)(i); }
+int cfpi17(fpfii f, int *i) { return f(i); }
+int cfpi18(ffii f, int *i) { return f(i); }

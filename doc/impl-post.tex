@@ -452,7 +452,12 @@ expression. This will never happen for a value variable, since for them the type
 component. It may happen for translated C variables and parameters and for component variables,
 \item in a function application between the formal type of a parameter according the the function's type and the type of
 the corresponding component of the actual argument tuple,
-\item between the arguments of a binary operator including the branches of a conditional expression.
+\item in an operator application between the expected type of the arguments and the actual argument types. Since C has no operators
+for struct, union, and function types, the arguments can only be of arithmetic and pointer types, which includes after
+translation the type \code{Bool} and all linear and array types.
+\item between the arguments of a binary operator including the branches of a conditional expression. A binary operator in C
+may be polymorphic and admit several argument types, but both arguments must be of the same type (possibly after automatic
+conversion).
 \end{itemize}
 
 Whenever Gencot cannot resolve a type difference it signals an error and additionally replaces sub expressions with the wrong type
@@ -520,10 +525,67 @@ one source variable, but for a variable bound to a conditional expression there 
 so in general every variable has a set of source variables. If the set is empty the variable's type cannot be made readonly
 by banging variables, this is the case for example for a variable bound to the result of a function application.
 
-
-
 The scope of a bang application is always an expression. In the case of a conditional, it is the condition expression, in the
 case of a binding it is the bound expression.
+
+When Gencot processes an expression as possible bang scope it searches all
+contained readonly type clashes. If the subexpression at the type clash is of linear type and has source variables, so that
+its type can be converted to readonly by banging the source variables they are collected. In all other cases the type clash
+is signaled as an error and is resolved by replacing the sub expression by a dummy expression with the same type as for the
+context. If the set of collected source variables is empty all readonly type clashes have been resolved without the need to
+bang variables.
+
+Otherwise in a next step the scope is traversed and for all expressions and patterns which depend on the collected source
+variables the type is changed to readonly. This may cause new inconsistencies: either modifications of readonly containers
+or readonly type clashes. The former are detected and treated as error, as described above, the latter are resolved by either
+collecting additional source variables for banging or by treating them as error. This step is repeated as long as it collects
+additional variables for banging. Since the scope only uses a finite number of variables the repetition terminates. If the
+collected source variables are banged and the scope is replaced by the processed scope and this scope has an escapeable type
+all readonly type clashes in it have been resolved.
+
+As described in Section~\ref{impl-ccode-cexpr} Gencot translates C expressions in a way that they are either trivial and cannot
+contain a readonly type clash, or they contain atleast one binding and thus a bang position. The heuristics tentatively tries
+bang positions in bindings and conditions, match expressions are not tried because it is assumed that they are only introduced
+after readonly type clashes have been resolved.
+
+The heuristics starts with the outermost bang positions, i.e. those with the largest bang scopes. If it is successful without
+causing errors it uses the bang position by banging all variables in the collected set (which may be empty) and does not try
+inner bang positions in the scope. If it caused errors but there are no inner bang positions in the scope it is used the
+position with the processed scope and signals the corresponding errors. If there are inner bang positions the bang position
+is not used at all, discarding all errors caused by the tentative processing, and processing recurses into the scope expression.
+In this way the most effective bang positions are tried first.
+
+A bang position may fail because the banged scope has a non-escapeable type. A condition in a conditional expression always
+has type \code{Bool} which is escapeable, hence a non-escapeable type can only result for a bang position in a binding. There
+it is treated as follows. First, the scope is reduced as much as possible by removing parts of the result which are not used.
+This is done by performing the pre-simplification step \code{presimp} described in Section~\ref{impl-post-let} and the step
+\code{romodproc} described above before processing readonly type clashes. Moreover, containers which are banged in the scope
+are also removed, because although they may be used afterwards, they cannot be modified in the scope (otherwise the banging
+would cause an error), therefore their value before the scope is still valid.
+
+Second, if the result of a single binding prevents banging because it is not escapeable, it may be possible to bang the binding
+together with subsequent bindings where the result of the first binding is used. Then the bindings form a common bang scope
+and the result of the first binding is only used inside this scope and need not leave it.
+
+A sequence of bindings can be converted to a common binding scope by converting it to a single binding in a similar way as by
+the function \code{cmbBinds} described in Section ~\ref{impl-ccode-cexpr}. A binding sequence \code{b1, ..., bn} is converted
+to the binding
+\begin{verbatim}
+  (v1,...,vm) =
+  let b1 and ... and bn
+  in (v1,...,vm)
+\end{verbatim}
+where the variables \code{v1,...,vm} are all variables bound in \code{b1, ..., bn} and used after the binding sequence, either
+in subsequent bindings or in the body of the surrounding \code{let} expression.
+
+When the heuristics processes a binding sequence it tries the scopes resulting from combined bindings in a similar way as it
+tries scopes in general: it starts with the largest scope which results from converting the whole sequence to a single binding.
+If not successful it removes bindings from the end of the sequence and tries the resulting smaller scopes until it reaches the
+single first binding in the sequence. If that also causes errors it is used as it is, then the rest of the sequence is processed
+in the same way. In this way all possible subsequences are tried as bang scopes.
+
+
+
 
 Postprocessing for readonly processing is implemented by the monadic action
 \begin{verbatim}
@@ -533,7 +595,56 @@ defined in module \code{Gencot.Cogent.Post.MatchTypes}.
 
 \subsubsection{Boolean Value Processing}
 
-\subsubsection{NULL Pointer Processing}
+The type \code{Bool} is used in the Cogent AST although it does not result from translating a C type. As described in
+Section~\ref{impl-ccode-type} it is specified by the translation for all results of applications of equational, relational,
+and boolean operators. Moreover, it is implicitly expected for the arguments of boolean operators and for conditions in conditional
+expressions. The use of type \code{Bool} can clash with all types which result from translating a C type which can be used to
+represent a boolean value. These are all ``scalar'' types in C, which are the arithmetic types and the pointer types.
+
+Arithmetic types are always translated to the Cogent integer types \code{U8, U16, U32,} and \code{U64}. Type clashes between
+\code{U32} and \code{Bool} can always be resolved by conversion. An expression \code{e} of type \code{U32} can be converted
+to \code{Bool} by
+\begin{verbatim}
+  e /= 0
+\end{verbatim}
+and an expression \code{e} of type \code{Bool} can be converted to \code{U32} by
+\begin{verbatim}
+  if e then 1 else 0
+\end{verbatim}
+If the integer type is not \code{U32} additional conversion is required as described for type clashes among the integer types
+below.
+
+Pointer types are translated to linear types and are represented by boxed record types or boxed abstract types, possibly wrapped
+by \code{MayNull}. An expression \code{e} of type \code{MayNull a} can be converted to \code{Bool} by comparing it with NULL:
+\begin{verbatim}
+  e /= Cogent_NULL
+\end{verbatim}
+Here \code{Cogent\_NULL} denotes the Gencot translation of the C constant \code{NULL} of Cogent type \code{MayNull CVoidPtr}. This
+Cogent expression resulting from the conversion is the same as the translation of the C expression \code{expr != NULL}, if
+\code{e} is the translation of \code{expr}. These expressions will be further postprocessed as described below for pointers,
+among others to evaluate it to \code{True} if the type of \code{e} is an unwrapped linear type, or resolve a clash between the
+type of \code{e} and \code{MayNull CVoidPtr} otherwise.
+
+It would be possible to convert the value \code{False} to a NULL pointer using the Gencot basic operations \code{null} and
+\code{roNull} defined in Section~\ref{design-operations-null}. However, for the value \code{True} no sensible conversion exists.
+More general, conversion from a numerical value to a pointer would correspond to a form of pointer arithmetics which is
+deliberately not supported by Gencot. Therefore Gencot never converts from type \code{Bool} to a pointer type.
+
+Type clashes with \code{Bool} are resolved by converting the subexpression to the context type, if that is possible, otherwise
+the subexpression is replaced by a dummy expression and an error is signaled. If the type clash is between two operator arguments
+or two components of the branches of a conditional expression the conversion is always to type \code{Bool}, since that is always
+possible.
+
+Postprocessing for boolean values is implemented by the monadic action
+\begin{verbatim}
+  boolproc :: GenExpr -> ETrav GenExpr
+\end{verbatim}
+defined in module \code{Gencot.Cogent.Post.MatchTypes}.
+
+\subsubsection{Pointer Processing}
+
+tested for being \code{NULL} using the Gencot basic operations \code{notNull},
+\code{roNotNull}, and \code{isNull} defined in Section~\ref{design-operations-null}.
 
 \subsubsection{String Processing}
 
@@ -558,8 +669,18 @@ creates pairs of take/put bindings of the form
   <v> = <v> @{@ik’=pk’}
 \end{verbatim}
 (for array access). Here, \code{<v>} is the variable used for the container (struct or array) and \code{pk'} is the component variable 
-used to bind the component (member or element). If the container has been specified by an expression in C, \code{<v>} is the wildcard \code{\_}
-and the put binding is omitted.
+used to bind the component (member or element). The value variable \code{vn'} is the result of the expression denoting the container
+(struct or array). If that expression is not an lvalue in C (corresponding to a C variable or component variable in Cogent) \code{<v>}
+is the error variable \code{err'} in the \code{take} binding and the \code{put} bindingis replaced by the unit binding \code{() = ()}.
+
+There are several postprocessing steps applied to take/put pairs:
+\begin{itemize}
+\item Simplifying \code{take} bindings,
+\item eliminating take/put pairs for readonly container types,
+\item enlarging take/put regions,
+\item converting take/put pairs to \code{modify} applications.
+\end{itemize}
+
 
 Postprocessing for \code{take} and \code{put} bindings is implemented by the function
 \begin{verbatim}

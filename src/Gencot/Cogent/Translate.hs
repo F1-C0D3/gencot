@@ -52,7 +52,7 @@ import Gencot.Cogent.Bindings (
 import Gencot.Cogent.Error (unSupported, noParam)
 import Gencot.Cogent.Expr (TypedVar(TV), typOfTV, namOfTV, mkUnitExpr, mkVarExpr, mkExpVarTupleExpr, mkLetExpr)
 import Gencot.Cogent.Types (
-  genType, mkTypeName, mkU32Type, mkBoolType, mkTupleType, mkFunType, mkArrayType, mkWrappedArrayType, mkRecordType, mkPtrType,
+  genType, mkTypeName, mkU32Type, mkBoolType, mkTupleType, mkFunType, mkArrayType, mkWrappedArrayType, mkRecordType, mkPtrType, mkVoidPtrType,
   addTypeSyn, useTypeSyn, mkReadonly, mkUnboxed, isArrayType, isUnboxed, mkMayNull,
   getBoxType, getNnlType, getResultType, getParamType, getDerefType, getLeadType)
 import Gencot.Cogent.Post.Proc (postproc)
@@ -1020,7 +1020,9 @@ bindExpr e@(LC.CVar nam _) = do
                      if cv -- Const-Val property: invoke access function named v
                         then return $ mkConstAppExprBinds cnt $ (v, mkFunType unitType t)
                         else -- assume preprocessor constant: access Cogent constant named v
-                             return $ mkValVarExprBinds cnt $ TV v t
+                        if identToString nam == "NULL" -- set specific type for constant NULL
+                           then return $ mkValVarExprBinds cnt $ TV v $ mkMayNull mkVoidPtrType
+                           else return $ mkValVarExprBinds cnt $ TV v t
                  else do
                      fdes <- getContextFuncDesc
                      ptyp <- mkGlobalStateParamType (iid,ct) gs

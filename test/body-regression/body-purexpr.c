@@ -1,8 +1,10 @@
+#include <stddef.h>
 int fc1(void) { return 42; }
 char fc2(void) { return 'x'; }
 char fc3(void) { return 'xx'; }
 const char* fc4(void) { return "abc"; }
 float fc5(void) { return 1.5; }
+void *fc6(void) { return NULL; }
 int fv1(int v) { return v; }
 int fv2(int xyz_123) { return xyz_123; }
 int fo1(void) { return +42; }

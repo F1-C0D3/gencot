@@ -1778,6 +1778,12 @@ Since every identifier may denote an ``item'' with declared item properties on w
 \code{ItemAssocType} (see Section~\ref{impl-itemprops-types}) and mapped to a Cogent type by \code{transType}
 (see Section~\ref{impl-ccomps-main}).
 
+This way, the type of a preprocessor constant is determined according to the dummy declaration generated for it. This
+will always be \code{int} because the dummy declarations are generated in this form (see Section~\ref{impl-ccode-dummydecl}).
+A special case is the constant \code{NULL}. It is detected by its name, then its type is set to \code{MayNull CVoidPtr}.
+This is necessary to determine the correct type for a conditional expression, as described below, if one branch is
+the \code{NULL} value.
+
 The item id of an identifier depends on whether the identifier denotes a toplevel object or function, a parameter
 of the surrounding function definition, or a local variable declared in the function body. However, this information is
 no more available after the analysis by language-c. Looking the identifier up in the symbol map only allows to
@@ -2121,7 +2127,7 @@ statement is translated to the binding
   (c',z1..) = let (v<n>',v1..) = expr
   in if v<n>' 
      then let (c',x1..) = expr1 in (c',z1..)
-     else ((False,False,False),z1..)
+     else let c' = 0 in (c',z1..)
 \end{verbatim}
 
 A switch statement of the form \code{switch (e) s} is only translated if it has the restricted form described in 

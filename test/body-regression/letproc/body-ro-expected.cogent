@@ -803,8 +803,8 @@ cogent_g92ro pln =
    in pln @{ @i0' = gencotDummy "Linear expression used in readonly context" })
 
 -- banging in nested bang positions
-cogent_n11 : ( Struct_Cogent_ros1, U32 ) -> ( Struct_Cogent_ros1, Struct_Cogent_ros1 )
-cogent_n11 (pln, i) =
+cogent_nst11 : ( Struct_Cogent_ros1, U32 ) -> ( Struct_Cogent_ros1, Struct_Cogent_ros1 )
+cogent_nst11 (pln, i) =
    (let (c', (), i) = (0
                       , ()
                       , let pln { mrg = p0' } = pln
@@ -829,8 +829,8 @@ cogent_n11 (pln, i) =
          else let pln { mln = p1' } = pln
             and p1' { cont = _ } = p1'
             in pln { mln = p1' { cont = i } })
-cogent_n12 : ( Struct_Cogent_ros1, U32 ) -> ( Struct_Cogent_ros1, Struct_Cogent_ros1 )
-cogent_n12 (pln, i) =
+cogent_nst12 : ( Struct_Cogent_ros1, U32 ) -> ( Struct_Cogent_ros1, Struct_Cogent_ros1 )
+cogent_nst12 (pln, i) =
    (let (c', (), i) = (0
                       , ()
                       , let pln { mrg = p0' } = pln
@@ -900,3 +900,78 @@ cogent_bs13 (pln, qro, i) =
    in (pln { mln = v5' }
       , pln { mln = v5' }
       , i)
+
+-- Direct use of NULL in context
+cogent_n11ln : () -> U32
+cogent_n11ln () =
+   cogent_fcln cogent_NULL
+cogent_n11ro : () -> U32
+cogent_n11ro () =
+   let r' = cogent_fcro cogent_NULL !cogent_NULL
+   in r'
+cogent_n14ln : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
+cogent_n14ln (qln, i) =
+   (cogent_fcln (if i
+      then cogent_NULL
+      else qln)
+   , qln)
+cogent_n14ro : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
+cogent_n14ro (qln, i) =
+   let r' = cogent_fcro (if i
+         then cogent_NULL
+         else qln) !cogent_NULL !qln
+   in (r', qln)
+
+-- NULL assigned to variable
+cogent_n21ln : GlobState1 -> ( (), GlobState1 )
+cogent_n21ln g =
+   (()
+   , let g { cont = _ } = g
+   in g { cont = cogent_NULL })
+cogent_n21ro : GlobState2 -> ( (), GlobState2 )
+cogent_n21ro g =
+   let g = (let g { cont = _ } = g
+         in g { cont = gencotDummy "Necessary banging of cogent_NULL leads to non-escapeable type" }) !cogent_NULL
+   in ((), g)
+cogent_n22ln : MayNull (CPtr U32) -> ( (), MayNull (CPtr U32) )
+cogent_n22ln pln =
+   ((), cogent_NULL)
+cogent_n22ro : (MayNull ((CPtr U32)!))! -> U32
+cogent_n22ro pro =
+   let r' = (if 0 > 0
+         then r'
+         else
+            let pro { cont = p0' } = cogent_NULL
+            in p0') !cogent_NULL
+   in r'
+
+-- NULL returned as result
+cogent_n31ln : () -> MayNull (CPtr U32)
+cogent_n31ln () = cogent_NULL
+cogent_n31ro : () -> (MayNull ((CPtr U32)!))!
+cogent_n31ro () =
+   gencotDummy "Linear expression used in readonly context"
+
+-- NULL assigned to struct component or array element
+cogent_n91ln : MayNull Struct_Cogent_ros1 -> ( (), MayNull Struct_Cogent_ros1 )
+cogent_n91ln pln =
+   (()
+   , let pln { mln = _ } = pln
+   in pln { mln = cogent_NULL })
+cogent_n91ro : MayNull Struct_Cogent_ros1 -> ( (), MayNull Struct_Cogent_ros1 )
+cogent_n91ro pln =
+   let pln = (let pln { mro = _ } = pln
+         in pln { mro = gencotDummy "Necessary banging of cogent_NULL leads to non-escapeable type" }) !cogent_NULL
+   in ((), pln)
+cogent_n92ln : Cogent_roa3 -> ( (), Cogent_roa3 )
+cogent_n92ln pln =
+   (()
+   , let (pln @{ @1 = _ }
+         , i0') = (pln, 1)
+   in pln @{ @i0' = cogent_NULL })
+cogent_n92ro : Cogent_roa2 -> ( (), Cogent_roa2 )
+cogent_n92ro pln =
+   let pln = (let (pln @{ @1 = _ }
+                  , i0') = (pln, 1)
+         in pln @{ @i0' = gencotDummy "Necessary banging of cogent_NULL leads to non-escapeable type" }) !cogent_NULL
+   in ((), pln)

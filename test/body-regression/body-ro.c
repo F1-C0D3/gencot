@@ -198,10 +198,35 @@ void g92ln(roa3 pln) { pln[1] = frln(); }
 void g92ro(roa2 pln) { pln[1] = frln(); }
 
 // banging in nested bang positions
-struct ros1 *n11(struct ros1 *pln, int i) { i = pln->mrg; *(pln->mln) = i; return pln; }
-struct ros1 *n12(struct ros1 *pln, int i) { i = pln->mrg; i += *(pln-> mro); *(pln->mln) = i; return pln; }
+struct ros1 *nst11(struct ros1 *pln, int i) { i = pln->mrg; *(pln->mln) = i; return pln; }
+struct ros1 *nst12(struct ros1 *pln, int i) { i = pln->mrg; i += *(pln-> mro); *(pln->mln) = i; return pln; }
 
 // banging in binding sequences
 struct ros1 *bs11(struct ros1 *pln, int i) { return i = pln->mrg, *(pln->mln) = i, pln; }
 struct ros1 *bs12(struct ros1 *pln, int *qro, int i) { return qro = pln->mln, i = *qro, pln->mrg = i, pln; }
 struct ros1 *bs13(struct ros1 *pln, int *qro, int *i) { return qro = pln->mln, *i = *qro, pln->mln = i, pln; }
+
+// Using NULL (always linear)
+#include <stddef.h>
+
+// Direct use of NULL in context
+int n11ln(void) { return fcln(NULL); }
+int n11ro(void) { return fcro(NULL); }
+int n14ln(int *qln, int i) { return fcln(i?NULL:qln); }
+int n14ro(int *qln, int i) { return fcro(i?NULL:qln); }
+
+// NULL assigned to variable
+void n21ln(void) { globcln = NULL; }
+void n21ro(void) { globcro = NULL; }
+void n22ln(int *pln) { pln = NULL; }
+int n22ro(int *pro) { pro = NULL; return *pro; }
+
+// NULL returned as result
+int *n31ln(void) { return NULL; }
+int *n31ro(void) { return NULL; }
+
+// NULL assigned to struct component or array element
+void n91ln(struct ros1 *pln) { pln->mln = NULL; }
+void n91ro(struct ros1 *pln) { pln->mro = NULL; }
+void n92ln(roa3 pln) { pln[1] = NULL; }
+void n92ro(roa2 pln) { pln[1] = NULL; }

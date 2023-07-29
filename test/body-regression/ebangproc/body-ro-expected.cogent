@@ -1852,8 +1852,8 @@ cogent_g92ro pln =
    in ((), pln)
 
 -- banging in nested bang positions
-cogent_n11 : ( Struct_Cogent_ros1, U32 ) -> ( Struct_Cogent_ros1, Struct_Cogent_ros1 )
-cogent_n11 (pln, i) =
+cogent_nst11 : ( Struct_Cogent_ros1, U32 ) -> ( Struct_Cogent_ros1, Struct_Cogent_ros1 )
+cogent_nst11 (pln, i) =
    let (pln, r') = let (c'
                        , ()
                        , i) = (let (()
@@ -1885,8 +1885,8 @@ cogent_n11 (pln, i) =
                      in (pln, r')
             in (pln, r')
    in (r', pln)
-cogent_n12 : ( Struct_Cogent_ros1, U32 ) -> ( Struct_Cogent_ros1, Struct_Cogent_ros1 )
-cogent_n12 (pln, i) =
+cogent_nst12 : ( Struct_Cogent_ros1, U32 ) -> ( Struct_Cogent_ros1, Struct_Cogent_ros1 )
+cogent_nst12 (pln, i) =
    let (pln, r') = let (c'
                        , ()
                        , i) = (let (()
@@ -2017,3 +2017,162 @@ cogent_bs13 (pln, qro, i) =
          in (v6', pln, i)
       in (v6', pln, i)
    in (r', pln, i)
+
+-- Direct use of NULL in context
+cogent_n11ln : () -> U32
+cogent_n11ln () =
+   let r' = let v' = let v' = cogent_fcln
+         and v1' = cogent_NULL
+         and v' = v' v1'
+         in v'
+      in v'
+   in r'
+cogent_n11ro : () -> U32
+cogent_n11ro () =
+   let r' = (let v' = let v' = cogent_fcro
+            and v1' = cogent_NULL
+            and v' = v' v1'
+            in v'
+         in v') !cogent_NULL
+   in r'
+cogent_n14ln : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
+cogent_n14ln (qln, i) =
+   let r' = let v' = let v' = cogent_fcln
+         and v1' = i
+         and v2' = cogent_NULL
+         and v3' = qln
+         and v1' = if v1'
+            then v2'
+            else v3'
+         and v' = v' v1'
+         in v'
+      in v'
+   in (r', qln)
+cogent_n14ro : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
+cogent_n14ro (qln, i) =
+   let r' = (let v' = let v' = cogent_fcro
+            and v1' = i
+            and v2' = cogent_NULL
+            and v3' = qln
+            and v1' = if v1'
+               then v2'
+               else v3'
+            and v' = v' v1'
+            in v'
+         in v') !cogent_NULL !qln
+   in (r', qln)
+
+-- NULL assigned to variable
+cogent_n21ln : GlobState1 -> ( (), GlobState1 )
+cogent_n21ln g =
+   let g = let g = let v' = cogent_NULL
+         and v1' = g
+         and g { cont = p0' } = v1'
+         and v1' = v'
+         and p0' = v1'
+         and g = g { cont = p0' }
+         in g
+      in g
+   in ((), g)
+cogent_n21ro : GlobState2 -> ( (), GlobState2 )
+cogent_n21ro g =
+   let g = (let g = let v' = gencotDummy "Necessary banging of cogent_NULL leads to non-escapeable type"
+               {- *g = cogent_NULL; -}
+            and v1' = g
+            and g { cont = p0' } = v1'
+            and v1' = v'
+            and p0' = v1'
+            and g = g { cont = p0' }
+            in g
+         in g) !cogent_NULL
+   in ((), g)
+cogent_n22ln : MayNull (CPtr U32) -> ( (), MayNull (CPtr U32) )
+cogent_n22ln pln =
+   let pln = let pln = let v' = cogent_NULL
+         and v1' = v'
+         and pln = v1'
+         in pln
+      in pln
+   in ((), pln)
+cogent_n22ro : (MayNull ((CPtr U32)!))! -> U32
+cogent_n22ro pro =
+   let r' = (let (c'
+                 , pro) = let pro = let v' = cogent_NULL
+               and v1' = v'
+               and pro = v1'
+               in pro
+            in (0, pro)
+         in if c' > 0
+            then r'
+            else
+               let r' = let v' = let v' = pro
+                     and pro { cont = p0' } = v'
+                     and v' = p0'
+                     in v'
+                  in v'
+               in r') !cogent_NULL
+   in r'
+
+-- NULL returned as result
+cogent_n31ln : () -> MayNull (CPtr U32)
+cogent_n31ln () =
+   let r' = let v' = cogent_NULL
+      in v'
+   in r'
+cogent_n31ro : () -> (MayNull ((CPtr U32)!))!
+cogent_n31ro () =
+   let r' = gencotDummy "Linear expression used in readonly context"
+      {- return cogent_NULL; -}
+   in r'
+
+-- NULL assigned to struct component or array element
+cogent_n91ln : MayNull Struct_Cogent_ros1 -> ( (), MayNull Struct_Cogent_ros1 )
+cogent_n91ln pln =
+   let pln = let pln = let v' = cogent_NULL
+         and v1' = pln
+         and pln { mln = p0' } = v1'
+         and v1' = v'
+         and p0' = v1'
+         and pln = pln { mln = p0' }
+         in pln
+      in pln
+   in ((), pln)
+cogent_n91ro : MayNull Struct_Cogent_ros1 -> ( (), MayNull Struct_Cogent_ros1 )
+cogent_n91ro pln =
+   let pln = (let pln = let v' = gencotDummy "Necessary banging of cogent_NULL leads to non-escapeable type"
+               {- pln->mro = cogent_NULL; -}
+            and v1' = pln
+            and pln { mro = p0' } = v1'
+            and v1' = v'
+            and p0' = v1'
+            and pln = pln { mro = p0' }
+            in pln
+         in pln) !cogent_NULL
+   in ((), pln)
+cogent_n92ln : Cogent_roa3 -> ( (), Cogent_roa3 )
+cogent_n92ln pln =
+   let pln = let pln = let v' = cogent_NULL
+         and v2' = 1
+         and v1' = pln
+         and (pln @{ @v2' = p0' }
+             , i0') = (v1', v2')
+         and v1' = v'
+         and p0' = v1'
+         and pln = pln @{ @i0' = p0' }
+         in pln
+      in pln
+   in ((), pln)
+cogent_n92ro : Cogent_roa2 -> ( (), Cogent_roa2 )
+cogent_n92ro pln =
+   let pln = (let pln = let v' = gencotDummy "Necessary banging of cogent_NULL leads to non-escapeable type"
+               {- pln[1] = cogent_NULL; -}
+            and v2' = 1
+            and v1' = pln
+            and (pln @{ @v2' = p0' }
+                , i0') = (v1', v2')
+            and v1' = v'
+            and p0' = v1'
+            and pln = pln @{ @i0' = p0' }
+            in pln
+         in pln) !cogent_NULL
+   in ((), pln)

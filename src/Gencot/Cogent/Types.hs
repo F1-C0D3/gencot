@@ -313,7 +313,8 @@ isMayNull _ = False
 
 -- | Readonly compatible
 -- Assumes that types differ atmost by MayNull or read-only
--- or one is String and the other is pointer to U8.
+-- or one is String and the other is pointer to U8
+-- or one is CVoidPtr and the other is some pointer.
 roCmpTypes :: GenType -> GenType -> Bool
 roCmpTypes (GenType CS.TUnit _ _) (GenType CS.TUnit _ _) = True
 roCmpTypes (GenType (CS.TFun _ _) _ _) (GenType (CS.TFun _ _) _ _) = True
@@ -325,6 +326,8 @@ roCmpTypes (GenType (CS.TCon tn1 _ _) _ _) (GenType (CS.TCon tn2 _ _) _ _) | tn1
 roCmpTypes (GenType (CS.TCon tn1 _ _) _ _) t2 | tn1 == "String" = isReadonly t2
 roCmpTypes t1 (GenType (CS.TCon tn2 _ _) _ _) | tn2 == "String" = isReadonly t1
 roCmpTypes (GenType (CS.TCon _ _ sg1) _ _) (GenType (CS.TCon _ _ sg2) _ _) = sg1 == sg2
+roCmpTypes (GenType (CS.TCon tn1 _ sg1) _ _) (GenType (CS.TRecord _ _ sg2) _ _) | tn1 == mapPtrVoid = sg1 == sg2
+roCmpTypes (GenType (CS.TRecord _ _ sg1) _ _) (GenType (CS.TCon tn2 _ sg2) _ _) | tn2 == mapPtrVoid = sg1 == sg2
 roCmpTypes (GenType (CS.TRecord _ _ (Boxed True _)) _ _) (GenType (CS.TRecord _ _ (Boxed True _)) _ _) = True
 roCmpTypes (GenType (CS.TRecord _ fs1 sg1) _ _) (GenType (CS.TRecord _ fs2 sg2) _ _) =
     sg1 == sg2 && (and $ map (\((_,(t1,_)),(_,(t2,_))) -> roCmpTypes t1 t2) $ zip fs1 fs2)

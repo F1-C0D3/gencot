@@ -37,7 +37,7 @@ TCONF = -tflebrp
 #VARIANT = ifproc
 #TCONF =
 
-TESTS = purexpr assignexpr stat loop func ro
+TESTS = purexpr assignexpr stat loop func ro null
 UNIT = externs exttypes dvdtypes
 AUNIT = unit-dfltprops
 

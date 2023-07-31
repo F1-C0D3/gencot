@@ -467,14 +467,15 @@ transType iat@(_, (LCA.PtrType t _ _)) | isFunction t = do
     let stn = if et1 == et2 then tn2 else addTypeSyn s1 tn2
     return $ mkUnboxed stn
 -- Derived pointer type for array type t:
--- Translate t and use as result. Always boxed.
+-- Translate t as array type.
+-- Then make unboxed and apply CPtr.
 -- If no Not-Null property: apply MayNull
 -- If Read-OnlyProperty: banged
 transType iat@(_, (LCA.PtrType t _ _)) | isArray t = do
     safe <- isNotNullItem iat
     ro <- isReadOnlyItem iat
-    typ <- transType $ getRefSubItemAssoc iat
-    return $ makeReadOnlyIf ro $ addMayNullIfNot safe typ
+    typ <- transArrayType $ getRefSubItemAssoc iat
+    return $ makeReadOnlyIf ro $ addMayNullIfNot safe $ mkPtrType $ mkUnboxed typ
 -- Derived pointer type for (unsigned) char type:
 -- If Read-Only property and not No-String property: translate to primitive type String
 -- Otherwise translate to normal pointer (to U8).

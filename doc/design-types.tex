@@ -572,8 +572,9 @@ Although technically \code{NULL} may be passed as parameter value, the type is n
 \code{\#(CArr<size> El)} is used as type for the corresponding Cogent record field.
 \item as element type of another array, resulting in a multidimensional array. Again the size of the array 
 is relevant here, the unboxed type \code{\#(CArr<size> El)} is used as element type.
-\item as base type of a derived pointer type. Here the binary compatible type is the boxed type \code{CArr<size> El}
-since it corresponds to a pointer to the array. Since the derived pointer type includes the \code{NULL} value
+\item as base type of a derived pointer type. In C such a type includes the information about the array size, it is
+a pointer to the whole array instead a pointer to a single element. Therefore the unboxed type \code{\#(CArr<size> El)}
+is used as element type. Since the derived pointer type includes the \code{NULL} value
 it is wrapped by \code{MayNull} (see~\ref{design-types-pointer}).
 \item as defining type for a typedef name. Here the type to be used depends on the context where the typedef
 name is used. As described in Section~\ref{design-types-typedef}, Gencot defines the mapped 
@@ -891,15 +892,13 @@ it is predefined in file \code{include/gencot/CPointer.cogent}.
 Values of such types are binary compatible to the C pointer type and they can be dereferenced with the help of
 the Cogent take and put operations, thus supporting the full functionality of the C pointer.
 
-A pointer type \code{t*} where \code{t} is an array type is mapped to the mapped (boxed) array type 
+A pointer type \code{t*} where \code{t} is an array type is also mapped using \code{CPtr} to
 \begin{verbatim}
-  CArr<size> El
+  CPtr #(CArr<size> El)
 \end{verbatim}
-This approach is similar as for struct and union types: the pointer type is mapped to the plain boxed type,
-the base type is mapped to the corresponding unboxed type. The difference in case of array pointers is, that also the base
-type is often ``adjusted'' to the boxed type, because in C a pointer is used instead. Other than in C, however, Gencot
-represents adjusted arrays by a pointer to the array as a whole, instead of as a pointer to the first element, because
-this preserves more information about the array.
+As usual, the unboxed array type is used here, since the pointer in C includes the information about the array size,
+it points to the region where the whole array is allocated. In the same way the unboxed array type is used when the array
+occurs as a struct member or as the element of another array.
 
 Finally, a pointer to \code{void} is mapped to the abstract type
 \begin{verbatim}

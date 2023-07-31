@@ -10,8 +10,8 @@ void fpvd1(char *p1) {}
 void fpvd2(char *p1, char *p2) {}
 int fpd1(char *p1) { return 0; }
 int fpd2(char *p1, char *p2) { return 0; }
-char *fpr1(char *p1) { return 0; }
-char *fpr2(char *p1, char *p2) { return 0; }
+char *fpr1(char *p1) { return p1; }
+char *fpr2(char *p1, char *p2) { return p1; }
 
 void (*pfpvr1)(char *p1);
 void (*pfpvr2)(int p1, char *p2);

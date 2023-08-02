@@ -611,7 +611,7 @@ changeLinToRoInExpr _ bools e@(GenExpr (CS.App _ _ _) _ _ _) = do
 changeLinToRoInExpr vmap bools (GenExpr (CS.If e0 bvs e1 e2) o t s) = do
     e1b <- changeLinToRoInExpr vmap bools e1
     e2b <- changeLinToRoInExpr vmap bools e2
-    return $ GenExpr (CS.If e0 bvs e1b e2b) o (typOfGE e1b) s
+    return $ GenExpr (CS.If e0 bvs e1b e2b) o (adaptTypes (typOfGE e1b) (typOfGE e2b)) s
 changeLinToRoInExpr vmap [True] e@(GenExpr (CS.Var v) _ _ _) | not $ null $ getVarSources vmap v = do
     recordSources vmap v
     return e
@@ -624,12 +624,10 @@ changeLinToRoInExpr vmap [True] e = do
 -- | Change some linear type components to readonly to resolve incompatibilities between two types.
 -- The first and second arguments are boolean vectors specifying the type components to be changed,
 -- if the types are seen as tuple types.
--- The result consists of all changed components and the remaining components from the first type.
+-- The result consists of all adapted types from changed components and the remaining components.
 changeLinToRoInTypes :: [Bool] -> [Bool] -> GenType -> GenType -> GenType
 changeLinToRoInTypes [b1] [b2] t1 t2 =
-    if b1 then mkReadonly t1
-          else if b2 then mkReadonly t2
-                     else t1
+    adaptTypes (if b1 then mkReadonly t1 else t1) (if b2 then mkReadonly t2 else t2)
 changeLinToRoInTypes bs1 bs2 (GenType (CS.TTuple ts1) o _) (GenType (CS.TTuple ts2) _ _) =
     GenType (CS.TTuple ts) o Nothing
     where ts = map (\(b1,b2,t1,t2) -> changeLinToRoInTypes [b1] [b2] t1 t2) $ zip4 bs1 bs2 ts1 ts2
@@ -762,13 +760,13 @@ getBangCandInBindings _ [] = []
 getBangCandInBindings bvs ((CS.Binding ip _ e _):bs) =
     union (union (getBangCandInPattern bvs ip) (getBangCandidates bvs e)) $ getBangCandInBindings (union bvs $ freeInIrrefPatn ip) bs
 
--- | Return all free variables which occur as container with linear type in a take operation.
+-- | Return all free variables which occur as container with linear type in a take operation and are not the error variable.
 -- The first argument is the list of all variables not free in the bound expression.
 getBangCandInPattern :: [CCS.VarName] -> GenIrrefPatn -> [CCS.VarName]
 getBangCandInPattern bvs (GenIrrefPatn (CS.PTake pv [Just (_,(GenIrrefPatn (CS.PVar cv) _ _))]) _ t)
-    | (not $ elem pv bvs) && (not $ isNonlinear t) = [pv]
+    | (not $ elem pv bvs) && (not $ isNonlinear t) && (pv /= errVar) = [pv]
 getBangCandInPattern bvs (GenIrrefPatn (CS.PArrayTake pv [(_,(GenIrrefPatn (CS.PVar cv) _ _))]) _ t)
-    | (not $ elem pv bvs) && (not $ isNonlinear t) = [pv]
+    | (not $ elem pv bvs) && (not $ isNonlinear t) && (pv /= errVar) = [pv]
 getBangCandInPattern bvs (GenIrrefPatn (CS.PTuple ips) _ _) = nub $ concat $ map (getBangCandInPattern bvs) ips
 getBangCandInPattern _ _ = []
 

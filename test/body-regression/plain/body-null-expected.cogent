@@ -1,4 +1,5 @@
 
+-- Using NULL in condition branch
 cogent_fn1 : ( U32, MayNull (CPtr U32) ) -> ( MayNull (CPtr U32), MayNull (CPtr U32) )
 cogent_fn1 (i, p) =
    let (c'
@@ -19,3 +20,3294 @@ cogent_fn2 (i, p) =
          in v'
       in (3, v')
    in (r', p) -- p: nn
+
+-- Functions used as context:
+cogent_fcnl : MayNull (CPtr U32) -> U32
+cogent_fcnl i =
+   let (c', r') = let v' = 0
+      in (3, v')
+   in r'
+cogent_fcnn : CPtr U32 -> U32
+cogent_fcnn i =
+   let (c', r') = let v' = 0
+      in (3, v')
+   in r'
+-- Global variables used as context:
+type GlobState1 =
+   CPtr (MayNull (CPtr U32))
+type GlobState2 =
+   CPtr (CPtr U32)
+
+-- struct probes:
+type Struct_Cogent_nns1 = { mrg : U32, mnn : CPtr U32, mnl : MayNull (CPtr U32) }
+type Struct_Cogent_nns2 = { snl : MayNull Struct_Cogent_nns1, snn : Struct_Cogent_nns1 }
+
+-- array probes:
+type Cogent_nna1 = CArr5 U32 -- regular elements
+type Cogent_nna2 =
+   CArr5 (CPtr U32) -- not-null elements
+type Cogent_nna3 =
+   CArr5 (MayNull (CPtr U32)) -- null elements
+type Cogent_nna4 =
+   CArr5 #Cogent_nna1 -- null array elements
+type Cogent_nna5 =
+   CArr5 #Cogent_nna1 -- not-null array elements
+
+-- Using values of not-null type (can be converted to MayNull).
+
+-- Direct use of probe in context
+cogent_fn11nl : CPtr U32 -> ( U32, CPtr U32 )
+cogent_fn11nl pnn =
+   let (c'
+       , r') = let v' = let v' = cogent_fcnl
+         and v1' = pnn
+         and v' = v' v1'
+         in v'
+      in (3, v')
+   in (r', pnn)
+cogent_fn11nn : CPtr U32 -> ( U32, CPtr U32 )
+cogent_fn11nn pnn =
+   let (c'
+       , r') = let v' = let v' = cogent_fcnn
+         and v1' = pnn
+         and v' = v' v1'
+         in v'
+      in (3, v')
+   in (r', pnn)
+cogent_fn12nl : () -> U32
+cogent_fn12nl () =
+   let (c'
+       , r') = let v' = let v' = cogent_fcnl
+         and v1' = cogent_globnn ()
+         and v' = v' v1'
+         in v'
+      in (3, v')
+   in r'
+cogent_fn12nn : () -> U32
+cogent_fn12nn () =
+   let (c'
+       , r') = let v' = let v' = cogent_fcnn
+         and v1' = cogent_globnn ()
+         and v' = v' v1'
+         in v'
+      in (3, v')
+   in r'
+cogent_fn13nl : () -> U32
+cogent_fn13nl () =
+   let (c'
+       , r') = let v' = let v' = cogent_fcnl
+         and v1' = cogent_frnn
+         and v1' = v1' ()
+         and v' = v' v1'
+         in v'
+      in (3, v')
+   in r'
+cogent_fn13nn : () -> U32
+cogent_fn13nn () =
+   let (c'
+       , r') = let v' = let v' = cogent_fcnn
+         and v1' = cogent_frnn
+         and v1' = v1' ()
+         and v' = v' v1'
+         in v'
+      in (3, v')
+   in r'
+cogent_fn14nl : ( CPtr U32, CPtr U32, U32 ) -> ( U32, CPtr U32, CPtr U32 )
+cogent_fn14nl (pnn, qnn, i) =
+   let (c'
+       , r') = let v' = let v' = cogent_fcnl
+         and v1' = i
+         and v2' = pnn
+         and v3' = qnn
+         and v1' = if v1'
+            then v2'
+            else v3'
+         and v' = v' v1'
+         in v'
+      in (3, v')
+   in (r', pnn, qnn)
+cogent_fn14nn : ( CPtr U32, CPtr U32, U32 ) -> ( U32, CPtr U32, CPtr U32 )
+cogent_fn14nn (pnn, qnn, i) =
+   let (c'
+       , r') = let v' = let v' = cogent_fcnn
+         and v1' = i
+         and v2' = pnn
+         and v3' = qnn
+         and v1' = if v1'
+            then v2'
+            else v3'
+         and v' = v' v1'
+         in v'
+      in (3, v')
+   in (r', pnn, qnn)
+
+-- Probe assigned to variable
+cogent_fn21nl : GlobState1 -> ( (), GlobState1 )
+cogent_fn21nl g =
+   let (c', g) = let (v1'
+                     , g) = let v' = cogent_frnn
+         and v' = v' ()
+         and v1' = g
+         and g { cont = p0' } = v1'
+         and v1' = p0'
+         and v1' = v'
+         and (v1', p0') = (v1', v1')
+         and g = g { cont = p0' }
+         in (v1', g)
+      in (0, g)
+   in ((), g)
+cogent_fn21nn : GlobState2 -> ( (), GlobState2 )
+cogent_fn21nn g =
+   let (c', g) = let (v1'
+                     , g) = let v' = cogent_frnn
+         and v' = v' ()
+         and v1' = g
+         and g { cont = p0' } = v1'
+         and v1' = p0'
+         and v1' = v'
+         and (v1', p0') = (v1', v1')
+         and g = g { cont = p0' }
+         in (v1', g)
+      in (0, g)
+   in ((), g)
+cogent_fn22nl : MayNull (CPtr U32) -> ( (), MayNull (CPtr U32) )
+cogent_fn22nl pnl =
+   let (c', pnl) = let (v1'
+                       , pnl) = let v' = cogent_frnn
+         and v' = v' ()
+         and v1' = pnl
+         and v1' = v'
+         and (v1', pnl) = (v1', v1')
+         in (v1', pnl)
+      in (0, pnl)
+   in ((), pnl)
+cogent_fn22nn : CPtr U32 -> ( U32, CPtr U32 )
+cogent_fn22nn pnn =
+   let (c', pnn, r') = let (c'
+                           , pnn) = let (v1'
+                                        , pnn) = let v' = cogent_frnn
+            and v' = v' ()
+            and v1' = pnn
+            and v1' = v'
+            and (v1', pnn) = (v1', v1')
+            in (v1', pnn)
+         in (0, pnn)
+      in if c' > 0
+         then (c', pnn, r')
+         else let (c', r', pnn) = let (v'
+                                      , pnn) = let v' = pnn
+                  and pnn { cont = p0' } = v'
+                  and v' = p0'
+                  and pnn = pnn { cont = p0' }
+                  in (v', pnn)
+               in (3, v', pnn)
+            in (c', pnn, r')
+   in (r', pnn)
+
+-- Probe returned as result
+cogent_fn31nl : () -> MayNull (CPtr U32)
+cogent_fn31nl () =
+   let (c'
+       , r') = let v' = let v' = cogent_frnn
+         and v' = v' ()
+         in v'
+      in (3, v')
+   in r'
+cogent_fn31nn : () -> CPtr U32
+cogent_fn31nn () =
+   let (c'
+       , r') = let v' = let v' = cogent_frnn
+         and v' = v' ()
+         in v'
+      in (3, v')
+   in r'
+
+-- Probe used in conditional expression with other branch as context
+cogent_fn41nl : ( CPtr U32, MayNull (CPtr U32), U32 ) -> ( U32, CPtr U32, MayNull (CPtr U32) )
+cogent_fn41nl (pnn, qnl, i) =
+   let (c'
+       , r') = let v' = let v' = cogent_fcnn
+         and v1' = i
+         and v2' = pnn
+         and v3' = qnl
+         and v1' = if v1'
+            then v2'
+            else v3'
+         and v' = v' v1'
+         in v'
+      in (3, v')
+   in (r', pnn, qnl)
+cogent_fn42nl : ( MayNull (CPtr U32), CPtr U32, U32 ) -> ( U32, MayNull (CPtr U32), CPtr U32 )
+cogent_fn42nl (pnl, qnn, i) =
+   let (c'
+       , r') = let v' = let v' = cogent_fcnn
+         and v1' = i
+         and v2' = pnl
+         and v3' = qnn
+         and v1' = if v1'
+            then v2'
+            else v3'
+         and v' = v' v1'
+         in v'
+      in (3, v')
+   in (r', pnl, qnn)
+
+-- Probe is a struct component
+cogent_fn51nl : Struct_Cogent_nns1 -> ( MayNull (CPtr U32), Struct_Cogent_nns1 )
+cogent_fn51nl pnn =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v' = pnn
+         and pnn { mnn = p0' } = v'
+         and v' = p0'
+         and pnn = pnn { mnn = p0' }
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn)
+cogent_fn51nn : Struct_Cogent_nns1 -> ( CPtr U32, Struct_Cogent_nns1 )
+cogent_fn51nn pnn =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v' = pnn
+         and pnn { mnn = p0' } = v'
+         and v' = p0'
+         and pnn = pnn { mnn = p0' }
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn)
+cogent_fn52nl : Struct_Cogent_nns1 -> ( U32, Struct_Cogent_nns1 )
+cogent_fn52nl pnn =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v' = cogent_fcnl
+         and v1' = pnn
+         and pnn { mnn = p0' } = v1'
+         and v1' = p0'
+         and pnn = pnn { mnn = p0' }
+         and v' = v' v1'
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn)
+cogent_fn52nn : Struct_Cogent_nns1 -> ( U32, Struct_Cogent_nns1 )
+cogent_fn52nn pnn =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v' = cogent_fcnn
+         and v1' = pnn
+         and pnn { mnn = p0' } = v1'
+         and v1' = p0'
+         and pnn = pnn { mnn = p0' }
+         and v' = v' v1'
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn)
+cogent_fn53nl : ( Struct_Cogent_nns1, GlobState1 ) -> ( (), Struct_Cogent_nns1, GlobState1 )
+cogent_fn53nl (pnn, g) =
+   let (c', pnn, g) = let (v1'
+                          , pnn
+                          , g) = let v' = pnn
+         and pnn { mnn = p0' } = v'
+         and v' = p0'
+         and pnn = pnn { mnn = p0' }
+         and v1' = g
+         and g { cont = p1' } = v1'
+         and v1' = p1'
+         and v1' = v'
+         and (v1', p1') = (v1', v1')
+         and g = g { cont = p1' }
+         in (v1', pnn, g)
+      in (0, pnn, g)
+   in ((), pnn, g)
+cogent_fn53nn : ( Struct_Cogent_nns1, GlobState2 ) -> ( (), Struct_Cogent_nns1, GlobState2 )
+cogent_fn53nn (pnn, g) =
+   let (c', pnn, g) = let (v1'
+                          , pnn
+                          , g) = let v' = pnn
+         and pnn { mnn = p0' } = v'
+         and v' = p0'
+         and pnn = pnn { mnn = p0' }
+         and v1' = g
+         and g { cont = p1' } = v1'
+         and v1' = p1'
+         and v1' = v'
+         and (v1', p1') = (v1', v1')
+         and g = g { cont = p1' }
+         in (v1', pnn, g)
+      in (0, pnn, g)
+   in ((), pnn, g)
+cogent_fn54nl : ( Struct_Cogent_nns1, MayNull (CPtr U32) ) -> ( (), Struct_Cogent_nns1, MayNull (CPtr U32) )
+cogent_fn54nl (pnn, pnl) =
+   let (c', pnn, pnl) = let (v1'
+                            , pnn
+                            , pnl) = let v' = pnn
+         and pnn { mnn = p0' } = v'
+         and v' = p0'
+         and pnn = pnn { mnn = p0' }
+         and v1' = pnl
+         and v1' = v'
+         and (v1', pnl) = (v1', v1')
+         in (v1', pnn, pnl)
+      in (0, pnn, pnl)
+   in ((), pnn, pnl)
+cogent_fn54nn : ( Struct_Cogent_nns1, CPtr U32 ) -> ( U32, Struct_Cogent_nns1, CPtr U32 )
+cogent_fn54nn (pnn, qnn) =
+   let (c', pnn, qnn, r') = let (c'
+                                , pnn
+                                , qnn) = let (v1'
+                                             , pnn
+                                             , qnn) = let v' = pnn
+            and pnn { mnn = p0' } = v'
+            and v' = p0'
+            and pnn = pnn { mnn = p0' }
+            and v1' = qnn
+            and v1' = v'
+            and (v1', qnn) = (v1', v1')
+            in (v1', pnn, qnn)
+         in (0, pnn, qnn)
+      in if c' > 0
+         then (c', pnn, qnn, r')
+         else let (c', r', qnn) = let (v'
+                                      , qnn) = let v' = qnn
+                  and qnn { cont = p1' } = v'
+                  and v' = p1'
+                  and qnn = qnn { cont = p1' }
+                  in (v', qnn)
+               in (3, v', qnn)
+            in (c', pnn, qnn, r')
+   in (r', pnn, qnn)
+cogent_fn55nl : ( Struct_Cogent_nns1, MayNull (CPtr U32), U32 ) -> ( U32, Struct_Cogent_nns1, MayNull (CPtr U32) )
+cogent_fn55nl (pnn, qnl, i) =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v' = cogent_fcnn
+         and v1' = i
+         and v3' = qnl
+         and (v1', pnn) = if v1'
+            then let v2' = pnn
+               and pnn { mnn = p0' } = v2'
+               and v2' = p0'
+               and pnn = pnn { mnn = p0' }
+               in (v2', pnn)
+            else (v3', pnn)
+         and v' = v' v1'
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn, qnl)
+cogent_fn55nn : ( Struct_Cogent_nns1, CPtr U32, U32 ) -> ( U32, Struct_Cogent_nns1, CPtr U32 )
+cogent_fn55nn (pnn, qnn, i) =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v' = cogent_fcnn
+         and v1' = i
+         and v3' = qnn
+         and (v1', pnn) = if v1'
+            then let v2' = pnn
+               and pnn { mnn = p0' } = v2'
+               and v2' = p0'
+               and pnn = pnn { mnn = p0' }
+               in (v2', pnn)
+            else (v3', pnn)
+         and v' = v' v1'
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn, qnn)
+
+-- Probe used by accessing a struct component or pointer deref
+cogent_fn61nn : Struct_Cogent_nns1 -> ( U32, Struct_Cogent_nns1 )
+cogent_fn61nn pnn =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v' = pnn
+         and pnn { mrg = p0' } = v'
+         and v' = p0'
+         and pnn = pnn { mrg = p0' }
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn)
+cogent_fn62nn : Struct_Cogent_nns2 -> ( U32, Struct_Cogent_nns2 )
+cogent_fn62nn pnn =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v' = pnn
+         and pnn { snn = p0' } = v'
+         and v' = p0'
+         and p0' { mrg = p1' } = v'
+         and v' = p1'
+         and p0' = p0' { mrg = p1' }
+         and pnn = pnn { snn = p0' }
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn)
+cogent_fn63nn : () -> U32
+cogent_fn63nn () =
+   let (c'
+       , r') = let v' = let v' = cogent_globnn ()
+         and err' { cont = p0' } = v'
+         and v' = p0'
+         and () = ()
+         in v'
+      in (3, v')
+   in r'
+cogent_fn64nn : () -> U32
+cogent_fn64nn () =
+   let (c'
+       , r') = let v' = let v' = cogent_frnn
+         and v' = v' ()
+         and err' { cont = p0' } = v'
+         and v' = p0'
+         and () = ()
+         in v'
+      in (3, v')
+   in r'
+
+-- Probe is an array element
+cogent_fn71nl : Cogent_nna2 -> ( MayNull (CPtr U32), Cogent_nna2 )
+cogent_fn71nl pnn =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v1' = 1
+         and v' = pnn
+         and (pnn @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and pnn = pnn @{ @i0' = p0' }
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn)
+cogent_fn71nn : Cogent_nna2 -> ( CPtr U32, Cogent_nna2 )
+cogent_fn71nn pnn =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v1' = 1
+         and v' = pnn
+         and (pnn @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and pnn = pnn @{ @i0' = p0' }
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn)
+cogent_fn72nl : Cogent_nna2 -> ( U32, Cogent_nna2 )
+cogent_fn72nl pnn =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v' = cogent_fcnl
+         and v2' = 1
+         and v1' = pnn
+         and (pnn @{ @v2' = p0' }
+             , i0') = (v1', v2')
+         and v1' = p0'
+         and pnn = pnn @{ @i0' = p0' }
+         and v' = v' v1'
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn)
+cogent_fn72nn : Cogent_nna2 -> ( U32, Cogent_nna2 )
+cogent_fn72nn pnn =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v' = cogent_fcnn
+         and v2' = 1
+         and v1' = pnn
+         and (pnn @{ @v2' = p0' }
+             , i0') = (v1', v2')
+         and v1' = p0'
+         and pnn = pnn @{ @i0' = p0' }
+         and v' = v' v1'
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn)
+cogent_fn73nl : ( Cogent_nna2, GlobState1 ) -> ( (), Cogent_nna2, GlobState1 )
+cogent_fn73nl (pnn, g) =
+   let (c', pnn, g) = let (v2'
+                          , pnn
+                          , g) = let v1' = 1
+         and v' = pnn
+         and (pnn @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and pnn = pnn @{ @i0' = p0' }
+         and v2' = g
+         and g { cont = p1' } = v2'
+         and v2' = p1'
+         and v2' = v'
+         and (v2', p1') = (v2', v2')
+         and g = g { cont = p1' }
+         in (v2', pnn, g)
+      in (0, pnn, g)
+   in ((), pnn, g)
+cogent_fn73nn : ( Cogent_nna2, GlobState2 ) -> ( (), Cogent_nna2, GlobState2 )
+cogent_fn73nn (pnn, g) =
+   let (c', pnn, g) = let (v2'
+                          , pnn
+                          , g) = let v1' = 1
+         and v' = pnn
+         and (pnn @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and pnn = pnn @{ @i0' = p0' }
+         and v2' = g
+         and g { cont = p1' } = v2'
+         and v2' = p1'
+         and v2' = v'
+         and (v2', p1') = (v2', v2')
+         and g = g { cont = p1' }
+         in (v2', pnn, g)
+      in (0, pnn, g)
+   in ((), pnn, g)
+cogent_fn74nl : ( Cogent_nna2, MayNull (CPtr U32) ) -> ( (), Cogent_nna2, MayNull (CPtr U32) )
+cogent_fn74nl (pnn, pnl) =
+   let (c', pnn, pnl) = let (v2'
+                            , pnn
+                            , pnl) = let v1' = 1
+         and v' = pnn
+         and (pnn @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and pnn = pnn @{ @i0' = p0' }
+         and v2' = pnl
+         and v2' = v'
+         and (v2', pnl) = (v2', v2')
+         in (v2', pnn, pnl)
+      in (0, pnn, pnl)
+   in ((), pnn, pnl)
+cogent_fn74nn : ( Cogent_nna2, CPtr U32 ) -> ( U32, Cogent_nna2, CPtr U32 )
+cogent_fn74nn (pnn, qnn) =
+   let (c', pnn, qnn, r') = let (c'
+                                , pnn
+                                , qnn) = let (v2'
+                                             , pnn
+                                             , qnn) = let v1' = 1
+            and v' = pnn
+            and (pnn @{ @v1' = p0' }
+                , i0') = (v', v1')
+            and v' = p0'
+            and pnn = pnn @{ @i0' = p0' }
+            and v2' = qnn
+            and v2' = v'
+            and (v2', qnn) = (v2', v2')
+            in (v2', pnn, qnn)
+         in (0, pnn, qnn)
+      in if c' > 0
+         then (c', pnn, qnn, r')
+         else let (c', r', qnn) = let (v'
+                                      , qnn) = let v' = qnn
+                  and qnn { cont = p1' } = v'
+                  and v' = p1'
+                  and qnn = qnn { cont = p1' }
+                  in (v', qnn)
+               in (3, v', qnn)
+            in (c', pnn, qnn, r')
+   in (r', pnn, qnn)
+cogent_fn75nl : ( Cogent_nna2, MayNull (CPtr U32), U32 ) -> ( U32, Cogent_nna2, MayNull (CPtr U32) )
+cogent_fn75nl (pnn, qnl, i) =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v' = cogent_fcnn
+         and v1' = i
+         and v4' = qnl
+         and (v1', pnn) = if v1'
+            then let v3' = 1
+               and v2' = pnn
+               and (pnn @{ @v3' = p0' }
+                   , i0') = (v2', v3')
+               and v2' = p0'
+               and pnn = pnn @{ @i0' = p0' }
+               in (v2', pnn)
+            else (v4', pnn)
+         and v' = v' v1'
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn, qnl)
+cogent_fn75nn : ( Cogent_nna2, CPtr U32, U32 ) -> ( U32, Cogent_nna2, CPtr U32 )
+cogent_fn75nn (pnn, qnn, i) =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v' = cogent_fcnn
+         and v1' = i
+         and v4' = qnn
+         and (v1', pnn) = if v1'
+            then let v3' = 1
+               and v2' = pnn
+               and (pnn @{ @v3' = p0' }
+                   , i0') = (v2', v3')
+               and v2' = p0'
+               and pnn = pnn @{ @i0' = p0' }
+               in (v2', pnn)
+            else (v4', pnn)
+         and v' = v' v1'
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn, qnn)
+
+-- Probe used by accessing an array element
+cogent_fn81nn : Cogent_nna1 -> ( U32, Cogent_nna1 )
+cogent_fn81nn pnn =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v1' = 1
+         and v' = pnn
+         and (pnn @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and pnn = pnn @{ @i0' = p0' }
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn)
+cogent_fn82nn : Cogent_nna5 -> ( U32, Cogent_nna5 )
+cogent_fn82nn pnn =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v2' = 1
+         and v1' = 1
+         and v' = pnn
+         and (pnn @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and (p0' @{ @v2' = p1' }
+             , i1') = (v', v2')
+         and v' = p1'
+         and p0' = p0' @{ @i1' = p1' }
+         and pnn = pnn @{ @i0' = p0' }
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn)
+
+-- Probe assigned to struct component or array element
+cogent_fn91nl : Struct_Cogent_nns1 -> ( (), Struct_Cogent_nns1 )
+cogent_fn91nl pnn =
+   let (c', pnn) = let (v1'
+                       , pnn) = let v' = cogent_frnn
+         and v' = v' ()
+         and v1' = pnn
+         and pnn { mnl = p0' } = v1'
+         and v1' = p0'
+         and v1' = v'
+         and (v1', p0') = (v1', v1')
+         and pnn = pnn { mnl = p0' }
+         in (v1', pnn)
+      in (0, pnn)
+   in ((), pnn)
+cogent_fn91nn : Struct_Cogent_nns1 -> ( (), Struct_Cogent_nns1 )
+cogent_fn91nn pnn =
+   let (c', pnn) = let (v1'
+                       , pnn) = let v' = cogent_frnn
+         and v' = v' ()
+         and v1' = pnn
+         and pnn { mnn = p0' } = v1'
+         and v1' = p0'
+         and v1' = v'
+         and (v1', p0') = (v1', v1')
+         and pnn = pnn { mnn = p0' }
+         in (v1', pnn)
+      in (0, pnn)
+   in ((), pnn)
+cogent_fn92nl : Cogent_nna3 -> ( (), Cogent_nna3 )
+cogent_fn92nl pnl =
+   let (c', pnl) = let (v1'
+                       , pnl) = let v' = cogent_frnn
+         and v' = v' ()
+         and v2' = 1
+         and v1' = pnl
+         and (pnl @{ @v2' = p0' }
+             , i0') = (v1', v2')
+         and v1' = p0'
+         and v1' = v'
+         and (v1', p0') = (v1', v1')
+         and pnl = pnl @{ @i0' = p0' }
+         in (v1', pnl)
+      in (0, pnl)
+   in ((), pnl)
+cogent_fn92nn : Cogent_nna2 -> ( (), Cogent_nna2 )
+cogent_fn92nn pnl =
+   let (c', pnl) = let (v1'
+                       , pnl) = let v' = cogent_frnn
+         and v' = v' ()
+         and v2' = 1
+         and v1' = pnl
+         and (pnl @{ @v2' = p0' }
+             , i0') = (v1', v2')
+         and v1' = p0'
+         and v1' = v'
+         and (v1', p0') = (v1', v1')
+         and pnl = pnl @{ @i0' = p0' }
+         in (v1', pnl)
+      in (0, pnl)
+   in ((), pnl)
+
+-- Using MayNull values (cannot be converted to not-null)
+
+-- Direct use of probe in context
+cogent_gn11nl : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
+cogent_gn11nl pnl =
+   let (c'
+       , r') = let v' = let v' = cogent_fcnl
+         and v1' = pnl
+         and v' = v' v1'
+         in v'
+      in (3, v')
+   in (r', pnl)
+cogent_gn11nn : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
+cogent_gn11nn pnl =
+   let (c'
+       , r') = let v' = let v' = cogent_fcnn
+         and v1' = pnl
+         and v' = v' v1'
+         in v'
+      in (3, v')
+   in (r', pnl)
+cogent_gn12nl : () -> U32
+cogent_gn12nl () =
+   let (c'
+       , r') = let v' = let v' = cogent_fcnl
+         and v1' = cogent_globnl ()
+         and v' = v' v1'
+         in v'
+      in (3, v')
+   in r'
+cogent_gn12nn : () -> U32
+cogent_gn12nn () =
+   let (c'
+       , r') = let v' = let v' = cogent_fcnn
+         and v1' = cogent_globnl ()
+         and v' = v' v1'
+         in v'
+      in (3, v')
+   in r'
+cogent_gn13nl : () -> U32
+cogent_gn13nl () =
+   let (c'
+       , r') = let v' = let v' = cogent_fcnl
+         and v1' = cogent_frnl
+         and v1' = v1' ()
+         and v' = v' v1'
+         in v'
+      in (3, v')
+   in r'
+cogent_gn13nn : () -> U32
+cogent_gn13nn () =
+   let (c'
+       , r') = let v' = let v' = cogent_fcnn
+         and v1' = cogent_frnl
+         and v1' = v1' ()
+         and v' = v' v1'
+         in v'
+      in (3, v')
+   in r'
+cogent_gn14nl : ( MayNull (CPtr U32), MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32) )
+cogent_gn14nl (pnl, qnl, i) =
+   let (c'
+       , r') = let v' = let v' = cogent_fcnl
+         and v1' = i
+         and v2' = pnl
+         and v3' = qnl
+         and v1' = if v1'
+            then v2'
+            else v3'
+         and v' = v' v1'
+         in v'
+      in (3, v')
+   in (r', pnl, qnl)
+cogent_gn14nn : ( MayNull (CPtr U32), MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32) )
+cogent_gn14nn (pnl, qnl, i) =
+   let (c'
+       , r') = let v' = let v' = cogent_fcnn
+         and v1' = i
+         and v2' = pnl
+         and v3' = qnl
+         and v1' = if v1'
+            then v2'
+            else v3'
+         and v' = v' v1'
+         in v'
+      in (3, v')
+   in (r', pnl, qnl)
+
+-- Probe assigned to variable
+cogent_gn21nl : GlobState1 -> ( (), GlobState1 )
+cogent_gn21nl g =
+   let (c', g) = let (v1'
+                     , g) = let v' = cogent_frnl
+         and v' = v' ()
+         and v1' = g
+         and g { cont = p0' } = v1'
+         and v1' = p0'
+         and v1' = v'
+         and (v1', p0') = (v1', v1')
+         and g = g { cont = p0' }
+         in (v1', g)
+      in (0, g)
+   in ((), g)
+cogent_gn21nn : GlobState2 -> ( (), GlobState2 )
+cogent_gn21nn g =
+   let (c', g) = let (v1'
+                     , g) = let v' = cogent_frnl
+         and v' = v' ()
+         and v1' = g
+         and g { cont = p0' } = v1'
+         and v1' = p0'
+         and v1' = v'
+         and (v1', p0') = (v1', v1')
+         and g = g { cont = p0' }
+         in (v1', g)
+      in (0, g)
+   in ((), g)
+cogent_gn22nl : MayNull (CPtr U32) -> ( (), MayNull (CPtr U32) )
+cogent_gn22nl pnl =
+   let (c', pnl) = let (v1'
+                       , pnl) = let v' = cogent_frnl
+         and v' = v' ()
+         and v1' = pnl
+         and v1' = v'
+         and (v1', pnl) = (v1', v1')
+         in (v1', pnl)
+      in (0, pnl)
+   in ((), pnl)
+cogent_gn22nn : CPtr U32 -> ( U32, CPtr U32 )
+cogent_gn22nn pnn =
+   let (c', pnn, r') = let (c'
+                           , pnn) = let (v1'
+                                        , pnn) = let v' = cogent_frnl
+            and v' = v' ()
+            and v1' = pnn
+            and v1' = v'
+            and (v1', pnn) = (v1', v1')
+            in (v1', pnn)
+         in (0, pnn)
+      in if c' > 0
+         then (c', pnn, r')
+         else let (c', r', pnn) = let (v'
+                                      , pnn) = let v' = pnn
+                  and pnn { cont = p0' } = v'
+                  and v' = p0'
+                  and pnn = pnn { cont = p0' }
+                  in (v', pnn)
+               in (3, v', pnn)
+            in (c', pnn, r')
+   in (r', pnn)
+
+-- Probe returned as result
+cogent_gn31nl : () -> MayNull (CPtr U32)
+cogent_gn31nl () =
+   let (c'
+       , r') = let v' = let v' = cogent_frnl
+         and v' = v' ()
+         in v'
+      in (3, v')
+   in r'
+cogent_gn31nn : () -> CPtr U32
+cogent_gn31nn () =
+   let (c'
+       , r') = let v' = let v' = cogent_frnl
+         and v' = v' ()
+         in v'
+      in (3, v')
+   in r'
+
+-- Probe is a struct component
+cogent_gn51nl : Struct_Cogent_nns1 -> ( MayNull (CPtr U32), Struct_Cogent_nns1 )
+cogent_gn51nl pnn =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v' = pnn
+         and pnn { mnl = p0' } = v'
+         and v' = p0'
+         and pnn = pnn { mnl = p0' }
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn)
+cogent_gn51nn : Struct_Cogent_nns1 -> ( CPtr U32, Struct_Cogent_nns1 )
+cogent_gn51nn pnn =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v' = pnn
+         and pnn { mnl = p0' } = v'
+         and v' = p0'
+         and pnn = pnn { mnl = p0' }
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn)
+cogent_gn52nl : Struct_Cogent_nns1 -> ( U32, Struct_Cogent_nns1 )
+cogent_gn52nl pnn =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v' = cogent_fcnl
+         and v1' = pnn
+         and pnn { mnl = p0' } = v1'
+         and v1' = p0'
+         and pnn = pnn { mnl = p0' }
+         and v' = v' v1'
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn)
+cogent_gn52nn : Struct_Cogent_nns1 -> ( U32, Struct_Cogent_nns1 )
+cogent_gn52nn pnn =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v' = cogent_fcnn
+         and v1' = pnn
+         and pnn { mnl = p0' } = v1'
+         and v1' = p0'
+         and pnn = pnn { mnl = p0' }
+         and v' = v' v1'
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn)
+cogent_gn53nl : ( Struct_Cogent_nns1, GlobState1 ) -> ( (), Struct_Cogent_nns1, GlobState1 )
+cogent_gn53nl (pnn, g) =
+   let (c', pnn, g) = let (v1'
+                          , pnn
+                          , g) = let v' = pnn
+         and pnn { mnl = p0' } = v'
+         and v' = p0'
+         and pnn = pnn { mnl = p0' }
+         and v1' = g
+         and g { cont = p1' } = v1'
+         and v1' = p1'
+         and v1' = v'
+         and (v1', p1') = (v1', v1')
+         and g = g { cont = p1' }
+         in (v1', pnn, g)
+      in (0, pnn, g)
+   in ((), pnn, g)
+cogent_gn53nn : ( Struct_Cogent_nns1, GlobState2 ) -> ( (), Struct_Cogent_nns1, GlobState2 )
+cogent_gn53nn (pnn, g) =
+   let (c', pnn, g) = let (v1'
+                          , pnn
+                          , g) = let v' = pnn
+         and pnn { mnl = p0' } = v'
+         and v' = p0'
+         and pnn = pnn { mnl = p0' }
+         and v1' = g
+         and g { cont = p1' } = v1'
+         and v1' = p1'
+         and v1' = v'
+         and (v1', p1') = (v1', v1')
+         and g = g { cont = p1' }
+         in (v1', pnn, g)
+      in (0, pnn, g)
+   in ((), pnn, g)
+cogent_gn54nl : ( Struct_Cogent_nns1, MayNull (CPtr U32) ) -> ( (), Struct_Cogent_nns1, MayNull (CPtr U32) )
+cogent_gn54nl (pnn, pnl) =
+   let (c', pnn, pnl) = let (v1'
+                            , pnn
+                            , pnl) = let v' = pnn
+         and pnn { mnl = p0' } = v'
+         and v' = p0'
+         and pnn = pnn { mnl = p0' }
+         and v1' = pnl
+         and v1' = v'
+         and (v1', pnl) = (v1', v1')
+         in (v1', pnn, pnl)
+      in (0, pnn, pnl)
+   in ((), pnn, pnl)
+cogent_gn54nn : ( Struct_Cogent_nns1, CPtr U32 ) -> ( U32, Struct_Cogent_nns1, CPtr U32 )
+cogent_gn54nn (pnn, qnn) =
+   let (c', pnn, qnn, r') = let (c'
+                                , pnn
+                                , qnn) = let (v1'
+                                             , pnn
+                                             , qnn) = let v' = pnn
+            and pnn { mnl = p0' } = v'
+            and v' = p0'
+            and pnn = pnn { mnl = p0' }
+            and v1' = qnn
+            and v1' = v'
+            and (v1', qnn) = (v1', v1')
+            in (v1', pnn, qnn)
+         in (0, pnn, qnn)
+      in if c' > 0
+         then (c', pnn, qnn, r')
+         else let (c', r', qnn) = let (v'
+                                      , qnn) = let v' = qnn
+                  and qnn { cont = p1' } = v'
+                  and v' = p1'
+                  and qnn = qnn { cont = p1' }
+                  in (v', qnn)
+               in (3, v', qnn)
+            in (c', pnn, qnn, r')
+   in (r', pnn, qnn)
+cogent_gn55nl : ( Struct_Cogent_nns1, MayNull (CPtr U32), U32 ) -> ( U32, Struct_Cogent_nns1, MayNull (CPtr U32) )
+cogent_gn55nl (pnn, qnl, i) =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v' = cogent_fcnn
+         and v1' = i
+         and v3' = qnl
+         and (v1', pnn) = if v1'
+            then let v2' = pnn
+               and pnn { mnl = p0' } = v2'
+               and v2' = p0'
+               and pnn = pnn { mnl = p0' }
+               in (v2', pnn)
+            else (v3', pnn)
+         and v' = v' v1'
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn, qnl)
+cogent_gn55nn : ( Struct_Cogent_nns1, CPtr U32, U32 ) -> ( U32, Struct_Cogent_nns1, CPtr U32 )
+cogent_gn55nn (pnn, qnn, i) =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v' = cogent_fcnn
+         and v1' = i
+         and v3' = qnn
+         and (v1', pnn) = if v1'
+            then let v2' = pnn
+               and pnn { mnl = p0' } = v2'
+               and v2' = p0'
+               and pnn = pnn { mnl = p0' }
+               in (v2', pnn)
+            else (v3', pnn)
+         and v' = v' v1'
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn, qnn)
+
+-- Probe used by accessing a struct component or pointer deref
+cogent_gn61nl : MayNull Struct_Cogent_nns1 -> ( U32, MayNull Struct_Cogent_nns1 )
+cogent_gn61nl pnl =
+   let (c', r', pnl) = let (v'
+                           , pnl) = let v' = pnl
+         and pnl { mrg = p0' } = v'
+         and v' = p0'
+         and pnl = pnl { mrg = p0' }
+         in (v', pnl)
+      in (3, v', pnl)
+   in (r', pnl)
+cogent_gn62nl : Struct_Cogent_nns2 -> ( U32, Struct_Cogent_nns2 )
+cogent_gn62nl pnn =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v' = pnn
+         and pnn { snl = p0' } = v'
+         and v' = p0'
+         and p0' { mrg = p1' } = v'
+         and v' = p1'
+         and p0' = p0' { mrg = p1' }
+         and pnn = pnn { snl = p0' }
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn)
+cogent_gn63nl : () -> U32
+cogent_gn63nl () =
+   let (c'
+       , r') = let v' = let v' = cogent_globnl ()
+         and err' { cont = p0' } = v'
+         and v' = p0'
+         and () = ()
+         in v'
+      in (3, v')
+   in r'
+cogent_gn64nl : () -> U32
+cogent_gn64nl () =
+   let (c'
+       , r') = let v' = let v' = cogent_frnl
+         and v' = v' ()
+         and err' { cont = p0' } = v'
+         and v' = p0'
+         and () = ()
+         in v'
+      in (3, v')
+   in r'
+
+-- Probe is an array element
+cogent_gn71nl : Cogent_nna3 -> ( MayNull (CPtr U32), Cogent_nna3 )
+cogent_gn71nl pnn =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v1' = 1
+         and v' = pnn
+         and (pnn @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and pnn = pnn @{ @i0' = p0' }
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn)
+cogent_gn71nn : Cogent_nna3 -> ( CPtr U32, Cogent_nna3 )
+cogent_gn71nn pnn =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v1' = 1
+         and v' = pnn
+         and (pnn @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and pnn = pnn @{ @i0' = p0' }
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn)
+cogent_gn72nl : Cogent_nna3 -> ( U32, Cogent_nna3 )
+cogent_gn72nl pnn =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v' = cogent_fcnl
+         and v2' = 1
+         and v1' = pnn
+         and (pnn @{ @v2' = p0' }
+             , i0') = (v1', v2')
+         and v1' = p0'
+         and pnn = pnn @{ @i0' = p0' }
+         and v' = v' v1'
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn)
+cogent_gn72nn : Cogent_nna3 -> ( U32, Cogent_nna3 )
+cogent_gn72nn pnn =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v' = cogent_fcnn
+         and v2' = 1
+         and v1' = pnn
+         and (pnn @{ @v2' = p0' }
+             , i0') = (v1', v2')
+         and v1' = p0'
+         and pnn = pnn @{ @i0' = p0' }
+         and v' = v' v1'
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn)
+cogent_gn73nl : ( Cogent_nna3, GlobState1 ) -> ( (), Cogent_nna3, GlobState1 )
+cogent_gn73nl (pnn, g) =
+   let (c', pnn, g) = let (v2'
+                          , pnn
+                          , g) = let v1' = 1
+         and v' = pnn
+         and (pnn @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and pnn = pnn @{ @i0' = p0' }
+         and v2' = g
+         and g { cont = p1' } = v2'
+         and v2' = p1'
+         and v2' = v'
+         and (v2', p1') = (v2', v2')
+         and g = g { cont = p1' }
+         in (v2', pnn, g)
+      in (0, pnn, g)
+   in ((), pnn, g)
+cogent_gn73nn : ( Cogent_nna3, GlobState2 ) -> ( (), Cogent_nna3, GlobState2 )
+cogent_gn73nn (pnn, g) =
+   let (c', pnn, g) = let (v2'
+                          , pnn
+                          , g) = let v1' = 1
+         and v' = pnn
+         and (pnn @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and pnn = pnn @{ @i0' = p0' }
+         and v2' = g
+         and g { cont = p1' } = v2'
+         and v2' = p1'
+         and v2' = v'
+         and (v2', p1') = (v2', v2')
+         and g = g { cont = p1' }
+         in (v2', pnn, g)
+      in (0, pnn, g)
+   in ((), pnn, g)
+cogent_gn74nl : ( Cogent_nna3, MayNull (CPtr U32) ) -> ( (), Cogent_nna3, MayNull (CPtr U32) )
+cogent_gn74nl (pnn, pnl) =
+   let (c', pnn, pnl) = let (v2'
+                            , pnn
+                            , pnl) = let v1' = 1
+         and v' = pnn
+         and (pnn @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and pnn = pnn @{ @i0' = p0' }
+         and v2' = pnl
+         and v2' = v'
+         and (v2', pnl) = (v2', v2')
+         in (v2', pnn, pnl)
+      in (0, pnn, pnl)
+   in ((), pnn, pnl)
+cogent_gn74nn : ( Cogent_nna3, CPtr U32 ) -> ( U32, Cogent_nna3, CPtr U32 )
+cogent_gn74nn (pnn, qnn) =
+   let (c', pnn, qnn, r') = let (c'
+                                , pnn
+                                , qnn) = let (v2'
+                                             , pnn
+                                             , qnn) = let v1' = 1
+            and v' = pnn
+            and (pnn @{ @v1' = p0' }
+                , i0') = (v', v1')
+            and v' = p0'
+            and pnn = pnn @{ @i0' = p0' }
+            and v2' = qnn
+            and v2' = v'
+            and (v2', qnn) = (v2', v2')
+            in (v2', pnn, qnn)
+         in (0, pnn, qnn)
+      in if c' > 0
+         then (c', pnn, qnn, r')
+         else let (c', r', qnn) = let (v'
+                                      , qnn) = let v' = qnn
+                  and qnn { cont = p1' } = v'
+                  and v' = p1'
+                  and qnn = qnn { cont = p1' }
+                  in (v', qnn)
+               in (3, v', qnn)
+            in (c', pnn, qnn, r')
+   in (r', pnn, qnn)
+cogent_gn75nl : ( Cogent_nna3, MayNull (CPtr U32), U32 ) -> ( U32, Cogent_nna3, MayNull (CPtr U32) )
+cogent_gn75nl (pnn, qnl, i) =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v' = cogent_fcnn
+         and v1' = i
+         and v4' = qnl
+         and (v1', pnn) = if v1'
+            then let v3' = 1
+               and v2' = pnn
+               and (pnn @{ @v3' = p0' }
+                   , i0') = (v2', v3')
+               and v2' = p0'
+               and pnn = pnn @{ @i0' = p0' }
+               in (v2', pnn)
+            else (v4', pnn)
+         and v' = v' v1'
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn, qnl)
+cogent_gn75nn : ( Cogent_nna3, CPtr U32, U32 ) -> ( U32, Cogent_nna3, CPtr U32 )
+cogent_gn75nn (pnn, qnn, i) =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v' = cogent_fcnn
+         and v1' = i
+         and v4' = qnn
+         and (v1', pnn) = if v1'
+            then let v3' = 1
+               and v2' = pnn
+               and (pnn @{ @v3' = p0' }
+                   , i0') = (v2', v3')
+               and v2' = p0'
+               and pnn = pnn @{ @i0' = p0' }
+               in (v2', pnn)
+            else (v4', pnn)
+         and v' = v' v1'
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn, qnn)
+
+-- Probe used by accessing an array element
+cogent_gn81nl : Cogent_nna1 -> ( U32, Cogent_nna1 )
+cogent_gn81nl pnl =
+   let (c', r', pnl) = let (v'
+                           , pnl) = let v1' = 1
+         and v' = pnl
+         and (pnl @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and pnl = pnl @{ @i0' = p0' }
+         in (v', pnl)
+      in (3, v', pnl)
+   in (r', pnl)
+cogent_gn82nl : Cogent_nna4 -> ( U32, Cogent_nna4 )
+cogent_gn82nl pnn =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v2' = 1
+         and v1' = 1
+         and v' = pnn
+         and (pnn @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and (p0' @{ @v2' = p1' }
+             , i1') = (v', v2')
+         and v' = p1'
+         and p0' = p0' @{ @i1' = p1' }
+         and pnn = pnn @{ @i0' = p0' }
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn)
+
+-- Probe assigned to struct component or array element
+cogent_gn91nl : Struct_Cogent_nns1 -> ( (), Struct_Cogent_nns1 )
+cogent_gn91nl pnn =
+   let (c', pnn) = let (v1'
+                       , pnn) = let v' = cogent_frnl
+         and v' = v' ()
+         and v1' = pnn
+         and pnn { mnl = p0' } = v1'
+         and v1' = p0'
+         and v1' = v'
+         and (v1', p0') = (v1', v1')
+         and pnn = pnn { mnl = p0' }
+         in (v1', pnn)
+      in (0, pnn)
+   in ((), pnn)
+cogent_gn91nn : Struct_Cogent_nns1 -> ( (), Struct_Cogent_nns1 )
+cogent_gn91nn pnn =
+   let (c', pnn) = let (v1'
+                       , pnn) = let v' = cogent_frnl
+         and v' = v' ()
+         and v1' = pnn
+         and pnn { mnn = p0' } = v1'
+         and v1' = p0'
+         and v1' = v'
+         and (v1', p0') = (v1', v1')
+         and pnn = pnn { mnn = p0' }
+         in (v1', pnn)
+      in (0, pnn)
+   in ((), pnn)
+cogent_gn92nl : Cogent_nna3 -> ( (), Cogent_nna3 )
+cogent_gn92nl pnl =
+   let (c', pnl) = let (v1'
+                       , pnl) = let v' = cogent_frnl
+         and v' = v' ()
+         and v2' = 1
+         and v1' = pnl
+         and (pnl @{ @v2' = p0' }
+             , i0') = (v1', v2')
+         and v1' = p0'
+         and v1' = v'
+         and (v1', p0') = (v1', v1')
+         and pnl = pnl @{ @i0' = p0' }
+         in (v1', pnl)
+      in (0, pnl)
+   in ((), pnl)
+cogent_gn92nn : Cogent_nna2 -> ( (), Cogent_nna2 )
+cogent_gn92nn pnl =
+   let (c', pnl) = let (v1'
+                       , pnl) = let v' = cogent_frnl
+         and v' = v' ()
+         and v2' = 1
+         and v1' = pnl
+         and (pnl @{ @v2' = p0' }
+             , i0') = (v1', v2')
+         and v1' = p0'
+         and v1' = v'
+         and (v1', p0') = (v1', v1')
+         and pnl = pnl @{ @i0' = p0' }
+         in (v1', pnl)
+      in (0, pnl)
+   in ((), pnl)
+
+-- Using MayNull values after NULL-test in expression.
+
+-- Direct use of probe in context
+cogent_tn11nl : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
+cogent_tn11nl pnl =
+   let (c'
+       , r') = let v' = let v' = pnl
+         and v1' = cogent_fcnl
+         and v2' = pnl
+         and v1' = v1' v2'
+         and v3' = 0
+         and v' = if v' then v1' else v3'
+         in v'
+      in (3, v')
+   in (r', pnl)
+cogent_tn11nn : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
+cogent_tn11nn pnl =
+   let (c'
+       , r') = let v' = let v' = pnl
+         and v1' = cogent_fcnn
+         and v2' = pnl
+         and v1' = v1' v2'
+         and v3' = 0
+         and v' = if v' then v1' else v3'
+         in v'
+      in (3, v')
+   in (r', pnl)
+cogent_tn12nl : () -> U32
+cogent_tn12nl () =
+   let (c'
+       , r') = let v' = let v' = cogent_globnl ()
+         and v1' = cogent_fcnl
+         and v2' = cogent_globnl ()
+         and v1' = v1' v2'
+         and v3' = 0
+         and v' = if v' then v1' else v3'
+         in v'
+      in (3, v')
+   in r'
+cogent_tn12nn : () -> U32
+cogent_tn12nn () =
+   let (c'
+       , r') = let v' = let v' = cogent_globnl ()
+         and v1' = cogent_fcnn
+         and v2' = cogent_globnl ()
+         and v1' = v1' v2'
+         and v3' = 0
+         and v' = if v' then v1' else v3'
+         in v'
+      in (3, v')
+   in r'
+cogent_tn13nl : () -> U32
+cogent_tn13nl () =
+   let (c'
+       , r') = let v' = let v' = cogent_frnl
+         and v' = v' ()
+         and v1' = cogent_fcnl
+         and v2' = cogent_frnl
+         and v2' = v2' ()
+         and v1' = v1' v2'
+         and v3' = 0
+         and v' = if v' then v1' else v3'
+         in v'
+      in (3, v')
+   in r'
+cogent_tn13nn : () -> U32
+cogent_tn13nn () =
+   let (c'
+       , r') = let v' = let v' = cogent_frnl
+         and v' = v' ()
+         and v1' = cogent_fcnn
+         and v2' = cogent_frnl
+         and v2' = v2' ()
+         and v1' = v1' v2'
+         and v3' = 0
+         and v' = if v' then v1' else v3'
+         in v'
+      in (3, v')
+   in r'
+cogent_tn14nl : ( MayNull (CPtr U32), CPtr U32, U32 ) -> ( U32, MayNull (CPtr U32), CPtr U32 )
+cogent_tn14nl (pnl, qnn, i) =
+   let (c'
+       , r') = let v' = let v' = pnl
+         and v1' = cogent_fcnl
+         and v2' = i
+         and v3' = pnl
+         and v4' = qnn
+         and v2' = if v2'
+            then v3'
+            else v4'
+         and v1' = v1' v2'
+         and v5' = 0
+         and v' = if v' then v1' else v5'
+         in v'
+      in (3, v')
+   in (r', pnl, qnn)
+cogent_tn14nn : ( MayNull (CPtr U32), CPtr U32, U32 ) -> ( U32, MayNull (CPtr U32), CPtr U32 )
+cogent_tn14nn (pnl, qnn, i) =
+   let (c'
+       , r') = let v' = let v' = pnl
+         and v1' = cogent_fcnn
+         and v2' = i
+         and v3' = pnl
+         and v4' = qnn
+         and v2' = if v2'
+            then v3'
+            else v4'
+         and v1' = v1' v2'
+         and v5' = 0
+         and v' = if v' then v1' else v5'
+         in v'
+      in (3, v')
+   in (r', pnl, qnn)
+
+-- Probe assigned to variable
+cogent_tn21nl : ( MayNull (CPtr U32), CPtr U32, GlobState1 ) -> ( (), MayNull (CPtr U32), CPtr U32, GlobState1 )
+cogent_tn21nl (qnl, qnn, g) =
+   let (c', g) = let (v3'
+                     , g) = let v' = qnl
+         and v1' = qnl
+         and v2' = qnn
+         and v' = if v' then v1' else v2'
+         and v3' = g
+         and g { cont = p0' } = v3'
+         and v3' = p0'
+         and v3' = v'
+         and (v3', p0') = (v3', v3')
+         and g = g { cont = p0' }
+         in (v3', g)
+      in (0, g)
+   in ((), qnl, qnn, g)
+cogent_tn21nn : ( MayNull (CPtr U32), CPtr U32, GlobState2 ) -> ( (), MayNull (CPtr U32), CPtr U32, GlobState2 )
+cogent_tn21nn (qnl, qnn, g) =
+   let (c', g) = let (v3'
+                     , g) = let v' = qnl
+         and v1' = qnl
+         and v2' = qnn
+         and v' = if v' then v1' else v2'
+         and v3' = g
+         and g { cont = p0' } = v3'
+         and v3' = p0'
+         and v3' = v'
+         and (v3', p0') = (v3', v3')
+         and g = g { cont = p0' }
+         in (v3', g)
+      in (0, g)
+   in ((), qnl, qnn, g)
+cogent_tn22nl : ( MayNull (CPtr U32), MayNull (CPtr U32), CPtr U32 ) -> ( (), MayNull (CPtr U32), MayNull (CPtr U32), CPtr U32 )
+cogent_tn22nl (pnl, qnl, qnn) =
+   let (c', pnl) = let (v3'
+                       , pnl) = let v' = qnl
+         and v1' = qnl
+         and v2' = qnn
+         and v' = if v' then v1' else v2'
+         and v3' = pnl
+         and v3' = v'
+         and (v3', pnl) = (v3', v3')
+         in (v3', pnl)
+      in (0, pnl)
+   in ((), pnl, qnl, qnn)
+cogent_tn22nn : ( MayNull (CPtr U32), MayNull (CPtr U32), CPtr U32 ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32), CPtr U32 )
+cogent_tn22nn (pnn, qnl, qnn) =
+   let (c', pnn, r') = let (c'
+                           , pnn) = let (v3'
+                                        , pnn) = let v' = qnl
+            and v1' = qnl
+            and v2' = qnn
+            and v' = if v' then v1' else v2'
+            and v3' = pnn
+            and v3' = v'
+            and (v3', pnn) = (v3', v3')
+            in (v3', pnn)
+         in (0, pnn)
+      in if c' > 0
+         then (c', pnn, r')
+         else let (c', r', pnn) = let (v'
+                                      , pnn) = let v' = pnn
+                  and pnn { cont = p0' } = v'
+                  and v' = p0'
+                  and pnn = pnn { cont = p0' }
+                  in (v', pnn)
+               in (3, v', pnn)
+            in (c', pnn, r')
+   in (r', pnn, qnl, qnn)
+
+-- Probe returned as result
+cogent_tn31nl : ( MayNull (CPtr U32), CPtr U32 ) -> ( MayNull (CPtr U32), MayNull (CPtr U32), CPtr U32 )
+cogent_tn31nl (qnl, qnn) =
+   let (c'
+       , r') = let v' = let v' = qnl
+         and v1' = qnl
+         and v2' = qnn
+         and v' = if v' then v1' else v2'
+         in v'
+      in (3, v')
+   in (r', qnl, qnn)
+cogent_tn31nn : ( MayNull (CPtr U32), CPtr U32 ) -> ( CPtr U32, MayNull (CPtr U32), CPtr U32 )
+cogent_tn31nn (qnl, qnn) =
+   let (c'
+       , r') = let v' = let v' = qnl
+         and v1' = qnl
+         and v2' = qnn
+         and v' = if v' then v1' else v2'
+         in v'
+      in (3, v')
+   in (r', qnl, qnn)
+
+-- Probe is a struct component
+cogent_tn51nl : Struct_Cogent_nns1 -> ( MayNull (CPtr U32), Struct_Cogent_nns1 )
+cogent_tn51nl pnn =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v' = pnn
+         and pnn { mnl = p0' } = v'
+         and v' = p0'
+         and pnn = pnn { mnl = p0' }
+         and (v', pnn) = if v'
+            then let v1' = pnn
+               and pnn { mnl = p1' } = v1'
+               and v1' = p1'
+               and pnn = pnn { mnl = p1' }
+               in (v1', pnn)
+            else let v2' = pnn
+               and pnn { mnn = p2' } = v2'
+               and v2' = p2'
+               and pnn = pnn { mnn = p2' }
+               in (v2', pnn)
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn)
+cogent_tn51nn : Struct_Cogent_nns1 -> ( CPtr U32, Struct_Cogent_nns1 )
+cogent_tn51nn pnn =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v' = pnn
+         and pnn { mnl = p0' } = v'
+         and v' = p0'
+         and pnn = pnn { mnl = p0' }
+         and (v', pnn) = if v'
+            then let v1' = pnn
+               and pnn { mnl = p1' } = v1'
+               and v1' = p1'
+               and pnn = pnn { mnl = p1' }
+               in (v1', pnn)
+            else let v2' = pnn
+               and pnn { mnn = p2' } = v2'
+               and v2' = p2'
+               and pnn = pnn { mnn = p2' }
+               in (v2', pnn)
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn)
+cogent_tn52nl : Struct_Cogent_nns1 -> ( U32, Struct_Cogent_nns1 )
+cogent_tn52nl pnn =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v' = cogent_fcnl
+         and v1' = pnn
+         and pnn { mnl = p0' } = v1'
+         and v1' = p0'
+         and pnn = pnn { mnl = p0' }
+         and (v1', pnn) = if v1'
+            then let v2' = pnn
+               and pnn { mnl = p1' } = v2'
+               and v2' = p1'
+               and pnn = pnn { mnl = p1' }
+               in (v2', pnn)
+            else let v3' = pnn
+               and pnn { mnn = p2' } = v3'
+               and v3' = p2'
+               and pnn = pnn { mnn = p2' }
+               in (v3', pnn)
+         and v' = v' v1'
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn)
+cogent_tn52nn : Struct_Cogent_nns1 -> ( U32, Struct_Cogent_nns1 )
+cogent_tn52nn pnn =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v' = cogent_fcnn
+         and v1' = pnn
+         and pnn { mnl = p0' } = v1'
+         and v1' = p0'
+         and pnn = pnn { mnl = p0' }
+         and (v1', pnn) = if v1'
+            then let v2' = pnn
+               and pnn { mnl = p1' } = v2'
+               and v2' = p1'
+               and pnn = pnn { mnl = p1' }
+               in (v2', pnn)
+            else let v3' = pnn
+               and pnn { mnn = p2' } = v3'
+               and v3' = p2'
+               and pnn = pnn { mnn = p2' }
+               in (v3', pnn)
+         and v' = v' v1'
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn)
+cogent_tn53nl : ( Struct_Cogent_nns1, GlobState1 ) -> ( (), Struct_Cogent_nns1, GlobState1 )
+cogent_tn53nl (pnn, g) =
+   let (c', pnn, g) = let (v3'
+                          , pnn
+                          , g) = let v' = pnn
+         and pnn { mnl = p0' } = v'
+         and v' = p0'
+         and pnn = pnn { mnl = p0' }
+         and (v', pnn) = if v'
+            then let v1' = pnn
+               and pnn { mnl = p1' } = v1'
+               and v1' = p1'
+               and pnn = pnn { mnl = p1' }
+               in (v1', pnn)
+            else let v2' = pnn
+               and pnn { mnn = p2' } = v2'
+               and v2' = p2'
+               and pnn = pnn { mnn = p2' }
+               in (v2', pnn)
+         and v3' = g
+         and g { cont = p3' } = v3'
+         and v3' = p3'
+         and v3' = v'
+         and (v3', p3') = (v3', v3')
+         and g = g { cont = p3' }
+         in (v3', pnn, g)
+      in (0, pnn, g)
+   in ((), pnn, g)
+cogent_tn53nn : ( Struct_Cogent_nns1, GlobState2 ) -> ( (), Struct_Cogent_nns1, GlobState2 )
+cogent_tn53nn (pnn, g) =
+   let (c', pnn, g) = let (v3'
+                          , pnn
+                          , g) = let v' = pnn
+         and pnn { mnl = p0' } = v'
+         and v' = p0'
+         and pnn = pnn { mnl = p0' }
+         and (v', pnn) = if v'
+            then let v1' = pnn
+               and pnn { mnl = p1' } = v1'
+               and v1' = p1'
+               and pnn = pnn { mnl = p1' }
+               in (v1', pnn)
+            else let v2' = pnn
+               and pnn { mnn = p2' } = v2'
+               and v2' = p2'
+               and pnn = pnn { mnn = p2' }
+               in (v2', pnn)
+         and v3' = g
+         and g { cont = p3' } = v3'
+         and v3' = p3'
+         and v3' = v'
+         and (v3', p3') = (v3', v3')
+         and g = g { cont = p3' }
+         in (v3', pnn, g)
+      in (0, pnn, g)
+   in ((), pnn, g)
+cogent_tn54nl : ( Struct_Cogent_nns1, MayNull (CPtr U32) ) -> ( (), Struct_Cogent_nns1, MayNull (CPtr U32) )
+cogent_tn54nl (pnn, pnl) =
+   let (c', pnn, pnl) = let (v3'
+                            , pnn
+                            , pnl) = let v' = pnn
+         and pnn { mnl = p0' } = v'
+         and v' = p0'
+         and pnn = pnn { mnl = p0' }
+         and (v', pnn) = if v'
+            then let v1' = pnn
+               and pnn { mnl = p1' } = v1'
+               and v1' = p1'
+               and pnn = pnn { mnl = p1' }
+               in (v1', pnn)
+            else let v2' = pnn
+               and pnn { mnn = p2' } = v2'
+               and v2' = p2'
+               and pnn = pnn { mnn = p2' }
+               in (v2', pnn)
+         and v3' = pnl
+         and v3' = v'
+         and (v3', pnl) = (v3', v3')
+         in (v3', pnn, pnl)
+      in (0, pnn, pnl)
+   in ((), pnn, pnl)
+cogent_tn54nn : ( Struct_Cogent_nns1, CPtr U32 ) -> ( U32, Struct_Cogent_nns1, CPtr U32 )
+cogent_tn54nn (pnn, qnn) =
+   let (c', pnn, qnn, r') = let (c'
+                                , pnn
+                                , qnn) = let (v3'
+                                             , pnn
+                                             , qnn) = let v' = pnn
+            and pnn { mnl = p0' } = v'
+            and v' = p0'
+            and pnn = pnn { mnl = p0' }
+            and (v', pnn) = if v'
+               then let v1' = pnn
+                  and pnn { mnl = p1' } = v1'
+                  and v1' = p1'
+                  and pnn = pnn { mnl = p1' }
+                  in (v1', pnn)
+               else let v2' = pnn
+                  and pnn { mnn = p2' } = v2'
+                  and v2' = p2'
+                  and pnn = pnn { mnn = p2' }
+                  in (v2', pnn)
+            and v3' = qnn
+            and v3' = v'
+            and (v3', qnn) = (v3', v3')
+            in (v3', pnn, qnn)
+         in (0, pnn, qnn)
+      in if c' > 0
+         then (c', pnn, qnn, r')
+         else let (c', r', qnn) = let (v'
+                                      , qnn) = let v' = qnn
+                  and qnn { cont = p3' } = v'
+                  and v' = p3'
+                  and qnn = qnn { cont = p3' }
+                  in (v', qnn)
+               in (3, v', qnn)
+            in (c', pnn, qnn, r')
+   in (r', pnn, qnn)
+cogent_tn55nl : ( Struct_Cogent_nns1, MayNull (CPtr U32), U32 ) -> ( U32, Struct_Cogent_nns1, MayNull (CPtr U32) )
+cogent_tn55nl (pnn, qnl, i) =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v' = cogent_fcnn
+         and v1' = i
+         and v5' = qnl
+         and (v1', pnn) = if v1'
+            then let v2' = pnn
+               and pnn { mnl = p0' } = v2'
+               and v2' = p0'
+               and pnn = pnn { mnl = p0' }
+               and (v2', pnn) = if v2'
+                  then let v3' = pnn
+                     and pnn { mnl = p1' } = v3'
+                     and v3' = p1'
+                     and pnn = pnn { mnl = p1' }
+                     in (v3', pnn)
+                  else let v4' = pnn
+                     and pnn { mnn = p2' } = v4'
+                     and v4' = p2'
+                     and pnn = pnn { mnn = p2' }
+                     in (v4', pnn)
+               in (v2', pnn)
+            else (v5', pnn)
+         and v' = v' v1'
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn, qnl)
+cogent_tn55nn : ( Struct_Cogent_nns1, CPtr U32, U32 ) -> ( U32, Struct_Cogent_nns1, CPtr U32 )
+cogent_tn55nn (pnn, qnn, i) =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v' = cogent_fcnn
+         and v1' = i
+         and v5' = qnn
+         and (v1', pnn) = if v1'
+            then let v2' = pnn
+               and pnn { mnl = p0' } = v2'
+               and v2' = p0'
+               and pnn = pnn { mnl = p0' }
+               and (v2', pnn) = if v2'
+                  then let v3' = pnn
+                     and pnn { mnl = p1' } = v3'
+                     and v3' = p1'
+                     and pnn = pnn { mnl = p1' }
+                     in (v3', pnn)
+                  else let v4' = pnn
+                     and pnn { mnn = p2' } = v4'
+                     and v4' = p2'
+                     and pnn = pnn { mnn = p2' }
+                     in (v4', pnn)
+               in (v2', pnn)
+            else (v5', pnn)
+         and v' = v' v1'
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn, qnn)
+
+-- Probe used by accessing a struct component or pointer deref
+cogent_tn61nl : ( MayNull Struct_Cogent_nns1, MayNull Struct_Cogent_nns1 ) -> ( U32, MayNull Struct_Cogent_nns1, MayNull Struct_Cogent_nns1 )
+cogent_tn61nl (pnl, pnn) =
+   let (c'
+       , r') = let v' = let v' = pnl
+         and v1' = pnl
+         and v2' = pnn
+         and v' = if v' then v1' else v2'
+         and err' { mrg = p0' } = v'
+         and v' = p0'
+         and () = ()
+         in v'
+      in (3, v')
+   in (r', pnl, pnn)
+cogent_tn62nl : Struct_Cogent_nns2 -> ( U32, Struct_Cogent_nns2 )
+cogent_tn62nl pnn =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v' = pnn
+         and pnn { snl = p0' } = v'
+         and v' = p0'
+         and pnn = pnn { snl = p0' }
+         and (v', pnn) = if v'
+            then let v1' = pnn
+               and pnn { snl = p1' } = v1'
+               and v1' = p1'
+               and pnn = pnn { snl = p1' }
+               in (v1', pnn)
+            else let v2' = pnn
+               and pnn { snn = p2' } = v2'
+               and v2' = p2'
+               and pnn = pnn { snn = p2' }
+               in (v2', pnn)
+         and err' { mrg = p3' } = v'
+         and v' = p3'
+         and () = ()
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn)
+cogent_tn63nl : () -> U32
+cogent_tn63nl () =
+   let (c'
+       , r') = let v' = let v' = cogent_globnl ()
+         and v1' = cogent_globnl ()
+         and v2' = cogent_globnn ()
+         and v' = if v' then v1' else v2'
+         and err' { cont = p0' } = v'
+         and v' = p0'
+         and () = ()
+         in v'
+      in (3, v')
+   in r'
+cogent_tn64nl : () -> U32
+cogent_tn64nl () =
+   let (c'
+       , r') = let v' = let v' = cogent_frnl
+         and v' = v' ()
+         and v1' = cogent_frnl
+         and v1' = v1' ()
+         and v2' = cogent_frnn
+         and v2' = v2' ()
+         and v' = if v' then v1' else v2'
+         and err' { cont = p0' } = v'
+         and v' = p0'
+         and () = ()
+         in v'
+      in (3, v')
+   in r'
+
+-- Probe is an array element
+cogent_tn71nl : Cogent_nna3 -> ( MayNull (CPtr U32), Cogent_nna3 )
+cogent_tn71nl pnn =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v1' = 1
+         and v' = pnn
+         and (pnn @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and pnn = pnn @{ @i0' = p0' }
+         and v4' = cogent_globnn ()
+         and (v', pnn) = if v'
+            then let v3' = 1
+               and v2' = pnn
+               and (pnn @{ @v3' = p1' }
+                   , i1') = (v2', v3')
+               and v2' = p1'
+               and pnn = pnn @{ @i1' = p1' }
+               in (v2', pnn)
+            else (v4', pnn)
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn)
+cogent_tn71nn : Cogent_nna3 -> ( CPtr U32, Cogent_nna3 )
+cogent_tn71nn pnn =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v1' = 1
+         and v' = pnn
+         and (pnn @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and pnn = pnn @{ @i0' = p0' }
+         and v4' = cogent_globnn ()
+         and (v', pnn) = if v'
+            then let v3' = 1
+               and v2' = pnn
+               and (pnn @{ @v3' = p1' }
+                   , i1') = (v2', v3')
+               and v2' = p1'
+               and pnn = pnn @{ @i1' = p1' }
+               in (v2', pnn)
+            else (v4', pnn)
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn)
+cogent_tn72nl : Cogent_nna3 -> ( U32, Cogent_nna3 )
+cogent_tn72nl pnn =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v' = cogent_fcnl
+         and v2' = 1
+         and v1' = pnn
+         and (pnn @{ @v2' = p0' }
+             , i0') = (v1', v2')
+         and v1' = p0'
+         and pnn = pnn @{ @i0' = p0' }
+         and v5' = cogent_globnn ()
+         and (v1', pnn) = if v1'
+            then let v4' = 1
+               and v3' = pnn
+               and (pnn @{ @v4' = p1' }
+                   , i1') = (v3', v4')
+               and v3' = p1'
+               and pnn = pnn @{ @i1' = p1' }
+               in (v3', pnn)
+            else (v5', pnn)
+         and v' = v' v1'
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn)
+cogent_tn72nn : Cogent_nna3 -> ( U32, Cogent_nna3 )
+cogent_tn72nn pnn =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v' = cogent_fcnn
+         and v2' = 1
+         and v1' = pnn
+         and (pnn @{ @v2' = p0' }
+             , i0') = (v1', v2')
+         and v1' = p0'
+         and pnn = pnn @{ @i0' = p0' }
+         and v5' = cogent_globnn ()
+         and (v1', pnn) = if v1'
+            then let v4' = 1
+               and v3' = pnn
+               and (pnn @{ @v4' = p1' }
+                   , i1') = (v3', v4')
+               and v3' = p1'
+               and pnn = pnn @{ @i1' = p1' }
+               in (v3', pnn)
+            else (v5', pnn)
+         and v' = v' v1'
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn)
+cogent_tn73nl : ( Cogent_nna3, GlobState1 ) -> ( (), Cogent_nna3, GlobState1 )
+cogent_tn73nl (pnn, g) =
+   let (c', pnn, g) = let (v5'
+                          , pnn
+                          , g) = let v1' = 1
+         and v' = pnn
+         and (pnn @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and pnn = pnn @{ @i0' = p0' }
+         and v4' = cogent_globnn ()
+         and (v', pnn) = if v'
+            then let v3' = 1
+               and v2' = pnn
+               and (pnn @{ @v3' = p1' }
+                   , i1') = (v2', v3')
+               and v2' = p1'
+               and pnn = pnn @{ @i1' = p1' }
+               in (v2', pnn)
+            else (v4', pnn)
+         and v5' = g
+         and g { cont = p2' } = v5'
+         and v5' = p2'
+         and v5' = v'
+         and (v5', p2') = (v5', v5')
+         and g = g { cont = p2' }
+         in (v5', pnn, g)
+      in (0, pnn, g)
+   in ((), pnn, g)
+cogent_tn73nn : ( Cogent_nna3, GlobState2 ) -> ( (), Cogent_nna3, GlobState2 )
+cogent_tn73nn (pnn, g) =
+   let (c', pnn, g) = let (v5'
+                          , pnn
+                          , g) = let v1' = 1
+         and v' = pnn
+         and (pnn @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and pnn = pnn @{ @i0' = p0' }
+         and v4' = cogent_globnn ()
+         and (v', pnn) = if v'
+            then let v3' = 1
+               and v2' = pnn
+               and (pnn @{ @v3' = p1' }
+                   , i1') = (v2', v3')
+               and v2' = p1'
+               and pnn = pnn @{ @i1' = p1' }
+               in (v2', pnn)
+            else (v4', pnn)
+         and v5' = g
+         and g { cont = p2' } = v5'
+         and v5' = p2'
+         and v5' = v'
+         and (v5', p2') = (v5', v5')
+         and g = g { cont = p2' }
+         in (v5', pnn, g)
+      in (0, pnn, g)
+   in ((), pnn, g)
+cogent_tn74nl : ( Cogent_nna3, MayNull (CPtr U32) ) -> ( (), Cogent_nna3, MayNull (CPtr U32) )
+cogent_tn74nl (pnn, pnl) =
+   let (c', pnn, pnl) = let (v5'
+                            , pnn
+                            , pnl) = let v1' = 1
+         and v' = pnn
+         and (pnn @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and pnn = pnn @{ @i0' = p0' }
+         and v4' = cogent_globnn ()
+         and (v', pnn) = if v'
+            then let v3' = 1
+               and v2' = pnn
+               and (pnn @{ @v3' = p1' }
+                   , i1') = (v2', v3')
+               and v2' = p1'
+               and pnn = pnn @{ @i1' = p1' }
+               in (v2', pnn)
+            else (v4', pnn)
+         and v5' = pnl
+         and v5' = v'
+         and (v5', pnl) = (v5', v5')
+         in (v5', pnn, pnl)
+      in (0, pnn, pnl)
+   in ((), pnn, pnl)
+cogent_tn74nn : ( Cogent_nna3, CPtr U32 ) -> ( U32, Cogent_nna3, CPtr U32 )
+cogent_tn74nn (pnn, qnn) =
+   let (c', pnn, qnn, r') = let (c'
+                                , pnn
+                                , qnn) = let (v5'
+                                             , pnn
+                                             , qnn) = let v1' = 1
+            and v' = pnn
+            and (pnn @{ @v1' = p0' }
+                , i0') = (v', v1')
+            and v' = p0'
+            and pnn = pnn @{ @i0' = p0' }
+            and v4' = cogent_globnn ()
+            and (v', pnn) = if v'
+               then let v3' = 1
+                  and v2' = pnn
+                  and (pnn @{ @v3' = p1' }
+                      , i1') = (v2', v3')
+                  and v2' = p1'
+                  and pnn = pnn @{ @i1' = p1' }
+                  in (v2', pnn)
+               else (v4', pnn)
+            and v5' = qnn
+            and v5' = v'
+            and (v5', qnn) = (v5', v5')
+            in (v5', pnn, qnn)
+         in (0, pnn, qnn)
+      in if c' > 0
+         then (c', pnn, qnn, r')
+         else let (c', r', qnn) = let (v'
+                                      , qnn) = let v' = qnn
+                  and qnn { cont = p2' } = v'
+                  and v' = p2'
+                  and qnn = qnn { cont = p2' }
+                  in (v', qnn)
+               in (3, v', qnn)
+            in (c', pnn, qnn, r')
+   in (r', pnn, qnn)
+cogent_tn75nl : ( Cogent_nna3, MayNull (CPtr U32), U32 ) -> ( U32, Cogent_nna3, MayNull (CPtr U32) )
+cogent_tn75nl (pnn, qnl, i) =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v' = cogent_fcnn
+         and v1' = i
+         and v7' = qnl
+         and (v1', pnn) = if v1'
+            then let v3' = 1
+               and v2' = pnn
+               and (pnn @{ @v3' = p0' }
+                   , i0') = (v2', v3')
+               and v2' = p0'
+               and pnn = pnn @{ @i0' = p0' }
+               and v6' = cogent_globnn ()
+               and (v2', pnn) = if v2'
+                  then let v5' = 1
+                     and v4' = pnn
+                     and (pnn @{ @v5' = p1' }
+                         , i1') = (v4', v5')
+                     and v4' = p1'
+                     and pnn = pnn @{ @i1' = p1' }
+                     in (v4', pnn)
+                  else (v6', pnn)
+               in (v2', pnn)
+            else (v7', pnn)
+         and v' = v' v1'
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn, qnl)
+cogent_tn75nn : ( Cogent_nna3, CPtr U32, U32 ) -> ( U32, Cogent_nna3, CPtr U32 )
+cogent_tn75nn (pnn, qnn, i) =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v' = cogent_fcnn
+         and v1' = i
+         and v7' = qnn
+         and (v1', pnn) = if v1'
+            then let v3' = 1
+               and v2' = pnn
+               and (pnn @{ @v3' = p0' }
+                   , i0') = (v2', v3')
+               and v2' = p0'
+               and pnn = pnn @{ @i0' = p0' }
+               and v6' = cogent_globnn ()
+               and (v2', pnn) = if v2'
+                  then let v5' = 1
+                     and v4' = pnn
+                     and (pnn @{ @v5' = p1' }
+                         , i1') = (v4', v5')
+                     and v4' = p1'
+                     and pnn = pnn @{ @i1' = p1' }
+                     in (v4', pnn)
+                  else (v6', pnn)
+               in (v2', pnn)
+            else (v7', pnn)
+         and v' = v' v1'
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn, qnn)
+
+-- Probe used by accessing an array element
+cogent_tn81nl : ( Cogent_nna1, Cogent_nna1 ) -> ( U32, Cogent_nna1, Cogent_nna1 )
+cogent_tn81nl (pnl, qnn) =
+   let (c'
+       , r') = let v' = let v3' = 1
+         and v' = pnl
+         and v1' = pnl
+         and v2' = qnn
+         and v' = if v' then v1' else v2'
+         and (err' @{ @v3' = p0' }
+             , i0') = (v', v3')
+         and v' = p0'
+         and () = ()
+         in v'
+      in (3, v')
+   in (r', pnl, qnn)
+cogent_tn82nl : ( Cogent_nna4, Cogent_nna1 ) -> ( U32, Cogent_nna4, Cogent_nna1 )
+cogent_tn82nl (pnn, qnn) =
+   let (c', r', pnn) = let (v'
+                           , pnn) = let v5' = 1
+         and v1' = 1
+         and v' = pnn
+         and (pnn @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and pnn = pnn @{ @i0' = p0' }
+         and v4' = qnn
+         and (v', pnn) = if v'
+            then let v3' = 1
+               and v2' = pnn
+               and (pnn @{ @v3' = p1' }
+                   , i1') = (v2', v3')
+               and v2' = p1'
+               and pnn = pnn @{ @i1' = p1' }
+               in (v2', pnn)
+            else (v4', pnn)
+         and (err' @{ @v5' = p2' }
+             , i2') = (v', v5')
+         and v' = p2'
+         and () = ()
+         in (v', pnn)
+      in (3, v', pnn)
+   in (r', pnn, qnn)
+
+-- Probe assigned to struct component or array element
+cogent_tn91nl : ( Struct_Cogent_nns1, MayNull (CPtr U32), CPtr U32 ) -> ( (), Struct_Cogent_nns1, MayNull (CPtr U32), CPtr U32 )
+cogent_tn91nl (pnn, qnl, qnn) =
+   let (c', pnn) = let (v3'
+                       , pnn) = let v' = qnl
+         and v1' = qnl
+         and v2' = qnn
+         and v' = if v' then v1' else v2'
+         and v3' = pnn
+         and pnn { mnl = p0' } = v3'
+         and v3' = p0'
+         and v3' = v'
+         and (v3', p0') = (v3', v3')
+         and pnn = pnn { mnl = p0' }
+         in (v3', pnn)
+      in (0, pnn)
+   in ((), pnn, qnl, qnn)
+cogent_tn91nn : ( Struct_Cogent_nns1, MayNull (CPtr U32), CPtr U32 ) -> ( (), Struct_Cogent_nns1, MayNull (CPtr U32), CPtr U32 )
+cogent_tn91nn (pnn, qnl, qnn) =
+   let (c', pnn) = let (v3'
+                       , pnn) = let v' = qnl
+         and v1' = qnl
+         and v2' = qnn
+         and v' = if v' then v1' else v2'
+         and v3' = pnn
+         and pnn { mnn = p0' } = v3'
+         and v3' = p0'
+         and v3' = v'
+         and (v3', p0') = (v3', v3')
+         and pnn = pnn { mnn = p0' }
+         in (v3', pnn)
+      in (0, pnn)
+   in ((), pnn, qnl, qnn)
+cogent_tn92nl : ( Cogent_nna3, MayNull (CPtr U32), CPtr U32 ) -> ( (), Cogent_nna3, MayNull (CPtr U32), CPtr U32 )
+cogent_tn92nl (pnl, qnl, qnn) =
+   let (c', pnl) = let (v3'
+                       , pnl) = let v' = qnl
+         and v1' = qnl
+         and v2' = qnn
+         and v' = if v' then v1' else v2'
+         and v4' = 1
+         and v3' = pnl
+         and (pnl @{ @v4' = p0' }
+             , i0') = (v3', v4')
+         and v3' = p0'
+         and v3' = v'
+         and (v3', p0') = (v3', v3')
+         and pnl = pnl @{ @i0' = p0' }
+         in (v3', pnl)
+      in (0, pnl)
+   in ((), pnl, qnl, qnn)
+cogent_tn92nn : ( Cogent_nna2, MayNull (CPtr U32), CPtr U32 ) -> ( (), Cogent_nna2, MayNull (CPtr U32), CPtr U32 )
+cogent_tn92nn (pnl, qnl, qnn) =
+   let (c', pnl) = let (v3'
+                       , pnl) = let v' = qnl
+         and v1' = qnl
+         and v2' = qnn
+         and v' = if v' then v1' else v2'
+         and v4' = 1
+         and v3' = pnl
+         and (pnl @{ @v4' = p0' }
+             , i0') = (v3', v4')
+         and v3' = p0'
+         and v3' = v'
+         and (v3', p0') = (v3', v3')
+         and pnl = pnl @{ @i0' = p0' }
+         in (v3', pnl)
+      in (0, pnl)
+   in ((), pnl, qnl, qnn)
+
+-- Using MayNull values after NULL-test in statement.
+
+-- Direct use of probe in context
+cogent_sn11nl : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
+cogent_sn11nl pnl =
+   let (c', r') = let v' = pnl
+      in if v'
+         then let (c'
+                  , r') = let v' = let v' = cogent_fcnl
+                  and v1' = pnl
+                  and v' = v' v1'
+                  in v'
+               in (3, v')
+            in (c', r')
+         else let (c', r') = let v' = 0
+               in (3, v')
+            in (c', r')
+   in (r', pnl)
+cogent_sn11nn : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
+cogent_sn11nn pnl =
+   let (c', r') = let v' = pnl
+      in if v'
+         then let (c'
+                  , r') = let v' = let v' = cogent_fcnn
+                  and v1' = pnl
+                  and v' = v' v1'
+                  in v'
+               in (3, v')
+            in (c', r')
+         else let (c', r') = let v' = 0
+               in (3, v')
+            in (c', r')
+   in (r', pnl)
+cogent_sn12nl : () -> U32
+cogent_sn12nl () =
+   let (c'
+       , r') = let v' = cogent_globnl ()
+      in if v'
+         then let (c'
+                  , r') = let v' = let v' = cogent_fcnl
+                  and v1' = cogent_globnl ()
+                  and v' = v' v1'
+                  in v'
+               in (3, v')
+            in (c', r')
+         else let (c', r') = let v' = 0
+               in (3, v')
+            in (c', r')
+   in r'
+cogent_sn12nn : () -> U32
+cogent_sn12nn () =
+   let (c'
+       , r') = let v' = cogent_globnl ()
+      in if v'
+         then let (c'
+                  , r') = let v' = let v' = cogent_fcnn
+                  and v1' = cogent_globnl ()
+                  and v' = v' v1'
+                  in v'
+               in (3, v')
+            in (c', r')
+         else let (c', r') = let v' = 0
+               in (3, v')
+            in (c', r')
+   in r'
+cogent_sn13nl : () -> U32
+cogent_sn13nl () =
+   let (c'
+       , r') = let v' = let v' = cogent_frnl
+         and v' = v' ()
+         in v'
+      in if v'
+         then let (c'
+                  , r') = let v' = let v' = cogent_fcnl
+                  and v1' = cogent_frnl
+                  and v1' = v1' ()
+                  and v' = v' v1'
+                  in v'
+               in (3, v')
+            in (c', r')
+         else let (c', r') = let v' = 0
+               in (3, v')
+            in (c', r')
+   in r'
+cogent_sn13nn : () -> U32
+cogent_sn13nn () =
+   let (c'
+       , r') = let v' = let v' = cogent_frnl
+         and v' = v' ()
+         in v'
+      in if v'
+         then let (c'
+                  , r') = let v' = let v' = cogent_fcnn
+                  and v1' = cogent_frnl
+                  and v1' = v1' ()
+                  and v' = v' v1'
+                  in v'
+               in (3, v')
+            in (c', r')
+         else let (c', r') = let v' = 0
+               in (3, v')
+            in (c', r')
+   in r'
+cogent_sn14nl : ( MayNull (CPtr U32), CPtr U32, U32 ) -> ( U32, MayNull (CPtr U32), CPtr U32 )
+cogent_sn14nl (pnl, qnn, i) =
+   let (c', r') = let v' = pnl
+      in if v'
+         then let (c'
+                  , r') = let v' = let v' = cogent_fcnl
+                  and v1' = i
+                  and v2' = pnl
+                  and v3' = qnn
+                  and v1' = if v1'
+                     then v2'
+                     else v3'
+                  and v' = v' v1'
+                  in v'
+               in (3, v')
+            in (c', r')
+         else let (c', r') = let v' = 0
+               in (3, v')
+            in (c', r')
+   in (r', pnl, qnn)
+cogent_sn14nn : ( MayNull (CPtr U32), CPtr U32, U32 ) -> ( U32, MayNull (CPtr U32), CPtr U32 )
+cogent_sn14nn (pnl, qnn, i) =
+   let (c', r') = let v' = pnl
+      in if v'
+         then let (c'
+                  , r') = let v' = let v' = cogent_fcnn
+                  and v1' = i
+                  and v2' = pnl
+                  and v3' = qnn
+                  and v1' = if v1'
+                     then v2'
+                     else v3'
+                  and v' = v' v1'
+                  in v'
+               in (3, v')
+            in (c', r')
+         else let (c', r') = let v' = 0
+               in (3, v')
+            in (c', r')
+   in (r', pnl, qnn)
+
+-- Probe assigned to variable
+cogent_sn21nl : ( MayNull (CPtr U32), GlobState1 ) -> ( (), MayNull (CPtr U32), GlobState1 )
+cogent_sn21nl (qnl, g) =
+   let (c', g) = let v' = qnl
+      in if v'
+         then let (c', g) = let (v1'
+                                , g) = let v' = qnl
+                  and v1' = g
+                  and g { cont = p0' } = v1'
+                  and v1' = p0'
+                  and v1' = v'
+                  and (v1', p0') = (v1', v1')
+                  and g = g { cont = p0' }
+                  in (v1', g)
+               in (0, g)
+            in (c', g)
+         else let c' = 0
+            in (c', g)
+   in ((), qnl, g)
+cogent_sn21nn : ( MayNull (CPtr U32), GlobState2 ) -> ( (), MayNull (CPtr U32), GlobState2 )
+cogent_sn21nn (qnl, g) =
+   let (c', g) = let v' = qnl
+      in if v'
+         then let (c', g) = let (v1'
+                                , g) = let v' = qnl
+                  and v1' = g
+                  and g { cont = p0' } = v1'
+                  and v1' = p0'
+                  and v1' = v'
+                  and (v1', p0') = (v1', v1')
+                  and g = g { cont = p0' }
+                  in (v1', g)
+               in (0, g)
+            in (c', g)
+         else let c' = 0
+            in (c', g)
+   in ((), qnl, g)
+cogent_sn22nl : ( MayNull (CPtr U32), MayNull (CPtr U32) ) -> ( (), MayNull (CPtr U32), MayNull (CPtr U32) )
+cogent_sn22nl (pnl, qnl) =
+   let (c', pnl) = let v' = qnl
+      in if v'
+         then let (c', pnl) = let (v1'
+                                  , pnl) = let v' = qnl
+                  and v1' = pnl
+                  and v1' = v'
+                  and (v1', pnl) = (v1', v1')
+                  in (v1', pnl)
+               in (0, pnl)
+            in (c', pnl)
+         else let c' = 0
+            in (c', pnl)
+   in ((), pnl, qnl)
+cogent_sn22nn : ( MayNull (CPtr U32), MayNull (CPtr U32) ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32) )
+cogent_sn22nn (pnn, qnl) =
+   let (c', pnn, r') = let (c'
+                           , pnn) = let v' = qnl
+         in if v'
+            then let (c', pnn) = let (v1'
+                                     , pnn) = let v' = qnl
+                     and v1' = pnn
+                     and v1' = v'
+                     and (v1', pnn) = (v1', v1')
+                     in (v1', pnn)
+                  in (0, pnn)
+               in (c', pnn)
+            else let c' = 0
+               in (c', pnn)
+      in if c' > 0
+         then (c', pnn, r')
+         else let (c', r', pnn) = let (v'
+                                      , pnn) = let v' = pnn
+                  and pnn { cont = p0' } = v'
+                  and v' = p0'
+                  and pnn = pnn { cont = p0' }
+                  in (v', pnn)
+               in (3, v', pnn)
+            in (c', pnn, r')
+   in (r', pnn, qnl)
+
+-- Probe returned as result
+cogent_sn31nl : ( MayNull (CPtr U32), CPtr U32 ) -> ( MayNull (CPtr U32), MayNull (CPtr U32), CPtr U32 )
+cogent_sn31nl (qnl, qnn) =
+   let (c', r') = let v' = qnl
+      in if v'
+         then let (c', r') = let v' = qnl
+               in (3, v')
+            in (c', r')
+         else let (c', r') = let v' = qnn
+               in (3, v')
+            in (c', r')
+   in (r', qnl, qnn)
+cogent_sn31nn : ( MayNull (CPtr U32), CPtr U32 ) -> ( CPtr U32, MayNull (CPtr U32), CPtr U32 )
+cogent_sn31nn (qnl, qnn) =
+   let (c', r') = let v' = qnl
+      in if v'
+         then let (c', r') = let v' = qnl
+               in (3, v')
+            in (c', r')
+         else let (c', r') = let v' = qnn
+               in (3, v')
+            in (c', r')
+   in (r', qnl, qnn)
+
+-- Probe is a struct component
+cogent_sn51nl : Struct_Cogent_nns1 -> ( MayNull (CPtr U32), Struct_Cogent_nns1 )
+cogent_sn51nl pnn =
+   let (c', pnn, r') = let (v'
+                           , pnn) = let v' = pnn
+         and pnn { mnl = p0' } = v'
+         and v' = p0'
+         and pnn = pnn { mnl = p0' }
+         in (v', pnn)
+      in if v'
+         then let (c', r', pnn) = let (v'
+                                      , pnn) = let v' = pnn
+                  and pnn { mnl = p1' } = v'
+                  and v' = p1'
+                  and pnn = pnn { mnl = p1' }
+                  in (v', pnn)
+               in (3, v', pnn)
+            in (c', pnn, r')
+         else let (c', r', pnn) = let (v'
+                                      , pnn) = let v' = pnn
+                  and pnn { mnn = p2' } = v'
+                  and v' = p2'
+                  and pnn = pnn { mnn = p2' }
+                  in (v', pnn)
+               in (3, v', pnn)
+            in (c', pnn, r')
+   in (r', pnn)
+cogent_sn51nn : Struct_Cogent_nns1 -> ( CPtr U32, Struct_Cogent_nns1 )
+cogent_sn51nn pnn =
+   let (c', pnn, r') = let (v'
+                           , pnn) = let v' = pnn
+         and pnn { mnl = p0' } = v'
+         and v' = p0'
+         and pnn = pnn { mnl = p0' }
+         in (v', pnn)
+      in if v'
+         then let (c', r', pnn) = let (v'
+                                      , pnn) = let v' = pnn
+                  and pnn { mnl = p1' } = v'
+                  and v' = p1'
+                  and pnn = pnn { mnl = p1' }
+                  in (v', pnn)
+               in (3, v', pnn)
+            in (c', pnn, r')
+         else let (c', r', pnn) = let (v'
+                                      , pnn) = let v' = pnn
+                  and pnn { mnn = p2' } = v'
+                  and v' = p2'
+                  and pnn = pnn { mnn = p2' }
+                  in (v', pnn)
+               in (3, v', pnn)
+            in (c', pnn, r')
+   in (r', pnn)
+cogent_sn52nl : Struct_Cogent_nns1 -> ( U32, Struct_Cogent_nns1 )
+cogent_sn52nl pnn =
+   let (c', pnn, r') = let (v'
+                           , pnn) = let v' = pnn
+         and pnn { mnl = p0' } = v'
+         and v' = p0'
+         and pnn = pnn { mnl = p0' }
+         in (v', pnn)
+      in if v'
+         then let (c', r', pnn) = let (v'
+                                      , pnn) = let v' = cogent_fcnl
+                  and v1' = pnn
+                  and pnn { mnl = p1' } = v1'
+                  and v1' = p1'
+                  and pnn = pnn { mnl = p1' }
+                  and v' = v' v1'
+                  in (v', pnn)
+               in (3, v', pnn)
+            in (c', pnn, r')
+         else let (c', r') = let v' = 0
+               in (3, v')
+            in (c', pnn, r')
+   in (r', pnn)
+cogent_sn52nn : Struct_Cogent_nns1 -> ( U32, Struct_Cogent_nns1 )
+cogent_sn52nn pnn =
+   let (c', pnn, r') = let (v'
+                           , pnn) = let v' = pnn
+         and pnn { mnl = p0' } = v'
+         and v' = p0'
+         and pnn = pnn { mnl = p0' }
+         in (v', pnn)
+      in if v'
+         then let (c', r', pnn) = let (v'
+                                      , pnn) = let v' = cogent_fcnn
+                  and v1' = pnn
+                  and pnn { mnl = p1' } = v1'
+                  and v1' = p1'
+                  and pnn = pnn { mnl = p1' }
+                  and v' = v' v1'
+                  in (v', pnn)
+               in (3, v', pnn)
+            in (c', pnn, r')
+         else let (c', r') = let v' = 0
+               in (3, v')
+            in (c', pnn, r')
+   in (r', pnn)
+cogent_sn53nl : ( Struct_Cogent_nns1, GlobState1 ) -> ( (), Struct_Cogent_nns1, GlobState1 )
+cogent_sn53nl (pnn, g) =
+   let (c', pnn, g) = let (v'
+                          , pnn) = let v' = pnn
+         and pnn { mnl = p0' } = v'
+         and v' = p0'
+         and pnn = pnn { mnl = p0' }
+         in (v', pnn)
+      in if v'
+         then let (c', pnn, g) = let (v1'
+                                     , pnn
+                                     , g) = let v' = pnn
+                  and pnn { mnl = p1' } = v'
+                  and v' = p1'
+                  and pnn = pnn { mnl = p1' }
+                  and v1' = g
+                  and g { cont = p2' } = v1'
+                  and v1' = p2'
+                  and v1' = v'
+                  and (v1', p2') = (v1', v1')
+                  and g = g { cont = p2' }
+                  in (v1', pnn, g)
+               in (0, pnn, g)
+            in (c', pnn, g)
+         else let c' = 0
+            in (c', pnn, g)
+   in ((), pnn, g)
+cogent_sn53nn : ( Struct_Cogent_nns1, GlobState2 ) -> ( (), Struct_Cogent_nns1, GlobState2 )
+cogent_sn53nn (pnn, g) =
+   let (c', pnn, g) = let (v'
+                          , pnn) = let v' = pnn
+         and pnn { mnl = p0' } = v'
+         and v' = p0'
+         and pnn = pnn { mnl = p0' }
+         in (v', pnn)
+      in if v'
+         then let (c', pnn, g) = let (v1'
+                                     , pnn
+                                     , g) = let v' = pnn
+                  and pnn { mnl = p1' } = v'
+                  and v' = p1'
+                  and pnn = pnn { mnl = p1' }
+                  and v1' = g
+                  and g { cont = p2' } = v1'
+                  and v1' = p2'
+                  and v1' = v'
+                  and (v1', p2') = (v1', v1')
+                  and g = g { cont = p2' }
+                  in (v1', pnn, g)
+               in (0, pnn, g)
+            in (c', pnn, g)
+         else let c' = 0
+            in (c', pnn, g)
+   in ((), pnn, g)
+cogent_sn54nl : ( Struct_Cogent_nns1, MayNull (CPtr U32) ) -> ( (), Struct_Cogent_nns1, MayNull (CPtr U32) )
+cogent_sn54nl (pnn, pnl) =
+   let (c', pnn, pnl) = let (v'
+                            , pnn) = let v' = pnn
+         and pnn { mnl = p0' } = v'
+         and v' = p0'
+         and pnn = pnn { mnl = p0' }
+         in (v', pnn)
+      in if v'
+         then let (c'
+                  , pnn
+                  , pnl) = let (v1'
+                               , pnn
+                               , pnl) = let v' = pnn
+                  and pnn { mnl = p1' } = v'
+                  and v' = p1'
+                  and pnn = pnn { mnl = p1' }
+                  and v1' = pnl
+                  and v1' = v'
+                  and (v1', pnl) = (v1', v1')
+                  in (v1', pnn, pnl)
+               in (0, pnn, pnl)
+            in (c', pnn, pnl)
+         else let c' = 0
+            in (c', pnn, pnl)
+   in ((), pnn, pnl)
+cogent_sn54nn : ( Struct_Cogent_nns1, CPtr U32 ) -> ( U32, Struct_Cogent_nns1, CPtr U32 )
+cogent_sn54nn (pnn, qnn) =
+   let (c', pnn, qnn, r') = let (c'
+                                , pnn
+                                , qnn) = let (v'
+                                             , pnn) = let v' = pnn
+            and pnn { mnl = p0' } = v'
+            and v' = p0'
+            and pnn = pnn { mnl = p0' }
+            in (v', pnn)
+         in if v'
+            then let (c'
+                     , pnn
+                     , qnn) = let (v1'
+                                  , pnn
+                                  , qnn) = let v' = pnn
+                     and pnn { mnl = p1' } = v'
+                     and v' = p1'
+                     and pnn = pnn { mnl = p1' }
+                     and v1' = qnn
+                     and v1' = v'
+                     and (v1', qnn) = (v1', v1')
+                     in (v1', pnn, qnn)
+                  in (0, pnn, qnn)
+               in (c', pnn, qnn)
+            else let c' = 0
+               in (c', pnn, qnn)
+      in if c' > 0
+         then (c', pnn, qnn, r')
+         else let (c', r', qnn) = let (v'
+                                      , qnn) = let v' = qnn
+                  and qnn { cont = p2' } = v'
+                  and v' = p2'
+                  and qnn = qnn { cont = p2' }
+                  in (v', qnn)
+               in (3, v', qnn)
+            in (c', pnn, qnn, r')
+   in (r', pnn, qnn)
+cogent_sn55nl : ( Struct_Cogent_nns1, MayNull (CPtr U32), U32 ) -> ( U32, Struct_Cogent_nns1, MayNull (CPtr U32) )
+cogent_sn55nl (pnn, qnl, i) =
+   let (c', pnn, r') = let (v'
+                           , pnn) = let v' = pnn
+         and pnn { mnl = p0' } = v'
+         and v' = p0'
+         and pnn = pnn { mnl = p0' }
+         in (v', pnn)
+      in if v'
+         then let (c', r', pnn) = let (v'
+                                      , pnn) = let v' = cogent_fcnn
+                  and v1' = i
+                  and v3' = qnl
+                  and (v1', pnn) = if v1'
+                     then let v2' = pnn
+                        and pnn { mnl = p1' } = v2'
+                        and v2' = p1'
+                        and pnn = pnn { mnl = p1' }
+                        in (v2', pnn)
+                     else (v3', pnn)
+                  and v' = v' v1'
+                  in (v', pnn)
+               in (3, v', pnn)
+            in (c', pnn, r')
+         else let c' = 0
+            in (c', pnn, r')
+   in (r', pnn, qnl)
+cogent_sn55nn : ( Struct_Cogent_nns1, CPtr U32, U32 ) -> ( U32, Struct_Cogent_nns1, CPtr U32 )
+cogent_sn55nn (pnn, qnn, i) =
+   let (c', pnn, r') = let (v'
+                           , pnn) = let v' = pnn
+         and pnn { mnl = p0' } = v'
+         and v' = p0'
+         and pnn = pnn { mnl = p0' }
+         in (v', pnn)
+      in if v'
+         then let (c', r', pnn) = let (v'
+                                      , pnn) = let v' = cogent_fcnn
+                  and v1' = i
+                  and v3' = qnn
+                  and (v1', pnn) = if v1'
+                     then let v2' = pnn
+                        and pnn { mnl = p1' } = v2'
+                        and v2' = p1'
+                        and pnn = pnn { mnl = p1' }
+                        in (v2', pnn)
+                     else (v3', pnn)
+                  and v' = v' v1'
+                  in (v', pnn)
+               in (3, v', pnn)
+            in (c', pnn, r')
+         else let c' = 0
+            in (c', pnn, r')
+   in (r', pnn, qnn)
+
+-- Probe used by accessing a struct component or pointer deref
+cogent_sn61nl : MayNull Struct_Cogent_nns1 -> ( U32, MayNull Struct_Cogent_nns1 )
+cogent_sn61nl pnl =
+   let (c', r', pnl) = let v' = pnl
+      in if v'
+         then let (c', r', pnl) = let (v'
+                                      , pnl) = let v' = pnl
+                  and pnl { mrg = p0' } = v'
+                  and v' = p0'
+                  and pnl = pnl { mrg = p0' }
+                  in (v', pnl)
+               in (3, v', pnl)
+            in (c', r', pnl)
+         else let (c', r') = let v' = 0
+               in (3, v')
+            in (c', r', pnl)
+   in (r', pnl)
+cogent_sn62nl : MayNull Struct_Cogent_nns2 -> ( U32, MayNull Struct_Cogent_nns2 )
+cogent_sn62nl pnn =
+   let (c', pnn, r') = let (v'
+                           , pnn) = let v' = pnn
+         and pnn { snl = p0' } = v'
+         and v' = p0'
+         and pnn = pnn { snl = p0' }
+         in (v', pnn)
+      in if v'
+         then let (c', r', pnn) = let (v'
+                                      , pnn) = let v' = pnn
+                  and pnn { snl = p1' } = v'
+                  and v' = p1'
+                  and p1' { mrg = p2' } = v'
+                  and v' = p2'
+                  and p1' = p1' { mrg = p2' }
+                  and pnn = pnn { snl = p1' }
+                  in (v', pnn)
+               in (3, v', pnn)
+            in (c', pnn, r')
+         else let (c', r') = let v' = 0
+               in (3, v')
+            in (c', pnn, r')
+   in (r', pnn)
+cogent_sn63nl : () -> U32
+cogent_sn63nl () =
+   let (c'
+       , r') = let v' = cogent_globnl ()
+      in if v'
+         then let (c'
+                  , r') = let v' = let v' = cogent_globnl ()
+                  and err' { cont = p0' } = v'
+                  and v' = p0'
+                  and () = ()
+                  in v'
+               in (3, v')
+            in (c', r')
+         else let (c', r') = let v' = 0
+               in (3, v')
+            in (c', r')
+   in r'
+cogent_sn64nl : () -> U32
+cogent_sn64nl () =
+   let (c'
+       , r') = let v' = let v' = cogent_frnl
+         and v' = v' ()
+         in v'
+      in if v'
+         then let (c'
+                  , r') = let v' = let v' = cogent_frnl
+                  and v' = v' ()
+                  and err' { cont = p0' } = v'
+                  and v' = p0'
+                  and () = ()
+                  in v'
+               in (3, v')
+            in (c', r')
+         else let (c', r') = let v' = 0
+               in (3, v')
+            in (c', r')
+   in r'
+
+-- Probe is an array element
+cogent_sn71nl : Cogent_nna3 -> ( MayNull (CPtr U32), Cogent_nna3 )
+cogent_sn71nl pnn =
+   let (c', pnn, r') = let (v'
+                           , pnn) = let v1' = 1
+         and v' = pnn
+         and (pnn @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and pnn = pnn @{ @i0' = p0' }
+         in (v', pnn)
+      in if v'
+         then let (c', r', pnn) = let (v'
+                                      , pnn) = let v1' = 1
+                  and v' = pnn
+                  and (pnn @{ @v1' = p1' }
+                      , i1') = (v', v1')
+                  and v' = p1'
+                  and pnn = pnn @{ @i1' = p1' }
+                  in (v', pnn)
+               in (3, v', pnn)
+            in (c', pnn, r')
+         else let (c'
+                  , r') = let v' = cogent_globnn ()
+               in (3, v')
+            in (c', pnn, r')
+   in (r', pnn)
+cogent_sn71nn : Cogent_nna3 -> ( CPtr U32, Cogent_nna3 )
+cogent_sn71nn pnn =
+   let (c', pnn, r') = let (v'
+                           , pnn) = let v1' = 1
+         and v' = pnn
+         and (pnn @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and pnn = pnn @{ @i0' = p0' }
+         in (v', pnn)
+      in if v'
+         then let (c', r', pnn) = let (v'
+                                      , pnn) = let v1' = 1
+                  and v' = pnn
+                  and (pnn @{ @v1' = p1' }
+                      , i1') = (v', v1')
+                  and v' = p1'
+                  and pnn = pnn @{ @i1' = p1' }
+                  in (v', pnn)
+               in (3, v', pnn)
+            in (c', pnn, r')
+         else let (c'
+                  , r') = let v' = cogent_globnn ()
+               in (3, v')
+            in (c', pnn, r')
+   in (r', pnn)
+cogent_sn72nl : Cogent_nna3 -> ( U32, Cogent_nna3 )
+cogent_sn72nl pnn =
+   let (c', pnn, r') = let (v'
+                           , pnn) = let v1' = 1
+         and v' = pnn
+         and (pnn @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and pnn = pnn @{ @i0' = p0' }
+         in (v', pnn)
+      in if v'
+         then let (c', r', pnn) = let (v'
+                                      , pnn) = let v' = cogent_fcnl
+                  and v2' = 1
+                  and v1' = pnn
+                  and (pnn @{ @v2' = p1' }
+                      , i1') = (v1', v2')
+                  and v1' = p1'
+                  and pnn = pnn @{ @i1' = p1' }
+                  and v' = v' v1'
+                  in (v', pnn)
+               in (3, v', pnn)
+            in (c', pnn, r')
+         else let (c', r') = let v' = 0
+               in (3, v')
+            in (c', pnn, r')
+   in (r', pnn)
+cogent_sn72nn : Cogent_nna3 -> ( U32, Cogent_nna3 )
+cogent_sn72nn pnn =
+   let (c', pnn, r') = let (v'
+                           , pnn) = let v1' = 1
+         and v' = pnn
+         and (pnn @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and pnn = pnn @{ @i0' = p0' }
+         in (v', pnn)
+      in if v'
+         then let (c', r', pnn) = let (v'
+                                      , pnn) = let v' = cogent_fcnn
+                  and v2' = 1
+                  and v1' = pnn
+                  and (pnn @{ @v2' = p1' }
+                      , i1') = (v1', v2')
+                  and v1' = p1'
+                  and pnn = pnn @{ @i1' = p1' }
+                  and v' = v' v1'
+                  in (v', pnn)
+               in (3, v', pnn)
+            in (c', pnn, r')
+         else let (c', r') = let v' = 0
+               in (3, v')
+            in (c', pnn, r')
+   in (r', pnn)
+cogent_sn73nl : ( Cogent_nna3, GlobState1 ) -> ( (), Cogent_nna3, GlobState1 )
+cogent_sn73nl (pnn, g) =
+   let (c', pnn, g) = let (v'
+                          , pnn) = let v1' = 1
+         and v' = pnn
+         and (pnn @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and pnn = pnn @{ @i0' = p0' }
+         in (v', pnn)
+      in if v'
+         then let (c', pnn, g) = let (v2'
+                                     , pnn
+                                     , g) = let v1' = 1
+                  and v' = pnn
+                  and (pnn @{ @v1' = p1' }
+                      , i1') = (v', v1')
+                  and v' = p1'
+                  and pnn = pnn @{ @i1' = p1' }
+                  and v2' = g
+                  and g { cont = p2' } = v2'
+                  and v2' = p2'
+                  and v2' = v'
+                  and (v2', p2') = (v2', v2')
+                  and g = g { cont = p2' }
+                  in (v2', pnn, g)
+               in (0, pnn, g)
+            in (c', pnn, g)
+         else let c' = 0
+            in (c', pnn, g)
+   in ((), pnn, g)
+cogent_sn73nn : ( Cogent_nna3, GlobState2 ) -> ( (), Cogent_nna3, GlobState2 )
+cogent_sn73nn (pnn, g) =
+   let (c', pnn, g) = let (v'
+                          , pnn) = let v1' = 1
+         and v' = pnn
+         and (pnn @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and pnn = pnn @{ @i0' = p0' }
+         in (v', pnn)
+      in if v'
+         then let (c', pnn, g) = let (v2'
+                                     , pnn
+                                     , g) = let v1' = 1
+                  and v' = pnn
+                  and (pnn @{ @v1' = p1' }
+                      , i1') = (v', v1')
+                  and v' = p1'
+                  and pnn = pnn @{ @i1' = p1' }
+                  and v2' = g
+                  and g { cont = p2' } = v2'
+                  and v2' = p2'
+                  and v2' = v'
+                  and (v2', p2') = (v2', v2')
+                  and g = g { cont = p2' }
+                  in (v2', pnn, g)
+               in (0, pnn, g)
+            in (c', pnn, g)
+         else let c' = 0
+            in (c', pnn, g)
+   in ((), pnn, g)
+cogent_sn74nl : ( Cogent_nna3, MayNull (CPtr U32) ) -> ( (), Cogent_nna3, MayNull (CPtr U32) )
+cogent_sn74nl (pnn, pnl) =
+   let (c', pnn, pnl) = let (v'
+                            , pnn) = let v1' = 1
+         and v' = pnn
+         and (pnn @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and pnn = pnn @{ @i0' = p0' }
+         in (v', pnn)
+      in if v'
+         then let (c'
+                  , pnn
+                  , pnl) = let (v2'
+                               , pnn
+                               , pnl) = let v1' = 1
+                  and v' = pnn
+                  and (pnn @{ @v1' = p1' }
+                      , i1') = (v', v1')
+                  and v' = p1'
+                  and pnn = pnn @{ @i1' = p1' }
+                  and v2' = pnl
+                  and v2' = v'
+                  and (v2', pnl) = (v2', v2')
+                  in (v2', pnn, pnl)
+               in (0, pnn, pnl)
+            in (c', pnn, pnl)
+         else let c' = 0
+            in (c', pnn, pnl)
+   in ((), pnn, pnl)
+cogent_sn74nn : ( Cogent_nna3, CPtr U32 ) -> ( U32, Cogent_nna3, CPtr U32 )
+cogent_sn74nn (pnn, qnn) =
+   let (c', pnn, qnn, r') = let (c'
+                                , pnn
+                                , qnn) = let (v'
+                                             , pnn) = let v1' = 1
+            and v' = pnn
+            and (pnn @{ @v1' = p0' }
+                , i0') = (v', v1')
+            and v' = p0'
+            and pnn = pnn @{ @i0' = p0' }
+            in (v', pnn)
+         in if v'
+            then let (c'
+                     , pnn
+                     , qnn) = let (v2'
+                                  , pnn
+                                  , qnn) = let v1' = 1
+                     and v' = pnn
+                     and (pnn @{ @v1' = p1' }
+                         , i1') = (v', v1')
+                     and v' = p1'
+                     and pnn = pnn @{ @i1' = p1' }
+                     and v2' = qnn
+                     and v2' = v'
+                     and (v2', qnn) = (v2', v2')
+                     in (v2', pnn, qnn)
+                  in (0, pnn, qnn)
+               in (c', pnn, qnn)
+            else let c' = 0
+               in (c', pnn, qnn)
+      in if c' > 0
+         then (c', pnn, qnn, r')
+         else let (c', r', qnn) = let (v'
+                                      , qnn) = let v' = qnn
+                  and qnn { cont = p2' } = v'
+                  and v' = p2'
+                  and qnn = qnn { cont = p2' }
+                  in (v', qnn)
+               in (3, v', qnn)
+            in (c', pnn, qnn, r')
+   in (r', pnn, qnn)
+cogent_sn75nl : ( Cogent_nna3, MayNull (CPtr U32), U32 ) -> ( U32, Cogent_nna3, MayNull (CPtr U32) )
+cogent_sn75nl (pnn, qnl, i) =
+   let (c', pnn, r') = let (v'
+                           , pnn) = let v1' = 1
+         and v' = pnn
+         and (pnn @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and pnn = pnn @{ @i0' = p0' }
+         in (v', pnn)
+      in if v'
+         then let (c', r', pnn) = let (v'
+                                      , pnn) = let v' = cogent_fcnn
+                  and v1' = i
+                  and v4' = qnl
+                  and (v1', pnn) = if v1'
+                     then let v3' = 1
+                        and v2' = pnn
+                        and (pnn @{ @v3' = p1' }
+                            , i1') = (v2', v3')
+                        and v2' = p1'
+                        and pnn = pnn @{ @i1' = p1' }
+                        in (v2', pnn)
+                     else (v4', pnn)
+                  and v' = v' v1'
+                  in (v', pnn)
+               in (3, v', pnn)
+            in (c', pnn, r')
+         else let c' = 0
+            in (c', pnn, r')
+   in (r', pnn, qnl)
+cogent_sn75nn : ( Cogent_nna3, CPtr U32, U32 ) -> ( U32, Cogent_nna3, CPtr U32 )
+cogent_sn75nn (pnn, qnn, i) =
+   let (c', pnn, r') = let (v'
+                           , pnn) = let v1' = 1
+         and v' = pnn
+         and (pnn @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and pnn = pnn @{ @i0' = p0' }
+         in (v', pnn)
+      in if v'
+         then let (c', r', pnn) = let (v'
+                                      , pnn) = let v' = cogent_fcnn
+                  and v1' = i
+                  and v4' = qnn
+                  and (v1', pnn) = if v1'
+                     then let v3' = 1
+                        and v2' = pnn
+                        and (pnn @{ @v3' = p1' }
+                            , i1') = (v2', v3')
+                        and v2' = p1'
+                        and pnn = pnn @{ @i1' = p1' }
+                        in (v2', pnn)
+                     else (v4', pnn)
+                  and v' = v' v1'
+                  in (v', pnn)
+               in (3, v', pnn)
+            in (c', pnn, r')
+         else let c' = 0
+            in (c', pnn, r')
+   in (r', pnn, qnn)
+
+-- Probe used by accessing an array element
+cogent_sn81nl : Cogent_nna1 -> ( U32, Cogent_nna1 )
+cogent_sn81nl pnl =
+   let (c', r', pnl) = let v' = pnl
+      in if v'
+         then let (c', r', pnl) = let (v'
+                                      , pnl) = let v1' = 1
+                  and v' = pnl
+                  and (pnl @{ @v1' = p0' }
+                      , i0') = (v', v1')
+                  and v' = p0'
+                  and pnl = pnl @{ @i0' = p0' }
+                  in (v', pnl)
+               in (3, v', pnl)
+            in (c', r', pnl)
+         else let (c', r') = let v' = 0
+               in (3, v')
+            in (c', r', pnl)
+   in (r', pnl)
+cogent_sn82nl : Cogent_nna4 -> ( U32, Cogent_nna4 )
+cogent_sn82nl pnn =
+   let (c', pnn, r') = let (v'
+                           , pnn) = let v1' = 1
+         and v' = pnn
+         and (pnn @{ @v1' = p0' }
+             , i0') = (v', v1')
+         and v' = p0'
+         and pnn = pnn @{ @i0' = p0' }
+         in (v', pnn)
+      in if v'
+         then let (c', r', pnn) = let (v'
+                                      , pnn) = let v2' = 1
+                  and v1' = 1
+                  and v' = pnn
+                  and (pnn @{ @v1' = p1' }
+                      , i1') = (v', v1')
+                  and v' = p1'
+                  and (p1' @{ @v2' = p2' }
+                      , i2') = (v', v2')
+                  and v' = p2'
+                  and p1' = p1' @{ @i2' = p2' }
+                  and pnn = pnn @{ @i1' = p1' }
+                  in (v', pnn)
+               in (3, v', pnn)
+            in (c', pnn, r')
+         else let (c', r') = let v' = 0
+               in (3, v')
+            in (c', pnn, r')
+   in (r', pnn)
+
+-- Probe assigned to struct component or array element
+cogent_sn91nl : ( Struct_Cogent_nns1, MayNull (CPtr U32) ) -> ( (), Struct_Cogent_nns1, MayNull (CPtr U32) )
+cogent_sn91nl (pnn, qnl) =
+   let (c', pnn) = let v' = qnl
+      in if v'
+         then let (c', pnn) = let (v1'
+                                  , pnn) = let v' = qnl
+                  and v1' = pnn
+                  and pnn { mnl = p0' } = v1'
+                  and v1' = p0'
+                  and v1' = v'
+                  and (v1', p0') = (v1', v1')
+                  and pnn = pnn { mnl = p0' }
+                  in (v1', pnn)
+               in (0, pnn)
+            in (c', pnn)
+         else let c' = 0
+            in (c', pnn)
+   in ((), pnn, qnl)
+cogent_sn91nn : ( Struct_Cogent_nns1, MayNull (CPtr U32) ) -> ( (), Struct_Cogent_nns1, MayNull (CPtr U32) )
+cogent_sn91nn (pnn, qnl) =
+   let (c', pnn) = let v' = qnl
+      in if v'
+         then let (c', pnn) = let (v1'
+                                  , pnn) = let v' = qnl
+                  and v1' = pnn
+                  and pnn { mnn = p0' } = v1'
+                  and v1' = p0'
+                  and v1' = v'
+                  and (v1', p0') = (v1', v1')
+                  and pnn = pnn { mnn = p0' }
+                  in (v1', pnn)
+               in (0, pnn)
+            in (c', pnn)
+         else let c' = 0
+            in (c', pnn)
+   in ((), pnn, qnl)
+cogent_sn92nl : ( Cogent_nna3, MayNull (CPtr U32) ) -> ( (), Cogent_nna3, MayNull (CPtr U32) )
+cogent_sn92nl (pnl, qnl) =
+   let (c', pnl) = let v' = qnl
+      in if v'
+         then let (c', pnl) = let (v1'
+                                  , pnl) = let v' = qnl
+                  and v2' = 1
+                  and v1' = pnl
+                  and (pnl @{ @v2' = p0' }
+                      , i0') = (v1', v2')
+                  and v1' = p0'
+                  and v1' = v'
+                  and (v1', p0') = (v1', v1')
+                  and pnl = pnl @{ @i0' = p0' }
+                  in (v1', pnl)
+               in (0, pnl)
+            in (c', pnl)
+         else let c' = 0
+            in (c', pnl)
+   in ((), pnl, qnl)
+cogent_sn92nn : ( Cogent_nna2, MayNull (CPtr U32) ) -> ( (), Cogent_nna2, MayNull (CPtr U32) )
+cogent_sn92nn (pnl, qnl) =
+   let (c', pnl) = let v' = qnl
+      in if v'
+         then let (c', pnl) = let (v1'
+                                  , pnl) = let v' = qnl
+                  and v2' = 1
+                  and v1' = pnl
+                  and (pnl @{ @v2' = p0' }
+                      , i0') = (v1', v2')
+                  and v1' = p0'
+                  and v1' = v'
+                  and (v1', p0') = (v1', v1')
+                  and pnl = pnl @{ @i0' = p0' }
+                  in (v1', pnl)
+               in (0, pnl)
+            in (c', pnl)
+         else let c' = 0
+            in (c', pnl)
+   in ((), pnl, qnl)

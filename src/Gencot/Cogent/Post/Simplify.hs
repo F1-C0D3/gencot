@@ -128,7 +128,7 @@ type MatchMap = M.Map GenIrrefPatn (Int,GenExpr)
 substMatches :: MatchMap -> [GenBnd] -> ExprOfGE -> ([GenBnd],ExprOfGE)
 substMatches m bs bdy | null m = (bs,bdy)
 substMatches m [] bdy = ([],substMatchesE m bdy)
-substMatches m ((Binding ipp Nothing ep []) : bs) bdy =
+substMatches m ((Binding ipp Nothing ep _) : bs) bdy =
     (Binding ipp'' Nothing ep'' [] : bs',bdy')
     where (_,ep') = substMatches m [] $ exprOfGE ep
           ep'' = mapExprOfGE (const ep') ep
@@ -183,8 +183,9 @@ removeMatches vs m =
 -- During matching the binding may be split by splitting the pattern and the corresponding expression.
 -- The result is a map from subpatterns to subexpressions and the number of matches. 
 -- If the number is -1 the subpattern cannot be substituted and must be retained in the original binding.
+-- Banged variables in a binding are suppressed by freeUnderBinding.
 findMatches :: GenIrrefPatn -> GenExpr -> [GenBnd] -> ExprOfGE -> MatchMap
-findMatches ip e bs@((Binding ipp Nothing ep []) : bs') bdy =
+findMatches ip e bs@((Binding ipp Nothing ep _) : bs') bdy =
     if isUnitPattern ip'
        then M.empty
        else combineMatches [msp, msi, ms1, ms2]
@@ -194,7 +195,6 @@ findMatches ip e bs@((Binding ipp Nothing ep []) : bs') bdy =
           ((ip1,e1),(ip2,e2)) = splitBinding (freeInIrrefPatn ipp) ip' e'
           ms1 = findMatches ip1 e1 bs' bdy
           ms2 = retainOrDrop $ findMatches ip2 e2 bs' bdy
-findMatches _ _ (b : _) _ = error ("unexpected binding in letproc/findMatches: " ++ (show b))
 findMatches ip e [] bdy = 
     if isUnitPattern ip'
        then M.empty

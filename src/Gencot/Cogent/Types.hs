@@ -229,8 +229,8 @@ mkMayNull t = mkConstrType mapMayNull [t] noSigil
 ------------------
 
 isSizedArrayType :: GenType -> Bool
-isSizedArrayType (GenType (CS.TRecord NonRec [(_,((GenType (CS.TArray _ _ _ _) _ _),_))] _) _ (Just syn)) =
-    isArrDeriv syn
+isSizedArrayType (GenType (CS.TRecord NonRec [(f,((GenType (CS.TArray _ _ _ _) _ _),_))] _) _ (Just _)) =
+    isArrDerivComp f
 isSizedArrayType _ = False
 
 isUnsizedArrayType :: GenType -> Bool
@@ -338,14 +338,21 @@ roCmpTypes _ _ = False
 
 
 -- Type selectors for components affected by making the type readonly.
--- Insert TBang marker, if surrounding type is readonly
+-- Adjust to boxed, if unboxed array type
+-- Make readonly, if container type is readonly
+
+mkCmpType :: GCSigil -> GenType -> GenType
+mkCmpType s t =
+    let t' = if isUnboxedArrayType t then getBoxType t else t
+    in if readonly s then mkReadonly t' else t'
 
 -- Type of field, unitType if type does not have that field (or any field)
+-- Unboxed array types are adjusted to boxed.
 getMemberType :: CCS.FieldName -> GenType -> GenType
 getMemberType f (GenType (CS.TRecord _ fs s) _ _) =
     case find (\fld -> fst fld == f) fs of
          Nothing -> unitType
-         Just (_,(t,_)) -> if readonly s then mkReadonly t else t
+         Just (_,(t,_)) -> mkCmpType s t
 -- maynull wrapped type
 getMemberType f (GenType (CS.TCon n [t] _) _ _) | n == mapMayNull = getMemberType f t
 -- other types -> unitType
@@ -368,14 +375,14 @@ getDerefType :: GenType -> GenType
 getDerefType (GenType (CS.TCon n [] _) _ _) | n == mapPtrVoid = unitType
 -- explicit pointer (may have arbitrary type synonym)
 getDerefType (GenType (CS.TRecord NonRec [(f,(t,_))] s) _ (Just _))
-    | f == ptrDerivCompName = if readonly s then mkReadonly t else t
+    | f == ptrDerivCompName = mkCmpType s t
 -- maynull wrapped type
 getDerefType (GenType (CS.TCon n [t] _) _ _) | n == mapMayNull = getDerefType t
 -- array types -> element type
 getDerefType (GenType (CS.TRecord NonRec [(f,((GenType (CS.TArray t _ _ _) _ _),_))] s) _ (Just _))
-    | isArrDerivComp f = if readonly s then mkReadonly t else t
+    | isArrDerivComp f = mkCmpType s t
 getDerefType (GenType (CS.TCon n [t] s) _ _) | isArrDeriv n && not (arrDerivHasSize n) =
-    if readonly s then mkReadonly t else t
+    mkCmpType s t
 -- other types -> make unboxed
 getDerefType t = mkUnboxed t
 
@@ -408,7 +415,8 @@ adaptTypes t1 t2 | isStringType t2 = t2
 adaptTypes t1 t2 | isBoolType t1 = t1
 adaptTypes t1 t2 | isBoolType t2 = t2
 -- Readonly and linear is adapted to readonly
-adaptTypes t1 t2 | not $ roCmpTypes t1 t2 =
+adaptTypes t1 t2 | (not $ roCmpTypes t1 t2)
+    && (not (isReadonly t1 && isReadonly t2)) = -- security check to prevent endless recursion
     adaptTypes (mkReadonly t1) (mkReadonly t2)
 -- With and without MayNull is adapted to MayNull
 adaptTypes t1 t2 | isMayNull t1 /= isMayNull t2 =

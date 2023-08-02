@@ -87,6 +87,7 @@ tupleVars ip =
     case irpatnOfGIP ip of
          CS.PVar v -> [TV v $ typOfGIP ip]
          CS.PUnderscore -> [TV "_" $ typOfGIP ip]
+         CS.PUnitel -> []
          CS.PTuple pvs -> concat $ map tupleVars pvs
          CS.PTake v fs -> (TV v $ typOfGIP ip) : (concat $ map (tupleVars . snd) $ catMaybes fs)
          CS.PArrayTake v fs -> (TV v $ typOfGIP ip) : (concat $ map (tupleVars . snd) fs)
@@ -188,9 +189,10 @@ mkMemExprBinds n f bp =
           ct = getMemberType f rt
           cmp = TV (cmpVar n) ct
           rv = lvalVar bp
+          rv' = if isErrVar rv then TV errVar rt else rv
           vc = TV vnam ct
           mainbp = addBinding (mkVarBinding vc $ mkVarExpr cmp) $
-                     addBinding (mkBinding (mkRecTakePattern rv cmp f) $ mkVarExpr vv) bp
+                     addBinding (mkBinding (mkRecTakePattern rv' cmp f) $ mkVarExpr vv) bp
 
 -- | Array access (<v> @{@v<l>’=r<k>’},i<k>') = (v<n>',v<l>') and v<n>’ = r<k>’
 --   with putback <v> = <v> @{@i<k>'=r<k>’}
@@ -203,9 +205,10 @@ mkIdxExprBinds n bp1 bp2 =
           cmp = TV (cmpVar n) et
           idx = TV (idxVar n) it
           rv = lvalVar bp1
+          rv' = if isErrVar rv then TV errVar at else rv
           vc = TV vnam et
           mainbp = addBinding (mkVarBinding vc $ mkVarExpr cmp) $
-                     addBinding (mkBinding (mkArrTakePattern rv cmp idx v2) $ mkVarTupleExpr [v1,v2]) $ concatExprBinds [bp2,bp1]
+                     addBinding (mkBinding (mkArrTakePattern rv' cmp idx v2) $ mkVarTupleExpr [v1,v2]) $ concatExprBinds [bp2,bp1]
 
 -- | Pointer dereference, always <v>{cont=r<k>’} = v<n>' and v<n>’ = r<k>’
 --   with putback <v> = <v>{cont=r<k>’}
@@ -218,9 +221,10 @@ mkDerefExprBinds n bp =
           ct = getDerefType rt
           cmp = TV (cmpVar n) ct
           rv = lvalVar bp
+          rv' = if isErrVar rv then TV errVar rt else rv
           vres = TV vnam ct
           mainbp = addBinding (mkVarBinding vres $ mkVarExpr cmp) $
-                     addBinding (mkBinding (mkRecTakePattern rv cmp f) $ mkVarExpr vv) bp
+                     addBinding (mkBinding (mkRecTakePattern rv' cmp f) $ mkVarExpr vv) bp
 
 -- | Operator application v<n>' = op [bp...]
 mkOpExprBinds :: GenType -> CCS.OpName -> [ExprBinds] -> ExprBinds

@@ -38,24 +38,32 @@ int f5(void) { return fx(17,'x',4); }
 
 struct s1 { int m1, m2; };
 struct s2 { int m3; struct s1 m4; };
+struct s3 { int m5; int m6[5]; };
 int fs1(struct s1 s) { return s.m1; }
 int fs2(struct s1 s) { return s.m1 + s.m2; }
 int fs3(struct s2 s) { return s.m4.m1; }
 int fs4(struct s2 s) { return s.m4.m1 + s.m4.m2 + s.m3; }
+int fs5(struct s3 s) { return s.m6[1]; }
+int fs6(struct s3 s) { return s.m6[1] + s.m6[3] + s.m5; }
 
 typedef int a1[5];
 typedef struct s1 a2[5];
+typedef int a3[5][4];
 int fa1(a1 a) { return a[3]; }
 int fa2(a1 a) { return a[3] + a[1]; }
 int fa3(a1 a) { return a[a[2]]; }
 int fa4(a2 a) { return a[3].m1; }
 int fa5(a2 a) { return a[a[2].m2].m1; }
+int fa6(a3 a) { return a[3][2]; }
+int fa7(a3 a) { return a[a[2][1]][3]; }
 
-struct s3 { int m5; struct s1 *m6; };
-typedef int *a3[5];
+struct s4 { int m5; struct s1 *m6; };
+typedef int *a4[5];
+typedef int (*a5)[5];
 int fp1(int *p) { return *p; }
 int fp2(struct s1 *p) { return (*p).m1; }
 int fp3(struct s1 *p) { return p->m1; }
-int fp4(struct s3 *p) { return (*p->m6).m1; }
-int fp5(struct s3 *p) { return p->m6->m1; }
-int fp6(a3 p) { return *(p[3]); }
+int fp4(struct s4 *p) { return (*p->m6).m1; }
+int fp5(struct s4 *p) { return p->m6->m1; }
+int fp6(a4 p) { return *(p[3]); }
+int fp7(a5 p) { return (*p)[3]; }

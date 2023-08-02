@@ -1033,10 +1033,8 @@ bindExpr e@(LC.CVar nam _) = do
                      if null pn
                         then do
                             recordError $ noParam e ("for accessing " ++ (LCI.identToString nam))
-                            return $ mkDummyExprBinds cnt (if isArrayType pt then pt else getDerefType pt)
+                            return $ mkDummyExprBinds cnt (getDerefType pt)
                                         ("Cannot access global variable: " ++ (LCI.identToString nam))
-                        else if isArrayType pt
-                        then return $ mkValVarExprBinds cnt $ TV pn pt
                         else do
                             cntp <- getCmpCounter
                             return $ joinPutbacks (mkDerefExprBinds cntp $ mkValVarExprBinds cnt $ TV pn pt) [(mkDerefPutBinding cntp $ TV pn pt)]
@@ -1185,7 +1183,7 @@ bindComponent e@(LC.CVar nam _) = do
                   let pdes = searchGlobalStateParamDesc fdes (gs,ptyp)
                       pt = typeOfParamDesc pdes
                       pn = nameOfParamDesc pdes
-                  if null pn || isArrayType pt
+                  if null pn
                      then bindExprAsComponent e
                      else do
                          cnt <- getValCounter
@@ -1297,7 +1295,6 @@ makeGlobalStateParamDesc ((iid,noro), gs) = do
 -- The second argument is the variable's GlobalState property
 -- The result is the translated pointer type to the variable's type without MayNull
 -- and with GlobalState type synonym added.
--- If the variable has an array type this is correct because transType ignores the pointer
 mkGlobalStateParamType :: ItemAssocType -> String -> FTrav GenType
 mkGlobalStateParamType iat gs = do
     typ <- transType $ adjustItemAssocType iat

@@ -987,11 +987,6 @@ Section~\ref{design-types-itemprops}) is inspected, if it is declared for an ite
 
 A C pointer type may also result from ``adjusting'' an array type used as type for a function parameter. In this case Gencot
 assumes that the actual parameter is never \code{NULL} and omits \code{MayNull} in the mapped type of the parameter.
-As described in Section~\ref{design-types-array} Gencot also translates an array type for a global variable to a linear
-type of the form \code{CArr<size> El} for the Global-State parameters. Since the variable is statically defined, the pointer
-passed as parameter cannot be \code{NULL} and Gencot also omits \code{MayNull} in this case. Together, whenever Gencot maps an array type
-to the linear form \code{CArr<size> El} it omits \code{MayNull}. If, however, Gencot maps a pointer to an array to the 
-same form, it applies \code{MayNull} if not prevented by the Not-Null item property.
 
 So together we have the basic mapping rules for pointer types:
 \begin{verbatim}

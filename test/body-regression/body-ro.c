@@ -225,6 +225,11 @@ int n22ro(int *pro) { pro = NULL; return *pro; }
 int *n31ln(void) { return NULL; }
 int *n31ro(void) { return NULL; }
 
+// Using NULL twice
+int n41lnln(void) { return fcln(NULL) + fcln(NULL); }
+int n42lnro(void) { return fcln(NULL) + fcro(NULL); }
+int n43roro(void) { return fcro(NULL) + fcro(NULL); }
+
 // NULL assigned to struct component or array element
 void n91ln(struct ros1 *pln) { pln->mln = NULL; }
 void n91ro(struct ros1 *pln) { pln->mro = NULL; }

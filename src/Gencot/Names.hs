@@ -179,6 +179,10 @@ isFunDeriv _ = False
 mapMayNull :: String
 mapMayNull = "MayNull"
 
+-- Translation of NULL preprocessor constant.
+mapNull :: String
+mapNull = "cogent_NULL"
+
 mapUboxStep = "U_"
 rmUboxStep ('U' : '_' : rest) = rest
 rmUboxStep nam = nam

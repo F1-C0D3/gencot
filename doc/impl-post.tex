@@ -584,8 +584,12 @@ If not successful it removes bindings from the end of the sequence and tries the
 single first binding in the sequence. If that also causes errors it is used as it is, then the rest of the sequence is processed
 in the same way. In this way all possible subsequences are tried as bang scopes.
 
-
-
+Occurrences of \code{NULL} must be treated in a special way. They are syntactically translated by Gencot to a reference to a
+variable \code{Cogent\_NULL} of type \code{MayNull CVoidPtr}. Instead of banging this variable, the type of every single
+occurrence may be converted to readonly type, if necessary. This is implemented by temporarily renaming every occurrence of
+\code{Cogent\_NULL} to \code{Cogent<n>\_NULL} where \code{<n>} is a unique number. The heuristics then adds all instances
+with a readonly type clash to the source variables collected for banging as usual. Thus their types and that of all variables
+with them as source are converted to readonly. For the actual banging these variables are omitted.
 
 Postprocessing for readonly processing is implemented by the monadic action
 \begin{verbatim}

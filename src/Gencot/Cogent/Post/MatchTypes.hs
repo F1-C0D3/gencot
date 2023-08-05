@@ -1,17 +1,19 @@
 {-# LANGUAGE PackageImports #-}
 module Gencot.Cogent.Post.MatchTypes where
 
-import Data.List (intercalate,concatMap,nub,intersect,union,(\\),partition,find,zipWith,zip3, zip4)
+import Data.Char (isDigit)
+import Data.List (intercalate,concatMap,isPrefixOf,nub,intersect,union,(\\),partition,find,zipWith,zip3, zip4)
 import qualified Data.Map as M
 import Data.Maybe (catMaybes,isNothing,isJust)
 import Data.Foldable (toList)
 
 import Language.C.Data.Error
-import Language.C.Analysis as LCA (Trav,recordError,modifyUserState)
+import Language.C.Analysis as LCA (Trav,recordError,getUserState,modifyUserState)
 
 import Cogent.Surface as CS
 import Cogent.Common.Syntax as CCS
 
+import Gencot.Names (mapNull)
 import Gencot.Cogent.Ast
 import Gencot.Cogent.Error (typeMatch)
 import Gencot.Cogent.Types (
@@ -105,7 +107,36 @@ isPutExpr _ = [False]
 {----------------------------------}
 
 bangproc :: GenExpr -> ETrav GenExpr
-bangproc e = mapMExprOfGE bangproc' e
+bangproc e = do
+    (eN,_,_) <- runExprTrav 0 $ mkNullUnique e
+    eN' <- bangprocN eN
+    reNullUnique eN'
+
+mkNullUnique :: GenExpr -> Trav Int GenExpr
+mkNullUnique e = mapMExprOfGE mkNullUnique' e
+
+mkNullUnique' :: ExprOfGE -> Trav Int ExprOfGE
+mkNullUnique' (CS.Var v) | v == mapNull = do
+    n <- getUserState
+    modifyUserState (\n -> n+1)
+    return (CS.Var $ uniqueNull n)
+mkNullUnique' e = mapM mkNullUnique e
+
+uniqueNull :: Int -> String
+uniqueNull n = "cogent" ++ (show n) ++ "_NULL"
+
+isUniqueNull :: String -> Bool
+isUniqueNull s = "cogent" `isPrefixOf` s && (dropWhile isDigit $ drop 6 s) == "_NULL"
+
+reNullUnique :: GenExpr -> ETrav GenExpr
+reNullUnique e = mapMExprOfGE reNullUnique' e
+
+reNullUnique' :: ExprOfGE -> ETrav ExprOfGE
+reNullUnique' (CS.Var v) | isUniqueNull v = return (CS.Var mapNull)
+reNullUnique' e = mapM reNullUnique e
+
+bangprocN :: GenExpr -> ETrav GenExpr
+bangprocN e = mapMExprOfGE bangproc' e
 
 -- | Resolve readonly type incompatibilities by banging variables or using dummy expressions with error messages.
 -- Banging is possible in conditions of conditional expressions and in bindings.
@@ -115,16 +146,16 @@ bangproc e = mapMExprOfGE bangproc' e
 bangproc' :: ExprOfGE -> ETrav ExprOfGE
 bangproc' (CS.Let bs bdy) = do
     bsb <- bangprocInBindings bs [] $ freeTypedVarsInExpr bdy
-    bdyp <- bangproc bdy
+    bdyp <- bangprocN bdy
     return $ CS.Let bsb bdyp
 bangproc' (CS.If e [] e1 e2) = do
     (eb,bvs,errs) <- runExprTrav [] $ bangprocExpr e
     -- type of eb is always escapeable because it is boolean
     mapM recordError errs
-    e1p <- bangproc e1
-    e2p <- bangproc e2
+    e1p <- bangprocN e1
+    e2p <- bangprocN e2
     return $ CS.If eb bvs e1p e2p
-bangproc' e = mapM bangproc e
+bangproc' e = mapM bangprocN e
 
 -- | Resolve readonly type incompatibilities in a binding sequence by banging sub-sequences.
 -- For banging variables, maximal sub-sequences are banged for which the type of the results used in the rest of the sequence is escapeable.
@@ -146,10 +177,9 @@ bangprocInBindings [CS.Binding ip m e []] br fvs = do
            brb <- bangprocInBindings br [] fvs
            let (ibs,ebs) = matchRoTypes (typOfGIP ipr) (typOfGE ebr)
                msgp = if null bvs then "" else "After banging variable(s)"
-           ebreb <- markLinearAsError msgp ebs ebr
+           ebreb <- markLinearAsError msgp (null bvs) ebs ebr
            (ebrebb,_,errs2) <- runExprTrav [] $ markReadonlyAsError ibs (typOfGIP ipr) ebreb
            mapM recordError errs2
-           --ebrebbb <- bangproc ebrebb
            return ((CS.Binding ipr m ebrebb bvs) : brb)
        else do -- not successful for single binding. Record error and generate non-escapeable banging.
            mapM recordError errs
@@ -278,27 +308,32 @@ unmodifiedInReducedPattern v (GenIrrefPatn (CS.PVar pv) _ _) = v /= pv
 unmodifiedInReducedPattern v _ = True
 
 
--- | Replace some subexpressions of linear type by dummy expressions.
+-- | Replace some subexpressions of linear type by dummy expressions or convert NULL to readonly.
 -- The first argument is a string to be prepended to the error messages.
--- The second argument is a boolean vector specifying the tuple components to be replaced,
+-- If the second argument is True, convert NULL expressions to readonly instead of error.
+-- The third argument is a boolean vector specifying the tuple components to be replaced,
 -- if the expression is seen as a tuple.
-markLinearAsError :: String -> [Bool] -> GenExpr -> ETrav GenExpr
-markLinearAsError _ bools e | not $ or bools = return e
-markLinearAsError msgp [True] e = do
-    recordError $ typeMatch (orgOfGE e) msg
-    return $ toDummyExpr e $ mkDummyExpr t msg
+markLinearAsError :: String -> Bool -> [Bool] -> GenExpr -> ETrav GenExpr
+markLinearAsError _ _ bools e | not $ or bools = return e
+markLinearAsError msgp cnvNull [True] e = do
+    (isn,en) <- tryConvertNull e
+    if cnvNull && isn
+       then return en
+       else do
+           recordError $ typeMatch (orgOfGE e) msg
+           return $ toDummyExpr e $ mkDummyExpr t msg
     where t = mkReadonly $ typOfGE e
           msgr = "inear expression used in readonly context"
           msg = if null msgp
                    then "L" ++ msgr
                    else msgp ++ " l" ++ msgr
-markLinearAsError msgp bools (GenExpr (CS.Tuple es) o t s) = do
-    esb <- mapM (\(b,e) -> markLinearAsError msgp [b] e) $ zip bools es
+markLinearAsError msgp cnvNull bools (GenExpr (CS.Tuple es) o t s) = do
+    esb <- mapM (\(b,e) -> markLinearAsError msgp cnvNull [b] e) $ zip bools es
     return $ GenExpr (CS.Tuple esb) o (mkTupleType (map typOfGE esb)) s
-markLinearAsError msgp bools (GenExpr (CS.Let bs bdy) o t s) = do
-    bdyb <- markLinearAsError msgp bools bdy
+markLinearAsError msgp cnvNull bools (GenExpr (CS.Let bs bdy) o t s) = do
+    bdyb <- markLinearAsError msgp cnvNull bools bdy
     return $ GenExpr (CS.Let bs bdyb) o (typOfGE bdyb) s
-markLinearAsError msgp bools e@(GenExpr (CS.App _ _ _) _ _ _) = do
+markLinearAsError msgp cnvNull bools e@(GenExpr (CS.App _ _ _) _ _ _) = do
     recordError $ typeMatch (orgOfGE e) msg
     return $ toDummyExpr e $ mkDummyExpr (mkReadonly $ typOfGE e) msg
     where poss = (show $ map snd $ filter fst $ zip bools (iterate (1 +) 1))
@@ -306,10 +341,24 @@ markLinearAsError msgp bools e@(GenExpr (CS.App _ _ _) _ _ _) = do
           msg = if null msgp
                    then "L" ++ msgr
                    else msgp ++ " l" ++ msgr
-markLinearAsError msgp bools (GenExpr (CS.If e0 bvs e1 e2) o t s) = do
-    e1b <- markLinearAsError msgp bools e1
-    e2b <- markLinearAsError msgp bools e2
+markLinearAsError msgp cnvNull bools (GenExpr (CS.If e0 bvs e1 e2) o t s) = do
+    e1b <- markLinearAsError msgp cnvNull bools e1
+    e2b <- markLinearAsError msgp cnvNull bools e2
     return $ GenExpr (CS.If e0 bvs e1b e2b) o (typOfGE e1b) s
+
+-- | If the expression evaluates to NULL, convert its type to readonly.
+-- The first result component is true, if conversion was successful.
+-- The expression has no tuple type.
+tryConvertNull :: GenExpr -> ETrav (Bool,GenExpr)
+tryConvertNull e = do
+      -- use changeLinToRoInExpr to determine the internal sources of e
+    (eb,bvs,errs) <- runExprTrav [] $ changeLinToRoInExpr M.empty [True] e
+    if (null errs) && (all isUniqueNull bvs) -- all linear sources in e are NULL
+       then do
+             -- use rslvRoDiffs to convert the sources to readonly
+           (eb',_,_) <- runExprTrav [] $ rslvRoDiffs bvs [] M.empty eb
+           return (True,eb')
+       else return (False, e)
 
 -- | Replace all occurrences of variables in a set by dummy expressions.
 bangToError :: [CCS.VarName] -> GenExpr -> GenExpr
@@ -324,7 +373,7 @@ bangToError' vs _ e = fmap (bangToError vs) e
 
 -- | Try to find variables which can be banged to resolve readonly type incompatibilities in an expression.
 -- If it is not possible to resolve all readonly type incompatibilities in this way,
--- and the expression contains bang positions, it is instead processed by bangproc to try the inner bang positions.
+-- and the expression contains bang positions, it is instead processed by bangprocN to try the inner bang positions.
 -- Otherwise in the monadic state a minimal set of variables is returned which must be banged.
 -- Remaining incompatibilities are resolved using dummy expressions, returning corresponding error messages in the monadic state.
 -- In the returned expressions all readonly type incompatibilities have been resolved.
@@ -333,12 +382,12 @@ bangprocExpr e = do
     (eb,bvs,errs) <- runExprTrav [] $ tryBangExpr e
     if (not $ null errs) && (hasInnerBangPositions $ exprOfGE e)
        then do
-           (ep,(),errp) <- runExprTrav () $ bangproc e -- try to bang only parts of e
+           (ep,(),errp) <- runExprTrav () $ bangprocN e -- try to bang only parts of e
            mapM recordError errp
            return ep
        else do
            mapM recordError errs
-           modifyUserState (\tvs -> union tvs bvs)
+           modifyUserState (\tvs -> union tvs $ filter (not . isUniqueNull) bvs)
            return eb
 
 -- | Does an expression contain syntactic possibilities for banging variables.

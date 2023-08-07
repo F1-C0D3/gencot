@@ -43,7 +43,7 @@ import Gencot.Cogent.Bindings (
   mkEmptyExprBinds, mkDummyExprBinds, mkUnitExprBinds, mkDefaultExprBinds,
   mkIntLitExprBinds, mkCharLitExprBinds, mkStringLitExprBinds, mkBoolLitExprBinds,
   mkValVarExprBinds, mkMemExprBinds, mkIdxExprBinds, mkOpExprBinds, mkConstAppExprBinds, mkAppExprBinds, mkAssExprBinds,
-  mkIfExprBinds, mkTupleExprBinds, mkDerefExprBinds, mkFunDerefExprBinds, concatExprBinds, joinPutbacks,
+  mkIfExprBinds, mkDerefExprBinds, mkFunDerefExprBinds, concatExprBinds, joinPutbacks,
   mkDummyBinding, mkRecPutBinding, mkArrPutBinding, mkDerefPutBinding,
   mkNullBinding, mkExpBinding, mkRetBinding, mkBreakBinding, mkContBinding,
   mkIfBinding, mkSwitchBinding, mkCaseBinding, mkSeqBinding, mkDecBinding, mkForBinding,
@@ -62,7 +62,7 @@ import Gencot.Traversal (
   runTravWithErrors,
   FTrav, markTagAsNested, isMarkedAsNested, hasProperty, getProperties, stopResolvTypeName,
   getFunDef, setFunDef, clrFunDef, enterItemScope, leaveItemScope, registerItemId, nextVarNum, resetVarNums,
-  getValCounter, getCmpCounter, resetVarCounters, resetValCounter, lookupGlobItem, getTConf)
+  getValCounter, getCmpCounter, resetVarCounters, lookupGlobItem, getTConf)
 import Gencot.Util.Types (
   carriedTypes, isExtern, isCompOrFunc, isCompPointer, isNamedFunPointer, isFunPointer, isPointer, isAggregate, isFunction, 
   isTypeDefRef, isComplete, isArray, isVoid, isTagRef, containsTypedefs, resolveTypedef, resolveAllTypedefs, isComposite,
@@ -753,7 +753,6 @@ bindStat :: LC.CStat -> FTrav GenBnd
 bindStat s@(LC.CExpr Nothing _) =
     insertStatSrc s mkNullBinding
 bindStat s@(LC.CExpr (Just e) _) = do
-    resetValCounter
     bpe <- bindExpr e
     insertStatSrc s $ mkExpBinding bpe
 bindStat s@(LC.CReturn Nothing _) = do
@@ -763,7 +762,6 @@ bindStat s@(LC.CReturn Nothing _) = do
 bindStat s@(LC.CReturn (Just e) _) = do
     fdes <- getContextFuncDesc
     let rt = getLeadType $ getResultType $ typeOfFuncDesc fdes
-    resetValCounter
     bpe <- bindExpr e
     insertStatSrc s $ mkRetBinding rt bpe
 bindStat s@(LC.CBreak _) =
@@ -782,19 +780,16 @@ bindStat s@(LC.CCompound lbls bis _) = do
     LCA.leaveBlockScope
     return res
 bindStat s@(LC.CIf e s1 Nothing _) = do
-    resetValCounter
     bpe <- bindExpr e
     bs1 <- bindStat s1
     let bs2 = mkNullBinding
     insertStatSrc s $ mkIfBinding bpe bs1 bs2
 bindStat s@(LC.CIf e s1 (Just s2) _) = do
-    resetValCounter
     bpe <- bindExpr e
     bs1 <- bindStat s1
     bs2 <- bindStat s2
     insertStatSrc s $ mkIfBinding bpe bs1 bs2
 bindStat s@(LC.CSwitch e s1 _) = do
-    resetValCounter
     bpe <- bindExpr e
     lbls <- getLabels s1
     bs <- bindSwitchBody s1 (length lbls)
@@ -815,7 +810,6 @@ bindStat s@(LC.CFor c1 me2 me3 s1 _) = do
          Right exprmax -> do
              LCA.enterBlockScope
              enterItemScope
-             resetValCounter
              bpm <- bindExpr exprmax
              bc1 <- case c1 of
                          Left (Just e1) -> do
@@ -852,7 +846,6 @@ bindSwitchBody s _ = do
 bindSwitchLabels :: [LC.CBlockItem] -> FTrav [Maybe ExprBinds]
 bindSwitchLabels [] = return []
 bindSwitchLabels ((LC.CBlockStmt (LC.CCase e _ _)) : bis) = do
-    resetValCounter
     bpe <- bindExpr e
     bs <- bindSwitchLabels bis
     return ((Just bpe) : bs)
@@ -960,7 +953,6 @@ bindDeclr (ss,a,tq,tsa,fs) (Just declr@(LC.CDeclr (Just nam) _ _ _ _),mi,me) = d
 
     -- LCA.tInit only checks the initializer, it is not needed here.
 
-    resetValCounter
     bp <- bindInit mi t
 
     -- this inserts the new variable into the symbol table, hence it must be done after processing mi by bindInit
@@ -1037,7 +1029,8 @@ bindExpr e@(LC.CVar nam _) = do
                                         ("Cannot access global variable: " ++ (LCI.identToString nam))
                         else do
                             cntp <- getCmpCounter
-                            return $ joinPutbacks (mkDerefExprBinds cntp $ mkValVarExprBinds cnt $ TV pn pt) [(mkDerefPutBinding cntp $ TV pn pt)]
+                            cntr <- getValCounter
+                            return $ joinPutbacks (mkDerefExprBinds cntr cntp $ mkValVarExprBinds cnt $ TV pn pt) [(mkDerefPutBinding cntp $ TV pn pt)]
           else return $ mkValVarExprBinds cnt $ TV v t
     insertExprSrc e bp
 bindExpr e@(LC.CMember _ _ _ _) = do
@@ -1050,22 +1043,25 @@ bindExpr e@(LC.CUnary LC.CIndOp e1 _) = do
     t <- exprType e1
     bp <- if isFunPointer t
              then do
+                 cnt <- getValCounter
                  bp1 <- bindExpr e1
                  iid <- getExprItemId e1
                  ft <- transType (refSubItemId iid, getDerefCType t)
-                 return $ mkFunDerefExprBinds ft bp1
+                 return $ mkFunDerefExprBinds cnt ft bp1
              else do
                  (bp, pb) <- bindComponent e
                  return $ joinPutbacks bp pb
     insertExprSrc e bp
 bindExpr e@(LC.CUnary LC.CNegOp e1 _) = do
     bp1 <- bindExpr e1
-    insertExprSrc e $ mkOpExprBinds mkBoolType (transUnOp LC.CNegOp) [bp1]
+    cnt <- getValCounter
+    insertExprSrc e $ mkOpExprBinds cnt mkBoolType (transUnOp LC.CNegOp) [bp1]
 bindExpr e@(LC.CUnary op e1 _) | elem op [LC.CPlusOp,LC.CMinOp,LC.CCompOp] = do
+    cnt <- getValCounter
     bp1 <- bindExpr e1
     ct <- exprType e
     t <- transType ("",ct)
-    insertExprSrc e $ mkOpExprBinds t (transUnOp op) [bp1]
+    insertExprSrc e $ mkOpExprBinds cnt t (transUnOp op) [bp1]
 bindExpr e@(LC.CUnary op e1 _) | elem op [LC.CPreIncOp,LC.CPreDecOp,LC.CPostIncOp,LC.CPostDecOp] = do
     ct1 <- exprType e1
     t1 <- transType ("",ct1)
@@ -1080,26 +1076,30 @@ bindExpr e@(LC.CBinary LC.CLndOp e1 e2 _) = do
     -- e1 && e2 -> if e1 then e2 else False
     bp1 <- bindExpr e1
     bp2 <- bindExpr e2
+    cntm <- getValCounter
+    let c0 = mkBoolLitExprBinds cntm False
     cnt <- getValCounter
-    let c0 = mkBoolLitExprBinds cnt False
-    insertExprSrc e $ mkIfExprBinds bp1 bp2 c0
+    insertExprSrc e $ mkIfExprBinds cnt bp1 bp2 c0
 bindExpr e@(LC.CBinary LC.CLorOp e1 e2 _) = do
     -- e1 || e2 -> if e1 then True else e2
     bp1 <- bindExpr e1
     bp2 <- bindExpr e2
+    cntm <- getValCounter
+    let c1 = mkBoolLitExprBinds cntm True
     cnt <- getValCounter
-    let c1 = mkBoolLitExprBinds cnt True
-    insertExprSrc e $ mkIfExprBinds bp1 c1 bp2
+    insertExprSrc e $ mkIfExprBinds cnt bp1 c1 bp2
 bindExpr e@(LC.CBinary op e1 e2 _) | elem op [LC.CLeOp, LC.CGrOp, LC.CLeqOp, LC.CGeqOp, LC.CEqOp, LC.CNeqOp] = do
     bp1 <- bindExpr e1
     bp2 <- bindExpr e2
-    insertExprSrc e $ mkOpExprBinds mkBoolType (transBinOp op) [bp1,bp2]
+    cnt <- getValCounter
+    insertExprSrc e $ mkOpExprBinds cnt mkBoolType (transBinOp op) [bp1,bp2]
 bindExpr e@(LC.CBinary op e1 e2 _) = do
     bp1 <- bindExpr e1
     bp2 <- bindExpr e2
     ct <- exprType e
     t <- transType ("",ct)
-    insertExprSrc e $ mkOpExprBinds t (transBinOp op) [bp1,bp2]
+    cnt <- getValCounter
+    insertExprSrc e $ mkOpExprBinds cnt t (transBinOp op) [bp1,bp2]
 bindExpr e@(LC.CCall f es _) = do
     fbp <- bindExpr f
     cft <- exprType f
@@ -1108,11 +1108,12 @@ bindExpr e@(LC.CCall f es _) = do
     fbp' <- if isFunPointer cft
                then do
                    ft <- transType (iid', cft')
-                   return $ mkFunDerefExprBinds ft fbp
+                   cntm <- getValCounter
+                   return $ mkFunDerefExprBinds cntm ft fbp
                else return fbp
     fd <- getFuncDesc (iid', cft')
     bps <- mapM bindExpr es
-    (pbps,rpat) <- processParamVals (leadVar fbp') fd bps
+    (pbps,rpat) <- processParamVals fd bps
     insertExprSrc e $ mkAppExprBinds fbp' rpat pbps
 bindExpr e@(LC.CAssign op e1 e2 _) = do
     bp2 <- bindExpr e2
@@ -1127,7 +1128,8 @@ bindExpr e@(LC.CCond e1 (Just e2) e3 _) = do
     bp1 <- bindExpr e1
     bp2 <- bindExpr e2
     bp3 <- bindExpr e3
-    insertExprSrc e $ mkIfExprBinds bp1 bp2 bp3
+    cnt <- getValCounter
+    insertExprSrc e $ mkIfExprBinds cnt bp1 bp2 bp3
 bindExpr e@(LC.CComma es _) = do
     bps <- mapM bindExpr es
     insertExprSrc e $ concatExprBinds bps
@@ -1146,7 +1148,9 @@ bindExpr e = do
 bindLvalue :: Bool -> (CCS.OpName, GenType) -> ExprBinds -> LC.CExpr -> FTrav ExprBinds
 bindLvalue post op rbp e = do
     (bp, pb) <- bindComponent e
-    return $ concatExprBinds [rbp, joinPutbacks (mkAssExprBinds post op rbp bp) pb]
+    cntm <- getValCounter
+    cnt <- getValCounter
+    return $ concatExprBinds [rbp, joinPutbacks (mkAssExprBinds cntm cnt post op rbp bp) pb]
 
 -- | Translate an expression to a pair of binding lists.
 -- The first list may contain take operations, then the second list contains the corresponding put operations.
@@ -1154,21 +1158,24 @@ bindComponent :: LC.CExpr -> FTrav (ExprBinds, [GenBnd])
 bindComponent e@(LC.CMember e1 nam arrow _) = do
     (bp1, pb1) <- bindComponent e1
     m <- mapIfUpper nam
-    cnt <- getCmpCounter
-    return $ (mkMemExprBinds cnt m bp1, (mkRecPutBinding cnt m $ lvalVar bp1) : pb1)
+    cntr <- getCmpCounter
+    cnt <- getValCounter
+    return $ (mkMemExprBinds cnt cntr m bp1, (mkRecPutBinding cntr m $ lvalVar bp1) : pb1)
 bindComponent e@(LC.CIndex e1 e2 _) = do
     (bp1, pb1) <- bindComponent e1
     bp2 <- bindExpr e2
-    cnt <- getCmpCounter
-    return $ (mkIdxExprBinds cnt bp1 bp2, (mkArrPutBinding cnt (leadVar bp2) $ lvalVar bp1) : pb1)
+    cntr <- getCmpCounter
+    cnt <- getValCounter
+    return $ (mkIdxExprBinds cnt cntr bp1 bp2, (mkArrPutBinding cntr (leadVar bp2) $ lvalVar bp1) : pb1)
 bindComponent e@(LC.CUnary LC.CIndOp e1 _) = do
     t <- exprType e1
     if isFunPointer t
        then bindExprAsComponent e
        else do
           (bp1, pb1) <- bindComponent e1
-          cnt <- getCmpCounter
-          return $ (mkDerefExprBinds cnt bp1, (mkDerefPutBinding cnt $ lvalVar bp1) : pb1)
+          cntr <- getCmpCounter
+          cnt <- getValCounter
+          return $ (mkDerefExprBinds cnt cntr bp1, (mkDerefPutBinding cntr $ lvalVar bp1) : pb1)
 bindComponent e@(LC.CVar nam _) = do
     ct <- exprType e
     iid <- getObjectItemId nam
@@ -1186,9 +1193,10 @@ bindComponent e@(LC.CVar nam _) = do
                   if null pn
                      then bindExprAsComponent e
                      else do
-                         cnt <- getValCounter
+                         cntm <- getValCounter
                          cntp <- getCmpCounter
-                         return $ (mkDerefExprBinds cntp $ mkValVarExprBinds cnt $ TV pn pt, [(mkDerefPutBinding cntp $ TV pn pt)])
+                         cnt <- getValCounter
+                         return $ (mkDerefExprBinds cnt cntp $ mkValVarExprBinds cntm $ TV pn pt, [(mkDerefPutBinding cntp $ TV pn pt)])
        else bindExprAsComponent e
 bindComponent e = bindExprAsComponent e
 
@@ -1389,11 +1397,10 @@ getVirtParamsFromContext fdes = do
     return (gspdes ++ hupdes ++ vrpdes)
 
 -- | Determine actual parameters as list of ExprBinds and pattern to bind the result of a function call.
--- The first argument is the variable to reuse for the function result
--- The second argument is the description of the invoked function.
--- The third argument is the list of translated C argument expressions.
-processParamVals :: TypedVar -> FuncDesc -> [ExprBinds] -> FTrav ([ExprBinds], GenIrrefPatn)
-processParamVals v fdes pvals = do
+-- The first argument is the description of the invoked function.
+-- The second argument is the list of translated C argument expressions.
+processParamVals :: FuncDesc -> [ExprBinds] -> FTrav ([ExprBinds], GenIrrefPatn)
+processParamVals fdes pvals = do
     -- construct ExprBindss for all virtual parameters
     vpds <- getVirtParamsFromContext fdes
     vpbps <- mapM (\pdes -> do
@@ -1406,10 +1413,11 @@ processParamVals v fdes pvals = do
                                   else return $ mkValVarExprBinds cnt $ getTypedVarFromParamDesc pdes) vpds
     let -- the list of all actual parameters
         allpbps = pvals ++ vpbps
+    cnt <- getValCounter
     let -- additional result variables
         arvars = map (lvalVar . fst) $ filter (\(_,pdes) -> isAddResultParam pdes) $ zip allpbps pdess
-        -- variable for original function result: reuse v
-        rvar = (TV (namOfTV v) rt)
+        -- variable for original function result:
+        rvar = (TV (valVar cnt) rt)
         -- pattern for binding the function result
         rpat = mkTuplePattern $ map mkVarPattern (rvar : arvars)
     return (allpbps, rpat)

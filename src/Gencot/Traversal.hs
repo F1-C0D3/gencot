@@ -155,9 +155,6 @@ resetVarNums = modifyUserState (\(s,npm,ntl,spl,tds,fdf,(ms,vn),cnt,gmap,tconf) 
 resetVarCounters :: FTrav ()
 resetVarCounters = modifyUserState (\(s,npm,ntl,spl,tds,fdf,idm,_,gmap,tconf) -> (s,npm,ntl,spl,tds,fdf,idm,(0,0),gmap,tconf))
 
-resetValCounter :: FTrav ()
-resetValCounter = modifyUserState (\(s,npm,ntl,spl,tds,fdf,idm,(_,cmp),gmap,tconf) -> (s,npm,ntl,spl,tds,fdf,idm,(0,cmp),gmap,tconf))
-
 getValCounter :: FTrav Int
 getValCounter = do
     (_,_,_,_,_,_,_,(val,_),_,_) <- getUserState

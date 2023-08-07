@@ -180,56 +180,53 @@ mkBoolLitExprBinds n b = mkSingleExprBinds $ mkValVarBinding n mkBoolType $ mkBo
 mkValVarExprBinds :: Int -> TypedVar -> ExprBinds
 mkValVarExprBinds n v = mkSingleExprBinds $ mkValVarBinding n (typOfTV v) $ mkVarExpr v
 
--- | Member (field) access <v>{f=r<k>’} = v<n>' and v<n>’ = r<k>’
+-- | Member (field) access <v>{f=r<k>’} = e and v<n>’ = r<k>’
 --   with putback <v> = <v>{f=r<k>’}
-mkMemExprBinds :: Int -> CCS.FieldName -> ExprBinds -> ExprBinds
-mkMemExprBinds n f bp =
+mkMemExprBinds :: Int -> Int -> CCS.FieldName -> ExprBinds -> ExprBinds
+mkMemExprBinds n k f bp =
     mainbp
-    where vv@(TV vnam rt) = leadVar bp
+    where vv@(TV _ rt) = leadVar bp
           ct = getMemberType f rt
-          cmp = TV (cmpVar n) ct
+          cmp = TV (cmpVar k) ct
           rv = lvalVar bp
           rv' = if isErrVar rv then TV errVar rt else rv
-          vc = TV vnam ct
-          mainbp = addBinding (mkVarBinding vc $ mkVarExpr cmp) $
+          mainbp = addBinding (mkValVarBinding n ct $ mkVarExpr cmp) $
                      addBinding (mkBinding (mkRecTakePattern rv' cmp f) $ mkVarExpr vv) bp
 
 -- | Array access (<v> @{@v<l>’=r<k>’},i<k>') = (v<n>',v<l>') and v<n>’ = r<k>’
 --   with putback <v> = <v> @{@i<k>'=r<k>’}
-mkIdxExprBinds :: Int -> ExprBinds -> ExprBinds -> ExprBinds
-mkIdxExprBinds n bp1 bp2 =
+mkIdxExprBinds :: Int -> Int -> ExprBinds -> ExprBinds -> ExprBinds
+mkIdxExprBinds n k bp1 bp2 =
     mainbp -- if isErrVar rv then mainbp else addPutback (mkVarBinding rv $ mkArrPutExpr rv cmp idx) mainbp
-    where v1@(TV vnam at) = leadVar bp1
+    where v1@(TV _ at) = leadVar bp1
           v2@(TV _ it) = leadVar bp2
           et = getDerefType at
-          cmp = TV (cmpVar n) et
-          idx = TV (idxVar n) it
+          cmp = TV (cmpVar k) et
+          idx = TV (idxVar k) it
           rv = lvalVar bp1
           rv' = if isErrVar rv then TV errVar at else rv
-          vc = TV vnam et
-          mainbp = addBinding (mkVarBinding vc $ mkVarExpr cmp) $
+          mainbp = addBinding (mkValVarBinding n et $ mkVarExpr cmp) $
                      addBinding (mkBinding (mkArrTakePattern rv' cmp idx v2) $ mkVarTupleExpr [v1,v2]) $ concatExprBinds [bp2,bp1]
 
 -- | Pointer dereference, always <v>{cont=r<k>’} = v<n>' and v<n>’ = r<k>’
 --   with putback <v> = <v>{cont=r<k>’}
 -- The type of v<n>' may be an arbitrary mapped C pointer type except function pointer type.
-mkDerefExprBinds :: Int -> ExprBinds -> ExprBinds
-mkDerefExprBinds n bp =
+mkDerefExprBinds :: Int -> Int -> ExprBinds -> ExprBinds
+mkDerefExprBinds n k bp =
     mainbp -- if isErrVar rv then mainbp else addPutback (mkVarBinding rv $ mkRecPutExpr rv cmp f) mainbp
     where f = ptrDerivCompName
-          vv@(TV vnam rt) = leadVar bp
+          vv@(TV _ rt) = leadVar bp
           ct = getDerefType rt
-          cmp = TV (cmpVar n) ct
+          cmp = TV (cmpVar k) ct
           rv = lvalVar bp
           rv' = if isErrVar rv then TV errVar rt else rv
-          vres = TV vnam ct
-          mainbp = addBinding (mkVarBinding vres $ mkVarExpr cmp) $
+          mainbp = addBinding (mkValVarBinding n ct $ mkVarExpr cmp) $
                      addBinding (mkBinding (mkRecTakePattern rv' cmp f) $ mkVarExpr vv) bp
 
 -- | Operator application v<n>' = op [bp...]
-mkOpExprBinds :: GenType -> CCS.OpName -> [ExprBinds] -> ExprBinds
-mkOpExprBinds t op bps =
-    addBinding (mkVarBinding (TV (namOfTV $ head vs) t) $ mkOpExpr t op (map mkVarExpr vs)) $ concatExprBinds bps
+mkOpExprBinds :: Int -> GenType -> CCS.OpName -> [ExprBinds] -> ExprBinds
+mkOpExprBinds n t op bps =
+    addBinding (mkValVarBinding n t $ mkOpExpr t op (map mkVarExpr vs)) $ concatExprBinds bps
     where vs = map leadVar bps 
 
 -- | Application of constant named function v<n>' = f ()
@@ -238,10 +235,10 @@ mkConstAppExprBinds n f = mkSingleExprBinds $ mkValVarBinding n (funResultType f
 
 -- | Function pointer dereference f = fromFunPtr (fp)
 -- The first argument is the type of the resulting function.
-mkFunDerefExprBinds :: GenType -> ExprBinds -> ExprBinds
-mkFunDerefExprBinds ft bp =
-    addBinding (mkVarBinding (TV vnam ft) $ mkAppExpr (mkTopLevelFunExpr ("fromFunPtr",ffpt) [Just ft, Just fpt]) (mkVarExpr v)) bp
-    where v@(TV vnam fpt) = leadVar bp
+mkFunDerefExprBinds :: Int -> GenType -> ExprBinds -> ExprBinds
+mkFunDerefExprBinds n ft bp =
+    addBinding (mkValVarBinding n ft $ mkAppExpr (mkTopLevelFunExpr ("fromFunPtr",ffpt) [Just ft, Just fpt]) (mkVarExpr v)) bp
+    where v@(TV _ fpt) = leadVar bp
           ffpt = mkFunType fpt ft
 
 -- | Function application v = f (pbp) or (v,v1,..,vn) = f (pbp)
@@ -252,15 +249,15 @@ mkAppExprBinds :: ExprBinds -> GenIrrefPatn -> [ExprBinds] -> ExprBinds
 mkAppExprBinds fbp rpat pbps =
     addBinding (mkBinding rpat $ mkAppExpr (mkVarExpr $ leadVar fbp) (mkTupleExpr (map (mkVarExpr . leadVar) pbps))) $ concatExprBinds (fbp : pbps)
 
--- | Assignment v<n>' = v<n>' op v<k>', (v<n>',v) = (v<n>',v<n>') or (v,v<n>')
+-- | Assignment v<m>' = el op er, (v<n>',v) = (v<m>',v<m>') or (v,v<m>')
 -- The first argument is True for a postfix inc/dec operator, otherwise false.
 -- The second argument is a pair of the operator op for constructing the new value and its result type.
 -- For plain assignment, op is "" and the type is the unit type.
 -- The third argument is the operator argument expression or the assigned expression for a plain assignment.
 -- The fourth argument is the lvalue ExprBinds.
-mkAssExprBinds :: Bool -> (CCS.OpName, GenType) -> ExprBinds -> ExprBinds -> ExprBinds
-mkAssExprBinds post (op,t) bpr bpl =
-    addBinding lval $ addBinding (mkVarBinding vres er') bpl
+mkAssExprBinds :: Int -> Int -> Bool -> (CCS.OpName, GenType) -> ExprBinds -> ExprBinds -> ExprBinds
+mkAssExprBinds m n post (op,t) bpr bpl =
+    addBinding lval $ addBinding (mkValVarBinding m (typOfGE er') er') bpl
     where vl = leadVar bpl
           vr = leadVar bpr
           el = mkVarExpr vl
@@ -268,13 +265,13 @@ mkAssExprBinds post (op,t) bpr bpl =
           er' = if null op then er else mkOpExpr t op [el,er]
           v = lvalVar bpl
           e = mkVarExpr v
-          vres = TV (namOfTV vl) (typOfGE er')
-          eres = mkVarExpr vres
+          vres = TV (valVar n) (typOfGE er')
+          eres = mkVarExpr $ TV (valVar m) (typOfGE er')
           lval = mkVarsTupleBinding [vres,v] [if post then e else eres, eres]
 
 -- | Conditional v<n>' = if bp1 then bp2 else bp3
-mkIfExprBinds :: ExprBinds -> ExprBinds -> ExprBinds -> ExprBinds
-mkIfExprBinds bp0 bp1 bp2 =
+mkIfExprBinds :: Int -> ExprBinds -> ExprBinds -> ExprBinds -> ExprBinds
+mkIfExprBinds n bp0 bp1 bp2 =
     addBinding (mkVarsBinding (vr : set) (mkIfExpr rts (mkVarExpr v0) e1 e2)) bp
     where set1 = sideEffectTargets bp1
           set2 = sideEffectTargets bp2
@@ -284,7 +281,7 @@ mkIfExprBinds bp0 bp1 bp2 =
           set = union set1 set2
           rt = adaptTypes (typOfTV v1) (typOfTV v2)
           rts = mkTupleType (rt : (map typOfTV set))
-          vr = TV (namOfTV v0) rt
+          vr = TV (valVar n) rt
           (bp1l,e1) = if null set1
                          then ([bp1],mkVarTupleExpr (v1 : set))
                          else ([],boundExpr $ cmbExtBinds set bp1)
@@ -292,15 +289,6 @@ mkIfExprBinds bp0 bp1 bp2 =
                          then ([bp2],mkVarTupleExpr (v2 : set))
                          else ([],boundExpr $ cmbExtBinds set bp2)
           bp = concatExprBinds (bp0 : (bp1l ++ bp2l))
-
--- | Tuple expression v<n>' = (bp1,...,bpk)
--- Value variable v<n>' is taken from bp1.
--- If k=0 then <n> must be provided as first argument.
-mkTupleExprBinds :: Int -> [ExprBinds] -> ExprBinds
-mkTupleExprBinds n [] = mkUnitExprBinds n
-mkTupleExprBinds _ [bp] = bp
-mkTupleExprBinds _ bps =
-    addBinding (mkVarBinding (leadVar $ head bps) $ mkTupleExpr (map (mkVarExpr . leadVar) bps)) $ concatExprBinds bps
 
 -- | Add binding to the main list
 addBinding :: GenBnd -> ExprBinds -> ExprBinds

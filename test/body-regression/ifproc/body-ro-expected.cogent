@@ -52,7 +52,7 @@ cogent_f14ln (pro, qro, i) =
    cogent_fcln (gencotDummy "Readonly expression used in linear context")
 cogent_f14ro : ( (CPtr U32)!, (CPtr U32)!, U32 ) -> U32
 cogent_f14ro (pro, qro, i) =
-   cogent_fcro (if i
+   cogent_fcro (if i /= 0
       then pro
       else qro)
 
@@ -86,13 +86,13 @@ cogent_f31ro () = cogent_frro ()
 -- Probe used in conditional expression with other branch as context
 cogent_f41ln : ( (CPtr U32)!, CPtr U32, U32 ) -> ( U32, CPtr U32 )
 cogent_f41ln (pro, qln, i) =
-   let r' = cogent_fcro (if i
+   let r' = cogent_fcro (if i /= 0
          then pro
          else qln) !qln
    in (r', qln)
 cogent_f42ln : ( CPtr U32, (CPtr U32)!, U32 ) -> ( U32, CPtr U32 )
 cogent_f42ln (pln, qro, i) =
-   let r' = cogent_fcro (if i
+   let r' = cogent_fcro (if i /= 0
          then pln
          else qro) !pln
    in (r', pln)
@@ -168,14 +168,14 @@ cogent_f58ro pro =
    in p0'
 cogent_f59ln : ( Struct_Cogent_ros1!, CPtr U32, U32 ) -> ( U32, CPtr U32 )
 cogent_f59ln (pro, qln, i) =
-   let r' = cogent_fcro (if i
+   let r' = cogent_fcro (if i /= 0
          then let pro { mln = p0' } = pro
             in p0'
          else qln) !qln
    in (r', qln)
 cogent_f59ro : ( Struct_Cogent_ros1!, (CPtr U32)!, U32 ) -> U32
 cogent_f59ro (pro, qro, i) =
-   cogent_fcro (if i
+   cogent_fcro (if i /= 0
       then let pro { mln = p0' } = pro
          in p0'
       else qro)
@@ -300,14 +300,14 @@ cogent_f78ro pro =
    in p0'
 cogent_f79ln : ( Cogent_roa3!, CPtr U32, U32 ) -> ( U32, CPtr U32 )
 cogent_f79ln (pro, qln, i) =
-   let r' = cogent_fcro (if i
+   let r' = cogent_fcro (if i /= 0
          then let pro @{ @1 = p0' } = pro
             in p0'
          else qln) !qln
    in (r', qln)
 cogent_f79ro : ( Cogent_roa3!, (CPtr U32)!, U32 ) -> U32
 cogent_f79ro (pro, qro, i) =
-   cogent_fcro (if i
+   cogent_fcro (if i /= 0
       then let pro @{ @1 = p0' } = pro
          in p0'
       else qro)
@@ -403,12 +403,12 @@ cogent_g13ro () =
    cogent_fcro (gencotDummy "Linear expression used in readonly context")
 cogent_g14ln : ( CPtr U32, CPtr U32, U32 ) -> U32
 cogent_g14ln (pln, qln, i) =
-   cogent_fcln (if i
+   cogent_fcln (if i /= 0
       then pln
       else qln)
 cogent_g14ro : ( CPtr U32, CPtr U32, U32 ) -> U32
 cogent_g14ro (pln, qln, i) =
-   let r' = cogent_fcro (if i
+   let r' = cogent_fcro (if i /= 0
          then pln
          else qln) !pln !qln
    in r'
@@ -519,14 +519,14 @@ cogent_g58ro pln =
    gencotDummy "Linear expression used in readonly context"
 cogent_g59ln : ( Struct_Cogent_ros1, CPtr U32, U32 ) -> ( U32, CPtr U32 )
 cogent_g59ln (pln, qln, i) =
-   let r' = cogent_fcro (if i
+   let r' = cogent_fcro (if i /= 0
          then let pln { mln = p0' } = pln
             in p0'
          else qln) !pln !qln
    in (r', qln)
 cogent_g59ro : ( Struct_Cogent_ros1, (CPtr U32)!, U32 ) -> U32
 cogent_g59ro (pln, qro, i) =
-   let r' = cogent_fcro (if i
+   let r' = cogent_fcro (if i /= 0
          then let pln { mln = p0' } = pln
             in p0'
          else qro) !pln
@@ -669,14 +669,14 @@ cogent_g78ro pln =
    gencotDummy "Linear expression used in readonly context"
 cogent_g79ln : ( Cogent_roa3, CPtr U32, U32 ) -> ( U32, CPtr U32 )
 cogent_g79ln (pln, qln, i) =
-   let r' = cogent_fcro (if i
+   let r' = cogent_fcro (if i /= 0
          then let pln @{ @1 = p0' } = pln
             in p0'
          else qln) !pln !qln
    in (r', qln)
 cogent_g79ro : ( Cogent_roa3, (CPtr U32)!, U32 ) -> U32
 cogent_g79ro (pln, qro, i) =
-   let r' = cogent_fcro (if i
+   let r' = cogent_fcro (if i /= 0
          then let pln @{ @1 = p0' } = pln
             in p0'
          else qro) !pln
@@ -839,13 +839,13 @@ cogent_n11ro () =
    cogent_fcro cogent_NULL
 cogent_n14ln : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
 cogent_n14ln (qln, i) =
-   (cogent_fcln (if i
+   (cogent_fcln (if i /= 0
       then cogent_NULL
       else qln)
    , qln)
 cogent_n14ro : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
 cogent_n14ro (qln, i) =
-   let r' = cogent_fcro (if i
+   let r' = cogent_fcro (if i /= 0
          then cogent_NULL
          else qln) !qln
    in (r', qln)

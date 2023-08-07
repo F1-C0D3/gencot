@@ -5,7 +5,9 @@ cogent_fn1 (i, p) =
    let r' = let v' = let v' = i
          and v1' = p
          and v2' = cogent_NULL
-         and v' = if v' then v1' else v2'
+         and v' = if v' /= 0
+            then v1'
+            else v2'
          in v'
       in v'
    in (r', p)
@@ -14,7 +16,9 @@ cogent_fn2 (i, p) =
    let r' = let v' = let v' = i
          and v1' = p
          and v2' = cogent_NULL
-         and v' = if v' then v1' else v2'
+         and v' = if v' /= 0
+            then v1'
+            else v2'
          in v'
       in v'
    in (r', p) -- p: nn
@@ -108,7 +112,7 @@ cogent_fn14nl (pnn, qnn, i) =
          and v1' = i
          and v2' = pnn
          and v3' = qnn
-         and v1' = if v1'
+         and v1' = if v1' /= 0
             then v2'
             else v3'
          and v' = v' v1'
@@ -121,7 +125,7 @@ cogent_fn14nn (pnn, qnn, i) =
          and v1' = i
          and v2' = pnn
          and v3' = qnn
-         and v1' = if v1'
+         and v1' = if v1' /= 0
             then v2'
             else v3'
          and v' = v' v1'
@@ -207,7 +211,7 @@ cogent_fn41nl (pnn, qnl, i) =
          and v1' = i
          and v2' = pnn
          and v3' = qnl
-         and v1' = if v1'
+         and v1' = if v1' /= 0
             then v2'
             else v3'
          and v' = v' v1'
@@ -220,7 +224,7 @@ cogent_fn42nl (pnl, qnn, i) =
          and v1' = i
          and v2' = pnl
          and v3' = qnn
-         and v1' = if v1'
+         and v1' = if v1' /= 0
             then v2'
             else v3'
          and v' = v' v1'
@@ -345,7 +349,7 @@ cogent_fn55nl (pnn, qnl, i) =
                        , pnn) = let v' = cogent_fcnn
          and v1' = i
          and v3' = qnl
-         and (v1', pnn) = if v1'
+         and (v1', pnn) = if v1' /= 0
             then let v2' = pnn
                and pnn { mnn = p0' } = v2'
                and v2' = p0'
@@ -362,7 +366,7 @@ cogent_fn55nn (pnn, qnn, i) =
                        , pnn) = let v' = cogent_fcnn
          and v1' = i
          and v3' = qnn
-         and (v1', pnn) = if v1'
+         and (v1', pnn) = if v1' /= 0
             then let v2' = pnn
                and pnn { mnn = p0' } = v2'
                and v2' = p0'
@@ -549,7 +553,7 @@ cogent_fn75nl (pnn, qnl, i) =
                        , pnn) = let v' = cogent_fcnn
          and v1' = i
          and v4' = qnl
-         and (v1', pnn) = if v1'
+         and (v1', pnn) = if v1' /= 0
             then let v3' = 1
                and v2' = pnn
                and (pnn @{ @v3' = p0' }
@@ -568,7 +572,7 @@ cogent_fn75nn (pnn, qnn, i) =
                        , pnn) = let v' = cogent_fcnn
          and v1' = i
          and v4' = qnn
-         and (v1', pnn) = if v1'
+         and (v1', pnn) = if v1' /= 0
             then let v3' = 1
                and v2' = pnn
                and (pnn @{ @v3' = p0' }
@@ -726,7 +730,7 @@ cogent_gn14nl (pnl, qnl, i) =
          and v1' = i
          and v2' = pnl
          and v3' = qnl
-         and v1' = if v1'
+         and v1' = if v1' /= 0
             then v2'
             else v3'
          and v' = v' v1'
@@ -739,7 +743,7 @@ cogent_gn14nn (pnl, qnl, i) =
          and v1' = i
          and v2' = pnl
          and v3' = qnl
-         and v1' = if v1'
+         and v1' = if v1' /= 0
             then v2'
             else v3'
          and v' = v' v1'
@@ -935,7 +939,7 @@ cogent_gn55nl (pnn, qnl, i) =
                        , pnn) = let v' = cogent_fcnn
          and v1' = i
          and v3' = qnl
-         and (v1', pnn) = if v1'
+         and (v1', pnn) = if v1' /= 0
             then let v2' = pnn
                and pnn { mnl = p0' } = v2'
                and v2' = p0'
@@ -952,7 +956,7 @@ cogent_gn55nn (pnn, qnn, i) =
                        , pnn) = let v' = cogent_fcnn
          and v1' = i
          and v3' = qnn
-         and (v1', pnn) = if v1'
+         and (v1', pnn) = if v1' /= 0
             then let v2' = pnn
                and pnn { mnl = p0' } = v2'
                and v2' = p0'
@@ -1139,7 +1143,7 @@ cogent_gn75nl (pnn, qnl, i) =
                        , pnn) = let v' = cogent_fcnn
          and v1' = i
          and v4' = qnl
-         and (v1', pnn) = if v1'
+         and (v1', pnn) = if v1' /= 0
             then let v3' = 1
                and v2' = pnn
                and (pnn @{ @v3' = p0' }
@@ -1158,7 +1162,7 @@ cogent_gn75nn (pnn, qnn, i) =
                        , pnn) = let v' = cogent_fcnn
          and v1' = i
          and v4' = qnn
-         and (v1', pnn) = if v1'
+         and (v1', pnn) = if v1' /= 0
             then let v3' = 1
                and v2' = pnn
                and (pnn @{ @v3' = p0' }
@@ -1267,7 +1271,9 @@ cogent_tn11nl pnl =
          and v2' = pnl
          and v1' = v1' v2'
          and v3' = 0
-         and v' = if v' then v1' else v3'
+         and v' = if v' /= cogent_NULL
+            then v1'
+            else v3'
          in v'
       in v'
    in (r', pnl)
@@ -1278,7 +1284,9 @@ cogent_tn11nn pnl =
          and v2' = pnl
          and v1' = v1' v2'
          and v3' = 0
-         and v' = if v' then v1' else v3'
+         and v' = if v' /= cogent_NULL
+            then v1'
+            else v3'
          in v'
       in v'
    in (r', pnl)
@@ -1289,7 +1297,9 @@ cogent_tn12nl () =
          and v2' = cogent_globnl ()
          and v1' = v1' v2'
          and v3' = 0
-         and v' = if v' then v1' else v3'
+         and v' = if v' /= cogent_NULL
+            then v1'
+            else v3'
          in v'
       in v'
    in r'
@@ -1300,7 +1310,9 @@ cogent_tn12nn () =
          and v2' = cogent_globnl ()
          and v1' = v1' v2'
          and v3' = 0
-         and v' = if v' then v1' else v3'
+         and v' = if v' /= cogent_NULL
+            then v1'
+            else v3'
          in v'
       in v'
    in r'
@@ -1313,7 +1325,9 @@ cogent_tn13nl () =
          and v2' = v2' ()
          and v1' = v1' v2'
          and v3' = 0
-         and v' = if v' then v1' else v3'
+         and v' = if v' /= cogent_NULL
+            then v1'
+            else v3'
          in v'
       in v'
    in r'
@@ -1326,7 +1340,9 @@ cogent_tn13nn () =
          and v2' = v2' ()
          and v1' = v1' v2'
          and v3' = 0
-         and v' = if v' then v1' else v3'
+         and v' = if v' /= cogent_NULL
+            then v1'
+            else v3'
          in v'
       in v'
    in r'
@@ -1337,12 +1353,14 @@ cogent_tn14nl (pnl, qnn, i) =
          and v2' = i
          and v3' = pnl
          and v4' = qnn
-         and v2' = if v2'
+         and v2' = if v2' /= 0
             then v3'
             else v4'
          and v1' = v1' v2'
          and v5' = 0
-         and v' = if v' then v1' else v5'
+         and v' = if v' /= cogent_NULL
+            then v1'
+            else v5'
          in v'
       in v'
    in (r', pnl, qnn)
@@ -1353,12 +1371,14 @@ cogent_tn14nn (pnl, qnn, i) =
          and v2' = i
          and v3' = pnl
          and v4' = qnn
-         and v2' = if v2'
+         and v2' = if v2' /= 0
             then v3'
             else v4'
          and v1' = v1' v2'
          and v5' = 0
-         and v' = if v' then v1' else v5'
+         and v' = if v' /= cogent_NULL
+            then v1'
+            else v5'
          in v'
       in v'
    in (r', pnl, qnn)
@@ -1369,7 +1389,9 @@ cogent_tn21nl (qnl, qnn, g) =
    let g = let g = let v' = qnl
          and v1' = qnl
          and v2' = qnn
-         and v' = if v' then v1' else v2'
+         and v' = if v' /= cogent_NULL
+            then v1'
+            else v2'
          and v3' = g
          and g { cont = p0' } = v3'
          and v3' = v'
@@ -1383,7 +1405,9 @@ cogent_tn21nn (qnl, qnn, g) =
    let g = let g = let v' = qnl
          and v1' = qnl
          and v2' = qnn
-         and v' = if v' then v1' else v2'
+         and v' = if v' /= cogent_NULL
+            then v1'
+            else v2'
          and v3' = g
          and g { cont = p0' } = v3'
          and v3' = v'
@@ -1397,7 +1421,9 @@ cogent_tn22nl (pnl, qnl, qnn) =
    let pnl = let pnl = let v' = qnl
          and v1' = qnl
          and v2' = qnn
-         and v' = if v' then v1' else v2'
+         and v' = if v' /= cogent_NULL
+            then v1'
+            else v2'
          and v3' = v'
          and pnl = v3'
          in pnl
@@ -1409,7 +1435,9 @@ cogent_tn22nn (pnn, qnl, qnn) =
                        , pnn) = let pnn = let v' = qnl
             and v1' = qnl
             and v2' = qnn
-            and v' = if v' then v1' else v2'
+            and v' = if v' /= cogent_NULL
+               then v1'
+               else v2'
             and v3' = v'
             and pnn = v3'
             in pnn
@@ -1432,7 +1460,9 @@ cogent_tn31nl (qnl, qnn) =
    let r' = let v' = let v' = qnl
          and v1' = qnl
          and v2' = qnn
-         and v' = if v' then v1' else v2'
+         and v' = if v' /= cogent_NULL
+            then v1'
+            else v2'
          in v'
       in v'
    in (r', qnl, qnn)
@@ -1441,7 +1471,9 @@ cogent_tn31nn (qnl, qnn) =
    let r' = let v' = let v' = qnl
          and v1' = qnl
          and v2' = qnn
-         and v' = if v' then v1' else v2'
+         and v' = if v' /= cogent_NULL
+            then v1'
+            else v2'
          in v'
       in v'
    in (r', qnl, qnn)
@@ -1454,7 +1486,8 @@ cogent_tn51nl pnn =
          and pnn { mnl = p0' } = v'
          and v' = p0'
          and pnn = pnn { mnl = p0' }
-         and (v', pnn) = if v'
+         and (v'
+             , pnn) = if v' /= cogent_NULL
             then let v1' = pnn
                and pnn { mnl = p1' } = v1'
                and v1' = p1'
@@ -1475,7 +1508,8 @@ cogent_tn51nn pnn =
          and pnn { mnl = p0' } = v'
          and v' = p0'
          and pnn = pnn { mnl = p0' }
-         and (v', pnn) = if v'
+         and (v'
+             , pnn) = if v' /= cogent_NULL
             then let v1' = pnn
                and pnn { mnl = p1' } = v1'
                and v1' = p1'
@@ -1497,7 +1531,8 @@ cogent_tn52nl pnn =
          and pnn { mnl = p0' } = v1'
          and v1' = p0'
          and pnn = pnn { mnl = p0' }
-         and (v1', pnn) = if v1'
+         and (v1'
+             , pnn) = if v1' /= cogent_NULL
             then let v2' = pnn
                and pnn { mnl = p1' } = v2'
                and v2' = p1'
@@ -1520,7 +1555,8 @@ cogent_tn52nn pnn =
          and pnn { mnl = p0' } = v1'
          and v1' = p0'
          and pnn = pnn { mnl = p0' }
-         and (v1', pnn) = if v1'
+         and (v1'
+             , pnn) = if v1' /= cogent_NULL
             then let v2' = pnn
                and pnn { mnl = p1' } = v2'
                and v2' = p1'
@@ -1542,7 +1578,8 @@ cogent_tn53nl (pnn, g) =
          and pnn { mnl = p0' } = v'
          and v' = p0'
          and pnn = pnn { mnl = p0' }
-         and (v', pnn) = if v'
+         and (v'
+             , pnn) = if v' /= cogent_NULL
             then let v1' = pnn
                and pnn { mnl = p1' } = v1'
                and v1' = p1'
@@ -1568,7 +1605,8 @@ cogent_tn53nn (pnn, g) =
          and pnn { mnl = p0' } = v'
          and v' = p0'
          and pnn = pnn { mnl = p0' }
-         and (v', pnn) = if v'
+         and (v'
+             , pnn) = if v' /= cogent_NULL
             then let v1' = pnn
                and pnn { mnl = p1' } = v1'
                and v1' = p1'
@@ -1594,7 +1632,8 @@ cogent_tn54nl (pnn, pnl) =
          and pnn { mnl = p0' } = v'
          and v' = p0'
          and pnn = pnn { mnl = p0' }
-         and (v', pnn) = if v'
+         and (v'
+             , pnn) = if v' /= cogent_NULL
             then let v1' = pnn
                and pnn { mnl = p1' } = v1'
                and v1' = p1'
@@ -1619,7 +1658,8 @@ cogent_tn54nn (pnn, qnn) =
             and pnn { mnl = p0' } = v'
             and v' = p0'
             and pnn = pnn { mnl = p0' }
-            and (v', pnn) = if v'
+            and (v'
+                , pnn) = if v' /= cogent_NULL
                then let v1' = pnn
                   and pnn { mnl = p1' } = v1'
                   and v1' = p1'
@@ -1651,12 +1691,13 @@ cogent_tn55nl (pnn, qnl, i) =
                        , pnn) = let v' = cogent_fcnn
          and v1' = i
          and v5' = qnl
-         and (v1', pnn) = if v1'
+         and (v1', pnn) = if v1' /= 0
             then let v2' = pnn
                and pnn { mnl = p0' } = v2'
                and v2' = p0'
                and pnn = pnn { mnl = p0' }
-               and (v2', pnn) = if v2'
+               and (v2'
+                   , pnn) = if v2' /= cogent_NULL
                   then let v3' = pnn
                      and pnn { mnl = p1' } = v3'
                      and v3' = p1'
@@ -1679,12 +1720,13 @@ cogent_tn55nn (pnn, qnn, i) =
                        , pnn) = let v' = cogent_fcnn
          and v1' = i
          and v5' = qnn
-         and (v1', pnn) = if v1'
+         and (v1', pnn) = if v1' /= 0
             then let v2' = pnn
                and pnn { mnl = p0' } = v2'
                and v2' = p0'
                and pnn = pnn { mnl = p0' }
-               and (v2', pnn) = if v2'
+               and (v2'
+                   , pnn) = if v2' /= cogent_NULL
                   then let v3' = pnn
                      and pnn { mnl = p1' } = v3'
                      and v3' = p1'
@@ -1708,7 +1750,9 @@ cogent_tn61nl (pnl, pnn) =
    let r' = let v' = let v' = pnl
          and v1' = pnl
          and v2' = pnn
-         and v' = if v' then v1' else v2'
+         and v' = if v' /= cogent_NULL
+            then v1'
+            else v2'
          and err' { mrg = p0' } = v'
          and v' = p0'
          in v'
@@ -1721,7 +1765,8 @@ cogent_tn62nl pnn =
          and pnn { snl = p0' } = v'
          and v' = p0'
          and pnn = pnn { snl = p0' }
-         and (v', pnn) = if v'
+         and (v'
+             , pnn) = if v' /= cogent_NULL
             then let v1' = pnn
                and pnn { snl = p1' } = v1'
                and v1' = p1'
@@ -1742,7 +1787,9 @@ cogent_tn63nl () =
    let r' = let v' = let v' = cogent_globnl ()
          and v1' = cogent_globnl ()
          and v2' = cogent_globnn ()
-         and v' = if v' then v1' else v2'
+         and v' = if v' /= cogent_NULL
+            then v1'
+            else v2'
          and err' { cont = p0' } = v'
          and v' = p0'
          in v'
@@ -1756,7 +1803,9 @@ cogent_tn64nl () =
          and v1' = v1' ()
          and v2' = cogent_frnn
          and v2' = v2' ()
-         and v' = if v' then v1' else v2'
+         and v' = if v' /= cogent_NULL
+            then v1'
+            else v2'
          and err' { cont = p0' } = v'
          and v' = p0'
          in v'
@@ -1774,7 +1823,8 @@ cogent_tn71nl pnn =
          and v' = p0'
          and pnn = pnn @{ @i0' = p0' }
          and v4' = cogent_globnn ()
-         and (v', pnn) = if v'
+         and (v'
+             , pnn) = if v' /= cogent_NULL
             then let v3' = 1
                and v2' = pnn
                and (pnn @{ @v3' = p1' }
@@ -1796,7 +1846,8 @@ cogent_tn71nn pnn =
          and v' = p0'
          and pnn = pnn @{ @i0' = p0' }
          and v4' = cogent_globnn ()
-         and (v', pnn) = if v'
+         and (v'
+             , pnn) = if v' /= cogent_NULL
             then let v3' = 1
                and v2' = pnn
                and (pnn @{ @v3' = p1' }
@@ -1819,7 +1870,8 @@ cogent_tn72nl pnn =
          and v1' = p0'
          and pnn = pnn @{ @i0' = p0' }
          and v5' = cogent_globnn ()
-         and (v1', pnn) = if v1'
+         and (v1'
+             , pnn) = if v1' /= cogent_NULL
             then let v4' = 1
                and v3' = pnn
                and (pnn @{ @v4' = p1' }
@@ -1843,7 +1895,8 @@ cogent_tn72nn pnn =
          and v1' = p0'
          and pnn = pnn @{ @i0' = p0' }
          and v5' = cogent_globnn ()
-         and (v1', pnn) = if v1'
+         and (v1'
+             , pnn) = if v1' /= cogent_NULL
             then let v4' = 1
                and v3' = pnn
                and (pnn @{ @v4' = p1' }
@@ -1866,7 +1919,8 @@ cogent_tn73nl (pnn, g) =
          and v' = p0'
          and pnn = pnn @{ @i0' = p0' }
          and v4' = cogent_globnn ()
-         and (v', pnn) = if v'
+         and (v'
+             , pnn) = if v' /= cogent_NULL
             then let v3' = 1
                and v2' = pnn
                and (pnn @{ @v3' = p1' }
@@ -1893,7 +1947,8 @@ cogent_tn73nn (pnn, g) =
          and v' = p0'
          and pnn = pnn @{ @i0' = p0' }
          and v4' = cogent_globnn ()
-         and (v', pnn) = if v'
+         and (v'
+             , pnn) = if v' /= cogent_NULL
             then let v3' = 1
                and v2' = pnn
                and (pnn @{ @v3' = p1' }
@@ -1920,7 +1975,8 @@ cogent_tn74nl (pnn, pnl) =
          and v' = p0'
          and pnn = pnn @{ @i0' = p0' }
          and v4' = cogent_globnn ()
-         and (v', pnn) = if v'
+         and (v'
+             , pnn) = if v' /= cogent_NULL
             then let v3' = 1
                and v2' = pnn
                and (pnn @{ @v3' = p1' }
@@ -1946,7 +2002,8 @@ cogent_tn74nn (pnn, qnn) =
             and v' = p0'
             and pnn = pnn @{ @i0' = p0' }
             and v4' = cogent_globnn ()
-            and (v', pnn) = if v'
+            and (v'
+                , pnn) = if v' /= cogent_NULL
                then let v3' = 1
                   and v2' = pnn
                   and (pnn @{ @v3' = p1' }
@@ -1976,7 +2033,7 @@ cogent_tn75nl (pnn, qnl, i) =
                        , pnn) = let v' = cogent_fcnn
          and v1' = i
          and v7' = qnl
-         and (v1', pnn) = if v1'
+         and (v1', pnn) = if v1' /= 0
             then let v3' = 1
                and v2' = pnn
                and (pnn @{ @v3' = p0' }
@@ -1984,7 +2041,8 @@ cogent_tn75nl (pnn, qnl, i) =
                and v2' = p0'
                and pnn = pnn @{ @i0' = p0' }
                and v6' = cogent_globnn ()
-               and (v2', pnn) = if v2'
+               and (v2'
+                   , pnn) = if v2' /= cogent_NULL
                   then let v5' = 1
                      and v4' = pnn
                      and (pnn @{ @v5' = p1' }
@@ -2005,7 +2063,7 @@ cogent_tn75nn (pnn, qnn, i) =
                        , pnn) = let v' = cogent_fcnn
          and v1' = i
          and v7' = qnn
-         and (v1', pnn) = if v1'
+         and (v1', pnn) = if v1' /= 0
             then let v3' = 1
                and v2' = pnn
                and (pnn @{ @v3' = p0' }
@@ -2013,7 +2071,8 @@ cogent_tn75nn (pnn, qnn, i) =
                and v2' = p0'
                and pnn = pnn @{ @i0' = p0' }
                and v6' = cogent_globnn ()
-               and (v2', pnn) = if v2'
+               and (v2'
+                   , pnn) = if v2' /= cogent_NULL
                   then let v5' = 1
                      and v4' = pnn
                      and (pnn @{ @v5' = p1' }
@@ -2036,7 +2095,9 @@ cogent_tn81nl (pnl, qnn) =
          and v' = pnl
          and v1' = pnl
          and v2' = qnn
-         and v' = if v' then v1' else v2'
+         and v' = if v' /= cogent_NULL
+            then v1'
+            else v2'
          and err' @{ @v3' = p0' } = v'
          and v' = p0'
          in v'
@@ -2053,7 +2114,8 @@ cogent_tn82nl (pnn, qnn) =
          and v' = p0'
          and pnn = pnn @{ @i0' = p0' }
          and v4' = qnn
-         and (v', pnn) = if v'
+         and (v'
+             , pnn) = if v' /= cogent_NULL
             then let v3' = 1
                and v2' = pnn
                and (pnn @{ @v3' = p1' }
@@ -2074,7 +2136,9 @@ cogent_tn91nl (pnn, qnl, qnn) =
    let pnn = let pnn = let v' = qnl
          and v1' = qnl
          and v2' = qnn
-         and v' = if v' then v1' else v2'
+         and v' = if v' /= cogent_NULL
+            then v1'
+            else v2'
          and v3' = pnn
          and pnn { mnl = p0' } = v3'
          and v3' = v'
@@ -2088,7 +2152,9 @@ cogent_tn91nn (pnn, qnl, qnn) =
    let pnn = let pnn = let v' = qnl
          and v1' = qnl
          and v2' = qnn
-         and v' = if v' then v1' else v2'
+         and v' = if v' /= cogent_NULL
+            then v1'
+            else v2'
          and v3' = pnn
          and pnn { mnn = p0' } = v3'
          and v3' = v'
@@ -2102,7 +2168,9 @@ cogent_tn92nl (pnl, qnl, qnn) =
    let pnl = let pnl = let v' = qnl
          and v1' = qnl
          and v2' = qnn
-         and v' = if v' then v1' else v2'
+         and v' = if v' /= cogent_NULL
+            then v1'
+            else v2'
          and v4' = 1
          and v3' = pnl
          and (pnl @{ @v4' = p0' }
@@ -2118,7 +2186,9 @@ cogent_tn92nn (pnl, qnl, qnn) =
    let pnl = let pnl = let v' = qnl
          and v1' = qnl
          and v2' = qnn
-         and v' = if v' then v1' else v2'
+         and v' = if v' /= cogent_NULL
+            then v1'
+            else v2'
          and v4' = 1
          and v3' = pnl
          and (pnl @{ @v4' = p0' }
@@ -2136,7 +2206,7 @@ cogent_tn92nn (pnl, qnl, qnn) =
 cogent_sn11nl : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
 cogent_sn11nl pnl =
    let r' = let v' = pnl
-      in if v'
+      in if v' /= cogent_NULL
          then
             let r' = let v' = let v' = cogent_fcnl
                   and v1' = pnl
@@ -2150,7 +2220,7 @@ cogent_sn11nl pnl =
 cogent_sn11nn : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
 cogent_sn11nn pnl =
    let r' = let v' = pnl
-      in if v'
+      in if v' /= cogent_NULL
          then
             let r' = let v' = let v' = cogent_fcnn
                   and v1' = pnl
@@ -2164,7 +2234,7 @@ cogent_sn11nn pnl =
 cogent_sn12nl : () -> U32
 cogent_sn12nl () =
    let r' = let v' = cogent_globnl ()
-      in if v'
+      in if v' /= cogent_NULL
          then
             let r' = let v' = let v' = cogent_fcnl
                   and v1' = cogent_globnl ()
@@ -2178,7 +2248,7 @@ cogent_sn12nl () =
 cogent_sn12nn : () -> U32
 cogent_sn12nn () =
    let r' = let v' = cogent_globnl ()
-      in if v'
+      in if v' /= cogent_NULL
          then
             let r' = let v' = let v' = cogent_fcnn
                   and v1' = cogent_globnl ()
@@ -2194,7 +2264,7 @@ cogent_sn13nl () =
    let r' = let v' = let v' = cogent_frnl
          and v' = v' ()
          in v'
-      in if v'
+      in if v' /= cogent_NULL
          then
             let r' = let v' = let v' = cogent_fcnl
                   and v1' = cogent_frnl
@@ -2211,7 +2281,7 @@ cogent_sn13nn () =
    let r' = let v' = let v' = cogent_frnl
          and v' = v' ()
          in v'
-      in if v'
+      in if v' /= cogent_NULL
          then
             let r' = let v' = let v' = cogent_fcnn
                   and v1' = cogent_frnl
@@ -2226,13 +2296,13 @@ cogent_sn13nn () =
 cogent_sn14nl : ( MayNull (CPtr U32), CPtr U32, U32 ) -> ( U32, MayNull (CPtr U32), CPtr U32 )
 cogent_sn14nl (pnl, qnn, i) =
    let r' = let v' = pnl
-      in if v'
+      in if v' /= cogent_NULL
          then
             let r' = let v' = let v' = cogent_fcnl
                   and v1' = i
                   and v2' = pnl
                   and v3' = qnn
-                  and v1' = if v1'
+                  and v1' = if v1' /= 0
                      then v2'
                      else v3'
                   and v' = v' v1'
@@ -2245,13 +2315,13 @@ cogent_sn14nl (pnl, qnn, i) =
 cogent_sn14nn : ( MayNull (CPtr U32), CPtr U32, U32 ) -> ( U32, MayNull (CPtr U32), CPtr U32 )
 cogent_sn14nn (pnl, qnn, i) =
    let r' = let v' = pnl
-      in if v'
+      in if v' /= cogent_NULL
          then
             let r' = let v' = let v' = cogent_fcnn
                   and v1' = i
                   and v2' = pnl
                   and v3' = qnn
-                  and v1' = if v1'
+                  and v1' = if v1' /= 0
                      then v2'
                      else v3'
                   and v' = v' v1'
@@ -2266,7 +2336,7 @@ cogent_sn14nn (pnl, qnn, i) =
 cogent_sn21nl : ( MayNull (CPtr U32), GlobState1 ) -> ( (), MayNull (CPtr U32), GlobState1 )
 cogent_sn21nl (qnl, g) =
    let g = let v' = qnl
-      in if v'
+      in if v' /= cogent_NULL
          then
             let g = let g = let v' = qnl
                   and v1' = g
@@ -2282,7 +2352,7 @@ cogent_sn21nl (qnl, g) =
 cogent_sn21nn : ( MayNull (CPtr U32), GlobState2 ) -> ( (), MayNull (CPtr U32), GlobState2 )
 cogent_sn21nn (qnl, g) =
    let g = let v' = qnl
-      in if v'
+      in if v' /= cogent_NULL
          then
             let g = let g = let v' = qnl
                   and v1' = g
@@ -2298,7 +2368,7 @@ cogent_sn21nn (qnl, g) =
 cogent_sn22nl : ( MayNull (CPtr U32), MayNull (CPtr U32) ) -> ( (), MayNull (CPtr U32), MayNull (CPtr U32) )
 cogent_sn22nl (pnl, qnl) =
    let pnl = let v' = qnl
-      in if v'
+      in if v' /= cogent_NULL
          then
             let pnl = let pnl = let v' = qnl
                   and v1' = v'
@@ -2312,7 +2382,7 @@ cogent_sn22nn : ( MayNull (CPtr U32), MayNull (CPtr U32) ) -> ( U32, MayNull (CP
 cogent_sn22nn (pnn, qnl) =
    let (pnn, r') = let (c'
                        , pnn) = let v' = qnl
-         in if v'
+         in if v' /= cogent_NULL
             then let (c'
                      , pnn) = let pnn = let v' = qnl
                      and v1' = v'
@@ -2338,7 +2408,7 @@ cogent_sn22nn (pnn, qnl) =
 cogent_sn31nl : ( MayNull (CPtr U32), CPtr U32 ) -> ( MayNull (CPtr U32), MayNull (CPtr U32), CPtr U32 )
 cogent_sn31nl (qnl, qnn) =
    let r' = let v' = qnl
-      in if v'
+      in if v' /= cogent_NULL
          then let r' = let v' = qnl in v'
             in r'
          else let r' = let v' = qnn in v'
@@ -2347,7 +2417,7 @@ cogent_sn31nl (qnl, qnn) =
 cogent_sn31nn : ( MayNull (CPtr U32), CPtr U32 ) -> ( CPtr U32, MayNull (CPtr U32), CPtr U32 )
 cogent_sn31nn (qnl, qnn) =
    let r' = let v' = qnl
-      in if v'
+      in if v' /= cogent_NULL
          then let r' = let v' = qnl in v'
             in r'
          else let r' = let v' = qnn in v'
@@ -2363,7 +2433,7 @@ cogent_sn51nl pnn =
          and v' = p0'
          and pnn = pnn { mnl = p0' }
          in (v', pnn)
-      in if v'
+      in if v' /= cogent_NULL
          then let (r', pnn) = let (v'
                                   , pnn) = let v' = pnn
                   and pnn { mnl = p1' } = v'
@@ -2389,7 +2459,7 @@ cogent_sn51nn pnn =
          and v' = p0'
          and pnn = pnn { mnl = p0' }
          in (v', pnn)
-      in if v'
+      in if v' /= cogent_NULL
          then let (r', pnn) = let (v'
                                   , pnn) = let v' = pnn
                   and pnn { mnl = p1' } = v'
@@ -2415,7 +2485,7 @@ cogent_sn52nl pnn =
          and v' = p0'
          and pnn = pnn { mnl = p0' }
          in (v', pnn)
-      in if v'
+      in if v' /= cogent_NULL
          then let (r', pnn) = let (v'
                                   , pnn) = let v' = cogent_fcnl
                   and v1' = pnn
@@ -2437,7 +2507,7 @@ cogent_sn52nn pnn =
          and v' = p0'
          and pnn = pnn { mnl = p0' }
          in (v', pnn)
-      in if v'
+      in if v' /= cogent_NULL
          then let (r', pnn) = let (v'
                                   , pnn) = let v' = cogent_fcnn
                   and v1' = pnn
@@ -2459,7 +2529,7 @@ cogent_sn53nl (pnn, g) =
          and v' = p0'
          and pnn = pnn { mnl = p0' }
          in (v', pnn)
-      in if v'
+      in if v' /= cogent_NULL
          then let (pnn, g) = let (pnn
                                  , g) = let v' = pnn
                   and pnn { mnl = p1' } = v'
@@ -2483,7 +2553,7 @@ cogent_sn53nn (pnn, g) =
          and v' = p0'
          and pnn = pnn { mnl = p0' }
          in (v', pnn)
-      in if v'
+      in if v' /= cogent_NULL
          then let (pnn, g) = let (pnn
                                  , g) = let v' = pnn
                   and pnn { mnl = p1' } = v'
@@ -2507,7 +2577,7 @@ cogent_sn54nl (pnn, pnl) =
          and v' = p0'
          and pnn = pnn { mnl = p0' }
          in (v', pnn)
-      in if v'
+      in if v' /= cogent_NULL
          then let (pnn, pnl) = let (pnn
                                    , pnl) = let v' = pnn
                   and pnn { mnl = p1' } = v'
@@ -2530,7 +2600,7 @@ cogent_sn54nn (pnn, qnn) =
             and v' = p0'
             and pnn = pnn { mnl = p0' }
             in (v', pnn)
-         in if v'
+         in if v' /= cogent_NULL
             then let (c'
                      , pnn
                      , qnn) = let (pnn
@@ -2564,12 +2634,12 @@ cogent_sn55nl (pnn, qnl, i) =
          and v' = p0'
          and pnn = pnn { mnl = p0' }
          in (v', pnn)
-      in if v'
+      in if v' /= cogent_NULL
          then let (r', pnn) = let (v'
                                   , pnn) = let v' = cogent_fcnn
                   and v1' = i
                   and v3' = qnl
-                  and (v1', pnn) = if v1'
+                  and (v1', pnn) = if v1' /= 0
                      then let v2' = pnn
                         and pnn { mnl = p1' } = v2'
                         and v2' = p1'
@@ -2590,12 +2660,12 @@ cogent_sn55nn (pnn, qnn, i) =
          and v' = p0'
          and pnn = pnn { mnl = p0' }
          in (v', pnn)
-      in if v'
+      in if v' /= cogent_NULL
          then let (r', pnn) = let (v'
                                   , pnn) = let v' = cogent_fcnn
                   and v1' = i
                   and v3' = qnn
-                  and (v1', pnn) = if v1'
+                  and (v1', pnn) = if v1' /= 0
                      then let v2' = pnn
                         and pnn { mnl = p1' } = v2'
                         and v2' = p1'
@@ -2613,7 +2683,7 @@ cogent_sn55nn (pnn, qnn, i) =
 cogent_sn61nl : MayNull Struct_Cogent_nns1 -> ( U32, MayNull Struct_Cogent_nns1 )
 cogent_sn61nl pnl =
    let (r', pnl) = let v' = pnl
-      in if v'
+      in if v' /= cogent_NULL
          then let (r', pnl) = let (v'
                                   , pnl) = let v' = pnl
                   and pnl { mrg = p0' } = v'
@@ -2633,7 +2703,7 @@ cogent_sn62nl pnn =
          and v' = p0'
          and pnn = pnn { snl = p0' }
          in (v', pnn)
-      in if v'
+      in if v' /= cogent_NULL
          then let (r', pnn) = let (v'
                                   , pnn) = let v' = pnn
                   and pnn { snl = p1' } = v'
@@ -2651,7 +2721,7 @@ cogent_sn62nl pnn =
 cogent_sn63nl : () -> U32
 cogent_sn63nl () =
    let r' = let v' = cogent_globnl ()
-      in if v'
+      in if v' /= cogent_NULL
          then
             let r' = let v' = let v' = cogent_globnl ()
                   and err' { cont = p0' } = v'
@@ -2667,7 +2737,7 @@ cogent_sn64nl () =
    let r' = let v' = let v' = cogent_frnl
          and v' = v' ()
          in v'
-      in if v'
+      in if v' /= cogent_NULL
          then
             let r' = let v' = let v' = cogent_frnl
                   and v' = v' ()
@@ -2691,7 +2761,7 @@ cogent_sn71nl pnn =
          and v' = p0'
          and pnn = pnn @{ @i0' = p0' }
          in (v', pnn)
-      in if v'
+      in if v' /= cogent_NULL
          then let (r', pnn) = let (v'
                                   , pnn) = let v1' = 1
                   and v' = pnn
@@ -2717,7 +2787,7 @@ cogent_sn71nn pnn =
          and v' = p0'
          and pnn = pnn @{ @i0' = p0' }
          in (v', pnn)
-      in if v'
+      in if v' /= cogent_NULL
          then let (r', pnn) = let (v'
                                   , pnn) = let v1' = 1
                   and v' = pnn
@@ -2743,7 +2813,7 @@ cogent_sn72nl pnn =
          and v' = p0'
          and pnn = pnn @{ @i0' = p0' }
          in (v', pnn)
-      in if v'
+      in if v' /= cogent_NULL
          then let (r', pnn) = let (v'
                                   , pnn) = let v' = cogent_fcnl
                   and v2' = 1
@@ -2769,7 +2839,7 @@ cogent_sn72nn pnn =
          and v' = p0'
          and pnn = pnn @{ @i0' = p0' }
          in (v', pnn)
-      in if v'
+      in if v' /= cogent_NULL
          then let (r', pnn) = let (v'
                                   , pnn) = let v' = cogent_fcnn
                   and v2' = 1
@@ -2795,7 +2865,7 @@ cogent_sn73nl (pnn, g) =
          and v' = p0'
          and pnn = pnn @{ @i0' = p0' }
          in (v', pnn)
-      in if v'
+      in if v' /= cogent_NULL
          then let (pnn, g) = let (pnn
                                  , g) = let v1' = 1
                   and v' = pnn
@@ -2823,7 +2893,7 @@ cogent_sn73nn (pnn, g) =
          and v' = p0'
          and pnn = pnn @{ @i0' = p0' }
          in (v', pnn)
-      in if v'
+      in if v' /= cogent_NULL
          then let (pnn, g) = let (pnn
                                  , g) = let v1' = 1
                   and v' = pnn
@@ -2851,7 +2921,7 @@ cogent_sn74nl (pnn, pnl) =
          and v' = p0'
          and pnn = pnn @{ @i0' = p0' }
          in (v', pnn)
-      in if v'
+      in if v' /= cogent_NULL
          then let (pnn, pnl) = let (pnn
                                    , pnl) = let v1' = 1
                   and v' = pnn
@@ -2878,7 +2948,7 @@ cogent_sn74nn (pnn, qnn) =
             and v' = p0'
             and pnn = pnn @{ @i0' = p0' }
             in (v', pnn)
-         in if v'
+         in if v' /= cogent_NULL
             then let (c'
                      , pnn
                      , qnn) = let (pnn
@@ -2916,12 +2986,12 @@ cogent_sn75nl (pnn, qnl, i) =
          and v' = p0'
          and pnn = pnn @{ @i0' = p0' }
          in (v', pnn)
-      in if v'
+      in if v' /= cogent_NULL
          then let (r', pnn) = let (v'
                                   , pnn) = let v' = cogent_fcnn
                   and v1' = i
                   and v4' = qnl
-                  and (v1', pnn) = if v1'
+                  and (v1', pnn) = if v1' /= 0
                      then let v3' = 1
                         and v2' = pnn
                         and (pnn @{ @v3' = p1' }
@@ -2946,12 +3016,12 @@ cogent_sn75nn (pnn, qnn, i) =
          and v' = p0'
          and pnn = pnn @{ @i0' = p0' }
          in (v', pnn)
-      in if v'
+      in if v' /= cogent_NULL
          then let (r', pnn) = let (v'
                                   , pnn) = let v' = cogent_fcnn
                   and v1' = i
                   and v4' = qnn
-                  and (v1', pnn) = if v1'
+                  and (v1', pnn) = if v1' /= 0
                      then let v3' = 1
                         and v2' = pnn
                         and (pnn @{ @v3' = p1' }
@@ -2971,7 +3041,7 @@ cogent_sn75nn (pnn, qnn, i) =
 cogent_sn81nl : Cogent_nna1 -> ( U32, Cogent_nna1 )
 cogent_sn81nl pnl =
    let (r', pnl) = let v' = pnl
-      in if v'
+      in if v' /= cogent_NULL
          then let (r', pnl) = let (v'
                                   , pnl) = let v1' = 1
                   and v' = pnl
@@ -2995,7 +3065,7 @@ cogent_sn82nl pnn =
          and v' = p0'
          and pnn = pnn @{ @i0' = p0' }
          in (v', pnn)
-      in if v'
+      in if v' /= cogent_NULL
          then let (r', pnn) = let (v'
                                   , pnn) = let v2' = 1
                   and v1' = 1
@@ -3019,7 +3089,7 @@ cogent_sn82nl pnn =
 cogent_sn91nl : ( Struct_Cogent_nns1, MayNull (CPtr U32) ) -> ( (), Struct_Cogent_nns1, MayNull (CPtr U32) )
 cogent_sn91nl (pnn, qnl) =
    let pnn = let v' = qnl
-      in if v'
+      in if v' /= cogent_NULL
          then
             let pnn = let pnn = let v' = qnl
                   and v1' = pnn
@@ -3035,7 +3105,7 @@ cogent_sn91nl (pnn, qnl) =
 cogent_sn91nn : ( Struct_Cogent_nns1, MayNull (CPtr U32) ) -> ( (), Struct_Cogent_nns1, MayNull (CPtr U32) )
 cogent_sn91nn (pnn, qnl) =
    let pnn = let v' = qnl
-      in if v'
+      in if v' /= cogent_NULL
          then
             let pnn = let pnn = let v' = qnl
                   and v1' = pnn
@@ -3051,7 +3121,7 @@ cogent_sn91nn (pnn, qnl) =
 cogent_sn92nl : ( Cogent_nna3, MayNull (CPtr U32) ) -> ( (), Cogent_nna3, MayNull (CPtr U32) )
 cogent_sn92nl (pnl, qnl) =
    let pnl = let v' = qnl
-      in if v'
+      in if v' /= cogent_NULL
          then
             let pnl = let pnl = let v' = qnl
                   and v2' = 1
@@ -3069,7 +3139,7 @@ cogent_sn92nl (pnl, qnl) =
 cogent_sn92nn : ( Cogent_nna2, MayNull (CPtr U32) ) -> ( (), Cogent_nna2, MayNull (CPtr U32) )
 cogent_sn92nn (pnl, qnl) =
    let pnl = let v' = qnl
-      in if v'
+      in if v' /= cogent_NULL
          then
             let pnl = let pnl = let v' = qnl
                   and v2' = 1

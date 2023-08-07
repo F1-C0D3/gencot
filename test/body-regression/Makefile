@@ -13,9 +13,11 @@ TCONF = -tflebrp
 #VARIANT = preproc
 #TCONF = -tflebr
 
+# incl. boolproc
 #VARIANT = romodgen
 #TCONF = -tflebG
 
+# incl. boolproc
 #VARIANT = romodproc
 #TCONF = -tfleb
 
@@ -37,7 +39,7 @@ TCONF = -tflebrp
 #VARIANT = ifproc
 #TCONF =
 
-TESTS = purexpr assignexpr stat loop func ro null
+TESTS = purexpr assignexpr stat loop func ro null bool
 UNIT = externs exttypes dvdtypes
 AUNIT = unit-dfltprops
 

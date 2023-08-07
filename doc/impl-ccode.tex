@@ -1664,8 +1664,8 @@ side effect targets.
 
 The logical operators are conceptially rewritten as conditional expressions:
 \begin{verbatim}
-  e1 && e2 -> e1 ? e2 : 0
-  e1 || e2 -> e1 ? 1 : e2
+  e1 && e2 -> e1 ? e2 : False
+  e1 || e2 -> e1 ? True : e2
 \end{verbatim}
 
 A conditional expression \code{e0 ? e1 : e2} is translated to a binding lists as follows. First the three subexpressions are translated
@@ -1690,7 +1690,7 @@ expression in the corresponding condition branch is replaced by the tuple \code{
 As an example, the expression \code{x \&\& (v = i)} is translated to
 \begin{verbatim}
   v' = x
-  v3' = 0
+  v3' = False
   (v',v) = 
     if v' then 
       let (v1',v) = 
@@ -1700,17 +1700,17 @@ As an example, the expression \code{x \&\& (v = i)} is translated to
       in (v1',v)
     else (v3',v)
 \end{verbatim}
-which will be simplified to \code{(v',v) = if x then (i,i) else (0,v)} in later stages,
+which will be simplified to \code{(v',v) = if x then (i/=0,i) else (False,v)} in later stages,
 whereas the expression \code{(v = i) \&\& x} is translated to
 \begin{verbatim}
   v1' = i
   (v',v) = (v1',v1')
   v2' = x
-  v3' = 0
+  v3' = False
   v' = 
     if v' then v2' else v3'
 \end{verbatim}
-which will be simplified to \code{(v = i) and (v' = i \&\& x)} in later stages.
+which will be simplified to \code{(v = i) and (v' = if i/=0 then x else False)} in later stages.
 
 \subsection{Additional Type Information}
 \label{impl-ccode-type}
@@ -1762,7 +1762,8 @@ which is used for the result of equational, relational, and boolean operators an
 and the condition in conditional expressions.
 
 Since the expected types for operators and conditional expressions are not made explicit in the Cogent AST, type \code{Bool}
-is only used for the result of equational, relational, and boolean operators.
+is only used for the result of equational, relational, and boolean operators. Cases of expected type \code{Bool}
+are handled in postprocessing steps.
 
 \subsubsection{Expressions for Variables}
 

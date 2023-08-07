@@ -8,10 +8,12 @@ import Cogent.Surface as CS
 import Cogent.Common.Syntax as CCS
 
 import Gencot.Origin (noOrigin)
+import Gencot.Names (mapNull)
 import Gencot.Cogent.Ast -- includes unitType
 import Gencot.Cogent.Types (
   mkU8Type, mkU32Type, mkStringType, mkBoolType,
-  mkTupleType, mkCtlType, mkFunType, mkRecordType, mkTakeType, mkArrTakeType, getResultType)
+  mkTupleType, mkCtlType, mkFunType, mkRecordType, mkVoidPtrType, mkTakeType, mkArrTakeType, mkMayNull,
+  getResultType)
 
 -- Variable name together with its type
 data TypedVar = TV {
@@ -53,6 +55,10 @@ mkStringLitExpr = (genExpr mkStringType) . CS.StringLit
 -- construct True or False
 mkBoolLitExpr :: Bool -> GenExpr
 mkBoolLitExpr = (genExpr mkBoolType) . CS.BoolLit
+
+-- construct cogent_NULL
+mkNullExpr :: GenExpr
+mkNullExpr = mkVarExpr $ TV mapNull $ mkMayNull mkVoidPtrType
 
 -- construct v
 mkVarExpr :: TypedVar -> GenExpr

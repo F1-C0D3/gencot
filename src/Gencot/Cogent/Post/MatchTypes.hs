@@ -17,11 +17,12 @@ import Gencot.Names (mapNull)
 import Gencot.Cogent.Ast
 import Gencot.Cogent.Error (typeMatch)
 import Gencot.Cogent.Types (
-  mkTupleType, mkFunType, mkReadonly,
-  isNonlinear, isRegular, mayEscape, isReadonly, roCmpTypes,
+  mkBoolType, mkU32Type, mkTupleType, mkFunType, mkReadonly,
+  isBoolType, isNonlinear, isRegular, mayEscape, isReadonly, isArithmetic, roCmpTypes,
   unbangType, getMemberType, getDerefType, getParamType, getResultType, adaptTypes)
 import Gencot.Cogent.Bindings (errVar, mkDummyExpr, toDummyExpr, mkVarTuplePattern)
-import Gencot.Cogent.Expr (TypedVar(TV), namOfTV, mkUnitExpr, mkLetExpr, mkVarTupleExpr)
+import Gencot.Cogent.Expr (
+  TypedVar(TV), namOfTV, mkUnitExpr, mkIntLitExpr, mkNullExpr, mkBoolOpExpr, mkLetExpr, mkIfExpr, mkTupleExpr, mkVarTupleExpr)
 import Gencot.Cogent.Post.Util (
   ETrav, runExprTrav, isValVar, isCVar, freeInIrrefPatn, freeInBindings, freeUnderBinding, boundInBindings,
   freeTypedVarsInExpr, freeTypedVarsUnderBinding,
@@ -40,6 +41,105 @@ import Gencot.Cogent.Post.Util (
 -- - subpatterns in tuples are only variables or wildcards, or the tuple is a pair of an array-take and a variable.
 --   array-takes only occur in such pairs.
 -- - a take or array-take has exactly one taken field or element
+
+{- Matching Boolean Types with  -}
+{- Arithmetic and Pointer Types -}
+{--------------------------------}
+
+boolproc :: GenExpr -> GenExpr
+boolproc e = mapExprOfGE boolproc' e
+
+boolproc' :: ExprOfGE -> ExprOfGE
+boolproc' (CS.Let bs bdy) =
+    let bs' = boolprocInBindings bs
+        bdy' = boolproc bdy
+    in CS.Let bs' bdy'
+-- conditional expression:
+-- convert condition to boolean
+-- convert branch to boolean if other branch is boolean
+boolproc' (CS.If e bvs e1 e2) =
+    let  e' = boolproc e
+         e1' = boolproc e1
+         e2' = boolproc e2
+         e1'' = if isBoolType $ typOfGE e2' then toBoolType e1' else e1'
+         e2'' = if isBoolType $ typOfGE e1' then toBoolType e2' else e2'
+    in CS.If (toBoolType e') bvs e1'' e2''
+-- unary boolean operator:
+-- convert argument to boolean
+boolproc' (CS.PrimOp op [e]) | op == "not" =
+    let e' = boolproc e
+    in CS.PrimOp op [toBoolType e']
+-- unary arithmetic operators:
+-- convert boolean argument to arithmetic (U32)
+boolproc' (CS.PrimOp op [e]) =
+    let e' = boolproc e
+    in CS.PrimOp op [boolToArithType e']
+-- binary equational operators:
+-- convert argument to boolean if other argument is boolean
+boolproc' (CS.PrimOp op [e1, e2]) | elem op ["==", "/="] =
+    let e1' = boolproc e1
+        e2' = boolproc e2
+        e1'' = if isBoolType $ typOfGE e2' then toBoolType e1' else e1'
+        e2'' = if isBoolType $ typOfGE e1' then toBoolType e2' else e2'
+    in CS.PrimOp op [e1'',e2'']
+-- binary boolean operators:
+-- convert arguments to boolean
+boolproc' (CS.PrimOp op [e1, e2]) | elem op ["&&", "||"] =
+    let e1' = toBoolType $ boolproc e1
+        e2' = toBoolType $ boolproc e2
+    in CS.PrimOp op [e1',e2']
+-- binary relational and arithmetic operators
+-- convert boolean arguments to arithmetic (U32)
+boolproc' (CS.PrimOp op [e1, e2]) =
+    let e1' = boolToArithType $ boolproc e1
+        e2' = boolToArithType $ boolproc e2
+    in CS.PrimOp op [e1', e2']
+-- function application:
+-- convert boolean arguments to arithmetic (U32)
+boolproc' (CS.App f e x) =
+    let e' = boolproc e
+    in case exprOfGE e' of
+         CS.Tuple es ->
+             let es' = (map boolToArithType es)
+             in CS.App f (mkTupleExpr es') x
+         _ -> CS.App f (boolToArithType e) x
+-- no other cases of boolean type clashes
+boolproc' e = fmap boolproc e
+
+boolprocInBindings :: [GenBnd] -> [GenBnd]
+boolprocInBindings [] = []
+boolprocInBindings ((CS.Binding ip m e bvs) : bs) =
+    let e' = boolproc e
+        bs' = boolprocInBindings bs
+        e'' = boolprocBinding ip e'
+    in (CS.Binding ip m e'' bvs) : bs'
+
+boolprocBinding :: GenIrrefPatn -> GenExpr -> GenExpr
+boolprocBinding (GenIrrefPatn (CS.PTuple ips) _ _) (GenExpr (CS.Tuple es) o t ccd) =
+    let es' = map (uncurry boolprocBinding) $ zip ips es
+    in GenExpr (CS.Tuple $ es') o (mkTupleType (map typOfGE es')) ccd
+boolprocBinding ip@(GenIrrefPatn (CS.PTuple ips) _ _) (GenExpr (CS.If e1 bvs e2 e3) o t ccd) =
+    let e2' = boolprocBinding ip e2
+        e3' = boolprocBinding ip e3
+    in GenExpr (CS.If e1 bvs e2' e3') o (adaptTypes (typOfGE e2') (typOfGE e3')) ccd
+boolprocBinding ip@(GenIrrefPatn (CS.PTuple ips) _ _) (GenExpr (CS.Let bs bdy) o t ccd) =
+    let bdy' = boolprocBinding ip bdy
+    in GenExpr (CS.Let bs bdy') o (typOfGE bdy') ccd
+boolprocBinding (GenIrrefPatn _ _ tp) e@(GenExpr _ _ t _) =
+    if isBoolType tp
+       then toBoolType e
+       else boolToArithType e
+
+toBoolType :: GenExpr -> GenExpr
+toBoolType e | isBoolType $ typOfGE e = e
+toBoolType e | isArithmetic $ typOfGE e = mkBoolOpExpr "/=" [e,mkIntLitExpr (typOfGE e) 0]
+toBoolType e = mkBoolOpExpr "/=" [e,mkNullExpr]
+
+boolToArithType :: GenExpr -> GenExpr
+boolToArithType e =
+    if isBoolType $ typOfGE e
+       then mkIfExpr mkU32Type e (mkIntLitExpr mkU32Type 1) (mkIntLitExpr mkU32Type 0)
+       else e
 
 
 {- Modification of Readonly Containers -}

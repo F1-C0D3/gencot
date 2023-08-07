@@ -311,6 +311,10 @@ isMayNull :: GenType -> Bool
 isMayNull (GenType (CS.TCon cstr _ _) _ _) | cstr == mapMayNull = True
 isMayNull _ = False
 
+isArithmetic :: GenType -> Bool
+isArithmetic (GenType (CS.TCon tn [] _) _ _) | (elem tn ["U8", "U16", "U32", "U64"]) = True
+isArithmetic _ = False
+
 -- | Readonly compatible
 -- Assumes that types differ atmost by MayNull or read-only
 -- or one is String and the other is pointer to U8

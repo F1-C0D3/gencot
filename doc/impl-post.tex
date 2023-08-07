@@ -606,42 +606,44 @@ expressions. The use of type \code{Bool} can clash with all types which result f
 represent a boolean value. These are all ``scalar'' types in C, which are the arithmetic types and the pointer types.
 
 Arithmetic types are always translated to the Cogent integer types \code{U8, U16, U32,} and \code{U64}. Type clashes between
-\code{U32} and \code{Bool} can always be resolved by conversion. An expression \code{e} of type \code{U32} can be converted
+them and \code{Bool} can always be resolved by conversion. An expression \code{e} of integer type can be converted
 to \code{Bool} by
 \begin{verbatim}
   e /= 0
 \end{verbatim}
-and an expression \code{e} of type \code{Bool} can be converted to \code{U32} by
+because the type of the literal \code{0} is automatically adapted to the type of \code{e} here.
+
+An expression \code{e} of type \code{Bool} can be converted to any arithmetic type by
 \begin{verbatim}
   if e then 1 else 0
 \end{verbatim}
-If the integer type is not \code{U32} additional conversion is required as described for type clashes among the integer types
-below.
+because the literals \code{1} and \code{0} are automatically adapted to the expected arithmetic type.
 
 Pointer types are translated to linear types and are represented by boxed record types or boxed abstract types, possibly wrapped
 by \code{MayNull}. An expression \code{e} of type \code{MayNull a} can be converted to \code{Bool} by comparing it with NULL:
 \begin{verbatim}
-  e /= Cogent_NULL
+  e /= cogent_NULL
 \end{verbatim}
-Here \code{Cogent\_NULL} denotes the Gencot translation of the C constant \code{NULL} of Cogent type \code{MayNull CVoidPtr}. This
+Here \code{cogent\_NULL} denotes the Gencot translation of the C constant \code{NULL} of Cogent type \code{MayNull CVoidPtr}. This
 Cogent expression resulting from the conversion is the same as the translation of the C expression \code{expr != NULL}, if
-\code{e} is the translation of \code{expr}. These expressions will be further postprocessed as described below for pointers,
-among others to evaluate it to \code{True} if the type of \code{e} is an unwrapped linear type, or resolve a clash between the
-type of \code{e} and \code{MayNull CVoidPtr} otherwise.
+\code{e} is the translation of \code{expr}. Clashes between the type of \code{e} and \code{MayNull CVoidPtr} will be resolved
+by further postprocessing for pointer types as described below.
 
 It would be possible to convert the value \code{False} to a NULL pointer using the Gencot basic operations \code{null} and
 \code{roNull} defined in Section~\ref{design-operations-null}. However, for the value \code{True} no sensible conversion exists.
 More general, conversion from a numerical value to a pointer would correspond to a form of pointer arithmetics which is
 deliberately not supported by Gencot. Therefore Gencot never converts from type \code{Bool} to a pointer type.
 
-Type clashes with \code{Bool} are resolved by converting the subexpression to the context type, if that is possible, otherwise
-the subexpression is replaced by a dummy expression and an error is signaled. If the type clash is between two operator arguments
+Type clashes with \code{Bool} are resolved as follows. A sub-expression with non-boolean type in a context expecting type \code{Bool}
+is converted by comparing with \code{0} or \code{cogent\_NULL}. A sub-expression with type \code{Bool} in a context not expecting
+type \code{Bool} is always converted to arithmetic type \code{U32} as described above. If necessary, further type clashes are resolved
+in later postprocessing steps. If the type clash is between two operator arguments
 or two components of the branches of a conditional expression the conversion is always to type \code{Bool}, since that is always
 possible.
 
-Postprocessing for boolean values is implemented by the monadic action
+Postprocessing for boolean values in this way cannot cause errors, hence it is implemented by the function
 \begin{verbatim}
-  boolproc :: GenExpr -> ETrav GenExpr
+  boolproc :: GenExpr -> GenExpr
 \end{verbatim}
 defined in module \code{Gencot.Cogent.Post.MatchTypes}.
 

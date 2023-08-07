@@ -21,7 +21,8 @@ cogent_fo1 () = + 42
 cogent_fo2 : () -> U32
 cogent_fo2 () = - 42
 cogent_fo3 : () -> U32
-cogent_fo3 () = not 42
+cogent_fo3 () =
+   if not (42 /= 0) then 1 else 0
 cogent_fo4 : () -> U32
 cogent_fo4 () = complement 42
 cogent_fo5 : () -> U32
@@ -39,17 +40,23 @@ cogent_fo10 () = 17 << 4
 cogent_fo11 : () -> U32
 cogent_fo11 () = 17 >> 4
 cogent_fo12 : () -> U32
-cogent_fo12 () = 17 < 4
+cogent_fo12 () =
+   if 17 < 4 then 1 else 0
 cogent_fo13 : () -> U32
-cogent_fo13 () = 17 > 4
+cogent_fo13 () =
+   if 17 > 4 then 1 else 0
 cogent_fo14 : () -> U32
-cogent_fo14 () = 17 <= 4
+cogent_fo14 () =
+   if 17 <= 4 then 1 else 0
 cogent_fo15 : () -> U32
-cogent_fo15 () = 17 >= 4
+cogent_fo15 () =
+   if 17 >= 4 then 1 else 0
 cogent_fo16 : () -> U32
-cogent_fo16 () = 17 == 4
+cogent_fo16 () =
+   if 17 == 4 then 1 else 0
 cogent_fo17 : () -> U32
-cogent_fo17 () = 17 /= 4
+cogent_fo17 () =
+   if 17 /= 4 then 1 else 0
 cogent_fo18 : () -> U32
 cogent_fo18 () = 17 .&. 4
 cogent_fo19 : () -> U32
@@ -58,13 +65,21 @@ cogent_fo20 : () -> U32
 cogent_fo20 () = 17 .^. 4
 cogent_fo21 : () -> U32
 cogent_fo21 () =
-   if 17 then 4 else False
+   if (if 17 /= 0
+      then 4 /= 0
+      else False)
+   then 1
+   else 0
 cogent_fo22 : () -> U32
 cogent_fo22 () =
-   if 17 then True else 4
+   if (if 17 /= 0
+      then True
+      else 4 /= 0)
+   then 1
+   else 0
 cogent_f1 : () -> U32
 cogent_f1 () =
-   if 17 then 4 else 42
+   if 17 /= 0 then 4 else 42
 cogent_f2 : () -> U32
 cogent_f2 () = 42
 cogent_f3 : () -> U32

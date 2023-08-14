@@ -90,11 +90,11 @@ cogent_f14ln (pro, qro, i) =
    let (c'
        , r') = let v' = cogent_fcln
       and v1' = i
-      and v2' = pro
-      and v3' = qro
       and v4' = if v1'
-         then v2'
-         else v3'
+         then let v2' = pro
+            in v2'
+         else let v3' = qro
+            in v3'
       and v5' = v' v4'
       in (3, v5')
    in r'
@@ -103,11 +103,11 @@ cogent_f14ro (pro, qro, i) =
    let (c'
        , r') = let v' = cogent_fcro
       and v1' = i
-      and v2' = pro
-      and v3' = qro
       and v4' = if v1'
-         then v2'
-         else v3'
+         then let v2' = pro
+            in v2'
+         else let v3' = qro
+            in v3'
       and v5' = v' v4'
       in (3, v5')
    in r'
@@ -192,11 +192,11 @@ cogent_f41ln (pro, qln, i) =
    let (c'
        , r') = let v' = cogent_fcro
       and v1' = i
-      and v2' = pro
-      and v3' = qln
       and v4' = if v1'
-         then v2'
-         else v3'
+         then let v2' = pro
+            in v2'
+         else let v3' = qln
+            in v3'
       and v5' = v' v4'
       in (3, v5')
    in (r', qln)
@@ -205,11 +205,11 @@ cogent_f42ln (pln, qro, i) =
    let (c'
        , r') = let v' = cogent_fcro
       and v1' = i
-      and v2' = pln
-      and v3' = qro
       and v4' = if v1'
-         then v2'
-         else v3'
+         then let v2' = pln
+            in v2'
+         else let v3' = qro
+            in v3'
       and v5' = v' v4'
       in (3, v5')
    in (r', pln)
@@ -437,14 +437,14 @@ cogent_f59ln (pro, qln, i) =
        , r'
        , pro) = let v' = cogent_fcro
       and v1' = i
-      and v4' = qln
       and (v5', pro) = if v1'
          then let v2' = pro
             and pro { mln = p0' } = v2'
             and v3' = p0'
             and pro = pro { mln = p0' }
             in (v3', pro)
-         else (v4', pro)
+         else let v4' = qln
+            in (v4', pro)
       and v6' = v' v5'
       in (3, v6', pro)
    in (r', qln)
@@ -454,14 +454,14 @@ cogent_f59ro (pro, qro, i) =
        , r'
        , pro) = let v' = cogent_fcro
       and v1' = i
-      and v4' = qro
       and (v5', pro) = if v1'
          then let v2' = pro
             and pro { mln = p0' } = v2'
             and v3' = p0'
             and pro = pro { mln = p0' }
             in (v3', pro)
-         else (v4', pro)
+         else let v4' = qro
+            in (v4', pro)
       and v6' = v' v5'
       in (3, v6', pro)
    in r'
@@ -875,7 +875,6 @@ cogent_f79ln (pro, qln, i) =
        , r'
        , pro) = let v' = cogent_fcro
       and v1' = i
-      and v5' = qln
       and (v6', pro) = if v1'
          then let v3' = 1
             and v2' = pro
@@ -884,7 +883,8 @@ cogent_f79ln (pro, qln, i) =
             and v4' = p0'
             and pro = pro @{ @i0' = p0' }
             in (v4', pro)
-         else (v5', pro)
+         else let v5' = qln
+            in (v5', pro)
       and v7' = v' v6'
       in (3, v7', pro)
    in (r', qln)
@@ -894,7 +894,6 @@ cogent_f79ro (pro, qro, i) =
        , r'
        , pro) = let v' = cogent_fcro
       and v1' = i
-      and v5' = qro
       and (v6', pro) = if v1'
          then let v3' = 1
             and v2' = pro
@@ -903,7 +902,8 @@ cogent_f79ro (pro, qro, i) =
             and v4' = p0'
             and pro = pro @{ @i0' = p0' }
             in (v4', pro)
-         else (v5', pro)
+         else let v5' = qro
+            in (v5', pro)
       and v7' = v' v6'
       in (3, v7', pro)
    in r'
@@ -1180,11 +1180,11 @@ cogent_g14ln (pln, qln, i) =
    let (c'
        , r') = let v' = cogent_fcln
       and v1' = i
-      and v2' = pln
-      and v3' = qln
       and v4' = if v1'
-         then v2'
-         else v3'
+         then let v2' = pln
+            in v2'
+         else let v3' = qln
+            in v3'
       and v5' = v' v4'
       in (3, v5')
    in r'
@@ -1193,11 +1193,11 @@ cogent_g14ro (pln, qln, i) =
    let (c'
        , r') = let v' = cogent_fcro
       and v1' = i
-      and v2' = pln
-      and v3' = qln
       and v4' = if v1'
-         then v2'
-         else v3'
+         then let v2' = pln
+            in v2'
+         else let v3' = qln
+            in v3'
       and v5' = v' v4'
       in (3, v5')
    in r'
@@ -1473,14 +1473,14 @@ cogent_g59ln (pln, qln, i) =
        , r'
        , pln) = let v' = cogent_fcro
       and v1' = i
-      and v4' = qln
       and (v5', pln) = if v1'
          then let v2' = pln
             and pln { mln = p0' } = v2'
             and v3' = p0'
             and pln = pln { mln = p0' }
             in (v3', pln)
-         else (v4', pln)
+         else let v4' = qln
+            in (v4', pln)
       and v6' = v' v5'
       in (3, v6', pln)
    in (r', qln)
@@ -1490,14 +1490,14 @@ cogent_g59ro (pln, qro, i) =
        , r'
        , pln) = let v' = cogent_fcro
       and v1' = i
-      and v4' = qro
       and (v5', pln) = if v1'
          then let v2' = pln
             and pln { mln = p0' } = v2'
             and v3' = p0'
             and pln = pln { mln = p0' }
             in (v3', pln)
-         else (v4', pln)
+         else let v4' = qro
+            in (v4', pln)
       and v6' = v' v5'
       in (3, v6', pln)
    in r'
@@ -1836,7 +1836,6 @@ cogent_g79ln (pln, qln, i) =
        , r'
        , pln) = let v' = cogent_fcro
       and v1' = i
-      and v5' = qln
       and (v6', pln) = if v1'
          then let v3' = 1
             and v2' = pln
@@ -1845,7 +1844,8 @@ cogent_g79ln (pln, qln, i) =
             and v4' = p0'
             and pln = pln @{ @i0' = p0' }
             in (v4', pln)
-         else (v5', pln)
+         else let v5' = qln
+            in (v5', pln)
       and v7' = v' v6'
       in (3, v7', pln)
    in (r', qln)
@@ -1855,7 +1855,6 @@ cogent_g79ro (pln, qro, i) =
        , r'
        , pln) = let v' = cogent_fcro
       and v1' = i
-      and v5' = qro
       and (v6', pln) = if v1'
          then let v3' = 1
             and v2' = pln
@@ -1864,7 +1863,8 @@ cogent_g79ro (pln, qro, i) =
             and v4' = p0'
             and pln = pln @{ @i0' = p0' }
             in (v4', pln)
-         else (v5', pln)
+         else let v5' = qro
+            in (v5', pln)
       and v7' = v' v6'
       in (3, v7', pln)
    in r'
@@ -2232,11 +2232,11 @@ cogent_n14ln (qln, i) =
    let (c'
        , r') = let v' = cogent_fcln
       and v1' = i
-      and v2' = cogent_NULL
-      and v3' = qln
       and v4' = if v1'
-         then v2'
-         else v3'
+         then let v2' = cogent_NULL
+            in v2'
+         else let v3' = qln
+            in v3'
       and v5' = v' v4'
       in (3, v5')
    in (r', qln)
@@ -2245,11 +2245,11 @@ cogent_n14ro (qln, i) =
    let (c'
        , r') = let v' = cogent_fcro
       and v1' = i
-      and v2' = cogent_NULL
-      and v3' = qln
       and v4' = if v1'
-         then v2'
-         else v3'
+         then let v2' = cogent_NULL
+            in v2'
+         else let v3' = qln
+            in v3'
       and v5' = v' v4'
       in (3, v5')
    in (r', qln)

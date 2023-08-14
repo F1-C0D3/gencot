@@ -32,8 +32,9 @@ import Gencot.Cogent.Post.Util (
 -- - expressions bound in a binding are only
 --   literals, variables, tuples, constant or function names, function applications, operator applications,
 --   put/array-put, conditional expressions, let-expressions
--- - branches in conditional expressions, the argument of a function application, and the body of a let-expresson
---   is a single variable or a tuple of variables.
+-- - the argument of a function application is a single variable or a tuple of variables.
+-- - the body of a let-expresson is a single variable or a tuple of variables or a conditional expression.
+-- - a branch in a conditional expressions is a always let-expression.
 -- - all other sub-expressions are single variables.
 -- Assumptions for all patterns:
 -- - irrefutable patterns in a binding are only
@@ -132,8 +133,21 @@ boolprocBinding (GenIrrefPatn _ _ tp) e@(GenExpr _ _ t _) =
 
 toBoolType :: GenExpr -> GenExpr
 toBoolType e | isBoolType $ typOfGE e = e
+toBoolType (GenExpr (CS.Let bs bdy) o _ ccd) = GenExpr (toBoolTypeInLet bs bdy) o mkBoolType ccd
+toBoolType (GenExpr (CS.If e0 bvs e1 e2) o _ ccd) =
+    GenExpr (CS.If e0 bvs (toBoolType e1) (toBoolType e2)) o mkBoolType ccd
 toBoolType e | isArithmetic $ typOfGE e = mkBoolOpExpr "/=" [e,mkIntLitExpr (typOfGE e) 0]
 toBoolType e = mkBoolOpExpr "/=" [e,mkNullExpr]
+
+toBoolTypeInLet :: [GenBnd] -> GenExpr -> ExprOfGE
+toBoolTypeInLet bs (GenExpr (CS.Var v) o _ ccd) = CS.Let (toBoolTypeInBindings v bs) $ GenExpr (CS.Var v) o mkBoolType ccd
+toBoolTypeInLet bs bdy = CS.Let bs $ toBoolType bdy
+
+toBoolTypeInBindings :: VarName -> [GenBnd] -> [GenBnd]
+toBoolTypeInBindings v [] = []
+toBoolTypeInBindings v ((CS.Binding (GenIrrefPatn (CS.PVar pv) o _) m e bvs) : bs) | pv == v =
+    (CS.Binding (GenIrrefPatn (CS.PVar pv) o mkBoolType) m (toBoolType e) bvs) : bs
+toBoolTypeInBindings v (b : bs) = b : (toBoolTypeInBindings v bs)
 
 boolToArithType :: GenExpr -> GenExpr
 boolToArithType e =

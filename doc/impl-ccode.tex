@@ -1666,47 +1666,43 @@ The logical operators are conceptially rewritten as conditional expressions:
   e1 || e2 -> e1 ? True : e2
 \end{verbatim}
 
-A conditional expression \code{e0 ? e1 : e2} is translated to a binding lists as follows. First the three subexpressions are translated
-to binding lists by \code{bindExpr}. Then the lists for \code{e2} and \code{e3} are combined by \code{cmbBinds} to single bindings
-\code{(v<m>',x1..) = expr1} and \code{(v<k>',y1..) = expr2}. Let \code{v<j>'} be the value variable bound in the translation
-of \code{e0}. Let \code{z1..} be the union of the side effect targets \code{x1..}, and \code{y1..} in some order. The binding list
-of the translated expression is the list of \code{e0} to which the binding
+A conditional expression \code{e0 ? e1 : e2} is translated to a binding list as follows. First the three subexpressions are translated
+to binding lists \code{bs0}, \code{bs1}, and \code{bs2} by \code{bindExpr}. Let \code{v<j>'}, \code{v<m>'}, and \code{v<k>'} be the
+value variable to which the result of \code{e0}, \code{e1}, \code{e2}, respectively, is bound in the translation. Let \code{x1..}
+and \code{y1..} are the side effect targets in the translations of \code{e1} and \code{e2}, respectively, and let \code{z1..} be
+the union of both in some order. The binding list of the translated expression is the list of \code{e0} to which the binding
 \begin{verbatim}
   (v<n>',z1..) = 
   if v<j>'
-  then let (v<m>',x1..) = expr1 in (v<m>',z1..)
-  else let (v<k>',y1..) = expr2 in (v<k>',z1..)
+  then let bs1 in (v<m>',z1..)
+  else let bs2 in (v<k>',z1..)
 \end{verbatim}
 is appended. According to the type of \code{v<j>'} the condition in the conditional expression is adjusted in later stages.
 
 In most realistic cases the conditionally evaluated subexpressions have no side effects. Then it is irrelevant whether they are 
-evaluated or not. Gencot tests for these cases and provides a simpler translation if one or both have no side effects (i.e. the set 
-of side effect targets is empty). For such a subexpression
-its binding list is not combined by \code{cmbBinds}, instead its list is appended to the list of \code{e0} and the \code{let}
-expression in the corresponding condition branch is replaced by the tuple \code{(v<m>',z1..)} or \code{(v<k>',z1..)}, respectively.
+evaluated or not. It would be possible to appended the lists \code{bs1} and \code{bs2} to the list of \code{e0} outside of the
+conditional expression and replace the \code{let} expression in the corresponding condition branch by the tuple \code{(v<m>',z1..)} or \code{(v<k>',z1..)}, respectively. However, then implications of the condition cannot be used in \code{bs1} and \code{bs2}.
+At least NULL test conditions are exploited during postprocessing to change the type of tested values from \code{MayNull} wrapped
+to unwrapped. To make this possible the lists \code{bs1} and \code{bs2} are always placed in the condition branches, as shown above.
 
 As an example, the expression \code{x \&\& (v = i)} is translated to
 \begin{verbatim}
   v' = x
-  v3' = False
   (v4',v) =
     if v' then 
-      let (v1',v) = 
-        let v2' = i 
-        and (v1',v) = (v2',v2') 
-        in (v1',v) 
+      let v2' = i
+      and (v1',v) = (v2',v2')
       in (v1',v)
-    else (v3',v)
+    else let v3' = False in (v3',v)
 \end{verbatim}
 which will be simplified to \code{(v4',v) = if x then (i/=0,i) else (False,v)} in later stages,
 whereas the expression \code{(v = i) \&\& x} is translated to
 \begin{verbatim}
   v1' = i
   (v',v) = (v1',v1')
-  v2' = x
-  v3' = False
-  v4' =
-    if v' then v2' else v3'
+  v4' = if v'
+    then let v2' = x in v2'
+    else let v3' = False in v3'
 \end{verbatim}
 which will be simplified to \code{(v = i) and (v4' = if i/=0 then x else False)} in later stages.
 

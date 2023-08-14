@@ -272,7 +272,7 @@ mkAssExprBinds m n post (op,t) bpr bpl =
 -- | Conditional v<n>' = if bp1 then bp2 else bp3
 mkIfExprBinds :: Int -> ExprBinds -> ExprBinds -> ExprBinds -> ExprBinds
 mkIfExprBinds n bp0 bp1 bp2 =
-    addBinding (mkVarsBinding (vr : set) (mkIfExpr rts (mkVarExpr v0) e1 e2)) bp
+    addBinding (mkVarsBinding (vr : set) (mkIfExpr rts (mkVarExpr v0) e1 e2)) bp0
     where set1 = sideEffectTargets bp1
           set2 = sideEffectTargets bp2
           v0 = leadVar bp0
@@ -282,13 +282,8 @@ mkIfExprBinds n bp0 bp1 bp2 =
           rt = adaptTypes (typOfTV v1) (typOfTV v2)
           rts = mkTupleType (rt : (map typOfTV set))
           vr = TV (valVar n) rt
-          (bp1l,e1) = if null set1
-                         then ([bp1],mkVarTupleExpr (v1 : set))
-                         else ([],boundExpr $ cmbExtBinds set bp1)
-          (bp2l,e2) = if null set2
-                         then ([bp2],mkVarTupleExpr (v2 : set))
-                         else ([],boundExpr $ cmbExtBinds set bp2)
-          bp = concatExprBinds (bp0 : (bp1l ++ bp2l))
+          e1 = mkLetExpr (binds bp1) $ mkVarTupleExpr (v1 : set)
+          e2 = mkLetExpr (binds bp2) $ mkVarTupleExpr (v2 : set)
 
 -- | Add binding to the main list
 addBinding :: GenBnd -> ExprBinds -> ExprBinds

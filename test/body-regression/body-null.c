@@ -282,3 +282,50 @@ void sn91nn(struct nns1 *pnn, int *qnl) { if (qnl) pnn->mnn = qnl; }
 void sn92nl(nna3 pnl, int *qnl) { if (qnl) pnl[1] = qnl; }
 void sn92nn(nna2 pnl, int *qnl) { if (qnl) pnl[1] = qnl; }
 
+// Using MayNull values in correct context after complex test including NULL-test(s)
+
+// One NULL-test with other tests
+int cn11(int *pnl, int i) { return (i>5 && pnl)?fcnn(pnl):fcnl(pnl); }
+int cn12(int *pnl, int i) { return (i>5 && i<20 && pnl)?fcnn(pnl):fcnl(pnl); }
+int cn13(int *pnl, int i) { return (i>5 && pnl && i<20)?fcnn(pnl):fcnl(pnl); }
+int cn14(int *pnl, int i) { return (i>5 && pnl && *pnl<20)?fcnn(pnl):fcnl(pnl); }
+int cn15(int *pnl, int i) { return (pnl && i>5 && *pnl<20)?fcnn(pnl):fcnl(pnl); }
+int cn16(int *pnl, int i) { return (i>5 || pnl)?fcnl(pnl):fcnl(pnl); }
+int cn17(int *pnl, int i) { return (pnl == NULL || i > 5)?fcnl(pnl):fcnn(pnl); }
+int cn18(int *pnl, int i) { return (i > 5 || NULL == pnl || *pnl<20)?fcnl(pnl):fcnn(pnl); }
+int cn19(int *pnl, int i) { return (i > 5 || !pnl)?fcnl(pnl):fcnn(pnl); }
+
+// Two NULL-tests and possibly other tests
+int cn21(int *pnl, int *qnl, int i) { return (pnl && qnl)?fcnn(pnl)+fcnn(qnl):fcnl(pnl)+fcnl(qnl); }
+int cn22(int *pnl, int *qnl, int i) { return (i > 5 && pnl && qnl)?fcnn(pnl)+fcnn(qnl):fcnl(pnl)+fcnl(qnl); }
+int cn23(int *pnl, int *qnl, int i) { return (pnl && i > 5 && qnl)?fcnn(pnl)+fcnn(qnl):fcnl(pnl)+fcnl(qnl); }
+int cn24(int *pnl, int *qnl, int i) { return (pnl && qnl && i > 5)?fcnn(pnl)+fcnn(qnl):fcnl(pnl)+fcnl(qnl); }
+int cn25(int *pnl, int *qnl, int i) { return (pnl || qnl)?fcnl(pnl)+fcnl(qnl):fcnl(pnl)+fcnl(qnl); }
+int cn26(int *pnl, int *qnl, int i) { return (pnl == NULL || qnl == NULL)?fcnl(pnl)+fcnl(qnl):fcnn(pnl)+fcnn(qnl); }
+int cn27(int *pnl, int *qnl, int i) { return (pnl == NULL || (*pnl == 1 && qnl && *qnl == 1))?fcnl(pnl)+fcnl(qnl):fcnl(pnl)+fcnl(qnl); }
+
+// One NULL-test with other tests in statement
+int cn31(int *pnl, int i) { if (i>5 && pnl) return fcnn(pnl); else return fcnl(pnl); }
+int cn32(int *pnl, int i) { if (i>5 && i<20 && pnl) return fcnn(pnl); return fcnl(pnl); }
+int cn33(int *pnl, int i) { if (i>5 && pnl && i<20) return fcnn(pnl); else return fcnl(pnl); }
+int cn34(int *pnl, int i) { if (i>5 && pnl && *pnl<20) return fcnn(pnl); else return fcnl(pnl); }
+int cn35(int *pnl, int i) { if (pnl && i>5 && *pnl<20) return fcnn(pnl); else return fcnl(pnl); }
+int cn36(int *pnl, int i) { if (i>5 || pnl) return fcnl(pnl); else return fcnl(pnl); }
+int cn37(int *pnl, int i) { if (pnl == NULL || i > 5) return fcnl(pnl); else return fcnn(pnl); }
+int cn38(int *pnl, int i) { if (i > 5 || NULL == pnl || *pnl<20) return fcnl(pnl); else return fcnn(pnl); }
+int cn39(int *pnl, int i) { if (i > 5 || !pnl) return fcnl(pnl); else return fcnn(pnl); }
+
+// Two NULL-tests and possibly other tests in statement
+int cn41(int *pnl, int *qnl, int i) { if (pnl && qnl) return fcnn(pnl)+fcnn(qnl); else return fcnl(pnl)+fcnl(qnl); }
+int cn42(int *pnl, int *qnl, int i) { if (i > 5 && pnl && qnl) return fcnn(pnl)+fcnn(qnl); else return fcnl(pnl)+fcnl(qnl); }
+int cn43(int *pnl, int *qnl, int i) { if (pnl && i > 5 && qnl) return fcnn(pnl)+fcnn(qnl); else return fcnl(pnl)+fcnl(qnl); }
+int cn44(int *pnl, int *qnl, int i) { if (pnl && qnl && i > 5) return fcnn(pnl)+fcnn(qnl); else return fcnl(pnl)+fcnl(qnl); }
+int cn45(int *pnl, int *qnl, int i) { if (pnl || qnl) return fcnl(pnl)+fcnl(qnl); else return fcnl(pnl)+fcnl(qnl); }
+int cn46(int *pnl, int *qnl, int i) { if (pnl == NULL || qnl == NULL) return fcnl(pnl)+fcnl(qnl); else return fcnn(pnl)+fcnn(qnl); }
+int cn47(int *pnl, int *qnl, int i) { if (pnl == NULL || (*pnl == 1 && qnl && *qnl == 1)) return fcnl(pnl)+fcnl(qnl); else return fcnl(pnl)+fcnl(qnl); }
+
+// Modify tested probe between uses in correct context
+
+int mn11(int *pnl) { return pnl?(*pnl + (pnl = NULL, fcnl(pnl))):fcnl(pnl); }
+int mn12(int *pnl, int i) { if (pnl) { i = *pnl; i += fcnn(pnl); pnl = NULL; return i + fcnl(pnl); } else return fcnl(pnl); }
+

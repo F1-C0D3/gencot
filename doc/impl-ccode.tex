@@ -1249,8 +1249,7 @@ values are distinct. Note that, since expression values can only be used once at
 is syntactically placed, every value variable will also be used only once (in translations of assignments and
 increment/decrement operators it is used twice, but immediately together in a tuple expression) and could be reused afterwards for 
 other expressions. However, the value of an expression is not always used before another expression is evaluated,
-therefore the value variables are constructed so that they are unique. Only if in the construction of an expression
-one or more value variables are used one of them (usually that with the lowest number) is reused for binding the expression value.
+therefore the value variables are constructed so that they are unique.
 
 The binding which binds the expression result to a variable has the general form
 \begin{verbatim}
@@ -1329,7 +1328,7 @@ variable \code{v<n>'}. The use in the context results in another binding which u
 This binding must be extended by a side effect target for the pointer or container after possible modification. 
 
 If the pointer or container is specified in C by an identifier, the identifier is mapped to a Cogent variable 
-which is bound to \code{v<n>'}. This mapped identifier is then used as side effect target. If there is no sharing, all 
+which is bound to \code{v<n>'}. The mapped identifier is then used as side effect target. If there is no sharing, all
 subsequent uses of the pointer or container must be through the same identifier, therefore the modifications will be
 respected by the re-binding.
 
@@ -1389,13 +1388,13 @@ first are put back last.
 A struct member access \code{e.m} has only one subexpression \code{e} for denoting the struct. A read access is translated to the
 following binding sequence:
 \begin{verbatim}
-  <v>{m=p<k>'} = v<n>'
+  <v>{m=p<k>'} = v<m>'
   v<n>' = p<k>'
   <v> = <v>{m=p<k>'}
 \end{verbatim}
-where \code{v<n>'} is the value variable bound in the translation of \code{e}, \code{<v>} is a variable
-depending on the expression bound to \code{v<n>'} in translation of \code{e} as described above, and \code{p<k>'}
-is a new component variable.
+where \code{v<m>'} is the variable to which the value of \code{e} has been bound by the translation, \code{<v>} is a variable
+depending on the expression bound to \code{v<m>'} in translation of \code{e} as described above, and \code{p<k>'}
+is a new component variable. The member value is available as \code{v<n>'}.
 
 If the struct component is used as an lvalue the component variable \code{p<k>'} is re-bound to the new value by additional
 bindings inserted between the second and third binding.
@@ -1409,13 +1408,13 @@ An array element access \code{e1[e2]} has two unsequenced subexpressions \code{e
 The array access is translated by first concatenating the binding list for \code{e1} after \code{e2}. Then a read access is translated
 to the following binding sequence:
 \begin{verbatim}
-  (<v> @{@v<l>'=p<k>'},i<k>') = (v<n>',v<l>')
+  (<v> @{@v<l>'=p<k>'},i<k>') = (v<m>',v<l>')
   v<n>' = p<k>'
   <v> = <v> @{@i<k>'=p<k>'}
 \end{verbatim}
-where \code{v<n>'} is the value variable bound in the translation of \code{e1}, \code{v<l>'} is the value variable bound in the translation
+where \code{v<m>'} is the value variable bound in the translation of \code{e1}, \code{v<l>'} is the value variable bound in the translation
 of \code{e2}, \code{i<k>'} is the index variable corresponding to \code{p<k>'}, and \code{<v>} and \code{p<k>'}
-are as above.
+are as above. The element value is available as \code{v<n>'}.
 
 If the array element is used as an lvalue the component variable \code{p<k>'} is re-bound to the new value by additional
 bindings inserted between the second and third binding.
@@ -1438,9 +1437,9 @@ In the first translation step Gencot only differentiates between function pointe
 can only be dereferenced for invoking the function, this is always implemented by Gencot using the abstract function
 \code{fromFunPtr} (see Section~\ref{design-operations-function}). The following binding is appended to the translation of \code{e}:
 \begin{verbatim}
-  v<n>' = fromFunPtr[ft,fpt] v<n>'
+  v<n>' = fromFunPtr[ft,fpt] v<m>'
 \end{verbatim}
-where \code{v<n>'} is the value variable bound in the translation of \code{e}. The types \code{ft} and \code{fpt} are
+where \code{v<m>'} is the value variable bound in the translation of \code{e}. The types \code{ft} and \code{fpt} are
 the types of the function and the function pointer, they must be explicitly specified because \code{fromFunPtr} is polymorphic.
 
 For all other pointers Gencot translates pointer dereferences as if the
@@ -1448,13 +1447,13 @@ pointer type would be translated to a type \code{(CPtr T)} by accessing the \cod
 \code{*e} is translated by \code{bindExpr} like \code{e.cont} to a binding list involving a \code{take} and a \code{put}
 operation as described for struct member accesses. A read access is translated to the following binding sequence:
 \begin{verbatim}
-  <v>{cont=p<k>'} = v<n>'
+  <v>{cont=p<k>'} = v<m>'
   v<n>' = p<k>'
   <v> = <v>{cont=p<k>'}
 \end{verbatim}
-where \code{v<n>'} is the value variable bound by the translation of \code{e}, \code{<v>} is a variable
+where \code{v<m>'} is the value variable bound by the translation of \code{e}, \code{<v>} is a variable
 depending on the expression bound to \code{v<n>'} in the translation of \code{e} as described above, and \code{p<k>'}
-is a new component variable.
+is a new component variable. The referenced value is available as \code{v<n>'}.
 
 Semantically this means that the referenced content is separated from the pointer in a \code{take} binding and is bound
 to \code{p<k>'} and then both are recombined by the \code{put} binding.
@@ -1489,12 +1488,12 @@ property. If no such parameter exists a dummy expression with an error message i
 pass a pointer to the global object an additional pointer dereference is generated by Gencot.
 A read access is translated to the following binding sequence:
 \begin{verbatim}
-  gsp{cont=p<k>'} = v<n>'
+  gsp{cont=p<k>'} = v<m>'
   v<n>' = p<k>'
   gsp = gsp{cont=p<k>'}
 \end{verbatim}
-where \code{gsp} is the name of the parameter with the Global-State property and \code{v<n>'} is the value variable bound
-to it and \code{p<k>'} is a new component variable.
+where \code{gsp} is the name of the parameter with the Global-State property and \code{v<m>'} is the value variable bound
+to it and \code{p<k>'} is a new component variable. The value of the global object is available as \code{v<n>'}.
 
 If the global object is used as an lvalue the component variable \code{p<k>'} is re-bound to the new value by additional
 bindings inserted between the second and third binding.
@@ -1528,11 +1527,10 @@ apply the address operator to a subexpression, this must be done manually (see S
 A function call \code{f(e1,..,em)} has the function \code{f} to be applied and all actual arguments as subexpressions,
 these are treated as usual. Then the application is translated to the following binding sequence:
 \begin{verbatim}
-  v<n>' = v<n>' (v<n1>',..,v<nm>')
+  v<n>' = v<n0>' (v<n1>',..,v<nm>')
 \end{verbatim}
-where \code{v<n>'} is the value variable bound in the translation of the function subexpression \code{f}. It can
-always be reused because it is always present, in contrast to the value variables for binding the parameter values in case
-the function has no parameters. If the function has result type
+where \code{v<n0>'} is the value variable bound in the translation of the function subexpression \code{f}.
+If the function has result type
 \code{void} in C the result has unit type in Cogent, then the unit value will become bound to \code{v<n>'}.
 
 Depending on its type and on item properties for the function and its arguments, the function may take additional arguments and
@@ -1550,7 +1548,7 @@ Global-State it is the name of the corresponding virtual parameter.
 The item properties Add-Result, Heap-Use, and Global-State introduce additional result components. In that case the binding has 
 the form
 \begin{verbatim}
-  (v<n>',v1..) = f(v<n1>',..,v<nm>')
+  (v<n>',v1..) = v<n0>' (v<n1>',..,v<nm>')
 \end{verbatim}
 with a tuple pattern. The variables \code{v1..} correspond to the properties Add-Result, Global-State, and Heap-Use in that order.
 The variable for a component added by an Add-Result property is determined as described for expressions for values with pointers,
@@ -1572,19 +1570,19 @@ either a mapped C object identifier, or a component variable.
 
 The binding list of the translated lvalue expression always contains a binding
 \begin{verbatim}
-  v<n>' = v
+  v<m>' = v
 \end{verbatim}
-which makes the value of \code{v} available for read accesses using the value variable \code{v<n>'}. If the expression is used
+which makes the value of \code{v} available for read accesses using the value variable \code{v<m>'}. If the expression is used
 as an lvalue, the additional binding
 \begin{verbatim}
   (v<n>',v) = (v<k>',v<k>')
 \end{verbatim}
 is inserted immediately afterwards into the binding list.
 Here \code{v<k>'} is the value variable bound by the translated expression corresponding to the new value assigned as side effect.
-It is also the result of the assignment expression, therefore it is additionally bound to the (reused) value variable \code{v<n>'}.
+It is also the result of the assignment expression, therefore it is additionally bound to the value variable \code{v<n>'}.
 Note that this is the only case where a value variable can be used twice, however, it is always used in the same binding.
 
-Of course, appending this binding makes the binding for the read access obsolete, because \code{v<n>'} is re-bound without being
+Of course, appending this binding makes the binding for the read access obsolete, because \code{v<m>'} is never
 used. However, such unused bindings are removed in later processing steps anyways, so Gencot does not care about it here.
 
 As an example, for the assignment expression \code{x = 5} the concatenated binding lists for the subexpressions yield the
@@ -1595,9 +1593,9 @@ list
 \end{verbatim}
 which is extended for the translated assignment expression by appending the binding
 \begin{verbatim}
-  (v',x) = (v1',v1')
+  (v2',x) = (v1',v1')
 \end{verbatim}
-so that \code{v'} represents the result value of the assignment expression and \code{x} is the modified side effect target.
+so that \code{v2'} represents the result value of the assignment expression and \code{x} is the modified side effect target.
 
 The translation of \code{a[i].m = 0} yields the binding list
 \begin{verbatim}
@@ -1606,8 +1604,8 @@ The translation of \code{a[i].m = 0} yields the binding list
   (a @{@v1'=p1'},i1') = (a,v1')
   v' = p1'
   p1'{m=p2'} = v'
-  v' = p2'
-  (v',p2') = (v2',v2')
+  v3' = p2'
+  (v4',p2') = (v2',v2')
   p1' = p1'{m=p2'}
   a = a @{@i1'=p1'}
 \end{verbatim}
@@ -1620,36 +1618,36 @@ translated as described in the previous section. The cases differ in how the val
 determined.
 
 For an assignment expression there are two subexpressions, the subexpression \code{e1} for the lvalue and the subexpression \code{e2}
-for the rhs. Let \code{v<n>'} be the value variable bound in the translation of \code{e1} and \code{v<k>'} be that for \code{e2}.
+for the rhs. Let \code{v<j>'} be the value variable bound in the translation of \code{e1} and \code{v<k>'} be that for \code{e2}.
 The binding list for the assignment expression is constructed by appending the list for \code{e1} after that for \code{e2}.
 Then an additional binding is appended which is
 \begin{verbatim}
-  v<n>' = v<k>'
+  v<m>' = v<k>'
 \end{verbatim}
 for a plain assignment \code{e1 = e2} and has the form
 \begin{verbatim}
-  v<n>' = v<n>' + v<k>'
+  v<m>' = v<j>' + v<k>'
 \end{verbatim}
 for an assignment with an operator, such as \code{e1 += e2}. After that the binding for the lvalue modification
 \begin{verbatim}
-  (v<n>',v) = (v<n>',v<n>')
+  (v<n>',v) = (v<m>',v<m>')
 \end{verbatim}
 is appended to the main list, where \code{v} is the variable to be set by the lvalue, as described in the previous section.
 
-For an increment/decrement operator such as \code{e++} there is only one subexpression \code{e}. Let \code{v<n>'} be the value
+For an increment/decrement operator such as \code{e++} there is only one subexpression \code{e}. Let \code{v<j>'} be the value
 variable bound in the translation of \code{e}. An additional binding list for the literal \code{1} is constructed and
 prepended to that for \code{e}. If it binds the value variable \code{v<k>'} the additinal binding appended to the main
 list of \code{e} is
 \begin{verbatim}
-  v<n>' = v<n>' + v<k>'
+  v<m>' = v<j>' + v<k>'
 \end{verbatim}
 Then for a postfix increment/decrement operator, such as \code{e++} the binding for the lvalue modification is
 \begin{verbatim}
-  (v<n>',v) = (v,v<n>')
+  (v<n>',v) = (v,v<m>')
 \end{verbatim}
 and for a prefix increment/decrement operator, such as \code{++e} it is
 \begin{verbatim}
-  (v<n>',v) = (v<n>',v<n>')
+  (v<n>',v) = (v<m>',v<m>')
 \end{verbatim}
 
 \subsubsection{Conditional Evaluation}
@@ -1670,16 +1668,16 @@ The logical operators are conceptially rewritten as conditional expressions:
 
 A conditional expression \code{e0 ? e1 : e2} is translated to a binding lists as follows. First the three subexpressions are translated
 to binding lists by \code{bindExpr}. Then the lists for \code{e2} and \code{e3} are combined by \code{cmbBinds} to single bindings
-\code{(v<m>',x1..) = expr1} and \code{(v<k>',y1..) = expr2}. Let \code{v<n>'} be the value variable bound in the translation
+\code{(v<m>',x1..) = expr1} and \code{(v<k>',y1..) = expr2}. Let \code{v<j>'} be the value variable bound in the translation
 of \code{e0}. Let \code{z1..} be the union of the side effect targets \code{x1..}, and \code{y1..} in some order. The binding list
 of the translated expression is the list of \code{e0} to which the binding
 \begin{verbatim}
   (v<n>',z1..) = 
-  if v<n>' 
+  if v<j>'
   then let (v<m>',x1..) = expr1 in (v<m>',z1..)
   else let (v<k>',y1..) = expr2 in (v<k>',z1..)
 \end{verbatim}
-is appended. According to the type of \code{v<n>'} the condition in the conditional expression is adjusted in later stages.
+is appended. According to the type of \code{v<j>'} the condition in the conditional expression is adjusted in later stages.
 
 In most realistic cases the conditionally evaluated subexpressions have no side effects. Then it is irrelevant whether they are 
 evaluated or not. Gencot tests for these cases and provides a simpler translation if one or both have no side effects (i.e. the set 
@@ -1691,7 +1689,7 @@ As an example, the expression \code{x \&\& (v = i)} is translated to
 \begin{verbatim}
   v' = x
   v3' = False
-  (v',v) = 
+  (v4',v) =
     if v' then 
       let (v1',v) = 
         let v2' = i 
@@ -1700,17 +1698,17 @@ As an example, the expression \code{x \&\& (v = i)} is translated to
       in (v1',v)
     else (v3',v)
 \end{verbatim}
-which will be simplified to \code{(v',v) = if x then (i/=0,i) else (False,v)} in later stages,
+which will be simplified to \code{(v4',v) = if x then (i/=0,i) else (False,v)} in later stages,
 whereas the expression \code{(v = i) \&\& x} is translated to
 \begin{verbatim}
   v1' = i
   (v',v) = (v1',v1')
   v2' = x
   v3' = False
-  v' = 
+  v4' =
     if v' then v2' else v3'
 \end{verbatim}
-which will be simplified to \code{(v = i) and (v' = if i/=0 then x else False)} in later stages.
+which will be simplified to \code{(v = i) and (v4' = if i/=0 then x else False)} in later stages.
 
 \subsection{Additional Type Information}
 \label{impl-ccode-type}
@@ -1948,14 +1946,12 @@ Gencot detects that the statement modifies these C objects.
 
 \subsubsection{Expression Statements and Null Statements}
 
-An expression statement has the form \code{e;}. It is translated by translating \code{e} to an \code{ExprBinds} and
-combining it by \code{cmbBinds} to a binding \code{(v<n>',v1..) = expr}. Then the translation of the expression statement
-is the binding
+An expression statement has the form \code{e;}. It is translated by translating \code{e} to an \code{ExprBinds} with
+a binding list \code{bs}. Then the translation of the expression statement is the binding
 \begin{verbatim}
-  (c',v1..) = let (v<n>',v1..) = expr
-  in (0,v1..)
+  (c',v1..) = let bs in (0,v1..)
 \end{verbatim}
-which discards the value \code{v<n>'} of \code{e}.
+where \code{v1..} are the side effect targets of \code{bs}. This discards the value \code{v<n>'} of \code{e}.
 
 A null statement has the form of a single semicolon \code{;} and is translated to the
 binding
@@ -1968,14 +1964,13 @@ binding
 A jump statement is a \code{return} statement, \code{break} statement, \code{continue} statement, or \code{goto} statement.
 Gencot does not translate \code{goto} statements.
 
-For a \code{return} statement with an expression the expression is translated to an \code{ExprBinds} by \code{bindExpr} and
-combined by \code{cmbBinds} to a binding \code{(v<n>',v1..) = expr}. Then the translation of the return statement
-is the binding
+For a \code{return} statement with an expression the expression is translated to an \code{ExprBinds} by \code{bindExpr} with
+a binding list \code{bs}. Then the translation of the return statement is the binding
 \begin{verbatim}
-  (c',r',v1..) = let (v<n>',v1..) = expr
-  in (3, v<n>',v1..)
+  (c',r',v1..) = let bs in (3, v<n>',v1..)
 \end{verbatim}
-which explicitly binds the result variable \code{r'} as additional side effect target. The type of \code{r'} is always
+where \code{v<n>'} is the value variable bound in \code{bs} to the result of the expression. This binding explicitly
+binds the result variable \code{r'} as additional side effect target. The type of \code{r'} is always
 taken from the formal function result type. It may differ from the type of \code{v<n>'} due to automatically resolved
 type differences in C or due to item property applications. Such type differences are resolved during postprocessing.
 
@@ -2006,9 +2001,9 @@ A local object declaration consists of a sequence of declarators. Every declarat
 specify an initializer for the object's initial value. An initializer is either an expression or an initializer for an aggregate or
 union type. Gencot translates every initializer in the same way as an expression to an \code{ExprBinds}.
 
-A declarator is translated to a pair consisting of a variable name and a binding. The variable name is the declared identifier
-mapped to a Cogent name, as described in Section~\ref{impl-ccode-names}. If the declarator has an initializer the binding
-results from combining its \code{ExprBinds} by \code{cmbBinds}. Otherwise the binding \code{v' = defaultVal ()} is used.
+A declarator is translated to a pair consisting of a variable name and an \code{ExprBinds}. The variable name is the declared identifier
+mapped to a Cogent name, as described in Section~\ref{impl-ccode-names}. If the declarator has an initializer the \code{ExprBinds}
+results from its translation. Otherwise an \code{ExprBinds} with the single binding \code{v' = defaultVal ()} is used.
 
 A local object declaration is translated to the sequence of the translations of all declarators.
 
@@ -2060,13 +2055,14 @@ A block item sequence consisting of a declaration \code{d} followed by a nonempt
 the declaration to a sequence of pairs of a variable and a binding. The sequence \code{bis} is translated to a binding. Then 
 these parts are combined starting with the last pair and the binding.
 
-As described above a pair consists of a variable \code{v} which corresponds to the declared identifier and a binding 
-\code{(v<n>',v1..) = expr1} which corresponds to the initializer. It is combined with a binding \code{(c',y1..) = expr2} as follows. 
+As described above a pair consists of a variable \code{v} which corresponds to the declared identifier and an \code{ExprBinds}
+with a binding list \code{bs} which binds the value of the initializer or the default value to \code{v<n>'} and has the
+side effect targets \code{v1..}. It is combined with a binding \code{(c',y1..) = expr2} as follows.
 Let \code{u1..} be \code{y1..} without \code{v}. Let \code{z1..} be the union of \code{v1..} and \code{u1..}. Then the
 combined binding is
 \begin{verbatim}
   (c',z1..) = 
-    let (v<n>',v1..) = expr1
+    let bs
     and (c',u1..) = 
       let v = v<n>'
       and (c',y1..) = expr2
@@ -2116,12 +2112,13 @@ Its binding in the function body will be removed during postprocessing.
 A selection statement is a conditional statement or a switch statement.
 
 A conditional statement of the form \code{if (e) s1 else s2} is translated similar to a conditional expression.
-First the subexpression \code{e} is translated to an \code{ExprBinds} and combined by \code{cmbBinds} to a binding
-\code{(v<n>',v1..) = expr}. The substatements are translated to bindings \code{(c',x1..) = expr1} and \code{(c',y1..) = expr2}. 
+First the subexpression \code{e} is translated to an \code{ExprBinds} with a binding list \code{bs} which binds
+the value of \code{e} to \code{v<n>'} and has the side effect targets \code{v1..}.
+The substatements are translated to bindings \code{(c',x1..) = expr1} and \code{(c',y1..) = expr2}.
 Let \code{z1..} be the union of the side effect targets \code{v1..}, \code{x1..}, and \code{y1..} in some order. The conditional
 statement is translated to the binding
 \begin{verbatim}
-  (c',z1..) = let (v<n>',v1..) = expr
+  (c',z1..) = let bs
   in if v<n>' 
      then let (c',x1..) = expr1 in (c',z1..)
      else let (c',y1..) = expr2 in (c',z1..)
@@ -2131,7 +2128,7 @@ For a conditional statement of the form \code{if (e) s1} the expression \code{e}
 above. Let \code{z1..} be the union of the side effect targets \code{v1..} and \code{x1..} in some order. The conditional
 statement is translated to the binding
 \begin{verbatim}
-  (c',z1..) = let (v<n>',v1..) = expr
+  (c',z1..) = let bs
   in if v<n>' 
      then let (c',x1..) = expr1 in (c',z1..)
      else let c' = 0 in (c',z1..)

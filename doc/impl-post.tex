@@ -647,7 +647,45 @@ Postprocessing for boolean values in this way cannot cause errors, hence it is i
 \end{verbatim}
 defined in module \code{Gencot.Cogent.Post.MatchTypes}.
 
-\subsubsection{Pointer Processing}
+\subsubsection{NULL Pointer Processing}
+
+Pointer values may be NULL in C. In Cogent this property is modeled in the type using the \code{MayNull} wrapper type. Type clashes
+may result between \code{MayNull} types and not-null (unwrapped) types.
+
+Values of not-null type can be converted to \code{MayNull} type using the Gencot provided operations \code{mayNull} and \code{roMayNull}
+introduced in Section~\ref{design-operations-null}. Values of \code{MayNull} type can only be converted to not-null type by testing them
+for being NULL using the Gencot provided functions \code{notNull} and \code{roNotNull} and then modifying the type in the corresponding
+conditional branch. In the other branch the value can be substituted using the Gencot provided functions \code{null} and \code{roNull}.
+
+Values of not-null type are needed when the pointer shall be dereferenced. It would be possible for Gencot to generate the required
+NULL tests, but then it must generate a working code alternative for the case that the pointer is NULL. It is usually not possible to
+do this automatically. Therefore Gencot never generates NULL test, it only uses those which are present in the C code.
+
+A NULL test has the form \code{v op cogent\_NULL} or \code{cogent\_NULL op v} where \code{op} is either \code{==} or \code{/=}. It origins
+either from translating corresponding C code or by resolving a boolean type clash by converting a value of pointer type to \code{Bool}, as
+described above. If the variable \code{v} has not-null type it can be immediately substituted by \code{True} or \code{False}. Otherwise
+it may be used to transform the scope of the variable \code{v} by duplicating it and changing the type of \code{v} to not-null in one copy
+and replacing it by \code{null/roNull} in the other copy. If the NULL test has been used in C to distinguish between alternative code
+branches, every copy can be reduced to the corresponding branch.
+
+This approach only produces useful code, if the scope of \code{v} is determined in a useful way. If it is too large, code is unnecessarily
+duplicated. If it is too small, the NULL test has not enough effect. In particular, if \code{v} is a value variable, the use in the NULL
+test is the only reference to it and the remaining scope is empty. Gencot uses a heuristics to determine the scope affected by NULL tests.
+It works by moving the NULL test in the code to the position where the scope should begin and by nesting \code{let} expressions to determine
+the end of the scope.
+
+To be able to move the NULL test in the code it is always converted to a binding of the form \code{v<n>' = v op cogent\_NULL}. If it does
+not have this form a new value variable \code{v<n>'} is introduced and the original NULL test is replaced by it. This means that the
+postprocessing step may have to introduce additional value variables. To simplify this Gencot uses variables of the form \code{vv<n>'}
+where \code{<n>} is a unique number starting at \code{0} in every function body expression. For simplicity, the following description
+always uses normal value variables of the form \code{v<n>'}. As a binding the NULL test may be moved freely in the code, as long as the
+single occurrence of \code{v<n>'} remains in its scope and the test remains in the scope of the binding of the tested variable \code{v}.
+
+If the variable \code{v} is a value variable, the NULL test
+
+
+
+
 
 tested for being \code{NULL} using the Gencot basic operations \code{notNull},
 \code{roNotNull}, and \code{isNull} defined in Section~\ref{design-operations-null}.

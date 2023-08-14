@@ -50,7 +50,7 @@ typedCasVar n = TV (casVar n) mkBoolType
 
 -- A translated C expression.
 -- It consists of a list of bindings and two variables.
--- The first variable is bound to the result value after applying the indings in the list.
+-- The first variable is bound to the result value after applying the bindings in the list.
 -- The second variable corresponds to the expression if interpreted as lvalue.
 -- If it is Nothing the expression cannot be used as lvalue.
 type ExprBinds = ([GenBnd],(TypedVar, Maybe TypedVar))
@@ -373,13 +373,13 @@ mkNullBinding = mkVarBinding typedCtlVar $ mkCtlLitExpr 0
 
 -- | Expression statement: (c',v1..) = let ... in (0,v1..)
 mkExpBinding :: ExprBinds -> GenBnd
-mkExpBinding bp = mkVarsBinding (typedCtlVar : vs) $ mkLetExpr [cmbBinds bp] $ mkCtlVarTupleExpr 0 vs
+mkExpBinding bp = mkVarsBinding (typedCtlVar : vs) $ mkLetExpr (binds bp) $ mkCtlVarTupleExpr 0 vs
     where vs = sideEffectTargets bp
 
 -- | Return statement: (c',r',v1..) = let ... in (3, v<n>',v1,..)
 -- First argument is the result type of the enclosing function.
 mkRetBinding :: GenType -> ExprBinds -> GenBnd
-mkRetBinding t bp = mkVarsBinding (typedCtlVar : ((TV resVar t) : vs)) $ mkLetExpr [cmbBinds bp] $ mkCtlVarTupleExpr 3 (v : vs)
+mkRetBinding t bp = mkVarsBinding (typedCtlVar : ((TV resVar t) : vs)) $ mkLetExpr (binds bp) $ mkCtlVarTupleExpr 3 (v : vs)
     where v = leadVar bp
           vs = sideEffectTargets bp
 
@@ -394,7 +394,7 @@ mkContBinding = mkVarBinding typedCtlVar $ mkCtlLitExpr 1
 -- | Conditional statement (c',z1..) = let (v<n>',v1..) = expr in if v<n>' then let b1 in (c',z1..) else let b2 in (c',z1..)
 mkIfBinding :: ExprBinds -> GenBnd -> GenBnd -> GenBnd
 mkIfBinding bp b1 b2 =
-    mkVarsBinding vs $ mkLetExpr [cmbBinds bp] $ mkIfExpr (typOfGE evs) (mkVarExpr (leadVar bp)) e1 e2
+    mkVarsBinding vs $ mkLetExpr (binds bp) $ mkIfExpr (typOfGE evs) (mkVarExpr (leadVar bp)) e1 e2
     where set0 = sideEffectTargets bp
           set1 = sideEffectFilter $ boundVars b1
           set2 = sideEffectFilter $ boundVars b2
@@ -454,7 +454,7 @@ mkSimpSeqBinding b bs =
 -- (c’,z1..) = let (v<n>’,v1..) = expr and (c’,u1..) = let v = v<n>’ and b in (c’,u1..) in (c’,z1..)
 mkDecBinding :: TypedVar -> ExprBinds -> GenBnd -> GenBnd
 mkDecBinding v bp b = 
-    mkVarsBinding vs $ mkLetExpr [cmbBinds bp, mkVarsBinding vs' e] $ mkVarTupleExpr vs
+    mkVarsBinding vs $ mkLetExpr (binds bp ++ [mkVarsBinding vs' e]) $ mkVarTupleExpr vs
     where setv = sideEffectTargets bp
           sety = sideEffectFilter $ boundVars b
           setu = delete v sety

@@ -1,7 +1,7 @@
 {-# LANGUAGE PackageImports, TypeSynonymInstances, FlexibleInstances #-}
 module Gencot.Cogent.Post.Util where
 
-import Data.List (nub,union,(\\))
+import Data.List (nub,union,intersect,foldl1',(\\))
 import Data.Functor.Identity (Identity)
 import Data.Functor.Compose
 
@@ -25,11 +25,11 @@ instance MonadFail ETrav where
 runExprTrav :: s -> Trav s GenExpr -> Trav s' (GenExpr,s,[CError])
 runExprTrav ustate action = runSubTrav mkUnitExpr ustate action
 
-isValVar :: CCS.VarName -> Bool
+isValVar :: VarName -> Bool
 isValVar "" = False
 isValVar v = (head v == 'v') && (last v == '\'')
 
-isCVar :: CCS.VarName -> Bool
+isCVar :: VarName -> Bool
 isCVar "" = False
 isCVar v = last v /= '\''
 
@@ -93,6 +93,10 @@ freeUnderBinding [] e = freeInExpr' e
 freeUnderBinding ((Binding ipb Nothing eb bvs) : bs) e =
     nub (((freeInExpr eb) \\ bvs) ++ (freeInIndex ipb) ++((freeUnderBinding bs e) \\ (freeInIrrefPatn ipb)))
 
+freeInBinding :: GenBnd -> [VarName]
+freeInBinding (Binding ipb Nothing eb bvs) =
+    union ((freeInExpr eb) \\ bvs) (freeInIndex ipb)
+
 -- | Free variables in a sequence of bindings.
 freeInBindings :: [GenBnd] -> [VarName]
 freeInBindings bs = freeUnderBinding bs CS.Unitel
@@ -102,19 +106,70 @@ boundInBindings :: [GenBnd] -> [VarName]
 boundInBindings [] = []
 boundInBindings ((Binding ipb Nothing eb _) : bs) = union (freeInIrrefPatn ipb) $ boundInBindings bs
 
+{- Variables (not) modified by a re-binding -}
+
+-- | Variables returned unmodified by an expression
+-- In a binding a variable is not modified, if it is either not bound
+-- or if it is bound but returned unmodified by the bound expression.
+returnedByExpr :: GenExpr -> [VarName]
+returnedByExpr e = returnedByExpr' $ exprOfGE e
+
+returnedByExpr' :: ExprOfGE -> [VarName]
+returnedByExpr' (Var v) = [v]
+returnedByExpr' (Tuple es) = nub $ concat $ map returnedByExpr es
+returnedByExpr' (If e0 _ e1 e2) =
+    intersect (returnedByExpr e1) (returnedByExpr e2)
+returnedByExpr' (Match _ _ alts) =
+    foldl1' intersect $ map (\(Alt p _ e) -> returnedByExpr e) alts
+returnedByExpr' (Let bs bdy) = returnedByLet bs bdy
+returnedByExpr' _ = []
+
+returnedByLet :: [GenBnd] -> GenExpr -> [VarName]
+returnedByLet [] bdy = returnedByExpr bdy
+returnedByLet (b : bs) bdy =
+    (returnedByLet bs bdy) \\ (modifiedByBinding b)
+
+modifiedByBinding :: GenBnd -> [VarName]
+modifiedByBinding (Binding ip _ e _) = (freeInIrrefPatn ip) \\ (returnedByExpr e)
+
+modifiedByBindings :: [GenBnd] -> [VarName]
+modifiedByBindings [] = []
+modifiedByBindings (b : bs) = union (modifiedByBinding b) (modifiedByBindings bs)
+
+{- Exchanging Bindings -}
+
+-- Two bindings are exchangeable if modified variables are disjoint (write-write conflict)
+-- and variables modified by one do not occur free in the other (read-write conflict).
+
+exchangeableWithBinding :: GenBnd -> GenBnd -> Bool
+exchangeableWithBinding b1 b2 =
+    (null $ intersect m1 m2) &&
+    (null $ intersect m1 $ freeInBinding b2) &&
+    (null $ intersect m2 $ freeInBinding b1)
+    where m1 = modifiedByBinding b1
+          m2 = modifiedByBinding b2
+
+exchangeableWithBindings :: GenBnd -> [GenBnd] -> Bool
+exchangeableWithBindings b bs =
+    (null $ intersect m ms) &&
+    (null $ intersect m $ freeInBindings bs) &&
+    (null $ intersect ms $ freeInBinding b)
+    where m = modifiedByBinding b
+          ms = modifiedByBindings bs
+
 {- Typed Variables -}
 
 -- | Free typed variables in an expression.
 -- These are the variables which must be bound in the context.
 freeTypedVarsInExpr :: GenExpr -> [TypedVar]
-freeTypedVarsInExpr (GenExpr (CS.Var v) _ t _) = [TV v t]
-freeTypedVarsInExpr (GenExpr (CS.Tuple es) _ _ _) =
+freeTypedVarsInExpr (GenExpr (Var v) _ t _) = [TV v t]
+freeTypedVarsInExpr (GenExpr (Tuple es) _ _ _) =
     nub $ concat $ map freeTypedVarsInExpr es
-freeTypedVarsInExpr (GenExpr (CS.Let bs bdy) _ _ _) =
+freeTypedVarsInExpr (GenExpr (Let bs bdy) _ _ _) =
     freeTypedVarsUnderBinding bs $ freeTypedVarsInExpr bdy
-freeTypedVarsInExpr (GenExpr (CS.Match e _ alts) _ _ _) = union (freeTypedVarsInExpr e) (nub $ foldMap freeTypedVarsInAlt alts)
-freeTypedVarsInExpr (GenExpr (CS.TLApp v ts _ _) _ t _) = [TV v t]
-freeTypedVarsInExpr (GenExpr (CS.Lam ip t e) _ _ _) = filter (`notElem` freeTypedVarsInIrrefPatn ip) (freeTypedVarsInExpr e)
+freeTypedVarsInExpr (GenExpr (Match e _ alts) _ _ _) = union (freeTypedVarsInExpr e) (nub $ foldMap freeTypedVarsInAlt alts)
+freeTypedVarsInExpr (GenExpr (TLApp v ts _ _) _ t _) = [TV v t]
+freeTypedVarsInExpr (GenExpr (Lam ip t e) _ _ _) = filter (`notElem` freeTypedVarsInIrrefPatn ip) (freeTypedVarsInExpr e)
 freeTypedVarsInExpr e = nub $ foldMap freeTypedVarsInExpr $ exprOfGE e
 
 

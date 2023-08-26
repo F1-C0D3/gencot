@@ -2,9 +2,9 @@
 module Gencot.Cogent.Post.MatchTypes where
 
 import Data.Char (isDigit)
-import Data.List (intercalate,concatMap,isPrefixOf,nub,intersect,union,(\\),partition,find,zipWith,zip3, zip4)
+import Data.List (intercalate,transpose,concatMap,isPrefixOf,nub,intersect,union,(\\),partition,find,zipWith,zip3, zip4)
 import qualified Data.Map as M
-import Data.Maybe (catMaybes,isNothing,isJust)
+import Data.Maybe (catMaybes,isNothing,isJust,fromJust)
 import Data.Foldable (toList)
 
 import Language.C.Data.Error
@@ -18,13 +18,14 @@ import Gencot.Cogent.Ast
 import Gencot.Cogent.Error (typeMatch)
 import Gencot.Cogent.Types (
   mkBoolType, mkU32Type, mkTupleType, mkFunType, mkReadonly,
-  isBoolType, isNonlinear, isRegular, mayEscape, isReadonly, isArithmetic, roCmpTypes,
+  isBoolType, isTupleType, isNonlinear, isRegular, mayEscape, isReadonly, isArithmetic, roCmpTypes,
   unbangType, getMemberType, getDerefType, getParamType, getResultType, adaptTypes)
-import Gencot.Cogent.Bindings (errVar, mkDummyExpr, toDummyExpr, mkVarTuplePattern)
+import Gencot.Cogent.Bindings (errVar, isValVarName, mkDummyExpr, toDummyExpr, mkVarTuplePattern)
 import Gencot.Cogent.Expr (
   TypedVar(TV), namOfTV, mkUnitExpr, mkIntLitExpr, mkNullExpr, mkBoolOpExpr, mkLetExpr, mkIfExpr, mkTupleExpr, mkVarTupleExpr)
 import Gencot.Cogent.Post.Util (
-  ETrav, runExprTrav, isValVar, isCVar, freeInIrrefPatn, freeInBindings, freeUnderBinding, boundInBindings,
+  ETrav, runExprTrav, isValVar, isCVar, freeInExpr, freeInExpr', freeInIrrefPatn, freeInBindings, freeUnderBinding, boundInBindings,
+  returnedByExpr, exchangeableWithBindings,
   freeTypedVarsInExpr, freeTypedVarsUnderBinding,
   getIPatternsList, getExprList)
 
@@ -254,7 +255,8 @@ bangprocN e = mapMExprOfGE bangproc' e
 
 -- | Resolve readonly type incompatibilities by banging variables or using dummy expressions with error messages.
 -- Banging is possible in conditions of conditional expressions and in bindings.
--- No bang tried in CS.Match, CS.LamC, CS.MultiWayIf, because these are not generated.
+-- No bang tried in CS.Match, because generated match expressions for NULL test would never be escapeable when banged.
+-- No bang tried in CS.LamC, CS.MultiWayIf, because these are not generated.
 -- Since variables are only banged in sub-contexts, and the effects may not escape these sub-contexts,
 -- the type of the expression remains unchanged.
 bangproc' :: ExprOfGE -> ETrav ExprOfGE
@@ -347,9 +349,13 @@ reduceBangedPatterns bvs ip (GenExpr (CS.Let bs bdy) oe te ce) =
           bvs' = filter (unmodifiedInReducedBindings bs') bvs
           (ip',bdy') = reduceBangedPatterns bvs' ip bdy
 reduceBangedPatterns bvs ip (GenExpr (CS.If e0 bvs0 e1 e2) oe te ce) =
-    (mergeReducedPatterns ip1' ip2', GenExpr (CS.If e0 bvs0 e1' e2') oe te ce)
+    (mergeReducedPatterns [ip1', ip2'], GenExpr (CS.If e0 bvs0 e1' e2') oe te ce)
     where (ip1',e1') = reduceBangedPatterns bvs ip e1
           (ip2',e2') = reduceBangedPatterns bvs ip e2
+reduceBangedPatterns bvs ip (GenExpr (CS.Match e0 bvs0 alts) oe te ce) =
+    (mergeReducedPatterns ips, GenExpr (CS.Match e0 bvs0 alts') oe te ce)
+    where (ips,es) = unzip $ map (\(CS.Alt p _ e) -> reduceBangedPatterns bvs ip e) alts
+          alts' = map (\(CS.Alt p l _,e) -> CS.Alt p l e) $ zip alts es
 -- if the expression is a tuple the pattern must also be a tuple
 reduceBangedPatterns bvs (GenIrrefPatn (CS.PTuple ips) op tp) (GenExpr (CS.Tuple es) oe te ce) =
     (GenIrrefPatn (CS.PTuple ips') op (mkTupleType $ map typOfGIP ips'), GenExpr (CS.Tuple es') oe te ce)
@@ -362,15 +368,15 @@ reduceBangedPatterns bvs (GenIrrefPatn (CS.PVar pv) op tp) e@(GenExpr (CS.ArrayP
     | pv == v && elem v bvs = (GenIrrefPatn CS.PUnitel op unitType,e)
 reduceBangedPatterns _ ip e = (ip,e)
 
--- | Merge two reduced patterns.
--- The resulting pattern uses a unit pattern only if both input patterns do.
-mergeReducedPatterns :: GenIrrefPatn -> GenIrrefPatn -> GenIrrefPatn
-mergeReducedPatterns (GenIrrefPatn (CS.PTuple ips1) op _) (GenIrrefPatn (CS.PTuple ips2) _ _) =
-    GenIrrefPatn (CS.PTuple ips) op (mkTupleType $ map typOfGIP ips)
-    where ips = map (uncurry mergeReducedPatterns) $ zip ips1 ips2
-mergeReducedPatterns ip1 (GenIrrefPatn CS.PUnitel _ _) = ip1
-mergeReducedPatterns (GenIrrefPatn CS.PUnitel _ _) ip2 = ip2
-mergeReducedPatterns ip1 _ = ip1
+-- | Merge a list of reduced patterns.
+-- The resulting pattern uses a unit pattern only if all input patterns do.
+mergeReducedPatterns :: [GenIrrefPatn] -> GenIrrefPatn
+mergeReducedPatterns ips@((GenIrrefPatn (CS.PTuple _) op _) : _) =
+    GenIrrefPatn (CS.PTuple ips') op (mkTupleType $ map typOfGIP ips')
+    where ips' = map mergeReducedPatterns $ transpose $ map (\(GenIrrefPatn (CS.PTuple ipss) _ _) -> ipss) ips
+mergeReducedPatterns ips = case find (\ip -> irpatnOfGIP ip /= CS.PUnitel) ips of
+                                Nothing -> head ips
+                                Just ip -> ip
 
 -- | Second pass: Replace bound expression by unit if corresponding pattern is unit.
 toUnitExprs :: GenIrrefPatn -> GenExpr -> GenExpr
@@ -382,6 +388,9 @@ toUnitExprs ip (GenExpr (CS.If e0 bvs0 e1 e2) oe te ce) =
     GenExpr (CS.If e0 bvs0 e1' e2') oe (toUnitTypes ip te) ce
     where e1' = toUnitExprs ip e1
           e2' = toUnitExprs ip e2
+toUnitExprs ip (GenExpr (CS.Match e0 bvs0 alts) oe te ce) =
+    (GenExpr (CS.Match e0 bvs0 alts') oe (toUnitTypes ip te) ce)
+    where alts' = map (\(CS.Alt p l e) -> CS.Alt p l $ toUnitExprs ip e) alts
 toUnitExprs ip@(GenIrrefPatn (CS.PTuple ips) _ _) (GenExpr (CS.Tuple es) oe te ce) =
     GenExpr (CS.Tuple $ map (uncurry toUnitExprs) $ zip ips es) oe (toUnitTypes ip te) ce
 toUnitExprs (GenIrrefPatn CS.PUnitel _ _) _ = mkUnitExpr
@@ -459,6 +468,10 @@ markLinearAsError msgp cnvNull bools (GenExpr (CS.If e0 bvs e1 e2) o t s) = do
     e1b <- markLinearAsError msgp cnvNull bools e1
     e2b <- markLinearAsError msgp cnvNull bools e2
     return $ GenExpr (CS.If e0 bvs e1b e2b) o (typOfGE e1b) s
+markLinearAsError msgp cnvNull bools (GenExpr (CS.Match e0 bvs alts) o t s) = do
+    altsb <- mapM (\(CS.Alt p l e) -> do { e' <- markLinearAsError msgp cnvNull bools e; return $ CS.Alt p l e'}) alts
+    let (CS.Alt _ _ e1b) = head altsb
+    return $ GenExpr (CS.Match e0 bvs altsb) o (typOfGE e1b) s
 
 -- | If the expression evaluates to NULL, convert its type to readonly.
 -- The first result component is true, if conversion was successful.
@@ -513,6 +526,8 @@ hasInnerBangPositions (CS.If _ _ _ _) = True
 hasInnerBangPositions (CS.PrimOp _ es) = any (hasInnerBangPositions . exprOfGE) es
 hasInnerBangPositions (CS.Tuple es) = any (hasInnerBangPositions . exprOfGE) es
 hasInnerBangPositions (CS.App e1 e2 _) = (hasInnerBangPositions $ exprOfGE e1) || (hasInnerBangPositions $ exprOfGE e2)
+hasInnerBangPositions (CS.Match e0 _ alts) = (hasInnerBangPositions $ exprOfGE e0)
+    || any (\(CS.Alt _ _ e) -> hasInnerBangPositions $ exprOfGE e) alts
 -- Put and ArrayPut are always generated with variables as subexpressions, therefore no inner bang positions.
 hasInnerBangPositions _ = False
 
@@ -561,6 +576,7 @@ recordSources vmap v = modifyUserState (\tvs -> union tvs $ getVarSources vmap v
 getExprSources :: VarSourceMap -> ExprOfGE -> [[CCS.VarName]]
 getExprSources vmap (CS.Var v) = [getVarSources vmap v]
 getExprSources vmap (CS.If _ _ e1 e2) = zipWith union (getExprSources vmap $ exprOfGE e1) (getExprSources vmap $ exprOfGE e2)
+--getExprSources vmap (CS.Match _ _ alts) = ***todo***
 getExprSources vmap (CS.Tuple es) = concatMap ((getExprSources vmap) . exprOfGE) es
 getExprSources vmap (CS.Put e pts) = getExprSources vmap $ exprOfGE e
 getExprSources vmap (CS.ArrayPut e pts) = getExprSources vmap $ exprOfGE e
@@ -609,6 +625,8 @@ rslvRoDiffs vs cvs vmap (GenExpr (CS.If e0 bvs e1 e2) o t s) = do
     e2b <- rslvRoDiffs vs cvs vmap e2
     (e1bm,e2bm,tm) <- matchRoExprs vmap e1b e2b
     return $ GenExpr (CS.If e0b bvs e1bm e2bm) o tm s
+--rslvRoDiffs vs cvs vmap (GenExpr (CS.Match e0 bvs alts) o t s) = do
+--    ***todo***
 rslvRoDiffs vs cvs vmap (GenExpr (CS.App f e infx) o t s) = do
     eb <- rslvRoDiffs vs cvs vmap e
     ebm <- matchRoExpr vmap (getParamType $ typOfGE f) eb
@@ -752,6 +770,8 @@ markReadonlyAsError bools t (GenExpr (CS.If e0 bvs e1 e2) o _ s) = do
     e1b <- markReadonlyAsError bools t e1
     e2b <- markReadonlyAsError bools t e2
     return $ GenExpr (CS.If e0 bvs e1b e2b) o (typOfGE e1b) s
+--markReadonlyAsError bools t (GenExpr (CS.Match e0 bvs alts) o _ s) = do
+--    ***todo***
 
 -- | Change some subexpressions of linear type to readonly type.
 -- The second argument is a boolean vector specifying the tuple components to be changed,
@@ -775,6 +795,8 @@ changeLinToRoInExpr vmap bools (GenExpr (CS.If e0 bvs e1 e2) o t s) = do
     e1b <- changeLinToRoInExpr vmap bools e1
     e2b <- changeLinToRoInExpr vmap bools e2
     return $ GenExpr (CS.If e0 bvs e1b e2b) o (adaptTypes (typOfGE e1b) (typOfGE e2b)) s
+--changeLinToRoInExpr vmap bools (GenExpr (CS.Match e0 bvs alts) o t s) = do
+--    ***todo***
 changeLinToRoInExpr vmap [True] e@(GenExpr (CS.Var v) _ _ _) | not $ null $ getVarSources vmap v = do
     recordSources vmap v
     return e
@@ -933,3 +955,237 @@ getBangCandInPattern bvs (GenIrrefPatn (CS.PArrayTake pv [(_,(GenIrrefPatn (CS.P
 getBangCandInPattern bvs (GenIrrefPatn (CS.PTuple ips) _ _) = nub $ concat $ map (getBangCandInPattern bvs) ips
 getBangCandInPattern _ _ = []
 
+{- Matching MayNull subexpressions          -}
+{- to not-null context: exploit NULL-tests  -}
+{- Convert not-null subexpressions          -}
+{- to MayNull context.                      -}
+{--------------------------------------------}
+
+-- | A mapping from names to bound expressions used for value variables.
+-- If non-value-variables occur in the bound expression their values may be different due to intermediate re-bindings.
+-- These are not reflected in the mapping.
+type ValVarMap = M.Map CCS.VarName GenExpr
+
+maynullproc :: GenExpr -> ETrav GenExpr
+maynullproc e = do
+    let e1 = sepNullTests e
+    -- extend take/put scopes for MayNull components here
+    return e1
+    -- resolveMayNullDiffs $ convNullTests M.empty e1
+
+-- | Split conditional expressions to separate NULL tests from other conditions.
+sepNullTests :: GenExpr -> GenExpr
+sepNullTests (GenExpr (CS.Let bs bdy) o t c) =
+    if null bs' then bdy' else GenExpr (CS.Let (reverse bs') bdy') o t c
+    where (bs',bdy') = sepNullTestsInLet [] bs bdy
+sepNullTests e = mapExprOfGE (fmap sepNullTests) e
+
+-- | Split conditional expressions in a let context
+-- The first argument is the reversed list of processed bindings.
+-- The second argument is the list of bindings to be processed.
+-- The result is the reversed list of remaining processed bindings and the processed body.
+sepNullTestsInLet :: [GenBnd] -> [GenBnd] -> GenExpr -> ([GenBnd],GenExpr)
+sepNullTestsInLet cbs (CS.Binding ip mt e bvs : bs) bdy =
+    sepNullTestsInLet ((CS.Binding ip mt (sepNullTests e) bvs) : cbs) bs bdy
+sepNullTestsInLet cbs [] e@(GenExpr (CS.If e0 bvs e1 e2) o t c)
+    | (not $ withoutNullTest cbs $ exprOfGE e0) && (not $ isNullTest cbs $ exprOfGE e0)
+    = splitByNullTests cbs (GenExpr (CS.If e0 bvs e1' e2') o t c)
+    where e1' = sepNullTests e1
+          e2' = sepNullTests e2
+sepNullTestsInLet cbs [] e = (cbs, sepNullTests e)
+
+-- | Split a conditional expression.
+-- The first argument is the reversed list of bindings with all structure used in the condition.
+-- The expression must be a conditional expression.
+-- Its condition has either type Bool or a tuple type where the first component is Bool.
+-- The expression branches and the expressions bound in the bindings have already been processed.
+-- The result is the expression with split condition
+-- and the reversed list of bindings without the bindings consumed for splitting the condition.
+-- If branches of the expression have been duplicated by splitting,
+-- bindings may have been extracted and added to the returned list.
+splitByNullTests :: [GenBnd] -> GenExpr -> ([GenBnd],GenExpr)
+splitByNullTests cbs e@(GenExpr (CS.If _ bvs e1 e2) o t c) | (CS.Var v) <- getCond' e =
+    case findBindingFor cbs v of
+         Nothing -> (cbs, e)
+         Just (b@(CS.Binding ip _ e0 _),bsb,bsa) ->
+            if exchangeableWithBindings b bsb
+               then splitByNullTests (bsb++bsa) $ GenExpr (CS.If e0 bvs e1 e2) o t c
+               else (cbs, e)
+splitByNullTests cbs e@(GenExpr (CS.If _ bvs e1 e2) o t c) | (CS.Let bs bdy) <- getCond' e =
+    splitByNullTests ((reverse bs)++cbs) $ GenExpr (CS.If bdy bvs e1 e2) o t c
+splitByNullTests cbs e@(GenExpr (CS.If _ bvs e1 e2) o t c) | (CS.Tuple es) <- getCond' e =
+    splitByNullTests cbs $ GenExpr (CS.If (head es) bvs e1 e2) o t c
+splitByNullTests cbs e@(GenExpr (CS.If _ bvs e1 e2) o t c) | (CS.PrimOp op [e0]) <- getCond' e, op == "not" =
+    splitByNullTests cbs $ GenExpr (CS.If e0 bvs e2 e1) o t c
+splitByNullTests cbs e | (CS.If _ _ _ _) <- getCond' e =
+    let (ebs,e') = unfoldCondition cbs e
+    in ((reverse ebs)++cbs, e')
+splitByNullTests cbs e = error ("Unexpected expression in splitByNullTests: " ++ (show e))
+
+-- | Unfold a condition in a conditional expression.
+-- The expression must be a conditional expression.
+-- Its condition has either type Bool or a tuple type where the first component is Bool.
+-- It has already been split and contains no negations.
+-- The first argument is the reversed list of bindings with all structure used in the condition.
+-- The result is the transformed expression
+-- with possibly additional (unreversed) bindings extracted from the branches.
+unfoldCondition :: [GenBnd] -> GenExpr -> ([GenBnd],GenExpr)
+unfoldCondition cbs (GenExpr (CS.If (GenExpr e0' _ _ _) _ e1 e2) _ _ _) | isTrueConst cbs e0' = ([], e1)
+unfoldCondition cbs (GenExpr (CS.If (GenExpr e0' _ _ _) _ e1 e2) _ _ _) | isFalseConst cbs e0' = ([], e2)
+unfoldCondition cbs (GenExpr (CS.If (GenExpr e0'@(CS.If d0 dbvs d1 d2) od td cd) bvs e1 e2) o t c) =
+    let (ebs,r1,r2) = extractBindings (freeInExpr' e0') (branchCopies cbs e0') e1 e2
+        (bs1',e1') = unfoldCondition ((reverse ebs)++cbs) $ GenExpr (CS.If d1 bvs r1 r2) o t c
+        (bs2',e2') = unfoldCondition ((reverse ebs)++cbs) $ GenExpr (CS.If d2 bvs r1 r2) o t c
+    in (ebs, GenExpr (CS.If d0 dbvs (mkSafeLetExpr bs1' e1') (mkSafeLetExpr bs2' e2')) od td cd)
+unfoldCondition cbs (GenExpr (CS.If (GenExpr (CS.Let bs0 bdy) od td cd) bvs e1 e2) o t c) =
+    let (bs',e') = unfoldCondition ((reverse bs0)++cbs) $ GenExpr (CS.If bdy bvs e1 e2) o t c
+    in (bs0++bs',e')
+unfoldCondition cbs (GenExpr (CS.If (GenExpr (CS.Tuple es) _ _ _) bvs e1 e2) o t c) =
+    unfoldCondition cbs (GenExpr (CS.If (head es) bvs e1 e2) o t c)
+unfoldCondition cbs e = ([], e)
+
+getCond :: GenExpr -> GenExpr
+getCond (GenExpr (CS.If e _ _ _) _ _ _) = e
+getCond _ = mkUnitExpr
+
+getCond' = exprOfGE . getCond
+
+mkSafeLetExpr :: [GenBnd] -> GenExpr -> GenExpr
+mkSafeLetExpr [] e = e
+mkSafeLetExpr bs e = mkLetExpr bs e
+
+-- | Search the binding for a value variable in a binding list.
+-- If not found the result is Nothing.
+-- Otherwise the result is the binding, and the binding lists before and after it in the original list.
+findBindingFor :: [GenBnd] -> VarName -> Maybe (GenBnd, [GenBnd], [GenBnd])
+findBindingFor [] v = Nothing
+findBindingFor (b@(CS.Binding (GenIrrefPatn (CS.PVar pv) _ _) _ _ _) : bs) v | pv == v = Just (b,[],bs)
+findBindingFor (b@(CS.Binding (GenIrrefPatn (CS.PTuple ((GenIrrefPatn (CS.PVar pv) _ _) : _ )) _ _) _ _ _) : bs) v | pv == v = Just (b,[],bs)
+findBindingFor (b : bs) v =
+    case findBindingFor bs v of
+         Nothing -> Nothing
+         Just (fb,bsb,bsa) -> Just (fb, (b : bsb), bsa)
+
+unfoldValVar :: [GenBnd] -> VarName -> Maybe GenExpr
+unfoldValVar cbs v =
+    case findBindingFor cbs v of
+         Nothing -> Nothing
+         Just ((CS.Binding _ _ e _),_,_) -> Just $ getValVarExpr e
+
+getValVarExpr :: GenExpr -> GenExpr
+getValVarExpr e | not $ isTupleType $ typOfGE e = e
+getValVarExpr (GenExpr (CS.Tuple es) _ _ _) = head es
+getValVarExpr (GenExpr (CS.Let bs bdy) o t ccd) =
+    GenExpr (CS.Let bs $ getValVarExpr bdy) o (getValVarType t) ccd
+getValVarExpr (GenExpr (CS.If e0 bvs e1 e2) o t ccd) =
+    GenExpr (CS.If e0 bvs (getValVarExpr e1) (getValVarExpr e2)) o (getValVarType t) ccd
+
+getValVarType :: GenType -> GenType
+getValVarType (GenType (CS.TTuple ts) _ _) = head ts
+getValVarType t = t
+
+-- | Extract bindings from two expressions so that they retain their semantics.
+-- Bindings are only extracted from an expression
+--   if it is a let expression, the corresponding Int is > 1,
+--   and the bound variables are disjoint with the give set of variables.
+-- A binding is only extracted from one expression if no bound variable occurs free in the other expression.
+extractBindings :: [VarName] -> (Int,Int) -> GenExpr -> GenExpr -> ([GenBnd],GenExpr,GenExpr)
+extractBindings fvs (i1,i2) (GenExpr (CS.Let (b@(CS.Binding ip _ e _) : bs1) bdy1) o1 t1 c1) e2
+    | i1 > 1 && (null $ intersect (freeInIrrefPatn ip) vs')
+    = (b : bs, r1, r2)
+    where vs' = union fvs $ freeInExpr e2
+          e1' = if null bs1 then bdy1 else GenExpr (CS.Let bs1 bdy1) o1 t1 c1
+          (bs,r1,r2) = extractBindings fvs (i1,i2) e1' e2
+extractBindings fvs (i1,i2) e1 (GenExpr (CS.Let (b@(CS.Binding ip _ _ _) : bs2) bdy2) o2 t2 c2)
+    | i2 > 1 && (null $ intersect (freeInIrrefPatn ip) vs')
+    = (b : bs, r1, r2)
+    where vs' = union fvs $ freeInExpr e1
+          e2' = if null bs2 then bdy2 else GenExpr (CS.Let bs2 bdy2) o2 t2 c2
+          (bs,r1,r2) = extractBindings fvs (i1,i2) e1 e2'
+extractBindings _ _ e1 e2 = ([],e1,e2)
+
+-- | Number of copies for then and else branch required for splitting the condition.
+branchCopies :: [GenBnd] -> ExprOfGE -> (Int,Int)
+branchCopies cbs (CS.Tuple es) = branchCopies cbs $ exprOfGE $ head es
+branchCopies cbs e | isTrueConst cbs e = (1,0)
+branchCopies cbs e | isFalseConst cbs e = (0,1)
+branchCopies cbs e | withoutNullTest cbs e || isNullTest cbs e = (1,1)
+branchCopies cbs (CS.If e0 _ e1 e2) =
+    addPair (mulPair bx $ capPair $ branchCopies cbs $ exprOfGE e1)
+            (mulPair by $ capPair $ branchCopies cbs $ exprOfGE e2)
+    where (bx,by) = branchCopies cbs $ exprOfGE e0
+branchCopies cbs (CS.PrimOp op [e]) | op == "not" = (by,bx)
+    where (bx,by) = branchCopies cbs $ exprOfGE e
+branchCopies cbs (CS.Var v) = maybe (1,1) ((branchCopies cbs) . exprOfGE) $ unfoldValVar cbs v
+branchCopies cbs (CS.Let bs bdy) = branchCopies ((reverse bs) ++ cbs) $ exprOfGE bdy
+branchCopies cbs e = (1,1)
+
+capPair :: (Int, Int) -> (Int, Int)
+capPair (i,j) = (if i > 0 then 1 else 0, if j > 0 then 1 else 0)
+
+mulPair :: Int -> (Int,Int) -> (Int,Int)
+mulPair i (j,k) = (i*j, i*k)
+
+addPair :: (Int,Int) -> (Int,Int) -> (Int,Int)
+addPair (i1,j1) (i2,j2) = (i1+i2,j1+j2)
+
+withoutNullTest :: [GenBnd] -> ExprOfGE -> Bool
+withoutNullTest cbs (CS.Tuple es) = withoutNullTest cbs $ exprOfGE $ head es
+withoutNullTest cbs e | isTrueConst cbs e || isFalseConst cbs e = True
+withoutNullTest cbs e | isNullTest cbs e = False
+withoutNullTest cbs (CS.PrimOp op [e]) | op == "not" = withoutNullTest cbs $ exprOfGE e
+withoutNullTest cbs (CS.If e0 _ e1 e2) = all ((withoutNullTest cbs) . exprOfGE) [e0, e1, e2]
+withoutNullTest cbs (CS.Var v) = maybe True ((withoutNullTest cbs) . exprOfGE) $ unfoldValVar cbs v
+withoutNullTest cbs (CS.Let bs bdy) = withoutNullTest ((reverse bs) ++ cbs) $ exprOfGE bdy
+withoutNullTest _ _ = True
+
+isNullTest :: [GenBnd] -> ExprOfGE -> Bool
+isNullTest cbs (CS.Tuple es) = isNullTest cbs $ exprOfGE $ head es
+isNullTest cbs (CS.PrimOp op es) | elem op ["==","/="] = any ((isNullConst cbs) . exprOfGE) es
+isNullTest cbs (CS.Var v) = maybe False ((isNullTest cbs) . exprOfGE) $ unfoldValVar cbs v
+isNullTest cbs (CS.Let bs bdy) = isNullTest ((reverse bs) ++ cbs) $ exprOfGE bdy
+isNullTest _ _ = False
+
+isNullConst :: [GenBnd] -> ExprOfGE -> Bool
+isNullConst cbs (CS.Var v) = v == mapNull || (maybe False ((isNullConst cbs) . exprOfGE) $ unfoldValVar cbs v)
+isNullConst cbs (CS.Let bs bdy) = isNullConst ((reverse bs) ++ cbs) $ exprOfGE bdy
+isNullConst cbs (CS.Tuple es) = isNullConst cbs $ exprOfGE $ head es
+isNullConst _ _ = False
+
+isTrueConst :: [GenBnd] -> ExprOfGE -> Bool
+isTrueConst _ (CS.BoolLit b) = b
+isTrueConst cbs (CS.Var v) = (maybe False ((isTrueConst cbs) . exprOfGE) $ unfoldValVar cbs v)
+isTrueConst cbs (CS.Let bs bdy) = isTrueConst ((reverse bs) ++ cbs) $ exprOfGE bdy
+isTrueConst _ _ = False
+
+isFalseConst :: [GenBnd] -> ExprOfGE -> Bool
+isFalseConst _ (CS.BoolLit b) = not b
+isFalseConst cbs (CS.Var v) = (maybe False ((isFalseConst cbs) . exprOfGE) $ unfoldValVar cbs v)
+isFalseConst cbs (CS.Let bs bdy) = isFalseConst ((reverse bs) ++ cbs) $ exprOfGE bdy
+isFalseConst _ _ = False
+
+-- | Convert conditional expressions with a NULL test as condition to a match expression using notNull or roNotNull.
+-- In the Some branch change type of tested variable from MayNull wrapped to unwrapped.
+convNullTests :: VarSourceMap -> GenExpr -> GenExpr
+convNullTests vmap e = mapExprOfGE (convNullTests' vmap) e
+
+convNullTests' :: VarSourceMap -> ExprOfGE -> ExprOfGE
+--convNullTests' vmap (CS.If e0 bvs e1 e2) = *** todo ***
+convNullTests' vmap (CS.Let bs bdy) = CS.Let bs' bdy'
+    where (bs',bdy') = convNullTestsInLet vmap bs bdy
+convNullTests' vmap (CS.Lam ip mt bdy) = CS.Lam ip mt $ mapExprOfGE (convNullTests' M.empty) bdy
+convNullTests' vmap e = fmap (convNullTests vmap) e
+
+convNullTestsInLet :: VarSourceMap -> [GenBnd] -> GenExpr -> ([GenBnd],GenExpr)
+convNullTestsInLet vmap [] bdy = ([], convNullTests vmap bdy)
+convNullTestsInLet vmap (CS.Binding ip mt e bvs : bs) bdy =
+    (CS.Binding ip mt e' bvs : bs', bdy')
+    where e' = (convNullTests vmap e)
+          vmap' = (addVarSourcesFromBinding vmap (ip,getExprSources vmap $ exprOfGE e))
+          (bs',bdy') = convNullTestsInLet vmap' bs bdy
+
+-- | Resolve type incompatibilities between MayNull wrapped types and unwrapped types.
+-- Unwrapped types in MayNull context are converted by mayNull or roMayNull.
+-- MayNull types in unwrapped context are signaled as error and resolved by dummy expressions.
+--resolveMayNullDiffs :: GenExpr -> ETrav GenExpr
+-- *** todo ***

@@ -2,42 +2,38 @@ GC=../../bin/gencot
 IT=../../bin/items
 
 #VARIANT = plaingen
-#TCONF = -tflebrpG
+#TCONF = -tflnebrpG
 
-VARIANT = plain
-TCONF = -tflebrp
+#VARIANT = plain
+#TCONF = -tflnebrp
 
-#VARIANT = pregen
-#TCONF = -tflebrG
-
-#VARIANT = preproc
-#TCONF = -tflebr
-
-# incl. boolproc
+# incl. preproc, boolproc
 #VARIANT = romodgen
+#TCONF = -tflnebG
+
+# incl. preproc, boolproc
+#VARIANT = romodproc
+#TCONF = -tflneb
+
+#VARIANT = maynullgen
 #TCONF = -tflebG
 
-# incl. boolproc
-#VARIANT = romodproc
-#TCONF = -tfleb
+VARIANT = maynullproc
+TCONF = -tfleb
 
-#VARIANT = banggen
-#TCONF = -tfleG
-
-#VARIANT = bangproc
-#TCONF = -tfle
-
+# incl. bangproc
 #VARIANT = ebanggen
-#TCONF = -tflG
+#TCONF = -tflnG
 
+# incl. bangproc
 #VARIANT = ebangproc
-#TCONF = -tfl
+#TCONF = -tfln
 
 #VARIANT = letproc
-#TCONF = -tf
+#TCONF = -tfn
 
 #VARIANT = ifproc
-#TCONF =
+#TCONF = -tn
 
 TESTS = purexpr assignexpr stat loop func ro null bool
 UNIT = externs exttypes dvdtypes

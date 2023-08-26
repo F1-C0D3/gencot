@@ -261,6 +261,10 @@ isBoolType :: GenType -> Bool
 isBoolType (GenType (CS.TCon cstr [] _) _ _) = cstr == "Bool"
 isBoolType _ = False
 
+isTupleType :: GenType -> Bool
+isTupleType (GenType (CS.TTuple _) _ _) = True
+isTupleType _ = False
+
 -- | Readonly or regular
 isNonlinear :: GenType -> Bool
 isNonlinear (GenType (CS.TTuple ts) _ _) = all isNonlinear ts

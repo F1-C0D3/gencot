@@ -4,7 +4,7 @@ module Gencot.Cogent.Post.Proc where
 import Gencot.Cogent.Ast (GenExpr,toRawExpr)
 import Gencot.Cogent.Post.Util (ETrav)
 import Gencot.Cogent.Post.Simplify (presimp,letproc,ifproc,opproc)
-import Gencot.Cogent.Post.MatchTypes (boolproc, romodproc, bangproc, ebangproc)
+import Gencot.Cogent.Post.MatchTypes (boolproc, romodproc, bangproc, ebangproc, maynullproc)
 
 postproc :: String -> GenExpr -> ETrav GenExpr
 postproc tconf e = do
@@ -34,9 +34,10 @@ opproc' _ e = opproc e
 runtypes :: String -> GenExpr -> ETrav GenExpr
 runtypes tconf e = do
     let e1 = boolproc' tconf e
-    e2 <- romodproc' tconf e1
-    e3 <- bangproc' tconf e2
-    ebangproc' tconf e3
+    e2 <- maynullproc' tconf e1
+    e3 <- romodproc' tconf e2
+    e4 <- bangproc' tconf e3
+    ebangproc' tconf e4
 
 boolproc' :: String -> GenExpr -> GenExpr
 boolproc' tconf e | elem 'r' tconf = e
@@ -53,3 +54,7 @@ bangproc' _ e = bangproc e
 ebangproc' :: String -> GenExpr -> ETrav GenExpr
 ebangproc' tconf e | elem 'e' tconf = return e
 ebangproc' _ e = ebangproc e
+
+maynullproc' :: String -> GenExpr -> ETrav GenExpr
+maynullproc' tconf e | elem 'n' tconf = return e
+maynullproc' _ e = maynullproc e

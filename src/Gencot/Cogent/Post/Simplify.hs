@@ -35,10 +35,10 @@ presimp e =
 -- The bindings in the sequence are processed from the last one backwards.
 presimpBinds :: [GenBnd] -> ExprOfGE -> [GenBnd]
 presimpBinds [] bdy = []
-presimpBinds ((Binding ip Nothing e []) : bs) bdy =
+presimpBinds ((Binding ip Nothing e bvs) : bs) bdy =
     let bs' = presimpBinds bs bdy
     in case presimpBind ip e $ freeUnderBinding bs' bdy of
-            Just (ip', e') -> ((Binding ip' Nothing (presimp e') []) : bs')
+            Just (ip', e') -> ((Binding ip' Nothing (presimp e') bvs) : bs')
             _ -> bs'
 
 -- | Process the binding (ip = e) by removing bindings to variables not in a given set.

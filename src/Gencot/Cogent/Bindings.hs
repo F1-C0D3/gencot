@@ -3,6 +3,7 @@ module Gencot.Cogent.Bindings where
 
 import Data.List (union,nub,delete,(\\))
 import Data.Maybe (catMaybes,isNothing)
+import Data.Char (isDigit)
 
 import Cogent.Surface as CS
 import Cogent.Common.Syntax as CCS
@@ -107,6 +108,9 @@ boundExpr (CS.Binding _ _ e _) = e
 
 isErrVar :: TypedVar -> Bool
 isErrVar (TV nam _) = nam == errVar
+
+isValVarName :: VarName -> Bool
+isValVarName (v : r) = v == 'v' && (not $ null r) && (last r) == prime && (all isDigit $ init r)
 
 -- | Retrieve the lvalue variable from an expression, if available.
 -- It is the variable bound as expression in the first component, if that is a variable.
@@ -272,13 +276,14 @@ mkAssExprBinds m n post (op,t) bpr bpl =
 -- | Conditional v<n>' = if bp1 then bp2 else bp3
 mkIfExprBinds :: Int -> ExprBinds -> ExprBinds -> ExprBinds -> ExprBinds
 mkIfExprBinds n bp0 bp1 bp2 =
-    addBinding (mkVarsBinding (vr : set) (mkIfExpr rts (mkVarExpr v0) e1 e2)) bp0
-    where set1 = sideEffectTargets bp1
+    mkSingleExprBinds $ mkVarsBinding (vr : set) $ mkLetExpr (binds bp0) $ mkIfExpr rts (mkVarExpr v0) e1 e2
+    where set0 = sideEffectTargets bp0
+          set1 = sideEffectTargets bp1
           set2 = sideEffectTargets bp2
           v0 = leadVar bp0
           v1 = leadVar bp1
           v2 = leadVar bp2
-          set = union set1 set2
+          set = union set0 $ union set1 set2
           rt = adaptTypes (typOfTV v1) (typOfTV v2)
           rts = mkTupleType (rt : (map typOfTV set))
           vr = TV (valVar n) rt
@@ -386,7 +391,7 @@ mkBreakBinding = mkVarBinding typedCtlVar $ mkCtlLitExpr 2
 mkContBinding :: GenBnd
 mkContBinding = mkVarBinding typedCtlVar $ mkCtlLitExpr 1
 
--- | Conditional statement (c',z1..) = let (v<n>',v1..) = expr in if v<n>' then let b1 in (c',z1..) else let b2 in (c',z1..)
+-- | Conditional statement (c',z1..) = let bp in if v<n>' then let b1 in (c',z1..) else let b2 in (c',z1..)
 mkIfBinding :: ExprBinds -> GenBnd -> GenBnd -> GenBnd
 mkIfBinding bp b1 b2 =
     mkVarsBinding vs $ mkLetExpr (binds bp) $ mkIfExpr (typOfGE evs) (mkVarExpr (leadVar bp)) e1 e2

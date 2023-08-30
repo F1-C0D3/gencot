@@ -109,8 +109,7 @@ boundInBindings ((Binding ipb Nothing eb _) : bs) = union (freeInIrrefPatn ipb) 
 {- Variables (not) modified by a re-binding -}
 
 -- | Variables returned unmodified by an expression
--- In a binding a variable is not modified, if it is either not bound
--- or if it is bound but returned unmodified by the bound expression.
+-- In a put expression the container is always considered modified.
 returnedByExpr :: GenExpr -> [VarName]
 returnedByExpr e = returnedByExpr' $ exprOfGE e
 
@@ -129,6 +128,10 @@ returnedByLet [] bdy = returnedByExpr bdy
 returnedByLet (b : bs) bdy =
     (returnedByLet bs bdy) \\ (modifiedByBinding b)
 
+-- | Variables modified in a binding
+-- In a binding a variable is not modified, if it is either not bound
+-- or if it is bound but returned unmodified by the bound expression.
+-- In a take binding the container is considered unmodified.
 modifiedByBinding :: GenBnd -> [VarName]
 modifiedByBinding (Binding ip _ e _) = (freeInIrrefPatn ip) \\ (returnedByExpr e)
 

@@ -34,8 +34,8 @@ opproc' _ e = opproc e
 runtypes :: String -> GenExpr -> ETrav GenExpr
 runtypes tconf e = do
     let e1 = boolproc' tconf e
-    e2 <- maynullproc' tconf e1
-    e3 <- romodproc' tconf e2
+    e2 <- romodproc' tconf e1
+    e3 <- maynullproc' tconf e2
     e4 <- bangproc' tconf e3
     ebangproc' tconf e4
 

@@ -193,7 +193,7 @@ mkReadonly (GenType (CS.TRecord rp fs (Boxed False _)) o ms) =
 mkReadonly (GenType (CS.TRecord rp fs Unboxed) o ms) =
     GenType (CS.TRecord rp (map (\(f,(t,tk)) -> (f,(mkReadonly t,tk))) fs) ubSigil) o ms
 mkReadonly (GenType (CS.TArray t e Unboxed ts) o ms) = GenType (CS.TArray (mkReadonly t) e ubSigil ts) o ms
-mkReadonly (GenType (CS.TCon tn ts (Boxed False _)) o ms) | (elem tn [mapPtrVoid, mapMayNull, variadicTypeName]) || isArrDeriv tn =
+mkReadonly (GenType (CS.TCon tn ts (Boxed False _)) o ms) | (elem tn [mapPtrVoid, mapMayNull, variadicTypeName, "Option"]) || isArrDeriv tn =
     GenType (CS.TCon tn (map mkReadonly ts) roSigil) o ms
 mkReadonly t = t
 
@@ -224,6 +224,9 @@ mkMayNull t@(GenType (CS.TCon tn _ _) _ _) | tn == mapMayNull = t
 mkMayNull t@(GenType (CS.TCon _ _ sg) _ _) = mkConstrType mapMayNull [t] sg
 mkMayNull t@(GenType (CS.TRecord _ _ sg) _ _) = mkConstrType mapMayNull [t] sg
 mkMayNull t = mkConstrType mapMayNull [t] noSigil
+
+mkOption :: GenType -> GenType
+mkOption t = mkConstrType "Option" [t] noSigil
 
 -- Type predicates
 ------------------

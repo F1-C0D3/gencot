@@ -18,22 +18,22 @@ IT=../../bin/items
 #VARIANT = maynullgen
 #TCONF = -tflebG
 
-VARIANT = maynullproc
-TCONF = -tfleb
+#VARIANT = maynullproc
+#TCONF = -tfleb
 
 # incl. bangproc
 #VARIANT = ebanggen
-#TCONF = -tflnG
+#TCONF = -tflG
 
 # incl. bangproc
-#VARIANT = ebangproc
-#TCONF = -tfln
+VARIANT = ebangproc
+TCONF = -tfl
 
 #VARIANT = letproc
-#TCONF = -tfn
+#TCONF = -tf
 
 #VARIANT = ifproc
-#TCONF = -tn
+#TCONF =
 
 TESTS = purexpr assignexpr stat loop func ro null bool
 UNIT = externs exttypes dvdtypes

@@ -2,7 +2,7 @@
 module Gencot.Cogent.Post.MatchTypes where
 
 import Data.Char (isDigit)
-import Data.List (intercalate,transpose,concatMap,isPrefixOf,nub,intersect,union,(\\),partition,find,zipWith,zip3, zip4)
+import Data.List (intercalate,transpose,concatMap,foldl1',isPrefixOf,nub,intersect,union,(\\),partition,find,zipWith,zip3, zip4)
 import qualified Data.Map as M
 import Data.Maybe (catMaybes,isNothing,isJust,fromJust)
 import Data.Foldable (toList)
@@ -17,12 +17,13 @@ import Gencot.Names (mapNull)
 import Gencot.Cogent.Ast
 import Gencot.Cogent.Error (typeMatch)
 import Gencot.Cogent.Types (
-  mkBoolType, mkU32Type, mkTupleType, mkFunType, mkReadonly,
-  isBoolType, isTupleType, isNonlinear, isRegular, mayEscape, isReadonly, isArithmetic, roCmpTypes,
-  unbangType, getMemberType, getDerefType, getParamType, getResultType, adaptTypes)
-import Gencot.Cogent.Bindings (errVar, isValVarName, mkDummyExpr, toDummyExpr, mkVarTuplePattern)
+  mkBoolType, mkU32Type, mkTupleType, mkFunType, mkReadonly, mkOption,
+  isBoolType, isTupleType, isNonlinear, isRegular, mayEscape, isReadonly, isMayNull, isArithmetic, roCmpTypes,
+  unbangType, getMemberType, getDerefType, getNnlType, getParamType, getResultType, adaptTypes)
+import Gencot.Cogent.Bindings (errVar, isValVarName, mkDummyExpr, toDummyExpr, mkVarBinding, mkVarPattern, mkVarTuplePattern)
 import Gencot.Cogent.Expr (
-  TypedVar(TV), namOfTV, mkUnitExpr, mkIntLitExpr, mkNullExpr, mkBoolOpExpr, mkLetExpr, mkIfExpr, mkTupleExpr, mkVarTupleExpr)
+  TypedVar(TV), namOfTV, typOfTV, mkUnitExpr, mkIntLitExpr, mkNullExpr, mkVarExpr, mkBoolOpExpr, mkTopLevelFunExpr,
+  mkAppExpr, mkLetExpr, mkIfExpr, mkMatchExpr, mkTupleExpr, mkVarTupleExpr)
 import Gencot.Cogent.Post.Util (
   ETrav, runExprTrav, isValVar, isCVar, freeInExpr, freeInExpr', freeInIrrefPatn, freeInBindings, freeUnderBinding, boundInBindings,
   returnedByExpr, exchangeableWithBindings,
@@ -576,7 +577,8 @@ recordSources vmap v = modifyUserState (\tvs -> union tvs $ getVarSources vmap v
 getExprSources :: VarSourceMap -> ExprOfGE -> [[CCS.VarName]]
 getExprSources vmap (CS.Var v) = [getVarSources vmap v]
 getExprSources vmap (CS.If _ _ e1 e2) = zipWith union (getExprSources vmap $ exprOfGE e1) (getExprSources vmap $ exprOfGE e2)
---getExprSources vmap (CS.Match _ _ alts) = ***todo***
+getExprSources vmap (CS.Match _ _ alts) =
+    map (nub . concat) $ transpose $ map (\(CS.Alt _ _ e) -> getExprSources vmap $ exprOfGE e) alts
 getExprSources vmap (CS.Tuple es) = concatMap ((getExprSources vmap) . exprOfGE) es
 getExprSources vmap (CS.Put e pts) = getExprSources vmap $ exprOfGE e
 getExprSources vmap (CS.ArrayPut e pts) = getExprSources vmap $ exprOfGE e
@@ -584,7 +586,9 @@ getExprSources vmap (CS.Let bs bdy) = getExprSources (addVarSourcesFromBindings 
 getExprSources vmap (CS.App f e _) =
     case typeOfGT $ getResultType $ typOfGE f of
          CS.TTuple ts -> map (const []) ts
-         _ -> [[]]
+         _ -> if isMayNullOperation f
+                 then getExprSources vmap $ exprOfGE e
+                 else [[]]
 getExprSources _ _ = [[]]
 
 addVarSourcesFromBindings :: VarSourceMap -> [GenBnd] -> VarSourceMap
@@ -602,6 +606,10 @@ addVarSourcesFromBinding vmap (GenIrrefPatn (CS.PTake pv [Just (_,(GenIrrefPatn 
 addVarSourcesFromBinding vmap (GenIrrefPatn (CS.PArrayTake pv [(_,(GenIrrefPatn (CS.PVar cv) _ _))]) _ t, [ess])
     | not $ isRegular t = M.insert cv ess vmap
 addVarSourcesFromBinding vmap _ = vmap
+
+isMayNullOperation :: GenExpr -> Bool
+isMayNullOperation (GenExpr (CS.TLApp f _ _ _) _ _ _) | elem f ["mayNull","notNull"] = True
+isMayNullOperation _ = False
 
 -- | Bang variable types and resolve readonly type incompatibilities in an expression.
 -- The first argument is a list of variables for which the type must be banged at every occurrence.
@@ -625,8 +633,22 @@ rslvRoDiffs vs cvs vmap (GenExpr (CS.If e0 bvs e1 e2) o t s) = do
     e2b <- rslvRoDiffs vs cvs vmap e2
     (e1bm,e2bm,tm) <- matchRoExprs vmap e1b e2b
     return $ GenExpr (CS.If e0b bvs e1bm e2bm) o tm s
---rslvRoDiffs vs cvs vmap (GenExpr (CS.Match e0 bvs alts) o t s) = do
---    ***todo***
+-- (todo) here we assume that generated match expressions always have two alternatives
+rslvRoDiffs vs cvs vmap (GenExpr (CS.Match e0 bvs [CS.Alt p1 l1 e1, CS.Alt p2 l2 e2]) o t s) = do
+    e0b <- rslvRoDiffs vs cvs vmap e0
+    e1b <- rslvRoDiffs vs cvs vmap e1
+    e2b <- rslvRoDiffs vs cvs vmap e2
+    (e1bm,e2bm,tm) <- matchRoExprs vmap e1b e2b
+    let alt1 = CS.Alt (bangInPatn vs vmap p1) l1 e1bm
+        alt2 = CS.Alt (bangInPatn vs vmap p2) l2 e2bm
+    return $ GenExpr (CS.Match e0b bvs [alt1, alt2]) o tm s
+rslvRoDiffs vs cvs vmap (GenExpr (CS.App f e infx) o t s) | isMayNullOperation f = do
+    eb <- rslvRoDiffs vs cvs vmap e
+    let (tbs,ebs) = matchRoTypes (getParamType $ typOfGE f) $ typOfGE eb
+    ebm <- changeLinToRoInExpr vmap ebs eb
+    let fb = if head tbs then bangMayNullOperation f else f
+        tb = getResultType $ typOfGE fb
+    return $ GenExpr (CS.App fb ebm infx) o tb s
 rslvRoDiffs vs cvs vmap (GenExpr (CS.App f e infx) o t s) = do
     eb <- rslvRoDiffs vs cvs vmap e
     ebm <- matchRoExpr vmap (getParamType $ typOfGE f) eb
@@ -706,6 +728,21 @@ bangInPattern vs vmap esrcs (GenIrrefPatn (CS.PTuple ips) o t) =
     where ipsb = map (\(ip,esrc) -> bangInPattern vs vmap [esrc] ip) $ zip ips esrcs
 bangInPattern _ _ _ ip = ip
 
+-- | Bang variable types in a (refutable) pattern.
+-- The pattern is either "Nothing" or "Some v" where v is a C or component variable.
+-- The first argument is a list of variables for which the type must be banged at every occurrence.
+-- The second argument is the variable source map for all variables of linear type bound in the context.
+-- The variables are banged according to their own source variables.
+bangInPatn :: [CCS.VarName] -> VarSourceMap -> GenPatn -> GenPatn
+bangInPatn vs vmap (GenPatn (CS.PCon tn ips) o t) =
+    GenPatn (CS.PCon tn (map (bangInPattern vs vmap []) ips)) o $ mkReadonly t
+bangInPatn _ _ p = p
+
+bangMayNullOperation :: GenExpr -> GenExpr
+bangMayNullOperation (GenExpr (CS.TLApp f mt ml il) o (GenType (CS.TFun pt rt) ot _) c) =
+    GenExpr (CS.TLApp f (map (fmap mkReadonly) mt) ml il) o (GenType (CS.TFun (mkReadonly pt) (mkReadonly rt)) ot Nothing) c
+
+
 -- | Check whether a variable is modified by a pattern.
 -- The first argument is a list of variables which may not be modified.
 -- If it occurs in the pattern it is replaced by the error variable and an error is recorded.
@@ -769,9 +806,11 @@ markReadonlyAsError bools t e@(GenExpr (CS.App _ _ _) _ _ _) = do
 markReadonlyAsError bools t (GenExpr (CS.If e0 bvs e1 e2) o _ s) = do
     e1b <- markReadonlyAsError bools t e1
     e2b <- markReadonlyAsError bools t e2
-    return $ GenExpr (CS.If e0 bvs e1b e2b) o (typOfGE e1b) s
---markReadonlyAsError bools t (GenExpr (CS.Match e0 bvs alts) o _ s) = do
---    ***todo***
+    return $ GenExpr (CS.If e0 bvs e1b e2b) o (adaptTypes (typOfGE e1b) (typOfGE e2b)) s
+markReadonlyAsError bools t (GenExpr (CS.Match e0 bvs alts) o _ s) = do
+    altsb <- mapM (\(CS.Alt p l e) -> do {e' <- markReadonlyAsError bools t e; return $ CS.Alt p l e'}) alts
+    let tm = foldl1' adaptTypes $ map (\(CS.Alt _ _ e) -> typOfGE e) altsb
+    return $ GenExpr (CS.Match e0 bvs altsb) o tm s
 
 -- | Change some subexpressions of linear type to readonly type.
 -- The second argument is a boolean vector specifying the tuple components to be changed,
@@ -795,8 +834,10 @@ changeLinToRoInExpr vmap bools (GenExpr (CS.If e0 bvs e1 e2) o t s) = do
     e1b <- changeLinToRoInExpr vmap bools e1
     e2b <- changeLinToRoInExpr vmap bools e2
     return $ GenExpr (CS.If e0 bvs e1b e2b) o (adaptTypes (typOfGE e1b) (typOfGE e2b)) s
---changeLinToRoInExpr vmap bools (GenExpr (CS.Match e0 bvs alts) o t s) = do
---    ***todo***
+changeLinToRoInExpr vmap bools (GenExpr (CS.Match e0 bvs alts) o t s) = do
+    altsb <- mapM (\(CS.Alt p l e) -> do {e' <- changeLinToRoInExpr vmap bools e; return $ CS.Alt p l e'}) alts
+    let tm = foldl1' adaptTypes $ map (\(CS.Alt _ _ e) -> typOfGE e) altsb
+    return $ GenExpr (CS.Match e0 bvs altsb) o tm s
 changeLinToRoInExpr vmap [True] e@(GenExpr (CS.Var v) _ _ _) | not $ null $ getVarSources vmap v = do
     recordSources vmap v
     return e
@@ -840,25 +881,33 @@ matchRoTypes' t1 t2 =
 {-------------------------------------------}
 
 ebangproc :: GenExpr -> ETrav GenExpr
-ebangproc e = mapMExprOfGE ebangproc' e
+ebangproc e = do
+    (eN,_,_) <- runExprTrav 0 $ mkNullUnique e
+    eN' <- ebangprocN eN
+    reNullUnique eN'
+
+ebangprocN :: GenExpr -> ETrav GenExpr
+ebangprocN e = mapMExprOfGE ebangproc' e
+
 
 -- | Try to bang additional variables in subexpressions where that is possible.
 -- Banging is possible in conditions of conditional expressions and in bindings.
--- No bang tried in CS.Match, CS.LamC, CS.MultiWayIf, because these are not generated.
+-- No bang tried in CS.Match, because generated match expressions for NULL test would never be escapeable when banged.
+-- No bang tried in CS.LamC, CS.MultiWayIf, because these are not generated.
 -- Since variables are only banged in sub-contexts, and the effects may not escape these sub-contexts,
 -- the type of the expression remains unchanged.
 ebangproc' :: ExprOfGE -> ETrav ExprOfGE
 ebangproc' (CS.Let bs bdy) = do
     bsb <- ebangprocInLet bs $ exprOfGE bdy
-    bdyp <- ebangproc bdy
+    bdyp <- ebangprocN bdy
     return $ CS.Let bsb bdyp
 ebangproc' (CS.If e bvs e1 e2) = do
     -- type of e is always escapeable because it is boolean
     (ebe,bvse) <- extendBangExpr e bvs
-    e1p <- ebangproc e1
-    e2p <- ebangproc e2
+    e1p <- ebangprocN e1
+    e2p <- ebangprocN e2
     return $ CS.If ebe bvse e1p e2p
-ebangproc' e = mapM ebangproc e
+ebangproc' e = mapM ebangprocN e
 
 -- | Try to bang additional variables in the bindings of a let expressions.
 -- The let body is required to determine the variables used in it, it is not processed.
@@ -880,7 +929,7 @@ ebangprocInBindings [] _ = return []
 ebangprocInBindings (b@(CS.Binding ip m e bvs):bs) bdy = do
            (ipre,ebre,bvse) <- extendBangBinding ip e bvs
            ebrebbb <- if (hasInnerBangPositions $ exprOfGE ebre)
-                         then ebangproc ebre
+                         then ebangprocN ebre
                          else return ebre
            bsb <- ebangprocInBindings bs bdy
            return ((CS.Binding ipre m ebrebbb bvse) : bsb)
@@ -891,7 +940,7 @@ ebangprocInBindings (b@(CS.Binding ip m e bvs):bs) bdy = do
 extendBangExpr :: GenExpr -> [CCS.VarName] -> ETrav (GenExpr, [CCS.VarName])
 extendBangExpr e vs = do
     (eb,bvs) <- extendBangVars e $ getBangCandidates [] e
-    return (eb,union vs bvs)
+    return (eb,union vs $ filter (not . isUniqueNull) bvs)
 
 -- | Try to change variable types to readonly in an expression according to a list of typed variables.
 -- The result is the modified expression together with the list of all variables
@@ -914,7 +963,7 @@ extendBangVars e (v:vs) = do
 extendBangBinding :: GenIrrefPatn -> GenExpr -> [CCS.VarName] -> ETrav (GenIrrefPatn, GenExpr, [CCS.VarName])
 extendBangBinding ip e vs = do
     (ipb,eb,bvs) <- extendBangBindingVars ip e $ getBangCandidates [] e
-    return (ipb,eb,union vs bvs)
+    return (ipb,eb,union vs $ filter (not . isUniqueNull) bvs)
 
 -- | Try to change variable types to readonly in an expression according to a list of typed variables.
 -- Variables with successfully changed type are removed from the expression result and the binding pattern.
@@ -961,17 +1010,12 @@ getBangCandInPattern _ _ = []
 {- to MayNull context.                      -}
 {--------------------------------------------}
 
--- | A mapping from names to bound expressions used for value variables.
--- If non-value-variables occur in the bound expression their values may be different due to intermediate re-bindings.
--- These are not reflected in the mapping.
-type ValVarMap = M.Map CCS.VarName GenExpr
-
 maynullproc :: GenExpr -> ETrav GenExpr
 maynullproc e = do
     let e1 = sepNullTests e
     -- extend take/put scopes for MayNull components here
-    return e1
-    -- resolveMayNullDiffs $ convNullTests M.empty e1
+    return $ convNullTests [] e1
+    -- resolveMayNullDiffs $ convNullTests [] e1
 
 -- | Split conditional expressions to separate NULL tests from other conditions.
 sepNullTests :: GenExpr -> GenExpr
@@ -1070,19 +1114,7 @@ unfoldValVar :: [GenBnd] -> VarName -> Maybe GenExpr
 unfoldValVar cbs v =
     case findBindingFor cbs v of
          Nothing -> Nothing
-         Just ((CS.Binding _ _ e _),_,_) -> Just $ getValVarExpr e
-
-getValVarExpr :: GenExpr -> GenExpr
-getValVarExpr e | not $ isTupleType $ typOfGE e = e
-getValVarExpr (GenExpr (CS.Tuple es) _ _ _) = head es
-getValVarExpr (GenExpr (CS.Let bs bdy) o t ccd) =
-    GenExpr (CS.Let bs $ getValVarExpr bdy) o (getValVarType t) ccd
-getValVarExpr (GenExpr (CS.If e0 bvs e1 e2) o t ccd) =
-    GenExpr (CS.If e0 bvs (getValVarExpr e1) (getValVarExpr e2)) o (getValVarType t) ccd
-
-getValVarType :: GenType -> GenType
-getValVarType (GenType (CS.TTuple ts) _ _) = head ts
-getValVarType t = t
+         Just ((CS.Binding _ _ e _),_,_) -> Just e
 
 -- | Extract bindings from two expressions so that they retain their semantics.
 -- Bindings are only extracted from an expression
@@ -1164,25 +1196,142 @@ isFalseConst cbs (CS.Var v) = (maybe False ((isFalseConst cbs) . exprOfGE) $ unf
 isFalseConst cbs (CS.Let bs bdy) = isFalseConst ((reverse bs) ++ cbs) $ exprOfGE bdy
 isFalseConst _ _ = False
 
--- | Convert conditional expressions with a NULL test as condition to a match expression using notNull or roNotNull.
+-- | Convert conditional expressions with a NULL test as condition to a match expression using notNull.
 -- In the Some branch change type of tested variable from MayNull wrapped to unwrapped.
-convNullTests :: VarSourceMap -> GenExpr -> GenExpr
-convNullTests vmap e = mapExprOfGE (convNullTests' vmap) e
+-- In the Nothing branch bind tested variable to cogent_NULL.
+-- The first argument is a reversed context binding list to resolve variables involved in a NULL test.
+convNullTests :: [GenBnd] -> GenExpr -> GenExpr
+convNullTests cbs e = mapExprOfGE (convNullTests' cbs) e
 
-convNullTests' :: VarSourceMap -> ExprOfGE -> ExprOfGE
---convNullTests' vmap (CS.If e0 bvs e1 e2) = *** todo ***
-convNullTests' vmap (CS.Let bs bdy) = CS.Let bs' bdy'
-    where (bs',bdy') = convNullTestsInLet vmap bs bdy
-convNullTests' vmap (CS.Lam ip mt bdy) = CS.Lam ip mt $ mapExprOfGE (convNullTests' M.empty) bdy
-convNullTests' vmap e = fmap (convNullTests vmap) e
+convNullTests' :: [GenBnd] -> ExprOfGE -> ExprOfGE
+convNullTests' cbs (CS.If e0 [] e1 e2) | isNullTest cbs $ exprOfGE e0 =
+    let e1' = convNullTests cbs e1
+        e2' = convNullTests cbs e2
+    in convNullTest cbs e0 e1' e2'
+convNullTests' cbs (CS.Let bs bdy) = CS.Let bs' bdy'
+    where (bs',bdy') = convNullTestsInLet cbs bs bdy
+convNullTests' cbs (CS.Lam ip mt bdy) = CS.Lam ip mt $ mapExprOfGE (convNullTests' []) bdy
+convNullTests' cbs e = fmap (convNullTests cbs) e
 
-convNullTestsInLet :: VarSourceMap -> [GenBnd] -> GenExpr -> ([GenBnd],GenExpr)
-convNullTestsInLet vmap [] bdy = ([], convNullTests vmap bdy)
-convNullTestsInLet vmap (CS.Binding ip mt e bvs : bs) bdy =
-    (CS.Binding ip mt e' bvs : bs', bdy')
-    where e' = (convNullTests vmap e)
-          vmap' = (addVarSourcesFromBinding vmap (ip,getExprSources vmap $ exprOfGE e))
-          (bs',bdy') = convNullTestsInLet vmap' bs bdy
+convNullTestsInLet :: [GenBnd] -> [GenBnd] -> GenExpr -> ([GenBnd],GenExpr)
+convNullTestsInLet cbs [] bdy = ([], convNullTests cbs bdy)
+convNullTestsInLet cbs (CS.Binding ip mt e bvs : bs) bdy =
+    (b' : bs', bdy')
+    where e' = (convNullTests cbs e)
+          b' = CS.Binding ip mt e' bvs
+          (bs',bdy') = convNullTestsInLet (b' : cbs) bs bdy
+
+convNullTest :: [GenBnd] -> GenExpr -> GenExpr -> GenExpr -> ExprOfGE
+convNullTest cbs e0@(GenExpr (CS.Var v) _ _ _) e1 e2 =
+    case findBindingFor cbs v of
+         Nothing -> e
+         Just (b@(CS.Binding ip _ e0' _),bsb,bsa) ->
+            if exchangeableWithBindings b bsb
+               then convNullTest (bsb++bsa) e0' e1 e2
+               else e
+    where e = CS.If e0 [] e1 e2
+convNullTest cbs (GenExpr (CS.Tuple es) _ _ _) e1 e2 =
+    convNullTest cbs (head es) e1 e2
+convNullTest cbs (GenExpr (CS.Let bs bdy) _ _ _) e1 e2 =
+    convNullTest ((reverse bs)++cbs) bdy e1 e2
+convNullTest cbs (GenExpr (CS.PrimOp op es) o t c) e1 e2 | op == "==" =
+    convNullTest cbs (GenExpr (CS.PrimOp "/=" es) o t c) e2 e1
+convNullTest cbs (GenExpr (CS.PrimOp op [a1,a2]) o t c) e1 e2 | isNullConst cbs $ exprOfGE a1 =
+    convNullTest cbs (GenExpr (CS.PrimOp op [a2,a1]) o t c) e1 e2
+convNullTest cbs e0@(GenExpr (CS.PrimOp op [a1,a2]) o t c) e1 e2 =
+    case convVarNullTest cbs a1 e1 e2 of
+         Nothing -> CS.If e0 [] e1 e2
+         Just e -> e
+convNullTest _ e0 e1 e2 = error ("convNullTest e0 = " ++ (show e0))
+
+convVarNullTest :: [GenBnd] -> GenExpr -> GenExpr -> GenExpr -> Maybe ExprOfGE
+convVarNullTest cbs (GenExpr (CS.Var v) _ _ _) e1 e2 | isValVar v =
+    case findBindingFor cbs v of
+         Nothing -> Nothing
+         Just (b@(CS.Binding ip _ e0' _),bsb,bsa) ->
+            if exchangeableWithBindings b bsb
+               then convVarNullTest (bsb++bsa) e0' e1 e2
+               else Nothing
+convVarNullTest cbs (GenExpr (CS.Tuple es) _ _ _) e1 e2 =
+    convVarNullTest cbs (head es) e1 e2
+convVarNullTest cbs (GenExpr (CS.Let bs bdy) _ _ _) e1 e2 =
+    Just $ convNullTest ((reverse bs)++cbs) bdy e1 e2
+convVarNullTest cbs p@(GenExpr (CS.Var v) _ t _) e1 e2 =
+    Just $ exprOfGE $ mkMatchExpr
+      (mkAppExpr (mkTopLevelFunExpr ("notNull",mkFunType t otype) [Just ntype]) p)
+      [("Nothing", [], bindToNullInExpr (TV v t) e2),
+          ("Some", [mkVarPattern nvar], setTypeOfFree nvar e1)]
+    where ntype = getNnlType t
+          otype = mkOption ntype
+          nvar = TV v ntype
+convVarNullTest _ _ _ _ = Nothing
+
+bindToNullInExpr :: TypedVar -> GenExpr -> GenExpr
+bindToNullInExpr tv (GenExpr (CS.Let bs bdy) o t c) =
+    GenExpr (CS.Let ((mkVarBinding tv $ mkVarExpr $ TV mapNull $ typOfTV tv) : bs) bdy) o t c
+bindToNullInExpr tv e =
+    mkLetExpr [mkVarBinding tv $ mkVarExpr $ TV mapNull $ typOfTV tv] e
+
+-- | Set the type for every free occurrence of a variable in an expression.
+-- And also for every value variable bound to a free occurrence of the variable.
+-- And also for free occurrences after a take/put binding with the variale as container.
+-- And recalculate all types of composite expressions.
+setTypeOfFree :: TypedVar -> GenExpr -> GenExpr
+setTypeOfFree (TV v vt) (GenExpr (CS.Var w) o _ c) | v == w = GenExpr (CS.Var w) o vt c
+setTypeOfFree tv (GenExpr (CS.Tuple es) o _ c) =
+    GenExpr (CS.Tuple es') o (mkTupleType (map typOfGE es')) c
+    where es' = map (setTypeOfFree tv) es
+setTypeOfFree tv (GenExpr (CS.App f e i) o t c) =
+    GenExpr (CS.App f (setTypeOfFree tv e) i) o t c -- no change possible in f and thus in t
+setTypeOfFree tv (GenExpr (CS.If e0 bvs e1 e2) o _ c) =
+    GenExpr (CS.If e0' bvs e1' e2') o (adaptTypes (typOfGE e1') (typOfGE e2')) c
+    where e0' = setTypeOfFree tv e0
+          e1' = setTypeOfFree tv e1
+          e2' = setTypeOfFree tv e2
+setTypeOfFree tv (GenExpr (CS.Match e bvs alts) o t c) =
+    GenExpr (CS.Match e' bvs alts') o t' c
+    where e' = setTypeOfFree tv e
+          alts' = map (\(CS.Alt p l e) -> CS.Alt p l $ setTypeOfFree tv e) alts
+          t' = foldl1' adaptTypes $ map (\(CS.Alt p _ e) -> typOfGE e) alts
+setTypeOfFree tv e@(GenExpr (CS.Lam _ _ _) _ _ _) = e
+setTypeOfFree tv (GenExpr (CS.Put e mfs) o _ c) =
+    GenExpr (CS.Put e' mfs') o (typOfGE e') c
+    where e' = setTypeOfFree tv e
+          mfs' = map (fmap (\(f,e) -> (f,setTypeOfFree tv e))) mfs
+setTypeOfFree tv (GenExpr (CS.Let bs bdy) o _ c) =
+    GenExpr (CS.Let bs' bdy') o (typOfGE bdy') c
+    where (bs', bdy') = setTypeOfFreeInLet tv bs bdy
+setTypeOfFree tv e = mapExprOfGE (fmap (setTypeOfFree tv)) e
+
+setTypeOfFreeInLet :: TypedVar -> [GenBnd] -> GenExpr -> ([GenBnd],GenExpr)
+setTypeOfFreeInLet tv [] bdy = ([],setTypeOfFree tv bdy)
+setTypeOfFreeInLet tv (b@(CS.Binding ip m e bvs) : bs) bdy =
+    ((CS.Binding ip' m e' bvs) : bs'', bdy'')
+    where e' = setTypeOfFree tv e
+          otv = if elem (namOfTV tv) (freeInIrrefPatn ip) then [] else [tv]
+          (ip',bmvs) = fixTypeOfBound ip (typOfGE e) (typOfGE e')
+          (bs'',bdy'') = setTypeOfVarsInLet (union otv bmvs) bs bdy
+
+setTypeOfVarsInLet :: [TypedVar] -> [GenBnd] -> GenExpr -> ([GenBnd],GenExpr)
+setTypeOfVarsInLet [] bs bdy = (bs,bdy)
+setTypeOfVarsInLet (tv : tvs) bs bdy =
+    setTypeOfVarsInLet tvs bs' bdy'
+    where (bs',bdy') = setTypeOfFreeInLet tv bs bdy
+
+-- | Fix type of variables according to type changes in an expression.
+-- The result is the fixed pattern and the list of all fixed variables with their new types.
+-- The second argument is the old type, the third is the new type of the bound expression.
+fixTypeOfBound :: GenIrrefPatn -> GenType -> GenType -> (GenIrrefPatn,[TypedVar])
+fixTypeOfBound (GenIrrefPatn (CS.PTuple ips) o _) (GenType (CS.TTuple ts1) _ _) (GenType (CS.TTuple ts2) _ _) =
+    (GenIrrefPatn (CS.PTuple ips') o (mkTupleType $ map typOfGIP ips'), nub $ concat tvss)
+    where (ips',tvss) = unzip $ map (\(ip,t1,t2) -> fixTypeOfBound ip t1 t2) $ zip3 ips ts1 ts2
+fixTypeOfBound (GenIrrefPatn (CS.PVar pv) o _) t1 t2 | isMayNull t1 /= isMayNull t2 =
+    (GenIrrefPatn (CS.PVar pv) o t2, [TV pv t2])
+fixTypeOfBound (GenIrrefPatn (CS.PTake pv tfs) o _) t1 t2 | isMayNull t1 /= isMayNull t2 =
+    (GenIrrefPatn (CS.PTake pv tfs) o t2, [TV pv t2])
+fixTypeOfBound (GenIrrefPatn (CS.PArrayTake pv tfs) o _) t1 t2 | isMayNull t1 /= isMayNull t2 =
+    (GenIrrefPatn (CS.PArrayTake pv tfs) o t2, [TV pv t2])
+fixTypeOfBound ip _ _ = (ip,[])
 
 -- | Resolve type incompatibilities between MayNull wrapped types and unwrapped types.
 -- Unwrapped types in MayNull context are converted by mayNull or roMayNull.

@@ -887,7 +887,8 @@ ebangproc :: GenExpr -> ETrav GenExpr
 ebangproc e = do
     (eN,_,_) <- runExprTrav 0 $ mkNullUnique e
     eN' <- ebangprocN eN
-    reNullUnique eN'
+    e' <- reNullUnique eN'
+    return $ bindToNullInNothing e'
 
 ebangprocN :: GenExpr -> ETrav GenExpr
 ebangprocN e = mapMExprOfGE ebangproc' e
@@ -1264,36 +1265,13 @@ convVarNullTest cbs p@(GenExpr (CS.Var v) _ t _) e1 e2 =
     if isMayNull t
        then Just $ exprOfGE $ mkMatchExpr
                 (mkAppExpr (mkTopLevelFunExpr ("notNull",mkFunType t otype) [Just ntype]) p)
-                [("Nothing", [], bindToNullInExpr (TV v t) e2),
+                [("Nothing", [], e2),
                  ("Some", [mkVarPattern nvar], setTypeOfFree nvar e1)]
        else Just $ exprOfGE e1
     where ntype = getNnlType t
           otype = mkOption ntype
           nvar = TV v ntype
 convVarNullTest _ _ _ _ = Nothing
-
-bindToNullInExpr :: TypedVar -> GenExpr -> GenExpr
-bindToNullInExpr tv (GenExpr (CS.Let bs bdy) o t c) =
-    GenExpr (CS.Let ((mkVarBinding tv $ mkVarExpr $ TV mapNull $ typOfTV tv) : bs) bdy) o t c
-bindToNullInExpr tv e =
-    mkLetExpr [mkVarBinding tv $ mkVarExpr $ TV mapNull $ typOfTV tv] e
-
--- | Substitute a variable by cogent_NULL, as long as its value is not modified.
-substFreeByNull :: CCS.VarName -> GenExpr -> GenExpr
-substFreeByNull v (GenExpr (CS.Var w) o t c) | w == v = GenExpr (CS.Var mapNull) o t c
-substFreeByNull v (GenExpr (CS.Let bs bdy) o t c) =
-    GenExpr (CS.Let bs' bdy') o t c
-    where (bs',bdy') = substFreeByNullInLet v bs bdy
-substFreeByNull v e = mapExprOfGE (fmap (substFreeByNull v)) e
-
-substFreeByNullInLet :: CCS.VarName -> [GenBnd] -> GenExpr -> ([GenBnd],GenExpr)
-substFreeByNullInLet v [] bdy = ([],substFreeByNull v bdy)
-substFreeByNullInLet v (b@(CS.Binding ip m e bvs) : bs) bdy =
-    if elem v $ modifiedByBinding b -- test b since in b' substituted components look modified
-       then ((b' : bs), bdy)
-       else ((b' : bs'), bdy')
-    where b' = CS.Binding ip m (substFreeByNull v e) bvs
-          (bs',bdy') = substFreeByNullInLet v bs bdy
 
 -- | Set the type for every free occurrence of a variable in an expression.
 -- And also for every value variable bound to a free occurrence of the variable.
@@ -1361,3 +1339,23 @@ fixTypeOfBound ip _ _ = (ip,[])
 -- MayNull types in unwrapped context are signaled as error and resolved by dummy expressions.
 --resolveMayNullDiffs :: GenExpr -> ETrav GenExpr
 -- *** todo ***
+
+-- | For every nothing-branch of a NULL test bind the tested variable to cogent_NULL.
+-- This prevents double use if the variable has linear type.
+-- We assume that only match expressions exist which have been created by convVarNullTest.
+bindToNullInNothing :: GenExpr -> GenExpr
+bindToNullInNothing (GenExpr (CS.Match e0@(GenExpr (CS.App _ (GenExpr (CS.Var v) _ vt _) _) _ _ _) bvs [aNothing, aSome]) o t c) =
+    GenExpr (CS.Match e0 bvs [CS.Alt p l $ bindToNullInExpr (TV v vt) e, aSome']) o t c
+    where (CS.Alt p l e) = bindToNullInAlt aNothing
+          aSome' = bindToNullInAlt aSome
+bindToNullInNothing e = mapExprOfGE (fmap bindToNullInNothing) e
+
+bindToNullInAlt :: GenAlt -> GenAlt
+bindToNullInAlt (CS.Alt p l e) = CS.Alt p l $ bindToNullInNothing e
+
+bindToNullInExpr :: TypedVar -> GenExpr -> GenExpr
+bindToNullInExpr tv (GenExpr (CS.Let bs bdy) o t c) =
+    GenExpr (CS.Let ((mkVarBinding tv $ mkVarExpr $ TV mapNull $ typOfTV tv) : bs) bdy) o t c
+bindToNullInExpr tv e =
+    mkLetExpr [mkVarBinding tv $ mkVarExpr $ TV mapNull $ typOfTV tv] e
+

@@ -1628,23 +1628,23 @@ cogent_sn55nn (pnn, qnn, i) =
 -- Probe used by accessing a struct component or pointer deref
 cogent_sn61nl : MayNull Struct_Cogent_nns1 -> ( U32, MayNull Struct_Cogent_nns1 )
 cogent_sn61nl pnl =
-   notNull[Struct_Cogent_nns1]{{}} pnl
-   | Nothing -> (0, cogent_NULL)
-   | Some pnl -> let (r'
-                     , ()) = (let pnl { mrg = p0' } = pnl
-            in (p0', ())) !pnl
-      in (r', pnl)
+   let (r'
+       , ()) = (notNull[Struct_Cogent_nns1!]{{}} pnl
+         | Nothing -> (0, ())
+         | Some pnl -> (let pnl { mrg = p0' } = pnl
+                       in p0'
+                       , ())) !pnl
+   in (r', pnl)
 cogent_sn62nl : MayNull Struct_Cogent_nns2 -> ( U32, MayNull Struct_Cogent_nns2 )
 cogent_sn62nl pnn =
-   let (pnn
-       , r') = let pnn { snl = p0' } = pnn
-      in notNull[Struct_Cogent_nns1]{{}} p0'
-         | Nothing -> (pnn { snl = p0' }
-                      , 0)
-         | Some p0' -> (pnn { snl = p0' }
-                       , let pnn { snl = p1' } = pnn { snl = p0' }
-                       and p1' { mrg = p2' } = p1'
-                       in p2')
+   let (()
+       , r') = (let pnn { snl = p0' } = pnn
+         in notNull[Struct_Cogent_nns1!]{{}} p0'
+            | Nothing -> ((), 0)
+            | Some p0' -> (()
+                          , let pnn { snl = p1' } = pnn
+                          and p1' { mrg = p2' } = p1'
+                          in p2')) !pnn
    in (r', pnn)
 cogent_sn63nl : () -> U32
 cogent_sn63nl () =
@@ -2070,34 +2070,29 @@ cogent_cn26 (pnl, qnl, i) =
    , qnl)
 cogent_cn27 : ( MayNull (CPtr U32), MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32) )
 cogent_cn27 (pnl, qnl, i) =
-   let v22' = qnl
-   and v29' = qnl
-   in notNull[CPtr U32]{{}} pnl
-      | Nothing -> (cogent_fcnl pnl + cogent_fcnl v22'
-                   , cogent_NULL
-                   , qnl)
-      | Some pnl -> let (v15'
-                        , _
-                        , qnl) = let pnl { cont = p0' } = pnl
-            in if p0' == 1
-               then notNull[CPtr U32]{{}} qnl
-                  | Nothing -> (False
-                               , ()
-                               , cogent_NULL)
-                  | Some qnl -> let qnl { cont = p1' } = qnl
-                     in (p1' == 1
-                        , ()
-                        , qnl { cont = p1' })
-               else (False, (), qnl)
-         in if v15'
+   notNull[CPtr U32]{{}} pnl
+   | Nothing -> (cogent_fcnl pnl + cogent_fcnl qnl
+                , cogent_NULL
+                , qnl)
+   | Some pnl -> let (v15'
+                     , _
+                     , _) = let pnl { cont = p0' } = pnl
+         in if p0' == 1
             then
-               (cogent_fcnl pnl + cogent_fcnl v22'
-               , pnl
-               , qnl)
-            else
-               (cogent_fcnl pnl + cogent_fcnl v29'
-               , pnl
-               , qnl)
+               notNull[(CPtr U32)!]{{}} qnl
+               | Nothing -> (False, (), ())
+               | Some qnl -> let qnl { cont = p1' } = qnl
+                  in (p1' == 1, (), ())
+            else (False, (), ())
+      in if v15'
+         then
+            (cogent_fcnl pnl + cogent_fcnl qnl
+            , pnl
+            , qnl)
+         else
+            (cogent_fcnl pnl + cogent_fcnl qnl
+            , pnl
+            , qnl)
 
 -- One NULL-test with other tests in statement
 cogent_cn31 : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
@@ -2269,29 +2264,27 @@ cogent_cn47 : ( MayNull (CPtr U32), MayNull (CPtr U32), U32 ) -> ( U32, MayNull 
 cogent_cn47 (pnl, qnl, i) =
    let (pnl
        , qnl
-       , r') = let r' = cogent_fcnl pnl + cogent_fcnl qnl
-      in notNull[CPtr U32]{{}} pnl
-         | Nothing -> (cogent_NULL
-                      , qnl
-                      , r')
-         | Some pnl -> let (v15'
-                           , ()
-                           , qnl) = (let pnl { cont = p0' } = pnl
-                  in if p0' == 1
-                     then notNull[CPtr U32]{{}} qnl
-                        | Nothing -> (False
-                                     , ()
-                                     , cogent_NULL)
-                        | Some qnl -> let qnl { cont = p1' } = qnl
-                           in (p1' == 1
-                              , ()
-                              , qnl { cont = p1' })
-                     else (False, (), qnl)) !pnl
-            in if v15'
-               then (pnl, qnl, r')
-               else (pnl
-                    , qnl
-                    , cogent_fcnl pnl + cogent_fcnl qnl)
+       , r') = notNull[CPtr U32]{{}} pnl
+      | Nothing -> (cogent_NULL
+                   , qnl
+                   , cogent_fcnl pnl + cogent_fcnl qnl)
+      | Some pnl -> let (v15'
+                        , _
+                        , _) = let pnl { cont = p0' } = pnl
+            in if p0' == 1
+               then
+                  notNull[(CPtr U32)!]{{}} qnl
+                  | Nothing -> (False, (), ())
+                  | Some qnl -> let qnl { cont = p1' } = qnl
+                     in (p1' == 1, (), ())
+               else (False, (), ())
+         in if v15'
+            then (pnl
+                 , qnl
+                 , cogent_fcnl pnl + cogent_fcnl qnl)
+            else (pnl
+                 , qnl
+                 , cogent_fcnl pnl + cogent_fcnl qnl)
    in (r', pnl, qnl)
 
 -- Modify tested probe between uses in correct context

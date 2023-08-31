@@ -26,7 +26,7 @@ import Gencot.Cogent.Expr (
   mkAppExpr, mkLetExpr, mkIfExpr, mkMatchExpr, mkTupleExpr, mkVarTupleExpr)
 import Gencot.Cogent.Post.Util (
   ETrav, runExprTrav, isValVar, isCVar, freeInExpr, freeInExpr', freeInIrrefPatn, freeInBindings, freeUnderBinding, boundInBindings,
-  returnedByExpr, exchangeableWithBindings,
+  returnedByExpr, modifiedByBinding, exchangeableWithBindings,
   freeTypedVarsInExpr, freeTypedVarsUnderBinding,
   getIPatternsList, getExprList)
 
@@ -210,6 +210,9 @@ isPutExpr (CS.If _ _ e1 e2) =
     -- mostly irrelevant because branches never contain put expressions,
     -- but must be mapped so that the list has the correct number of entries.
     map (\(b1,b2) -> b1 || b2) $ zip (isPutExpr $ exprOfGE e1) (isPutExpr $ exprOfGE e2)
+isPutExpr (CS.Match _ _ alts) =
+    -- must be handled because isPutExpr is also used in rslvRoDiffsInLet when match expressions are present
+    map or $ transpose $ map (\(CS.Alt p l e) -> isPutExpr $ exprOfGE e) alts
 isPutExpr (CS.Let _ bdy) = isPutExpr $ exprOfGE bdy
 isPutExpr (CS.App f e _) = case typeOfGT $ getResultType $ typOfGE f of
                               CS.TTuple ts -> map (const False) ts
@@ -390,7 +393,7 @@ toUnitExprs ip (GenExpr (CS.If e0 bvs0 e1 e2) oe te ce) =
     where e1' = toUnitExprs ip e1
           e2' = toUnitExprs ip e2
 toUnitExprs ip (GenExpr (CS.Match e0 bvs0 alts) oe te ce) =
-    (GenExpr (CS.Match e0 bvs0 alts') oe (toUnitTypes ip te) ce)
+    GenExpr (CS.Match e0 bvs0 alts') oe (toUnitTypes ip te) ce
     where alts' = map (\(CS.Alt p l e) -> CS.Alt p l $ toUnitExprs ip e) alts
 toUnitExprs ip@(GenIrrefPatn (CS.PTuple ips) _ _) (GenExpr (CS.Tuple es) oe te ce) =
     GenExpr (CS.Tuple $ map (uncurry toUnitExprs) $ zip ips es) oe (toUnitTypes ip te) ce
@@ -1198,7 +1201,8 @@ isFalseConst _ _ = False
 
 -- | Convert conditional expressions with a NULL test as condition to a match expression using notNull.
 -- In the Some branch change type of tested variable from MayNull wrapped to unwrapped.
--- In the Nothing branch bind tested variable to cogent_NULL.
+-- **** todo: move out! In the Nothing branch bind tested variable to cogent_NULL.
+-- If the tested variable already has not-null type simplify the conditional expression to its then branch.
 -- The first argument is a reversed context binding list to resolve variables involved in a NULL test.
 convNullTests :: [GenBnd] -> GenExpr -> GenExpr
 convNullTests cbs e = mapExprOfGE (convNullTests' cbs) e
@@ -1257,10 +1261,12 @@ convVarNullTest cbs (GenExpr (CS.Tuple es) _ _ _) e1 e2 =
 convVarNullTest cbs (GenExpr (CS.Let bs bdy) _ _ _) e1 e2 =
     Just $ convNullTest ((reverse bs)++cbs) bdy e1 e2
 convVarNullTest cbs p@(GenExpr (CS.Var v) _ t _) e1 e2 =
-    Just $ exprOfGE $ mkMatchExpr
-      (mkAppExpr (mkTopLevelFunExpr ("notNull",mkFunType t otype) [Just ntype]) p)
-      [("Nothing", [], bindToNullInExpr (TV v t) e2),
-          ("Some", [mkVarPattern nvar], setTypeOfFree nvar e1)]
+    if isMayNull t
+       then Just $ exprOfGE $ mkMatchExpr
+                (mkAppExpr (mkTopLevelFunExpr ("notNull",mkFunType t otype) [Just ntype]) p)
+                [("Nothing", [], bindToNullInExpr (TV v t) e2),
+                 ("Some", [mkVarPattern nvar], setTypeOfFree nvar e1)]
+       else Just $ exprOfGE e1
     where ntype = getNnlType t
           otype = mkOption ntype
           nvar = TV v ntype
@@ -1271,6 +1277,23 @@ bindToNullInExpr tv (GenExpr (CS.Let bs bdy) o t c) =
     GenExpr (CS.Let ((mkVarBinding tv $ mkVarExpr $ TV mapNull $ typOfTV tv) : bs) bdy) o t c
 bindToNullInExpr tv e =
     mkLetExpr [mkVarBinding tv $ mkVarExpr $ TV mapNull $ typOfTV tv] e
+
+-- | Substitute a variable by cogent_NULL, as long as its value is not modified.
+substFreeByNull :: CCS.VarName -> GenExpr -> GenExpr
+substFreeByNull v (GenExpr (CS.Var w) o t c) | w == v = GenExpr (CS.Var mapNull) o t c
+substFreeByNull v (GenExpr (CS.Let bs bdy) o t c) =
+    GenExpr (CS.Let bs' bdy') o t c
+    where (bs',bdy') = substFreeByNullInLet v bs bdy
+substFreeByNull v e = mapExprOfGE (fmap (substFreeByNull v)) e
+
+substFreeByNullInLet :: CCS.VarName -> [GenBnd] -> GenExpr -> ([GenBnd],GenExpr)
+substFreeByNullInLet v [] bdy = ([],substFreeByNull v bdy)
+substFreeByNullInLet v (b@(CS.Binding ip m e bvs) : bs) bdy =
+    if elem v $ modifiedByBinding b -- test b since in b' substituted components look modified
+       then ((b' : bs), bdy)
+       else ((b' : bs'), bdy')
+    where b' = CS.Binding ip m (substFreeByNull v e) bvs
+          (bs',bdy') = substFreeByNullInLet v bs bdy
 
 -- | Set the type for every free occurrence of a variable in an expression.
 -- And also for every value variable bound to a free occurrence of the variable.

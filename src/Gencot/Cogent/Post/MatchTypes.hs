@@ -1192,12 +1192,14 @@ isTrueConst :: [GenBnd] -> ExprOfGE -> Bool
 isTrueConst _ (CS.BoolLit b) = b
 isTrueConst cbs (CS.Var v) = (maybe False ((isTrueConst cbs) . exprOfGE) $ unfoldValVar cbs v)
 isTrueConst cbs (CS.Let bs bdy) = isTrueConst ((reverse bs) ++ cbs) $ exprOfGE bdy
+isTrueConst cbs (CS.Tuple es) = isTrueConst cbs $ exprOfGE $ head es
 isTrueConst _ _ = False
 
 isFalseConst :: [GenBnd] -> ExprOfGE -> Bool
 isFalseConst _ (CS.BoolLit b) = not b
 isFalseConst cbs (CS.Var v) = (maybe False ((isFalseConst cbs) . exprOfGE) $ unfoldValVar cbs v)
 isFalseConst cbs (CS.Let bs bdy) = isFalseConst ((reverse bs) ++ cbs) $ exprOfGE bdy
+isFalseConst cbs (CS.Tuple es) = isFalseConst cbs $ exprOfGE $ head es
 isFalseConst _ _ = False
 
 -- | Convert conditional expressions with a NULL test as condition to a match expression using notNull.
@@ -1293,7 +1295,7 @@ setTypeOfFree tv (GenExpr (CS.Match e bvs alts) o t c) =
     GenExpr (CS.Match e' bvs alts') o t' c
     where e' = setTypeOfFree tv e
           alts' = map (\(CS.Alt p l e) -> CS.Alt p l $ setTypeOfFree tv e) alts
-          t' = foldl1' adaptTypes $ map (\(CS.Alt p _ e) -> typOfGE e) alts
+          t' = foldl1' adaptTypes $ map (\(CS.Alt p _ e) -> typOfGE e) alts'
 setTypeOfFree tv e@(GenExpr (CS.Lam _ _ _) _ _ _) = e
 setTypeOfFree tv (GenExpr (CS.Put e mfs) o _ c) =
     GenExpr (CS.Put e' mfs') o (typOfGE e') c

@@ -1969,9 +1969,25 @@ cogent_cn27 (pnl, qnl, i) =
    | Nothing -> (cogent_fcnl pnl + cogent_fcnl qnl
                 , cogent_NULL
                 , qnl)
-   | Some pnl -> (cogent_fcnl pnl + cogent_fcnl qnl
-                 , pnl
-                 , qnl)
+   | Some pnl -> let (v15'
+                     , _
+                     , _) = let pnl { cont = p0' } = pnl
+         in if p0' == 1
+            then
+               notNull[(CPtr U32)!]{{}} qnl
+               | Nothing -> (False, (), ())
+               | Some qnl -> let qnl { cont = p1' } = qnl
+                  in (p1' == 1, (), ())
+            else (False, (), ())
+      in if v15'
+         then
+            (cogent_fcnl pnl + cogent_fcnl qnl
+            , pnl
+            , qnl)
+         else
+            (cogent_fcnn pnl + cogent_fcnl qnl
+            , pnl
+            , qnl)
 
 -- One NULL-test with other tests in statement
 cogent_cn31 : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
@@ -2147,9 +2163,23 @@ cogent_cn47 (pnl, qnl, i) =
       | Nothing -> (cogent_NULL
                    , qnl
                    , cogent_fcnl pnl + cogent_fcnl qnl)
-      | Some pnl -> (pnl
-                    , qnl
-                    , cogent_fcnl pnl + cogent_fcnl qnl)
+      | Some pnl -> let (v15'
+                        , _
+                        , _) = let pnl { cont = p0' } = pnl
+            in if p0' == 1
+               then
+                  notNull[(CPtr U32)!]{{}} qnl
+                  | Nothing -> (False, (), ())
+                  | Some qnl -> let qnl { cont = p1' } = qnl
+                     in (p1' == 1, (), ())
+               else (False, (), ())
+         in if v15'
+            then (pnl
+                 , qnl
+                 , cogent_fcnl pnl + cogent_fcnl qnl)
+            else (pnl
+                 , qnl
+                 , cogent_fcnn pnl + cogent_fcnl qnl)
    in (r', pnl, qnl)
 
 -- Modify tested probe between uses in correct context

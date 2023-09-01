@@ -302,7 +302,7 @@ int cn23(int *pnl, int *qnl, int i) { return (pnl && i > 5 && qnl)?fcnn(pnl)+fcn
 int cn24(int *pnl, int *qnl, int i) { return (pnl && qnl && i > 5)?fcnn(pnl)+fcnn(qnl):fcnl(pnl)+fcnl(qnl); }
 int cn25(int *pnl, int *qnl, int i) { return (pnl || qnl)?fcnl(pnl)+fcnl(qnl):fcnl(pnl)+fcnl(qnl); }
 int cn26(int *pnl, int *qnl, int i) { return (pnl == NULL || qnl == NULL)?fcnl(pnl)+fcnl(qnl):fcnn(pnl)+fcnn(qnl); }
-int cn27(int *pnl, int *qnl, int i) { return (pnl == NULL || (*pnl == 1 && qnl && *qnl == 1))?fcnl(pnl)+fcnl(qnl):fcnl(pnl)+fcnl(qnl); }
+int cn27(int *pnl, int *qnl, int i) { return (pnl == NULL || (*pnl == 1 && qnl && *qnl == 1))?fcnl(pnl)+fcnl(qnl):fcnn(pnl)+fcnl(qnl); }
 
 // One NULL-test with other tests in statement
 int cn31(int *pnl, int i) { if (i>5 && pnl) return fcnn(pnl); else return fcnl(pnl); }
@@ -322,7 +322,7 @@ int cn43(int *pnl, int *qnl, int i) { if (pnl && i > 5 && qnl) return fcnn(pnl)+
 int cn44(int *pnl, int *qnl, int i) { if (pnl && qnl && i > 5) return fcnn(pnl)+fcnn(qnl); else return fcnl(pnl)+fcnl(qnl); }
 int cn45(int *pnl, int *qnl, int i) { if (pnl || qnl) return fcnl(pnl)+fcnl(qnl); else return fcnl(pnl)+fcnl(qnl); }
 int cn46(int *pnl, int *qnl, int i) { if (pnl == NULL || qnl == NULL) return fcnl(pnl)+fcnl(qnl); else return fcnn(pnl)+fcnn(qnl); }
-int cn47(int *pnl, int *qnl, int i) { if (pnl == NULL || (*pnl == 1 && qnl && *qnl == 1)) return fcnl(pnl)+fcnl(qnl); else return fcnl(pnl)+fcnl(qnl); }
+int cn47(int *pnl, int *qnl, int i) { if (pnl == NULL || (*pnl == 1 && qnl && *qnl == 1)) return fcnl(pnl)+fcnl(qnl); else return fcnn(pnl)+fcnl(qnl); }
 
 // Modify tested probe between uses in correct context
 

@@ -3263,16 +3263,8 @@ cogent_cn27 (pnl, qnl, i) =
          and v22' = qnl
          and v23' = v21' v22'
          and v24' = v20' + v23'
-         and v25' = cogent_fcnl
-         and v26' = pnl
-         and v27' = v25' v26'
-         and v28' = cogent_fcnl
-         and v29' = qnl
-         and v30' = v28' v29'
-         and v31' = v27' + v30'
          in notNull[CPtr U32]{{}} pnl
-            | Nothing -> let v16' = True
-               in (v24', pnl, qnl)
+            | Nothing -> (v24', pnl, qnl)
             | Some pnl -> let (v15'
                               , pnl
                               , qnl) = let v3' = pnl
@@ -3281,23 +3273,29 @@ cogent_cn27 (pnl, qnl, i) =
                   and pnl = pnl { cont = p0' }
                   and v5' = 1
                   and v6' = v4' == v5'
-                  and v10' = qnl
                   and v14' = False
                   in if v6'
                      then let v7' = qnl
                         in notNull[CPtr U32]{{}} qnl
                            | Nothing -> (v14', pnl, qnl)
-                           | Some qnl -> let qnl { cont = p1' } = v10'
+                           | Some qnl -> let v10' = qnl
+                              and qnl { cont = p1' } = v10'
                               and v11' = p1'
                               and qnl = qnl { cont = p1' }
                               and v12' = 1
                               and v13' = v11' == v12'
                               in (v13', pnl, qnl)
-                     else let v8' = False
-                        in (v14', pnl, qnl)
+                     else (v14', pnl, qnl)
                in if v15'
                   then (v24', pnl, qnl)
-                  else (v31', pnl, qnl)
+                  else let v25' = cogent_fcnn
+                     and v26' = pnl
+                     and v27' = v25' v26'
+                     and v28' = cogent_fcnl
+                     and v29' = qnl
+                     and v30' = v28' v29'
+                     and v31' = v27' + v30'
+                     in (v31', pnl, qnl)
       in (v32', pnl, qnl)
    in (r', pnl, qnl)
 
@@ -3744,8 +3742,7 @@ cogent_cn47 (pnl, qnl, i) =
          and v24' = v20' + v23'
          in v24'
       in notNull[CPtr U32]{{}} pnl
-         | Nothing -> let v16' = True
-            in (pnl, qnl, r')
+         | Nothing -> (pnl, qnl, r')
          | Some pnl -> let (v15'
                            , pnl
                            , qnl) = let v3' = pnl
@@ -3754,24 +3751,23 @@ cogent_cn47 (pnl, qnl, i) =
                and pnl = pnl { cont = p0' }
                and v5' = 1
                and v6' = v4' == v5'
-               and v10' = qnl
                and v14' = False
                in if v6'
                   then let v7' = qnl
                      in notNull[CPtr U32]{{}} qnl
                         | Nothing -> (v14', pnl, qnl)
-                        | Some qnl -> let qnl { cont = p1' } = v10'
+                        | Some qnl -> let v10' = qnl
+                           and qnl { cont = p1' } = v10'
                            and v11' = p1'
                            and qnl = qnl { cont = p1' }
                            and v12' = 1
                            and v13' = v11' == v12'
                            in (v13', pnl, qnl)
-                  else let v8' = False
-                     in (v14', pnl, qnl)
+                  else (v14', pnl, qnl)
             in if v15'
                then (pnl, qnl, r')
                else
-                  let r' = let v25' = cogent_fcnl
+                  let r' = let v25' = cogent_fcnn
                      and v26' = pnl
                      and v27' = v25' v26'
                      and v28' = cogent_fcnl

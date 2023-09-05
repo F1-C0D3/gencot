@@ -7,9 +7,9 @@ import Data.Maybe (catMaybes)
 import Cogent.Surface as CS
 import Cogent.Common.Syntax as CCS
 
-import Gencot.Origin (noOrigin)
+import Gencot.Origin (Origin,noOrigin)
 import Gencot.Names (mapNull)
-import Gencot.Cogent.Ast -- includes unitType
+import Gencot.Cogent.Ast -- includes unitType, CSrc
 import Gencot.Cogent.Types (
   mkU8Type, mkU32Type, mkStringType, mkBoolType,
   mkTupleType, mkCtlType, mkFunType, mkRecordType, mkVoidPtrType, mkTakeType, mkArrTakeType, mkMayNull,
@@ -34,6 +34,8 @@ funResultType (_, t) = getResultType t
 ------------------------
 
 genExpr t e = GenExpr e noOrigin t Nothing
+
+genExpr' o t c e = GenExpr e o t c
 
 -- construct ()
 mkUnitExpr :: GenExpr
@@ -142,10 +144,9 @@ mkIfExpr :: GenType -> GenExpr -> GenExpr -> GenExpr -> GenExpr
 mkIfExpr t e0 e1 e2 = genExpr t $ CS.If e0 [] e1 e2
 
 -- construct e | C1 v11 .. v1n1 -> e1 | ... | Ck vk1 .. vknk -> ek
-mkMatchExpr :: GenExpr -> [(CCS.TagName,[GenIrrefPatn],GenExpr)] -> GenExpr
-mkMatchExpr e as = genExpr (getTyp $ head as) $ CS.Match e [] $ map mkAlt as
+mkMatchExpr :: Origin -> GenType -> CSrc -> GenExpr -> [(CCS.TagName,[GenIrrefPatn],GenExpr)] -> GenExpr
+mkMatchExpr o t c e as = genExpr' o t c $ CS.Match e [] $ map mkAlt as
     where mkAlt (tag,varpats,ae) = CS.Alt (GenPatn (CS.PCon tag varpats) noOrigin (typOfGE e)) CCS.Regular ae
-          getTyp (_,_,ae) = typOfGE ae
 
 -- construct #{f1 = e1, ... ,fn = en}
 mkRecordExpr :: [(CCS.FieldName,GenExpr)] -> GenExpr

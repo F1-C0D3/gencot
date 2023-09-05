@@ -22,6 +22,8 @@ type PatnOfGP = CS.Pattern GenIrrefPatn
 type IrpatnOfGIP = CS.IrrefutablePattern VarName GenIrrefPatn GenExpr
 type TypeOfGT = CS.Type GenExpr () GenType
 
+type CSrc = Maybe LQ.Stm
+
 data GenToplv = GenToplv { 
     toplOfGTL :: ToplOfGTL,
     orgOfGTL :: Origin
@@ -30,7 +32,7 @@ data GenExpr = GenExpr {
     exprOfGE :: ExprOfGE,
     orgOfGE :: Origin,
     typOfGE :: GenType,
-    ccdOfGE :: Maybe LQ.Stm
+    ccdOfGE :: CSrc
     } deriving (Eq, Ord, Show)
 data GenPatn = GenPatn { 
     patnOfGP :: PatnOfGP,

@@ -9,7 +9,7 @@ cogent_fn1 (i, p) =
 cogent_fn2 : ( U32, CPtr U32 ) -> ( MayNull (CPtr U32), CPtr U32 )
 cogent_fn2 (i, p) =
    (if i /= 0
-   then p
+   then mayNull[CPtr U32]{{}} p
    else cogent_NULL
    , p) -- p: nn
 
@@ -44,27 +44,28 @@ type Cogent_nna5 =
 -- Direct use of probe in context
 cogent_fn11nl : CPtr U32 -> ( U32, CPtr U32 )
 cogent_fn11nl pnn =
-   (cogent_fcnl pnn, pnn)
+   (cogent_fcnl (mayNull[CPtr U32]{{}} pnn)
+   , pnn)
 cogent_fn11nn : CPtr U32 -> ( U32, CPtr U32 )
 cogent_fn11nn pnn =
    (cogent_fcnn pnn, pnn)
 cogent_fn12nl : () -> U32
 cogent_fn12nl () =
-   cogent_fcnl (cogent_globnn ())
+   cogent_fcnl (mayNull[CPtr U32]{{}} (cogent_globnn ()))
 cogent_fn12nn : () -> U32
 cogent_fn12nn () =
    cogent_fcnn (cogent_globnn ())
 cogent_fn13nl : () -> U32
 cogent_fn13nl () =
-   cogent_fcnl (cogent_frnn ())
+   cogent_fcnl (mayNull[CPtr U32]{{}} (cogent_frnn ()))
 cogent_fn13nn : () -> U32
 cogent_fn13nn () =
    cogent_fcnn (cogent_frnn ())
 cogent_fn14nl : ( CPtr U32, CPtr U32, U32 ) -> ( U32, CPtr U32, CPtr U32 )
 cogent_fn14nl (pnn, qnn, i) =
-   (cogent_fcnl (if i /= 0
-      then pnn
-      else qnn)
+   (cogent_fcnl (mayNull[CPtr U32]{{}} (if i /= 0
+         then pnn
+         else qnn))
    , pnn
    , qnn)
 cogent_fn14nn : ( CPtr U32, CPtr U32, U32 ) -> ( U32, CPtr U32, CPtr U32 )
@@ -80,7 +81,7 @@ cogent_fn21nl : GlobState1 -> ( (), GlobState1 )
 cogent_fn21nl g =
    (()
    , let g { cont = _ } = g
-   in g { cont = cogent_frnn () })
+   in g { cont = mayNull[CPtr U32]{{}} (cogent_frnn ()) })
 cogent_fn21nn : GlobState2 -> ( (), GlobState2 )
 cogent_fn21nn g =
    (()
@@ -88,7 +89,8 @@ cogent_fn21nn g =
    in g { cont = cogent_frnn () })
 cogent_fn22nl : MayNull (CPtr U32) -> ( (), MayNull (CPtr U32) )
 cogent_fn22nl pnl =
-   ((), cogent_frnn ())
+   (()
+   , mayNull[CPtr U32]{{}} (cogent_frnn ()))
 cogent_fn22nn : CPtr U32 -> ( U32, CPtr U32 )
 cogent_fn22nn pnn =
    (let pnn { cont = p0' } = cogent_frnn ()
@@ -98,7 +100,7 @@ cogent_fn22nn pnn =
 -- Probe returned as result
 cogent_fn31nl : () -> MayNull (CPtr U32)
 cogent_fn31nl () =
-   cogent_frnn ()
+   mayNull[CPtr U32]{{}} (cogent_frnn ())
 cogent_fn31nn : () -> CPtr U32
 cogent_fn31nn () =
    cogent_frnn ()
@@ -106,24 +108,22 @@ cogent_fn31nn () =
 -- Probe used in conditional expression with other branch as context
 cogent_fn41nl : ( CPtr U32, MayNull (CPtr U32), U32 ) -> ( U32, CPtr U32, MayNull (CPtr U32) )
 cogent_fn41nl (pnn, qnl, i) =
-   (cogent_fcnn (if i /= 0
-      then pnn
-      else qnl)
+   (cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
    , pnn
    , qnl)
 cogent_fn42nl : ( MayNull (CPtr U32), CPtr U32, U32 ) -> ( U32, MayNull (CPtr U32), CPtr U32 )
 cogent_fn42nl (pnl, qnn, i) =
-   (cogent_fcnn (if i /= 0
-      then pnl
-      else qnn)
+   (cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
    , pnl
    , qnn)
 
 -- Probe is a struct component
 cogent_fn51nl : Struct_Cogent_nns1 -> ( MayNull (CPtr U32), Struct_Cogent_nns1 )
 cogent_fn51nl pnn =
-   let pnn { mnn = p0' } = pnn
-   in (p0', pnn { mnn = p0' })
+   (mayNull[CPtr U32]{{}} (let pnn { mnn = p0' } = pnn
+      in p0')
+   , let pnn { mnn = p0' } = pnn
+   in pnn { mnn = p0' })
 cogent_fn51nn : Struct_Cogent_nns1 -> ( CPtr U32, Struct_Cogent_nns1 )
 cogent_fn51nn pnn =
    let pnn { mnn = p0' } = pnn
@@ -131,7 +131,10 @@ cogent_fn51nn pnn =
 cogent_fn52nl : Struct_Cogent_nns1 -> ( U32, Struct_Cogent_nns1 )
 cogent_fn52nl pnn =
    let pnn { mnn = p0' } = pnn
-   in (cogent_fcnl p0'
+   in (cogent_fcnl (mayNull[
+
+-- struct probes:
+         CPtr U32]{{}} p0')
       , pnn { mnn = p0' })
 cogent_fn52nn : Struct_Cogent_nns1 -> ( U32, Struct_Cogent_nns1 )
 cogent_fn52nn pnn =
@@ -145,7 +148,7 @@ cogent_fn53nl (pnn, g) =
    in pnn { mnn = p0' }
    , let pnn { mnn = p0' } = pnn
    and g { cont = _ } = g
-   in g { cont = p0' })
+   in g { cont = mayNull[CPtr U32]{{}} p0' })
 cogent_fn53nn : ( Struct_Cogent_nns1, GlobState2 ) -> ( (), Struct_Cogent_nns1, GlobState2 )
 cogent_fn53nn (pnn, g) =
    (()
@@ -160,7 +163,7 @@ cogent_fn54nl (pnn, pnl) =
    , let pnn { mnn = p0' } = pnn
    in pnn { mnn = p0' }
    , let pnn { mnn = p0' } = pnn
-   in p0')
+   in mayNull[CPtr U32]{{}} p0')
 cogent_fn54nn : ( Struct_Cogent_nns1, CPtr U32 ) -> ( U32, Struct_Cogent_nns1, CPtr U32 )
 cogent_fn54nn (pnn, qnn) =
    (let qnn { cont = p1' } = let pnn { mnn = p0' } = pnn
@@ -172,15 +175,10 @@ cogent_fn54nn (pnn, qnn) =
    in p0')
 cogent_fn55nl : ( Struct_Cogent_nns1, MayNull (CPtr U32), U32 ) -> ( U32, Struct_Cogent_nns1, MayNull (CPtr U32) )
 cogent_fn55nl (pnn, qnl, i) =
-   (cogent_fcnn (if i /= 0
-      then let pnn { mnn = p0' } = pnn
-         in p0'
-      else qnl)
-   , if i /= 0
-   then let pnn { mnn = p0' } = pnn
-      in pnn { mnn = p0' }
-   else pnn
-   , qnl)
+   let (r'
+       , ()) = (cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
+               , ()) !qnl !pnn
+   in (r', pnn, qnl)
 cogent_fn55nn : ( Struct_Cogent_nns1, CPtr U32, U32 ) -> ( U32, Struct_Cogent_nns1, CPtr U32 )
 cogent_fn55nn (pnn, qnn, i) =
    (cogent_fcnn (if i /= 0
@@ -219,9 +217,11 @@ cogent_fn64nn () =
 -- Probe is an array element
 cogent_fn71nl : Cogent_nna2 -> ( MayNull (CPtr U32), Cogent_nna2 )
 cogent_fn71nl pnn =
-   let (pnn @{ @1 = p0' }
-       , i0') = (pnn, 1)
-   in (p0', pnn @{ @i0' = p0' })
+   (mayNull[CPtr U32]{{}} (let pnn @{ @1 = p0' } = pnn
+      in p0')
+   , let (pnn @{ @1 = p0' }
+         , i0') = (pnn, 1)
+   in pnn @{ @i0' = p0' })
 cogent_fn71nn : Cogent_nna2 -> ( CPtr U32, Cogent_nna2 )
 cogent_fn71nn pnn =
    let (pnn @{ @1 = p0' }
@@ -231,7 +231,7 @@ cogent_fn72nl : Cogent_nna2 -> ( U32, Cogent_nna2 )
 cogent_fn72nl pnn =
    let (pnn @{ @1 = p0' }
        , i0') = (pnn, 1)
-   in (cogent_fcnl p0'
+   in (cogent_fcnl (mayNull[CPtr U32]{{}} p0')
       , pnn @{ @i0' = p0' })
 cogent_fn72nn : Cogent_nna2 -> ( U32, Cogent_nna2 )
 cogent_fn72nn pnn =
@@ -247,7 +247,7 @@ cogent_fn73nl (pnn, g) =
    in pnn @{ @i0' = p0' }
    , let pnn @{ @1 = p0' } = pnn
    and g { cont = _ } = g
-   in g { cont = p0' })
+   in g { cont = mayNull[CPtr U32]{{}} p0' })
 cogent_fn73nn : ( Cogent_nna2, GlobState2 ) -> ( (), Cogent_nna2, GlobState2 )
 cogent_fn73nn (pnn, g) =
    (()
@@ -264,7 +264,7 @@ cogent_fn74nl (pnn, pnl) =
          , i0') = (pnn, 1)
    in pnn @{ @i0' = p0' }
    , let pnn @{ @1 = p0' } = pnn
-   in p0')
+   in mayNull[CPtr U32]{{}} p0')
 cogent_fn74nn : ( Cogent_nna2, CPtr U32 ) -> ( U32, Cogent_nna2, CPtr U32 )
 cogent_fn74nn (pnn, qnn) =
    (let qnn { cont = p1' } = let pnn @{ @1 = p0' } = pnn
@@ -277,16 +277,10 @@ cogent_fn74nn (pnn, qnn) =
    in p0')
 cogent_fn75nl : ( Cogent_nna2, MayNull (CPtr U32), U32 ) -> ( U32, Cogent_nna2, MayNull (CPtr U32) )
 cogent_fn75nl (pnn, qnl, i) =
-   (cogent_fcnn (if i /= 0
-      then let pnn @{ @1 = p0' } = pnn
-         in p0'
-      else qnl)
-   , if i /= 0
-   then let (pnn @{ @1 = p0' }
-            , i0') = (pnn, 1)
-      in pnn @{ @i0' = p0' }
-   else pnn
-   , qnl)
+   let (r'
+       , ()) = (cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
+               , ()) !qnl !pnn
+   in (r', pnn, qnl)
 cogent_fn75nn : ( Cogent_nna2, CPtr U32, U32 ) -> ( U32, Cogent_nna2, CPtr U32 )
 cogent_fn75nn (pnn, qnn, i) =
    (cogent_fcnn (if i /= 0
@@ -320,7 +314,7 @@ cogent_fn91nl : Struct_Cogent_nns1 -> ( (), Struct_Cogent_nns1 )
 cogent_fn91nl pnn =
    (()
    , let pnn { mnl = _ } = pnn
-   in pnn { mnl = cogent_frnn () })
+   in pnn { mnl = mayNull[CPtr U32]{{}} (cogent_frnn ()) })
 cogent_fn91nn : Struct_Cogent_nns1 -> ( (), Struct_Cogent_nns1 )
 cogent_fn91nn pnn =
    (()
@@ -331,7 +325,7 @@ cogent_fn92nl pnl =
    (()
    , let (pnl @{ @1 = _ }
          , i0') = (pnl, 1)
-   in pnl @{ @i0' = cogent_frnn () })
+   in pnl @{ @i0' = mayNull[CPtr U32]{{}} (cogent_frnn ()) })
 cogent_fn92nn : Cogent_nna2 -> ( (), Cogent_nna2 )
 cogent_fn92nn pnl =
    (()
@@ -347,19 +341,20 @@ cogent_gn11nl pnl =
    (cogent_fcnl pnl, pnl)
 cogent_gn11nn : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
 cogent_gn11nn pnl =
-   (cogent_fcnn pnl, pnl)
+   (cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
+   , pnl)
 cogent_gn12nl : () -> U32
 cogent_gn12nl () =
    cogent_fcnl (cogent_globnl ())
 cogent_gn12nn : () -> U32
 cogent_gn12nn () =
-   cogent_fcnn (cogent_globnl ())
+   cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
 cogent_gn13nl : () -> U32
 cogent_gn13nl () =
    cogent_fcnl (cogent_frnl ())
 cogent_gn13nn : () -> U32
 cogent_gn13nn () =
-   cogent_fcnn (cogent_frnl ())
+   cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
 cogent_gn14nl : ( MayNull (CPtr U32), MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32) )
 cogent_gn14nl (pnl, qnl, i) =
    (cogent_fcnl (if i /= 0
@@ -369,9 +364,7 @@ cogent_gn14nl (pnl, qnl, i) =
    , qnl)
 cogent_gn14nn : ( MayNull (CPtr U32), MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32) )
 cogent_gn14nn (pnl, qnl, i) =
-   (cogent_fcnn (if i /= 0
-      then pnl
-      else qnl)
+   (cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
    , pnl
    , qnl)
 
@@ -385,15 +378,15 @@ cogent_gn21nn : GlobState2 -> ( (), GlobState2 )
 cogent_gn21nn g =
    (()
    , let g { cont = _ } = g
-   in g { cont = cogent_frnl () })
+   in g { cont = gencotDummy "MayNull expression used in not-null context" })
 cogent_gn22nl : MayNull (CPtr U32) -> ( (), MayNull (CPtr U32) )
 cogent_gn22nl pnl =
    ((), cogent_frnl ())
 cogent_gn22nn : CPtr U32 -> ( U32, CPtr U32 )
 cogent_gn22nn pnn =
-   (let pnn { cont = p0' } = cogent_frnl ()
+   (let pnn { cont = p0' } = gencotDummy "MayNull expression used in not-null context"
    in p0'
-   , cogent_frnl ())
+   , gencotDummy "MayNull expression used in not-null context")
 
 -- Probe returned as result
 cogent_gn31nl : () -> MayNull (CPtr U32)
@@ -401,7 +394,7 @@ cogent_gn31nl () =
    cogent_frnl ()
 cogent_gn31nn : () -> CPtr U32
 cogent_gn31nn () =
-   cogent_frnl ()
+   gencotDummy "MayNull expression used in not-null context"
 
 -- Probe is a struct component
 cogent_gn51nl : Struct_Cogent_nns1 -> ( MayNull (CPtr U32), Struct_Cogent_nns1 )
@@ -410,8 +403,10 @@ cogent_gn51nl pnn =
    in (p0', pnn { mnl = p0' })
 cogent_gn51nn : Struct_Cogent_nns1 -> ( CPtr U32, Struct_Cogent_nns1 )
 cogent_gn51nn pnn =
-   let pnn { mnl = p0' } = pnn
-   in (p0', pnn { mnl = p0' })
+   let (r'
+       , ()) = (gencotDummy "MayNull expression used in not-null context"
+               , ()) !pnn
+   in (r', pnn)
 cogent_gn52nl : Struct_Cogent_nns1 -> ( U32, Struct_Cogent_nns1 )
 cogent_gn52nl pnn =
    let pnn { mnl = p0' } = pnn
@@ -419,9 +414,10 @@ cogent_gn52nl pnn =
       , pnn { mnl = p0' })
 cogent_gn52nn : Struct_Cogent_nns1 -> ( U32, Struct_Cogent_nns1 )
 cogent_gn52nn pnn =
-   let pnn { mnl = p0' } = pnn
-   in (cogent_fcnn p0'
-      , pnn { mnl = p0' })
+   let (r'
+       , ()) = (cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
+               , ()) !pnn
+   in (r', pnn)
 cogent_gn53nl : ( Struct_Cogent_nns1, GlobState1 ) -> ( (), Struct_Cogent_nns1, GlobState1 )
 cogent_gn53nl (pnn, g) =
    (()
@@ -432,12 +428,11 @@ cogent_gn53nl (pnn, g) =
    in g { cont = p0' })
 cogent_gn53nn : ( Struct_Cogent_nns1, GlobState2 ) -> ( (), Struct_Cogent_nns1, GlobState2 )
 cogent_gn53nn (pnn, g) =
-   (()
-   , let pnn { mnl = p0' } = pnn
-   in pnn { mnl = p0' }
-   , let pnn { mnl = p0' } = pnn
-   and g { cont = _ } = g
-   in g { cont = p0' })
+   let (()
+       , g) = (let g { cont = _ } = g
+         in (()
+            , g { cont = gencotDummy "MayNull expression used in not-null context" })) !pnn
+   in ((), pnn, g)
 cogent_gn54nl : ( Struct_Cogent_nns1, MayNull (CPtr U32) ) -> ( (), Struct_Cogent_nns1, MayNull (CPtr U32) )
 cogent_gn54nl (pnn, pnl) =
    (()
@@ -447,35 +442,23 @@ cogent_gn54nl (pnn, pnl) =
    in p0')
 cogent_gn54nn : ( Struct_Cogent_nns1, CPtr U32 ) -> ( U32, Struct_Cogent_nns1, CPtr U32 )
 cogent_gn54nn (pnn, qnn) =
-   (let qnn { cont = p1' } = let pnn { mnl = p0' } = pnn
-      in p0'
-   in p1'
-   , let pnn { mnl = p0' } = pnn
-   in pnn { mnl = p0' }
-   , let pnn { mnl = p0' } = pnn
-   in p0')
+   let ((), qnn, r') = (()
+                       , gencotDummy "MayNull expression used in not-null context"
+                       , let qnn { cont = p1' } = gencotDummy "MayNull expression used in not-null context"
+                       in p1') !pnn
+   in (r', pnn, qnn)
 cogent_gn55nl : ( Struct_Cogent_nns1, MayNull (CPtr U32), U32 ) -> ( U32, Struct_Cogent_nns1, MayNull (CPtr U32) )
 cogent_gn55nl (pnn, qnl, i) =
-   (cogent_fcnn (if i /= 0
-      then let pnn { mnl = p0' } = pnn
-         in p0'
-      else qnl)
-   , if i /= 0
-   then let pnn { mnl = p0' } = pnn
-      in pnn { mnl = p0' }
-   else pnn
-   , qnl)
+   let (r'
+       , ()) = (cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
+               , ()) !qnl !pnn
+   in (r', pnn, qnl)
 cogent_gn55nn : ( Struct_Cogent_nns1, CPtr U32, U32 ) -> ( U32, Struct_Cogent_nns1, CPtr U32 )
 cogent_gn55nn (pnn, qnn, i) =
-   (cogent_fcnn (if i /= 0
-      then let pnn { mnl = p0' } = pnn
-         in p0'
-      else qnn)
-   , if i /= 0
-   then let pnn { mnl = p0' } = pnn
-      in pnn { mnl = p0' }
-   else pnn
-   , qnn)
+   let (r'
+       , ()) = (cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
+               , ()) !qnn !pnn
+   in (r', pnn, qnn)
 
 -- Probe used by accessing a struct component or pointer deref
 cogent_gn61nl : MayNull Struct_Cogent_nns1 -> ( U32, MayNull Struct_Cogent_nns1 )
@@ -508,9 +491,10 @@ cogent_gn71nl pnn =
    in (p0', pnn @{ @i0' = p0' })
 cogent_gn71nn : Cogent_nna3 -> ( CPtr U32, Cogent_nna3 )
 cogent_gn71nn pnn =
-   let (pnn @{ @1 = p0' }
-       , i0') = (pnn, 1)
-   in (p0', pnn @{ @i0' = p0' })
+   let (r'
+       , ()) = (gencotDummy "MayNull expression used in not-null context"
+               , ()) !pnn
+   in (r', pnn)
 cogent_gn72nl : Cogent_nna3 -> ( U32, Cogent_nna3 )
 cogent_gn72nl pnn =
    let (pnn @{ @1 = p0' }
@@ -519,10 +503,10 @@ cogent_gn72nl pnn =
       , pnn @{ @i0' = p0' })
 cogent_gn72nn : Cogent_nna3 -> ( U32, Cogent_nna3 )
 cogent_gn72nn pnn =
-   let (pnn @{ @1 = p0' }
-       , i0') = (pnn, 1)
-   in (cogent_fcnn p0'
-      , pnn @{ @i0' = p0' })
+   let (r'
+       , ()) = (cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
+               , ()) !pnn
+   in (r', pnn)
 cogent_gn73nl : ( Cogent_nna3, GlobState1 ) -> ( (), Cogent_nna3, GlobState1 )
 cogent_gn73nl (pnn, g) =
    (()
@@ -534,13 +518,11 @@ cogent_gn73nl (pnn, g) =
    in g { cont = p0' })
 cogent_gn73nn : ( Cogent_nna3, GlobState2 ) -> ( (), Cogent_nna3, GlobState2 )
 cogent_gn73nn (pnn, g) =
-   (()
-   , let (pnn @{ @1 = p0' }
-         , i0') = (pnn, 1)
-   in pnn @{ @i0' = p0' }
-   , let pnn @{ @1 = p0' } = pnn
-   and g { cont = _ } = g
-   in g { cont = p0' })
+   let (()
+       , g) = (let g { cont = _ } = g
+         in (()
+            , g { cont = gencotDummy "MayNull expression used in not-null context" })) !pnn
+   in ((), pnn, g)
 cogent_gn74nl : ( Cogent_nna3, MayNull (CPtr U32) ) -> ( (), Cogent_nna3, MayNull (CPtr U32) )
 cogent_gn74nl (pnn, pnl) =
    (()
@@ -551,38 +533,23 @@ cogent_gn74nl (pnn, pnl) =
    in p0')
 cogent_gn74nn : ( Cogent_nna3, CPtr U32 ) -> ( U32, Cogent_nna3, CPtr U32 )
 cogent_gn74nn (pnn, qnn) =
-   (let qnn { cont = p1' } = let pnn @{ @1 = p0' } = pnn
-      in p0'
-   in p1'
-   , let (pnn @{ @1 = p0' }
-         , i0') = (pnn, 1)
-   in pnn @{ @i0' = p0' }
-   , let pnn @{ @1 = p0' } = pnn
-   in p0')
+   let ((), qnn, r') = (()
+                       , gencotDummy "MayNull expression used in not-null context"
+                       , let qnn { cont = p1' } = gencotDummy "MayNull expression used in not-null context"
+                       in p1') !pnn
+   in (r', pnn, qnn)
 cogent_gn75nl : ( Cogent_nna3, MayNull (CPtr U32), U32 ) -> ( U32, Cogent_nna3, MayNull (CPtr U32) )
 cogent_gn75nl (pnn, qnl, i) =
-   (cogent_fcnn (if i /= 0
-      then let pnn @{ @1 = p0' } = pnn
-         in p0'
-      else qnl)
-   , if i /= 0
-   then let (pnn @{ @1 = p0' }
-            , i0') = (pnn, 1)
-      in pnn @{ @i0' = p0' }
-   else pnn
-   , qnl)
+   let (r'
+       , ()) = (cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
+               , ()) !qnl !pnn
+   in (r', pnn, qnl)
 cogent_gn75nn : ( Cogent_nna3, CPtr U32, U32 ) -> ( U32, Cogent_nna3, CPtr U32 )
 cogent_gn75nn (pnn, qnn, i) =
-   (cogent_fcnn (if i /= 0
-      then let pnn @{ @1 = p0' } = pnn
-         in p0'
-      else qnn)
-   , if i /= 0
-   then let (pnn @{ @1 = p0' }
-            , i0') = (pnn, 1)
-      in pnn @{ @i0' = p0' }
-   else pnn
-   , qnn)
+   let (r'
+       , ()) = (cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
+               , ()) !qnn !pnn
+   in (r', pnn, qnn)
 
 -- Probe used by accessing an array element
 cogent_gn81nl : Cogent_nna1 -> ( U32, Cogent_nna1 )
@@ -609,7 +576,7 @@ cogent_gn91nn : Struct_Cogent_nns1 -> ( (), Struct_Cogent_nns1 )
 cogent_gn91nn pnn =
    (()
    , let pnn { mnn = _ } = pnn
-   in pnn { mnn = cogent_frnl () })
+   in pnn { mnn = gencotDummy "MayNull expression used in not-null context" })
 cogent_gn92nl : Cogent_nna3 -> ( (), Cogent_nna3 )
 cogent_gn92nl pnl =
    (()
@@ -621,7 +588,7 @@ cogent_gn92nn pnl =
    (()
    , let (pnl @{ @1 = _ }
          , i0') = (pnl, 1)
-   in pnl @{ @i0' = cogent_frnl () })
+   in pnl @{ @i0' = gencotDummy "MayNull expression used in not-null context" })
 
 -- Using MayNull values after NULL-test in expression.
 
@@ -630,7 +597,7 @@ cogent_tn11nl : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
 cogent_tn11nl pnl =
    (notNull[CPtr U32]{{}} pnl
    | Nothing -> 0
-   | Some pnl -> cogent_fcnl pnl
+   | Some pnl -> cogent_fcnl (mayNull[CPtr U32]{{}} pnl)
    , pnl)
 cogent_tn11nn : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
 cogent_tn11nn pnl =
@@ -648,7 +615,7 @@ cogent_tn12nn : () -> U32
 cogent_tn12nn () =
    if cogent_globnl () /= cogent_NULL
    then
-      cogent_fcnn (cogent_globnl ())
+      cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
    else 0
 cogent_tn13nl : () -> U32
 cogent_tn13nl () =
@@ -660,15 +627,15 @@ cogent_tn13nn : () -> U32
 cogent_tn13nn () =
    if cogent_frnl () /= cogent_NULL
    then
-      cogent_fcnn (cogent_frnl ())
+      cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
    else 0
 cogent_tn14nl : ( MayNull (CPtr U32), CPtr U32, U32 ) -> ( U32, MayNull (CPtr U32), CPtr U32 )
 cogent_tn14nl (pnl, qnn, i) =
    (notNull[CPtr U32]{{}} pnl
    | Nothing -> 0
-   | Some pnl -> cogent_fcnl (if i /= 0
-         then pnl
-         else qnn)
+   | Some pnl -> cogent_fcnl (mayNull[CPtr U32]{{}} (if i /= 0
+            then pnl
+            else qnn))
    , pnl
    , qnn)
 cogent_tn14nn : ( MayNull (CPtr U32), CPtr U32, U32 ) -> ( U32, MayNull (CPtr U32), CPtr U32 )
@@ -743,18 +710,19 @@ cogent_tn51nl pnn =
    and pnn = pnn { mnl = p0' }
    in notNull[CPtr U32]{{}} p0'
       | Nothing -> let pnn { mnn = p2' } = pnn
-         in (p2', pnn { mnn = p2' })
+         in (mayNull[
+
+-- struct probes:
+            CPtr U32]{{}} p2'
+            , pnn { mnn = p2' })
       | Some p0' -> let pnn { mnl = p1' } = pnn
          in (p1', pnn { mnl = p1' })
 cogent_tn51nn : Struct_Cogent_nns1 -> ( CPtr U32, Struct_Cogent_nns1 )
 cogent_tn51nn pnn =
-   let pnn { mnl = p0' } = pnn
-   and pnn = pnn { mnl = p0' }
-   in notNull[CPtr U32]{{}} p0'
-      | Nothing -> let pnn { mnn = p2' } = pnn
-         in (p2', pnn { mnn = p2' })
-      | Some p0' -> let pnn { mnl = p1' } = pnn
-         in (p1', pnn { mnl = p1' })
+   let (r'
+       , ()) = (gencotDummy "MayNull expression used in not-null context"
+               , ()) !pnn
+   in (r', pnn)
 cogent_tn52nl : Struct_Cogent_nns1 -> ( U32, Struct_Cogent_nns1 )
 cogent_tn52nl pnn =
    let (v7'
@@ -762,21 +730,20 @@ cogent_tn52nl pnn =
       and pnn = pnn { mnl = p0' }
       in notNull[CPtr U32]{{}} p0'
          | Nothing -> let pnn { mnn = p2' } = pnn
-            in (p2', pnn { mnn = p2' })
+            in (mayNull[
+
+-- struct probes:
+               CPtr U32]{{}} p2'
+               , pnn { mnn = p2' })
          | Some p0' -> let pnn { mnl = p1' } = pnn
             in (p1', pnn { mnl = p1' })
    in (cogent_fcnl v7', pnn)
 cogent_tn52nn : Struct_Cogent_nns1 -> ( U32, Struct_Cogent_nns1 )
 cogent_tn52nn pnn =
-   let (v7'
-       , pnn) = let pnn { mnl = p0' } = pnn
-      and pnn = pnn { mnl = p0' }
-      in notNull[CPtr U32]{{}} p0'
-         | Nothing -> let pnn { mnn = p2' } = pnn
-            in (p2', pnn { mnn = p2' })
-         | Some p0' -> let pnn { mnl = p1' } = pnn
-            in (p1', pnn { mnl = p1' })
-   in (cogent_fcnn v7', pnn)
+   let (r'
+       , ()) = (cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
+               , ()) !pnn
+   in (r', pnn)
 cogent_tn53nl : ( Struct_Cogent_nns1, GlobState1 ) -> ( (), Struct_Cogent_nns1, GlobState1 )
 cogent_tn53nl (pnn, g) =
    (()
@@ -785,7 +752,11 @@ cogent_tn53nl (pnn, g) =
       and pnn = pnn { mnl = p0' }
       in notNull[CPtr U32]{{}} p0'
          | Nothing -> let pnn { mnn = p2' } = pnn
-            in (p2', pnn { mnn = p2' })
+            in (mayNull[
+
+-- struct probes:
+               CPtr U32]{{}} p2'
+               , pnn { mnn = p2' })
          | Some p0' -> let pnn { mnl = p1' } = pnn
             in (p1', pnn { mnl = p1' })
    in pnn
@@ -794,33 +765,19 @@ cogent_tn53nl (pnn, g) =
       and pnn = pnn { mnl = p0' }
       in notNull[CPtr U32]{{}} p0'
          | Nothing -> let pnn { mnn = p2' } = pnn
-            in (p2', pnn { mnn = p2' })
+            in (mayNull[CPtr U32]{{}} p2'
+               , pnn { mnn = p2' })
          | Some p0' -> let pnn { mnl = p1' } = pnn
             in (p1', pnn { mnl = p1' })
    and g { cont = _ } = g
    in g { cont = v6' })
 cogent_tn53nn : ( Struct_Cogent_nns1, GlobState2 ) -> ( (), Struct_Cogent_nns1, GlobState2 )
 cogent_tn53nn (pnn, g) =
-   (()
-   , let (_
-         , pnn) = let pnn { mnl = p0' } = pnn
-      and pnn = pnn { mnl = p0' }
-      in notNull[CPtr U32]{{}} p0'
-         | Nothing -> let pnn { mnn = p2' } = pnn
-            in (p2', pnn { mnn = p2' })
-         | Some p0' -> let pnn { mnl = p1' } = pnn
-            in (p1', pnn { mnl = p1' })
-   in pnn
-   , let (v6'
-         , _) = let pnn { mnl = p0' } = pnn
-      and pnn = pnn { mnl = p0' }
-      in notNull[CPtr U32]{{}} p0'
-         | Nothing -> let pnn { mnn = p2' } = pnn
-            in (p2', pnn { mnn = p2' })
-         | Some p0' -> let pnn { mnl = p1' } = pnn
-            in (p1', pnn { mnl = p1' })
-   and g { cont = _ } = g
-   in g { cont = v6' })
+   let (()
+       , g) = (let g { cont = _ } = g
+         in (()
+            , g { cont = gencotDummy "MayNull expression used in not-null context" })) !pnn
+   in ((), pnn, g)
 cogent_tn54nl : ( Struct_Cogent_nns1, MayNull (CPtr U32) ) -> ( (), Struct_Cogent_nns1, MayNull (CPtr U32) )
 cogent_tn54nl (pnn, pnl) =
    (()
@@ -829,7 +786,11 @@ cogent_tn54nl (pnn, pnl) =
       and pnn = pnn { mnl = p0' }
       in notNull[CPtr U32]{{}} p0'
          | Nothing -> let pnn { mnn = p2' } = pnn
-            in (p2', pnn { mnn = p2' })
+            in (mayNull[
+
+-- struct probes:
+               CPtr U32]{{}} p2'
+               , pnn { mnn = p2' })
          | Some p0' -> let pnn { mnl = p1' } = pnn
             in (p1', pnn { mnl = p1' })
    in pnn
@@ -838,93 +799,37 @@ cogent_tn54nl (pnn, pnl) =
       and pnn = pnn { mnl = p0' }
       in notNull[CPtr U32]{{}} p0'
          | Nothing -> let pnn { mnn = p2' } = pnn
-            in (p2', pnn { mnn = p2' })
+            in (mayNull[CPtr U32]{{}} p2'
+               , pnn { mnn = p2' })
          | Some p0' -> let pnn { mnl = p1' } = pnn
             in (p1', pnn { mnl = p1' })
    in v6')
 cogent_tn54nn : ( Struct_Cogent_nns1, CPtr U32 ) -> ( U32, Struct_Cogent_nns1, CPtr U32 )
 cogent_tn54nn (pnn, qnn) =
-   (let qnn { cont = p3' } = let (v6'
-                                 , _) = let pnn { mnl = p0' } = pnn
-         and pnn = pnn { mnl = p0' }
-         in notNull[CPtr U32]{{}} p0'
-            | Nothing -> let pnn { mnn = p2' } = pnn
-               in (p2', pnn { mnn = p2' })
-            | Some p0' -> let pnn { mnl = p1' } = pnn
-               in (p1', pnn { mnl = p1' })
-      in v6'
-   in p3'
-   , let (_
-         , pnn) = let pnn { mnl = p0' } = pnn
-      and pnn = pnn { mnl = p0' }
-      in notNull[CPtr U32]{{}} p0'
-         | Nothing -> let pnn { mnn = p2' } = pnn
-            in (p2', pnn { mnn = p2' })
-         | Some p0' -> let pnn { mnl = p1' } = pnn
-            in (p1', pnn { mnl = p1' })
-   in pnn
-   , let (v6'
-         , _) = let pnn { mnl = p0' } = pnn
-      and pnn = pnn { mnl = p0' }
-      in notNull[CPtr U32]{{}} p0'
-         | Nothing -> let pnn { mnn = p2' } = pnn
-            in (p2', pnn { mnn = p2' })
-         | Some p0' -> let pnn { mnl = p1' } = pnn
-            in (p1', pnn { mnl = p1' })
-   in v6')
+   let ((), qnn, r') = (()
+                       , gencotDummy "MayNull expression used in not-null context"
+                       , let qnn { cont = p3' } = gencotDummy "MayNull expression used in not-null context"
+                       in p3') !pnn
+   in (r', pnn, qnn)
 cogent_tn55nl : ( Struct_Cogent_nns1, MayNull (CPtr U32), U32 ) -> ( U32, Struct_Cogent_nns1, MayNull (CPtr U32) )
 cogent_tn55nl (pnn, qnl, i) =
-   (let (v10', _) = if i /= 0
-      then let pnn { mnl = p0' } = pnn
-         and pnn = pnn { mnl = p0' }
-         in notNull[CPtr U32]{{}} p0'
-            | Nothing -> let pnn { mnn = p2' } = pnn
-               in (p2', pnn { mnn = p2' })
-            | Some p0' -> let pnn { mnl = p1' } = pnn
-               in (p1', pnn { mnl = p1' })
-      else (qnl, pnn)
-   in cogent_fcnn v10'
-   , let (_, pnn) = if i /= 0
-      then let pnn { mnl = p0' } = pnn
-         and pnn = pnn { mnl = p0' }
-         in notNull[CPtr U32]{{}} p0'
-            | Nothing -> let pnn { mnn = p2' } = pnn
-               in (p2', pnn { mnn = p2' })
-            | Some p0' -> let pnn { mnl = p1' } = pnn
-               in (p1', pnn { mnl = p1' })
-      else (qnl, pnn)
-   in pnn
-   , qnl)
+   let (r'
+       , ()) = (cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
+               , ()) !qnl !pnn
+   in (r', pnn, qnl)
 cogent_tn55nn : ( Struct_Cogent_nns1, CPtr U32, U32 ) -> ( U32, Struct_Cogent_nns1, CPtr U32 )
 cogent_tn55nn (pnn, qnn, i) =
-   (let (v10', _) = if i /= 0
-      then let pnn { mnl = p0' } = pnn
-         and pnn = pnn { mnl = p0' }
-         in notNull[CPtr U32]{{}} p0'
-            | Nothing -> let pnn { mnn = p2' } = pnn
-               in (p2', pnn { mnn = p2' })
-            | Some p0' -> let pnn { mnl = p1' } = pnn
-               in (p1', pnn { mnl = p1' })
-      else (qnn, pnn)
-   in cogent_fcnn v10'
-   , let (_, pnn) = if i /= 0
-      then let pnn { mnl = p0' } = pnn
-         and pnn = pnn { mnl = p0' }
-         in notNull[CPtr U32]{{}} p0'
-            | Nothing -> let pnn { mnn = p2' } = pnn
-               in (p2', pnn { mnn = p2' })
-            | Some p0' -> let pnn { mnl = p1' } = pnn
-               in (p1', pnn { mnl = p1' })
-      else (qnn, pnn)
-   in pnn
-   , qnn)
+   let (r'
+       , ()) = (cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
+               , ()) !qnn !pnn
+   in (r', pnn, qnn)
 
 -- Probe used by accessing a struct component or pointer deref
 cogent_tn61nl : ( MayNull Struct_Cogent_nns1, MayNull Struct_Cogent_nns1 ) -> ( U32, MayNull Struct_Cogent_nns1, MayNull Struct_Cogent_nns1 )
 cogent_tn61nl (pnl, pnn) =
    (let err' { mrg = p0' } = notNull[Struct_Cogent_nns1]{{}} pnl
       | Nothing -> pnn
-      | Some pnl -> pnl
+      | Some pnl -> mayNull[Struct_Cogent_nns1]{{}} pnl
    in p0'
    , pnl
    , pnn)
@@ -935,7 +840,8 @@ cogent_tn62nl pnn =
       and pnn = pnn { snl = p0' }
       in notNull[Struct_Cogent_nns1]{{}} p0'
          | Nothing -> let pnn { snn = p2' } = pnn
-            in (p2', pnn { snn = p2' })
+            in (mayNull[Struct_Cogent_nns1]{{}} p2'
+               , pnn { snn = p2' })
          | Some p0' -> let pnn { snl = p1' } = pnn
             in (p1', pnn { snl = p1' })
    and err' { mrg = p3' } = v6'
@@ -944,13 +850,15 @@ cogent_tn63nl : () -> U32
 cogent_tn63nl () =
    let err' { cont = p0' } = if cogent_globnl () /= cogent_NULL
       then cogent_globnl ()
-      else cogent_globnn ()
+      else
+         mayNull[CPtr U32]{{}} (cogent_globnn ())
    in p0'
 cogent_tn64nl : () -> U32
 cogent_tn64nl () =
    let err' { cont = p0' } = if cogent_frnl () /= cogent_NULL
       then cogent_frnl ()
-      else cogent_frnn ()
+      else
+         mayNull[CPtr U32]{{}} (cogent_frnn ())
    in p0'
 
 -- Probe is an array element
@@ -960,22 +868,25 @@ cogent_tn71nl pnn =
        , i0') = (pnn, 1)
    and pnn = pnn @{ @i0' = p0' }
    in notNull[CPtr U32]{{}} p0'
-      | Nothing -> (cogent_globnn ()
+      | Nothing -> (mayNull[CPtr U32]{{}} (cogent_globnn ())
                    , pnn)
       | Some p0' -> let (pnn @{ @1 = p1' }
                         , i1') = (pnn, 1)
          in (p1', pnn @{ @i1' = p1' })
 cogent_tn71nn : Cogent_nna3 -> ( CPtr U32, Cogent_nna3 )
 cogent_tn71nn pnn =
-   let (pnn @{ @1 = p0' }
-       , i0') = (pnn, 1)
-   and pnn = pnn @{ @i0' = p0' }
-   in notNull[CPtr U32]{{}} p0'
-      | Nothing -> (cogent_globnn ()
-                   , pnn)
-      | Some p0' -> let (pnn @{ @1 = p1' }
-                        , i1') = (pnn, 1)
-         in (p1', pnn @{ @i1' = p1' })
+   let (_
+       , pnn) = let (pnn @{ @1 = p0' }
+                    , i0') = (pnn, 1)
+      and pnn = pnn @{ @i0' = p0' }
+      in notNull[CPtr U32]{{}} p0'
+         | Nothing -> (mayNull[CPtr U32]{{}} (cogent_globnn ())
+                      , pnn)
+         | Some p0' -> let (pnn @{ @1 = p1' }
+                           , i1') = (pnn, 1)
+            in (p1', pnn @{ @i1' = p1' })
+   in (gencotDummy "MayNull expression used in not-null context"
+      , pnn)
 cogent_tn72nl : Cogent_nna3 -> ( U32, Cogent_nna3 )
 cogent_tn72nl pnn =
    let (v8'
@@ -983,7 +894,7 @@ cogent_tn72nl pnn =
                     , i0') = (pnn, 1)
       and pnn = pnn @{ @i0' = p0' }
       in notNull[CPtr U32]{{}} p0'
-         | Nothing -> (cogent_globnn ()
+         | Nothing -> (mayNull[CPtr U32]{{}} (cogent_globnn ())
                       , pnn)
          | Some p0' -> let (pnn @{ @1 = p1' }
                            , i1') = (pnn, 1)
@@ -991,17 +902,18 @@ cogent_tn72nl pnn =
    in (cogent_fcnl v8', pnn)
 cogent_tn72nn : Cogent_nna3 -> ( U32, Cogent_nna3 )
 cogent_tn72nn pnn =
-   let (v8'
+   let (_
        , pnn) = let (pnn @{ @1 = p0' }
                     , i0') = (pnn, 1)
       and pnn = pnn @{ @i0' = p0' }
       in notNull[CPtr U32]{{}} p0'
-         | Nothing -> (cogent_globnn ()
+         | Nothing -> (mayNull[CPtr U32]{{}} (cogent_globnn ())
                       , pnn)
          | Some p0' -> let (pnn @{ @1 = p1' }
                            , i1') = (pnn, 1)
             in (p1', pnn @{ @i1' = p1' })
-   in (cogent_fcnn v8', pnn)
+   in (cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
+      , pnn)
 cogent_tn73nl : ( Cogent_nna3, GlobState1 ) -> ( (), Cogent_nna3, GlobState1 )
 cogent_tn73nl (pnn, g) =
    (()
@@ -1010,7 +922,7 @@ cogent_tn73nl (pnn, g) =
                       , i0') = (pnn, 1)
       and pnn = pnn @{ @i0' = p0' }
       in notNull[CPtr U32]{{}} p0'
-         | Nothing -> (cogent_globnn ()
+         | Nothing -> (mayNull[CPtr U32]{{}} (cogent_globnn ())
                       , pnn)
          | Some p0' -> let (pnn @{ @1 = p1' }
                            , i1') = (pnn, 1)
@@ -1021,7 +933,7 @@ cogent_tn73nl (pnn, g) =
                     , i0') = (pnn, 1)
       and pnn = pnn @{ @i0' = p0' }
       in notNull[CPtr U32]{{}} p0'
-         | Nothing -> (cogent_globnn ()
+         | Nothing -> (mayNull[CPtr U32]{{}} (cogent_globnn ())
                       , pnn)
          | Some p0' -> let (pnn @{ @1 = p1' }
                            , i1') = (pnn, 1)
@@ -1036,24 +948,14 @@ cogent_tn73nn (pnn, g) =
                       , i0') = (pnn, 1)
       and pnn = pnn @{ @i0' = p0' }
       in notNull[CPtr U32]{{}} p0'
-         | Nothing -> (cogent_globnn ()
+         | Nothing -> (mayNull[CPtr U32]{{}} (cogent_globnn ())
                       , pnn)
          | Some p0' -> let (pnn @{ @1 = p1' }
                            , i1') = (pnn, 1)
             in (p1', pnn @{ @i1' = p1' })
    in pnn
-   , let (v7'
-         , _) = let (pnn @{ @1 = p0' }
-                    , i0') = (pnn, 1)
-      and pnn = pnn @{ @i0' = p0' }
-      in notNull[CPtr U32]{{}} p0'
-         | Nothing -> (cogent_globnn ()
-                      , pnn)
-         | Some p0' -> let (pnn @{ @1 = p1' }
-                           , i1') = (pnn, 1)
-            in (p1', pnn @{ @i1' = p1' })
-   and g { cont = _ } = g
-   in g { cont = v7' })
+   , let g { cont = _ } = g
+   in g { cont = gencotDummy "MayNull expression used in not-null context" })
 cogent_tn74nl : ( Cogent_nna3, MayNull (CPtr U32) ) -> ( (), Cogent_nna3, MayNull (CPtr U32) )
 cogent_tn74nl (pnn, pnl) =
    (()
@@ -1062,7 +964,7 @@ cogent_tn74nl (pnn, pnl) =
                       , i0') = (pnn, 1)
       and pnn = pnn @{ @i0' = p0' }
       in notNull[CPtr U32]{{}} p0'
-         | Nothing -> (cogent_globnn ()
+         | Nothing -> (mayNull[CPtr U32]{{}} (cogent_globnn ())
                       , pnn)
          | Some p0' -> let (pnn @{ @1 = p1' }
                            , i1') = (pnn, 1)
@@ -1073,7 +975,7 @@ cogent_tn74nl (pnn, pnl) =
                     , i0') = (pnn, 1)
       and pnn = pnn @{ @i0' = p0' }
       in notNull[CPtr U32]{{}} p0'
-         | Nothing -> (cogent_globnn ()
+         | Nothing -> (mayNull[CPtr U32]{{}} (cogent_globnn ())
                       , pnn)
          | Some p0' -> let (pnn @{ @1 = p1' }
                            , i1') = (pnn, 1)
@@ -1081,60 +983,29 @@ cogent_tn74nl (pnn, pnl) =
    in v7')
 cogent_tn74nn : ( Cogent_nna3, CPtr U32 ) -> ( U32, Cogent_nna3, CPtr U32 )
 cogent_tn74nn (pnn, qnn) =
-   (let qnn { cont = p2' } = let (v7'
-                                 , _) = let (pnn @{ @1 = p0' }
-                                            , i0') = (pnn, 1)
-         and pnn = pnn @{ @i0' = p0' }
-         in notNull[CPtr U32]{{}} p0'
-            | Nothing -> (cogent_globnn ()
-                         , pnn)
-            | Some p0' -> let (pnn @{ @1 = p1' }
-                              , i1') = (pnn, 1)
-               in (p1', pnn @{ @i1' = p1' })
-      in v7'
+   (let qnn { cont = p2' } = gencotDummy "MayNull expression used in not-null context"
    in p2'
    , let (_
          , pnn) = let (pnn @{ @1 = p0' }
                       , i0') = (pnn, 1)
       and pnn = pnn @{ @i0' = p0' }
       in notNull[CPtr U32]{{}} p0'
-         | Nothing -> (cogent_globnn ()
+         | Nothing -> (mayNull[CPtr U32]{{}} (cogent_globnn ())
                       , pnn)
          | Some p0' -> let (pnn @{ @1 = p1' }
                            , i1') = (pnn, 1)
             in (p1', pnn @{ @i1' = p1' })
    in pnn
-   , let (v7'
-         , _) = let (pnn @{ @1 = p0' }
-                    , i0') = (pnn, 1)
-      and pnn = pnn @{ @i0' = p0' }
-      in notNull[CPtr U32]{{}} p0'
-         | Nothing -> (cogent_globnn ()
-                      , pnn)
-         | Some p0' -> let (pnn @{ @1 = p1' }
-                           , i1') = (pnn, 1)
-            in (p1', pnn @{ @i1' = p1' })
-   in v7')
+   , gencotDummy "MayNull expression used in not-null context")
 cogent_tn75nl : ( Cogent_nna3, MayNull (CPtr U32), U32 ) -> ( U32, Cogent_nna3, MayNull (CPtr U32) )
 cogent_tn75nl (pnn, qnl, i) =
-   (let (v11', _) = if i /= 0
-      then let (pnn @{ @1 = p0' }
-               , i0') = (pnn, 1)
-         and pnn = pnn @{ @i0' = p0' }
-         in notNull[CPtr U32]{{}} p0'
-            | Nothing -> (cogent_globnn ()
-                         , pnn)
-            | Some p0' -> let (pnn @{ @1 = p1' }
-                              , i1') = (pnn, 1)
-               in (p1', pnn @{ @i1' = p1' })
-      else (qnl, pnn)
-   in cogent_fcnn v11'
+   (cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
    , let (_, pnn) = if i /= 0
       then let (pnn @{ @1 = p0' }
                , i0') = (pnn, 1)
          and pnn = pnn @{ @i0' = p0' }
          in notNull[CPtr U32]{{}} p0'
-            | Nothing -> (cogent_globnn ()
+            | Nothing -> (mayNull[CPtr U32]{{}} (cogent_globnn ())
                          , pnn)
             | Some p0' -> let (pnn @{ @1 = p1' }
                               , i1') = (pnn, 1)
@@ -1144,29 +1015,19 @@ cogent_tn75nl (pnn, qnl, i) =
    , qnl)
 cogent_tn75nn : ( Cogent_nna3, CPtr U32, U32 ) -> ( U32, Cogent_nna3, CPtr U32 )
 cogent_tn75nn (pnn, qnn, i) =
-   (let (v11', _) = if i /= 0
-      then let (pnn @{ @1 = p0' }
-               , i0') = (pnn, 1)
-         and pnn = pnn @{ @i0' = p0' }
-         in notNull[CPtr U32]{{}} p0'
-            | Nothing -> (cogent_globnn ()
-                         , pnn)
-            | Some p0' -> let (pnn @{ @1 = p1' }
-                              , i1') = (pnn, 1)
-               in (p1', pnn @{ @i1' = p1' })
-      else (qnn, pnn)
-   in cogent_fcnn v11'
+   (cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
    , let (_, pnn) = if i /= 0
       then let (pnn @{ @1 = p0' }
                , i0') = (pnn, 1)
          and pnn = pnn @{ @i0' = p0' }
          in notNull[CPtr U32]{{}} p0'
-            | Nothing -> (cogent_globnn ()
+            | Nothing -> (mayNull[CPtr U32]{{}} (cogent_globnn ())
                          , pnn)
             | Some p0' -> let (pnn @{ @1 = p1' }
                               , i1') = (pnn, 1)
                in (p1', pnn @{ @i1' = p1' })
-      else (qnn, pnn)
+      else (mayNull[CPtr U32]{{}} qnn
+           , pnn)
    in pnn
    , qnn)
 
@@ -1239,7 +1100,7 @@ cogent_sn11nl : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
 cogent_sn11nl pnl =
    (notNull[CPtr U32]{{}} pnl
    | Nothing -> 0
-   | Some pnl -> cogent_fcnl pnl
+   | Some pnl -> cogent_fcnl (mayNull[CPtr U32]{{}} pnl)
    , pnl)
 cogent_sn11nn : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
 cogent_sn11nn pnl =
@@ -1257,7 +1118,7 @@ cogent_sn12nn : () -> U32
 cogent_sn12nn () =
    if cogent_globnl () /= cogent_NULL
    then
-      cogent_fcnn (cogent_globnl ())
+      cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
    else 0
 cogent_sn13nl : () -> U32
 cogent_sn13nl () =
@@ -1269,15 +1130,15 @@ cogent_sn13nn : () -> U32
 cogent_sn13nn () =
    if cogent_frnl () /= cogent_NULL
    then
-      cogent_fcnn (cogent_frnl ())
+      cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
    else 0
 cogent_sn14nl : ( MayNull (CPtr U32), CPtr U32, U32 ) -> ( U32, MayNull (CPtr U32), CPtr U32 )
 cogent_sn14nl (pnl, qnn, i) =
    (notNull[CPtr U32]{{}} pnl
    | Nothing -> 0
-   | Some pnl -> cogent_fcnl (if i /= 0
-         then pnl
-         else qnn)
+   | Some pnl -> cogent_fcnl (mayNull[CPtr U32]{{}} (if i /= 0
+            then pnl
+            else qnn))
    , pnl
    , qnn)
 cogent_sn14nn : ( MayNull (CPtr U32), CPtr U32, U32 ) -> ( U32, MayNull (CPtr U32), CPtr U32 )
@@ -1312,14 +1173,15 @@ cogent_sn22nl (pnl, qnl) =
    (()
    , notNull[CPtr U32]{{}} qnl
    | Nothing -> pnl
-   | Some qnl -> qnl
+   | Some qnl -> mayNull[CPtr U32]{{}} qnl
    , qnl)
 cogent_sn22nn : ( MayNull (CPtr U32), MayNull (CPtr U32) ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32) )
 cogent_sn22nn (pnn, qnl) =
    (let (c'
         , _) = notNull[CPtr U32]{{}} qnl
       | Nothing -> (0, pnn)
-      | Some qnl -> (0, qnl)
+      | Some qnl -> (0
+                    , mayNull[CPtr U32]{{}} qnl)
    in if c' > 0
       then r'
       else let (r'
@@ -1329,7 +1191,8 @@ cogent_sn22nn (pnn, qnl) =
    , let (c'
          , pnn) = notNull[CPtr U32]{{}} qnl
       | Nothing -> (0, pnn)
-      | Some qnl -> (0, qnl)
+      | Some qnl -> (0
+                    , mayNull[CPtr U32]{{}} qnl)
    in if c' > 0
       then pnn
       else let (r'
@@ -1342,8 +1205,8 @@ cogent_sn22nn (pnn, qnl) =
 cogent_sn31nl : ( MayNull (CPtr U32), CPtr U32 ) -> ( MayNull (CPtr U32), MayNull (CPtr U32), CPtr U32 )
 cogent_sn31nl (qnl, qnn) =
    (notNull[CPtr U32]{{}} qnl
-   | Nothing -> qnn
-   | Some qnl -> qnl
+   | Nothing -> mayNull[CPtr U32]{{}} qnn
+   | Some qnl -> mayNull[CPtr U32]{{}} qnl
    , qnl
    , qnn)
 cogent_sn31nn : ( MayNull (CPtr U32), CPtr U32 ) -> ( CPtr U32, MayNull (CPtr U32), CPtr U32 )
@@ -1363,8 +1226,8 @@ cogent_sn51nl pnn =
       in notNull[CPtr U32]{{}} p0'
          | Nothing -> (let pnn { mnn = p2' } = pnn
                       in pnn { mnn = p2' }
-                      , let pnn { mnn = p2' } = pnn
-                      in p2')
+                      , mayNull[CPtr U32]{{}} (let pnn { mnn = p2' } = pnn
+                         in p2'))
          | Some p0' -> (let pnn { mnl = p1' } = pnn
                        in pnn { mnl = p1' }
                        , let pnn { mnl = p1' } = pnn
@@ -1380,10 +1243,8 @@ cogent_sn51nn pnn =
                       in pnn { mnn = p2' }
                       , let pnn { mnn = p2' } = pnn
                       in p2')
-         | Some p0' -> (let pnn { mnl = p1' } = pnn
-                       in pnn { mnl = p1' }
-                       , let pnn { mnl = p1' } = pnn
-                       in p1')
+         | Some p0' -> (pnn
+                       , gencotDummy "MayNull expression used in not-null context")
    in (r', pnn)
 cogent_sn52nl : Struct_Cogent_nns1 -> ( U32, Struct_Cogent_nns1 )
 cogent_sn52nl pnn =
@@ -1399,15 +1260,12 @@ cogent_sn52nl pnn =
    in (r', pnn)
 cogent_sn52nn : Struct_Cogent_nns1 -> ( U32, Struct_Cogent_nns1 )
 cogent_sn52nn pnn =
-   let (pnn
-       , r') = let pnn { mnl = p0' } = pnn
-      and pnn = pnn { mnl = p0' }
-      in notNull[CPtr U32]{{}} p0'
-         | Nothing -> (pnn, 0)
-         | Some p0' -> (let pnn { mnl = p1' } = pnn
-                       in pnn { mnl = p1' }
-                       , let pnn { mnl = p1' } = pnn
-                       in cogent_fcnn p1')
+   let (()
+       , r') = (let pnn { mnl = p0' } = pnn
+         in notNull[(CPtr U32)!]{{}} p0'
+            | Nothing -> ((), 0)
+            | Some p0' -> (()
+                          , cogent_fcnn (gencotDummy "MayNull expression used in not-null context"))) !pnn
    in (r', pnn)
 cogent_sn53nl : ( Struct_Cogent_nns1, GlobState1 ) -> ( (), Struct_Cogent_nns1, GlobState1 )
 cogent_sn53nl (pnn, g) =
@@ -1423,15 +1281,13 @@ cogent_sn53nl (pnn, g) =
    in ((), pnn, g)
 cogent_sn53nn : ( Struct_Cogent_nns1, GlobState2 ) -> ( (), Struct_Cogent_nns1, GlobState2 )
 cogent_sn53nn (pnn, g) =
-   let (pnn
-       , g) = let pnn { mnl = p0' } = pnn
-      and pnn = pnn { mnl = p0' }
-      in notNull[CPtr U32]{{}} p0'
-         | Nothing -> (pnn, g)
-         | Some p0' -> let pnn { mnl = p1' } = pnn
-            and g { cont = _ } = g
-            in (pnn { mnl = p1' }
-               , g { cont = p1' })
+   let (()
+       , g) = (let pnn { mnl = p0' } = pnn
+         in notNull[(CPtr U32)!]{{}} p0'
+            | Nothing -> ((), g)
+            | Some p0' -> (()
+                          , let g { cont = _ } = g
+                          in g { cont = gencotDummy "MayNull expression used in not-null context" })) !pnn
    in ((), pnn, g)
 cogent_sn54nl : ( Struct_Cogent_nns1, MayNull (CPtr U32) ) -> ( (), Struct_Cogent_nns1, MayNull (CPtr U32) )
 cogent_sn54nl (pnn, pnl) =
@@ -1445,91 +1301,50 @@ cogent_sn54nl (pnn, pnl) =
    in ((), pnn, pnl)
 cogent_sn54nn : ( Struct_Cogent_nns1, CPtr U32 ) -> ( U32, Struct_Cogent_nns1, CPtr U32 )
 cogent_sn54nn (pnn, qnn) =
-   (let (c'
-        , _
-        , _) = let pnn { mnl = p0' } = pnn
-      and pnn = pnn { mnl = p0' }
-      in notNull[CPtr U32]{{}} p0'
-         | Nothing -> (0, pnn, qnn)
-         | Some p0' -> let pnn { mnl = p1' } = pnn
-            in (0, pnn { mnl = p1' }, p1')
-   in if c' > 0
-      then r'
-      else let (r'
-               , ()) = (let qnn { cont = p2' } = qnn
-               in (p2', ())) !qnn
-         in r'
-   , let (c'
-         , pnn
-         , _) = let pnn { mnl = p0' } = pnn
-      and pnn = pnn { mnl = p0' }
-      in notNull[CPtr U32]{{}} p0'
-         | Nothing -> (0, pnn, qnn)
-         | Some p0' -> let pnn { mnl = p1' } = pnn
-            in (0, pnn { mnl = p1' }, p1')
-   in if c' > 0
-      then pnn
-      else let (r'
-               , ()) = (let qnn { cont = p2' } = qnn
-               in (p2', ())) !qnn
-         in pnn
-   , let (c'
-         , _
-         , qnn) = let pnn { mnl = p0' } = pnn
-      and pnn = pnn { mnl = p0' }
-      in notNull[CPtr U32]{{}} p0'
-         | Nothing -> (0, pnn, qnn)
-         | Some p0' -> let pnn { mnl = p1' } = pnn
-            in (0, pnn { mnl = p1' }, p1')
-   in if c' > 0
-      then qnn
-      else let (r'
-               , ()) = (let qnn { cont = p2' } = qnn
-               in (p2', ())) !qnn
-         in qnn)
+   let ((), qnn, r') = (let (c'
+                            , _
+                            , qnn) = let pnn { mnl = p0' } = pnn
+            in notNull[(CPtr U32)!]{{}} p0'
+               | Nothing -> (0, (), qnn)
+               | Some p0' -> (0
+                             , ()
+                             , gencotDummy "MayNull expression used in not-null context")
+         in if c' > 0
+            then ((), qnn, r')
+            else let (r'
+                     , ()) = (let qnn { cont = p2' } = qnn
+                     in (p2', ())) !qnn
+               in ((), qnn, r')) !pnn
+   in (r', pnn, qnn)
 cogent_sn55nl : ( Struct_Cogent_nns1, MayNull (CPtr U32), U32 ) -> ( U32, Struct_Cogent_nns1, MayNull (CPtr U32) )
 cogent_sn55nl (pnn, qnl, i) =
-   let (pnn
-       , r') = let pnn { mnl = p0' } = pnn
-      and pnn = pnn { mnl = p0' }
-      in notNull[CPtr U32]{{}} p0'
-         | Nothing -> (pnn, r')
-         | Some p0' -> (if i /= 0
-                       then let pnn { mnl = p1' } = pnn
-                          in pnn { mnl = p1' }
-                       else pnn
-                       , cogent_fcnn (if i /= 0
-                          then let pnn { mnl = p1' } = pnn
-                             in p1'
-                          else qnl))
+   let (()
+       , r') = (let pnn { mnl = p0' } = pnn
+         in notNull[(CPtr U32)!]{{}} p0'
+            | Nothing -> ((), r')
+            | Some p0' -> (()
+                          , cogent_fcnn (gencotDummy "MayNull expression used in not-null context"))) !qnl !pnn
    in (r', pnn, qnl)
 cogent_sn55nn : ( Struct_Cogent_nns1, CPtr U32, U32 ) -> ( U32, Struct_Cogent_nns1, CPtr U32 )
 cogent_sn55nn (pnn, qnn, i) =
-   let (pnn
-       , r') = let pnn { mnl = p0' } = pnn
-      and pnn = pnn { mnl = p0' }
-      in notNull[CPtr U32]{{}} p0'
-         | Nothing -> (pnn, r')
-         | Some p0' -> (if i /= 0
-                       then let pnn { mnl = p1' } = pnn
-                          in pnn { mnl = p1' }
-                       else pnn
-                       , cogent_fcnn (if i /= 0
-                          then let pnn { mnl = p1' } = pnn
-                             in p1'
-                          else qnn))
+   let (()
+       , r') = (let pnn { mnl = p0' } = pnn
+         in notNull[(CPtr U32)!]{{}} p0'
+            | Nothing -> ((), r')
+            | Some p0' -> (()
+                          , cogent_fcnn (gencotDummy "MayNull expression used in not-null context"))) !qnn !pnn
    in (r', pnn, qnn)
 
 -- Probe used by accessing a struct component or pointer deref
 cogent_sn61nl : MayNull Struct_Cogent_nns1 -> ( U32, MayNull Struct_Cogent_nns1 )
 cogent_sn61nl pnl =
-   let (r'
-       , ()) = (notNull[Struct_Cogent_nns1!]{{}} pnl
-         | Nothing -> (0, ())
-         | Some pnl -> (let pnl { mrg = p0' } = pnl
-                       in p0'
-                       , ())) !pnl
-   in (r', pnl)
+   notNull[Struct_Cogent_nns1]{{}} pnl
+   | Nothing -> (0, cogent_NULL)
+   | Some pnl -> let (r'
+                     , ()) = (let pnl { mrg = p0' } = pnl
+            in (p0', ())) !pnl
+      in (r'
+         , mayNull[Struct_Cogent_nns1]{{}} pnl)
 cogent_sn62nl : MayNull Struct_Cogent_nns2 -> ( U32, MayNull Struct_Cogent_nns2 )
 cogent_sn62nl pnn =
    let (()
@@ -1565,7 +1380,7 @@ cogent_sn71nl pnn =
       and pnn = pnn @{ @i0' = p0' }
       in notNull[CPtr U32]{{}} p0'
          | Nothing -> (pnn
-                      , cogent_globnn ())
+                      , mayNull[CPtr U32]{{}} (cogent_globnn ()))
          | Some p0' -> (let (pnn @{ @1 = p1' }
                             , i1') = (pnn, 1)
                        in pnn @{ @i1' = p1' }
@@ -1574,18 +1389,13 @@ cogent_sn71nl pnn =
    in (r', pnn)
 cogent_sn71nn : Cogent_nna3 -> ( CPtr U32, Cogent_nna3 )
 cogent_sn71nn pnn =
-   let (pnn
-       , r') = let (pnn @{ @1 = p0' }
-                   , i0') = (pnn, 1)
-      and pnn = pnn @{ @i0' = p0' }
-      in notNull[CPtr U32]{{}} p0'
-         | Nothing -> (pnn
-                      , cogent_globnn ())
-         | Some p0' -> (let (pnn @{ @1 = p1' }
-                            , i1') = (pnn, 1)
-                       in pnn @{ @i1' = p1' }
-                       , let pnn @{ @1 = p1' } = pnn
-                       in p1')
+   let (()
+       , r') = (let pnn @{ @1 = p0' } = pnn
+         in notNull[(CPtr U32)!]{{}} p0'
+            | Nothing -> (()
+                         , cogent_globnn ())
+            | Some p0' -> (()
+                          , gencotDummy "MayNull expression used in not-null context")) !pnn
    in (r', pnn)
 cogent_sn72nl : Cogent_nna3 -> ( U32, Cogent_nna3 )
 cogent_sn72nl pnn =
@@ -1603,17 +1413,12 @@ cogent_sn72nl pnn =
    in (r', pnn)
 cogent_sn72nn : Cogent_nna3 -> ( U32, Cogent_nna3 )
 cogent_sn72nn pnn =
-   let (pnn
-       , r') = let (pnn @{ @1 = p0' }
-                   , i0') = (pnn, 1)
-      and pnn = pnn @{ @i0' = p0' }
-      in notNull[CPtr U32]{{}} p0'
-         | Nothing -> (pnn, 0)
-         | Some p0' -> (let (pnn @{ @1 = p1' }
-                            , i1') = (pnn, 1)
-                       in pnn @{ @i1' = p1' }
-                       , let pnn @{ @1 = p1' } = pnn
-                       in cogent_fcnn p1')
+   let (()
+       , r') = (let pnn @{ @1 = p0' } = pnn
+         in notNull[(CPtr U32)!]{{}} p0'
+            | Nothing -> ((), 0)
+            | Some p0' -> (()
+                          , cogent_fcnn (gencotDummy "MayNull expression used in not-null context"))) !pnn
    in (r', pnn)
 cogent_sn73nl : ( Cogent_nna3, GlobState1 ) -> ( (), Cogent_nna3, GlobState1 )
 cogent_sn73nl (pnn, g) =
@@ -1631,17 +1436,13 @@ cogent_sn73nl (pnn, g) =
    in ((), pnn, g)
 cogent_sn73nn : ( Cogent_nna3, GlobState2 ) -> ( (), Cogent_nna3, GlobState2 )
 cogent_sn73nn (pnn, g) =
-   let (pnn
-       , g) = let (pnn @{ @1 = p0' }
-                  , i0') = (pnn, 1)
-      and pnn = pnn @{ @i0' = p0' }
-      in notNull[CPtr U32]{{}} p0'
-         | Nothing -> (pnn, g)
-         | Some p0' -> let (pnn @{ @1 = p1' }
-                           , i1') = (pnn, 1)
-            and g { cont = _ } = g
-            in (pnn @{ @i1' = p1' }
-               , g { cont = p1' })
+   let (()
+       , g) = (let pnn @{ @1 = p0' } = pnn
+         in notNull[(CPtr U32)!]{{}} p0'
+            | Nothing -> ((), g)
+            | Some p0' -> (()
+                          , let g { cont = _ } = g
+                          in g { cont = gencotDummy "MayNull expression used in not-null context" })) !pnn
    in ((), pnn, g)
 cogent_sn74nl : ( Cogent_nna3, MayNull (CPtr U32) ) -> ( (), Cogent_nna3, MayNull (CPtr U32) )
 cogent_sn74nl (pnn, pnl) =
@@ -1657,89 +1458,38 @@ cogent_sn74nl (pnn, pnl) =
    in ((), pnn, pnl)
 cogent_sn74nn : ( Cogent_nna3, CPtr U32 ) -> ( U32, Cogent_nna3, CPtr U32 )
 cogent_sn74nn (pnn, qnn) =
-   (let (c'
-        , _
-        , _) = let (pnn @{ @1 = p0' }
-                   , i0') = (pnn, 1)
-      and pnn = pnn @{ @i0' = p0' }
-      in notNull[CPtr U32]{{}} p0'
-         | Nothing -> (0, pnn, qnn)
-         | Some p0' -> let (pnn @{ @1 = p1' }
-                           , i1') = (pnn, 1)
-            in (0, pnn @{ @i1' = p1' }, p1')
-   in if c' > 0
-      then r'
-      else let (r'
-               , ()) = (let qnn { cont = p2' } = qnn
-               in (p2', ())) !qnn
-         in r'
-   , let (c'
-         , pnn
-         , _) = let (pnn @{ @1 = p0' }
-                    , i0') = (pnn, 1)
-      and pnn = pnn @{ @i0' = p0' }
-      in notNull[CPtr U32]{{}} p0'
-         | Nothing -> (0, pnn, qnn)
-         | Some p0' -> let (pnn @{ @1 = p1' }
-                           , i1') = (pnn, 1)
-            in (0, pnn @{ @i1' = p1' }, p1')
-   in if c' > 0
-      then pnn
-      else let (r'
-               , ()) = (let qnn { cont = p2' } = qnn
-               in (p2', ())) !qnn
-         in pnn
-   , let (c'
-         , _
-         , qnn) = let (pnn @{ @1 = p0' }
-                      , i0') = (pnn, 1)
-      and pnn = pnn @{ @i0' = p0' }
-      in notNull[CPtr U32]{{}} p0'
-         | Nothing -> (0, pnn, qnn)
-         | Some p0' -> let (pnn @{ @1 = p1' }
-                           , i1') = (pnn, 1)
-            in (0, pnn @{ @i1' = p1' }, p1')
-   in if c' > 0
-      then qnn
-      else let (r'
-               , ()) = (let qnn { cont = p2' } = qnn
-               in (p2', ())) !qnn
-         in qnn)
+   let ((), qnn, r') = (let (c'
+                            , _
+                            , qnn) = let pnn @{ @1 = p0' } = pnn
+            in notNull[(CPtr U32)!]{{}} p0'
+               | Nothing -> (0, (), qnn)
+               | Some p0' -> (0
+                             , ()
+                             , gencotDummy "MayNull expression used in not-null context")
+         in if c' > 0
+            then ((), qnn, r')
+            else let (r'
+                     , ()) = (let qnn { cont = p2' } = qnn
+                     in (p2', ())) !qnn
+               in ((), qnn, r')) !pnn
+   in (r', pnn, qnn)
 cogent_sn75nl : ( Cogent_nna3, MayNull (CPtr U32), U32 ) -> ( U32, Cogent_nna3, MayNull (CPtr U32) )
 cogent_sn75nl (pnn, qnl, i) =
-   let (pnn
-       , r') = let (pnn @{ @1 = p0' }
-                   , i0') = (pnn, 1)
-      and pnn = pnn @{ @i0' = p0' }
-      in notNull[CPtr U32]{{}} p0'
-         | Nothing -> (pnn, r')
-         | Some p0' -> (if i /= 0
-                       then let (pnn @{ @1 = p1' }
-                                , i1') = (pnn, 1)
-                          in pnn @{ @i1' = p1' }
-                       else pnn
-                       , cogent_fcnn (if i /= 0
-                          then let pnn @{ @1 = p1' } = pnn
-                             in p1'
-                          else qnl))
+   let (()
+       , r') = (let pnn @{ @1 = p0' } = pnn
+         in notNull[(CPtr U32)!]{{}} p0'
+            | Nothing -> ((), r')
+            | Some p0' -> (()
+                          , cogent_fcnn (gencotDummy "MayNull expression used in not-null context"))) !qnl !pnn
    in (r', pnn, qnl)
 cogent_sn75nn : ( Cogent_nna3, CPtr U32, U32 ) -> ( U32, Cogent_nna3, CPtr U32 )
 cogent_sn75nn (pnn, qnn, i) =
-   let (pnn
-       , r') = let (pnn @{ @1 = p0' }
-                   , i0') = (pnn, 1)
-      and pnn = pnn @{ @i0' = p0' }
-      in notNull[CPtr U32]{{}} p0'
-         | Nothing -> (pnn, r')
-         | Some p0' -> (if i /= 0
-                       then let (pnn @{ @1 = p1' }
-                                , i1') = (pnn, 1)
-                          in pnn @{ @i1' = p1' }
-                       else pnn
-                       , cogent_fcnn (if i /= 0
-                          then let pnn @{ @1 = p1' } = pnn
-                             in p1'
-                          else qnn))
+   let (()
+       , r') = (let pnn @{ @1 = p0' } = pnn
+         in notNull[(CPtr U32)!]{{}} p0'
+            | Nothing -> ((), r')
+            | Some p0' -> (()
+                          , cogent_fcnn (gencotDummy "MayNull expression used in not-null context"))) !qnn !pnn
    in (r', pnn, qnn)
 
 -- Probe used by accessing an array element
@@ -1838,9 +1588,9 @@ cogent_cn14 (pnl, i) =
             in if p0' < 20
                then
                   (cogent_fcnn (pnl { cont = p0' })
-                  , pnl { cont = p0' })
+                  , mayNull[CPtr U32]{{}} (pnl { cont = p0' }))
                else (cogent_fcnl v16'
-                    , pnl { cont = p0' })
+                    , mayNull[CPtr U32]{{}} (pnl { cont = p0' }))
       else (cogent_fcnl v16', pnl)
 cogent_cn15 : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
 cogent_cn15 (pnl, i) =
@@ -1854,10 +1604,11 @@ cogent_cn15 (pnl, i) =
             in if p0' < 20
                then
                   (cogent_fcnn (pnl { cont = p0' })
-                  , pnl { cont = p0' })
+                  , mayNull[CPtr U32]{{}} (pnl { cont = p0' }))
                else (cogent_fcnl v16'
-                    , pnl { cont = p0' })
-         else (cogent_fcnl v16', pnl)
+                    , mayNull[CPtr U32]{{}} (pnl { cont = p0' }))
+         else (cogent_fcnl v16'
+              , mayNull[CPtr U32]{{}} pnl)
 cogent_cn16 : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
 cogent_cn16 (pnl, i) =
    (if i > 5
@@ -1885,17 +1636,18 @@ cogent_cn18 (pnl, i) =
          | Some pnl -> let pnl { cont = p0' } = pnl
             in if p0' < 20
                then (cogent_fcnl v15'
-                    , pnl { cont = p0' })
+                    , mayNull[CPtr U32]{{}} (pnl { cont = p0' }))
                else
                   (cogent_fcnn (pnl { cont = p0' })
-                  , pnl { cont = p0' })
+                  , mayNull[CPtr U32]{{}} (pnl { cont = p0' }))
 cogent_cn19 : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
 cogent_cn19 (pnl, i) =
    (if i > 5
    then cogent_fcnl pnl
    else if not (pnl /= cogent_NULL)
       then cogent_fcnl pnl
-      else cogent_fcnn pnl
+      else
+         cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
    , pnl)
 
 -- Two NULL-tests and possibly other tests
@@ -1965,29 +1717,33 @@ cogent_cn26 (pnl, qnl, i) =
    , qnl)
 cogent_cn27 : ( MayNull (CPtr U32), MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32) )
 cogent_cn27 (pnl, qnl, i) =
-   notNull[CPtr U32]{{}} pnl
-   | Nothing -> (cogent_fcnl pnl + cogent_fcnl qnl
-                , cogent_NULL
-                , qnl)
-   | Some pnl -> let (v15'
-                     , _
-                     , _) = let pnl { cont = p0' } = pnl
-         in if p0' == 1
+   let v22' = qnl
+   in notNull[CPtr U32]{{}} pnl
+      | Nothing -> (cogent_fcnl pnl + cogent_fcnl v22'
+                   , cogent_NULL
+                   , qnl)
+      | Some pnl -> let (v15'
+                        , _
+                        , qnl) = let pnl { cont = p0' } = pnl
+            in if p0' == 1
+               then notNull[CPtr U32]{{}} qnl
+                  | Nothing -> (False
+                               , ()
+                               , cogent_NULL)
+                  | Some qnl -> let qnl { cont = p1' } = qnl
+                     in (p1' == 1
+                        , ()
+                        , mayNull[CPtr U32]{{}} (qnl { cont = p1' }))
+               else (False, (), qnl)
+         in if v15'
             then
-               notNull[(CPtr U32)!]{{}} qnl
-               | Nothing -> (False, (), ())
-               | Some qnl -> let qnl { cont = p1' } = qnl
-                  in (p1' == 1, (), ())
-            else (False, (), ())
-      in if v15'
-         then
-            (cogent_fcnl pnl + cogent_fcnl qnl
-            , pnl
-            , qnl)
-         else
-            (cogent_fcnn pnl + cogent_fcnl qnl
-            , pnl
-            , qnl)
+               (cogent_fcnl pnl + cogent_fcnl v22'
+               , mayNull[CPtr U32]{{}} pnl
+               , qnl)
+            else
+               (cogent_fcnn pnl + cogent_fcnl qnl
+               , mayNull[CPtr U32]{{}} pnl
+               , qnl)
 
 -- One NULL-test with other tests in statement
 cogent_cn31 : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
@@ -2031,9 +1787,12 @@ cogent_cn34 (pnl, i) =
             | Nothing -> (cogent_NULL, r')
             | Some pnl -> let pnl { cont = p0' } = pnl
                in if p0' < 20
-                  then (pnl { cont = p0' }
-                       , cogent_fcnn (pnl { cont = p0' }))
-                  else (pnl { cont = p0' }, r')
+                  then
+                     (mayNull[CPtr U32]{{}} (pnl { cont = p0' })
+                     , cogent_fcnn (pnl { cont = p0' }))
+                  else
+                     (mayNull[CPtr U32]{{}} (pnl { cont = p0' })
+                     , r')
          else (pnl, r')
    in (r', pnl)
 cogent_cn35 : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
@@ -2046,10 +1805,14 @@ cogent_cn35 (pnl, i) =
             then
                let pnl { cont = p0' } = pnl
                in if p0' < 20
-                  then (pnl { cont = p0' }
-                       , cogent_fcnn (pnl { cont = p0' }))
-                  else (pnl { cont = p0' }, r')
-            else (pnl, r')
+                  then
+                     (mayNull[CPtr U32]{{}} (pnl { cont = p0' })
+                     , cogent_fcnn (pnl { cont = p0' }))
+                  else
+                     (mayNull[CPtr U32]{{}} (pnl { cont = p0' })
+                     , r')
+            else (mayNull[CPtr U32]{{}} pnl
+                 , r')
    in (r', pnl)
 cogent_cn36 : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
 cogent_cn36 (pnl, i) =
@@ -2077,9 +1840,12 @@ cogent_cn38 (pnl, i) =
             | Nothing -> (cogent_NULL, r')
             | Some pnl -> let pnl { cont = p0' } = pnl
                in if p0' < 20
-                  then (pnl { cont = p0' }, r')
-                  else (pnl { cont = p0' }
-                       , cogent_fcnn (pnl { cont = p0' }))
+                  then
+                     (mayNull[CPtr U32]{{}} (pnl { cont = p0' })
+                     , r')
+                  else
+                     (mayNull[CPtr U32]{{}} (pnl { cont = p0' })
+                     , cogent_fcnn (pnl { cont = p0' }))
    in (r', pnl)
 cogent_cn39 : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
 cogent_cn39 (pnl, i) =
@@ -2087,7 +1853,8 @@ cogent_cn39 (pnl, i) =
    then cogent_fcnl pnl
    else if not (pnl /= cogent_NULL)
       then cogent_fcnl pnl
-      else cogent_fcnn pnl
+      else
+         cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
    , pnl)
 
 -- Two NULL-tests and possibly other tests in statement
@@ -2159,27 +1926,31 @@ cogent_cn47 : ( MayNull (CPtr U32), MayNull (CPtr U32), U32 ) -> ( U32, MayNull 
 cogent_cn47 (pnl, qnl, i) =
    let (pnl
        , qnl
-       , r') = notNull[CPtr U32]{{}} pnl
-      | Nothing -> (cogent_NULL
-                   , qnl
-                   , cogent_fcnl pnl + cogent_fcnl qnl)
-      | Some pnl -> let (v15'
-                        , _
-                        , _) = let pnl { cont = p0' } = pnl
-            in if p0' == 1
-               then
-                  notNull[(CPtr U32)!]{{}} qnl
-                  | Nothing -> (False, (), ())
-                  | Some qnl -> let qnl { cont = p1' } = qnl
-                     in (p1' == 1, (), ())
-               else (False, (), ())
-         in if v15'
-            then (pnl
-                 , qnl
-                 , cogent_fcnl pnl + cogent_fcnl qnl)
-            else (pnl
-                 , qnl
-                 , cogent_fcnn pnl + cogent_fcnl qnl)
+       , r') = let r' = cogent_fcnl pnl + cogent_fcnl qnl
+      in notNull[CPtr U32]{{}} pnl
+         | Nothing -> (cogent_NULL
+                      , qnl
+                      , r')
+         | Some pnl -> let (v15'
+                           , ()
+                           , qnl) = (let pnl { cont = p0' } = pnl
+                  in if p0' == 1
+                     then notNull[CPtr U32]{{}} qnl
+                        | Nothing -> (False
+                                     , ()
+                                     , cogent_NULL)
+                        | Some qnl -> let qnl { cont = p1' } = qnl
+                           in (p1' == 1
+                              , ()
+                              , mayNull[CPtr U32]{{}} (qnl { cont = p1' }))
+                     else (False, (), qnl)) !pnl
+            in if v15'
+               then (mayNull[CPtr U32]{{}} pnl
+                    , qnl
+                    , r')
+               else (mayNull[CPtr U32]{{}} pnl
+                    , qnl
+                    , cogent_fcnn pnl + cogent_fcnl qnl)
    in (r', pnl, qnl)
 
 -- Modify tested probe between uses in correct context
@@ -2203,7 +1974,8 @@ cogent_mn12 (pnl, i) =
                         , i) = (let pnl { cont = p0' } = pnl
                in (0, (), p0')) !pnl
          in if c' > 0
-            then (pnl, r')
+            then (mayNull[CPtr U32]{{}} pnl
+                 , r')
             else (cogent_NULL
                  , i + cogent_fcnn pnl + cogent_fcnl cogent_NULL)
    in (r', pnl)

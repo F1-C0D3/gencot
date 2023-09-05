@@ -17,7 +17,7 @@ import Gencot.Names (mapNull)
 import Gencot.Cogent.Ast
 import Gencot.Cogent.Error (typeMatch)
 import Gencot.Cogent.Types (
-  mkBoolType, mkU32Type, mkTupleType, mkFunType, mkReadonly, mkOption,
+  mkBoolType, mkU32Type, mkTupleType, mkFunType, mkReadonly, mkOption, mkMayNull,
   isBoolType, isTupleType, isNonlinear, isRegular, mayEscape, isReadonly, isMayNull, isArithmetic, roCmpTypes,
   unbangType, getMemberType, getDerefType, getNnlType, getParamType, getResultType, adaptTypes)
 import Gencot.Cogent.Bindings (errVar, isValVarName, mkDummyExpr, toDummyExpr, mkVarBinding, mkVarPattern, mkVarTuplePattern)
@@ -773,8 +773,7 @@ matchRoExpr vmap t e = do
 -- | Resolve readonly type incompatibilities between two expressions.
 -- For the expression(s) to be banged, the source variables are added to the state and the expression is returned.
 -- If an expression to be banged has no source variables the result is a dummy expression of the type and an error is recorded.
--- If at least one expression must be banged, the returned type is the banged type of the first expression,
--- otherwise it is the type of the first expression.
+-- The returned type is banged in every component where, after matching, both expressions have readonly type.
 matchRoExprs :: VarSourceMap -> GenExpr -> GenExpr -> Trav [CCS.VarName] (GenExpr,GenExpr,GenType)
 matchRoExprs vmap e1 e2 = do
     e1b <- changeLinToRoInExpr vmap eb1s e1
@@ -1018,8 +1017,8 @@ maynullproc :: GenExpr -> ETrav GenExpr
 maynullproc e = do
     let e1 = sepNullTests e
     -- extend take/put scopes for MayNull components here
-    return $ convNullTests [] e1
-    -- resolveMayNullDiffs $ convNullTests [] e1
+    -- return $ convNullTests [] e1
+    rslvMayNullDiffs $ convNullTests [] e1
 
 -- | Split conditional expressions to separate NULL tests from other conditions.
 sepNullTests :: GenExpr -> GenExpr
@@ -1204,76 +1203,88 @@ isFalseConst _ _ = False
 
 -- | Convert conditional expressions with a NULL test as condition to a match expression using notNull.
 -- In the Some branch change type of tested variable from MayNull wrapped to unwrapped.
--- **** todo: move out! In the Nothing branch bind tested variable to cogent_NULL.
 -- If the tested variable already has not-null type simplify the conditional expression to its then branch.
 -- The first argument is a reversed context binding list to resolve variables involved in a NULL test.
 convNullTests :: [GenBnd] -> GenExpr -> GenExpr
-convNullTests cbs e = mapExprOfGE (convNullTests' cbs) e
-
-convNullTests' :: [GenBnd] -> ExprOfGE -> ExprOfGE
-convNullTests' cbs (CS.If e0 [] e1 e2) | isNullTest cbs $ exprOfGE e0 =
+convNullTests cbs (GenExpr (CS.If e0 [] e1 e2) o _ c) =
     let e1' = convNullTests cbs e1
         e2' = convNullTests cbs e2
-    in convNullTest cbs e0 e1' e2'
-convNullTests' cbs (CS.Let bs bdy) = CS.Let bs' bdy'
+        e' = GenExpr (CS.If e0 [] e1' e2') o (adaptTypes (typOfGE e1') (typOfGE e2')) c
+    in if isNullTest cbs $ exprOfGE e0
+          then case convNullTest cbs e' of
+                    Nothing -> e'
+                    Just e'' -> e''
+          else e'
+convNullTests cbs (GenExpr (CS.Let bs bdy) o _ c) =
+    GenExpr (CS.Let bs' bdy') o (typOfGE bdy') c
     where (bs',bdy') = convNullTestsInLet cbs bs bdy
-convNullTests' cbs (CS.Lam ip mt bdy) = CS.Lam ip mt $ mapExprOfGE (convNullTests' []) bdy
-convNullTests' cbs e = fmap (convNullTests cbs) e
+convNullTests cbs (GenExpr (CS.Lam ip mt bdy) o t c) =
+    GenExpr (CS.Lam ip mt e') o (mkFunType (getParamType t) (typOfGE e')) c
+    where e' = convNullTests [] bdy
+convNullTests cbs (GenExpr (CS.App f e infx) o _ c) =
+    GenExpr (CS.App f' e' infx) o (getResultType $ typOfGE f') c
+    where f' = convNullTests cbs f
+          e' = convNullTests cbs e
+convNullTests cbs (GenExpr (CS.Tuple es) o _ c) =
+    GenExpr (CS.Tuple es') o (mkTupleType $ map typOfGE es') c
+    where es' = map (convNullTests cbs) es
+convNullTests cbs e = mapExprOfGE (fmap (convNullTests cbs)) e
 
 convNullTestsInLet :: [GenBnd] -> [GenBnd] -> GenExpr -> ([GenBnd],GenExpr)
 convNullTestsInLet cbs [] bdy = ([], convNullTests cbs bdy)
 convNullTestsInLet cbs (CS.Binding ip mt e bvs : bs) bdy =
-    (b' : bs', bdy')
-    where e' = (convNullTests cbs e)
-          b' = CS.Binding ip mt e' bvs
-          (bs',bdy') = convNullTestsInLet (b' : cbs) bs bdy
+    (b' : bs'', bdy'')
+    where e' = convNullTests cbs e
+          (ip',tvs) = fixTypeOfBound ip (typOfGE e) (typOfGE e')
+          (bs',bdy') = setTypeOfVarsInLet tvs bs bdy
+          b' = CS.Binding ip' mt e' bvs
+          (bs'',bdy'') = convNullTestsInLet (b' : cbs) bs' bdy'
 
-convNullTest :: [GenBnd] -> GenExpr -> GenExpr -> GenExpr -> ExprOfGE
-convNullTest cbs e0@(GenExpr (CS.Var v) _ _ _) e1 e2 =
+convNullTest :: [GenBnd] -> GenExpr -> Maybe GenExpr
+convNullTest cbs e@(GenExpr (CS.If _ bvs e1 e2) o t c) | (CS.Var v) <- getCond' e =
     case findBindingFor cbs v of
-         Nothing -> e
-         Just (b@(CS.Binding ip _ e0' _),bsb,bsa) ->
+         Nothing -> Nothing
+         Just (b@(CS.Binding _ _ e0' _),bsb,bsa) ->
             if exchangeableWithBindings b bsb
-               then convNullTest (bsb++bsa) e0' e1 e2
-               else e
-    where e = CS.If e0 [] e1 e2
-convNullTest cbs (GenExpr (CS.Tuple es) _ _ _) e1 e2 =
-    convNullTest cbs (head es) e1 e2
-convNullTest cbs (GenExpr (CS.Let bs bdy) _ _ _) e1 e2 =
-    convNullTest ((reverse bs)++cbs) bdy e1 e2
-convNullTest cbs (GenExpr (CS.PrimOp op es) o t c) e1 e2 | op == "==" =
-    convNullTest cbs (GenExpr (CS.PrimOp "/=" es) o t c) e2 e1
-convNullTest cbs (GenExpr (CS.PrimOp op [a1,a2]) o t c) e1 e2 | isNullConst cbs $ exprOfGE a1 =
-    convNullTest cbs (GenExpr (CS.PrimOp op [a2,a1]) o t c) e1 e2
-convNullTest cbs e0@(GenExpr (CS.PrimOp op [a1,a2]) o t c) e1 e2 =
-    case convVarNullTest cbs a1 e1 e2 of
-         Nothing -> CS.If e0 [] e1 e2
-         Just e -> e
-convNullTest _ e0 e1 e2 = error ("convNullTest e0 = " ++ (show e0))
-
-convVarNullTest :: [GenBnd] -> GenExpr -> GenExpr -> GenExpr -> Maybe ExprOfGE
-convVarNullTest cbs (GenExpr (CS.Var v) _ _ _) e1 e2 | isValVar v =
+               then convNullTest (bsb++bsa) $ GenExpr (CS.If e0' bvs e1 e2) o t c
+               else Nothing
+convNullTest cbs e@(GenExpr (CS.If _ bvs e1 e2) o t c) | (CS.Tuple es) <- getCond' e =
+    convNullTest cbs $ GenExpr (CS.If (head es) bvs e1 e2) o t c
+convNullTest cbs e@(GenExpr (CS.If _ bvs e1 e2) o t c) | (CS.Let bs bdy) <- getCond' e =
+    convNullTest ((reverse bs)++cbs) $ GenExpr (CS.If bdy bvs e1 e2) o t c
+convNullTest cbs e@(GenExpr (CS.If _ bvs e1 e2) o t c)
+    | (GenExpr (CS.PrimOp op es) co ct cc) <- getCond e, op == "==" =
+    convNullTest cbs $ GenExpr (CS.If (GenExpr (CS.PrimOp "/=" es) co ct cc) bvs e2 e1) o t c
+convNullTest cbs e@(GenExpr (CS.If _ bvs e1 e2) o t c)
+    | (GenExpr (CS.PrimOp op [a1,a2]) co ct cc) <- getCond e, isNullConst cbs $ exprOfGE a1 =
+    convNullTest cbs $ GenExpr (CS.If (GenExpr (CS.PrimOp op [a2,a1]) co ct cc) bvs e1 e2) o t c
+convNullTest cbs e@(GenExpr (CS.If _ bvs e1 e2) o t c)
+    | (GenExpr (CS.PrimOp op [GenExpr (CS.Var v) _ _ _, a2]) co ct cc) <- getCond e, isValVar v =
     case findBindingFor cbs v of
          Nothing -> Nothing
          Just (b@(CS.Binding ip _ e0' _),bsb,bsa) ->
             if exchangeableWithBindings b bsb
-               then convVarNullTest (bsb++bsa) e0' e1 e2
+               then convNullTest (bsb++bsa) $ GenExpr (CS.If (GenExpr (CS.PrimOp op [e0', a2]) co ct cc) bvs e1 e2) o t c
                else Nothing
-convVarNullTest cbs (GenExpr (CS.Tuple es) _ _ _) e1 e2 =
-    convVarNullTest cbs (head es) e1 e2
-convVarNullTest cbs (GenExpr (CS.Let bs bdy) _ _ _) e1 e2 =
-    Just $ convNullTest ((reverse bs)++cbs) bdy e1 e2
-convVarNullTest cbs p@(GenExpr (CS.Var v) _ t _) e1 e2 =
-    if isMayNull t
-       then Just $ exprOfGE $ mkMatchExpr
-                (mkAppExpr (mkTopLevelFunExpr ("notNull",mkFunType t otype) [Just ntype]) p)
-                [("Nothing", [], e2),
-                 ("Some", [mkVarPattern nvar], setTypeOfFree nvar e1)]
-       else Just $ exprOfGE e1
-    where ntype = getNnlType t
-          otype = mkOption ntype
-          nvar = TV v ntype
-convVarNullTest _ _ _ _ = Nothing
+convNullTest cbs e@(GenExpr (CS.If _ bvs e1 e2) o t c)
+    | (GenExpr (CS.PrimOp op [GenExpr (CS.Tuple es) _ _ _, a2]) co ct cc) <- getCond e =
+    convNullTest cbs $ GenExpr (CS.If (GenExpr (CS.PrimOp op [head es, a2]) co ct cc) bvs e1 e2) o t c
+convNullTest cbs e@(GenExpr (CS.If _ bvs e1 e2) o t c)
+    | (GenExpr (CS.PrimOp op [GenExpr (CS.Let bs bdy) _ _ _, a2]) co ct cc) <- getCond e =
+    convNullTest ((reverse bs)++cbs) $ GenExpr (CS.If (GenExpr (CS.PrimOp op [bdy, a2]) co ct cc) bvs e1 e2) o t c
+convNullTest cbs e@(GenExpr (CS.If _ bvs e1 e2) o t c)
+    | (GenExpr (CS.PrimOp op [a1, a2]) co ct cc) <- getCond e, (GenExpr (CS.Var v) _ vt _) <- a1 =
+    let ntype = getNnlType vt
+        otype = mkOption ntype
+        nvar = TV v ntype
+        me = mkAppExpr (mkTopLevelFunExpr ("notNull",mkFunType vt otype) [Just ntype]) a1
+        e1' = setTypeOfFree nvar e1
+    in if isMayNull vt
+          then Just $ mkMatchExpr o (adaptTypes (typOfGE e1') (typOfGE e2)) c me
+                        [("Nothing", [], e2),
+                         ("Some", [mkVarPattern nvar], e1')]
+          else Just e1
+convNullTest _ e = Nothing
 
 -- | Set the type for every free occurrence of a variable in an expression.
 -- And also for every value variable bound to a free occurrence of the variable.
@@ -1337,10 +1348,194 @@ fixTypeOfBound (GenIrrefPatn (CS.PArrayTake pv tfs) o _) t1 t2 | isMayNull t1 /=
 fixTypeOfBound ip _ _ = (ip,[])
 
 -- | Resolve type incompatibilities between MayNull wrapped types and unwrapped types.
--- Unwrapped types in MayNull context are converted by mayNull or roMayNull.
+-- Unwrapped types in MayNull context are converted by mayNull.
 -- MayNull types in unwrapped context are signaled as error and resolved by dummy expressions.
---resolveMayNullDiffs :: GenExpr -> ETrav GenExpr
--- *** todo ***
+-- The type of the expression remains unchanged.
+rslvMayNullDiffs :: GenExpr -> ETrav GenExpr
+rslvMayNullDiffs (GenExpr (CS.If e0 bvs e1 e2) o t c) = do
+    e0b <- rslvMayNullDiffs e0
+    e1b <- rslvMayNullDiffs e1
+    e2b <- rslvMayNullDiffs e2
+    e1bm <- matchMayNullExpr t e1b
+    e2bm <- matchMayNullExpr t e2b
+    return $ GenExpr (CS.If e0b bvs e1bm e2bm) o t c
+-- (todo) here we assume that generated match expressions always have two alternatives
+rslvMayNullDiffs (GenExpr (CS.Match e0 bvs [CS.Alt p1 l1 e1, CS.Alt p2 l2 e2]) o t c) = do
+    e0b <- rslvMayNullDiffs e0
+    e1b <- rslvMayNullDiffs e1
+    e2b <- rslvMayNullDiffs e2
+    e1bm <- matchMayNullExpr t e1b
+    e2bm <- matchMayNullExpr t e2b
+    return $ GenExpr (CS.Match e0b bvs [CS.Alt p1 l1 e1bm, CS.Alt p2 l2 e2bm]) o t c
+rslvMayNullDiffs (GenExpr (CS.Let bs bdy) o t c) = do
+    (bsb,bdyb) <- rslvMayNullDiffsInLet bs bdy
+    return $ GenExpr (CS.Let bsb bdyb) o t c
+rslvMayNullDiffs e =
+    mapMExprOfGE (mapM rslvMayNullDiffs) e
+
+-- | Resolve type incompatibilities between MayNull wrapped types and unwrapped types.
+-- Works as for rslvMayNullDiffs.
+rslvMayNullDiffsInLet :: [GenBnd] -> GenExpr -> ETrav ([GenBnd],GenExpr)
+rslvMayNullDiffsInLet [] bdy = do
+    bdyb <- rslvMayNullDiffs bdy
+    return ([],bdyb)
+rslvMayNullDiffsInLet ((CS.Binding ip m e bvs):bs) bdy = do
+    (prebs,eb) <- rslvMayNullDiffsWithBindings e
+    let (tbs,ebs) = matchMayNullTypes tip (typOfGE eb)
+    eb' <- markMayNullAsError tbs tip eb
+    let (postbs,ipb) = rslvMayNullDiffsInPattern ebs ip
+    let b' = CS.Binding ipb m eb' bvs
+    (bsb,bdyb) <- rslvMayNullDiffsInLet bs bdy
+    return (prebs ++ (b': (postbs ++ bsb)), bdyb)
+    where tip = typOfGIP ip
+
+-- | Resolve type incompatibilities between MayNull wrapped types and unwrapped types.
+-- In case of a function application resolve mayNull clashes between formal and actual arguments
+-- by returning additional bindings which adapt the argument variables by applying mayNull.
+rslvMayNullDiffsWithBindings :: GenExpr -> ETrav ([GenBnd], GenExpr)
+rslvMayNullDiffsWithBindings (GenExpr (CS.App f e infx) o t c) = do
+    -- e is a single variable or a tuple of variables
+    eb' <- markMayNullAsError tbs (getParamType $ typOfGE f) eb
+    return (bs, (GenExpr (CS.App f eb' infx) o t c))
+    where (tbs,ebs) = matchMayNullTypes (getParamType $ typOfGE f) $ typOfGE e
+          bs = mkMayNullBindings $ getVariablesFromExpr ebs e
+          eb = wrapMayNullTypeInExpr ebs e
+rslvMayNullDiffsWithBindings e = do
+    e' <- rslvMayNullDiffs e
+    return ([], e')
+
+-- | For every variable create a binding which applies the mayNull function to it.
+-- All variables have not-null type.
+mkMayNullBindings :: [TypedVar] -> [GenBnd]
+mkMayNullBindings tvs =
+    map (\(TV v t) -> mkVarBinding (TV v $ mkMayNull t)
+         $ mkAppExpr (mkTopLevelFunExpr ("mayNull",mkFunType t $ mkMayNull t) [Just t]) $ mkVarExpr (TV v t)) tvs
+
+-- | Retrieve some typed variables from an expression.
+-- The expression must be a single variable or a tuple of variables.
+-- The first argument is a boolean vector specifying the tuple components to be retrieved,
+-- if the expression is seen as a tuple.
+getVariablesFromExpr :: [Bool] -> GenExpr -> [TypedVar]
+getVariablesFromExpr bools e | not $ or bools = []
+getVariablesFromExpr [True] (GenExpr (CS.Var v) _ t _) = [TV v t]
+getVariablesFromExpr bools (GenExpr (CS.Tuple es) _ _ _) =
+    nub $ concat $ map (\(b,e) -> getVariablesFromExpr [b] e) $ zip bools es
+-- should not occur:
+getVariablesFromExpr _ _ = []
+
+-- | Change type of some components in an expression from unwrapped to MayNull wrapped
+-- The first argument is a boolean vector specifying the tuple components to be changed,
+-- if the expression is seen as a tuple.
+wrapMayNullTypeInExpr :: [Bool] -> GenExpr -> GenExpr
+wrapMayNullTypeInExpr bools e | not $ or bools = e
+wrapMayNullTypeInExpr [True] (GenExpr e' o t c) =
+    GenExpr e' o (mkMayNull t) c
+wrapMayNullTypeInExpr bools (GenExpr (CS.Tuple es) o _ c) =
+    GenExpr (CS.Tuple es') o (mkTupleType $ map typOfGE es') c
+    where es' = map (\(b,e) -> wrapMayNullTypeInExpr [b] e) $ zip bools es
+-- should not occur:
+wrapMayNullTypeInExpr _ e = e
+
+-- | Change type of some components in a pattern from MayNull wrapped to unwrapped
+-- and return mayNull applications for the corresponding variables.
+-- The first argument is a boolean vector specifying the tuple components to be changed,
+-- if the pattern is seen as a tuple.
+rslvMayNullDiffsInPattern :: [Bool] -> GenIrrefPatn -> ([GenBnd], GenIrrefPatn)
+rslvMayNullDiffsInPattern bools ip = (bs, ip')
+    where tp = (typOfGIP ip)
+          tp' = unwrapMayNullInType bools tp
+          (ip',tvs) = fixTypeOfBound ip tp tp'
+          bs = mkMayNullBindings tvs
+
+-- | Resolve MayNull type incompatibilities between a type and an expression.
+-- If the type is not-null the result is a dummy expression of the type and an error is recorded.
+-- Otherwise, if the expression is not-null it is converted by applying the mayNull operation.
+-- If the type is a tuple type the expression must also have a tuple type of the same size,
+-- then the type incompatibilities are resolved between the corresponding tuple components.
+matchMayNullExpr :: GenType -> GenExpr -> ETrav GenExpr
+matchMayNullExpr t e = do
+    markMayNullAsError tbs t eb
+    where (tbs,ebs) = matchMayNullTypes t $ typOfGE e
+          eb = wrapMayNullInExpr ebs e
+
+-- | Change some components of not-null type to MayNull type by applying the mayNull operation.
+-- The first argument is a boolean vector specifying the tuple components to be changed,
+-- if the expression is seen as a tuple.
+wrapMayNullInExpr :: [Bool] -> GenExpr -> GenExpr
+wrapMayNullInExpr bools e | not $ or bools = e
+wrapMayNullInExpr [True] (GenExpr (CS.Var v) o t c) =
+    mkLetExpr (mkMayNullBindings [(TV v t)]) $ GenExpr (CS.Var v) o (mkMayNull t) c
+wrapMayNullInExpr bools (GenExpr (CS.Tuple es) o t c) =
+    mkLetExpr (concat bss) $ GenExpr (CS.Tuple es') o (mkTupleType (map typOfGE es')) c
+    where (bss,es') = unzip $ map (\(b,e) -> extractBindingsFromLet $ wrapMayNullInExpr [b] e) $ zip bools es
+wrapMayNullInExpr bools (GenExpr (CS.Let bs bdy) o t c) =
+    mkLetExpr (bs++bs') bdy'
+    where (bs',bdy') = extractBindingsFromLet $ wrapMayNullInExpr bools bdy
+wrapMayNullInExpr bools (GenExpr (CS.If e0 bvs e1 e2) o t c) =
+    GenExpr (CS.If e0 bvs e1' e2') o (adaptTypes (typOfGE e1') (typOfGE e2')) c
+    where e1' = wrapMayNullInExpr bools e1
+          e2' = wrapMayNullInExpr bools e2
+wrapMayNullInExpr bools (GenExpr (CS.Match e0 bvs alts) o t c) =
+    GenExpr (CS.Match e0 bvs alts') o tm c
+    where es = map (\(CS.Alt p l e) -> wrapMayNullInExpr bools e) alts
+          alts' = map (\((CS.Alt p l _),e) -> CS.Alt p l e) $ zip alts es
+          tm = foldl1' adaptTypes $ map typOfGE es
+-- should not occur:
+wrapMayNullInExpr _ e = e
+
+extractBindingsFromLet :: GenExpr -> ([GenBnd], GenExpr)
+extractBindingsFromLet (GenExpr (CS.Let bs bdy) _ _ _) = (bs,bdy)
+extractBindingsFromLet e = ([],e)
+
+unwrapMayNullInType :: [Bool] -> GenType -> GenType
+unwrapMayNullInType [True] t = getNnlType t
+unwrapMayNullInType [False] t = t
+unwrapMayNullInType bools (GenType (CS.TTuple ts) o _) =
+    GenType (CS.TTuple $ map (\(b,t) -> unwrapMayNullInType [b] t) $ zip bools ts) o Nothing
+
+-- | Replace some subexpressions of MayNull type by dummy expressions.
+-- The first argument is a boolean vector specifying the tuple components to be replaced,
+-- if the expression is seen as a tuple.
+-- The second argument is the type which the expression shall have after the replacements.
+markMayNullAsError :: [Bool] -> GenType -> GenExpr -> ETrav GenExpr
+markMayNullAsError bools _ e | not $ or bools = return e
+markMayNullAsError [True] t e = do
+    recordError $ typeMatch (orgOfGE e) msg
+    return $ toDummyExpr e $ mkDummyExpr t msg
+    where msg = "MayNull expression used in not-null context"
+markMayNullAsError bools (GenType (CS.TTuple ts) _ _) (GenExpr (CS.Tuple es) o _ s) = do
+    esb <- mapM (\(b,t,e) -> markMayNullAsError [b] t e) $ zip3 bools ts es
+    return $ GenExpr (CS.Tuple esb) o (mkTupleType (map typOfGE esb)) s
+markMayNullAsError bools t (GenExpr (CS.Let bs bdy) o _ s) = do
+    bdyb <- markMayNullAsError bools t bdy
+    return $ GenExpr (CS.Let bs bdyb) o (typOfGE bdyb) s
+markMayNullAsError bools t e@(GenExpr (CS.App _ _ _) _ _ _) = do
+    recordError $ typeMatch (orgOfGE e) msg
+    return $ toDummyExpr e $ mkDummyExpr t msg
+    where poss = (show $ map snd $ filter fst $ zip bools (iterate (1 +) 1))
+          msg = ("MayNull function result used in not-null context at position(s): " ++ poss)
+markMayNullAsError bools t (GenExpr (CS.If e0 bvs e1 e2) o _ s) = do
+    e1b <- markMayNullAsError bools t e1
+    e2b <- markMayNullAsError bools t e2
+    return $ GenExpr (CS.If e0 bvs e1b e2b) o (adaptTypes (typOfGE e1b) (typOfGE e2b)) s
+markMayNullAsError bools t (GenExpr (CS.Match e0 bvs alts) o _ s) = do
+    altsb <- mapM (\(CS.Alt p l e) -> do {e' <- markMayNullAsError bools t e; return $ CS.Alt p l e'}) alts
+    let tm = foldl1' adaptTypes $ map (\(CS.Alt _ _ e) -> typOfGE e) altsb
+    return $ GenExpr (CS.Match e0 bvs altsb) o tm s
+
+-- | Resolve MayNull type incompatibilities between two types.
+-- Types are seen as tuples, the results are two boolean lists according to the tuple components.
+-- The result is True for a component which must be MayNull wrapped so that it is MayNull compatible with the corresponding component.
+-- Assumes that the type components differ atmost by MayNull and read-only or one is String and the other is array of U8.
+matchMayNullTypes :: GenType -> GenType -> ([Bool],[Bool])
+matchMayNullTypes (GenType (CS.TTuple ts1) _ _) (GenType (CS.TTuple ts2) _ _) =
+    unzip $ map (uncurry matchMayNullTypes') $ zip ts1 ts2
+matchMayNullTypes t1 t2 = unzip [matchMayNullTypes' t1 t2]
+
+matchMayNullTypes' :: GenType -> GenType -> (Bool,Bool)
+matchMayNullTypes' t1 t2 | isMayNull t1 == isMayNull t2 = (False,False)
+matchMayNullTypes' t1 t2 | isMayNull t1 = (False,True)
+matchMayNullTypes' t1 t2 | isMayNull t2 = (True,False)
 
 -- | For every nothing-branch of a NULL test bind the tested variable to cogent_NULL.
 -- This prevents double use if the variable has linear type.

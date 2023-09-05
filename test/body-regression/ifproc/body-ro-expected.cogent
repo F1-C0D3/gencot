@@ -5,14 +5,23 @@ cogent_fcln : CPtr U32 -> U32
 cogent_fcln i = 0
 cogent_fcro : (CPtr U32)! -> U32
 cogent_fcro i = 0
+cogent_fcmln : MayNull (CPtr U32) -> U32
+cogent_fcmln i = 0
+cogent_fcmro : (MayNull ((CPtr U32)!))! -> U32
+cogent_fcmro i = 0
 -- Global variables used as context:
 type GlobState1 =
    CPtr (CPtr U32)
 type GlobState2 =
    CPtr ((CPtr U32)!)
+type GlobState3 =
+   CPtr (MayNull (CPtr U32))
+type GlobState4 =
+   CPtr ((MayNull ((CPtr U32)!))!)
 
 -- struct probes:
 type Struct_Cogent_ros1 = { mrg : U32, mro : (CPtr U32)!, mln : CPtr U32 }
+type Struct_Cogent_rosm1 = { mrg : U32, mro : (MayNull ((CPtr U32)!))!, mln : MayNull (CPtr U32) }
 type Struct_Cogent_ros2 = { sln : Struct_Cogent_ros1, sub : #Struct_Cogent_ros1 }
 
 -- array probes:
@@ -21,6 +30,10 @@ type Cogent_roa2 =
    CArr5 ((CPtr U32)!) -- readonly elements
 type Cogent_roa3 =
    CArr5 (CPtr U32) -- linear elements
+type Cogent_roam2 =
+   CArr5 ((MayNull ((CPtr U32)!))!) -- readonly maynull elements
+type Cogent_roam3 =
+   CArr5 (MayNull (CPtr U32)) -- linear maynull elements
 type Cogent_roa4 =
    CArr5 #Cogent_roa1 -- array elements
 type Cogent_roa5 =
@@ -815,7 +828,7 @@ cogent_bs12 (pln, qro, i) =
          in (p1', ())) !pln
    in (pln { mrg = v13' }
       , pln { mrg = v13' })
-cogent_bs13 : ( Struct_Cogent_ros1, (CPtr U32)!, MayNull (CPtr U32) ) -> ( Struct_Cogent_ros1, Struct_Cogent_ros1, MayNull (CPtr U32) )
+cogent_bs13 : ( Struct_Cogent_ros1, (CPtr U32)!, CPtr U32 ) -> ( Struct_Cogent_ros1, Struct_Cogent_ros1, CPtr U32 )
 cogent_bs13 (pln, qro, i) =
    let (v14'
        , ()
@@ -832,30 +845,30 @@ cogent_bs13 (pln, qro, i) =
 -- Direct use of NULL in context
 cogent_n11ln : () -> U32
 cogent_n11ln () =
-   cogent_fcln cogent_NULL
+   cogent_fcmln cogent_NULL
 cogent_n11ro : () -> U32
 cogent_n11ro () =
-   cogent_fcro cogent_NULL
+   cogent_fcmro cogent_NULL
 cogent_n14ln : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
 cogent_n14ln (qln, i) =
-   (cogent_fcln (if i /= 0
+   (cogent_fcmln (if i /= 0
       then cogent_NULL
       else qln)
    , qln)
 cogent_n14ro : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
 cogent_n14ro (qln, i) =
-   let r' = cogent_fcro (if i /= 0
+   let r' = cogent_fcmro (if i /= 0
          then cogent_NULL
          else qln) !qln
    in (r', qln)
 
 -- NULL assigned to variable
-cogent_n21ln : GlobState1 -> ( (), GlobState1 )
+cogent_n21ln : GlobState3 -> ( (), GlobState3 )
 cogent_n21ln g =
    (()
    , let g { cont = _ } = g
    in g { cont = cogent_NULL })
-cogent_n21ro : GlobState2 -> ( (), GlobState2 )
+cogent_n21ro : GlobState4 -> ( (), GlobState4 )
 cogent_n21ro g =
    (()
    , let g { cont = _ } = g
@@ -877,32 +890,32 @@ cogent_n31ro () = cogent_NULL
 -- Using NULL twice
 cogent_n41lnln : () -> U32
 cogent_n41lnln () =
-   cogent_fcln cogent_NULL + cogent_fcln cogent_NULL
+   cogent_fcmln cogent_NULL + cogent_fcmln cogent_NULL
 cogent_n42lnro : () -> U32
 cogent_n42lnro () =
-   cogent_fcln cogent_NULL + cogent_fcro cogent_NULL
+   cogent_fcmln cogent_NULL + cogent_fcmro cogent_NULL
 cogent_n43roro : () -> U32
 cogent_n43roro () =
-   cogent_fcro cogent_NULL + cogent_fcro cogent_NULL
+   cogent_fcmro cogent_NULL + cogent_fcmro cogent_NULL
 
 -- NULL assigned to struct component or array element
-cogent_n91ln : MayNull Struct_Cogent_ros1 -> ( (), MayNull Struct_Cogent_ros1 )
+cogent_n91ln : MayNull Struct_Cogent_rosm1 -> ( (), MayNull Struct_Cogent_rosm1 )
 cogent_n91ln pln =
    (()
    , let pln { mln = _ } = pln
    in pln { mln = cogent_NULL })
-cogent_n91ro : MayNull Struct_Cogent_ros1 -> ( (), MayNull Struct_Cogent_ros1 )
+cogent_n91ro : MayNull Struct_Cogent_rosm1 -> ( (), MayNull Struct_Cogent_rosm1 )
 cogent_n91ro pln =
    (()
    , let pln { mro = _ } = pln
    in pln { mro = cogent_NULL })
-cogent_n92ln : Cogent_roa3 -> ( (), Cogent_roa3 )
+cogent_n92ln : Cogent_roam3 -> ( (), Cogent_roam3 )
 cogent_n92ln pln =
    (()
    , let (pln @{ @1 = _ }
          , i0') = (pln, 1)
    in pln @{ @i0' = cogent_NULL })
-cogent_n92ro : Cogent_roa2 -> ( (), Cogent_roa2 )
+cogent_n92ro : Cogent_roam2 -> ( (), Cogent_roam2 )
 cogent_n92ro pln =
    (()
    , let (pln @{ @1 = _ }

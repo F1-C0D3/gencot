@@ -8,14 +8,32 @@ cogent_fcro i :: (CPtr =  { cont : U32 }!) =
    let r' :: U32 = let v' :: U32 = 0 :: U32
       in v' :: U32 :: U32
    in r' :: U32 :: U32
+cogent_fcmln : MayNull (CPtr =  { cont : U32 }) -> U32
+cogent_fcmln i :: MayNull (CPtr =  { cont : U32 }) =
+   let r' :: U32 = let v' :: U32 = 0 :: U32
+      in v' :: U32 :: U32
+   in r' :: U32 :: U32
+cogent_fcmro : (MayNull (CPtr =  { cont : U32 }!))! -> U32
+cogent_fcmro i :: (MayNull (CPtr =  { cont : U32 }!))! =
+   let r' :: U32 = let v' :: U32 = 0 :: U32
+      in v' :: U32 :: U32
+   in r' :: U32 :: U32
 type GlobState1 =
    (CPtr =  { cont : (CPtr =  { cont : U32 }) })
 type GlobState2 =
    (CPtr =  { cont : (CPtr =  { cont : U32 }!) })
+type GlobState3 =
+   (CPtr =  { cont : MayNull (CPtr =  { cont : U32 }) })
+type GlobState4 =
+   (CPtr =  { cont : (MayNull (CPtr =  { cont : U32 }!))! })
 type Struct_Cogent_ros1 =
     { mrg : U32
     , mro : (CPtr =  { cont : U32 }!)
     , mln : (CPtr =  { cont : U32 }) }
+type Struct_Cogent_rosm1 =
+    { mrg : U32
+    , mro : (MayNull (CPtr =  { cont : U32 }!))!
+    , mln : MayNull (CPtr =  { cont : U32 }) }
 type Struct_Cogent_ros2 =
     { sln : (Struct_Cogent_ros1 =  { mrg : U32
                                    , mro : (CPtr =  { cont : U32 }!)
@@ -28,6 +46,10 @@ type Cogent_roa2 =
    CArr5 (CPtr =  { cont : U32 }!)
 type Cogent_roa3 =
    CArr5 (CPtr =  { cont : U32 })
+type Cogent_roam2 =
+   CArr5 ((MayNull (CPtr =  { cont : U32 }!))!)
+type Cogent_roam3 =
+   CArr5 (MayNull (CPtr =  { cont : U32 }))
 type Cogent_roa4 =
    CArr5 (Cogent_roa1 =  #{ arr5 : U32#[() :: ()] })
 type Cogent_roa5 =
@@ -5001,29 +5023,29 @@ cogent_bs13 : ((Struct_Cogent_ros1 =  { mrg : U32
                                       , mro : (CPtr =  { cont : U32 }!)
                                       , mln : (CPtr =  { cont : U32 }) })
               , (CPtr =  { cont : U32 }!)
-              , MayNull (CPtr =  { cont : U32 })) -> ((Struct_Cogent_ros1 =  { mrg : U32
-                                                                             , mro : (CPtr =  { cont : U32 }!)
-                                                                             , mln : (CPtr =  { cont : U32 }) })
-                                                     , (Struct_Cogent_ros1 =  { mrg : U32
-                                                                              , mro : (CPtr =  { cont : U32 }!)
-                                                                              , mln : (CPtr =  { cont : U32 }) })
-                                                     , MayNull (CPtr =  { cont : U32 }))
+              , (CPtr =  { cont : U32 })) -> ((Struct_Cogent_ros1 =  { mrg : U32
+                                                                     , mro : (CPtr =  { cont : U32 }!)
+                                                                     , mln : (CPtr =  { cont : U32 }) })
+                                             , (Struct_Cogent_ros1 =  { mrg : U32
+                                                                      , mro : (CPtr =  { cont : U32 }!)
+                                                                      , mln : (CPtr =  { cont : U32 }) })
+                                             , (CPtr =  { cont : U32 }))
 cogent_bs13 (pln :: (Struct_Cogent_ros1 =  { mrg : U32
                                            , mro : (CPtr =  { cont : U32 }!)
                                            , mln : (CPtr =  { cont : U32 }) })
             , qro :: (CPtr =  { cont : U32 }!)
-            , i :: MayNull (CPtr =  { cont : U32 })) =
+            , i :: (CPtr =  { cont : U32 })) =
    let (r' :: (Struct_Cogent_ros1 =  { mrg : U32
                                      , mro : (CPtr =  { cont : U32 }!)
                                      , mln : (CPtr =  { cont : U32 }) })
        , pln :: (Struct_Cogent_ros1 =  { mrg : U32
                                        , mro : (CPtr =  { cont : U32 }!)
                                        , mln : (CPtr =  { cont : U32 }) })
-       , i :: MayNull (CPtr =  { cont : U32 })) = let v' :: (Struct_Cogent_ros1 =  { mrg : U32
-                                                                                   , mro : (CPtr =  { cont : U32 }!)
-                                                                                   , mln : (CPtr =  { cont : U32 }) }) = pln :: (Struct_Cogent_ros1 =  { mrg : U32
-                                                                                                                                                       , mro : (CPtr =  { cont : U32 }!)
-                                                                                                                                                       , mln : (CPtr =  { cont : U32 }) })
+       , i :: (CPtr =  { cont : U32 })) = let v' :: (Struct_Cogent_ros1 =  { mrg : U32
+                                                                           , mro : (CPtr =  { cont : U32 }!)
+                                                                           , mln : (CPtr =  { cont : U32 }) }) = pln :: (Struct_Cogent_ros1 =  { mrg : U32
+                                                                                                                                               , mro : (CPtr =  { cont : U32 }!)
+                                                                                                                                               , mln : (CPtr =  { cont : U32 }) })
       and pln { mln = p0' :: (CPtr =  { cont : U32 }) } :: (Struct_Cogent_ros1 =  { mrg : U32
                                                                                   , mro : (CPtr =  { cont : U32 }!)
                                                                                   , mln : (CPtr =  { cont : U32 }) }) = v' :: (Struct_Cogent_ros1 =  { mrg : U32
@@ -5042,12 +5064,12 @@ cogent_bs13 (pln :: (Struct_Cogent_ros1 =  { mrg : U32
       and v5' :: (CPtr =  { cont : U32 }!) = qro :: (CPtr =  { cont : U32 }!)
       and qro { cont = p1' :: U32 } :: (CPtr =  { cont : U32 }!) = v5' :: (CPtr =  { cont : U32 }!)
       and v6' :: U32 = p1' :: U32
-      and v7' :: MayNull (CPtr =  { cont : U32 }) = i :: MayNull (CPtr =  { cont : U32 })
-      and i { cont = p2' :: U32 } :: MayNull (CPtr =  { cont : U32 }) = v7' :: MayNull (CPtr =  { cont : U32 })
+      and v7' :: (CPtr =  { cont : U32 }) = i :: (CPtr =  { cont : U32 })
+      and i { cont = p2' :: U32 } :: (CPtr =  { cont : U32 }) = v7' :: (CPtr =  { cont : U32 })
       and v9' :: U32 = v6' :: U32
       and p2' :: U32 = v9' :: U32
-      and i :: MayNull (CPtr =  { cont : U32 }) = i :: MayNull (CPtr =  { cont : U32 }) { cont = p2' :: U32 } :: MayNull (CPtr =  { cont : U32 })
-      and v11' :: MayNull (CPtr =  { cont : U32 }) = i :: MayNull (CPtr =  { cont : U32 })
+      and i :: (CPtr =  { cont : U32 }) = i :: (CPtr =  { cont : U32 }) { cont = p2' :: U32 } :: (CPtr =  { cont : U32 })
+      and v11' :: (CPtr =  { cont : U32 }) = i :: (CPtr =  { cont : U32 })
       and v12' :: (Struct_Cogent_ros1 =  { mrg : U32
                                          , mro : (CPtr =  { cont : U32 }!)
                                          , mln : (CPtr =  { cont : U32 }) }) = pln :: (Struct_Cogent_ros1 =  { mrg : U32
@@ -5058,8 +5080,8 @@ cogent_bs13 (pln :: (Struct_Cogent_ros1 =  { mrg : U32
                                                                                   , mln : (CPtr =  { cont : U32 }) }) = v12' :: (Struct_Cogent_ros1 =  { mrg : U32
                                                                                                                                                        , mro : (CPtr =  { cont : U32 }!)
                                                                                                                                                        , mln : (CPtr =  { cont : U32 }) })
-      and v14' :: MayNull (CPtr =  { cont : U32 }) = v11' :: MayNull (CPtr =  { cont : U32 })
-      and p3' :: (CPtr =  { cont : U32 }) = v14' :: MayNull (CPtr =  { cont : U32 })
+      and v14' :: (CPtr =  { cont : U32 }) = v11' :: (CPtr =  { cont : U32 })
+      and p3' :: (CPtr =  { cont : U32 }) = v14' :: (CPtr =  { cont : U32 })
       and pln :: (Struct_Cogent_ros1 =  { mrg : U32
                                         , mro : (CPtr =  { cont : U32 }!)
                                         , mln : (CPtr =  { cont : U32 }) }) = pln :: (Struct_Cogent_ros1 =  { mrg : U32
@@ -5078,38 +5100,38 @@ cogent_bs13 (pln :: (Struct_Cogent_ros1 =  { mrg : U32
          , pln :: (Struct_Cogent_ros1 =  { mrg : U32
                                          , mro : (CPtr =  { cont : U32 }!)
                                          , mln : (CPtr =  { cont : U32 }) })
-         , i :: MayNull (CPtr =  { cont : U32 })) :: ((Struct_Cogent_ros1 =  { mrg : U32
-                                                                             , mro : (CPtr =  { cont : U32 }!)
-                                                                             , mln : (CPtr =  { cont : U32 }) })
-                                                     , (Struct_Cogent_ros1 =  { mrg : U32
-                                                                              , mro : (CPtr =  { cont : U32 }!)
-                                                                              , mln : (CPtr =  { cont : U32 }) })
-                                                     , MayNull (CPtr =  { cont : U32 }))
+         , i :: (CPtr =  { cont : U32 })) :: ((Struct_Cogent_ros1 =  { mrg : U32
+                                                                     , mro : (CPtr =  { cont : U32 }!)
+                                                                     , mln : (CPtr =  { cont : U32 }) })
+                                             , (Struct_Cogent_ros1 =  { mrg : U32
+                                                                      , mro : (CPtr =  { cont : U32 }!)
+                                                                      , mln : (CPtr =  { cont : U32 }) })
+                                             , (CPtr =  { cont : U32 }))
    in (r' :: (Struct_Cogent_ros1 =  { mrg : U32
                                     , mro : (CPtr =  { cont : U32 }!)
                                     , mln : (CPtr =  { cont : U32 }) })
       , pln :: (Struct_Cogent_ros1 =  { mrg : U32
                                       , mro : (CPtr =  { cont : U32 }!)
                                       , mln : (CPtr =  { cont : U32 }) })
-      , i :: MayNull (CPtr =  { cont : U32 })) :: ((Struct_Cogent_ros1 =  { mrg : U32
-                                                                          , mro : (CPtr =  { cont : U32 }!)
-                                                                          , mln : (CPtr =  { cont : U32 }) })
-                                                  , (Struct_Cogent_ros1 =  { mrg : U32
-                                                                           , mro : (CPtr =  { cont : U32 }!)
-                                                                           , mln : (CPtr =  { cont : U32 }) })
-                                                  , MayNull (CPtr =  { cont : U32 }))
+      , i :: (CPtr =  { cont : U32 })) :: ((Struct_Cogent_ros1 =  { mrg : U32
+                                                                  , mro : (CPtr =  { cont : U32 }!)
+                                                                  , mln : (CPtr =  { cont : U32 }) })
+                                          , (Struct_Cogent_ros1 =  { mrg : U32
+                                                                   , mro : (CPtr =  { cont : U32 }!)
+                                                                   , mln : (CPtr =  { cont : U32 }) })
+                                          , (CPtr =  { cont : U32 }))
 cogent_n11ln : () -> U32
 cogent_n11ln () :: () =
-   let r' :: U32 = let v' :: (CPtr =  { cont : U32 }) -> U32 = cogent_fcln :: (CPtr =  { cont : U32 }) -> U32
+   let r' :: U32 = let v' :: MayNull (CPtr =  { cont : U32 }) -> U32 = cogent_fcmln :: MayNull (CPtr =  { cont : U32 }) -> U32
       and v1' :: MayNull CVoidPtr = cogent_NULL :: MayNull CVoidPtr
-      and v2' :: U32 = v' :: (CPtr =  { cont : U32 }) -> U32 v1' :: MayNull CVoidPtr :: U32
+      and v2' :: U32 = v' :: MayNull (CPtr =  { cont : U32 }) -> U32 v1' :: MayNull CVoidPtr :: U32
       in v2' :: U32 :: U32
    in r' :: U32 :: U32
 cogent_n11ro : () -> U32
 cogent_n11ro () :: () =
-   let r' :: U32 = let v' :: (CPtr =  { cont : U32 }!) -> U32 = cogent_fcro :: (CPtr =  { cont : U32 }!) -> U32
+   let r' :: U32 = let v' :: (MayNull (CPtr =  { cont : U32 }!))! -> U32 = cogent_fcmro :: (MayNull (CPtr =  { cont : U32 }!))! -> U32
       and v1' :: MayNull CVoidPtr = cogent_NULL :: MayNull CVoidPtr
-      and v2' :: U32 = v' :: (CPtr =  { cont : U32 }!) -> U32 v1' :: MayNull CVoidPtr :: U32
+      and v2' :: U32 = v' :: (MayNull (CPtr =  { cont : U32 }!))! -> U32 v1' :: MayNull CVoidPtr :: U32
       in v2' :: U32 :: U32
    in r' :: U32 :: U32
 cogent_n14ln : (MayNull (CPtr =  { cont : U32 })
@@ -5117,7 +5139,7 @@ cogent_n14ln : (MayNull (CPtr =  { cont : U32 })
                          , MayNull (CPtr =  { cont : U32 }))
 cogent_n14ln (qln :: MayNull (CPtr =  { cont : U32 })
              , i :: U32) =
-   let r' :: U32 = let v' :: (CPtr =  { cont : U32 }) -> U32 = cogent_fcln :: (CPtr =  { cont : U32 }) -> U32
+   let r' :: U32 = let v' :: MayNull (CPtr =  { cont : U32 }) -> U32 = cogent_fcmln :: MayNull (CPtr =  { cont : U32 }) -> U32
       and v4' :: MayNull (CPtr =  { cont : U32 }) = let v1' :: U32 = i :: U32
          in if v1' :: U32 /= 0 :: U32 :: Bool
             then
@@ -5126,7 +5148,7 @@ cogent_n14ln (qln :: MayNull (CPtr =  { cont : U32 })
             else
                let v3' :: MayNull (CPtr =  { cont : U32 }) = qln :: MayNull (CPtr =  { cont : U32 })
                in v3' :: MayNull (CPtr =  { cont : U32 }) :: MayNull (CPtr =  { cont : U32 }) :: MayNull (CPtr =  { cont : U32 }) :: MayNull (CPtr =  { cont : U32 })
-      and v5' :: U32 = v' :: (CPtr =  { cont : U32 }) -> U32 v4' :: MayNull (CPtr =  { cont : U32 }) :: U32
+      and v5' :: U32 = v' :: MayNull (CPtr =  { cont : U32 }) -> U32 v4' :: MayNull (CPtr =  { cont : U32 }) :: U32
       in v5' :: U32 :: U32
    in (r' :: U32
       , qln :: MayNull (CPtr =  { cont : U32 })) :: (U32
@@ -5136,7 +5158,7 @@ cogent_n14ro : (MayNull (CPtr =  { cont : U32 })
                          , MayNull (CPtr =  { cont : U32 }))
 cogent_n14ro (qln :: MayNull (CPtr =  { cont : U32 })
              , i :: U32) =
-   let r' :: U32 = let v' :: (CPtr =  { cont : U32 }!) -> U32 = cogent_fcro :: (CPtr =  { cont : U32 }!) -> U32
+   let r' :: U32 = let v' :: (MayNull (CPtr =  { cont : U32 }!))! -> U32 = cogent_fcmro :: (MayNull (CPtr =  { cont : U32 }!))! -> U32
       and v4' :: MayNull (CPtr =  { cont : U32 }) = let v1' :: U32 = i :: U32
          in if v1' :: U32 /= 0 :: U32 :: Bool
             then
@@ -5145,37 +5167,37 @@ cogent_n14ro (qln :: MayNull (CPtr =  { cont : U32 })
             else
                let v3' :: MayNull (CPtr =  { cont : U32 }) = qln :: MayNull (CPtr =  { cont : U32 })
                in v3' :: MayNull (CPtr =  { cont : U32 }) :: MayNull (CPtr =  { cont : U32 }) :: MayNull (CPtr =  { cont : U32 }) :: MayNull (CPtr =  { cont : U32 })
-      and v5' :: U32 = v' :: (CPtr =  { cont : U32 }!) -> U32 v4' :: MayNull (CPtr =  { cont : U32 }) :: U32
+      and v5' :: U32 = v' :: (MayNull (CPtr =  { cont : U32 }!))! -> U32 v4' :: MayNull (CPtr =  { cont : U32 }) :: U32
       in v5' :: U32 :: U32
    in (r' :: U32
       , qln :: MayNull (CPtr =  { cont : U32 })) :: (U32
                                                     , MayNull (CPtr =  { cont : U32 }))
-cogent_n21ln : (GlobState1 =  { cont : (CPtr =  { cont : U32 }) }) -> (()
-                                                                      , (GlobState1 =  { cont : (CPtr =  { cont : U32 }) }))
-cogent_n21ln g :: (GlobState1 =  { cont : (CPtr =  { cont : U32 }) }) =
-   let g :: (GlobState1 =  { cont : (CPtr =  { cont : U32 }) }) = let v' :: MayNull CVoidPtr = cogent_NULL :: MayNull CVoidPtr
-      and v1' :: (GlobState1 =  { cont : (CPtr =  { cont : U32 }) }) = g :: (GlobState1 =  { cont : (CPtr =  { cont : U32 }) })
-      and g { cont = p0' :: (CPtr =  { cont : U32 }) } :: (GlobState1 =  { cont : (CPtr =  { cont : U32 }) }) = v1' :: (GlobState1 =  { cont : (CPtr =  { cont : U32 }) })
+cogent_n21ln : (GlobState3 =  { cont : MayNull (CPtr =  { cont : U32 }) }) -> (()
+                                                                              , (GlobState3 =  { cont : MayNull (CPtr =  { cont : U32 }) }))
+cogent_n21ln g :: (GlobState3 =  { cont : MayNull (CPtr =  { cont : U32 }) }) =
+   let g :: (GlobState3 =  { cont : MayNull (CPtr =  { cont : U32 }) }) = let v' :: MayNull CVoidPtr = cogent_NULL :: MayNull CVoidPtr
+      and v1' :: (GlobState3 =  { cont : MayNull (CPtr =  { cont : U32 }) }) = g :: (GlobState3 =  { cont : MayNull (CPtr =  { cont : U32 }) })
+      and g { cont = p0' :: MayNull (CPtr =  { cont : U32 }) } :: (GlobState3 =  { cont : MayNull (CPtr =  { cont : U32 }) }) = v1' :: (GlobState3 =  { cont : MayNull (CPtr =  { cont : U32 }) })
       and v3' :: MayNull CVoidPtr = v' :: MayNull CVoidPtr
-      and p0' :: (CPtr =  { cont : U32 }) = v3' :: MayNull CVoidPtr
-      and g :: (GlobState1 =  { cont : (CPtr =  { cont : U32 }) }) = g :: (GlobState1 =  { cont : (CPtr =  { cont : U32 }) }) { cont = p0' :: (CPtr =  { cont : U32 }) } :: (GlobState1 =  { cont : (CPtr =  { cont : U32 }) })
-      in g :: (GlobState1 =  { cont : (CPtr =  { cont : U32 }) }) :: (GlobState1 =  { cont : (CPtr =  { cont : U32 }) })
+      and p0' :: MayNull (CPtr =  { cont : U32 }) = v3' :: MayNull CVoidPtr
+      and g :: (GlobState3 =  { cont : MayNull (CPtr =  { cont : U32 }) }) = g :: (GlobState3 =  { cont : MayNull (CPtr =  { cont : U32 }) }) { cont = p0' :: MayNull (CPtr =  { cont : U32 }) } :: (GlobState3 =  { cont : MayNull (CPtr =  { cont : U32 }) })
+      in g :: (GlobState3 =  { cont : MayNull (CPtr =  { cont : U32 }) }) :: (GlobState3 =  { cont : MayNull (CPtr =  { cont : U32 }) })
    in (() :: ()
-      , g :: (GlobState1 =  { cont : (CPtr =  { cont : U32 }) })) :: (()
-                                                                     , (GlobState1 =  { cont : (CPtr =  { cont : U32 }) }))
-cogent_n21ro : (GlobState2 =  { cont : (CPtr =  { cont : U32 }!) }) -> (()
-                                                                       , (GlobState2 =  { cont : (CPtr =  { cont : U32 }!) }))
-cogent_n21ro g :: (GlobState2 =  { cont : (CPtr =  { cont : U32 }!) }) =
-   let g :: (GlobState2 =  { cont : (CPtr =  { cont : U32 }!) }) = let v' :: MayNull CVoidPtr = cogent_NULL :: MayNull CVoidPtr
-      and v1' :: (GlobState2 =  { cont : (CPtr =  { cont : U32 }!) }) = g :: (GlobState2 =  { cont : (CPtr =  { cont : U32 }!) })
-      and g { cont = p0' :: (CPtr =  { cont : U32 }!) } :: (GlobState2 =  { cont : (CPtr =  { cont : U32 }!) }) = v1' :: (GlobState2 =  { cont : (CPtr =  { cont : U32 }!) })
+      , g :: (GlobState3 =  { cont : MayNull (CPtr =  { cont : U32 }) })) :: (()
+                                                                             , (GlobState3 =  { cont : MayNull (CPtr =  { cont : U32 }) }))
+cogent_n21ro : (GlobState4 =  { cont : (MayNull (CPtr =  { cont : U32 }!))! }) -> (()
+                                                                                  , (GlobState4 =  { cont : (MayNull (CPtr =  { cont : U32 }!))! }))
+cogent_n21ro g :: (GlobState4 =  { cont : (MayNull (CPtr =  { cont : U32 }!))! }) =
+   let g :: (GlobState4 =  { cont : (MayNull (CPtr =  { cont : U32 }!))! }) = let v' :: MayNull CVoidPtr = cogent_NULL :: MayNull CVoidPtr
+      and v1' :: (GlobState4 =  { cont : (MayNull (CPtr =  { cont : U32 }!))! }) = g :: (GlobState4 =  { cont : (MayNull (CPtr =  { cont : U32 }!))! })
+      and g { cont = p0' :: (MayNull (CPtr =  { cont : U32 }!))! } :: (GlobState4 =  { cont : (MayNull (CPtr =  { cont : U32 }!))! }) = v1' :: (GlobState4 =  { cont : (MayNull (CPtr =  { cont : U32 }!))! })
       and v3' :: MayNull CVoidPtr = v' :: MayNull CVoidPtr
-      and p0' :: (CPtr =  { cont : U32 }!) = v3' :: MayNull CVoidPtr
-      and g :: (GlobState2 =  { cont : (CPtr =  { cont : U32 }!) }) = g :: (GlobState2 =  { cont : (CPtr =  { cont : U32 }!) }) { cont = p0' :: (CPtr =  { cont : U32 }!) } :: (GlobState2 =  { cont : (CPtr =  { cont : U32 }!) })
-      in g :: (GlobState2 =  { cont : (CPtr =  { cont : U32 }!) }) :: (GlobState2 =  { cont : (CPtr =  { cont : U32 }!) })
+      and p0' :: (MayNull (CPtr =  { cont : U32 }!))! = v3' :: MayNull CVoidPtr
+      and g :: (GlobState4 =  { cont : (MayNull (CPtr =  { cont : U32 }!))! }) = g :: (GlobState4 =  { cont : (MayNull (CPtr =  { cont : U32 }!))! }) { cont = p0' :: (MayNull (CPtr =  { cont : U32 }!))! } :: (GlobState4 =  { cont : (MayNull (CPtr =  { cont : U32 }!))! })
+      in g :: (GlobState4 =  { cont : (MayNull (CPtr =  { cont : U32 }!))! }) :: (GlobState4 =  { cont : (MayNull (CPtr =  { cont : U32 }!))! })
    in (() :: ()
-      , g :: (GlobState2 =  { cont : (CPtr =  { cont : U32 }!) })) :: (()
-                                                                      , (GlobState2 =  { cont : (CPtr =  { cont : U32 }!) }))
+      , g :: (GlobState4 =  { cont : (MayNull (CPtr =  { cont : U32 }!))! })) :: (()
+                                                                                 , (GlobState4 =  { cont : (MayNull (CPtr =  { cont : U32 }!))! }))
 cogent_n22ln : MayNull (CPtr =  { cont : U32 }) -> (()
                                                    , MayNull (CPtr =  { cont : U32 }))
 cogent_n22ln pln :: MayNull (CPtr =  { cont : U32 }) =
@@ -5216,152 +5238,152 @@ cogent_n31ro () :: () =
    in r' :: (MayNull (CPtr =  { cont : U32 }!))! :: (MayNull (CPtr =  { cont : U32 }!))!
 cogent_n41lnln : () -> U32
 cogent_n41lnln () :: () =
-   let r' :: U32 = let v' :: (CPtr =  { cont : U32 }) -> U32 = cogent_fcln :: (CPtr =  { cont : U32 }) -> U32
+   let r' :: U32 = let v' :: MayNull (CPtr =  { cont : U32 }) -> U32 = cogent_fcmln :: MayNull (CPtr =  { cont : U32 }) -> U32
       and v1' :: MayNull CVoidPtr = cogent_NULL :: MayNull CVoidPtr
-      and v2' :: U32 = v' :: (CPtr =  { cont : U32 }) -> U32 v1' :: MayNull CVoidPtr :: U32
-      and v3' :: (CPtr =  { cont : U32 }) -> U32 = cogent_fcln :: (CPtr =  { cont : U32 }) -> U32
+      and v2' :: U32 = v' :: MayNull (CPtr =  { cont : U32 }) -> U32 v1' :: MayNull CVoidPtr :: U32
+      and v3' :: MayNull (CPtr =  { cont : U32 }) -> U32 = cogent_fcmln :: MayNull (CPtr =  { cont : U32 }) -> U32
       and v4' :: MayNull CVoidPtr = cogent_NULL :: MayNull CVoidPtr
-      and v5' :: U32 = v3' :: (CPtr =  { cont : U32 }) -> U32 v4' :: MayNull CVoidPtr :: U32
+      and v5' :: U32 = v3' :: MayNull (CPtr =  { cont : U32 }) -> U32 v4' :: MayNull CVoidPtr :: U32
       and v6' :: U32 = v2' :: U32 + v5' :: U32 :: U32
       in v6' :: U32 :: U32
    in r' :: U32 :: U32
 cogent_n42lnro : () -> U32
 cogent_n42lnro () :: () =
-   let r' :: U32 = let v' :: (CPtr =  { cont : U32 }) -> U32 = cogent_fcln :: (CPtr =  { cont : U32 }) -> U32
+   let r' :: U32 = let v' :: MayNull (CPtr =  { cont : U32 }) -> U32 = cogent_fcmln :: MayNull (CPtr =  { cont : U32 }) -> U32
       and v1' :: MayNull CVoidPtr = cogent_NULL :: MayNull CVoidPtr
-      and v2' :: U32 = v' :: (CPtr =  { cont : U32 }) -> U32 v1' :: MayNull CVoidPtr :: U32
-      and v3' :: (CPtr =  { cont : U32 }!) -> U32 = cogent_fcro :: (CPtr =  { cont : U32 }!) -> U32
+      and v2' :: U32 = v' :: MayNull (CPtr =  { cont : U32 }) -> U32 v1' :: MayNull CVoidPtr :: U32
+      and v3' :: (MayNull (CPtr =  { cont : U32 }!))! -> U32 = cogent_fcmro :: (MayNull (CPtr =  { cont : U32 }!))! -> U32
       and v4' :: MayNull CVoidPtr = cogent_NULL :: MayNull CVoidPtr
-      and v5' :: U32 = v3' :: (CPtr =  { cont : U32 }!) -> U32 v4' :: MayNull CVoidPtr :: U32
+      and v5' :: U32 = v3' :: (MayNull (CPtr =  { cont : U32 }!))! -> U32 v4' :: MayNull CVoidPtr :: U32
       and v6' :: U32 = v2' :: U32 + v5' :: U32 :: U32
       in v6' :: U32 :: U32
    in r' :: U32 :: U32
 cogent_n43roro : () -> U32
 cogent_n43roro () :: () =
-   let r' :: U32 = let v' :: (CPtr =  { cont : U32 }!) -> U32 = cogent_fcro :: (CPtr =  { cont : U32 }!) -> U32
+   let r' :: U32 = let v' :: (MayNull (CPtr =  { cont : U32 }!))! -> U32 = cogent_fcmro :: (MayNull (CPtr =  { cont : U32 }!))! -> U32
       and v1' :: MayNull CVoidPtr = cogent_NULL :: MayNull CVoidPtr
-      and v2' :: U32 = v' :: (CPtr =  { cont : U32 }!) -> U32 v1' :: MayNull CVoidPtr :: U32
-      and v3' :: (CPtr =  { cont : U32 }!) -> U32 = cogent_fcro :: (CPtr =  { cont : U32 }!) -> U32
+      and v2' :: U32 = v' :: (MayNull (CPtr =  { cont : U32 }!))! -> U32 v1' :: MayNull CVoidPtr :: U32
+      and v3' :: (MayNull (CPtr =  { cont : U32 }!))! -> U32 = cogent_fcmro :: (MayNull (CPtr =  { cont : U32 }!))! -> U32
       and v4' :: MayNull CVoidPtr = cogent_NULL :: MayNull CVoidPtr
-      and v5' :: U32 = v3' :: (CPtr =  { cont : U32 }!) -> U32 v4' :: MayNull CVoidPtr :: U32
+      and v5' :: U32 = v3' :: (MayNull (CPtr =  { cont : U32 }!))! -> U32 v4' :: MayNull CVoidPtr :: U32
       and v6' :: U32 = v2' :: U32 + v5' :: U32 :: U32
       in v6' :: U32 :: U32
    in r' :: U32 :: U32
-cogent_n91ln : MayNull (Struct_Cogent_ros1 =  { mrg : U32
-                                              , mro : (CPtr =  { cont : U32 }!)
-                                              , mln : (CPtr =  { cont : U32 }) }) -> (()
-                                                                                     , MayNull (Struct_Cogent_ros1 =  { mrg : U32
-                                                                                                                      , mro : (CPtr =  { cont : U32 }!)
-                                                                                                                      , mln : (CPtr =  { cont : U32 }) }))
-cogent_n91ln pln :: MayNull (Struct_Cogent_ros1 =  { mrg : U32
-                                                   , mro : (CPtr =  { cont : U32 }!)
-                                                   , mln : (CPtr =  { cont : U32 }) }) =
-   let pln :: MayNull (Struct_Cogent_ros1 =  { mrg : U32
-                                             , mro : (CPtr =  { cont : U32 }!)
-                                             , mln : (CPtr =  { cont : U32 }) }) = let v' :: MayNull CVoidPtr = cogent_NULL :: MayNull CVoidPtr
-      and v1' :: MayNull (Struct_Cogent_ros1 =  { mrg : U32
-                                                , mro : (CPtr =  { cont : U32 }!)
-                                                , mln : (CPtr =  { cont : U32 }) }) = pln :: MayNull (Struct_Cogent_ros1 =  { mrg : U32
-                                                                                                                            , mro : (CPtr =  { cont : U32 }!)
-                                                                                                                            , mln : (CPtr =  { cont : U32 }) })
-      and pln { mln = p0' :: (CPtr =  { cont : U32 }) } :: MayNull (Struct_Cogent_ros1 =  { mrg : U32
-                                                                                          , mro : (CPtr =  { cont : U32 }!)
-                                                                                          , mln : (CPtr =  { cont : U32 }) }) = v1' :: MayNull (Struct_Cogent_ros1 =  { mrg : U32
-                                                                                                                                                                      , mro : (CPtr =  { cont : U32 }!)
-                                                                                                                                                                      , mln : (CPtr =  { cont : U32 }) })
+cogent_n91ln : MayNull (Struct_Cogent_rosm1 =  { mrg : U32
+                                               , mro : (MayNull (CPtr =  { cont : U32 }!))!
+                                               , mln : MayNull (CPtr =  { cont : U32 }) }) -> (()
+                                                                                              , MayNull (Struct_Cogent_rosm1 =  { mrg : U32
+                                                                                                                                , mro : (MayNull (CPtr =  { cont : U32 }!))!
+                                                                                                                                , mln : MayNull (CPtr =  { cont : U32 }) }))
+cogent_n91ln pln :: MayNull (Struct_Cogent_rosm1 =  { mrg : U32
+                                                    , mro : (MayNull (CPtr =  { cont : U32 }!))!
+                                                    , mln : MayNull (CPtr =  { cont : U32 }) }) =
+   let pln :: MayNull (Struct_Cogent_rosm1 =  { mrg : U32
+                                              , mro : (MayNull (CPtr =  { cont : U32 }!))!
+                                              , mln : MayNull (CPtr =  { cont : U32 }) }) = let v' :: MayNull CVoidPtr = cogent_NULL :: MayNull CVoidPtr
+      and v1' :: MayNull (Struct_Cogent_rosm1 =  { mrg : U32
+                                                 , mro : (MayNull (CPtr =  { cont : U32 }!))!
+                                                 , mln : MayNull (CPtr =  { cont : U32 }) }) = pln :: MayNull (Struct_Cogent_rosm1 =  { mrg : U32
+                                                                                                                                      , mro : (MayNull (CPtr =  { cont : U32 }!))!
+                                                                                                                                      , mln : MayNull (CPtr =  { cont : U32 }) })
+      and pln { mln = p0' :: MayNull (CPtr =  { cont : U32 }) } :: MayNull (Struct_Cogent_rosm1 =  { mrg : U32
+                                                                                                   , mro : (MayNull (CPtr =  { cont : U32 }!))!
+                                                                                                   , mln : MayNull (CPtr =  { cont : U32 }) }) = v1' :: MayNull (Struct_Cogent_rosm1 =  { mrg : U32
+                                                                                                                                                                                        , mro : (MayNull (CPtr =  { cont : U32 }!))!
+                                                                                                                                                                                        , mln : MayNull (CPtr =  { cont : U32 }) })
       and v3' :: MayNull CVoidPtr = v' :: MayNull CVoidPtr
-      and p0' :: (CPtr =  { cont : U32 }) = v3' :: MayNull CVoidPtr
-      and pln :: MayNull (Struct_Cogent_ros1 =  { mrg : U32
-                                                , mro : (CPtr =  { cont : U32 }!)
-                                                , mln : (CPtr =  { cont : U32 }) }) = pln :: MayNull (Struct_Cogent_ros1 =  { mrg : U32
-                                                                                                                            , mro : (CPtr =  { cont : U32 }!)
-                                                                                                                            , mln : (CPtr =  { cont : U32 }) }) { mln = p0' :: (CPtr =  { cont : U32 }) } :: MayNull (Struct_Cogent_ros1 =  { mrg : U32
-                                                                                                                                                                                                                                            , mro : (CPtr =  { cont : U32 }!)
-                                                                                                                                                                                                                                            , mln : (CPtr =  { cont : U32 }) })
-      in pln :: MayNull (Struct_Cogent_ros1 =  { mrg : U32
-                                               , mro : (CPtr =  { cont : U32 }!)
-                                               , mln : (CPtr =  { cont : U32 }) }) :: MayNull (Struct_Cogent_ros1 =  { mrg : U32
-                                                                                                                     , mro : (CPtr =  { cont : U32 }!)
-                                                                                                                     , mln : (CPtr =  { cont : U32 }) })
+      and p0' :: MayNull (CPtr =  { cont : U32 }) = v3' :: MayNull CVoidPtr
+      and pln :: MayNull (Struct_Cogent_rosm1 =  { mrg : U32
+                                                 , mro : (MayNull (CPtr =  { cont : U32 }!))!
+                                                 , mln : MayNull (CPtr =  { cont : U32 }) }) = pln :: MayNull (Struct_Cogent_rosm1 =  { mrg : U32
+                                                                                                                                      , mro : (MayNull (CPtr =  { cont : U32 }!))!
+                                                                                                                                      , mln : MayNull (CPtr =  { cont : U32 }) }) { mln = p0' :: MayNull (CPtr =  { cont : U32 }) } :: MayNull (Struct_Cogent_rosm1 =  { mrg : U32
+                                                                                                                                                                                                                                                                       , mro : (MayNull (CPtr =  { cont : U32 }!))!
+                                                                                                                                                                                                                                                                       , mln : MayNull (CPtr =  { cont : U32 }) })
+      in pln :: MayNull (Struct_Cogent_rosm1 =  { mrg : U32
+                                                , mro : (MayNull (CPtr =  { cont : U32 }!))!
+                                                , mln : MayNull (CPtr =  { cont : U32 }) }) :: MayNull (Struct_Cogent_rosm1 =  { mrg : U32
+                                                                                                                               , mro : (MayNull (CPtr =  { cont : U32 }!))!
+                                                                                                                               , mln : MayNull (CPtr =  { cont : U32 }) })
    in (() :: ()
-      , pln :: MayNull (Struct_Cogent_ros1 =  { mrg : U32
-                                              , mro : (CPtr =  { cont : U32 }!)
-                                              , mln : (CPtr =  { cont : U32 }) })) :: (()
-                                                                                      , MayNull (Struct_Cogent_ros1 =  { mrg : U32
-                                                                                                                       , mro : (CPtr =  { cont : U32 }!)
-                                                                                                                       , mln : (CPtr =  { cont : U32 }) }))
-cogent_n91ro : MayNull (Struct_Cogent_ros1 =  { mrg : U32
-                                              , mro : (CPtr =  { cont : U32 }!)
-                                              , mln : (CPtr =  { cont : U32 }) }) -> (()
-                                                                                     , MayNull (Struct_Cogent_ros1 =  { mrg : U32
-                                                                                                                      , mro : (CPtr =  { cont : U32 }!)
-                                                                                                                      , mln : (CPtr =  { cont : U32 }) }))
-cogent_n91ro pln :: MayNull (Struct_Cogent_ros1 =  { mrg : U32
-                                                   , mro : (CPtr =  { cont : U32 }!)
-                                                   , mln : (CPtr =  { cont : U32 }) }) =
-   let pln :: MayNull (Struct_Cogent_ros1 =  { mrg : U32
-                                             , mro : (CPtr =  { cont : U32 }!)
-                                             , mln : (CPtr =  { cont : U32 }) }) = let v' :: MayNull CVoidPtr = cogent_NULL :: MayNull CVoidPtr
-      and v1' :: MayNull (Struct_Cogent_ros1 =  { mrg : U32
-                                                , mro : (CPtr =  { cont : U32 }!)
-                                                , mln : (CPtr =  { cont : U32 }) }) = pln :: MayNull (Struct_Cogent_ros1 =  { mrg : U32
-                                                                                                                            , mro : (CPtr =  { cont : U32 }!)
-                                                                                                                            , mln : (CPtr =  { cont : U32 }) })
-      and pln { mro = p0' :: (CPtr =  { cont : U32 }!) } :: MayNull (Struct_Cogent_ros1 =  { mrg : U32
-                                                                                           , mro : (CPtr =  { cont : U32 }!)
-                                                                                           , mln : (CPtr =  { cont : U32 }) }) = v1' :: MayNull (Struct_Cogent_ros1 =  { mrg : U32
-                                                                                                                                                                       , mro : (CPtr =  { cont : U32 }!)
-                                                                                                                                                                       , mln : (CPtr =  { cont : U32 }) })
+      , pln :: MayNull (Struct_Cogent_rosm1 =  { mrg : U32
+                                               , mro : (MayNull (CPtr =  { cont : U32 }!))!
+                                               , mln : MayNull (CPtr =  { cont : U32 }) })) :: (()
+                                                                                               , MayNull (Struct_Cogent_rosm1 =  { mrg : U32
+                                                                                                                                 , mro : (MayNull (CPtr =  { cont : U32 }!))!
+                                                                                                                                 , mln : MayNull (CPtr =  { cont : U32 }) }))
+cogent_n91ro : MayNull (Struct_Cogent_rosm1 =  { mrg : U32
+                                               , mro : (MayNull (CPtr =  { cont : U32 }!))!
+                                               , mln : MayNull (CPtr =  { cont : U32 }) }) -> (()
+                                                                                              , MayNull (Struct_Cogent_rosm1 =  { mrg : U32
+                                                                                                                                , mro : (MayNull (CPtr =  { cont : U32 }!))!
+                                                                                                                                , mln : MayNull (CPtr =  { cont : U32 }) }))
+cogent_n91ro pln :: MayNull (Struct_Cogent_rosm1 =  { mrg : U32
+                                                    , mro : (MayNull (CPtr =  { cont : U32 }!))!
+                                                    , mln : MayNull (CPtr =  { cont : U32 }) }) =
+   let pln :: MayNull (Struct_Cogent_rosm1 =  { mrg : U32
+                                              , mro : (MayNull (CPtr =  { cont : U32 }!))!
+                                              , mln : MayNull (CPtr =  { cont : U32 }) }) = let v' :: MayNull CVoidPtr = cogent_NULL :: MayNull CVoidPtr
+      and v1' :: MayNull (Struct_Cogent_rosm1 =  { mrg : U32
+                                                 , mro : (MayNull (CPtr =  { cont : U32 }!))!
+                                                 , mln : MayNull (CPtr =  { cont : U32 }) }) = pln :: MayNull (Struct_Cogent_rosm1 =  { mrg : U32
+                                                                                                                                      , mro : (MayNull (CPtr =  { cont : U32 }!))!
+                                                                                                                                      , mln : MayNull (CPtr =  { cont : U32 }) })
+      and pln { mro = p0' :: (MayNull (CPtr =  { cont : U32 }!))! } :: MayNull (Struct_Cogent_rosm1 =  { mrg : U32
+                                                                                                       , mro : (MayNull (CPtr =  { cont : U32 }!))!
+                                                                                                       , mln : MayNull (CPtr =  { cont : U32 }) }) = v1' :: MayNull (Struct_Cogent_rosm1 =  { mrg : U32
+                                                                                                                                                                                            , mro : (MayNull (CPtr =  { cont : U32 }!))!
+                                                                                                                                                                                            , mln : MayNull (CPtr =  { cont : U32 }) })
       and v3' :: MayNull CVoidPtr = v' :: MayNull CVoidPtr
-      and p0' :: (CPtr =  { cont : U32 }!) = v3' :: MayNull CVoidPtr
-      and pln :: MayNull (Struct_Cogent_ros1 =  { mrg : U32
-                                                , mro : (CPtr =  { cont : U32 }!)
-                                                , mln : (CPtr =  { cont : U32 }) }) = pln :: MayNull (Struct_Cogent_ros1 =  { mrg : U32
-                                                                                                                            , mro : (CPtr =  { cont : U32 }!)
-                                                                                                                            , mln : (CPtr =  { cont : U32 }) }) { mro = p0' :: (CPtr =  { cont : U32 }!) } :: MayNull (Struct_Cogent_ros1 =  { mrg : U32
-                                                                                                                                                                                                                                             , mro : (CPtr =  { cont : U32 }!)
-                                                                                                                                                                                                                                             , mln : (CPtr =  { cont : U32 }) })
-      in pln :: MayNull (Struct_Cogent_ros1 =  { mrg : U32
-                                               , mro : (CPtr =  { cont : U32 }!)
-                                               , mln : (CPtr =  { cont : U32 }) }) :: MayNull (Struct_Cogent_ros1 =  { mrg : U32
-                                                                                                                     , mro : (CPtr =  { cont : U32 }!)
-                                                                                                                     , mln : (CPtr =  { cont : U32 }) })
+      and p0' :: (MayNull (CPtr =  { cont : U32 }!))! = v3' :: MayNull CVoidPtr
+      and pln :: MayNull (Struct_Cogent_rosm1 =  { mrg : U32
+                                                 , mro : (MayNull (CPtr =  { cont : U32 }!))!
+                                                 , mln : MayNull (CPtr =  { cont : U32 }) }) = pln :: MayNull (Struct_Cogent_rosm1 =  { mrg : U32
+                                                                                                                                      , mro : (MayNull (CPtr =  { cont : U32 }!))!
+                                                                                                                                      , mln : MayNull (CPtr =  { cont : U32 }) }) { mro = p0' :: (MayNull (CPtr =  { cont : U32 }!))! } :: MayNull (Struct_Cogent_rosm1 =  { mrg : U32
+                                                                                                                                                                                                                                                                           , mro : (MayNull (CPtr =  { cont : U32 }!))!
+                                                                                                                                                                                                                                                                           , mln : MayNull (CPtr =  { cont : U32 }) })
+      in pln :: MayNull (Struct_Cogent_rosm1 =  { mrg : U32
+                                                , mro : (MayNull (CPtr =  { cont : U32 }!))!
+                                                , mln : MayNull (CPtr =  { cont : U32 }) }) :: MayNull (Struct_Cogent_rosm1 =  { mrg : U32
+                                                                                                                               , mro : (MayNull (CPtr =  { cont : U32 }!))!
+                                                                                                                               , mln : MayNull (CPtr =  { cont : U32 }) })
    in (() :: ()
-      , pln :: MayNull (Struct_Cogent_ros1 =  { mrg : U32
-                                              , mro : (CPtr =  { cont : U32 }!)
-                                              , mln : (CPtr =  { cont : U32 }) })) :: (()
-                                                                                      , MayNull (Struct_Cogent_ros1 =  { mrg : U32
-                                                                                                                       , mro : (CPtr =  { cont : U32 }!)
-                                                                                                                       , mln : (CPtr =  { cont : U32 }) }))
-cogent_n92ln : (Cogent_roa3 =  { arr5 : (CPtr =  { cont : U32 })#[() :: ()] }) -> (()
-                                                                                  , (Cogent_roa3 =  { arr5 : (CPtr =  { cont : U32 })#[() :: ()] }))
-cogent_n92ln pln :: (Cogent_roa3 =  { arr5 : (CPtr =  { cont : U32 })#[() :: ()] }) =
-   let pln :: (Cogent_roa3 =  { arr5 : (CPtr =  { cont : U32 })#[() :: ()] }) = let v' :: MayNull CVoidPtr = cogent_NULL :: MayNull CVoidPtr
+      , pln :: MayNull (Struct_Cogent_rosm1 =  { mrg : U32
+                                               , mro : (MayNull (CPtr =  { cont : U32 }!))!
+                                               , mln : MayNull (CPtr =  { cont : U32 }) })) :: (()
+                                                                                               , MayNull (Struct_Cogent_rosm1 =  { mrg : U32
+                                                                                                                                 , mro : (MayNull (CPtr =  { cont : U32 }!))!
+                                                                                                                                 , mln : MayNull (CPtr =  { cont : U32 }) }))
+cogent_n92ln : (Cogent_roam3 =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] }) -> (()
+                                                                                             , (Cogent_roam3 =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] }))
+cogent_n92ln pln :: (Cogent_roam3 =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] }) =
+   let pln :: (Cogent_roam3 =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] }) = let v' :: MayNull CVoidPtr = cogent_NULL :: MayNull CVoidPtr
       and v2' :: U32 = 1 :: U32
-      and v1' :: (Cogent_roa3 =  { arr5 : (CPtr =  { cont : U32 })#[() :: ()] }) = pln :: (Cogent_roa3 =  { arr5 : (CPtr =  { cont : U32 })#[() :: ()] })
-      and (pln @{ @v2' :: U32 = p0' :: (CPtr =  { cont : U32 }) } :: (Cogent_roa3 =  { arr5 : (CPtr =  { cont : U32 })#[() :: ()] })
-          , i0' :: U32) = (v1' :: (Cogent_roa3 =  { arr5 : (CPtr =  { cont : U32 })#[() :: ()] })
+      and v1' :: (Cogent_roam3 =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] }) = pln :: (Cogent_roam3 =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+      and (pln @{ @v2' :: U32 = p0' :: MayNull (CPtr =  { cont : U32 }) } :: (Cogent_roam3 =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+          , i0' :: U32) = (v1' :: (Cogent_roam3 =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
                           , v2' :: U32)
       and v4' :: MayNull CVoidPtr = v' :: MayNull CVoidPtr
-      and p0' :: (CPtr =  { cont : U32 }) = v4' :: MayNull CVoidPtr
-      and pln :: (Cogent_roa3 =  { arr5 : (CPtr =  { cont : U32 })#[() :: ()] }) = pln :: (Cogent_roa3 =  { arr5 : (CPtr =  { cont : U32 })#[() :: ()] }) @{ @i0' :: U32 = p0' :: (CPtr =  { cont : U32 }) } :: (Cogent_roa3 =  { arr5 : (CPtr =  { cont : U32 })#[() :: ()] })
-      in pln :: (Cogent_roa3 =  { arr5 : (CPtr =  { cont : U32 })#[() :: ()] }) :: (Cogent_roa3 =  { arr5 : (CPtr =  { cont : U32 })#[() :: ()] })
+      and p0' :: MayNull (CPtr =  { cont : U32 }) = v4' :: MayNull CVoidPtr
+      and pln :: (Cogent_roam3 =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] }) = pln :: (Cogent_roam3 =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] }) @{ @i0' :: U32 = p0' :: MayNull (CPtr =  { cont : U32 }) } :: (Cogent_roam3 =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+      in pln :: (Cogent_roam3 =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] }) :: (Cogent_roam3 =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
    in (() :: ()
-      , pln :: (Cogent_roa3 =  { arr5 : (CPtr =  { cont : U32 })#[() :: ()] })) :: (()
-                                                                                   , (Cogent_roa3 =  { arr5 : (CPtr =  { cont : U32 })#[() :: ()] }))
-cogent_n92ro : (Cogent_roa2 =  { arr5 : (CPtr =  { cont : U32 }!)#[() :: ()] }) -> (()
-                                                                                   , (Cogent_roa2 =  { arr5 : (CPtr =  { cont : U32 }!)#[() :: ()] }))
-cogent_n92ro pln :: (Cogent_roa2 =  { arr5 : (CPtr =  { cont : U32 }!)#[() :: ()] }) =
-   let pln :: (Cogent_roa2 =  { arr5 : (CPtr =  { cont : U32 }!)#[() :: ()] }) = let v' :: MayNull CVoidPtr = cogent_NULL :: MayNull CVoidPtr
+      , pln :: (Cogent_roam3 =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })) :: (()
+                                                                                              , (Cogent_roam3 =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] }))
+cogent_n92ro : (Cogent_roam2 =  { arr5 : ((MayNull (CPtr =  { cont : U32 }!))!)#[() :: ()] }) -> (()
+                                                                                                 , (Cogent_roam2 =  { arr5 : ((MayNull (CPtr =  { cont : U32 }!))!)#[() :: ()] }))
+cogent_n92ro pln :: (Cogent_roam2 =  { arr5 : ((MayNull (CPtr =  { cont : U32 }!))!)#[() :: ()] }) =
+   let pln :: (Cogent_roam2 =  { arr5 : ((MayNull (CPtr =  { cont : U32 }!))!)#[() :: ()] }) = let v' :: MayNull CVoidPtr = cogent_NULL :: MayNull CVoidPtr
       and v2' :: U32 = 1 :: U32
-      and v1' :: (Cogent_roa2 =  { arr5 : (CPtr =  { cont : U32 }!)#[() :: ()] }) = pln :: (Cogent_roa2 =  { arr5 : (CPtr =  { cont : U32 }!)#[() :: ()] })
-      and (pln @{ @v2' :: U32 = p0' :: (CPtr =  { cont : U32 }!) } :: (Cogent_roa2 =  { arr5 : (CPtr =  { cont : U32 }!)#[() :: ()] })
-          , i0' :: U32) = (v1' :: (Cogent_roa2 =  { arr5 : (CPtr =  { cont : U32 }!)#[() :: ()] })
+      and v1' :: (Cogent_roam2 =  { arr5 : ((MayNull (CPtr =  { cont : U32 }!))!)#[() :: ()] }) = pln :: (Cogent_roam2 =  { arr5 : ((MayNull (CPtr =  { cont : U32 }!))!)#[() :: ()] })
+      and (pln @{ @v2' :: U32 = p0' :: (MayNull (CPtr =  { cont : U32 }!))! } :: (Cogent_roam2 =  { arr5 : ((MayNull (CPtr =  { cont : U32 }!))!)#[() :: ()] })
+          , i0' :: U32) = (v1' :: (Cogent_roam2 =  { arr5 : ((MayNull (CPtr =  { cont : U32 }!))!)#[() :: ()] })
                           , v2' :: U32)
       and v4' :: MayNull CVoidPtr = v' :: MayNull CVoidPtr
-      and p0' :: (CPtr =  { cont : U32 }!) = v4' :: MayNull CVoidPtr
-      and pln :: (Cogent_roa2 =  { arr5 : (CPtr =  { cont : U32 }!)#[() :: ()] }) = pln :: (Cogent_roa2 =  { arr5 : (CPtr =  { cont : U32 }!)#[() :: ()] }) @{ @i0' :: U32 = p0' :: (CPtr =  { cont : U32 }!) } :: (Cogent_roa2 =  { arr5 : (CPtr =  { cont : U32 }!)#[() :: ()] })
-      in pln :: (Cogent_roa2 =  { arr5 : (CPtr =  { cont : U32 }!)#[() :: ()] }) :: (Cogent_roa2 =  { arr5 : (CPtr =  { cont : U32 }!)#[() :: ()] })
+      and p0' :: (MayNull (CPtr =  { cont : U32 }!))! = v4' :: MayNull CVoidPtr
+      and pln :: (Cogent_roam2 =  { arr5 : ((MayNull (CPtr =  { cont : U32 }!))!)#[() :: ()] }) = pln :: (Cogent_roam2 =  { arr5 : ((MayNull (CPtr =  { cont : U32 }!))!)#[() :: ()] }) @{ @i0' :: U32 = p0' :: (MayNull (CPtr =  { cont : U32 }!))! } :: (Cogent_roam2 =  { arr5 : ((MayNull (CPtr =  { cont : U32 }!))!)#[() :: ()] })
+      in pln :: (Cogent_roam2 =  { arr5 : ((MayNull (CPtr =  { cont : U32 }!))!)#[() :: ()] }) :: (Cogent_roam2 =  { arr5 : ((MayNull (CPtr =  { cont : U32 }!))!)#[() :: ()] })
    in (() :: ()
-      , pln :: (Cogent_roa2 =  { arr5 : (CPtr =  { cont : U32 }!)#[() :: ()] })) :: (()
-                                                                                    , (Cogent_roa2 =  { arr5 : (CPtr =  { cont : U32 }!)#[() :: ()] }))
+      , pln :: (Cogent_roam2 =  { arr5 : ((MayNull (CPtr =  { cont : U32 }!))!)#[() :: ()] })) :: (()
+                                                                                                  , (Cogent_roam2 =  { arr5 : ((MayNull (CPtr =  { cont : U32 }!))!)#[() :: ()] }))

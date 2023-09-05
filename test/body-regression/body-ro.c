@@ -3,9 +3,13 @@
 // Functions used as context:
 int fcln(int *i) { return 0; }
 int fcro(int *i) { return 0; }
+int fcmln(int *i) { return 0; }
+int fcmro(int *i) { return 0; }
 // Global variables used as context:
 int *globcln;
 int *globcro;
+int *globcmln;
+int *globcmro;
 
 // global readonly probes:
 int *glob; // global const-val variable
@@ -17,12 +21,15 @@ int *frln(void); // (external) function with linear result
 
 // struct probes:
 struct ros1 { int mrg; int *mro; int *mln; };
+struct rosm1 { int mrg; int *mro; int *mln; };
 struct ros2 { struct ros1 *sln; struct ros1 sub; };
 
 // array probes:
 typedef int roa1[5];  // regular elements
 typedef int* roa2[5]; // readonly elements
 typedef int* roa3[5]; // linear elements
+typedef int* roam2[5]; // readonly maynull elements
+typedef int* roam3[5]; // linear maynull elements
 typedef roa1 roa4[5];   // array elements
 typedef roa2 roa5[5];   // array elements
 typedef roa3 roa6[5];   // array elements
@@ -210,14 +217,14 @@ struct ros1 *bs13(struct ros1 *pln, int *qro, int *i) { return qro = pln->mln, *
 #include <stddef.h>
 
 // Direct use of NULL in context
-int n11ln(void) { return fcln(NULL); }
-int n11ro(void) { return fcro(NULL); }
-int n14ln(int *qln, int i) { return fcln(i?NULL:qln); }
-int n14ro(int *qln, int i) { return fcro(i?NULL:qln); }
+int n11ln(void) { return fcmln(NULL); }
+int n11ro(void) { return fcmro(NULL); }
+int n14ln(int *qln, int i) { return fcmln(i?NULL:qln); }
+int n14ro(int *qln, int i) { return fcmro(i?NULL:qln); }
 
 // NULL assigned to variable
-void n21ln(void) { globcln = NULL; }
-void n21ro(void) { globcro = NULL; }
+void n21ln(void) { globcmln = NULL; }
+void n21ro(void) { globcmro = NULL; }
 void n22ln(int *pln) { pln = NULL; }
 int n22ro(int *pro) { pro = NULL; return *pro; }
 
@@ -226,12 +233,12 @@ int *n31ln(void) { return NULL; }
 int *n31ro(void) { return NULL; }
 
 // Using NULL twice
-int n41lnln(void) { return fcln(NULL) + fcln(NULL); }
-int n42lnro(void) { return fcln(NULL) + fcro(NULL); }
-int n43roro(void) { return fcro(NULL) + fcro(NULL); }
+int n41lnln(void) { return fcmln(NULL) + fcmln(NULL); }
+int n42lnro(void) { return fcmln(NULL) + fcmro(NULL); }
+int n43roro(void) { return fcmro(NULL) + fcmro(NULL); }
 
 // NULL assigned to struct component or array element
-void n91ln(struct ros1 *pln) { pln->mln = NULL; }
-void n91ro(struct ros1 *pln) { pln->mro = NULL; }
-void n92ln(roa3 pln) { pln[1] = NULL; }
-void n92ro(roa2 pln) { pln[1] = NULL; }
+void n91ln(struct rosm1 *pln) { pln->mln = NULL; }
+void n91ro(struct rosm1 *pln) { pln->mro = NULL; }
+void n92ln(roam3 pln) { pln[1] = NULL; }
+void n92ro(roam2 pln) { pln[1] = NULL; }

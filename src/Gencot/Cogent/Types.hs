@@ -357,13 +357,17 @@ mkCmpType s t =
     let t' = if isUnboxedArrayType t then getBoxType t else t
     in if readonly s then mkReadonly t' else t'
 
+delOrigInType :: GenType -> GenType
+delOrigInType (GenType t _ s) = GenType t noOrigin s
+
 -- Type of field, unitType if type does not have that field (or any field)
+-- Origins in field types must be deleted, because they may not be present for uses of the field type.
 -- Unboxed array types are adjusted to boxed.
 getMemberType :: CCS.FieldName -> GenType -> GenType
 getMemberType f (GenType (CS.TRecord _ fs s) _ _) =
     case find (\fld -> fst fld == f) fs of
          Nothing -> unitType
-         Just (_,(t,_)) -> mkCmpType s t
+         Just (_,(t,_)) -> mkCmpType s $ delOrigInType t
 -- maynull wrapped type
 getMemberType f (GenType (CS.TCon n [t] _) _ _) | n == mapMayNull = getMemberType f t
 -- other types -> unitType

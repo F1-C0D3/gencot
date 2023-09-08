@@ -36,7 +36,7 @@ import Gencot.Cogent.Post.Util (
 --   put/array-put, conditional expressions, let-expressions
 -- - the argument of a function application is a single variable or a tuple of variables.
 -- - the body of a let-expresson is a single variable or a tuple of variables or a conditional expression.
--- - a branch in a conditional expressions is a always let-expression.
+-- - a branch in a conditional expressions is a single variable or a tuple of variables or a let-expression.
 -- - all other sub-expressions are single variables.
 -- Assumptions for all patterns:
 -- - irrefutable patterns in a binding are only

@@ -210,7 +210,8 @@ mkIdxExprBinds n k bp1 bp2 =
           rv = lvalVar bp1
           rv' = if isErrVar rv then TV errVar at else rv
           mainbp = addBinding (mkValVarBinding n et $ mkVarExpr cmp) $
-                     addBinding (mkBinding (mkArrTakePattern rv' cmp idx v2) $ mkVarTupleExpr [v1,v2]) $ concatExprBinds [bp2,bp1]
+                     addBinding (mkBinding (mkArrTakePattern rv' cmp idx) $ mkVarExpr v1) $
+                       addBinding (mkVarBinding idx $ mkVarExpr v2) $ concatExprBinds [bp2,bp1]
 
 -- | Pointer dereference, always <v>{cont=r<k>’} = v<n>' and v<n>’ = r<k>’
 --   with putback <v> = <v>{cont=r<k>’}
@@ -545,12 +546,10 @@ mkRecordPattern flds = genIrrefPatn (mkRecordType (map (\(f,ip) -> (f,typOfGIP i
 mkRecTakePattern :: TypedVar -> TypedVar -> CCS.FieldName -> GenIrrefPatn
 mkRecTakePattern tv1@(TV v1 t1) tv2 f = genIrrefPatn t1 $ CS.PTake v1 [Just (f, mkVarPattern tv2)]
 
--- construct (v1 @{@v4=v2},v3)
-mkArrTakePattern :: TypedVar -> TypedVar -> TypedVar -> TypedVar -> GenIrrefPatn
-mkArrTakePattern tv1@(TV v1 t1) tv2 tv3 tv4 =
-    mkTuplePattern [genIrrefPatn t1 $ CS.PArrayTake v1 [(mkVarExpr tv4,mkVarPattern tv2)], ip3]
-    where ip3 = mkVarPattern tv3
-          ie3 = mkVarExpr tv3
+-- construct v1 @{@v3=v2}
+mkArrTakePattern :: TypedVar -> TypedVar -> TypedVar -> GenIrrefPatn
+mkArrTakePattern tv1@(TV v1 t1) tv2 tv3 =
+    genIrrefPatn t1 $ CS.PArrayTake v1 [(mkVarExpr tv3,mkVarPattern tv2)]
 
 -- Construct Alternative
 ------------------------

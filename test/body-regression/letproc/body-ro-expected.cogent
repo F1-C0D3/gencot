@@ -262,9 +262,8 @@ cogent_f71ln pro =
    if 0 > 0
    then r'
    else
-      let pro @{ @1 = p1' } = let (pro @{ @1 = p0' }
-                                  , i0') = (pro, 1)
-         in pro @{ @i0' = p0' }
+      let pro @{ @1 = p1' } = let pro @{ @1 = p0' } = pro
+         in pro @{ @1 = p0' }
       in p1'
 cogent_f71ro : Cogent_roa1! -> U32
 cogent_f71ro pro =
@@ -275,9 +274,8 @@ cogent_f72ln pro =
    if 0 > 0
    then r'
    else
-      let pro @{ @1 = p1' } = let (pro @{ @1 = p0' }
-                                  , i0') = (pro, 1)
-         in pro @{ @i0' = p0' }
+      let pro @{ @1 = p1' } = let pro @{ @1 = p0' } = pro
+         in pro @{ @1 = p0' }
       in p1'
 cogent_f72ro : Cogent_roa2! -> (CPtr U32)!
 cogent_f72ro pro =
@@ -288,9 +286,8 @@ cogent_f73ln pro =
    if 0 > 0
    then r'
    else
-      let pro @{ @1 = p1' } = let (pro @{ @1 = p0' }
-                                  , i0') = (pro, 1)
-         in pro @{ @i0' = p0' }
+      let pro @{ @1 = p1' } = let pro @{ @1 = p0' } = pro
+         in pro @{ @1 = p0' }
       in p1'
 cogent_f73ro : Cogent_roa3! -> (CPtr U32)!
 cogent_f73ro pro =
@@ -301,10 +298,9 @@ cogent_f74ln pro =
    if 0 > 0
    then r'
    else
-      let pro @{ @1 = p2' } = let (pro @{ @1 = p0' }
-                                  , i0') = (pro, 1)
+      let pro @{ @1 = p2' } = let pro @{ @1 = p0' } = pro
          and p0' { cont = p1' } = p0'
-         in pro @{ @i0' = p0' { cont = p1' } }
+         in pro @{ @1 = p0' { cont = p1' } }
       in p2'
 cogent_f74ro : Cogent_roa3! -> U32
 cogent_f74ro pro =
@@ -367,11 +363,9 @@ cogent_f81ln pro =
    if 0 > 0
    then r'
    else
-      let pro @{ @1 = p2' } = let (pro @{ @1 = p0' }
-                                  , i0') = (pro, 1)
-         and (p0' @{ @1 = p1' }
-             , i1') = (p0', 1)
-         in pro @{ @i0' = p0' @{ @i1' = p1' } }
+      let pro @{ @1 = p2' } = let pro @{ @1 = p0' } = pro
+         and p0' @{ @1 = p1' } = p0'
+         in pro @{ @1 = p0' @{ @1 = p1' } }
       and p2' @{ @1 = p3' } = p2'
       in p3'
 cogent_f81ro : Cogent_roa4! -> U32
@@ -384,11 +378,9 @@ cogent_f82ln pro =
    if 0 > 0
    then r'
    else
-      let pro @{ @1 = p2' } = let (pro @{ @1 = p0' }
-                                  , i0') = (pro, 1)
-         and (p0' @{ @1 = p1' }
-             , i1') = (p0', 1)
-         in pro @{ @i0' = p0' @{ @i1' = p1' } }
+      let pro @{ @1 = p2' } = let pro @{ @1 = p0' } = pro
+         and p0' @{ @1 = p1' } = p0'
+         in pro @{ @1 = p0' @{ @1 = p1' } }
       and p2' @{ @1 = p3' } = p2'
       in p3'
 cogent_f82ro : Cogent_roa5! -> (CPtr U32)!
@@ -401,11 +393,9 @@ cogent_f83ln pro =
    if 0 > 0
    then r'
    else
-      let pro @{ @1 = p2' } = let (pro @{ @1 = p0' }
-                                  , i0') = (pro, 1)
-         and (p0' @{ @1 = p1' }
-             , i1') = (p0', 1)
-         in pro @{ @i0' = p0' @{ @i1' = p1' } }
+      let pro @{ @1 = p2' } = let pro @{ @1 = p0' } = pro
+         and p0' @{ @1 = p1' } = p0'
+         in pro @{ @1 = p0' @{ @1 = p1' } }
       and p2' @{ @1 = p3' } = p2'
       in p3'
 cogent_f83ro : Cogent_roa6! -> (CPtr U32)!
@@ -428,15 +418,13 @@ cogent_f91ro pln =
 cogent_f92ln : Cogent_roa3 -> ( (), Cogent_roa3 )
 cogent_f92ln pln =
    (()
-   , let (pln @{ @1 = _ }
-         , i0') = (pln, 1)
-   in pln @{ @i0' = gencotDummy "Readonly expression used in linear context" })
+   , let pln @{ @1 = _ } = pln
+   in pln @{ @1 = gencotDummy "Readonly expression used in linear context" })
 cogent_f92ro : Cogent_roa2 -> ( (), Cogent_roa2 )
 cogent_f92ro pln =
    (()
-   , let (pln @{ @1 = _ }
-         , i0') = (pln, 1)
-   in pln @{ @i0' = cogent_frro () })
+   , let pln @{ @1 = _ } = pln
+   in pln @{ @1 = cogent_frro () })
 
 -- Using values of linear type (can be banged).
 
@@ -651,9 +639,8 @@ cogent_g64ro pln =
 cogent_g71ln : Cogent_roa1 -> ( (), Cogent_roa1 )
 cogent_g71ln pln =
    (()
-   , let (pln @{ @1 = _ }
-         , i0') = (pln, 1)
-   in pln @{ @i0' = 5 })
+   , let pln @{ @1 = _ } = pln
+   in pln @{ @1 = 5 })
 cogent_g71ro : Cogent_roa1 -> U32
 cogent_g71ro pln =
    let r' = (let pln @{ @1 = p0' } = pln
@@ -662,9 +649,8 @@ cogent_g71ro pln =
 cogent_g72ln : Cogent_roa2 -> ( (), Cogent_roa2 )
 cogent_g72ln pln =
    (()
-   , let (pln @{ @1 = _ }
-         , i0') = (pln, 1)
-   in pln @{ @i0' = gencotDummy "Linear expression used in readonly context" })
+   , let pln @{ @1 = _ } = pln
+   in pln @{ @1 = gencotDummy "Linear expression used in readonly context" })
 cogent_g72ro : Cogent_roa2 -> (CPtr U32)!
 cogent_g72ro pln =
    let pln @{ @1 = p0' } = pln
@@ -672,9 +658,8 @@ cogent_g72ro pln =
 cogent_g73ln : Cogent_roa3 -> ( (), Cogent_roa3 )
 cogent_g73ln pln =
    (()
-   , let (pln @{ @1 = _ }
-         , i0') = (pln, 1)
-   in pln @{ @i0' = cogent_frln () })
+   , let pln @{ @1 = _ } = pln
+   in pln @{ @1 = cogent_frln () })
 cogent_g73ro : Cogent_roa3 -> CPtr U32
 cogent_g73ro pln =
    let pln @{ @1 = p0' } = pln
@@ -682,10 +667,9 @@ cogent_g73ro pln =
 cogent_g74ln : Cogent_roa3 -> ( (), Cogent_roa3 )
 cogent_g74ln pln =
    (()
-   , let (pln @{ @1 = p0' }
-         , i0') = (pln, 1)
+   , let pln @{ @1 = p0' } = pln
    and p0' { cont = _ } = p0'
-   in pln @{ @i0' = p0' { cont = 5 } })
+   in pln @{ @1 = p0' { cont = 5 } })
 cogent_g74ro : Cogent_roa3 -> U32
 cogent_g74ro pln =
    let r' = (let pln @{ @1 = p0' } = pln
@@ -752,11 +736,9 @@ cogent_g79ro (pln, qro, i) =
 cogent_g81ln : Cogent_roa4 -> ( (), Cogent_roa4 )
 cogent_g81ln pln =
    (()
-   , let (pln @{ @1 = p0' }
-         , i0') = (pln, 1)
-   and (p0' @{ @1 = _ }
-       , i1') = (p0', 1)
-   in pln @{ @i0' = p0' @{ @i1' = 5 } })
+   , let pln @{ @1 = p0' } = pln
+   and p0' @{ @1 = _ } = p0'
+   in pln @{ @1 = p0' @{ @1 = 5 } })
 cogent_g81ro : Cogent_roa4 -> U32
 cogent_g81ro pln =
    let r' = (let pln @{ @1 = p0' } = pln
@@ -766,11 +748,9 @@ cogent_g81ro pln =
 cogent_g82ln : Cogent_roa5 -> ( (), Cogent_roa5 )
 cogent_g82ln pln =
    (()
-   , let (pln @{ @1 = p0' }
-         , i0') = (pln, 1)
-   and (p0' @{ @1 = _ }
-       , i1') = (p0', 1)
-   in pln @{ @i0' = p0' @{ @i1' = gencotDummy "Linear expression used in readonly context" } })
+   , let pln @{ @1 = p0' } = pln
+   and p0' @{ @1 = _ } = p0'
+   in pln @{ @1 = p0' @{ @1 = gencotDummy "Linear expression used in readonly context" } })
 cogent_g82ro : Cogent_roa5 -> (CPtr U32)!
 cogent_g82ro pln =
    let pln @{ @1 = p0' } = pln
@@ -779,11 +759,9 @@ cogent_g82ro pln =
 cogent_g83ln : Cogent_roa6 -> ( (), Cogent_roa6 )
 cogent_g83ln pln =
    (()
-   , let (pln @{ @1 = p0' }
-         , i0') = (pln, 1)
-   and (p0' @{ @1 = _ }
-       , i1') = (p0', 1)
-   in pln @{ @i0' = p0' @{ @i1' = cogent_frln () } })
+   , let pln @{ @1 = p0' } = pln
+   and p0' @{ @1 = _ } = p0'
+   in pln @{ @1 = p0' @{ @1 = cogent_frln () } })
 cogent_g83ro : Cogent_roa6 -> CPtr U32
 cogent_g83ro pln =
    let pln @{ @1 = p0' } = pln
@@ -804,15 +782,13 @@ cogent_g91ro pln =
 cogent_g92ln : Cogent_roa3 -> ( (), Cogent_roa3 )
 cogent_g92ln pln =
    (()
-   , let (pln @{ @1 = _ }
-         , i0') = (pln, 1)
-   in pln @{ @i0' = cogent_frln () })
+   , let pln @{ @1 = _ } = pln
+   in pln @{ @1 = cogent_frln () })
 cogent_g92ro : Cogent_roa2 -> ( (), Cogent_roa2 )
 cogent_g92ro pln =
    (()
-   , let (pln @{ @1 = _ }
-         , i0') = (pln, 1)
-   in pln @{ @i0' = gencotDummy "Linear expression used in readonly context" })
+   , let pln @{ @1 = _ } = pln
+   in pln @{ @1 = gencotDummy "Linear expression used in readonly context" })
 
 -- banging in nested bang positions
 cogent_nst11 : ( Struct_Cogent_ros1, U32 ) -> ( Struct_Cogent_ros1, Struct_Cogent_ros1 )
@@ -986,12 +962,10 @@ cogent_n91ro pln =
 cogent_n92ln : Cogent_roam3 -> ( (), Cogent_roam3 )
 cogent_n92ln pln =
    (()
-   , let (pln @{ @1 = _ }
-         , i0') = (pln, 1)
-   in pln @{ @i0' = cogent_NULL })
+   , let pln @{ @1 = _ } = pln
+   in pln @{ @1 = cogent_NULL })
 cogent_n92ro : Cogent_roam2 -> ( (), Cogent_roam2 )
 cogent_n92ro pln =
    (()
-   , let (pln @{ @1 = _ }
-         , i0') = (pln, 1)
-   in pln @{ @i0' = cogent_NULL })
+   , let pln @{ @1 = _ } = pln
+   in pln @{ @1 = cogent_NULL })

@@ -253,6 +253,10 @@ cogent_f5 () =
 type Struct_Cogent_s1 = { m1 : U32, m2 : U32 }
 type Struct_Cogent_s2 = { m3 : U32, m4 : #Struct_Cogent_s1 }
 type Struct_Cogent_s3 = { m5 : U32, m6 : #(CArr5 U32) }
+cogent_fs1r : #Struct_Cogent_s1 -> #Struct_Cogent_s1
+cogent_fs1r s =
+   let r' = let v' = s in v'
+   in r'
 cogent_fs1 : #Struct_Cogent_s1 -> U32
 cogent_fs1 s =
    let r' = let v' = s
@@ -310,7 +314,8 @@ cogent_fs5 s =
       and v' = s
       and s { m6 = p0' } = v'
       and v1' = p0'
-      and p0' @{ @v2' = p1' } = v1'
+      and i1' = v2'
+      and p0' @{ @i1' = p1' } = v1'
       and v3' = p1'
       in v3'
    in r'
@@ -320,8 +325,8 @@ cogent_fs6 s =
       and v' = s
       and s { m6 = p0' } = v'
       and v1' = p0'
-      and (p0' @{ @v2' = p1' }
-          , i1') = (v1', v2')
+      and i1' = v2'
+      and p0' @{ @i1' = p1' } = v1'
       and v3' = p1'
       and p0' = p0' @{ @i1' = p1' }
       and s = s { m6 = p0' }
@@ -329,8 +334,8 @@ cogent_fs6 s =
       and v4' = s
       and s { m6 = p2' } = v4'
       and v5' = p2'
-      and (p2' @{ @v6' = p3' }
-          , i3') = (v5', v6')
+      and i3' = v6'
+      and p2' @{ @i3' = p3' } = v5'
       and v7' = p3'
       and p2' = p2' @{ @i3' = p3' }
       and s = s { m6 = p2' }
@@ -340,6 +345,15 @@ cogent_fs6 s =
       and v10' = p4'
       and v11' = v8' + v10'
       in v11'
+   in r'
+cogent_fs7 : #Struct_Cogent_s1 -> U32
+cogent_fs7 s =
+   let r' = let v' = cogent_fs1r
+      and v1' = s
+      and v2' = v' v1'
+      and err' { m1 = p0' } = v2'
+      and v3' = p0'
+      in v3'
    in r'
 
 type Cogent_a1 = CArr5 U32
@@ -351,8 +365,8 @@ cogent_fa1 : Cogent_a1 -> ( U32, Cogent_a1 )
 cogent_fa1 a =
    let (r', a) = let v1' = 3
       and v' = a
-      and (a @{ @v1' = p0' }
-          , i0') = (v', v1')
+      and i0' = v1'
+      and a @{ @i0' = p0' } = v'
       and v2' = p0'
       and a = a @{ @i0' = p0' }
       in (v2', a)
@@ -361,14 +375,14 @@ cogent_fa2 : Cogent_a1 -> ( U32, Cogent_a1 )
 cogent_fa2 a =
    let (r', a) = let v1' = 3
       and v' = a
-      and (a @{ @v1' = p0' }
-          , i0') = (v', v1')
+      and i0' = v1'
+      and a @{ @i0' = p0' } = v'
       and v2' = p0'
       and a = a @{ @i0' = p0' }
       and v4' = 1
       and v3' = a
-      and (a @{ @v4' = p1' }
-          , i1') = (v3', v4')
+      and i1' = v4'
+      and a @{ @i1' = p1' } = v3'
       and v5' = p1'
       and a = a @{ @i1' = p1' }
       and v6' = v2' + v5'
@@ -378,13 +392,13 @@ cogent_fa3 : Cogent_a1 -> ( U32, Cogent_a1 )
 cogent_fa3 a =
    let (r', a) = let v2' = 2
       and v1' = a
-      and (a @{ @v2' = p0' }
-          , i0') = (v1', v2')
+      and i0' = v2'
+      and a @{ @i0' = p0' } = v1'
       and v3' = p0'
       and a = a @{ @i0' = p0' }
       and v' = a
-      and (a @{ @v3' = p1' }
-          , i1') = (v', v3')
+      and i1' = v3'
+      and a @{ @i1' = p1' } = v'
       and v4' = p1'
       and a = a @{ @i1' = p1' }
       in (v4', a)
@@ -393,8 +407,8 @@ cogent_fa4 : Cogent_a2 -> ( U32, Cogent_a2 )
 cogent_fa4 a =
    let (r', a) = let v1' = 3
       and v' = a
-      and (a @{ @v1' = p0' }
-          , i0') = (v', v1')
+      and i0' = v1'
+      and a @{ @i0' = p0' } = v'
       and v2' = p0'
       and p0' { m1 = p1' } = v2'
       and v3' = p1'
@@ -406,16 +420,16 @@ cogent_fa5 : Cogent_a2 -> ( U32, Cogent_a2 )
 cogent_fa5 a =
    let (r', a) = let v2' = 2
       and v1' = a
-      and (a @{ @v2' = p0' }
-          , i0') = (v1', v2')
+      and i0' = v2'
+      and a @{ @i0' = p0' } = v1'
       and v3' = p0'
       and p0' { m2 = p1' } = v3'
       and v4' = p1'
       and p0' = p0' { m2 = p1' }
       and a = a @{ @i0' = p0' }
       and v' = a
-      and (a @{ @v4' = p2' }
-          , i2') = (v', v4')
+      and i2' = v4'
+      and a @{ @i2' = p2' } = v'
       and v5' = p2'
       and p2' { m1 = p3' } = v5'
       and v6' = p3'
@@ -428,11 +442,11 @@ cogent_fa6 a =
    let (r', a) = let v3' = 2
       and v1' = 3
       and v' = a
-      and (a @{ @v1' = p0' }
-          , i0') = (v', v1')
+      and i0' = v1'
+      and a @{ @i0' = p0' } = v'
       and v2' = p0'
-      and (p0' @{ @v3' = p1' }
-          , i1') = (v2', v3')
+      and i1' = v3'
+      and p0' @{ @i1' = p1' } = v2'
       and v4' = p1'
       and p0' = p0' @{ @i1' = p1' }
       and a = a @{ @i0' = p0' }
@@ -444,20 +458,20 @@ cogent_fa7 a =
       and v4' = 1
       and v2' = 2
       and v1' = a
-      and (a @{ @v2' = p0' }
-          , i0') = (v1', v2')
+      and i0' = v2'
+      and a @{ @i0' = p0' } = v1'
       and v3' = p0'
-      and (p0' @{ @v4' = p1' }
-          , i1') = (v3', v4')
+      and i1' = v4'
+      and p0' @{ @i1' = p1' } = v3'
       and v5' = p1'
       and p0' = p0' @{ @i1' = p1' }
       and a = a @{ @i0' = p0' }
       and v' = a
-      and (a @{ @v5' = p2' }
-          , i2') = (v', v5')
+      and i2' = v5'
+      and a @{ @i2' = p2' } = v'
       and v6' = p2'
-      and (p2' @{ @v7' = p3' }
-          , i3') = (v6', v7')
+      and i3' = v7'
+      and p2' @{ @i3' = p3' } = v6'
       and v8' = p3'
       and p2' = p2' @{ @i3' = p3' }
       and a = a @{ @i2' = p2' }
@@ -525,8 +539,8 @@ cogent_fp6 : Cogent_a4 -> ( U32, Cogent_a4 )
 cogent_fp6 p =
    let (r', p) = let v1' = 3
       and v' = p
-      and (p @{ @v1' = p0' }
-          , i0') = (v', v1')
+      and i0' = v1'
+      and p @{ @i0' = p0' } = v'
       and v2' = p0'
       and p0' { cont = p1' } = v2'
       and v3' = p1'
@@ -540,8 +554,8 @@ cogent_fp7 p =
       and v' = p
       and p { cont = p0' } = v'
       and v1' = p0'
-      and (p0' @{ @v2' = p1' }
-          , i1') = (v1', v2')
+      and i1' = v2'
+      and p0' @{ @i1' = p1' } = v1'
       and v3' = p1'
       and p0' = p0' @{ @i1' = p1' }
       and p = p { cont = p0' }

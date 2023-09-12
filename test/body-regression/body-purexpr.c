@@ -39,12 +39,14 @@ int f5(void) { return fx(17,'x',4); }
 struct s1 { int m1, m2; };
 struct s2 { int m3; struct s1 m4; };
 struct s3 { int m5; int m6[5]; };
+struct s1 fs1r(struct s1 s) { return s; }
 int fs1(struct s1 s) { return s.m1; }
 int fs2(struct s1 s) { return s.m1 + s.m2; }
 int fs3(struct s2 s) { return s.m4.m1; }
 int fs4(struct s2 s) { return s.m4.m1 + s.m4.m2 + s.m3; }
 int fs5(struct s3 s) { return s.m6[1]; }
 int fs6(struct s3 s) { return s.m6[1] + s.m6[3] + s.m5; }
+int fs7(struct s1 s) { return fs1r(s).m1; }
 
 typedef int a1[5];
 typedef struct s1 a2[5];

@@ -41,3 +41,14 @@ instance Show TypeMatchError where show = showError "Type mismatch"
 typeMatch :: (Pos a) => a -> String -> TypeMatchError
 typeMatch posSrc msg = TypeMatch (mkWarnInfo msg (posOf posSrc))
 
+-- | TakeOpError is caused by a type differences
+newtype TakeOpError = TakeOp ErrorInfo
+
+instance Error TakeOpError where
+    errorInfo (TakeOp ei) = ei
+
+instance Show TakeOpError where show = showError "Illegal take operation"
+
+takeOp :: (Pos a) => a -> String -> TakeOpError
+takeOp posSrc msg = TakeOp (mkWarnInfo msg (posOf posSrc))
+

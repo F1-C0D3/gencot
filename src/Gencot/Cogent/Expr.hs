@@ -156,6 +156,10 @@ mkRecordExpr flds = genExpr (mkRecordType (map (\(f,e) -> (f,typOfGE e)) flds)) 
 mkLambdaExpr :: GenIrrefPatn -> GenExpr -> GenExpr
 mkLambdaExpr p e = genExpr (mkFunType (typOfGIP p) (typOfGE e)) $ CS.Lam p Nothing e
 
+-- construct e.f
+mkMemberExpr :: GenType -> GenExpr -> CCS.FieldName -> GenExpr
+mkMemberExpr t e f = genExpr t $ CS.Member e f
+
 -- Determine free typed variables in expressions
 ------------------------------------------------
 

@@ -88,9 +88,8 @@ cogent_f22ro : (CPtr U32)! -> U32
 cogent_f22ro pro =
    if 0 > 0
    then r'
-   else
-      let pro { cont = p0' } = cogent_frro ()
-      in p0'
+   else getPtr[(CPtr U32)!
+              , U32]{{}} (cogent_frro ())
 
 -- Probe returned as result
 cogent_f31ln : () -> CPtr U32
@@ -116,53 +115,32 @@ cogent_f42ln (pln, qro, i) =
 -- Probe used by accessing a struct component
 cogent_f51ln : Struct_Cogent_ros1! -> Struct_Cogent_ros1!
 cogent_f51ln pro =
-   if 0 > 0
-   then r'
-   else let pro { mrg = p0' } = pro
-      in pro { mrg = p0' }
+   if 0 > 0 then r' else pro
 cogent_f51ro : Struct_Cogent_ros1! -> U32
-cogent_f51ro pro =
-   let pro { mrg = p0' } = pro
-   in p0'
+cogent_f51ro pro = pro.mrg
 cogent_f52ln : Struct_Cogent_ros1! -> Struct_Cogent_ros1!
 cogent_f52ln pro =
-   if 0 > 0
-   then r'
-   else let pro { mro = p0' } = pro
-      in pro { mro = p0' }
+   if 0 > 0 then r' else pro
 cogent_f52ro : Struct_Cogent_ros1! -> (CPtr U32)!
-cogent_f52ro pro =
-   let pro { mro = p0' } = pro
-   in p0'
+cogent_f52ro pro = pro.mro
 cogent_f53ln : Struct_Cogent_ros1! -> Struct_Cogent_ros1!
 cogent_f53ln pro =
-   if 0 > 0
-   then r'
-   else let pro { mln = p0' } = pro
-      in pro { mln = p0' }
+   if 0 > 0 then r' else pro
 cogent_f53ro : Struct_Cogent_ros1! -> (CPtr U32)!
-cogent_f53ro pro =
-   let pro { mln = p0' } = pro
-   in p0'
+cogent_f53ro pro = pro.mln
 cogent_f54ln : Struct_Cogent_ros1! -> Struct_Cogent_ros1!
 cogent_f54ln pro =
-   if 0 > 0
-   then r'
-   else let pro { mln = p0' } = pro
-      and p0' { cont = p1' } = p0'
-      in pro { mln = p0' { cont = p1' } }
+   if 0 > 0 then r' else pro
 cogent_f54ro : Struct_Cogent_ros1! -> U32
 cogent_f54ro pro =
-   let pro { mln = p0' } = pro
-   and p0' { cont = p1' } = p0'
-   in p1'
+   getPtr[(CPtr U32)!
+         , U32]{{}} pro.mln
 cogent_f55ln : Struct_Cogent_ros1! -> U32
 cogent_f55ln pro =
    cogent_fcln (gencotDummy "Readonly expression used in linear context")
 cogent_f55ro : Struct_Cogent_ros1! -> U32
 cogent_f55ro pro =
-   let pro { mln = p0' } = pro
-   in cogent_fcro p0'
+   cogent_fcro pro.mln
 cogent_f56ln : ( Struct_Cogent_ros1!, GlobState1 ) -> ( (), GlobState1 )
 cogent_f56ln (pro, g) =
    (()
@@ -171,9 +149,8 @@ cogent_f56ln (pro, g) =
 cogent_f56ro : ( Struct_Cogent_ros1!, GlobState2 ) -> ( (), GlobState2 )
 cogent_f56ro (pro, g) =
    (()
-   , let pro { mln = p0' } = pro
-   and g { cont = _ } = g
-   in g { cont = p0' })
+   , let g { cont = _ } = g
+   in g { cont = pro.mln })
 cogent_f57ln : ( Struct_Cogent_ros1!, CPtr U32 ) -> ( (), CPtr U32 )
 cogent_f57ln (pro, pln) =
    (()
@@ -182,78 +159,46 @@ cogent_f57ro : ( Struct_Cogent_ros1!, (CPtr U32)! ) -> U32
 cogent_f57ro (pro, qro) =
    if 0 > 0
    then r'
-   else
-      let qro { cont = p1' } = let pro { mln = p0' } = pro
-         in p0'
-      in p1'
+   else getPtr[(CPtr U32)!
+              , U32]{{}} pro.mln
 cogent_f58ln : Struct_Cogent_ros1! -> CPtr U32
 cogent_f58ln pro =
    gencotDummy "Readonly expression used in linear context"
 cogent_f58ro : Struct_Cogent_ros1! -> (CPtr U32)!
-cogent_f58ro pro =
-   let pro { mln = p0' } = pro
-   in p0'
+cogent_f58ro pro = pro.mln
 cogent_f59ln : ( Struct_Cogent_ros1!, CPtr U32, U32 ) -> ( U32, CPtr U32 )
 cogent_f59ln (pro, qln, i) =
    let r' = cogent_fcro (if i /= 0
-         then let pro { mln = p0' } = pro
-            in p0'
+         then pro.mln
          else qln) !qln
    in (r', qln)
 cogent_f59ro : ( Struct_Cogent_ros1!, (CPtr U32)!, U32 ) -> U32
 cogent_f59ro (pro, qro, i) =
    cogent_fcro (if i /= 0
-      then let pro { mln = p0' } = pro
-         in p0'
+      then pro.mln
       else qro)
 
 cogent_f61ln : Struct_Cogent_ros2! -> Struct_Cogent_ros2!
 cogent_f61ln pro =
-   if 0 > 0
-   then r'
-   else let pro { sln = p0' } = pro
-      and p0' { mrg = p1' } = p0'
-      in pro { sln = p0' { mrg = p1' } }
+   if 0 > 0 then r' else pro
 cogent_f61ro : Struct_Cogent_ros2! -> U32
-cogent_f61ro pro =
-   let pro { sln = p0' } = pro
-   and p0' { mrg = p1' } = p0'
-   in p1'
+cogent_f61ro pro = pro.sln.mrg
 cogent_f62ln : Struct_Cogent_ros2! -> Struct_Cogent_ros2!
 cogent_f62ln pro =
-   if 0 > 0
-   then r'
-   else let pro { sln = p0' } = pro
-      and p0' { mro = p1' } = p0'
-      in pro { sln = p0' { mro = p1' } }
+   if 0 > 0 then r' else pro
 cogent_f62ro : Struct_Cogent_ros2! -> (CPtr U32)!
-cogent_f62ro pro =
-   let pro { sln = p0' } = pro
-   and p0' { mro = p1' } = p0'
-   in p1'
+cogent_f62ro pro = pro.sln.mro
 cogent_f63ln : Struct_Cogent_ros2! -> Struct_Cogent_ros2!
 cogent_f63ln pro =
-   if 0 > 0
-   then r'
-   else let pro { sln = p0' } = pro
-      and p0' { mln = p1' } = p0'
-      in pro { sln = p0' { mln = p1' } }
+   if 0 > 0 then r' else pro
 cogent_f63ro : Struct_Cogent_ros2! -> (CPtr U32)!
-cogent_f63ro pro =
-   let pro { sln = p0' } = pro
-   and p0' { mln = p1' } = p0'
-   in p1'
+cogent_f63ro pro = pro.sln.mln
 cogent_f64ln : Struct_Cogent_ros2! -> Struct_Cogent_ros2!
 cogent_f64ln pro =
-   if 0 > 0
-   then r'
-   else let pro { sub = p0' } = pro
-      and p0' { mln = p1' } = p0'
-      in pro { sub = p0' { mln = p1' } }
+   if 0 > 0 then r' else pro
 cogent_f64ro : Struct_Cogent_ros2! -> (CPtr U32)!
 cogent_f64ro pro =
-   let pro { sub = p0' } = pro
-   and p0' { mln = p1' } = p0'
+   let p0' { mln = p1' } = pro.sub
    in p1'
 
 -- Probe used by accessing an array element
@@ -261,59 +206,59 @@ cogent_f71ln : Cogent_roa1! -> U32
 cogent_f71ln pro =
    if 0 > 0
    then r'
-   else
-      let pro @{ @1 = p1' } = let pro @{ @1 = p0' } = pro
-         in pro @{ @1 = p0' }
-      in p1'
+   else getArr[Cogent_roa1!
+              , U32
+              , U32]{{}} (pro, 1)
 cogent_f71ro : Cogent_roa1! -> U32
 cogent_f71ro pro =
-   let pro @{ @1 = p0' } = pro
-   in p0'
+   getArr[Cogent_roa1!
+         , U32
+         , U32]{{}} (pro, 1)
 cogent_f72ln : Cogent_roa2! -> (CPtr U32)!
 cogent_f72ln pro =
    if 0 > 0
    then r'
-   else
-      let pro @{ @1 = p1' } = let pro @{ @1 = p0' } = pro
-         in pro @{ @1 = p0' }
-      in p1'
+   else getArr[Cogent_roa2!
+              , U32
+              , (CPtr U32)!]{{}} (pro, 1)
 cogent_f72ro : Cogent_roa2! -> (CPtr U32)!
 cogent_f72ro pro =
-   let pro @{ @1 = p0' } = pro
-   in p0'
+   getArr[Cogent_roa2!
+         , U32
+         , (CPtr U32)!]{{}} (pro, 1)
 cogent_f73ln : Cogent_roa3! -> (CPtr U32)!
 cogent_f73ln pro =
    if 0 > 0
    then r'
-   else
-      let pro @{ @1 = p1' } = let pro @{ @1 = p0' } = pro
-         in pro @{ @1 = p0' }
-      in p1'
+   else getArr[Cogent_roa3!
+              , U32
+              , (CPtr U32)!]{{}} (pro, 1)
 cogent_f73ro : Cogent_roa3! -> (CPtr U32)!
 cogent_f73ro pro =
-   let pro @{ @1 = p0' } = pro
-   in p0'
+   getArr[Cogent_roa3!
+         , U32
+         , (CPtr U32)!]{{}} (pro, 1)
 cogent_f74ln : Cogent_roa3! -> (CPtr U32)!
 cogent_f74ln pro =
    if 0 > 0
    then r'
-   else
-      let pro @{ @1 = p2' } = let pro @{ @1 = p0' } = pro
-         and p0' { cont = p1' } = p0'
-         in pro @{ @1 = p0' { cont = p1' } }
-      in p2'
+   else getArr[Cogent_roa3!
+              , U32
+              , (CPtr U32)!]{{}} (pro, 1)
 cogent_f74ro : Cogent_roa3! -> U32
 cogent_f74ro pro =
-   let pro @{ @1 = p0' } = pro
-   and p0' { cont = p1' } = p0'
-   in p1'
+   getPtr[(CPtr U32)!
+         , U32]{{}} (getArr[Cogent_roa3!
+                           , U32
+                           , (CPtr U32)!]{{}} (pro, 1))
 cogent_f75ln : Cogent_roa3! -> U32
 cogent_f75ln pro =
    cogent_fcln (gencotDummy "Readonly expression used in linear context")
 cogent_f75ro : Cogent_roa3! -> U32
 cogent_f75ro pro =
-   let pro @{ @1 = p0' } = pro
-   in cogent_fcro p0'
+   cogent_fcro (getArr[Cogent_roa3!
+                      , U32
+                      , (CPtr U32)!]{{}} (pro, 1))
 cogent_f76ln : ( Cogent_roa3!, GlobState1 ) -> ( (), GlobState1 )
 cogent_f76ln (pro, g) =
    (()
@@ -322,9 +267,10 @@ cogent_f76ln (pro, g) =
 cogent_f76ro : ( Cogent_roa3!, GlobState2 ) -> ( (), GlobState2 )
 cogent_f76ro (pro, g) =
    (()
-   , let pro @{ @1 = p0' } = pro
-   and g { cont = _ } = g
-   in g { cont = p0' })
+   , let g { cont = _ } = g
+   in g { cont = getArr[Cogent_roa3!
+                       , U32
+                       , (CPtr U32)!]{{}} (pro, 1) })
 cogent_f77ln : ( Cogent_roa3!, CPtr U32 ) -> ( (), CPtr U32 )
 cogent_f77ln (pro, qln) =
    (()
@@ -333,76 +279,88 @@ cogent_f77ro : ( Cogent_roa3!, (CPtr U32)! ) -> U32
 cogent_f77ro (pro, qro) =
    if 0 > 0
    then r'
-   else
-      let qro { cont = p1' } = let pro @{ @1 = p0' } = pro
-         in p0'
-      in p1'
+   else getPtr[(CPtr U32)!
+              , U32]{{}} (getArr[Cogent_roa3!
+                                , U32
+                                , (CPtr U32)!]{{}} (pro, 1))
 cogent_f78ln : Cogent_roa3! -> CPtr U32
 cogent_f78ln pro =
    gencotDummy "Readonly expression used in linear context"
 cogent_f78ro : Cogent_roa3! -> (CPtr U32)!
 cogent_f78ro pro =
-   let pro @{ @1 = p0' } = pro
-   in p0'
+   getArr[Cogent_roa3!
+         , U32
+         , (CPtr U32)!]{{}} (pro, 1)
 cogent_f79ln : ( Cogent_roa3!, CPtr U32, U32 ) -> ( U32, CPtr U32 )
 cogent_f79ln (pro, qln, i) =
    let r' = cogent_fcro (if i /= 0
-         then let pro @{ @1 = p0' } = pro
-            in p0'
+         then getArr[Cogent_roa3!
+                    , U32
+                    , (CPtr U32)!]{{}} (pro, 1)
          else qln) !qln
    in (r', qln)
 cogent_f79ro : ( Cogent_roa3!, (CPtr U32)!, U32 ) -> U32
 cogent_f79ro (pro, qro, i) =
    cogent_fcro (if i /= 0
-      then let pro @{ @1 = p0' } = pro
-         in p0'
+      then getArr[Cogent_roa3!
+                 , U32
+                 , (CPtr U32)!]{{}} (pro, 1)
       else qro)
 
 cogent_f81ln : Cogent_roa4! -> U32
 cogent_f81ln pro =
    if 0 > 0
    then r'
-   else
-      let pro @{ @1 = p2' } = let pro @{ @1 = p0' } = pro
-         and p0' @{ @1 = p1' } = p0'
-         in pro @{ @1 = p0' @{ @1 = p1' } }
-      and p2' @{ @1 = p3' } = p2'
-      in p3'
+   else getArr[Cogent_roa1!
+              , U32
+              , U32]{{}} (getArr[Cogent_roa4!
+                                , U32
+                                , Cogent_roa1!]{{}} (pro, 1)
+                         , 1)
 cogent_f81ro : Cogent_roa4! -> U32
 cogent_f81ro pro =
-   let pro @{ @1 = p0' } = pro
-   and p0' @{ @1 = p1' } = p0'
-   in p1'
+   getArr[Cogent_roa1!
+         , U32
+         , U32]{{}} (getArr[Cogent_roa4!
+                           , U32
+                           , Cogent_roa1!]{{}} (pro, 1)
+                    , 1)
 cogent_f82ln : Cogent_roa5! -> (CPtr U32)!
 cogent_f82ln pro =
    if 0 > 0
    then r'
-   else
-      let pro @{ @1 = p2' } = let pro @{ @1 = p0' } = pro
-         and p0' @{ @1 = p1' } = p0'
-         in pro @{ @1 = p0' @{ @1 = p1' } }
-      and p2' @{ @1 = p3' } = p2'
-      in p3'
+   else getArr[Cogent_roa2!
+              , U32
+              , (CPtr U32)!]{{}} (getArr[Cogent_roa5!
+                                        , U32
+                                        , Cogent_roa2!]{{}} (pro, 1)
+                                 , 1)
 cogent_f82ro : Cogent_roa5! -> (CPtr U32)!
 cogent_f82ro pro =
-   let pro @{ @1 = p0' } = pro
-   and p0' @{ @1 = p1' } = p0'
-   in p1'
+   getArr[Cogent_roa2!
+         , U32
+         , (CPtr U32)!]{{}} (getArr[Cogent_roa5!
+                                   , U32
+                                   , Cogent_roa2!]{{}} (pro, 1)
+                            , 1)
 cogent_f83ln : Cogent_roa6! -> (CPtr U32)!
 cogent_f83ln pro =
    if 0 > 0
    then r'
-   else
-      let pro @{ @1 = p2' } = let pro @{ @1 = p0' } = pro
-         and p0' @{ @1 = p1' } = p0'
-         in pro @{ @1 = p0' @{ @1 = p1' } }
-      and p2' @{ @1 = p3' } = p2'
-      in p3'
+   else getArr[Cogent_roa3!
+              , U32
+              , (CPtr U32)!]{{}} (getArr[Cogent_roa6!
+                                        , U32
+                                        , Cogent_roa3!]{{}} (pro, 1)
+                                 , 1)
 cogent_f83ro : Cogent_roa6! -> (CPtr U32)!
 cogent_f83ro pro =
-   let pro @{ @1 = p0' } = pro
-   and p0' @{ @1 = p1' } = p0'
-   in p1'
+   getArr[Cogent_roa3!
+         , U32
+         , (CPtr U32)!]{{}} (getArr[Cogent_roa6!
+                                   , U32
+                                   , Cogent_roa3!]{{}} (pro, 1)
+                            , 1)
 
 -- probe assigned to struct component or array element
 cogent_f91ln : Struct_Cogent_ros1 -> ( (), Struct_Cogent_ros1 )
@@ -478,9 +436,8 @@ cogent_g22ro : (CPtr U32)! -> U32
 cogent_g22ro pro =
    if 0 > 0
    then r'
-   else
-      let pro { cont = p0' } = gencotDummy "Linear expression used in readonly context"
-      in p0'
+   else getPtr[(CPtr U32)!
+              , U32]{{}} (gencotDummy "Linear expression used in readonly context")
 
 -- Probe returned as result
 cogent_g31ln : () -> CPtr U32
@@ -497,8 +454,7 @@ cogent_g51ln pln =
    in pln { mrg = 5 })
 cogent_g51ro : Struct_Cogent_ros1 -> U32
 cogent_g51ro pln =
-   let r' = (let pln { mrg = p0' } = pln
-         in p0') !pln
+   let r' = pln.mrg !pln
    in r'
 cogent_g52ln : Struct_Cogent_ros1 -> ( (), Struct_Cogent_ros1 )
 cogent_g52ln pln =
@@ -534,8 +490,7 @@ cogent_g55ln pln =
    in cogent_fcln p0'
 cogent_g55ro : Struct_Cogent_ros1 -> U32
 cogent_g55ro pln =
-   let r' = (let pln { mln = p0' } = pln
-         in cogent_fcro p0') !pln
+   let r' = cogent_fcro pln.mln !pln
    in r'
 cogent_g56ln : ( Struct_Cogent_ros1, GlobState1 ) -> ( (), GlobState1 )
 cogent_g56ln (pln, g) =
@@ -545,9 +500,8 @@ cogent_g56ln (pln, g) =
    in g { cont = p0' })
 cogent_g56ro : ( Struct_Cogent_ros1, GlobState2 ) -> ( (), GlobState2 )
 cogent_g56ro (pln, g) =
-   let g = (let pln { mln = p0' } = gencotDummy "Necessary banging of pln leads to non-escapeable type"
-         and g { cont = _ } = g
-         in g { cont = p0' }) !pln
+   let g = (let g { cont = _ } = g
+         in g { cont = (gencotDummy "Necessary banging of pln leads to non-escapeable type").mln }) !pln
    in ((), g)
 cogent_g57ln : ( Struct_Cogent_ros1, CPtr U32 ) -> ( (), CPtr U32 )
 cogent_g57ln (pln, qln) =
@@ -558,10 +512,8 @@ cogent_g57ro : ( Struct_Cogent_ros1, (CPtr U32)! ) -> U32
 cogent_g57ro (pln, qro) =
    let r' = (if 0 > 0
          then r'
-         else
-            let qro { cont = p1' } = let pln { mln = p0' } = pln
-               in p0'
-            in p1') !pln
+         else getPtr[(CPtr U32)!
+                    , U32]{{}} pln.mln) !pln
    in r'
 cogent_g58ln : Struct_Cogent_ros1 -> CPtr U32
 cogent_g58ln pln =
@@ -573,15 +525,13 @@ cogent_g58ro pln =
 cogent_g59ln : ( Struct_Cogent_ros1, CPtr U32, U32 ) -> ( U32, CPtr U32 )
 cogent_g59ln (pln, qln, i) =
    let r' = cogent_fcro (if i /= 0
-         then let pln { mln = p0' } = pln
-            in p0'
+         then pln.mln
          else qln) !pln !qln
    in (r', qln)
 cogent_g59ro : ( Struct_Cogent_ros1, (CPtr U32)!, U32 ) -> U32
 cogent_g59ro (pln, qro, i) =
    let r' = cogent_fcro (if i /= 0
-         then let pln { mln = p0' } = pln
-            in p0'
+         then pln.mln
          else qro) !pln
    in r'
 
@@ -593,10 +543,8 @@ cogent_g61ln pln =
    in pln { sln = p0' { mrg = 5 } })
 cogent_g61ro : Struct_Cogent_ros2 -> ( U32, Struct_Cogent_ros2 )
 cogent_g61ro pln =
-   let (r'
-       , ()) = (let pln { sln = p0' } = pln
-         and p0' { mrg = p1' } = p0'
-         in (p1', ())) !pln
+   let (r', ()) = (pln.sln.mrg
+                  , ()) !pln
    in (r', pln)
 cogent_g62ln : Struct_Cogent_ros2 -> ( (), Struct_Cogent_ros2 )
 cogent_g62ln pln =
@@ -643,8 +591,9 @@ cogent_g71ln pln =
    in pln @{ @1 = 5 })
 cogent_g71ro : Cogent_roa1 -> U32
 cogent_g71ro pln =
-   let r' = (let pln @{ @1 = p0' } = pln
-         in p0') !pln
+   let r' = getArr[Cogent_roa1!
+                  , U32
+                  , U32]{{}} (pln, 1) !pln
    in r'
 cogent_g72ln : Cogent_roa2 -> ( (), Cogent_roa2 )
 cogent_g72ln pln =
@@ -672,9 +621,11 @@ cogent_g74ln pln =
    in pln @{ @1 = p0' { cont = 5 } })
 cogent_g74ro : Cogent_roa3 -> U32
 cogent_g74ro pln =
-   let r' = (let pln @{ @1 = p0' } = pln
-         and p0' { cont = p1' } = p0'
-         in p1') !pln
+   let r' = getPtr[(CPtr U32)!
+                  , U32]{{}} (getArr[Cogent_roa3!
+                                    , U32
+                                    , (CPtr U32)!]{{}} (pln
+                                                       , 1)) !pln
    in r'
 cogent_g75ln : Cogent_roa3 -> U32
 cogent_g75ln pln =
@@ -682,8 +633,10 @@ cogent_g75ln pln =
    in cogent_fcln p0'
 cogent_g75ro : Cogent_roa3 -> U32
 cogent_g75ro pln =
-   let r' = (let pln @{ @1 = p0' } = pln
-         in cogent_fcro p0') !pln
+   let r' = cogent_fcro (getArr[Cogent_roa3!
+                               , U32
+                               , (CPtr U32)!]{{}} (pln
+                                                  , 1)) !pln
    in r'
 cogent_g76ln : ( Cogent_roa3, GlobState1 ) -> ( (), GlobState1 )
 cogent_g76ln (pln, g) =
@@ -693,9 +646,11 @@ cogent_g76ln (pln, g) =
    in g { cont = p0' })
 cogent_g76ro : ( Cogent_roa3, GlobState2 ) -> ( (), GlobState2 )
 cogent_g76ro (pln, g) =
-   let g = (let pln @{ @1 = p0' } = gencotDummy "Necessary banging of pln leads to non-escapeable type"
-         and g { cont = _ } = g
-         in g { cont = p0' }) !pln
+   let g = (let g { cont = _ } = g
+         in g { cont = getArr[Cogent_roa3!
+                             , U32
+                             , (CPtr U32)!]{{}} (gencotDummy "Necessary banging of pln leads to non-escapeable type"
+                                                , 1) }) !pln
    in ((), g)
 cogent_g77ln : ( Cogent_roa3, CPtr U32 ) -> ( (), CPtr U32 )
 cogent_g77ln (pln, qln) =
@@ -706,10 +661,11 @@ cogent_g77ro : ( Cogent_roa3, (CPtr U32)! ) -> U32
 cogent_g77ro (pln, qro) =
    let r' = (if 0 > 0
          then r'
-         else
-            let qro { cont = p1' } = let pln @{ @1 = p0' } = pln
-               in p0'
-            in p1') !pln
+         else getPtr[(CPtr U32)!
+                    , U32]{{}} (getArr[Cogent_roa3!
+                                      , U32
+                                      , (CPtr U32)!]{{}} (pln
+                                                         , 1))) !pln
    in r'
 cogent_g78ln : Cogent_roa3 -> CPtr U32
 cogent_g78ln pln =
@@ -721,15 +677,17 @@ cogent_g78ro pln =
 cogent_g79ln : ( Cogent_roa3, CPtr U32, U32 ) -> ( U32, CPtr U32 )
 cogent_g79ln (pln, qln, i) =
    let r' = cogent_fcro (if i /= 0
-         then let pln @{ @1 = p0' } = pln
-            in p0'
+         then getArr[Cogent_roa3!
+                    , U32
+                    , (CPtr U32)!]{{}} (pln, 1)
          else qln) !pln !qln
    in (r', qln)
 cogent_g79ro : ( Cogent_roa3, (CPtr U32)!, U32 ) -> U32
 cogent_g79ro (pln, qro, i) =
    let r' = cogent_fcro (if i /= 0
-         then let pln @{ @1 = p0' } = pln
-            in p0'
+         then getArr[Cogent_roa3!
+                    , U32
+                    , (CPtr U32)!]{{}} (pln, 1)
          else qro) !pln
    in r'
 
@@ -741,9 +699,12 @@ cogent_g81ln pln =
    in pln @{ @1 = p0' @{ @1 = 5 } })
 cogent_g81ro : Cogent_roa4 -> U32
 cogent_g81ro pln =
-   let r' = (let pln @{ @1 = p0' } = pln
-         and p0' @{ @1 = p1' } = p0'
-         in p1') !pln
+   let r' = getArr[Cogent_roa1!
+                  , U32
+                  , U32]{{}} (getArr[Cogent_roa4!
+                                    , U32
+                                    , Cogent_roa1!]{{}} (pln, 1)
+                             , 1) !pln
    in r'
 cogent_g82ln : Cogent_roa5 -> ( (), Cogent_roa5 )
 cogent_g82ln pln =
@@ -793,10 +754,9 @@ cogent_g92ro pln =
 -- banging in nested bang positions
 cogent_nst11 : ( Struct_Cogent_ros1, U32 ) -> ( Struct_Cogent_ros1, Struct_Cogent_ros1 )
 cogent_nst11 (pln, i) =
-   (let (c'
-        , ()
-        , i) = (let pln { mrg = p0' } = pln
-         in (0, (), p0')) !pln
+   (let (c', (), i) = (0
+                      , ()
+                      , pln.mrg) !pln
    in if c' > 0
       then r'
       else if 0 > 0
@@ -804,10 +764,9 @@ cogent_nst11 (pln, i) =
          else let pln { mln = p1' } = pln
             and p1' { cont = _ } = p1'
             in pln { mln = p1' { cont = i } }
-   , let (c'
-         , ()
-         , i) = (let pln { mrg = p0' } = pln
-         in (0, (), p0')) !pln
+   , let (c', (), i) = (0
+                       , ()
+                       , pln.mrg) !pln
    in if c' > 0
       then pln
       else if 0 > 0
@@ -819,17 +778,15 @@ cogent_nst11 (pln, i) =
             in pln { mln = p1' { cont = i } })
 cogent_nst12 : ( Struct_Cogent_ros1, U32 ) -> ( Struct_Cogent_ros1, Struct_Cogent_ros1 )
 cogent_nst12 (pln, i) =
-   (let (c'
-        , ()
-        , i) = (let pln { mrg = p0' } = pln
-         in (0, (), p0')) !pln
+   (let (c', (), i) = (0
+                      , ()
+                      , pln.mrg) !pln
    in if c' > 0
       then r'
-      else let (c'
-               , ()
-               , i) = (let pln { mro = p1' } = pln
-               and p1' { cont = p2' } = p1'
-               in (0, (), i + p2')) !pln
+      else let (c', (), i) = (0
+                             , ()
+                             , i + getPtr[(CPtr U32)!
+                                         , U32]{{}} pln.mro) !pln
          in if c' > 0
             then r'
             else if 0 > 0
@@ -837,17 +794,15 @@ cogent_nst12 (pln, i) =
                else let pln { mln = p3' } = pln
                   and p3' { cont = _ } = p3'
                   in pln { mln = p3' { cont = i } }
-   , let (c'
-         , ()
-         , i) = (let pln { mrg = p0' } = pln
-         in (0, (), p0')) !pln
+   , let (c', (), i) = (0
+                       , ()
+                       , pln.mrg) !pln
    in if c' > 0
       then pln
-      else let (c'
-               , ()
-               , i) = (let pln { mro = p1' } = pln
-               and p1' { cont = p2' } = p1'
-               in (0, (), i + p2')) !pln
+      else let (c', (), i) = (0
+                             , ()
+                             , i + getPtr[(CPtr U32)!
+                                         , U32]{{}} pln.mro) !pln
          in if c' > 0
             then pln
             else if 0 > 0
@@ -870,21 +825,21 @@ cogent_bs11 (pln, i) =
 cogent_bs12 : ( Struct_Cogent_ros1, (CPtr U32)!, U32 ) -> ( Struct_Cogent_ros1, Struct_Cogent_ros1 )
 cogent_bs12 (pln, qro, i) =
    let (v13'
-       , ()) = (let pln { mln = p0' } = pln
-         and qro { cont = p1' } = p0'
-         in (p1', ())) !pln
+       , ()) = (getPtr[(CPtr U32)!
+                      , U32]{{}} pln.mln
+               , ()) !pln
    in (pln { mrg = v13' }
       , pln { mrg = v13' })
 cogent_bs13 : ( Struct_Cogent_ros1, (CPtr U32)!, CPtr U32 ) -> ( Struct_Cogent_ros1, Struct_Cogent_ros1, CPtr U32 )
 cogent_bs13 (pln, qro, i) =
    let (v14'
        , ()
-       , i) = (let pln { mln = p0' } = pln
-         and qro { cont = p1' } = p0'
-         and i { cont = _ } = i
-         in (i { cont = p1' }
+       , i) = (let i { cont = _ } = i
+         in (i { cont = getPtr[(CPtr U32)!
+                              , U32]{{}} pln.mln }
             , ()
-            , i { cont = p1' })) !pln
+            , i { cont = getPtr[(CPtr U32)!
+                               , U32]{{}} pln.mln })) !pln
    in (pln { mln = v14' }
       , pln { mln = v14' }
       , i)
@@ -928,8 +883,7 @@ cogent_n22ro pro =
    if 0 > 0
    then r'
    else
-      let pro { cont = p0' } = cogent_NULL
-      in p0'
+      gencotDummy "Dereferencing pointer which may be NULL"
 
 -- NULL returned as result
 cogent_n31ln : () -> MayNull (CPtr U32)
@@ -950,15 +904,9 @@ cogent_n43roro () =
 
 -- NULL assigned to struct component or array element
 cogent_n91ln : MayNull Struct_Cogent_rosm1 -> ( (), MayNull Struct_Cogent_rosm1 )
-cogent_n91ln pln =
-   (()
-   , let pln { mln = _ } = pln
-   in pln { mln = cogent_NULL })
+cogent_n91ln pln = ((), pln)
 cogent_n91ro : MayNull Struct_Cogent_rosm1 -> ( (), MayNull Struct_Cogent_rosm1 )
-cogent_n91ro pln =
-   (()
-   , let pln { mro = _ } = pln
-   in pln { mro = cogent_NULL })
+cogent_n91ro pln = ((), pln)
 cogent_n92ln : Cogent_roam3 -> ( (), Cogent_roam3 )
 cogent_n92ln pln =
    (()

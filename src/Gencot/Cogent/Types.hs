@@ -268,6 +268,10 @@ isTupleType :: GenType -> Bool
 isTupleType (GenType (CS.TTuple _) _ _) = True
 isTupleType _ = False
 
+isUnitType :: GenType -> Bool
+isUnitType (GenType CS.TUnit _ _) = True
+isUnitType _ = False
+
 -- | Readonly or regular
 isNonlinear :: GenType -> Bool
 isNonlinear (GenType (CS.TTuple ts) _ _) = all isNonlinear ts

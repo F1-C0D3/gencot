@@ -12,44 +12,29 @@ cogent_ffv12 i = ((), i)
 cogent_ffv13 : MayNull (CPtr U32) -> ()
 cogent_ffv13 i = () -- i: -ar
 cogent_ffv14 : MayNull (CPtr U32) -> ( (), MayNull (CPtr U32) )
-cogent_ffv14 i =
-   (()
-   , let i { cont = _ } = i
-   in i { cont = 5 })
+cogent_ffv14 i = ((), i)
 cogent_ffv15 : ( MayNull (CPtr U32), MayNull (CPtr U32) ) -> ()
 cogent_ffv15 (i, j) = () -- i: -ar, j: -ar
 cogent_ffv16 : ( MayNull (CPtr U32), MayNull (CPtr U32) ) -> ( (), MayNull (CPtr U32) )
 cogent_ffv16 (i, j) =
-   let i = (let j { cont = p0' } = j
-         and i { cont = _ } = i
-         in i { cont = p0' }) !j
+   let i = i !j
    in ((), i) -- j: -ar
 cogent_ffv17 : ( MayNull (CPtr U32), MayNull (CPtr U32) ) -> ( (), MayNull (CPtr U32) )
 cogent_ffv17 (i, j) =
    (()
    , let (c', ()) = (0, ()) !j
-   in if c' > 0
-      then j
-      else let j { cont = _ } = j
-         in j { cont = 5 }) -- i: -ar
+   in j) -- i: -ar
 cogent_ffv18 : ( MayNull (CPtr U32), MayNull (CPtr U32) ) -> ( (), MayNull (CPtr U32), MayNull (CPtr U32) )
 cogent_ffv18 (i, j) =
    (()
-   , let (c'
-         , ()
-         , i) = (let j { cont = p0' } = j
-         and i { cont = _ } = i
-         in (0, (), i { cont = p0' })) !j
+   , let (c', (), i) = (0
+                       , ()
+                       , i) !j
    in i
-   , let (c'
-         , ()
-         , i) = (let j { cont = p0' } = j
-         and i { cont = _ } = i
-         in (0, (), i { cont = p0' })) !j
-   in if c' > 0
-      then j
-      else let j { cont = _ } = j
-         in j { cont = 5 })
+   , let (c', (), i) = (0
+                       , ()
+                       , i) !j
+   in j)
 
 type GlobState1 = CPtr U32 -- glob1: gs1
 type GlobState2 = CPtr U32 -- glob2: gs2
@@ -79,71 +64,57 @@ cogent_ffv27 g =
 cogent_ffv28 : ( GlobState1, GlobState2 ) -> ( (), GlobState1, GlobState2 )
 cogent_ffv28 (g1, g2) =
    let (()
-       , g1) = (let g2 { cont = p0' } = g2
-         and g1 { cont = _ } = g1
-         in ((), g1 { cont = p0' })) !g2
+       , g1) = (let g1 { cont = _ } = g1
+         in (()
+            , g1 { cont = getPtr[GlobState2!
+                                , U32]{{}} g2 })) !g2
    in ((), g1, g2) -- g1: gs1, g2: gs2
 
 cogent_ffv31 : ( MayNull (CPtr U32), GlobState1 ) -> ( (), GlobState1 )
 cogent_ffv31 (i, g) =
-   let g = (let i { cont = p0' } = i
-         and g { cont = _ } = g
-         in g { cont = p0' }) !i
+   let g = (let g { cont = _ } = g
+         in g { cont = gencotDummy "Dereferencing pointer which may be NULL" }) !i
    in ((), g) -- i: -ar, g: gs1
 cogent_ffv32 : ( MayNull (CPtr U32), GlobState1 ) -> ( (), MayNull (CPtr U32), GlobState1 )
 cogent_ffv32 (i, g) =
-   let (()
-       , i) = (let g { cont = p0' } = g
-         and i { cont = _ } = i
-         in ((), i { cont = p0' })) !g
+   let ((), i) = ((), i) !g
    in ((), i, g) -- g: gs1
 cogent_ffv33 : ( MayNull (CPtr U32), GlobState1 ) -> ( (), MayNull (CPtr U32), GlobState1 )
 cogent_ffv33 (i, g) =
    (()
-   , let g { cont = p0' } = g
-   and i { cont = _ } = i
-   in i { cont = p0' }
+   , i
    , let g { cont = p0' } = g
    in g { cont = p0' + 1 }) -- g: gs1
 cogent_ffv34 : ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1 ) -> ( (), MayNull (CPtr U32), GlobState1 )
 cogent_ffv34 (i, j, g) =
    let (g, i) = (let (c'
                      , ()
-                     , i) = (let g { cont = p0' } = g
-               and i { cont = _ } = i
-               in (0, (), i { cont = p0' })) !g
+                     , i) = (0, (), i) !g
          in if c' > 0
             then (g, i)
-            else (let j { cont = p2' } = j
-                 and g { cont = _ } = g
-                 in g { cont = p2' }
+            else (let g { cont = _ } = g
+                 in g { cont = gencotDummy "Dereferencing pointer which may be NULL" }
                  , i)) !j
    in ((), i, g) -- j: -ar, g: gs1
 cogent_ffv35 : ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1 ) -> ( (), MayNull (CPtr U32), MayNull (CPtr U32), GlobState1 )
 cogent_ffv35 (i, j, g) =
    let (g, i, ()) = (let (c'
                          , ()
-                         , i) = (let g { cont = p0' } = g
-               and i { cont = _ } = i
-               in (0, (), i { cont = p0' })) !g
+                         , i) = (0, (), i) !g
          in if c' > 0
             then (g, i, ())
-            else (let j { cont = p2' } = j
-                 and g { cont = _ } = g
-                 in g { cont = p2' }
+            else (let g { cont = _ } = g
+                 in g { cont = gencotDummy "Dereferencing pointer which may be NULL" }
                  , i
                  , ())) !j
    in ((), i, j, g) -- g: gs1
 cogent_ffv36 : ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1, GlobState2 ) -> ( (), MayNull (CPtr U32), MayNull (CPtr U32), GlobState1, GlobState2 )
 cogent_ffv36 (i, j, g1, g2) =
    let ((), i, (), g2) = (()
-                         , let g1 { cont = p0' } = g1
-                         and i { cont = _ } = i
-                         in i { cont = p0' }
+                         , i
                          , ()
-                         , let j { cont = p2' } = j
-                         and g2 { cont = _ } = g2
-                         in g2 { cont = p2' }) !j !g1
+                         , let g2 { cont = _ } = g2
+                         in g2 { cont = gencotDummy "Dereferencing pointer which may be NULL" }) !j !g1
    in ((), i, j, g1, g2) -- g1: gs1, g2: gs2
 
 cogent_ffv41 : Heap -> ( (), Heap )
@@ -156,42 +127,29 @@ cogent_ffv43 (i, heap) =
    ((), heap) -- i: -ar, ffv43: hu
 cogent_ffv44 : ( MayNull (CPtr U32), Heap ) -> ( (), MayNull (CPtr U32), Heap )
 cogent_ffv44 (i, heap) =
-   (()
-   , let i { cont = _ } = i
-   in i { cont = 5 }
-   , heap) -- ffv44: hu
+   ((), i, heap) -- ffv44: hu
 cogent_ffv45 : ( MayNull (CPtr U32), GlobState1, Heap ) -> ( (), GlobState1, Heap )
 cogent_ffv45 (i, g, heap) =
-   let g = (let i { cont = p0' } = i
-         and g { cont = _ } = g
-         in g { cont = p0' }) !i
+   let g = (let g { cont = _ } = g
+         in g { cont = gencotDummy "Dereferencing pointer which may be NULL" }) !i
    in ((), g, heap) -- i: -ar, g: gs1, ffv45: hu
 cogent_ffv46 : ( MayNull (CPtr U32), GlobState1, Heap ) -> ( (), MayNull (CPtr U32), GlobState1, Heap )
 cogent_ffv46 (i, g, heap) =
-   let (()
-       , i) = (let g { cont = p0' } = g
-         and i { cont = _ } = i
-         in ((), i { cont = p0' })) !g
+   let ((), i) = ((), i) !g
    in ((), i, g, heap) -- g: gs1, ffv46: hu
 cogent_ffv47 : ( MayNull (CPtr U32), MayNull (CPtr U32), Heap ) -> ( (), MayNull (CPtr U32), MayNull (CPtr U32), Heap )
 cogent_ffv47 (i, j, heap) =
-   let (i
-       , ()) = (let i { cont = _ } = i
-               in i { cont = gencotDummy "Cannot access global variable: glob1" }
-               , ()) !j
+   let (i, ()) = (i, ()) !j
    in ((), i, j, heap) -- ffv47: hu
 cogent_ffv48 : ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1, Heap ) -> ( (), MayNull (CPtr U32), MayNull (CPtr U32), GlobState1, Heap )
 cogent_ffv48 (i, j, g, heap) =
    let (g, i, ()) = (let (c'
                          , ()
-                         , i) = (let g { cont = p0' } = g
-               and i { cont = _ } = i
-               in (0, (), i { cont = p0' })) !g
+                         , i) = (0, (), i) !g
          in if c' > 0
             then (g, i, ())
-            else (let j { cont = p2' } = j
-                 and g { cont = _ } = g
-                 in g { cont = p2' }
+            else (let g { cont = _ } = g
+                 in g { cont = gencotDummy "Dereferencing pointer which may be NULL" }
                  , i
                  , ())) !j
    in ((), i, j, g, heap) -- g: gs1, ffv48: hu
@@ -207,52 +165,31 @@ cogent_ffi12 i = (5, i)
 cogent_ffi13 : MayNull (CPtr U32) -> U32
 cogent_ffi13 i = 2 -- i: -ar 
 cogent_ffi14 : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
-cogent_ffi14 i =
-   (2
-   , let i { cont = _ } = i
-   in i { cont = 5 })
+cogent_ffi14 i = (2, i)
 cogent_ffi15 : ( MayNull (CPtr U32), MayNull (CPtr U32) ) -> U32
 cogent_ffi15 (i, j) = 2 -- i: -ar, j: -ar 
 cogent_ffi16 : ( MayNull (CPtr U32), MayNull (CPtr U32) ) -> ( U32, MayNull (CPtr U32) )
 cogent_ffi16 (i, j) =
-   let (i
-       , r') = (let j { cont = p0' } = j
-               and i { cont = _ } = i
-               in i { cont = p0' }
-               , 2) !j
+   let (i, r') = (i, 2) !j
    in (r', i) -- j: -ar
 cogent_ffi17 : ( MayNull (CPtr U32), MayNull (CPtr U32) ) -> ( U32, MayNull (CPtr U32) )
 cogent_ffi17 (i, j) =
    (let (c', ()) = (0, ()) !j
    in if c' > 0 then r' else 2
    , let (c', ()) = (0, ()) !j
-   in if c' > 0
-      then j
-      else let j { cont = _ } = j
-         in j { cont = 5 }) -- i: -ar
+   in j) -- i: -ar
 cogent_ffi18 : ( MayNull (CPtr U32), MayNull (CPtr U32) ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32) )
 cogent_ffi18 (i, j) =
-   (let (c'
-        , ()
-        , i) = (let j { cont = p0' } = j
-         and i { cont = _ } = i
-         in (0, (), i { cont = p0' })) !j
+   (let (c', (), i) = (0, (), i) !j
    in if c' > 0 then r' else 2
-   , let (c'
-         , ()
-         , i) = (let j { cont = p0' } = j
-         and i { cont = _ } = i
-         in (0, (), i { cont = p0' })) !j
+   , let (c', (), i) = (0
+                       , ()
+                       , i) !j
    in i
-   , let (c'
-         , ()
-         , i) = (let j { cont = p0' } = j
-         and i { cont = _ } = i
-         in (0, (), i { cont = p0' })) !j
-   in if c' > 0
-      then j
-      else let j { cont = _ } = j
-         in j { cont = 5 })
+   , let (c', (), i) = (0
+                       , ()
+                       , i) !j
+   in j)
 
 cogent_ffi21 : GlobState1 -> ( U32, GlobState1 )
 cogent_ffi21 g = (5, g) -- g: gs1
@@ -279,48 +216,38 @@ cogent_ffi27 g =
 cogent_ffi28 : ( GlobState1, GlobState2 ) -> ( U32, GlobState1, GlobState2 )
 cogent_ffi28 (g1, g2) =
    let ((), g1, r') = (()
-                      , let g2 { cont = p0' } = g2
-                      and g1 { cont = _ } = g1
-                      in g1 { cont = p0' }
+                      , let g1 { cont = _ } = g1
+                      in g1 { cont = getPtr[GlobState2!
+                                           , U32]{{}} g2 }
                       , 2) !g2
    in (r', g1, g2) -- g1: gs1, g2: gs2
 
 cogent_ffi31 : ( MayNull (CPtr U32), GlobState1 ) -> ( U32, GlobState1 )
 cogent_ffi31 (i, g) =
    let (g
-       , r') = (let i { cont = p0' } = i
-               and g { cont = _ } = g
-               in g { cont = p0' }
+       , r') = (let g { cont = _ } = g
+               in g { cont = gencotDummy "Dereferencing pointer which may be NULL" }
                , 2) !i
    in (r', g) -- i: -ar, g: gs1
 cogent_ffi32 : ( MayNull (CPtr U32), GlobState1 ) -> ( U32, MayNull (CPtr U32), GlobState1 )
 cogent_ffi32 (i, g) =
-   let ((), i, r') = (()
-                     , let g { cont = p0' } = g
-                     and i { cont = _ } = i
-                     in i { cont = p0' }
-                     , 2) !g
+   let ((), i, r') = ((), i, 2) !g
    in (r', i, g) -- g: gs1
 cogent_ffi33 : ( MayNull (CPtr U32), GlobState1 ) -> ( U32, MayNull (CPtr U32), GlobState1 )
 cogent_ffi33 (i, g) =
    (2
-   , let g { cont = p0' } = g
-   and i { cont = _ } = i
-   in i { cont = p0' }
+   , i
    , let g { cont = p0' } = g
    in g { cont = p0' + 1 }) -- g: gs1
 cogent_ffi34 : ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1 ) -> ( U32, MayNull (CPtr U32), GlobState1 )
 cogent_ffi34 (i, j, g) =
    let (g, i, r') = (let (c'
                          , ()
-                         , i) = (let g { cont = p0' } = g
-               and i { cont = _ } = i
-               in (0, (), i { cont = p0' })) !g
+                         , i) = (0, (), i) !g
          in if c' > 0
             then (g, i, r')
-            else (let j { cont = p2' } = j
-                 and g { cont = _ } = g
-                 in g { cont = p2' }
+            else (let g { cont = _ } = g
+                 in g { cont = gencotDummy "Dereferencing pointer which may be NULL" }
                  , i
                  , 2)) !j
    in (r', i, g) -- j: -ar, g: gs1
@@ -328,14 +255,11 @@ cogent_ffi35 : ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1 ) -> ( U32, 
 cogent_ffi35 (i, j, g) =
    let (g, i, (), r') = (let (c'
                              , ()
-                             , i) = (let g { cont = p0' } = g
-               and i { cont = _ } = i
-               in (0, (), i { cont = p0' })) !g
+                             , i) = (0, (), i) !g
          in if c' > 0
             then (g, i, (), r')
-            else (let j { cont = p2' } = j
-                 and g { cont = _ } = g
-                 in g { cont = p2' }
+            else (let g { cont = _ } = g
+                 in g { cont = gencotDummy "Dereferencing pointer which may be NULL" }
                  , i
                  , ()
                  , 2)) !j
@@ -343,13 +267,10 @@ cogent_ffi35 (i, j, g) =
 cogent_ffi36 : ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1, GlobState2 ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32), GlobState1, GlobState2 )
 cogent_ffi36 (i, j, g1, g2) =
    let ((), i, (), g1, r') = (()
-                             , let g2 { cont = p0' } = g2
-                             and i { cont = _ } = i
-                             in i { cont = p0' }
+                             , i
                              , ()
-                             , let j { cont = p2' } = j
-                             and g1 { cont = _ } = g1
-                             in g1 { cont = p2' }
+                             , let g1 { cont = _ } = g1
+                             in g1 { cont = gencotDummy "Dereferencing pointer which may be NULL" }
                              , 2) !j !g2
    in (r', i, j, g1, g2) -- g1: gs1, g2: gs2
 
@@ -363,58 +284,38 @@ cogent_ffi43 (i, heap) =
    (2, heap) -- i: -ar, ffv43: hu
 cogent_ffi44 : ( MayNull (CPtr U32), Heap ) -> ( U32, MayNull (CPtr U32), Heap )
 cogent_ffi44 (i, heap) =
-   (2
-   , let i { cont = _ } = i
-   in i { cont = 5 }
-   , heap) -- ffv44: hu
+   (2, i, heap) -- ffv44: hu
 cogent_ffi45 : ( MayNull (CPtr U32), GlobState1, Heap ) -> ( U32, GlobState1, Heap )
 cogent_ffi45 (i, g, heap) =
    let (g
-       , r') = (let i { cont = p0' } = i
-               and g { cont = _ } = g
-               in g { cont = p0' }
+       , r') = (let g { cont = _ } = g
+               in g { cont = gencotDummy "Dereferencing pointer which may be NULL" }
                , 2) !i
    in (r', g, heap) -- i: -ar, g: gs1, ffv45: hu
 cogent_ffi46 : ( MayNull (CPtr U32), GlobState1, Heap ) -> ( U32, MayNull (CPtr U32), GlobState1, Heap )
 cogent_ffi46 (i, g, heap) =
-   let ((), i, r') = (()
-                     , let g { cont = p0' } = g
-                     and i { cont = _ } = i
-                     in i { cont = p0' }
-                     , 2) !g
+   let ((), i, r') = ((), i, 2) !g
    in (r', i, g, heap) -- g: gs1, ffv46: hu
 cogent_ffi47 : ( MayNull (CPtr U32), MayNull (CPtr U32), Heap ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32), Heap )
 cogent_ffi47 (i, j, heap) =
-   let (i
-       , ()
-       , r') = (let i { cont = _ } = i
-               in i { cont = gencotDummy "Cannot access global variable: glob1" }
-               , ()
-               , 2) !j
+   let (i, (), r') = (i, (), 2) !j
    in (r', i, j, heap) -- ffv47: hu (Error: no parameter for glob1)
 cogent_ffi48 : ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1, Heap ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32), GlobState1, Heap )
 cogent_ffi48 (i, j, g, heap) =
    let (g, i, (), r') = (let (c'
                              , ()
-                             , i) = (let g { cont = p0' } = g
-               and i { cont = _ } = i
-               in (0, (), i { cont = p0' })) !g
+                             , i) = (0, (), i) !g
          in if c' > 0
             then (g, i, (), r')
-            else (let j { cont = p2' } = j
-                 and g { cont = _ } = g
-                 in g { cont = p2' }
+            else (let g { cont = _ } = g
+                 in g { cont = gencotDummy "Dereferencing pointer which may be NULL" }
                  , i
                  , ()
                  , 2)) !j
    in (r', i, j, g, heap) -- g: gs1, ffv48: hu
 cogent_ffi49 : ( MayNull (CPtr U32), MayNull (CPtr U32), GlobState1, Heap ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32), GlobState1, Heap )
 cogent_ffi49 (i, j, g, heap) =
-   let ((), i, r') = (()
-                     , let j { cont = p0' } = j
-                     and i { cont = _ } = i
-                     in i { cont = p0' }
-                     , 2) !j
+   let ((), i, r') = ((), i, 2) !j
    in (r', i, j, g, heap) -- g: gs1, ffv49: hu
 
 
@@ -896,18 +797,22 @@ cogent_cfpi4 s =
 cogent_cfpi5 : CArr5 #Cogent_fpfiv -> ( U32, CArr5 #Cogent_fpfiv )
 cogent_cfpi5 a =
    let (r'
-       , ()) = (let a @{ @1 = p0' } = a
-         in (fromFunPtr[() -> U32
-                       , #Cogent_fpfiv]{{}} p0' ()
-            , ())) !a
+       , ()) = (fromFunPtr[() -> U32
+                          , #Cogent_fpfiv]{{}} (getArr[(CArr5 #Cogent_fpfiv)!
+                                                      , U32
+                                                      , #Cogent_fpfiv]{{}} (a
+                                                                           , 1)) ()
+               , ()) !a
    in (r', a)
 cogent_cfpi6 : CArr5 #Cogent_fpfiv -> ( U32, CArr5 #Cogent_fpfiv )
 cogent_cfpi6 a =
    let (r'
-       , ()) = (let a @{ @1 = p0' } = a
-         in (fromFunPtr[() -> U32
-                       , #Cogent_fpfiv]{{}} p0' ()
-            , ())) !a
+       , ()) = (fromFunPtr[() -> U32
+                          , #Cogent_fpfiv]{{}} (getArr[(CArr5 #Cogent_fpfiv)!
+                                                      , U32
+                                                      , #Cogent_fpfiv]{{}} (a
+                                                                           , 1)) ()
+               , ()) !a
    in (r', a)
 cogent_cfpi7 : #Struct_Cogent_fstd -> U32
 cogent_cfpi7 s =
@@ -948,10 +853,12 @@ cogent_cfpi14 (s, i) =
 cogent_cfpi15 : ( CArr5 #Cogent_fpfii, MayNull (CPtr U32) ) -> ( U32, CArr5 #Cogent_fpfii, MayNull (CPtr U32) )
 cogent_cfpi15 (a, i) =
    let (r'
-       , ()) = (let a @{ @1 = p0' } = a
-         in (fromFunPtr[MayNull (CPtr U32) -> U32
-                       , #Cogent_fpfii]{{}} p0' i
-            , ())) !a
+       , ()) = (fromFunPtr[MayNull (CPtr U32) -> U32
+                          , #Cogent_fpfii]{{}} (getArr[(CArr5 #Cogent_fpfii)!
+                                                      , U32
+                                                      , #Cogent_fpfii]{{}} (a
+                                                                           , 1)) i
+               , ()) !a
    in (r', a, i)
 cogent_cfpi16 : ( #Struct_Cogent_fstd, MayNull (CPtr U32) ) -> ( U32, MayNull (CPtr U32) )
 cogent_cfpi16 (s, i) =

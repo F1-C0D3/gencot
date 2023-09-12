@@ -136,8 +136,7 @@ cogent_fs6 s =
    in p1' + p3' + p4'
 cogent_fs7 : #Struct_Cogent_s1 -> U32
 cogent_fs7 s =
-   let err' { m1 = p0' } = cogent_fs1r s
-   in p0'
+   gencotDummy "Dereferencing pointer not specified by a variable"
 
 type Cogent_a1 = CArr5 U32
 type Cogent_a2 =
@@ -147,54 +146,81 @@ type Cogent_a3 =
 cogent_fa1 : Cogent_a1 -> ( U32, Cogent_a1 )
 cogent_fa1 a =
    let (r'
-       , ()) = (let a @{ @3 = p0' } = a
-         in (p0', ())) !a
+       , ()) = (getArr[Cogent_a1!
+                      , U32
+                      , U32]{{}} (a, 3)
+               , ()) !a
    in (r', a)
 cogent_fa2 : Cogent_a1 -> ( U32, Cogent_a1 )
 cogent_fa2 a =
    let (r'
-       , ()) = (let a @{ @3 = p0' } = a
-         and a @{ @1 = p1' } = a
-         in (p0' + p1', ())) !a
+       , ()) = (getArr[Cogent_a1!
+                      , U32
+                      , U32]{{}} (a
+                                 , 3) + getArr[Cogent_a1!
+                                              , U32
+                                              , U32]{{}} (a, 1)
+               , ()) !a
    in (r', a)
 cogent_fa3 : Cogent_a1 -> ( U32, Cogent_a1 )
 cogent_fa3 a =
    let (r'
-       , ()) = (let a @{ @2 = p0' } = a
-         and a @{ @p0' = p1' } = a
-         in (p1', ())) !a
+       , ()) = (getArr[Cogent_a1!
+                      , U32
+                      , U32]{{}} (a
+                                 , getArr[Cogent_a1!
+                                         , U32
+                                         , U32]{{}} (a, 2))
+               , ()) !a
    in (r', a)
 cogent_fa4 : Cogent_a2 -> ( U32, Cogent_a2 )
 cogent_fa4 a =
    let (r'
-       , ()) = (let a @{ @3 = p0' } = a
-         and p0' { m1 = p1' } = p0'
+       , ()) = (let p0' { m1 = p1' } = getArr[Cogent_a2!
+                                             , U32
+                                             , #Struct_Cogent_s1]{{}} (a, 3)
          in (p1', ())) !a
    in (r', a)
 cogent_fa5 : Cogent_a2 -> ( U32, Cogent_a2 )
 cogent_fa5 a =
    let (r'
-       , ()) = (let a @{ @2 = p0' } = a
-         and p0' { m2 = p1' } = p0'
-         and a @{ @p1' = p2' } = a
-         and p2' { m1 = p3' } = p2'
+       , ()) = (let p0' { m2 = p1' } = getArr[Cogent_a2!
+                                             , U32
+                                             , #Struct_Cogent_s1]{{}} (a, 2)
+         and p2' { m1 = p3' } = getArr[Cogent_a2!
+                                      , U32
+                                      , #Struct_Cogent_s1]{{}} (a
+                                                               , p1')
          in (p3', ())) !a
    in (r', a)
 cogent_fa6 : Cogent_a3 -> ( U32, Cogent_a3 )
 cogent_fa6 a =
    let (r'
-       , ()) = (let a @{ @3 = p0' } = a
-         and p0' @{ @2 = p1' } = p0'
-         in (p1', ())) !a
+       , ()) = (getArr[(CArr4 U32)!
+                      , U32
+                      , U32]{{}} (getArr[Cogent_a3!
+                                        , U32
+                                        , (CArr4 U32)!]{{}} (a, 3)
+                                 , 2)
+               , ()) !a
    in (r', a)
 cogent_fa7 : Cogent_a3 -> ( U32, Cogent_a3 )
 cogent_fa7 a =
    let (r'
-       , ()) = (let a @{ @2 = p0' } = a
-         and p0' @{ @1 = p1' } = p0'
-         and a @{ @p1' = p2' } = a
-         and p2' @{ @3 = p3' } = p2'
-         in (p3', ())) !a
+       , ()) = (getArr[(CArr4 U32)!
+                      , U32
+                      , U32]{{}} (getArr[Cogent_a3!
+                                        , U32
+                                        , (CArr4 U32)!]{{}} (a
+                                                            , getArr[(CArr4 U32)!
+                                                                    , U32
+                                                                    , U32]{{}} (getArr[Cogent_a3!
+                                                                                      , U32
+                                                                                      , (CArr4 U32)!]{{}} (a
+                                                                                                          , 2)
+                                                                               , 1))
+                                 , 3)
+               , ()) !a
    in (r', a)
 
 type Struct_Cogent_s4 = { m5 : U32, m6 : MayNull Struct_Cogent_s1 }
@@ -205,48 +231,45 @@ type Cogent_a5 =
 cogent_fp1 : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
 cogent_fp1 p =
    let (r'
-       , ()) = (let p { cont = p0' } = p
-         in (p0', ())) !p
+       , ()) = (gencotDummy "Dereferencing pointer which may be NULL"
+               , ()) !p
    in (r', p)
 cogent_fp2 : MayNull Struct_Cogent_s1 -> ( U32, MayNull Struct_Cogent_s1 )
 cogent_fp2 p =
    let (r'
-       , ()) = (let p { cont = p0' } = p
-         and p0' { m1 = p1' } = p0'
+       , ()) = (let p0' { m1 = p1' } = gencotDummy "Dereferencing pointer which may be NULL"
          in (p1', ())) !p
    in (r', p)
 cogent_fp3 : MayNull Struct_Cogent_s1 -> ( U32, MayNull Struct_Cogent_s1 )
 cogent_fp3 p =
    let (r'
-       , ()) = (let p { m1 = p0' } = p
-         in (p0', ())) !p
+       , ()) = (gencotDummy "Dereferencing pointer which may be NULL"
+               , ()) !p
    in (r', p)
 cogent_fp4 : MayNull Struct_Cogent_s4 -> ( U32, MayNull Struct_Cogent_s4 )
 cogent_fp4 p =
    let (r'
-       , ()) = (let p { m6 = p0' } = p
-         and p0' { cont = p1' } = p0'
-         and p1' { m1 = p2' } = p1'
+       , ()) = (let p1' { m1 = p2' } = gencotDummy "Dereferencing pointer which may be NULL"
          in (p2', ())) !p
    in (r', p)
 cogent_fp5 : MayNull Struct_Cogent_s4 -> ( U32, MayNull Struct_Cogent_s4 )
 cogent_fp5 p =
    let (r'
-       , ()) = (let p { m6 = p0' } = p
-         and p0' { m1 = p1' } = p0'
-         in (p1', ())) !p
+       , ()) = (gencotDummy "Dereferencing pointer which may be NULL"
+               , ()) !p
    in (r', p)
 cogent_fp6 : Cogent_a4 -> ( U32, Cogent_a4 )
 cogent_fp6 p =
    let (r'
-       , ()) = (let p @{ @3 = p0' } = p
-         and p0' { cont = p1' } = p0'
-         in (p1', ())) !p
+       , ()) = (gencotDummy "Dereferencing pointer which may be NULL"
+               , ()) !p
    in (r', p)
 cogent_fp7 : MayNull Cogent_a5 -> ( U32, MayNull Cogent_a5 )
 cogent_fp7 p =
    let (r'
-       , ()) = (let p { cont = p0' } = p
-         and p0' @{ @3 = p1' } = p0'
-         in (p1', ())) !p
+       , ()) = (getArr[(CArr5 U32)!
+                      , U32
+                      , U32]{{}} (gencotDummy "Dereferencing pointer which may be NULL"
+                                 , 3)
+               , ()) !p
    in (r', p)

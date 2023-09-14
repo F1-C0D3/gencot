@@ -27,7 +27,7 @@ import Gencot.Cogent.Post.Util (ETrav, freeInExpr, freeInIrrefPatn, modifiedByBi
 tpproc :: GenExpr -> ETrav GenExpr
 tpproc e = do
     e1 <- singletpproc e
-    return $ tpmodify {- $ tpelim -} e1
+    return $ tpmodify $ tpelim e1
 
 -- | Process individual take- and put-bindings according to the container type.
 -- If the container has MayNull type: error
@@ -159,41 +159,48 @@ tpelim e =
 
 tpelimInBindings :: [GenBnd] -> GenExpr -> [GenBnd]
 tpelimInBindings [] bdy = []
-tpelimInBindings (b@(CS.Binding ip _ _ _) : bs) bdy | isTakePattern ip =
-    pbs ++ bs'
-    where (pbs,ubs) = tpelimForTake b bs bdy
-          bs' = tpelimInBindings ubs bdy
+tpelimInBindings (tkb@(CS.Binding ip _ _ _) : bs) bdy | isTakePattern ip =
+    scp' ++ bs'
+    where (cmp,scp,ptb,rst) = getTakePutScope tkb bs
+          scp' = tpelimForTake cmp tkb scp ptb rst bdy
+          bs' = tpelimInBindings rst bdy
 tpelimInBindings ((CS.Binding ip m e bvs) : bs) bdy =
     (CS.Binding ip m (tpelim e) bvs) : (tpelimInBindings bs bdy)
 
 -- | Process a pair of take and put bindings or arrayTake and arrayPut binding.
--- The result is the sequence of processed bindings, includig the put binding (if still present)
--- and the sequence of unprocessed bindings, starting with the binding following the put binding.
+-- The result is the sequence of processed bindings from take to put.
 -- Nested take/put bindings are also processed.
--- The first argument is the take binding.
--- The second argument is the list of following bindings, it contains the corresponding put binding.
--- The third argument is the let body.
-tpelimForTake :: GenBnd -> [GenBnd] -> GenExpr -> ([GenBnd],[GenBnd])
-tpelimForTake tb@(CS.Binding _ _ (GenExpr _ _ t _) _) bs bdy =
-    if needTake
-       then if needPut
-         then (tb : (scp' ++ [ptb]), rst')
-         else ((toNonLinAccess tb) : scp', rst')
-       else if needPut
-       then (scp' ++ [ptb], rst')
-       else (scp', rst')
-    where (TV cmp ct) = getCmpVarFromTake tb
+-- The first argument is the taken component variable.
+-- The following three arguments are the take binding, the bindings between take and put and the put binding.
+-- The fifth argument is the list of bindings following the put binding.
+-- The last argument is the let body.
+tpelimForTake :: TypedVar -> GenBnd -> [GenBnd] -> GenBnd -> [GenBnd] -> GenExpr -> [GenBnd]
+tpelimForTake (TV cmp ct) tkb@(CS.Binding _ _ (GenExpr _ _ t _) _) scp ptb rst bdy =
+    if needPut
+       then if needTake (scp' ++ (ptb : rst))
+         then tkb : (scp' ++ [ptb])
+         else  scp' ++ [ptb]
+         else if needTake (scp' ++ rst)
+         then (toNonLinAccess tkb) : scp'
+         else scp'
+    where (pre,nst) = break isTakeBinding scp -- nested take binding is first in nst
+          scp' = if null nst
+                    then pre
+                    else let ntkb = head nst
+                             (ncmp,nscp,nptb,nrst) = getTakePutScope ntkb (tail nst)
+                             nscp' = tpelimForTake ncmp ntkb nscp nptb (nrst ++ rst) bdy
+                         in pre ++ nscp' ++ nrst
+          needTake bs = (cmpUsedIn cmp bs bdy) || (not $ isNonlinear ct)
+          needPut = (elem cmp $ modifiedByBindings scp') || (not $ isNonlinear t) || (cmpIsUnboxedArray tkb)
+
+-- | Retrieve the scope of a take binding from a binding sequence.
+-- The first argument is a take binding.
+-- The result is the component variable, the binding sequence before the put, the put binding, and the binding sequence after the put.
+getTakePutScope :: GenBnd -> [GenBnd] -> (TypedVar, [GenBnd], GenBnd, [GenBnd])
+getTakePutScope tkb bs =
+    (tv, scp, head rst, tail rst)
+    where tv@(TV cmp ct) = getCmpVarFromTake tkb
           (scp,rst) = break (isPutBindingFor cmp) bs -- put binding is first in rst, must be present
-          ptb = head rst
-          rst' = tail rst
-          (pre,nst) = break isTakeBinding scp -- nested take binding is first in nst
-          (pnst,unst) = if null nst
-                           then ([],[])
-                           else tpelimForTake (head nst) (tail nst) bdy
-          scp' = pre ++ pnst ++ unst
-          bs' = scp' ++ rst
-          needTake = (cmpUsedIn cmp bs' bdy) || (not $ isNonlinear ct)
-          needPut = (elem cmp $ modifiedByBindings scp') || (not $ isNonlinear t) || (cmpIsUnboxedArray tb)
 
 cmpUsedIn :: CCS.VarName -> [GenBnd] -> GenExpr -> Bool
 cmpUsedIn v [] e = elem v $ freeInExpr e

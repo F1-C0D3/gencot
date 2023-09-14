@@ -78,8 +78,7 @@ cogent_f21ln g =
 cogent_f21ro : GlobState2 -> ( (), GlobState2 )
 cogent_f21ro g =
    (()
-   , let g { cont = _ } = g
-   in g { cont = cogent_frro () })
+   , g { cont = cogent_frro () })
 cogent_f22ln : CPtr U32 -> ( (), CPtr U32 )
 cogent_f22ln pln =
    (()
@@ -148,9 +147,7 @@ cogent_f56ln (pro, g) =
    in g { cont = gencotDummy "Readonly expression used in linear context" })
 cogent_f56ro : ( Struct_Cogent_ros1!, GlobState2 ) -> ( (), GlobState2 )
 cogent_f56ro (pro, g) =
-   (()
-   , let g { cont = _ } = g
-   in g { cont = pro.mln })
+   ((), g { cont = pro.mln })
 cogent_f57ln : ( Struct_Cogent_ros1!, CPtr U32 ) -> ( (), CPtr U32 )
 cogent_f57ln (pro, pln) =
    (()
@@ -197,9 +194,7 @@ cogent_f64ln : Struct_Cogent_ros2! -> Struct_Cogent_ros2!
 cogent_f64ln pro =
    if 0 > 0 then r' else pro
 cogent_f64ro : Struct_Cogent_ros2! -> (CPtr U32)!
-cogent_f64ro pro =
-   let p0' { mln = p1' } = pro.sub
-   in p1'
+cogent_f64ro pro = pro.sub.mln
 
 -- Probe used by accessing an array element
 cogent_f71ln : Cogent_roa1! -> U32
@@ -267,10 +262,9 @@ cogent_f76ln (pro, g) =
 cogent_f76ro : ( Cogent_roa3!, GlobState2 ) -> ( (), GlobState2 )
 cogent_f76ro (pro, g) =
    (()
-   , let g { cont = _ } = g
-   in g { cont = getArr[Cogent_roa3!
-                       , U32
-                       , (CPtr U32)!]{{}} (pro, 1) })
+   , g { cont = getArr[Cogent_roa3!
+                      , U32
+                      , (CPtr U32)!]{{}} (pro, 1) })
 cogent_f77ln : ( Cogent_roa3!, CPtr U32 ) -> ( (), CPtr U32 )
 cogent_f77ln (pro, qln) =
    (()
@@ -371,8 +365,7 @@ cogent_f91ln pln =
 cogent_f91ro : Struct_Cogent_ros1 -> ( (), Struct_Cogent_ros1 )
 cogent_f91ro pln =
    (()
-   , let pln { mro = _ } = pln
-   in pln { mro = cogent_frro () })
+   , pln { mro = cogent_frro () })
 cogent_f92ln : Cogent_roa3 -> ( (), Cogent_roa3 )
 cogent_f92ln pln =
    (()
@@ -381,8 +374,7 @@ cogent_f92ln pln =
 cogent_f92ro : Cogent_roa2 -> ( (), Cogent_roa2 )
 cogent_f92ro pln =
    (()
-   , let pln @{ @1 = _ } = pln
-   in pln @{ @1 = cogent_frro () })
+   , pln @{ @1 = cogent_frro () })
 
 -- Using values of linear type (can be banged).
 
@@ -427,8 +419,7 @@ cogent_g21ln g =
 cogent_g21ro : GlobState2 -> ( (), GlobState2 )
 cogent_g21ro g =
    (()
-   , let g { cont = _ } = g
-   in g { cont = gencotDummy "Linear expression used in readonly context" })
+   , g { cont = gencotDummy "Linear expression used in readonly context" })
 cogent_g22ln : CPtr U32 -> ( (), CPtr U32 )
 cogent_g22ln pln =
    ((), cogent_frln ())
@@ -449,9 +440,7 @@ cogent_g31ro () =
 -- Probe used by accessing a struct component
 cogent_g51ln : Struct_Cogent_ros1 -> ( (), Struct_Cogent_ros1 )
 cogent_g51ln pln =
-   (()
-   , let pln { mrg = _ } = pln
-   in pln { mrg = 5 })
+   ((), pln { mrg = 5 })
 cogent_g51ro : Struct_Cogent_ros1 -> U32
 cogent_g51ro pln =
    let r' = pln.mrg !pln
@@ -459,8 +448,7 @@ cogent_g51ro pln =
 cogent_g52ln : Struct_Cogent_ros1 -> ( (), Struct_Cogent_ros1 )
 cogent_g52ln pln =
    (()
-   , let pln { mro = _ } = pln
-   in pln { mro = gencotDummy "Linear expression used in readonly context" })
+   , pln { mro = gencotDummy "Linear expression used in readonly context" })
 cogent_g52ro : Struct_Cogent_ros1 -> ( (CPtr U32)!, Struct_Cogent_ros1 )
 cogent_g52ro pln =
    let pln { mro = p0' } = pln
@@ -478,7 +466,6 @@ cogent_g54ln : Struct_Cogent_ros1 -> ( U32, Struct_Cogent_ros1 )
 cogent_g54ln pln =
    (r'
    , let pln { mln = p0' } = pln
-   and p0' { cont = _ } = p0'
    in pln { mln = p0' { cont = 5 } })
 cogent_g54ro : Struct_Cogent_ros1 -> ( U32, Struct_Cogent_ros1 )
 cogent_g54ro pln =
@@ -500,8 +487,7 @@ cogent_g56ln (pln, g) =
    in g { cont = p0' })
 cogent_g56ro : ( Struct_Cogent_ros1, GlobState2 ) -> ( (), GlobState2 )
 cogent_g56ro (pln, g) =
-   let g = (let g { cont = _ } = g
-         in g { cont = (gencotDummy "Necessary banging of pln leads to non-escapeable type").mln }) !pln
+   let g = g { cont = (gencotDummy "Necessary banging of pln leads to non-escapeable type").mln } !pln
    in ((), g)
 cogent_g57ln : ( Struct_Cogent_ros1, CPtr U32 ) -> ( (), CPtr U32 )
 cogent_g57ln (pln, qln) =
@@ -539,7 +525,6 @@ cogent_g61ln : Struct_Cogent_ros2 -> ( (), Struct_Cogent_ros2 )
 cogent_g61ln pln =
    (()
    , let pln { sln = p0' } = pln
-   and p0' { mrg = _ } = p0'
    in pln { sln = p0' { mrg = 5 } })
 cogent_g61ro : Struct_Cogent_ros2 -> ( U32, Struct_Cogent_ros2 )
 cogent_g61ro pln =
@@ -550,7 +535,6 @@ cogent_g62ln : Struct_Cogent_ros2 -> ( (), Struct_Cogent_ros2 )
 cogent_g62ln pln =
    (()
    , let pln { sln = p0' } = pln
-   and p0' { mro = _ } = p0'
    in pln { sln = p0' { mro = gencotDummy "Linear expression used in readonly context" } })
 cogent_g62ro : Struct_Cogent_ros2 -> ( (CPtr U32)!, Struct_Cogent_ros2 )
 cogent_g62ro pln =
@@ -574,7 +558,6 @@ cogent_g64ln : Struct_Cogent_ros2 -> ( (), Struct_Cogent_ros2 )
 cogent_g64ln pln =
    (()
    , let pln { sub = p0' } = pln
-   and p0' { mro = _ } = p0'
    in pln { sub = p0' { mro = gencotDummy "Linear expression used in readonly context" } })
 cogent_g64ro : Struct_Cogent_ros2 -> ( (CPtr U32)!, Struct_Cogent_ros2 )
 cogent_g64ro pln =
@@ -586,9 +569,7 @@ cogent_g64ro pln =
 -- Probe used by accessing an array element
 cogent_g71ln : Cogent_roa1 -> ( (), Cogent_roa1 )
 cogent_g71ln pln =
-   (()
-   , let pln @{ @1 = _ } = pln
-   in pln @{ @1 = 5 })
+   ((), pln @{ @1 = 5 })
 cogent_g71ro : Cogent_roa1 -> U32
 cogent_g71ro pln =
    let r' = getArr[Cogent_roa1!
@@ -598,8 +579,7 @@ cogent_g71ro pln =
 cogent_g72ln : Cogent_roa2 -> ( (), Cogent_roa2 )
 cogent_g72ln pln =
    (()
-   , let pln @{ @1 = _ } = pln
-   in pln @{ @1 = gencotDummy "Linear expression used in readonly context" })
+   , pln @{ @1 = gencotDummy "Linear expression used in readonly context" })
 cogent_g72ro : Cogent_roa2 -> (CPtr U32)!
 cogent_g72ro pln =
    let pln @{ @1 = p0' } = pln
@@ -617,7 +597,6 @@ cogent_g74ln : Cogent_roa3 -> ( (), Cogent_roa3 )
 cogent_g74ln pln =
    (()
    , let pln @{ @1 = p0' } = pln
-   and p0' { cont = _ } = p0'
    in pln @{ @1 = p0' { cont = 5 } })
 cogent_g74ro : Cogent_roa3 -> U32
 cogent_g74ro pln =
@@ -646,11 +625,10 @@ cogent_g76ln (pln, g) =
    in g { cont = p0' })
 cogent_g76ro : ( Cogent_roa3, GlobState2 ) -> ( (), GlobState2 )
 cogent_g76ro (pln, g) =
-   let g = (let g { cont = _ } = g
-         in g { cont = getArr[Cogent_roa3!
-                             , U32
-                             , (CPtr U32)!]{{}} (gencotDummy "Necessary banging of pln leads to non-escapeable type"
-                                                , 1) }) !pln
+   let g = g { cont = getArr[Cogent_roa3!
+                            , U32
+                            , (CPtr U32)!]{{}} (gencotDummy "Necessary banging of pln leads to non-escapeable type"
+                                               , 1) } !pln
    in ((), g)
 cogent_g77ln : ( Cogent_roa3, CPtr U32 ) -> ( (), CPtr U32 )
 cogent_g77ln (pln, qln) =
@@ -695,7 +673,6 @@ cogent_g81ln : Cogent_roa4 -> ( (), Cogent_roa4 )
 cogent_g81ln pln =
    (()
    , let pln @{ @1 = p0' } = pln
-   and p0' @{ @1 = _ } = p0'
    in pln @{ @1 = p0' @{ @1 = 5 } })
 cogent_g81ro : Cogent_roa4 -> U32
 cogent_g81ro pln =
@@ -710,7 +687,6 @@ cogent_g82ln : Cogent_roa5 -> ( (), Cogent_roa5 )
 cogent_g82ln pln =
    (()
    , let pln @{ @1 = p0' } = pln
-   and p0' @{ @1 = _ } = p0'
    in pln @{ @1 = p0' @{ @1 = gencotDummy "Linear expression used in readonly context" } })
 cogent_g82ro : Cogent_roa5 -> (CPtr U32)!
 cogent_g82ro pln =
@@ -738,8 +714,7 @@ cogent_g91ln pln =
 cogent_g91ro : Struct_Cogent_ros1 -> ( (), Struct_Cogent_ros1 )
 cogent_g91ro pln =
    (()
-   , let pln { mro = _ } = pln
-   in pln { mro = gencotDummy "Linear expression used in readonly context" })
+   , pln { mro = gencotDummy "Linear expression used in readonly context" })
 cogent_g92ln : Cogent_roa3 -> ( (), Cogent_roa3 )
 cogent_g92ln pln =
    (()
@@ -748,8 +723,7 @@ cogent_g92ln pln =
 cogent_g92ro : Cogent_roa2 -> ( (), Cogent_roa2 )
 cogent_g92ro pln =
    (()
-   , let pln @{ @1 = _ } = pln
-   in pln @{ @1 = gencotDummy "Linear expression used in readonly context" })
+   , pln @{ @1 = gencotDummy "Linear expression used in readonly context" })
 
 -- banging in nested bang positions
 cogent_nst11 : ( Struct_Cogent_ros1, U32 ) -> ( Struct_Cogent_ros1, Struct_Cogent_ros1 )
@@ -762,7 +736,6 @@ cogent_nst11 (pln, i) =
       else if 0 > 0
          then r'
          else let pln { mln = p1' } = pln
-            and p1' { cont = _ } = p1'
             in pln { mln = p1' { cont = i } }
    , let (c', (), i) = (0
                        , ()
@@ -771,10 +744,8 @@ cogent_nst11 (pln, i) =
       then pln
       else if 0 > 0
          then let pln { mln = p1' } = pln
-            and p1' { cont = _ } = p1'
             in pln { mln = p1' { cont = i } }
          else let pln { mln = p1' } = pln
-            and p1' { cont = _ } = p1'
             in pln { mln = p1' { cont = i } })
 cogent_nst12 : ( Struct_Cogent_ros1, U32 ) -> ( Struct_Cogent_ros1, Struct_Cogent_ros1 )
 cogent_nst12 (pln, i) =
@@ -792,7 +763,6 @@ cogent_nst12 (pln, i) =
             else if 0 > 0
                then r'
                else let pln { mln = p3' } = pln
-                  and p3' { cont = _ } = p3'
                   in pln { mln = p3' { cont = i } }
    , let (c', (), i) = (0
                        , ()
@@ -807,10 +777,8 @@ cogent_nst12 (pln, i) =
             then pln
             else if 0 > 0
                then let pln { mln = p3' } = pln
-                  and p3' { cont = _ } = p3'
                   in pln { mln = p3' { cont = i } }
                else let pln { mln = p3' } = pln
-                  and p3' { cont = _ } = p3'
                   in pln { mln = p3' { cont = i } })
 
 -- banging in binding sequences
@@ -819,7 +787,6 @@ cogent_bs11 (pln, i) =
    let pln { mrg = p0' } = pln
    and pln = pln { mrg = p0' }
    and pln { mln = p1' } = pln
-   and p1' { cont = _ } = p1'
    in (pln { mln = p1' { cont = p0' } }
       , pln { mln = p1' { cont = p0' } })
 cogent_bs12 : ( Struct_Cogent_ros1, (CPtr U32)!, U32 ) -> ( Struct_Cogent_ros1, Struct_Cogent_ros1 )
@@ -834,12 +801,11 @@ cogent_bs13 : ( Struct_Cogent_ros1, (CPtr U32)!, CPtr U32 ) -> ( Struct_Cogent_r
 cogent_bs13 (pln, qro, i) =
    let (v14'
        , ()
-       , i) = (let i { cont = _ } = i
-         in (i { cont = getPtr[(CPtr U32)!
-                              , U32]{{}} pln.mln }
-            , ()
-            , i { cont = getPtr[(CPtr U32)!
-                               , U32]{{}} pln.mln })) !pln
+       , i) = (i { cont = getPtr[(CPtr U32)!
+                                , U32]{{}} pln.mln }
+              , ()
+              , i { cont = getPtr[(CPtr U32)!
+                                 , U32]{{}} pln.mln }) !pln
    in (pln { mln = v14' }
       , pln { mln = v14' }
       , i)
@@ -872,9 +838,7 @@ cogent_n21ln g =
    in g { cont = cogent_NULL })
 cogent_n21ro : GlobState4 -> ( (), GlobState4 )
 cogent_n21ro g =
-   (()
-   , let g { cont = _ } = g
-   in g { cont = cogent_NULL })
+   ((), g { cont = cogent_NULL })
 cogent_n22ln : MayNull (CPtr U32) -> ( (), MayNull (CPtr U32) )
 cogent_n22ln pln =
    ((), cogent_NULL)
@@ -914,6 +878,4 @@ cogent_n92ln pln =
    in pln @{ @1 = cogent_NULL })
 cogent_n92ro : Cogent_roam2 -> ( (), Cogent_roam2 )
 cogent_n92ro pln =
-   (()
-   , let pln @{ @1 = _ } = pln
-   in pln @{ @1 = cogent_NULL })
+   ((), pln @{ @1 = cogent_NULL })

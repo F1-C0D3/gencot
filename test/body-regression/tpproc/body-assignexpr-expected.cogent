@@ -167,9 +167,8 @@ type Struct_Cogent_as2 = { m3 : U32, m4 : #Struct_Cogent_as1 }
 cogent_fas1 : ( #Struct_Cogent_as1, U32 ) -> U32
 cogent_fas1 (s, v) =
    let r' = let v' = s
-      and s { m1 = p0' } = v'
+      and p0' = v'.m1
       and v1' = p0'
-      and s = s { m1 = p0' }
       and v3' = v1'
       and v = v3'
       and v5' = v
@@ -178,13 +177,11 @@ cogent_fas1 (s, v) =
 cogent_fas2 : ( #Struct_Cogent_as1, U32 ) -> U32
 cogent_fas2 (s, v) =
    let r' = let v' = s
-      and s { m1 = p0' } = v'
+      and p0' = v'.m1
       and v1' = p0'
-      and s = s { m1 = p0' }
       and v2' = s
-      and s { m2 = p1' } = v2'
+      and p1' = v2'.m2
       and v3' = p1'
-      and s = s { m2 = p1' }
       and v4' = v1' + v3'
       and v6' = v4'
       and v = v6'
@@ -194,12 +191,10 @@ cogent_fas2 (s, v) =
 cogent_fas3 : ( #Struct_Cogent_as2, U32 ) -> U32
 cogent_fas3 (s, v) =
    let r' = let v' = s
-      and s { m4 = p0' } = v'
+      and p0' = v'.m4
       and v1' = p0'
-      and p0' { m1 = p1' } = v1'
+      and p1' = v1'.m1
       and v2' = p1'
-      and p0' = p0' { m1 = p1' }
-      and s = s { m4 = p0' }
       and v4' = v2'
       and v = v4'
       and v6' = v
@@ -208,24 +203,19 @@ cogent_fas3 (s, v) =
 cogent_fas4 : ( #Struct_Cogent_as2, U32 ) -> U32
 cogent_fas4 (s, v) =
    let r' = let v' = s
-      and s { m4 = p0' } = v'
+      and p0' = v'.m4
       and v1' = p0'
-      and p0' { m1 = p1' } = v1'
+      and p1' = v1'.m1
       and v2' = p1'
-      and p0' = p0' { m1 = p1' }
-      and s = s { m4 = p0' }
       and v3' = s
-      and s { m4 = p2' } = v3'
+      and p2' = v3'.m4
       and v4' = p2'
-      and p2' { m2 = p3' } = v4'
+      and p3' = v4'.m2
       and v5' = p3'
-      and p2' = p2' { m2 = p3' }
-      and s = s { m4 = p2' }
       and v6' = v2' + v5'
       and v7' = s
-      and s { m3 = p4' } = v7'
+      and p4' = v7'.m3
       and v8' = p4'
-      and s = s { m3 = p4' }
       and v9' = v6' + v8'
       and v11' = v9'
       and v = v11'
@@ -236,14 +226,12 @@ cogent_fas5 : #Struct_Cogent_as1 -> U32
 cogent_fas5 s =
    let r' = let v' = 42
       and v1' = s
-      and s { m1 = p0' } = v1'
       and v3' = v'
       and p0' = v3'
       and s = s { m1 = p0' }
       and v5' = s
-      and s { m1 = p1' } = v5'
+      and p1' = v5'.m1
       and v6' = p1'
-      and s = s { m1 = p1' }
       in v6'
    in r'
 cogent_fas6 : #Struct_Cogent_as2 -> U32
@@ -252,43 +240,37 @@ cogent_fas6 s =
       and v1' = s
       and s { m4 = p0' } = v1'
       and v2' = p0'
-      and p0' { m1 = p1' } = v2'
       and v4' = v'
       and p1' = v4'
       and p0' = p0' { m1 = p1' }
       and s = s { m4 = p0' }
       and v6' = s
-      and s { m4 = p2' } = v6'
+      and p2' = v6'.m4
       and v7' = p2'
-      and p2' { m1 = p3' } = v7'
+      and p3' = v7'.m1
       and v8' = p3'
-      and p2' = p2' { m1 = p3' }
-      and s = s { m4 = p2' }
       in v8'
    in r'
 cogent_fas7 : #Struct_Cogent_as1 -> U32
 cogent_fas7 s =
    let r' = let v' = 1
       and v1' = s
-      and s { m1 = p0' } = v1'
+      and p0' = v1'.m1
       and v2' = p0'
       and v3' = v2' + v'
       and (v4', p0') = (p0', v3')
-      and s = s { m1 = p0' }
       in v4'
    in r'
 cogent_fas8 : #Struct_Cogent_as2 -> U32
 cogent_fas8 s =
    let r' = let v' = 1
       and v1' = s
-      and s { m4 = p0' } = v1'
+      and p0' = v1'.m4
       and v2' = p0'
-      and p0' { m1 = p1' } = v2'
+      and p1' = v2'.m1
       and v3' = p1'
       and v4' = v3' + v'
       and (v5', p1') = (p1', v4')
-      and p0' = p0' { m1 = p1' }
-      and s = s { m4 = p0' }
       in v5'
    in r'
 cogent_fas9 : #Struct_Cogent_as1 -> U32
@@ -391,9 +373,8 @@ cogent_faa4 (a, v) =
                          , #Struct_Cogent_as1]{{}} (v'
                                                    , i0')
          and v2' = p0'
-         and p0' { m1 = p1' } = v2'
+         and p1' = v2'.m1
          and v3' = p1'
-         and p0' = p0' { m1 = p1' }
          and () = ()
          and v5' = v3'
          and v = v5'
@@ -410,9 +391,8 @@ cogent_faa5 (a, v) =
                          , #Struct_Cogent_as1]{{}} (v1'
                                                    , i0')
          and v3' = p0'
-         and p0' { m2 = p1' } = v3'
+         and p1' = v3'.m2
          and v4' = p1'
-         and p0' = p0' { m2 = p1' }
          and () = ()
          and v' = a
          and i2' = v4'
@@ -421,9 +401,8 @@ cogent_faa5 (a, v) =
                          , #Struct_Cogent_as1]{{}} (v'
                                                    , i2')
          and v5' = p2'
-         and p2' { m1 = p3' } = v5'
+         and p3' = v5'.m1
          and v6' = p3'
-         and p2' = p2' { m1 = p3' }
          and () = ()
          and v8' = v6'
          and v = v8'
@@ -436,7 +415,6 @@ cogent_faa6 a =
       and v2' = 3
       and v1' = a
       and i0' = v2'
-      and a @{ @i0' = p0' } = v1'
       and v4' = v'
       and p0' = v4'
       and a = a @{ @i0' = p0' }
@@ -456,7 +434,6 @@ cogent_faa7 a =
       and i0' = v2'
       and a @{ @i0' = p0' } = v1'
       and v3' = p0'
-      and p0' { m1 = p1' } = v3'
       and v5' = v'
       and p1' = v5'
       and p0' = p0' { m1 = p1' }
@@ -466,9 +443,8 @@ cogent_faa7 a =
       and i2' = v8'
       and a @{ @i2' = p2' } = v7'
       and v9' = p2'
-      and p2' { m1 = p3' } = v9'
+      and p3' = v9'.m1
       and v10' = p3'
-      and p2' = p2' { m1 = p3' }
       and a = a @{ @i2' = p2' }
       in (v10', a)
    in (r', a)
@@ -493,11 +469,10 @@ cogent_faa9 a =
       and i0' = v2'
       and a @{ @i0' = p0' } = v1'
       and v3' = p0'
-      and p0' { m1 = p1' } = v3'
+      and p1' = v3'.m1
       and v4' = p1'
       and v5' = v4' + v'
       and (v6', p1') = (p1', v5')
-      and p0' = p0' { m1 = p1' }
       and a = a @{ @i0' = p0' }
       in (v6', a)
    in (r', a)
@@ -595,9 +570,8 @@ cogent_fap2 (p, v) =
    let (r', ()) = (let v' = p
          and p0' = gencotDummy "Dereferencing pointer which may be NULL"
          and v1' = p0'
-         and p0' { m1 = p1' } = v1'
+         and p1' = v1'.m1
          and v2' = p1'
-         and p0' = p0' { m1 = p1' }
          and () = ()
          and v4' = v2'
          and v = v4'
@@ -622,9 +596,8 @@ cogent_fap4 (p, v) =
          and v1' = p0'
          and p1' = gencotDummy "Dereferencing pointer which may be NULL"
          and v2' = p1'
-         and p1' { m1 = p2' } = v2'
+         and p2' = v2'.m1
          and v3' = p2'
-         and p1' = p1' { m1 = p2' }
          and () = ()
          and v5' = v3'
          and v = v5'
@@ -680,16 +653,14 @@ cogent_fap8 p =
       and v1' = p
       and p0' = gencotDummy "Dereferencing pointer which may be NULL"
       and v2' = p0'
-      and p0' { m1 = p1' } = v2'
       and v4' = v'
       and p1' = v4'
       and p0' = p0' { m1 = p1' }
       and v6' = p
       and p2' = gencotDummy "Dereferencing pointer which may be NULL"
       and v7' = p2'
-      and p2' { m1 = p3' } = v7'
+      and p3' = v7'.m1
       and v8' = p3'
-      and p2' = p2' { m1 = p3' }
       in (v8', p)
    in (r', p)
 cogent_fap9 : MayNull Struct_Cogent_as1 -> ( U32, MayNull Struct_Cogent_as1 )
@@ -712,7 +683,6 @@ cogent_fap10 p =
       and v2' = p0'
       and p1' = gencotDummy "Dereferencing pointer which may be NULL"
       and v3' = p1'
-      and p1' { m1 = p2' } = v3'
       and v5' = v'
       and p2' = v5'
       and p1' = p1' { m1 = p2' }
@@ -721,9 +691,8 @@ cogent_fap10 p =
       and v8' = p3'
       and p4' = gencotDummy "Dereferencing pointer which may be NULL"
       and v9' = p4'
-      and p4' { m1 = p5' } = v9'
+      and p5' = v9'.m1
       and v10' = p5'
-      and p4' = p4' { m1 = p5' }
       in (v10', p)
    in (r', p)
 cogent_fap11 : MayNull Struct_Cogent_as3 -> ( U32, MayNull Struct_Cogent_as3 )

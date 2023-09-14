@@ -136,7 +136,6 @@ cogent_f21ro g =
    let g = let v' = cogent_frro
       and v1' = v' ()
       and v2' = g
-      and g { cont = p0' } = v2'
       and v4' = v1'
       and p0' = v4'
       and g = g { cont = p0' }
@@ -340,7 +339,6 @@ cogent_f56ro (pro, g) =
       and p0' = v'.mln
       and v1' = p0'
       and v2' = g
-      and g { cont = p1' } = v2'
       and v4' = v1'
       and p1' = v4'
       and g = g { cont = p1' }
@@ -502,10 +500,8 @@ cogent_f64ln pro =
          and v2' = pro
          and p0' = v2'.sub
          and v3' = p0'
-         and p0' { mln = p1' } = v3'
          and v5' = v1'
          and err' = gencotDummy "Linear expression used in readonly context"
-         and p0' = p0' { mln = p1' }
          in (0, pro)
       in if c' > 0
          then r'
@@ -518,9 +514,8 @@ cogent_f64ro pro =
    let r' = let v' = pro
       and p0' = v'.sub
       and v1' = p0'
-      and p0' { mln = p1' } = v1'
+      and p1' = v1'.mln
       and v2' = p1'
-      and p0' = p0' { mln = p1' }
       in v2'
    in r'
 
@@ -729,7 +724,6 @@ cogent_f76ro (pro, g) =
                       , (CPtr U32)!]{{}} (v', i0')
       and v2' = p0'
       and v3' = g
-      and g { cont = p1' } = v3'
       and v5' = v2'
       and p1' = v5'
       and g = g { cont = p1' }
@@ -1005,7 +999,6 @@ cogent_f91ro pln =
    let pln = let v' = cogent_frro
       and v1' = v' ()
       and v2' = pln
-      and pln { mro = p0' } = v2'
       and v4' = v1'
       and p0' = v4'
       and pln = pln { mro = p0' }
@@ -1031,7 +1024,6 @@ cogent_f92ro pln =
       and v3' = 1
       and v2' = pln
       and i0' = v3'
-      and pln @{ @i0' = p0' } = v2'
       and v5' = v1'
       and p0' = v5'
       and pln = pln @{ @i0' = p0' }
@@ -1127,7 +1119,6 @@ cogent_g21ro g =
    let g = let v' = cogent_frln
       and v1' = v' ()
       and v2' = g
-      and g { cont = p0' } = v2'
       and v4' = v1'
       and p0' = gencotDummy "Linear expression used in readonly context"
       and g = g { cont = p0' }
@@ -1177,7 +1168,6 @@ cogent_g51ln : Struct_Cogent_ros1 -> ( (), Struct_Cogent_ros1 )
 cogent_g51ln pln =
    let pln = let v' = 5
       and v1' = pln
-      and pln { mrg = p0' } = v1'
       and v3' = v'
       and p0' = v3'
       and pln = pln { mrg = p0' }
@@ -1196,7 +1186,6 @@ cogent_g52ln pln =
    let pln = let v' = cogent_frln
       and v1' = v' ()
       and v2' = pln
-      and pln { mro = p0' } = v2'
       and v4' = v1'
       and p0' = gencotDummy "Linear expression used in readonly context"
       and pln = pln { mro = p0' }
@@ -1235,7 +1224,6 @@ cogent_g54ln pln =
       and v1' = pln
       and pln { mln = p0' } = v1'
       and v2' = p0'
-      and p0' { cont = p1' } = v2'
       and v4' = v'
       and p1' = v4'
       and p0' = p0' { cont = p1' }
@@ -1293,7 +1281,6 @@ cogent_g56ro (pln, g) =
          and v1' = p0'
          and () = ()
          and v2' = g
-         and g { cont = p1' } = v2'
          and v4' = v1'
          and p1' = v4'
          and g = g { cont = p1' }
@@ -1378,7 +1365,6 @@ cogent_g61ln pln =
       and v1' = pln
       and pln { sln = p0' } = v1'
       and v2' = p0'
-      and p0' { mrg = p1' } = v2'
       and v4' = v'
       and p1' = v4'
       and p0' = p0' { mrg = p1' }
@@ -1402,7 +1388,6 @@ cogent_g62ln pln =
       and v2' = pln
       and pln { sln = p0' } = v2'
       and v3' = p0'
-      and p0' { mro = p1' } = v3'
       and v5' = v1'
       and p1' = gencotDummy "Linear expression used in readonly context"
       and p0' = p0' { mro = p1' }
@@ -1452,7 +1437,6 @@ cogent_g64ln pln =
       and v2' = pln
       and pln { sub = p0' } = v2'
       and v3' = p0'
-      and p0' { mro = p1' } = v3'
       and v5' = v1'
       and p1' = gencotDummy "Linear expression used in readonly context"
       and p0' = p0' { mro = p1' }
@@ -1478,7 +1462,6 @@ cogent_g71ln pln =
       and v2' = 1
       and v1' = pln
       and i0' = v2'
-      and pln @{ @i0' = p0' } = v1'
       and v4' = v'
       and p0' = v4'
       and pln = pln @{ @i0' = p0' }
@@ -1503,7 +1486,6 @@ cogent_g72ln pln =
       and v3' = 1
       and v2' = pln
       and i0' = v3'
-      and pln @{ @i0' = p0' } = v2'
       and v5' = v1'
       and p0' = gencotDummy "Linear expression used in readonly context"
       and pln = pln @{ @i0' = p0' }
@@ -1550,7 +1532,6 @@ cogent_g74ln pln =
       and i0' = v2'
       and pln @{ @i0' = p0' } = v1'
       and v3' = p0'
-      and p0' { cont = p1' } = v3'
       and v5' = v'
       and p1' = v5'
       and p0' = p0' { cont = p1' }
@@ -1625,7 +1606,6 @@ cogent_g76ro (pln, g) =
          and v2' = p0'
          and () = ()
          and v3' = g
-         and g { cont = p1' } = v3'
          and v5' = v2'
          and p1' = v5'
          and g = g { cont = p1' }
@@ -1730,7 +1710,6 @@ cogent_g81ln pln =
       and pln @{ @i0' = p0' } = v1'
       and v3' = p0'
       and i1' = v4'
-      and p0' @{ @i1' = p1' } = v3'
       and v6' = v'
       and p1' = v6'
       and p0' = p0' @{ @i1' = p1' }
@@ -1766,7 +1745,6 @@ cogent_g82ln pln =
       and pln @{ @i0' = p0' } = v2'
       and v4' = p0'
       and i1' = v5'
-      and p0' @{ @i1' = p1' } = v4'
       and v7' = v1'
       and p1' = gencotDummy "Linear expression used in readonly context"
       and p0' = p0' @{ @i1' = p1' }
@@ -1839,7 +1817,6 @@ cogent_g91ro pln =
    let pln = let v' = cogent_frln
       and v1' = v' ()
       and v2' = pln
-      and pln { mro = p0' } = v2'
       and v4' = v1'
       and p0' = gencotDummy "Linear expression used in readonly context"
       and pln = pln { mro = p0' }
@@ -1865,7 +1842,6 @@ cogent_g92ro pln =
       and v3' = 1
       and v2' = pln
       and i0' = v3'
-      and pln @{ @i0' = p0' } = v2'
       and v5' = v1'
       and p0' = gencotDummy "Linear expression used in readonly context"
       and pln = pln @{ @i0' = p0' }
@@ -1891,7 +1867,6 @@ cogent_nst11 (pln, i) =
                   and v6' = pln
                   and pln { mln = p1' } = v6'
                   and v7' = p1'
-                  and p1' { cont = p2' } = v7'
                   and v9' = v5'
                   and p2' = v9'
                   and p1' = p1' { cont = p2' }
@@ -1937,7 +1912,6 @@ cogent_nst12 (pln, i) =
                            and v12' = pln
                            and pln { mln = p3' } = v12'
                            and v13' = p3'
-                           and p3' { cont = p4' } = v13'
                            and v15' = v11'
                            and p4' = v15'
                            and p3' = p3' { cont = p4' }
@@ -1965,7 +1939,6 @@ cogent_bs11 (pln, i) =
       and v6' = pln
       and pln { mln = p1' } = v6'
       and v7' = p1'
-      and p1' { cont = p2' } = v7'
       and v9' = v5'
       and p2' = v9'
       and p1' = p1' { cont = p2' }
@@ -2013,7 +1986,6 @@ cogent_bs13 (pln, qro, i) =
                             , U32]{{}} v5'
             and v6' = p1'
             and v7' = i
-            and i { cont = p2' } = v7'
             and v9' = v6'
             and p2' = v9'
             and i = i { cont = p2' }
@@ -2083,7 +2055,6 @@ cogent_n21ro : GlobState4 -> ( (), GlobState4 )
 cogent_n21ro g =
    let g = let v' = cogent_NULL
       and v1' = g
-      and g { cont = p0' } = v1'
       and v3' = v'
       and p0' = v3'
       and g = g { cont = p0' }
@@ -2196,7 +2167,6 @@ cogent_n92ro pln =
       and v2' = 1
       and v1' = pln
       and i0' = v2'
-      and pln @{ @i0' = p0' } = v1'
       and v4' = v'
       and p0' = v4'
       and pln = pln @{ @i0' = p0' }

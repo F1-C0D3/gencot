@@ -43,49 +43,25 @@ cogent_fao14 v = v - 1
 type Struct_Cogent_as1 = { m1 : U32, m2 : U32 }
 type Struct_Cogent_as2 = { m3 : U32, m4 : #Struct_Cogent_as1 }
 cogent_fas1 : ( #Struct_Cogent_as1, U32 ) -> U32
-cogent_fas1 (s, v) =
-   let s { m1 = p0' } = s
-   in p0'
+cogent_fas1 (s, v) = s.m1
 cogent_fas2 : ( #Struct_Cogent_as1, U32 ) -> U32
-cogent_fas2 (s, v) =
-   let s { m1 = p0' } = s
-   and s { m2 = p1' } = s { m1 = p0' }
-   in p0' + p1'
+cogent_fas2 (s, v) = s.m1 + s.m2
 cogent_fas3 : ( #Struct_Cogent_as2, U32 ) -> U32
-cogent_fas3 (s, v) =
-   let s { m4 = p0' } = s
-   and p0' { m1 = p1' } = p0'
-   in p1'
+cogent_fas3 (s, v) = s.m4.m1
 cogent_fas4 : ( #Struct_Cogent_as2, U32 ) -> U32
 cogent_fas4 (s, v) =
-   let s { m4 = p0' } = s
-   and p0' { m1 = p1' } = p0'
-   and s = s { m4 = p0' { m1 = p1' } }
-   and s { m4 = p2' } = s
-   and p2' { m2 = p3' } = p2'
-   and s { m3 = p4' } = s { m4 = p2' { m2 = p3' } }
-   in p1' + p3' + p4'
+   s.m4.m1 + s.m4.m2 + s.m3
 cogent_fas5 : #Struct_Cogent_as1 -> U32
 cogent_fas5 s =
-   let s { m1 = _ } = s
-   and s { m1 = p1' } = s { m1 = 42 }
-   in p1'
+   (s { m1 = 42 }).m1
 cogent_fas6 : #Struct_Cogent_as2 -> U32
 cogent_fas6 s =
    let s { m4 = p0' } = s
-   and p0' { m1 = _ } = p0'
-   and s { m4 = p2' } = s { m4 = p0' { m1 = 42 } }
-   and p2' { m1 = p3' } = p2'
-   in p3'
+   in (s { m4 = p0' { m1 = 42 } }).m4.m1
 cogent_fas7 : #Struct_Cogent_as1 -> U32
-cogent_fas7 s =
-   let s { m1 = p0' } = s
-   in p0'
+cogent_fas7 s = s.m1
 cogent_fas8 : #Struct_Cogent_as2 -> U32
-cogent_fas8 s =
-   let s { m4 = p0' } = s
-   and p0' { m1 = p1' } = p0'
-   in p1'
+cogent_fas8 s = s.m4.m1
 cogent_fas9 : #Struct_Cogent_as1 -> U32
 cogent_fas9 s =
    let s { m1 = p0' } = s
@@ -132,38 +108,35 @@ cogent_faa3 (a, v) =
 cogent_faa4 : ( Cogent_aa2, U32 ) -> ( U32, Cogent_aa2 )
 cogent_faa4 (a, v) =
    let (r'
-       , ()) = (let p0' { m1 = p1' } = getArr[Cogent_aa2!
-                                             , U32
-                                             , #Struct_Cogent_as1]{{}} (a, 3)
-         in (p1', ())) !a
+       , ()) = ((getArr[Cogent_aa2!
+                       , U32
+                       , #Struct_Cogent_as1]{{}} (a
+                                                 , 3)).m1
+               , ()) !a
    in (r', a)
 cogent_faa5 : ( Cogent_aa2, U32 ) -> ( U32, Cogent_aa2 )
 cogent_faa5 (a, v) =
    let (r'
-       , ()) = (let p0' { m2 = p1' } = getArr[Cogent_aa2!
-                                             , U32
-                                             , #Struct_Cogent_as1]{{}} (a, 2)
-         and p2' { m1 = p3' } = getArr[Cogent_aa2!
-                                      , U32
-                                      , #Struct_Cogent_as1]{{}} (a
-                                                                , p1')
-         in (p3', ())) !a
+       , ()) = ((getArr[Cogent_aa2!
+                       , U32
+                       , #Struct_Cogent_as1]{{}} (a
+                                                 , (getArr[Cogent_aa2!
+                                                          , U32
+                                                          , #Struct_Cogent_as1]{{}} (a
+                                                                                    , 2)).m2)).m1
+               , ()) !a
    in (r', a)
 cogent_faa6 : Cogent_aa1 -> ( U32, Cogent_aa1 )
 cogent_faa6 a =
-   let a @{ @3 = _ } = a
-   and a = a @{ @3 = 42 }
+   let a = a @{ @3 = 42 }
    and a @{ @3 = p1' } = a
    in (p1', a @{ @3 = p1' })
 cogent_faa7 : Cogent_aa2 -> ( U32, Cogent_aa2 )
 cogent_faa7 a =
    let a @{ @3 = p0' } = a
-   and p0' { m1 = _ } = p0'
    and a = a @{ @3 = p0' { m1 = 42 } }
    and a @{ @3 = p2' } = a
-   and p2' { m1 = p3' } = p2'
-   in (p3'
-      , a @{ @3 = p2' { m1 = p3' } })
+   in (p2'.m1, a @{ @3 = p2' })
 cogent_faa8 : Cogent_aa1 -> ( U32, Cogent_aa1 )
 cogent_faa8 a =
    let a @{ @3 = p0' } = a
@@ -171,9 +144,7 @@ cogent_faa8 a =
 cogent_faa9 : Cogent_aa2 -> ( U32, Cogent_aa2 )
 cogent_faa9 a =
    let a @{ @3 = p0' } = a
-   and p0' { m1 = p1' } = p0'
-   in (p1'
-      , a @{ @3 = p0' { m1 = p1' + 1 } })
+   in (p0'.m1, a @{ @3 = p0' })
 cogent_faa10 : Cogent_aa1 -> ( U32, Cogent_aa1 )
 cogent_faa10 a =
    let a @{ @2 = p0' } = a
@@ -220,8 +191,8 @@ cogent_fap1 (p, v) =
 cogent_fap2 : ( MayNull Struct_Cogent_as1, U32 ) -> ( U32, MayNull Struct_Cogent_as1 )
 cogent_fap2 (p, v) =
    let (r'
-       , ()) = (let p0' { m1 = p1' } = gencotDummy "Dereferencing pointer which may be NULL"
-         in (p1', ())) !p
+       , ()) = ((gencotDummy "Dereferencing pointer which may be NULL").m1
+               , ()) !p
    in (r', p)
 cogent_fap3 : ( MayNull Struct_Cogent_as1, U32 ) -> ( U32, MayNull Struct_Cogent_as1 )
 cogent_fap3 (p, v) =
@@ -232,8 +203,8 @@ cogent_fap3 (p, v) =
 cogent_fap4 : ( MayNull Struct_Cogent_as3, U32 ) -> ( U32, MayNull Struct_Cogent_as3 )
 cogent_fap4 (p, v) =
    let (r'
-       , ()) = (let p1' { m1 = p2' } = gencotDummy "Dereferencing pointer which may be NULL"
-         in (p2', ())) !p
+       , ()) = ((gencotDummy "Dereferencing pointer which may be NULL").m1
+               , ()) !p
    in (r', p)
 cogent_fap5 : ( MayNull Struct_Cogent_as3, U32 ) -> ( U32, MayNull Struct_Cogent_as3 )
 cogent_fap5 (p, v) =
@@ -253,16 +224,16 @@ cogent_fap7 p =
    , p)
 cogent_fap8 : MayNull Struct_Cogent_as1 -> ( U32, MayNull Struct_Cogent_as1 )
 cogent_fap8 p =
-   let p2' { m1 = p3' } = gencotDummy "Dereferencing pointer which may be NULL"
-   in (p3', p)
+   ((gencotDummy "Dereferencing pointer which may be NULL").m1
+   , p)
 cogent_fap9 : MayNull Struct_Cogent_as1 -> ( U32, MayNull Struct_Cogent_as1 )
 cogent_fap9 p =
    (gencotDummy "Dereferencing pointer which may be NULL"
    , p)
 cogent_fap10 : MayNull Struct_Cogent_as3 -> ( U32, MayNull Struct_Cogent_as3 )
 cogent_fap10 p =
-   let p4' { m1 = p5' } = gencotDummy "Dereferencing pointer which may be NULL"
-   in (p5', p)
+   ((gencotDummy "Dereferencing pointer which may be NULL").m1
+   , p)
 cogent_fap11 : MayNull Struct_Cogent_as3 -> ( U32, MayNull Struct_Cogent_as3 )
 cogent_fap11 p =
    (gencotDummy "Dereferencing pointer which may be NULL"

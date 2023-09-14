@@ -169,6 +169,7 @@ cogent_fas1 (s, v) =
    let r' = let v' = s
       and s { m1 = p0' } = v'
       and v1' = p0'
+      and s = s { m1 = p0' }
       and v3' = v1'
       and v = v3'
       and v5' = v
@@ -183,6 +184,7 @@ cogent_fas2 (s, v) =
       and v2' = s
       and s { m2 = p1' } = v2'
       and v3' = p1'
+      and s = s { m2 = p1' }
       and v4' = v1' + v3'
       and v6' = v4'
       and v = v6'
@@ -196,6 +198,8 @@ cogent_fas3 (s, v) =
       and v1' = p0'
       and p0' { m1 = p1' } = v1'
       and v2' = p1'
+      and p0' = p0' { m1 = p1' }
+      and s = s { m4 = p0' }
       and v4' = v2'
       and v = v4'
       and v6' = v
@@ -221,6 +225,7 @@ cogent_fas4 (s, v) =
       and v7' = s
       and s { m3 = p4' } = v7'
       and v8' = p4'
+      and s = s { m3 = p4' }
       and v9' = v6' + v8'
       and v11' = v9'
       and v = v11'
@@ -238,6 +243,7 @@ cogent_fas5 s =
       and v5' = s
       and s { m1 = p1' } = v5'
       and v6' = p1'
+      and s = s { m1 = p1' }
       in v6'
    in r'
 cogent_fas6 : #Struct_Cogent_as2 -> U32
@@ -256,22 +262,33 @@ cogent_fas6 s =
       and v7' = p2'
       and p2' { m1 = p3' } = v7'
       and v8' = p3'
+      and p2' = p2' { m1 = p3' }
+      and s = s { m4 = p2' }
       in v8'
    in r'
 cogent_fas7 : #Struct_Cogent_as1 -> U32
 cogent_fas7 s =
-   let r' = let v1' = s
+   let r' = let v' = 1
+      and v1' = s
       and s { m1 = p0' } = v1'
-      and v4' = p0'
+      and v2' = p0'
+      and v3' = v2' + v'
+      and (v4', p0') = (p0', v3')
+      and s = s { m1 = p0' }
       in v4'
    in r'
 cogent_fas8 : #Struct_Cogent_as2 -> U32
 cogent_fas8 s =
-   let r' = let v1' = s
+   let r' = let v' = 1
+      and v1' = s
       and s { m4 = p0' } = v1'
       and v2' = p0'
       and p0' { m1 = p1' } = v2'
-      and v5' = p1'
+      and v3' = p1'
+      and v4' = v3' + v'
+      and (v5', p1') = (p1', v4')
+      and p0' = p0' { m1 = p1' }
+      and s = s { m4 = p0' }
       in v5'
    in r'
 cogent_fas9 : #Struct_Cogent_as1 -> U32
@@ -281,7 +298,8 @@ cogent_fas9 s =
       and s { m1 = p0' } = v1'
       and v2' = p0'
       and v3' = v2' + v'
-      and v4' = v3'
+      and (v4', p0') = (v3', v3')
+      and s = s { m1 = p0' }
       in v4'
    in r'
 cogent_fas10 : #Struct_Cogent_as2 -> U32
@@ -293,7 +311,9 @@ cogent_fas10 s =
       and p0' { m1 = p1' } = v2'
       and v3' = p1'
       and v4' = v3' + v'
-      and v5' = v4'
+      and (v5', p1') = (v4', v4')
+      and p0' = p0' { m1 = p1' }
+      and s = s { m4 = p0' }
       in v5'
    in r'
 

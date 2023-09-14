@@ -520,6 +520,7 @@ cogent_f64ro pro =
       and v1' = p0'
       and p0' { mln = p1' } = v1'
       and v2' = p1'
+      and p0' = p0' { mln = p1' }
       in v2'
    in r'
 
@@ -1187,6 +1188,7 @@ cogent_g51ro pln =
    let r' = (let v' = pln
          and p0' = v'.mrg
          and v1' = p0'
+         and () = ()
          in v1') !pln
    in r'
 cogent_g52ln : Struct_Cogent_ros1 -> ( (), Struct_Cogent_ros1 )
@@ -1256,6 +1258,7 @@ cogent_g55ln pln =
       and v1' = pln
       and pln { mln = p0' } = v1'
       and v2' = p0'
+      and pln = pln { mln = p0' }
       and v3' = v' v2'
       in v3'
    in r'
@@ -1265,6 +1268,7 @@ cogent_g55ro pln =
          and v1' = pln
          and p0' = v1'.mln
          and v2' = p0'
+         and () = ()
          and v3' = v' v2'
          in v3') !pln
    in r'
@@ -1273,6 +1277,7 @@ cogent_g56ln (pln, g) =
    let g = let v' = pln
       and pln { mln = p0' } = v'
       and v1' = p0'
+      and pln = pln { mln = p0' }
       and v2' = g
       and g { cont = p1' } = v2'
       and v4' = v1'
@@ -1286,6 +1291,7 @@ cogent_g56ro (pln, g) =
             {- *g = pln->mln; -}
          and p0' = v'.mln
          and v1' = p0'
+         and () = ()
          and v2' = g
          and g { cont = p1' } = v2'
          and v4' = v1'
@@ -1298,6 +1304,7 @@ cogent_g57ln (pln, qln) =
    let qln = let v' = pln
       and pln { mln = p0' } = v'
       and v1' = p0'
+      and pln = pln { mln = p0' }
       and v3' = v1'
       and qln = v3'
       in qln
@@ -1308,6 +1315,7 @@ cogent_g57ro (pln, qro) =
                  , qro) = let v' = pln
             and p0' = v'.mln
             and v1' = p0'
+            and () = ()
             and v3' = v1'
             and qro = v3'
             in (0, qro)
@@ -1325,6 +1333,7 @@ cogent_g58ln pln =
    let r' = let v' = pln
       and pln { mln = p0' } = v'
       and v1' = p0'
+      and pln = pln { mln = p0' }
       in v1'
    in r'
 cogent_g58ro : Struct_Cogent_ros1 -> (CPtr U32)!
@@ -1340,6 +1349,7 @@ cogent_g59ln (pln, qln, i) =
                then let v2' = pln
                   and p0' = v2'.mln
                   and v3' = p0'
+                  and () = ()
                   in v3'
                else let v4' = qln
                   in v4'
@@ -1354,6 +1364,7 @@ cogent_g59ro (pln, qro, i) =
                then let v2' = pln
                   and p0' = v2'.mln
                   and v3' = p0'
+                  and () = ()
                   in v3'
                else let v4' = qro
                   in v4'
@@ -1482,6 +1493,7 @@ cogent_g71ro pln =
                          , U32
                          , U32]{{}} (v', i0')
          and v2' = p0'
+         and () = ()
          in v2') !pln
    in r'
 cogent_g72ln : Cogent_roa2 -> ( (), Cogent_roa2 )
@@ -1504,6 +1516,7 @@ cogent_g72ro pln =
       and i0' = v1'
       and pln @{ @i0' = p0' } = v'
       and v2' = p0'
+      and pln = pln @{ @i0' = p0' }
       in v2'
    in r'
 cogent_g73ln : Cogent_roa3 -> ( (), Cogent_roa3 )
@@ -1526,6 +1539,7 @@ cogent_g73ro pln =
       and i0' = v1'
       and pln @{ @i0' = p0' } = v'
       and v2' = p0'
+      and pln = pln @{ @i0' = p0' }
       in v2'
    in r'
 cogent_g74ln : Cogent_roa3 -> ( (), Cogent_roa3 )
@@ -1555,6 +1569,7 @@ cogent_g74ro pln =
          and p1' = getPtr[(CPtr U32)!
                          , U32]{{}} v2'
          and v3' = p1'
+         and () = ()
          in v3') !pln
    in r'
 cogent_g75ln : Cogent_roa3 -> U32
@@ -1565,6 +1580,7 @@ cogent_g75ln pln =
       and i0' = v2'
       and pln @{ @i0' = p0' } = v1'
       and v3' = p0'
+      and pln = pln @{ @i0' = p0' }
       and v4' = v' v3'
       in v4'
    in r'
@@ -1578,6 +1594,7 @@ cogent_g75ro pln =
                          , U32
                          , (CPtr U32)!]{{}} (v1', i0')
          and v3' = p0'
+         and () = ()
          and v4' = v' v3'
          in v4') !pln
    in r'
@@ -1588,6 +1605,7 @@ cogent_g76ln (pln, g) =
       and i0' = v1'
       and pln @{ @i0' = p0' } = v'
       and v2' = p0'
+      and pln = pln @{ @i0' = p0' }
       and v3' = g
       and g { cont = p1' } = v3'
       and v5' = v2'
@@ -1605,6 +1623,7 @@ cogent_g76ro (pln, g) =
                          , U32
                          , (CPtr U32)!]{{}} (v', i0')
          and v2' = p0'
+         and () = ()
          and v3' = g
          and g { cont = p1' } = v3'
          and v5' = v2'
@@ -1619,6 +1638,7 @@ cogent_g77ln (pln, qln) =
       and i0' = v1'
       and pln @{ @i0' = p0' } = v'
       and v2' = p0'
+      and pln = pln @{ @i0' = p0' }
       and v4' = v2'
       and qln = v4'
       in qln
@@ -1633,6 +1653,7 @@ cogent_g77ro (pln, qro) =
                             , U32
                             , (CPtr U32)!]{{}} (v', i0')
             and v2' = p0'
+            and () = ()
             and v4' = v2'
             and qro = v4'
             in (0, qro)
@@ -1652,6 +1673,7 @@ cogent_g78ln pln =
       and i0' = v1'
       and pln @{ @i0' = p0' } = v'
       and v2' = p0'
+      and pln = pln @{ @i0' = p0' }
       in v2'
    in r'
 cogent_g78ro : Cogent_roa3 -> (CPtr U32)!
@@ -1671,6 +1693,7 @@ cogent_g79ln (pln, qln, i) =
                                   , U32
                                   , (CPtr U32)!]{{}} (v2', i0')
                   and v4' = p0'
+                  and () = ()
                   in v4'
                else let v5' = qln
                   in v5'
@@ -1689,6 +1712,7 @@ cogent_g79ro (pln, qro, i) =
                                   , U32
                                   , (CPtr U32)!]{{}} (v2', i0')
                   and v4' = p0'
+                  and () = ()
                   in v4'
                else let v5' = qro
                   in v5'
@@ -1728,6 +1752,7 @@ cogent_g81ro pln =
                          , U32
                          , U32]{{}} (v2', i1')
          and v4' = p1'
+         and () = ()
          in v4') !pln
    in r'
 cogent_g82ln : Cogent_roa5 -> ( (), Cogent_roa5 )
@@ -1759,6 +1784,8 @@ cogent_g82ro pln =
       and i1' = v3'
       and p0' @{ @i1' = p1' } = v2'
       and v4' = p1'
+      and p0' = p0' @{ @i1' = p1' }
+      and pln = pln @{ @i0' = p0' }
       in v4'
    in r'
 cogent_g83ln : Cogent_roa6 -> ( (), Cogent_roa6 )
@@ -1790,6 +1817,8 @@ cogent_g83ro pln =
       and i1' = v3'
       and p0' @{ @i1' = p1' } = v2'
       and v4' = p1'
+      and p0' = p0' @{ @i1' = p1' }
+      and pln = pln @{ @i0' = p0' }
       in v4'
    in r'
 

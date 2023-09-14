@@ -28,6 +28,7 @@ cogent_ffv16 (i, j) =
                 , i) = let v' = j
             and p0' = gencotDummy "Dereferencing pointer which may be NULL"
             and v1' = p0'
+            and () = ()
             and v2' = i
             and p1' = gencotDummy "Dereferencing pointer which may be NULL"
             and v4' = v1'
@@ -40,7 +41,12 @@ cogent_ffv17 (i, j) =
    let j = let (c'
                , ()) = (let v' = j
             and p0' = gencotDummy "Dereferencing pointer which may be NULL"
+            and v1' = p0'
             and () = ()
+            and v2' = i
+            and p1' = gencotDummy "Dereferencing pointer which may be NULL"
+            and v4' = v1'
+            and p1' = v4'
             in (0, ())) !j
       in if c' > 0
          then j
@@ -132,6 +138,7 @@ cogent_ffv31 (i, g) =
    let g = (let v' = i
          and p0' = gencotDummy "Dereferencing pointer which may be NULL"
          and v1' = p0'
+         and () = ()
          and v2' = g
          and g { cont = p1' } = v2'
          and v4' = v1'
@@ -186,6 +193,7 @@ cogent_ffv34 (i, j, g) =
             else let g = let v6' = j
                   and p2' = gencotDummy "Dereferencing pointer which may be NULL"
                   and v7' = p2'
+                  and () = ()
                   and v8' = g
                   and g { cont = p3' } = v8'
                   and v10' = v7'
@@ -273,6 +281,7 @@ cogent_ffv45 (i, g, heap) =
    let g = (let v' = i
          and p0' = gencotDummy "Dereferencing pointer which may be NULL"
          and v1' = p0'
+         and () = ()
          and v2' = g
          and g { cont = p1' } = v2'
          and v4' = v1'
@@ -356,7 +365,12 @@ cogent_ffi12 i =
    in (r', i)
 cogent_ffi13 : MayNull (CPtr U32) -> U32
 cogent_ffi13 i =
-   let r' = let c' = 0
+   let r' = let c' = let v' = 5
+         and v1' = i
+         and p0' = gencotDummy "Dereferencing pointer which may be NULL"
+         and v3' = v'
+         and p0' = v3'
+         in 0
       in if c' > 0
          then r'
          else let r' = let v5' = 2 in v5'
@@ -378,10 +392,25 @@ cogent_ffi14 i =
    in (r', i)
 cogent_ffi15 : ( MayNull (CPtr U32), MayNull (CPtr U32) ) -> U32
 cogent_ffi15 (i, j) =
-   let r' = let c' = 0
+   let r' = let (c'
+                , ()) = (let v' = j
+            and p0' = gencotDummy "Dereferencing pointer which may be NULL"
+            and v1' = p0'
+            and () = ()
+            and v2' = i
+            and p1' = gencotDummy "Dereferencing pointer which may be NULL"
+            and v4' = v1'
+            and p1' = v4'
+            in (0, ())) !j
       in if c' > 0
          then r'
-         else let r' = let c' = 0
+         else
+            let r' = let c' = let v6' = 5
+                  and v7' = j
+                  and p2' = gencotDummy "Dereferencing pointer which may be NULL"
+                  and v9' = v6'
+                  and p2' = v9'
+                  in 0
                in if c' > 0
                   then r'
                   else let r' = let v11' = 2
@@ -391,31 +420,44 @@ cogent_ffi15 (i, j) =
    in r' -- i: -ar, j: -ar 
 cogent_ffi16 : ( MayNull (CPtr U32), MayNull (CPtr U32) ) -> ( U32, MayNull (CPtr U32) )
 cogent_ffi16 (i, j) =
-   let (i, r') = (let (c'
-                      , i) = let v' = j
+   let (i, r') = let (c'
+                     , ()
+                     , i) = (let v' = j
             and p0' = gencotDummy "Dereferencing pointer which may be NULL"
             and v1' = p0'
+            and () = ()
             and v2' = i
             and p1' = gencotDummy "Dereferencing pointer which may be NULL"
             and v4' = v1'
             and p1' = v4'
-            in (0, i)
-         in if c' > 0
-            then (i, r')
-            else let r' = let c' = 0
-                  in if c' > 0
-                     then r'
-                     else let r' = let v11' = 2
-                           in v11'
-                        in r'
-               in (i, r')) !j
+            in (0, (), i)) !j
+      in if c' > 0
+         then (i, r')
+         else
+            let r' = let c' = let v6' = 5
+                  and v7' = j
+                  and p2' = gencotDummy "Dereferencing pointer which may be NULL"
+                  and v9' = v6'
+                  and p2' = v9'
+                  in 0
+               in if c' > 0
+                  then r'
+                  else let r' = let v11' = 2
+                        in v11'
+                     in r'
+            in (i, r')
    in (r', i) -- j: -ar
 cogent_ffi17 : ( MayNull (CPtr U32), MayNull (CPtr U32) ) -> ( U32, MayNull (CPtr U32) )
 cogent_ffi17 (i, j) =
    let (j, r') = let (c'
                      , ()) = (let v' = j
             and p0' = gencotDummy "Dereferencing pointer which may be NULL"
+            and v1' = p0'
             and () = ()
+            and v2' = i
+            and p1' = gencotDummy "Dereferencing pointer which may be NULL"
+            and v4' = v1'
+            and p1' = v4'
             in (0, ())) !j
       in if c' > 0
          then (j, r')
@@ -545,6 +587,7 @@ cogent_ffi31 (i, g) =
                       , g) = let v' = i
             and p0' = gencotDummy "Dereferencing pointer which may be NULL"
             and v1' = p0'
+            and () = ()
             and v2' = g
             and g { cont = p1' } = v2'
             and v4' = v1'
@@ -616,6 +659,7 @@ cogent_ffi34 (i, j, g) =
                                    , g) = let v6' = j
                      and p2' = gencotDummy "Dereferencing pointer which may be NULL"
                      and v7' = p2'
+                     and () = ()
                      and v8' = g
                      and g { cont = p3' } = v8'
                      and v10' = v7'
@@ -714,7 +758,12 @@ cogent_ffi42 (g, heap) =
    in (r', g, heap) -- ffv41: hu, g: gs1
 cogent_ffi43 : ( MayNull (CPtr U32), Heap ) -> ( U32, Heap )
 cogent_ffi43 (i, heap) =
-   let r' = let c' = 0
+   let r' = let c' = let v' = 5
+         and v1' = i
+         and p0' = gencotDummy "Dereferencing pointer which may be NULL"
+         and v3' = v'
+         and p0' = v3'
+         in 0
       in if c' > 0
          then r'
          else let r' = let v5' = 2 in v5'
@@ -740,6 +789,7 @@ cogent_ffi45 (i, g, heap) =
                       , g) = let v' = i
             and p0' = gencotDummy "Dereferencing pointer which may be NULL"
             and v1' = p0'
+            and () = ()
             and v2' = g
             and g { cont = p1' } = v2'
             and v4' = v1'
@@ -1359,6 +1409,7 @@ cogent_ffp1vv s =
    let r' = let v' = s
       and s { fvv = p0' } = v'
       and v1' = p0'
+      and s = s { fvv = p0' }
       in v1'
    in r'
 cogent_ffp1vi : #Struct_Cogent_fstd -> #Cogent_fpfvi
@@ -1366,6 +1417,7 @@ cogent_ffp1vi s =
    let r' = let v' = s
       and s { fvi = p0' } = v'
       and v1' = p0'
+      and s = s { fvi = p0' }
       in v1'
    in r'
 cogent_ffp1iv : #Struct_Cogent_fstd -> #Cogent_fpfiv
@@ -1373,6 +1425,7 @@ cogent_ffp1iv s =
    let r' = let v' = s
       and s { fiv = p0' } = v'
       and v1' = p0'
+      and s = s { fiv = p0' }
       in v1'
    in r'
 cogent_ffp1ii : #Struct_Cogent_fstd -> #Cogent_fpfii
@@ -1380,6 +1433,7 @@ cogent_ffp1ii s =
    let r' = let v' = s
       and s { fii = p0' } = v'
       and v1' = p0'
+      and s = s { fii = p0' }
       in v1'
    in r'
 
@@ -1427,6 +1481,7 @@ cogent_cfpv12 (s, i) =
    let i = let v' = s
       and s { fvi = p0' } = v'
       and v1' = p0'
+      and s = s { fvi = p0' }
       and v2' = fromFunPtr[Cogent_ffvi
                           , #CFunPtr_Cogent_ffvi]{{}} v1'
       and v3' = i
@@ -1465,6 +1520,7 @@ cogent_cfpi1 s =
    let r' = let v' = s
       and s { fiv = p0' } = v'
       and v1' = p0'
+      and s = s { fiv = p0' }
       and v2' = fromFunPtr[() -> U32
                           , #Cogent_fpfiv]{{}} v1'
       and v3' = v2' ()
@@ -1475,6 +1531,7 @@ cogent_cfpi2 s =
    let r' = let v1' = s
       and s { fiv = p0' } = v1'
       and v2' = p0'
+      and s = s { fiv = p0' }
       and v' = fromFunPtr[() -> U32
                          , #Cogent_fpfiv]{{}} v2'
       and v3' = v' ()
@@ -1485,6 +1542,7 @@ cogent_cfpi3 s =
    let r' = let v' = s
       and s { fiv = p0' } = v'
       and v1' = p0'
+      and s = s { fiv = p0' }
       and v2' = fromFunPtr[Cogent_ffiv
                           , #CFunPtr_Cogent_ffiv]{{}} v1'
       and v3' = v2' ()
@@ -1495,6 +1553,7 @@ cogent_cfpi4 s =
    let r' = let v' = s
       and s { fiv = p0' } = v'
       and v1' = p0'
+      and s = s { fiv = p0' }
       and v2' = fromFunPtr[() -> U32
                           , #CFunPtr_FXX_U32]{{}} v1'
       and v3' = v2' ()
@@ -1564,6 +1623,7 @@ cogent_cfpi11 (s, i) =
    let r' = let v' = s
       and s { fii = p0' } = v'
       and v1' = p0'
+      and s = s { fii = p0' }
       and v2' = fromFunPtr[MayNull (CPtr U32) -> U32
                           , #Cogent_fpfii]{{}} v1'
       and v3' = i
@@ -1575,6 +1635,7 @@ cogent_cfpi12 (s, i) =
    let (r', i) = let v' = s
       and s { fii = p0' } = v'
       and v1' = p0'
+      and s = s { fii = p0' }
       and v2' = fromFunPtr[Cogent_ffii
                           , #CFunPtr_Cogent_ffii]{{}} v1'
       and v3' = i
@@ -1586,6 +1647,7 @@ cogent_cfpi13 (s, i) =
    let r' = let v' = s
       and s { fii = p0' } = v'
       and v1' = p0'
+      and s = s { fii = p0' }
       and v2' = fromFunPtr[MayNull (CPtr U32) -> U32
                           , #CFunPtr_FXM_N_P_U32X_U32]{{}} v1'
       and v3' = i
@@ -1597,6 +1659,7 @@ cogent_cfpi14 (s, i) =
    let r' = let v' = s
       and s { fii = p0' } = v'
       and v1' = p0'
+      and s = s { fii = p0' }
       and v2' = fromFunPtr[MayNull (CPtr U32) -> U32
                           , #Cogent_fpfii]{{}} v1'
       and v3' = i

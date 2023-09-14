@@ -369,9 +369,16 @@ their values are used in the context. For example, the value of an assignment ex
 other hand unused variables may prevent resolving a type difference by banging, if the variable has non-escapeable type (possibly
 caused by the banging itself) and leaves the scope of the banging. Therefore it is crucial to remove bindings of unused variables
 early during postprocessing, in particular, before trying to apply banging, whereas normal simplification of \code{let} expression
-is only done after resolving type differences.
+is only done after resolving type differences. Early removal of unused variables is called pre-simplification here.
 
-This is facilitated by implementing the removal of unused variables in a separate postprocessing step
+An exception is made for \code{put} operations. Every \code{put} binding is always generated together with a preceding \code{take}
+binding and both are usually also processed together (see Section~\ref{impl-post-takeput}). If only the component variable of a
+\code{take} binding is used but not the container variable, pre-simplification would remove the \code{put} binding and would preserve
+the \code{take} binding. Since the \code{put} bindings do not affect the banging possibilities, they are excluded from
+pre-simplification. Since every \code{put} binding uses both the container and component variable of the corresponding \code{take}
+binding, that will always be preserved as well.
+
+Pre-simplification is facilitated by implementing the removal of unused variables in a separate postprocessing step
 \begin{verbatim}
   presimp :: GenExpr -> GenExpr
 \end{verbatim}

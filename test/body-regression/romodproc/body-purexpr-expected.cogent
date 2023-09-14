@@ -262,6 +262,7 @@ cogent_fs1 s =
    let r' = let v' = s
       and s { m1 = p0' } = v'
       and v1' = p0'
+      and s = s { m1 = p0' }
       in v1'
    in r'
 cogent_fs2 : #Struct_Cogent_s1 -> U32
@@ -273,6 +274,7 @@ cogent_fs2 s =
       and v2' = s
       and s { m2 = p1' } = v2'
       and v3' = p1'
+      and s = s { m2 = p1' }
       and v4' = v1' + v3'
       in v4'
    in r'
@@ -283,6 +285,8 @@ cogent_fs3 s =
       and v1' = p0'
       and p0' { m1 = p1' } = v1'
       and v2' = p1'
+      and p0' = p0' { m1 = p1' }
+      and s = s { m4 = p0' }
       in v2'
    in r'
 cogent_fs4 : #Struct_Cogent_s2 -> U32
@@ -305,6 +309,7 @@ cogent_fs4 s =
       and v7' = s
       and s { m3 = p4' } = v7'
       and v8' = p4'
+      and s = s { m3 = p4' }
       and v9' = v6' + v8'
       in v9'
    in r'
@@ -317,6 +322,8 @@ cogent_fs5 s =
       and i1' = v2'
       and p0' @{ @i1' = p1' } = v1'
       and v3' = p1'
+      and p0' = p0' @{ @i1' = p1' }
+      and s = s { m6 = p0' }
       in v3'
    in r'
 cogent_fs6 : #Struct_Cogent_s3 -> U32
@@ -343,6 +350,7 @@ cogent_fs6 s =
       and v9' = s
       and s { m5 = p4' } = v9'
       and v10' = p4'
+      and s = s { m5 = p4' }
       and v11' = v8' + v10'
       in v11'
    in r'

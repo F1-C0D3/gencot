@@ -43,7 +43,10 @@ presimpBinds ((Binding ip Nothing e bvs) : bs) bdy =
 
 -- | Process the binding (ip = e) by removing bindings to variables not in a given set.
 -- If all components can be removed the result is Nothing
+-- Put bindings are excluded from processing.
 presimpBind :: GenIrrefPatn -> GenExpr -> [VarName] -> Maybe (GenIrrefPatn,GenExpr)
+presimpBind ip e@(GenExpr (CS.Put _ _) _ _ _) _ = Just (ip,e)
+presimpBind ip e@(GenExpr (CS.ArrayPut _ _) _ _ _) _ = Just (ip,e)
 presimpBind ip@(GenIrrefPatn (PVar pv) _ _) e vs =
     if elem pv vs then Just (ip,e) else Nothing
 presimpBind ip@(GenIrrefPatn (PTake pv [Just (_, GenIrrefPatn (PVar cv) _ _)]) _ _) e vs =

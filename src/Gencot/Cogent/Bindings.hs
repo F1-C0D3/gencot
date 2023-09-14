@@ -21,7 +21,7 @@ import Gencot.Cogent.Expr (
   mkVarExpr, mkFunExpr, mkCtlLitExpr, mkTupleExpr, mkOpExpr, mkBoolOpExpr, mkCtlVarTupleExpr, mkVarTupleExpr, mkExpVarTupleExpr, mk0VarTupleExpr,
   mkDisjExpr, mkAppExpr, mkTopLevelFunExpr, mkLetExpr, mkRecPutExpr, mkArrPutExpr,
   mkIfExpr, mkRecordExpr, mkLambdaExpr,
-  getFreeTypedVars)
+  getFreeTypedVars, isPutExprFor)
 
 prime = '\''
 
@@ -515,6 +515,12 @@ cmbExtBinds vs bp@(main,_) =
     where lv = leadVar bp
           vs' = if elem lv vs then vs else lv : vs
 
+isTakeBinding :: GenBnd -> Bool
+isTakeBinding (CS.Binding ip _ _ _) = isTakePattern ip
+
+isPutBindingFor :: CCS.VarName -> GenBnd -> Bool
+isPutBindingFor v (CS.Binding _ _ e _) = isPutExprFor v e
+
 -- Construct Patterns
 ---------------------
 
@@ -550,6 +556,11 @@ mkRecTakePattern tv1@(TV v1 t1) tv2 f = genIrrefPatn t1 $ CS.PTake v1 [Just (f, 
 mkArrTakePattern :: TypedVar -> TypedVar -> TypedVar -> GenIrrefPatn
 mkArrTakePattern tv1@(TV v1 t1) tv2 tv3 =
     genIrrefPatn t1 $ CS.PArrayTake v1 [(mkVarExpr tv3,mkVarPattern tv2)]
+
+isTakePattern :: GenIrrefPatn -> Bool
+isTakePattern (GenIrrefPatn (CS.PTake _ _) _ _) = True
+isTakePattern (GenIrrefPatn (CS.PArrayTake _ _) _ _) = True
+isTakePattern _ = False
 
 -- Construct Alternative
 ------------------------

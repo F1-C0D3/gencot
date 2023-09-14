@@ -160,6 +160,11 @@ mkLambdaExpr p e = genExpr (mkFunType (typOfGIP p) (typOfGE e)) $ CS.Lam p Nothi
 mkMemberExpr :: GenType -> GenExpr -> CCS.FieldName -> GenExpr
 mkMemberExpr t e f = genExpr t $ CS.Member e f
 
+isPutExprFor :: CCS.VarName -> GenExpr -> Bool
+isPutExprFor v (GenExpr (CS.Put _ [Just (_, GenExpr (CS.Var ev) _ _ _)]) _ _ _) = v == ev
+isPutExprFor v (GenExpr (CS.ArrayPut _ [(_, GenExpr (CS.Var ev) _ _ _)]) _ _ _) = v == ev
+isPutExprFor _ _ = False
+
 -- Determine free typed variables in expressions
 ------------------------------------------------
 

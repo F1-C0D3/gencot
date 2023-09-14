@@ -377,6 +377,14 @@ getMemberType f (GenType (CS.TCon n [t] _) _ _) | n == mapMayNull = getMemberTyp
 -- other types -> unitType
 getMemberType f _ = unitType
 
+isUnboxedArrayMember :: CCS.FieldName -> GenType -> Bool
+isUnboxedArrayMember f (GenType (CS.TRecord _ fs s) _ _) =
+    case find (\fld -> fst fld == f) fs of
+         Nothing -> False
+         Just (_,(t,_)) -> isUnboxedArrayType t
+isUnboxedArrayMember f (GenType (CS.TCon n [t] _) _ _) | n == mapMayNull = isUnboxedArrayMember f t
+isUnboxedArrayMember _ _ = False
+
 getBoxType :: GenType -> GenType
 getBoxType (GenType (CS.TCon tn ts sg) o ms) = GenType (CS.TCon tn ts noSigil) o ms
 getBoxType (GenType (CS.TRecord rp fs sg) o ms) = GenType (CS.TRecord rp fs noSigil) o ms
@@ -404,6 +412,16 @@ getDerefType (GenType (CS.TCon n [t] s) _ _) | isArrDeriv n && not (arrDerivHasS
     mkCmpType s t
 -- other types -> make unboxed
 getDerefType t = mkUnboxed t
+
+isUnboxedArrayDeref :: GenType -> Bool
+isUnboxedArrayDeref (GenType (CS.TRecord NonRec [(f,(t,_))] s) _ (Just _))
+    | f == ptrDerivCompName = isUnboxedArrayType t
+isUnboxedArrayDeref (GenType (CS.TCon n [t] _) _ _) | n == mapMayNull = isUnboxedArrayDeref t
+isUnboxedArrayDeref (GenType (CS.TRecord NonRec [(f,((GenType (CS.TArray t _ _ _) _ _),_))] s) _ (Just _))
+    | isArrDerivComp f = isUnboxedArrayType t
+isUnboxedArrayDeref (GenType (CS.TCon n [t] s) _ _) | isArrDeriv n && not (arrDerivHasSize n) =
+    isUnboxedArrayType t
+isUnboxedArrayDeref _ = False
 
 -- | Type selectors for other components
 

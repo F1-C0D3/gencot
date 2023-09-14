@@ -167,11 +167,17 @@ cogent_ffi13 i = 2 -- i: -ar
 cogent_ffi14 : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
 cogent_ffi14 i = (2, i)
 cogent_ffi15 : ( MayNull (CPtr U32), MayNull (CPtr U32) ) -> U32
-cogent_ffi15 (i, j) = 2 -- i: -ar, j: -ar 
+cogent_ffi15 (i, j) =
+   let (c', ()) = (0, ()) !j
+   in if c' > 0 then r' else 2 -- i: -ar, j: -ar 
 cogent_ffi16 : ( MayNull (CPtr U32), MayNull (CPtr U32) ) -> ( U32, MayNull (CPtr U32) )
 cogent_ffi16 (i, j) =
-   let (i, r') = (i, 2) !j
-   in (r', i) -- j: -ar
+   (let (c', (), i) = (0, (), i) !j
+   in if c' > 0 then r' else 2
+   , let (c', (), i) = (0
+                       , ()
+                       , i) !j
+   in i) -- j: -ar
 cogent_ffi17 : ( MayNull (CPtr U32), MayNull (CPtr U32) ) -> ( U32, MayNull (CPtr U32) )
 cogent_ffi17 (i, j) =
    (let (c', ()) = (0, ()) !j

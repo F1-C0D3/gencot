@@ -435,6 +435,10 @@ getLeadType :: GenType -> GenType
 getLeadType (GenType (CS.TTuple (t : ts)) _ _) = t
 getLeadType t = t
 
+tupleSize :: GenType -> Int
+tupleSize (GenType (CS.TTuple ts) _ _) = length ts
+tupleSize _ = 1
+
 -- | Type adaptation
 -- Types which are compatible in C may be incompatible after translation to Cogent.
 -- These will be adapted during postprocessing by converting one Cogent type to the other.

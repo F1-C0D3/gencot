@@ -1,7 +1,8 @@
 {-# LANGUAGE PackageImports, TypeSynonymInstances, FlexibleInstances #-}
 module Gencot.Cogent.Post.Util where
 
-import Data.List (nub,union,intersect,foldl1',(\\))
+import Data.List (replicate,transpose,nub,union,intersect,(\\))
+import Data.Maybe (catMaybes)
 import Data.Functor.Identity (Identity)
 import Data.Functor.Compose
 
@@ -14,6 +15,7 @@ import Cogent.Common.Syntax as CCS
 import Gencot.Traversal (runSubTrav)
 import Gencot.Cogent.Ast
 import Gencot.Cogent.Expr (mkUnitExpr, TypedVar(TV))
+import Gencot.Cogent.Types (getResultType, tupleSize)
 
 -- | Monad with empty user state, used only for error recording.
 type ETrav = TravT () Identity
@@ -78,10 +80,11 @@ freeInExpr = freeInExpr' . exprOfGE
 
 freeInExpr' :: ExprOfGE -> [VarName]
 {- freeInExpr' = nub . CS.fvE . toRawExpr' -}
+freeInExpr' (Var v) | v == "gencotDummy" = []
 freeInExpr' (Var v) = [v]
 freeInExpr' (Let bs bdy) = freeUnderBinding bs $ exprOfGE bdy
 freeInExpr' (Match e _ alts) = union (freeInExpr e) (nub $ foldMap freeInAlt alts)
-freeInExpr' (TLApp v ts _ _) = [v]
+freeInExpr' (TLApp v ts _ _) = [] -- toplevel functions are not returned as free variables
 freeInExpr' (Lam p t e) = filter (`notElem` freeInIrrefPatn p) (freeInExpr e)
 freeInExpr' e = nub $ foldMap freeInExpr e
 
@@ -108,36 +111,109 @@ boundInBindings ((Binding ipb Nothing eb _) : bs) = union (freeInIrrefPatn ipb) 
 
 {- Variables (not) modified by a re-binding -}
 
--- | Variables returned unmodified by an expression
+-- | Variables returned unmodified by the components of an expression.
+-- For other components the result is the empty string.
 -- In a put expression the container is always considered modified.
 returnedByExpr :: GenExpr -> [VarName]
 returnedByExpr e = returnedByExpr' $ exprOfGE e
 
 returnedByExpr' :: ExprOfGE -> [VarName]
 returnedByExpr' (Var v) = [v]
-returnedByExpr' (Tuple es) = nub $ concat $ map returnedByExpr es
+returnedByExpr' (Tuple es) = concat $ map returnedByExpr es
 returnedByExpr' (If e0 _ e1 e2) =
-    intersect (returnedByExpr e1) (returnedByExpr e2)
+    map (\(v1,v2) -> if v1 == v2 then v1 else "") $ zip (returnedByExpr e1) (returnedByExpr e2)
 returnedByExpr' (Match _ _ alts) =
-    foldl1' intersect $ map (\(Alt p _ e) -> returnedByExpr e) alts
+    map (\vs -> if all (== (head vs)) vs then head vs else "") $ transpose $ map returnedByAlt alts
 returnedByExpr' (Let bs bdy) = returnedByLet bs bdy
-returnedByExpr' _ = []
+returnedByExpr' (App f e _) = replicate (tupleSize $ getResultType $ typOfGE f) ""
+returnedByExpr' _ = [""]
+
+returnedByAlt :: GenAlt -> [VarName]
+returnedByAlt (CS.Alt p _ e) =
+    map (\v -> if elem v $ freeInPatn p then "" else v) $ returnedByExpr e
 
 returnedByLet :: [GenBnd] -> GenExpr -> [VarName]
 returnedByLet [] bdy = returnedByExpr bdy
 returnedByLet (b : bs) bdy =
-    (returnedByLet bs bdy) \\ (modifiedByBinding b)
+    map (\v -> if elem v (modifiedByBinding b) then "" else v) (returnedByLet bs bdy)
 
--- | Variables modified in a binding
--- In a binding a variable is not modified, if it is either not bound
+boundTupleInIrrefPatn :: GenIrrefPatn -> [[VarName]]
+boundTupleInIrrefPatn = boundTupleInIrrefPatn' . irpatnOfGIP
+
+boundTupleInIrrefPatn' :: IrpatnOfGIP -> [[VarName]]
+boundTupleInIrrefPatn' (PVar pv) = [[pv]]
+boundTupleInIrrefPatn' (PTuple ips) = concat $ map boundTupleInIrrefPatn ips
+boundTupleInIrrefPatn' (PUnboxedRecord mfs) = [nub $ foldMap (freeInIrrefPatn . snd) (Compose mfs)]
+boundTupleInIrrefPatn' (PTake pv mfs) = [nub (pv : foldMap (freeInIrrefPatn . snd) (Compose mfs))]
+boundTupleInIrrefPatn' (PArrayTake pv hs) = [nub (pv : foldMap (freeInIrrefPatn . snd) hs)]
+boundTupleInIrrefPatn' _ = [[]]
+
+-- | Variables modified by the components in a binding
+-- In a binding component a variable is not modified, if it is either not bound
 -- or if it is bound but returned unmodified by the bound expression.
--- In a take binding the container is considered unmodified.
+-- In a take binding (only) the container is considered unmodified.
 modifiedByBinding :: GenBnd -> [VarName]
-modifiedByBinding (Binding ip _ e _) = (freeInIrrefPatn ip) \\ (returnedByExpr e)
+modifiedByBinding (Binding ip _ e _) =
+    nub $ concat $ map (\(vs,v) -> vs \\ [v]) $ zip (boundTupleInIrrefPatn ip) (returnedByExpr e)
 
 modifiedByBindings :: [GenBnd] -> [VarName]
 modifiedByBindings [] = []
 modifiedByBindings (b : bs) = union (modifiedByBinding b) (modifiedByBindings bs)
+
+{- Using Variables -}
+
+-- | Test whether the value of a variable is used in an expression after a sequence of bindings.
+-- The value is considered to be used if it occurs free in the expression under the bindings
+-- or if it occurs free in a bound expression and the bound variable is used afterwards.
+varUsedIn :: CCS.VarName -> [GenBnd] -> GenExpr -> Bool
+varUsedIn v bs bdy = or $ varContribInLet v bs bdy
+
+-- | The components of an expression to which a variable contributes.
+-- The length of the result is the length of the tuple type of the expression.
+varContrib :: CCS.VarName -> GenExpr -> [Bool]
+varContrib v (GenExpr (CS.Tuple es) _ _ _) =
+    concat $ map (varContrib v) es
+varContrib v (GenExpr (CS.If e0 _ e1 e2) _ t _) | varContrib v e0 == [True] =
+    replicate (tupleSize t) True
+varContrib v (GenExpr (CS.If e0 _ e1 e2) _ _ _) =
+    map (\(b1,b2) -> b1 || b2) $ zip (varContrib v e1) (varContrib v e2)
+varContrib v (GenExpr (CS.Match e0 _ alts) _ t _) | varContrib v e0 == [True] =
+    replicate (tupleSize t) True
+varContrib v (GenExpr (CS.Match e0 _ alts) _ _ _) =
+    map or $ transpose $ map (varContribInAlt v) alts
+varContrib v (GenExpr (CS.Let bs bdy) _ _ _) =
+    varContribInLet v bs bdy
+varContrib v (GenExpr (CS.App f e _) _ _ _) =
+    replicate ts $ ((or $ varContrib v e) || (varContrib v f == [True]))
+    where ts = tupleSize $ getResultType $ typOfGE f
+varContrib v e = [elem v $ freeInExpr e]
+
+varContribInAlt :: CCS.VarName -> GenAlt -> [Bool]
+varContribInAlt v (CS.Alt p _ e) | elem v $ freeInPatn p =
+    replicate (tupleSize $ typOfGE e) False
+varContribInAlt v (CS.Alt _ _ e) = varContrib v e
+
+varContribInLet :: CCS.VarName -> [GenBnd] -> GenExpr -> [Bool]
+varContribInLet v [] bdy = varContrib v bdy
+varContribInLet v ((CS.Binding ip _ e _) : bs) bdy =
+    map or $ transpose $ map (\v -> varContribInLet v bs bdy) vs'
+    where vs = selectVars ip $ varContrib v e
+          vs' = if elem v $ freeInIrrefPatn ip
+                   then vs
+                   else v : vs
+
+selectVars :: GenIrrefPatn -> [Bool] -> [CCS.VarName]
+selectVars (GenIrrefPatn (CS.PTuple ips) _ _) bs =
+    concat $ map (\(ip,b) -> selectVars ip [b]) $ zip ips bs
+selectVars (GenIrrefPatn (CS.PVar v) _ _) [b] = if b then [v] else []
+selectVars (GenIrrefPatn (CS.PTake v [Just (_,GenIrrefPatn (CS.PVar cv) _ _)]) _ _) [b] =
+    if b then [v,cv] else []
+selectVars (GenIrrefPatn (CS.PArrayTake v [(_,GenIrrefPatn (CS.PVar cv) _ _)]) _ _) [b] =
+    if b then [v,cv] else []
+selectVars (GenIrrefPatn (CS.PUnboxedRecord mfs) _ _) [b] =
+    concat $ map (\(_,ip) -> selectVars ip [b]) $ catMaybes mfs
+selectVars _ _ = []
+
 
 {- Exchanging Bindings -}
 
@@ -171,7 +247,7 @@ freeTypedVarsInExpr (GenExpr (Tuple es) _ _ _) =
 freeTypedVarsInExpr (GenExpr (Let bs bdy) _ _ _) =
     freeTypedVarsUnderBinding bs $ freeTypedVarsInExpr bdy
 freeTypedVarsInExpr (GenExpr (Match e _ alts) _ _ _) = union (freeTypedVarsInExpr e) (nub $ foldMap freeTypedVarsInAlt alts)
-freeTypedVarsInExpr (GenExpr (TLApp v ts _ _) _ t _) = [TV v t]
+freeTypedVarsInExpr (GenExpr (TLApp _ _ _ _) _ _ _) = [] -- toplevel functions are not returned as free variables
 freeTypedVarsInExpr (GenExpr (Lam ip t e) _ _ _) = filter (`notElem` freeTypedVarsInIrrefPatn ip) (freeTypedVarsInExpr e)
 freeTypedVarsInExpr e = nub $ foldMap freeTypedVarsInExpr $ exprOfGE e
 
@@ -208,6 +284,10 @@ freeTypedVarsUnderBinding [] fvs = fvs
 freeTypedVarsUnderBinding ((Binding ip _ e bvs) : bs) fvs =
     nub ((freeTypedVarsInExpr e) ++ (freeTypedVarsInIndex ip) ++((freeTypedVarsUnderBinding bs fvs) \\ (freeTypedVarsInIrrefPatn ip)))
 
+-- | Variables bound in a sequence of bindings.
+boundTypedVarsInBindings :: [GenBnd] -> [TypedVar]
+boundTypedVarsInBindings [] = []
+boundTypedVarsInBindings ((Binding ipb Nothing eb _) : bs) = union (freeTypedVarsInIrrefPatn ipb) $ boundTypedVarsInBindings bs
 
 {- Convert patterns and expressions to lists -}
 

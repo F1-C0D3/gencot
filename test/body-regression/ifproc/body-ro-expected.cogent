@@ -341,8 +341,18 @@ cogent_f91ro pln =
 cogent_f92ln : Cogent_roa3 -> ( (), Cogent_roa3 )
 cogent_f92ln pln =
    (()
-   , let pln @{ @1 = _ } = pln
-   in pln @{ @1 = gencotDummy "Readonly expression used in linear context" })
+   , let (pln
+         , _) = modifyArr[Cogent_roa3
+                         , U32
+                         , CPtr U32
+                         , ()
+                         , ()]{{}} (pln
+                                   , 1
+                                   , \(p0'
+                                      , ()) => (gencotDummy "Readonly expression used in linear context"
+                                               , ())
+                                   , ())
+   in pln)
 cogent_f92ro : Cogent_roa2 -> ( (), Cogent_roa2 )
 cogent_f92ro pln =
    (()
@@ -550,22 +560,55 @@ cogent_g72ln pln =
    , pln @{ @1 = gencotDummy "Linear expression used in readonly context" })
 cogent_g72ro : Cogent_roa2 -> (CPtr U32)!
 cogent_g72ro pln =
-   let pln @{ @1 = p0' } = pln
-   in p0'
+   let (_
+       , v2') = modifyArr[Cogent_roa2
+                         , U32
+                         , (CPtr U32)!
+                         , ()
+                         , (CPtr U32)!]{{}} (pln
+                                            , 1
+                                            , \(p0', ()) => (p0', p0')
+                                            , ())
+   in v2'
 cogent_g73ln : Cogent_roa3 -> ( (), Cogent_roa3 )
 cogent_g73ln pln =
    (()
-   , let pln @{ @1 = _ } = pln
-   in pln @{ @1 = cogent_frln () })
+   , let (pln
+         , _) = modifyArr[Cogent_roa3
+                         , U32
+                         , CPtr U32
+                         , CPtr U32
+                         , ()]{{}} (pln
+                                   , 1
+                                   , \(p0', v1') => (v1', ())
+                                   , cogent_frln ())
+   in pln)
 cogent_g73ro : Cogent_roa3 -> CPtr U32
 cogent_g73ro pln =
-   let pln @{ @1 = p0' } = pln
-   in p0'
+   let (_
+       , v2') = modifyArr[Cogent_roa3
+                         , U32
+                         , CPtr U32
+                         , ()
+                         , CPtr U32]{{}} (pln
+                                         , 1
+                                         , \(p0', ()) => (p0', p0')
+                                         , ())
+   in v2'
 cogent_g74ln : Cogent_roa3 -> ( (), Cogent_roa3 )
 cogent_g74ln pln =
    (()
-   , let pln @{ @1 = p0' } = pln
-   in pln @{ @1 = p0' { cont = 5 } })
+   , let (pln
+         , _) = modifyArr[Cogent_roa3
+                         , U32
+                         , CPtr U32
+                         , U32
+                         , ()]{{}} (pln
+                                   , 1
+                                   , \(p0'
+                                      , v') => (p0' { cont = v' }, ())
+                                   , 5)
+   in pln)
 cogent_g74ro : Cogent_roa3 -> U32
 cogent_g74ro pln =
    let r' = getPtr[(CPtr U32)!
@@ -576,8 +619,16 @@ cogent_g74ro pln =
    in r'
 cogent_g75ln : Cogent_roa3 -> U32
 cogent_g75ln pln =
-   let pln @{ @1 = p0' } = pln
-   in cogent_fcln p0'
+   let (_
+       , v3') = modifyArr[Cogent_roa3
+                         , U32
+                         , CPtr U32
+                         , ()
+                         , CPtr U32]{{}} (pln
+                                         , 1
+                                         , \(p0', ()) => (p0', p0')
+                                         , ())
+   in cogent_fcln v3'
 cogent_g75ro : Cogent_roa3 -> U32
 cogent_g75ro pln =
    let r' = cogent_fcro (getArr[Cogent_roa3!
@@ -588,9 +639,17 @@ cogent_g75ro pln =
 cogent_g76ln : ( Cogent_roa3, GlobState1 ) -> ( (), GlobState1 )
 cogent_g76ln (pln, g) =
    (()
-   , let pln @{ @1 = p0' } = pln
+   , let (_
+         , v2') = modifyArr[Cogent_roa3
+                           , U32
+                           , CPtr U32
+                           , ()
+                           , CPtr U32]{{}} (pln
+                                           , 1
+                                           , \(p0', ()) => (p0', p0')
+                                           , ())
    and g { cont = _ } = g
-   in g { cont = p0' })
+   in g { cont = v2' })
 cogent_g76ro : ( Cogent_roa3, GlobState2 ) -> ( (), GlobState2 )
 cogent_g76ro (pln, g) =
    let g = g { cont = getArr[Cogent_roa3!
@@ -601,8 +660,16 @@ cogent_g76ro (pln, g) =
 cogent_g77ln : ( Cogent_roa3, CPtr U32 ) -> ( (), CPtr U32 )
 cogent_g77ln (pln, qln) =
    (()
-   , let pln @{ @1 = p0' } = pln
-   in p0')
+   , let (_
+         , v2') = modifyArr[Cogent_roa3
+                           , U32
+                           , CPtr U32
+                           , ()
+                           , CPtr U32]{{}} (pln
+                                           , 1
+                                           , \(p0', ()) => (p0', p0')
+                                           , ())
+   in v2')
 cogent_g77ro : ( Cogent_roa3, (CPtr U32)! ) -> U32
 cogent_g77ro (pln, qro) =
    let r' = getPtr[(CPtr U32)!
@@ -613,8 +680,16 @@ cogent_g77ro (pln, qro) =
    in r'
 cogent_g78ln : Cogent_roa3 -> CPtr U32
 cogent_g78ln pln =
-   let pln @{ @1 = p0' } = pln
-   in p0'
+   let (_
+       , v2') = modifyArr[Cogent_roa3
+                         , U32
+                         , CPtr U32
+                         , ()
+                         , CPtr U32]{{}} (pln
+                                         , 1
+                                         , \(p0', ()) => (p0', p0')
+                                         , ())
+   in v2'
 cogent_g78ro : Cogent_roa3 -> (CPtr U32)!
 cogent_g78ro pln =
    gencotDummy "Linear expression used in readonly context"
@@ -638,8 +713,20 @@ cogent_g79ro (pln, qro, i) =
 cogent_g81ln : Cogent_roa4 -> ( (), Cogent_roa4 )
 cogent_g81ln pln =
    (()
-   , let pln @{ @1 = p0' } = pln
-   in pln @{ @1 = p0' @{ @1 = 5 } })
+   , let (pln
+         , _) = modifyArr[Cogent_roa4
+                         , U32
+                         , Cogent_roa1
+                         , ( U32, U32 )
+                         , ()]{{}} (pln
+                                   , 1
+                                   , \(p0'
+                                      , v4'
+                                      , v') => (p0' @{ @v4' = v' }
+                                               , ())
+                                   , 1
+                                   , 5)
+   in pln)
 cogent_g81ro : Cogent_roa4 -> U32
 cogent_g81ro pln =
    let r' = getArr[Cogent_roa1!
@@ -652,24 +739,87 @@ cogent_g81ro pln =
 cogent_g82ln : Cogent_roa5 -> ( (), Cogent_roa5 )
 cogent_g82ln pln =
    (()
-   , let pln @{ @1 = p0' } = pln
-   in pln @{ @1 = p0' @{ @1 = gencotDummy "Linear expression used in readonly context" } })
+   , let (pln
+         , _) = modifyArr[Cogent_roa5
+                         , U32
+                         , Cogent_roa2
+                         , U32
+                         , ()]{{}} (pln
+                                   , 1
+                                   , \(p0'
+                                      , v5') => (p0' @{ @v5' = gencotDummy "Linear expression used in readonly context" }
+                                                , ())
+                                   , 1)
+   in pln)
 cogent_g82ro : Cogent_roa5 -> (CPtr U32)!
 cogent_g82ro pln =
-   let pln @{ @1 = p0' } = pln
-   and p0' @{ @1 = p1' } = p0'
-   in p1'
+   let (_
+       , v4') = modifyArr[Cogent_roa5
+                         , U32
+                         , Cogent_roa2
+                         , U32
+                         , (CPtr U32)!]{{}} (pln
+                                            , 1
+                                            , \(p0'
+                                               , v3') => modifyArr[Cogent_roa2
+                                                                  , U32
+                                                                  , (CPtr U32)!
+                                                                  , ()
+                                                                  , (CPtr U32)!]{{}} (p0'
+                                                                                     , v3'
+                                                                                     , \(p1'
+                                                                                        , ()) => (p1'
+                                                                                                 , p1')
+                                                                                     , ())
+                                            , 1)
+   in v4'
 cogent_g83ln : Cogent_roa6 -> ( (), Cogent_roa6 )
 cogent_g83ln pln =
    (()
-   , let pln @{ @1 = p0' } = pln
-   and p0' @{ @1 = _ } = p0'
-   in pln @{ @1 = p0' @{ @1 = cogent_frln () } })
+   , let (pln
+         , _) = modifyArr[Cogent_roa6
+                         , U32
+                         , Cogent_roa3
+                         , ( U32, CPtr U32 )
+                         , ()]{{}} (pln
+                                   , 1
+                                   , \(p0', v5', v1') => let (p0'
+                                                             , _) = modifyArr[Cogent_roa3
+                                                                             , U32
+                                                                             , CPtr U32
+                                                                             , CPtr U32
+                                                                             , ()]{{}} (p0'
+                                                                                       , v5'
+                                                                                       , \(p1'
+                                                                                          , v1') => (v1'
+                                                                                                    , ())
+                                                                                       , v1')
+                                   in (p0', ())
+                                   , 1
+                                   , cogent_frln ())
+   in pln)
 cogent_g83ro : Cogent_roa6 -> CPtr U32
 cogent_g83ro pln =
-   let pln @{ @1 = p0' } = pln
-   and p0' @{ @1 = p1' } = p0'
-   in p1'
+   let (_
+       , v4') = modifyArr[Cogent_roa6
+                         , U32
+                         , Cogent_roa3
+                         , U32
+                         , CPtr U32]{{}} (pln
+                                         , 1
+                                         , \(p0'
+                                            , v3') => modifyArr[Cogent_roa3
+                                                               , U32
+                                                               , CPtr U32
+                                                               , ()
+                                                               , CPtr U32]{{}} (p0'
+                                                                               , v3'
+                                                                               , \(p1'
+                                                                                  , ()) => (p1'
+                                                                                           , p1')
+                                                                               , ())
+                                         , 1)
+   in v4'
 
 -- probe assigned to struct component or array element
 cogent_g91ln : Struct_Cogent_ros1 -> ( (), Struct_Cogent_ros1 )
@@ -684,8 +834,16 @@ cogent_g91ro pln =
 cogent_g92ln : Cogent_roa3 -> ( (), Cogent_roa3 )
 cogent_g92ln pln =
    (()
-   , let pln @{ @1 = _ } = pln
-   in pln @{ @1 = cogent_frln () })
+   , let (pln
+         , _) = modifyArr[Cogent_roa3
+                         , U32
+                         , CPtr U32
+                         , CPtr U32
+                         , ()]{{}} (pln
+                                   , 1
+                                   , \(p0', v1') => (v1', ())
+                                   , cogent_frln ())
+   in pln)
 cogent_g92ro : Cogent_roa2 -> ( (), Cogent_roa2 )
 cogent_g92ro pln =
    (()
@@ -823,8 +981,16 @@ cogent_n91ro pln = ((), pln)
 cogent_n92ln : Cogent_roam3 -> ( (), Cogent_roam3 )
 cogent_n92ln pln =
    (()
-   , let pln @{ @1 = _ } = pln
-   in pln @{ @1 = cogent_NULL })
+   , let (pln
+         , _) = modifyArr[Cogent_roam3
+                         , U32
+                         , MayNull (CPtr U32)
+                         , MayNull CVoidPtr
+                         , ()]{{}} (pln
+                                   , 1
+                                   , \(p0', v') => (v', ())
+                                   , cogent_NULL)
+   in pln)
 cogent_n92ro : Cogent_roam2 -> ( (), Cogent_roam2 )
 cogent_n92ro pln =
    ((), pln @{ @1 = cogent_NULL })

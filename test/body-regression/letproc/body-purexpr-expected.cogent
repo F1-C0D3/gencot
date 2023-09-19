@@ -108,17 +108,61 @@ cogent_fs4 s =
    s.m4.m1 + s.m4.m2 + s.m3
 cogent_fs5 : #Struct_Cogent_s3 -> U32
 cogent_fs5 s =
-   let s { m6 = p0' } = s
-   and p0' @{ @1 = p1' } = p0'
-   in p1'
+   let (_
+       , v3') = modifyFld_m6[#Struct_Cogent_s3
+                            , CArr5 U32
+                            , U32
+                            , U32]{{}} (s
+                                       , \(p0'
+                                          , v2') => modifyArr[CArr5 U32
+                                                             , U32
+                                                             , U32
+                                                             , ()
+                                                             , U32]{{}} (p0'
+                                                                        , v2'
+                                                                        , \(p1'
+                                                                           , ()) => (p1'
+                                                                                    , p1')
+                                                                        , ())
+                                       , 1)
+   in v3'
 cogent_fs6 : #Struct_Cogent_s3 -> U32
 cogent_fs6 s =
-   let s { m6 = p0' } = s
-   and p0' @{ @1 = p1' } = p0'
-   and s = s { m6 = p0' @{ @1 = p1' } }
-   and s { m6 = p2' } = s
-   and p2' @{ @3 = p3' } = p2'
-   in p1' + p3' + (s { m6 = p2' @{ @3 = p3' } }).m5
+   let (s
+       , v3') = modifyFld_m6[#Struct_Cogent_s3
+                            , CArr5 U32
+                            , U32
+                            , U32]{{}} (s
+                                       , \(p0'
+                                          , v2') => modifyArr[CArr5 U32
+                                                             , U32
+                                                             , U32
+                                                             , ()
+                                                             , U32]{{}} (p0'
+                                                                        , v2'
+                                                                        , \(p1'
+                                                                           , ()) => (p1'
+                                                                                    , p1')
+                                                                        , ())
+                                       , 1)
+   and (s
+       , v7') = modifyFld_m6[#Struct_Cogent_s3
+                            , CArr5 U32
+                            , U32
+                            , U32]{{}} (s
+                                       , \(p2'
+                                          , v6') => modifyArr[CArr5 U32
+                                                             , U32
+                                                             , U32
+                                                             , ()
+                                                             , U32]{{}} (p2'
+                                                                        , v6'
+                                                                        , \(p3'
+                                                                           , ()) => (p3'
+                                                                                    , p3')
+                                                                        , ())
+                                       , 3)
+   in v3' + v7' + s.m5
 cogent_fs7 : #Struct_Cogent_s1 -> U32
 cogent_fs7 s =
    gencotDummy "Dereferencing pointer not specified by a variable"

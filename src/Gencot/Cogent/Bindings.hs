@@ -562,6 +562,10 @@ isTakePattern (GenIrrefPatn (CS.PTake _ _) _ _) = True
 isTakePattern (GenIrrefPatn (CS.PArrayTake _ _) _ _) = True
 isTakePattern _ = False
 
+isArrayTakePattern :: GenIrrefPatn -> Bool
+isArrayTakePattern (GenIrrefPatn (CS.PArrayTake _ _) _ _) = True
+isArrayTakePattern _ = False
+
 -- Construct Alternative
 ------------------------
 

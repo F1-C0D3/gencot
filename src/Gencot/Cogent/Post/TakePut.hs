@@ -44,7 +44,7 @@ singletpproc :: GenExpr -> ETrav GenExpr
 singletpproc (GenExpr (CS.Let bs bdy) o t c) = do
     bs' <- singletpprocBindings bs
     bdy' <- singletpproc bdy
-    return $ GenExpr (CS.Let bs' bdy') o t c
+    return $ if null bs' then bdy' else GenExpr (CS.Let bs' bdy') o t c
 singletpproc e =
     mapMExprOfGE (mapM singletpproc) e
 
@@ -155,7 +155,7 @@ toNonLinAccess (CS.Binding ip m e bvs)
 -- so that it does not produce a taken type for the container.
 tpelim :: GenExpr -> GenExpr
 tpelim (GenExpr (CS.Let bs bdy) o t c) =
-    GenExpr (CS.Let bs' bdy') o t c
+    if null bs' then bdy' else GenExpr (CS.Let bs' bdy') o t c
     where bs' = tpelimInBindings bs bdy
           bdy' = tpelim bdy
 tpelim e =
@@ -218,7 +218,7 @@ cmpIsUnboxedArray (GenIrrefPatn (CS.PArrayTake _ _) _ t) = isUnboxedArrayDeref t
 -- | Convert pairs of take and put bindings to modify applications.
 tpmodify :: GenExpr -> GenExpr
 tpmodify (GenExpr (CS.Let bs bdy) o t c) =
-    GenExpr (CS.Let bs' bdy') o t c
+    if null bs' then bdy' else GenExpr (CS.Let bs' bdy') o t c
     where bs' = tpmodifyInBindings bs bdy
           bdy' = tpmodify bdy
 tpmodify e =
@@ -252,14 +252,22 @@ tpmodifyForTake force cmp@(TV cn ct) tkb@(CS.Binding ip _ _ _) scp ptb rst bdy =
           scp' = if null nst
                     then pre
                     else let ntkb = head nst
-                             (ncmp,nscp,nptb,nrst) = getTakePutScope ntkb (tail nst)
-                             nscp' = tpmodifyForTake doModif ncmp ntkb nscp nptb (nrst ++ rst) bdy
-                         in pre ++ nscp' ++ nrst
-          outvars = filter (\(TV v _) -> varUsedIn v rst bdy) $ boundTypedVarsInBindings scp'
+                             ntkb' = elimPreBind pre ntkb
+                             (ncmp,nscp,nptb,nrst) = getTakePutScope ntkb' (tail nst)
+                             nscp' = tpmodifyForTake doModif ncmp ntkb' nscp nptb (nrst ++ rst) bdy
+                         in nscp' ++ nrst
+          outvars = filter (\(TV v _) -> varUsedIn v rst bdy) $ (cmp : boundTypedVarsInBindings scp')
           chbdy = mkUnitTupleExpr cmp outvars
           inpvars = filter (\(TV v _) -> varUsedIn v scp' chbdy) $ freeTypedVarsUnderBinding (tkb : scp') (cmp: outvars)
           chargs = mkUnitTuplePattern cmp inpvars
-          chfun = mkLambdaExpr chargs $ mkLetExpr scp' chbdy
+          chfun = mkLambdaExpr chargs (if null scp' then chbdy else mkLetExpr scp' chbdy)
+
+-- | Substitute value variable binding for the container of a nested take.
+elimPreBind :: [GenBnd] -> GenBnd -> GenBnd
+elimPreBind [CS.Binding (GenIrrefPatn (CS.PVar pv) _ _) _ (GenExpr (CS.Var v) _ _ _) _]
+                (CS.Binding ip m (GenExpr (CS.Var v2) o t c) bvs) | v2 == pv =
+    CS.Binding ip m (GenExpr (CS.Var v) o t c) bvs
+elimPreBind _ _ = error "Unexpected binding(s) between nested takes."
 
 getModFunFromTake :: GenIrrefPatn -> GenExpr -> [TypedVar] -> [TypedVar] -> GenBnd
 getModFunFromTake (GenIrrefPatn (CS.PTake pv [Just (f,(GenIrrefPatn (CS.PVar cv) _ ct))]) _ t) chfun inpvars outvars =

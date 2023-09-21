@@ -7,7 +7,7 @@ IT=../../bin/items
 #VARIANT = plain
 #TCONF = -tfltnebrp
 
-# incl. preproc, boolproc
+# incl. presimp, boolproc
 #VARIANT = romodproc
 #TCONF = -tfltneb
 

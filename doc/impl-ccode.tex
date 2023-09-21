@@ -1369,9 +1369,8 @@ with pointers. Cases where there are no pointers in the container or where no mo
 translation stages.
 
 If the container is an array, the \code{put} operation needs to use the same element index as the \code{take} operation. 
-In the \code{take} operation it is available as a value variable which could be reused before the \code{put} operation.
-Therefore the index is bound to an additional variable of the form \code{i<n>'} where \code{<n>} is the same number as for 
-the component variable. These variables are called index variables.
+In the \code{take} operation it is available as a value variable. Since value variables are not reused in the body of a
+function, the same value variable is used in the \code{put} operation.
 
 Between the \code{take} and \code{put} bindings the component variable may be rebound. This way it is possible to translate
 side effects modifying the component and thus its container. In such a rebinding the component variable occurs as a normal side
@@ -1408,14 +1407,12 @@ An array element access \code{e1[e2]} has two unsequenced subexpressions \code{e
 The array access is translated by first concatenating the binding list for \code{e1} after \code{e2}. Then a read access is translated
 to the following binding sequence:
 \begin{verbatim}
-  i<k>' = v<l>'
-  <v> @{@i<k>'=p<k>'} = v<m>'
+  <v> @{@v<l>'=p<k>'} = v<m>'
   v<n>' = p<k>'
-  <v> = <v> @{@i<k>'=p<k>'}
+  <v> = <v> @{@v<l>'=p<k>'}
 \end{verbatim}
 where \code{v<m>'} is the value variable bound in the translation of \code{e1}, \code{v<l>'} is the value variable bound in the translation
-of \code{e2}, \code{i<k>'} is the index variable corresponding to \code{p<k>'}, and \code{<v>} and \code{p<k>'}
-are as above. The element value is available as \code{v<n>'}.
+of \code{e2}, and \code{<v>} and \code{p<k>'} are as above. The element value is available as \code{v<n>'}.
 
 If the array element is used as an lvalue the component variable \code{p<k>'} is re-bound to the new value by additional
 bindings inserted between the third and fourth binding.

@@ -185,48 +185,40 @@ mkValVarExprBinds :: Int -> TypedVar -> ExprBinds
 mkValVarExprBinds n v = mkSingleExprBinds $ mkValVarBinding n (typOfTV v) $ mkVarExpr v
 
 -- | Member (field) access <v>{f=r<k>’} = e and v<n>’ = r<k>’
---   with putback <v> = <v>{f=r<k>’}
 mkMemExprBinds :: Int -> Int -> CCS.FieldName -> ExprBinds -> ExprBinds
 mkMemExprBinds n k f bp =
-    mainbp
+    addBinding (mkValVarBinding n ct $ mkVarExpr cmp) $
+      addBinding (mkBinding (mkRecTakePattern rv' cmp f) $ mkVarExpr vv) bp
     where vv@(TV _ rt) = leadVar bp
           ct = getMemberType f rt
           cmp = TV (cmpVar k) ct
           rv = lvalVar bp
           rv' = if isErrVar rv then TV errVar rt else rv
-          mainbp = addBinding (mkValVarBinding n ct $ mkVarExpr cmp) $
-                     addBinding (mkBinding (mkRecTakePattern rv' cmp f) $ mkVarExpr vv) bp
 
--- | Array access (<v> @{@v<l>’=r<k>’},i<k>') = (v<n>',v<l>') and v<n>’ = r<k>’
---   with putback <v> = <v> @{@i<k>'=r<k>’}
+-- | Array access <v> @{@v<l>’=r<k>’} = v<n>' and v<n>’ = r<k>’
 mkIdxExprBinds :: Int -> Int -> ExprBinds -> ExprBinds -> ExprBinds
 mkIdxExprBinds n k bp1 bp2 =
-    mainbp -- if isErrVar rv then mainbp else addPutback (mkVarBinding rv $ mkArrPutExpr rv cmp idx) mainbp
+    addBinding (mkValVarBinding n et $ mkVarExpr cmp) $
+      addBinding (mkBinding (mkArrTakePattern rv' cmp $ leadVar bp2) $ mkVarExpr v1) $
+        concatExprBinds [bp2,bp1]
     where v1@(TV _ at) = leadVar bp1
-          v2@(TV _ it) = leadVar bp2
           et = getDerefType at
           cmp = TV (cmpVar k) et
-          idx = TV (idxVar k) it
           rv = lvalVar bp1
           rv' = if isErrVar rv then TV errVar at else rv
-          mainbp = addBinding (mkValVarBinding n et $ mkVarExpr cmp) $
-                     addBinding (mkBinding (mkArrTakePattern rv' cmp idx) $ mkVarExpr v1) $
-                       addBinding (mkVarBinding idx $ mkVarExpr v2) $ concatExprBinds [bp2,bp1]
 
 -- | Pointer dereference, always <v>{cont=r<k>’} = v<n>' and v<n>’ = r<k>’
---   with putback <v> = <v>{cont=r<k>’}
 -- The type of v<n>' may be an arbitrary mapped C pointer type except function pointer type.
 mkDerefExprBinds :: Int -> Int -> ExprBinds -> ExprBinds
 mkDerefExprBinds n k bp =
-    mainbp -- if isErrVar rv then mainbp else addPutback (mkVarBinding rv $ mkRecPutExpr rv cmp f) mainbp
+    addBinding (mkValVarBinding n ct $ mkVarExpr cmp) $
+      addBinding (mkBinding (mkRecTakePattern rv' cmp f) $ mkVarExpr vv) bp
     where f = ptrDerivCompName
           vv@(TV _ rt) = leadVar bp
           ct = getDerefType rt
           cmp = TV (cmpVar k) ct
           rv = lvalVar bp
           rv' = if isErrVar rv then TV errVar rt else rv
-          mainbp = addBinding (mkValVarBinding n ct $ mkVarExpr cmp) $
-                     addBinding (mkBinding (mkRecTakePattern rv' cmp f) $ mkVarExpr vv) bp
 
 -- | Operator application v<n>' = op [bp...]
 mkOpExprBinds :: Int -> GenType -> CCS.OpName -> [ExprBinds] -> ExprBinds
@@ -352,11 +344,10 @@ mkRecPutBinding :: Int -> CCS.FieldName -> TypedVar -> GenBnd
 mkRecPutBinding n f rv = if isErrVar rv then mkUnitBinding else mkVarBinding rv $ mkRecPutExpr rv cmp f
     where cmp = TV (cmpVar n) $ getMemberType f $ typOfTV rv
 
--- construct <v> = <v> @{@i<k>'=r<k>’}
+-- construct <v> = <v> @{@v<l>'=r<k>’}
 mkArrPutBinding :: Int -> TypedVar -> TypedVar -> GenBnd
-mkArrPutBinding n iv av = if isErrVar av then mkUnitBinding else mkVarBinding av $ mkArrPutExpr av cmp idx
+mkArrPutBinding n iv av = if isErrVar av then mkUnitBinding else mkVarBinding av $ mkArrPutExpr av cmp iv
     where cmp = TV (cmpVar n) $ getDerefType $ typOfTV av
-          idx = TV (idxVar n) $ typOfTV iv
 
 -- construct <v> = <v>{cont=r<k>’}
 mkDerefPutBinding :: Int -> TypedVar -> GenBnd

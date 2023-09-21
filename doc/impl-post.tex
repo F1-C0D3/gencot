@@ -330,10 +330,10 @@ Beginning with the binding part with the largest contribution, parts are retaine
 
 Instead of only taking its contribution to the size into account, binding parts could also be selected according to the kind of
 variables they contain. 
-Gencot uses different kinds of variables in its generated code (see Section~\ref{impl-ccode-cexpr}): value variables, component and
-index variables, the control and result variables, and variables corresponding to C object names. These could be prioritized
+Gencot uses different kinds of variables in its generated code (see Section~\ref{impl-ccode-cexpr}): value variables, component
+variables, the control and result variables, and variables corresponding to C object names. These could be prioritized
 as follows: first as many value 
-variables are substituted as possible in a complete expression, then the control variables, then the component and index variables and
+variables are substituted as possible in a complete expression, then the control variables, then the component variables and
 finally the C object names. In this way the most ``technical'' variables are substituted before the more ``semantical''.
 
 The reference metrics is calculated for the expression after simplifying its subexpressions. This means that the growth limit factor
@@ -589,7 +589,7 @@ binding, but that is not possible, since by banging it its type has become non-e
 this makes only sense if its single use is in the scope of the banging. But then the value outside the scope is not used, it
 is discarded which is not allowed for a value of linear type in Cogent. If the result variable would be banged, it must always
 leave the scope of the banging, since its value must be returned by the function body, again, that is not possible because its
-type is non-escapeable by the banging. The other variable kinds (index, control, switch, and case variables) cannot have a linear
+type is non-escapeable by the banging. The other variable kinds (control, switch, and case variables) cannot have a linear
 type, therefore banging is not applicable to them.
 
 When Gencot searches for readonly type clashes which may be resolved by banging, it maintains a map of ``source variables'' for
@@ -1091,12 +1091,12 @@ if \code{i} is not rebound in between. That should cover simple typical cases of
 
 Then the transformation for arrays is
 \begin{verbatim}
-  (<v> @{@vl’=pi’},ii’) = (vn’,vl’)
+  <v> @{@vl’=pi’} = vn’
   ...
-  (<v> @{@vm’=pj’},ij’) = (<v>,vm’)
+  <v> @{@vm’=pj’} = <v>
   ->
-  (<v> @{@vl’=pi’},ii’) = (vn’,vl’)
-  (pj',ij') = (pi',ii')
+  <v> @{@vl’=pi’} = vn’
+  pj' = pi'
   ...
 \end{verbatim}
 if the index expressions \code{vl'} and \code{vm'} can be shown to evaluate to the same value.
@@ -1115,14 +1115,14 @@ taking the component out again. The corresponding transformation is
 \end{verbatim}
 for structs and
 \begin{verbatim}
-  <v> = <v> @{@ii’=pi’}
+  <v> = <v> @{@vl’=pi’}
   ...
-  (<v> @{@vm’=pj’},ij’) = (<v>,vm’)
+  <v> @{@vm’=pj’} = <v>
   ->
   pj' = pi'
   ...
 \end{verbatim}
-if the index expressions \code{ii'} and \code{vm'} can be shown to evaluate to the same value.
+if the index expressions \code{vl'} and \code{vm'} can be shown to evaluate to the same value.
 
 Note that the original translation in Section~\ref{impl-ccode-cexpr} never creates a \code{take} binding after a \code{put} binding,
 but postprocessing of Cogent expressions resulting from a sequence of C statements may result in such a sequence. The processing

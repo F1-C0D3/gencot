@@ -19,11 +19,11 @@ IT=../../bin/items
 #TCONF = -tfltG
 
 # incl. bangproc
-#VARIANT = ebangproc
-#TCONF = -tflt
+VARIANT = ebangproc
+TCONF = -tflt
 
-VARIANT = tpproc
-TCONF = -tfl
+#VARIANT = tpproc
+#TCONF = -tfl
 
 #VARIANT = letproc
 #TCONF = -tf

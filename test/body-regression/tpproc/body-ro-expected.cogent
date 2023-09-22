@@ -498,8 +498,10 @@ cogent_f64ln pro =
                 , pro) = let v' = cogent_frln
          and v1' = v' ()
          and v2' = pro
-         and p0' = v2'.sub
+         and p0' = getrefFld_sub[Struct_Cogent_ros2!
+                                , Struct_Cogent_ros1!]{{}} v2'
          and v3' = p0'
+         and p1' = v3'.mln
          and v5' = v1'
          and err' = gencotDummy "Linear expression used in readonly context"
          in (0, pro)
@@ -512,7 +514,8 @@ cogent_f64ln pro =
 cogent_f64ro : Struct_Cogent_ros2! -> (CPtr U32)!
 cogent_f64ro pro =
    let r' = let v' = pro
-      and p0' = v'.sub
+      and p0' = getrefFld_sub[Struct_Cogent_ros2!
+                             , Struct_Cogent_ros1!]{{}} v'
       and v1' = p0'
       and p1' = v1'.mln
       and v2' = p1'
@@ -803,9 +806,9 @@ cogent_f81ln pro =
          and v4' = 1
          and v2' = 1
          and v1' = pro
-         and p0' = getArr[Cogent_roa4!
-                         , U32
-                         , Cogent_roa1!]{{}} (v1', v2')
+         and p0' = getrefArr[Cogent_roa4!
+                            , U32
+                            , Cogent_roa1!]{{}} (v1', v2')
          and v3' = p0'
          and p1' = getArr[Cogent_roa1!
                          , U32
@@ -818,9 +821,9 @@ cogent_f81ln pro =
          else let r' = let v11' = 1
                and v9' = 1
                and v8' = pro
-               and p2' = getArr[Cogent_roa4!
-                               , U32
-                               , Cogent_roa1!]{{}} (v8', v9')
+               and p2' = getrefArr[Cogent_roa4!
+                                  , U32
+                                  , Cogent_roa1!]{{}} (v8', v9')
                and v10' = p2'
                and p3' = getArr[Cogent_roa1!
                                , U32
@@ -834,9 +837,9 @@ cogent_f81ro pro =
    let r' = let v3' = 1
       and v1' = 1
       and v' = pro
-      and p0' = getArr[Cogent_roa4!
-                      , U32
-                      , Cogent_roa1!]{{}} (v', v1')
+      and p0' = getrefArr[Cogent_roa4!
+                         , U32
+                         , Cogent_roa1!]{{}} (v', v1')
       and v2' = p0'
       and p1' = getArr[Cogent_roa1!
                       , U32
@@ -852,9 +855,9 @@ cogent_f82ln pro =
          and v5' = 1
          and v3' = 1
          and v2' = pro
-         and p0' = getArr[Cogent_roa5!
-                         , U32
-                         , Cogent_roa2!]{{}} (v2', v3')
+         and p0' = getrefArr[Cogent_roa5!
+                            , U32
+                            , Cogent_roa2!]{{}} (v2', v3')
          and v4' = p0'
          and p1' = getArr[Cogent_roa2!
                          , U32
@@ -867,9 +870,9 @@ cogent_f82ln pro =
          else let r' = let v12' = 1
                and v10' = 1
                and v9' = pro
-               and p2' = getArr[Cogent_roa5!
-                               , U32
-                               , Cogent_roa2!]{{}} (v9', v10')
+               and p2' = getrefArr[Cogent_roa5!
+                                  , U32
+                                  , Cogent_roa2!]{{}} (v9', v10')
                and v11' = p2'
                and p3' = getArr[Cogent_roa2!
                                , U32
@@ -883,9 +886,9 @@ cogent_f82ro pro =
    let r' = let v3' = 1
       and v1' = 1
       and v' = pro
-      and p0' = getArr[Cogent_roa5!
-                      , U32
-                      , Cogent_roa2!]{{}} (v', v1')
+      and p0' = getrefArr[Cogent_roa5!
+                         , U32
+                         , Cogent_roa2!]{{}} (v', v1')
       and v2' = p0'
       and p1' = getArr[Cogent_roa2!
                       , U32
@@ -901,9 +904,9 @@ cogent_f83ln pro =
          and v5' = 1
          and v3' = 1
          and v2' = pro
-         and p0' = getArr[Cogent_roa6!
-                         , U32
-                         , Cogent_roa3!]{{}} (v2', v3')
+         and p0' = getrefArr[Cogent_roa6!
+                            , U32
+                            , Cogent_roa3!]{{}} (v2', v3')
          and v4' = p0'
          and p1' = getArr[Cogent_roa3!
                          , U32
@@ -916,9 +919,9 @@ cogent_f83ln pro =
          else let r' = let v12' = 1
                and v10' = 1
                and v9' = pro
-               and p2' = getArr[Cogent_roa6!
-                               , U32
-                               , Cogent_roa3!]{{}} (v9', v10')
+               and p2' = getrefArr[Cogent_roa6!
+                                  , U32
+                                  , Cogent_roa3!]{{}} (v9', v10')
                and v11' = p2'
                and p3' = getArr[Cogent_roa3!
                                , U32
@@ -932,9 +935,9 @@ cogent_f83ro pro =
    let r' = let v3' = 1
       and v1' = 1
       and v' = pro
-      and p0' = getArr[Cogent_roa6!
-                      , U32
-                      , Cogent_roa3!]{{}} (v', v1')
+      and p0' = getrefArr[Cogent_roa6!
+                         , U32
+                         , Cogent_roa3!]{{}} (v', v1')
       and v2' = p0'
       and p1' = getArr[Cogent_roa3!
                       , U32
@@ -992,7 +995,12 @@ cogent_f92ro pln =
       and v2' = pln
       and v5' = v1'
       and p0' = v5'
-      and pln = pln @{ @v3' = p0' }
+      and (pln
+          , ()) = setArr[Cogent_roa2
+                        , U32
+                        , (CPtr U32)!]{{}} (pln
+                                           , v3'
+                                           , p0')
       in pln
    in ((), pln)
 
@@ -1398,22 +1406,39 @@ cogent_g64ln pln =
    let pln = let v' = cogent_frln
       and v1' = v' ()
       and v2' = pln
-      and pln { sub = p0' } = v2'
-      and v3' = p0'
-      and v5' = v1'
-      and p1' = gencotDummy "Linear expression used in readonly context"
-      and p0' = p0' { mro = p1' }
-      and pln = pln { sub = p0' }
+      and (pln
+          , ()) = modrefFld_sub[Struct_Cogent_ros2
+                               , Struct_Cogent_ros1
+                               , ()
+                               , ()]{{}} (pln
+                                         , \(p0', ()) => let v3' = p0'
+                                         and v5' = v1'
+                                         and p1' = gencotDummy "Linear expression used in readonly context"
+                                         and p0' = p0' { mro = p1' }
+                                         in (p0', ())
+                                         , ())
       in pln
    in ((), pln)
 cogent_g64ro : Struct_Cogent_ros2 -> ( (CPtr U32)!, Struct_Cogent_ros2 )
 cogent_g64ro pln =
    let (r', pln) = let v' = pln
-      and pln { sub = p0' } = v'
-      and p0' { mro = p1' } = p0'
-      and v2' = p1'
-      and p0' = p0' { mro = p1' }
-      and pln = pln { sub = p0' }
+      and (pln
+          , v2') = modrefFld_sub[Struct_Cogent_ros2
+                                , Struct_Cogent_ros1
+                                , ()
+                                , (CPtr U32)!]{{}} (pln
+                                                   , \(p0', ()) => let (p0'
+                                                                       , v2') = modifyFld_mro[Struct_Cogent_ros1
+                                                                                             , (CPtr U32)!
+                                                                                             , ()
+                                                                                             , (CPtr U32)!]{{}} (p0'
+                                                                                                                , \(p1'
+                                                                                                                   , ()) => let v2' = p1'
+                                                                                                                in (p1'
+                                                                                                                   , v2')
+                                                                                                                , ())
+                                                   in (p0', v2')
+                                                   , ())
       in (v2', pln)
    in (r', pln)
 
@@ -1425,7 +1450,10 @@ cogent_g71ln pln =
       and v1' = pln
       and v4' = v'
       and p0' = v4'
-      and pln = pln @{ @v2' = p0' }
+      and (pln
+          , ()) = setArr[Cogent_roa1
+                        , U32
+                        , U32]{{}} (pln, v2', p0')
       in pln
    in ((), pln)
 cogent_g71ro : Cogent_roa1 -> U32
@@ -1447,7 +1475,12 @@ cogent_g72ln pln =
       and v2' = pln
       and v5' = v1'
       and p0' = gencotDummy "Linear expression used in readonly context"
-      and pln = pln @{ @v3' = p0' }
+      and (pln
+          , ()) = setArr[Cogent_roa2
+                        , U32
+                        , (CPtr U32)!]{{}} (pln
+                                           , v3'
+                                           , p0')
       in pln
    in ((), pln)
 cogent_g72ro : Cogent_roa2 -> (CPtr U32)!
@@ -1708,7 +1741,7 @@ cogent_g81ln pln =
       and v2' = 1
       and v1' = pln
       and (pln
-          , ()) = modifyArr[Cogent_roa4
+          , ()) = modrefArr[Cogent_roa4
                            , U32
                            , Cogent_roa1
                            , ( U32, U32 )
@@ -1719,7 +1752,12 @@ cogent_g81ln pln =
                                         , v4') => let v3' = p0'
                                      and v6' = v'
                                      and p1' = v6'
-                                     and p0' = p0' @{ @v4' = p1' }
+                                     and (p0'
+                                         , ()) = setArr[Cogent_roa1
+                                                       , U32
+                                                       , U32]{{}} (p0'
+                                                                  , v4'
+                                                                  , p1')
                                      in (p0', ())
                                      , v'
                                      , v4')
@@ -1730,9 +1768,9 @@ cogent_g81ro pln =
    let r' = (let v3' = 1
          and v1' = 1
          and v' = pln
-         and p0' = getArr[Cogent_roa4!
-                         , U32
-                         , Cogent_roa1!]{{}} (v', v1')
+         and p0' = getrefArr[Cogent_roa4!
+                            , U32
+                            , Cogent_roa1!]{{}} (v', v1')
          and v2' = p0'
          and p1' = getArr[Cogent_roa1!
                          , U32
@@ -1749,7 +1787,7 @@ cogent_g82ln pln =
       and v3' = 1
       and v2' = pln
       and (pln
-          , ()) = modifyArr[Cogent_roa5
+          , ()) = modrefArr[Cogent_roa5
                            , U32
                            , Cogent_roa2
                            , U32
@@ -1758,7 +1796,12 @@ cogent_g82ln pln =
                                      , \(p0', v5') => let v4' = p0'
                                      and v7' = v1'
                                      and p1' = gencotDummy "Linear expression used in readonly context"
-                                     and p0' = p0' @{ @v5' = p1' }
+                                     and (p0'
+                                         , ()) = setArr[Cogent_roa2
+                                                       , U32
+                                                       , (CPtr U32)!]{{}} (p0'
+                                                                          , v5'
+                                                                          , p1')
                                      in (p0', ())
                                      , v5')
       in pln
@@ -1769,7 +1812,7 @@ cogent_g82ro pln =
       and v1' = 1
       and v' = pln
       and (pln
-          , v4') = modifyArr[Cogent_roa5
+          , v4') = modrefArr[Cogent_roa5
                             , U32
                             , Cogent_roa2
                             , U32
@@ -1799,7 +1842,7 @@ cogent_g83ln pln =
       and v3' = 1
       and v2' = pln
       and (pln
-          , ()) = modifyArr[Cogent_roa6
+          , ()) = modrefArr[Cogent_roa6
                            , U32
                            , Cogent_roa3
                            , ( U32, CPtr U32 )
@@ -1829,7 +1872,7 @@ cogent_g83ro pln =
       and v1' = 1
       and v' = pln
       and (pln
-          , v4') = modifyArr[Cogent_roa6
+          , v4') = modrefArr[Cogent_roa6
                             , U32
                             , Cogent_roa3
                             , U32
@@ -1901,7 +1944,12 @@ cogent_g92ro pln =
       and v2' = pln
       and v5' = v1'
       and p0' = gencotDummy "Linear expression used in readonly context"
-      and pln = pln @{ @v3' = p0' }
+      and (pln
+          , ()) = setArr[Cogent_roa2
+                        , U32
+                        , (CPtr U32)!]{{}} (pln
+                                           , v3'
+                                           , p0')
       in pln
    in ((), pln)
 
@@ -2231,6 +2279,11 @@ cogent_n92ro pln =
       and v1' = pln
       and v4' = v'
       and p0' = v4'
-      and pln = pln @{ @v2' = p0' }
+      and (pln
+          , ()) = setArr[Cogent_roam2
+                        , U32
+                        , (MayNull ((CPtr U32)!))!]{{}} (pln
+                                                        , v2'
+                                                        , p0')
       in pln
    in ((), pln)

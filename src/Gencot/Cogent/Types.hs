@@ -256,6 +256,11 @@ isVoidPtrType (GenType (CS.TCon cstr [t] _) _ _) | cstr == mapMayNull = isVoidPt
 isVoidPtrType (GenType (CS.TCon cstr [] _) _ _) = cstr == mapPtrVoid
 isVoidPtrType _ = False
 
+isStructType :: GenType -> Bool
+isStructType t@(GenType (CS.TRecord NonRec _ _) _ _) =
+    (not $ isPtrType t) && (not $ isArrayType t)
+isStructType _ = False
+
 isStringType :: GenType -> Bool
 isStringType (GenType (CS.TCon cstr [] _) _ _) = cstr == "String"
 isStringType _ = False
@@ -318,6 +323,9 @@ isUnboxed (GenType (CS.TRecord _ _ sg) _ _) = unboxed sg
 isUnboxed (GenType (CS.TArray _ _ Unboxed _) _ _) = True
 isUnboxed _ = False
 
+isUnboxedStructOrArray :: GenType -> Bool
+isUnboxedStructOrArray t = (isUnboxed t) && (isStructType t || isArrayType t)
+
 isMayNull :: GenType -> Bool
 isMayNull (GenType (CS.TCon cstr _ _) _ _) | cstr == mapMayNull = True
 isMayNull _ = False
@@ -353,20 +361,20 @@ roCmpTypes _ _ = False
 
 
 -- Type selectors for components affected by making the type readonly.
--- Adjust to boxed, if unboxed array type
+-- Adjust to boxed, if container is boxed but component is unboxed.
 -- Make readonly, if container type is readonly
 
 mkCmpType :: GCSigil -> GenType -> GenType
 mkCmpType s t =
-    let t' = if isUnboxedArrayType t then getBoxType t else t
+    let t' = if (not $ unboxed s) && (isUnboxedStructOrArray t) then getBoxType t else t
     in if readonly s then mkReadonly t' else t'
 
 delOrigInType :: GenType -> GenType
 delOrigInType (GenType t _ s) = GenType t noOrigin s
 
 -- Type of field, unitType if type does not have that field (or any field)
--- Origins in field types must be deleted, because they may not be present for uses of the field type.
--- Unboxed array types are adjusted to boxed.
+-- Origins in field types must be deleted, because they must not be present for uses of the field type.
+-- Unboxed component types in boxed record types are adjusted to boxed.
 getMemberType :: CCS.FieldName -> GenType -> GenType
 getMemberType f (GenType (CS.TRecord _ fs s) _ _) =
     case find (\fld -> fst fld == f) fs of
@@ -377,13 +385,13 @@ getMemberType f (GenType (CS.TCon n [t] _) _ _) | n == mapMayNull = getMemberTyp
 -- other types -> unitType
 getMemberType f _ = unitType
 
-isUnboxedArrayMember :: CCS.FieldName -> GenType -> Bool
-isUnboxedArrayMember f (GenType (CS.TRecord _ fs s) _ _) =
+isUnboxedMember :: CCS.FieldName -> GenType -> Bool
+isUnboxedMember f (GenType (CS.TRecord _ fs s) _ _) =
     case find (\fld -> fst fld == f) fs of
          Nothing -> False
-         Just (_,(t,_)) -> isUnboxedArrayType t
-isUnboxedArrayMember f (GenType (CS.TCon n [t] _) _ _) | n == mapMayNull = isUnboxedArrayMember f t
-isUnboxedArrayMember _ _ = False
+         Just (_,(t,_)) -> isUnboxedStructOrArray t
+isUnboxedMember f (GenType (CS.TCon n [t] _) _ _) | n == mapMayNull = isUnboxedMember f t
+isUnboxedMember _ _ = False
 
 getBoxType :: GenType -> GenType
 getBoxType (GenType (CS.TCon tn ts sg) o ms) = GenType (CS.TCon tn ts noSigil) o ms
@@ -413,15 +421,15 @@ getDerefType (GenType (CS.TCon n [t] s) _ _) | isArrDeriv n && not (arrDerivHasS
 -- other types -> make unboxed
 getDerefType t = mkUnboxed t
 
-isUnboxedArrayDeref :: GenType -> Bool
-isUnboxedArrayDeref (GenType (CS.TRecord NonRec [(f,(t,_))] s) _ (Just _))
-    | f == ptrDerivCompName = isUnboxedArrayType t
-isUnboxedArrayDeref (GenType (CS.TCon n [t] _) _ _) | n == mapMayNull = isUnboxedArrayDeref t
-isUnboxedArrayDeref (GenType (CS.TRecord NonRec [(f,((GenType (CS.TArray t _ _ _) _ _),_))] s) _ (Just _))
-    | isArrDerivComp f = isUnboxedArrayType t
-isUnboxedArrayDeref (GenType (CS.TCon n [t] s) _ _) | isArrDeriv n && not (arrDerivHasSize n) =
-    isUnboxedArrayType t
-isUnboxedArrayDeref _ = False
+isUnboxedDeref :: GenType -> Bool
+isUnboxedDeref (GenType (CS.TRecord NonRec [(f,(t,_))] s) _ (Just _))
+    | f == ptrDerivCompName = False -- (isUnboxedStructOrArray t) cannot occur
+isUnboxedDeref (GenType (CS.TCon n [t] _) _ _) | n == mapMayNull = isUnboxedDeref t
+isUnboxedDeref (GenType (CS.TRecord NonRec [(f,((GenType (CS.TArray t _ _ _) _ _),_))] s) _ (Just _))
+    | isArrDerivComp f = isUnboxedStructOrArray t
+isUnboxedDeref (GenType (CS.TCon n [t] s) _ _) | isArrDeriv n && not (arrDerivHasSize n) =
+    isUnboxedStructOrArray t
+isUnboxedDeref _ = False
 
 -- | Type selectors for other components
 

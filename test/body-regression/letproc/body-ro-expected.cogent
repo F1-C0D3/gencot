@@ -1023,20 +1023,20 @@ cogent_bs13 (pln, qro, i) =
 -- Direct use of NULL in context
 cogent_n11ln : () -> U32
 cogent_n11ln () =
-   cogent_fcmln cogent_NULL
+   cogent_fcmln (null[]{{}} ())
 cogent_n11ro : () -> U32
 cogent_n11ro () =
-   cogent_fcmro cogent_NULL
+   cogent_fcmro (roNull[]{{}} ())
 cogent_n14ln : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
 cogent_n14ln (qln, i) =
    (cogent_fcmln (if i /= 0
-      then cogent_NULL
+      then null[]{{}} ()
       else qln)
    , qln)
 cogent_n14ro : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
 cogent_n14ro (qln, i) =
    let r' = cogent_fcmro (if i /= 0
-         then cogent_NULL
+         then roNull[]{{}} ()
          else qln) !qln
    in (r', qln)
 
@@ -1045,13 +1045,14 @@ cogent_n21ln : GlobState3 -> ( (), GlobState3 )
 cogent_n21ln g =
    (()
    , let g { cont = _ } = g
-   in g { cont = cogent_NULL })
+   in g { cont = null[]{{}} () })
 cogent_n21ro : GlobState4 -> ( (), GlobState4 )
 cogent_n21ro g =
-   ((), g { cont = cogent_NULL })
+   (()
+   , g { cont = roNull[]{{}} () })
 cogent_n22ln : MayNull (CPtr U32) -> ( (), MayNull (CPtr U32) )
 cogent_n22ln pln =
-   ((), cogent_NULL)
+   ((), null[]{{}} ())
 cogent_n22ro : (MayNull ((CPtr U32)!))! -> U32
 cogent_n22ro pro =
    if 0 > 0
@@ -1061,20 +1062,21 @@ cogent_n22ro pro =
 
 -- NULL returned as result
 cogent_n31ln : () -> MayNull (CPtr U32)
-cogent_n31ln () = cogent_NULL
+cogent_n31ln () = null[]{{}} ()
 cogent_n31ro : () -> (MayNull ((CPtr U32)!))!
-cogent_n31ro () = cogent_NULL
+cogent_n31ro () =
+   roNull[]{{}} ()
 
 -- Using NULL twice
 cogent_n41lnln : () -> U32
 cogent_n41lnln () =
-   cogent_fcmln cogent_NULL + cogent_fcmln cogent_NULL
+   cogent_fcmln (null[]{{}} ()) + cogent_fcmln (null[]{{}} ())
 cogent_n42lnro : () -> U32
 cogent_n42lnro () =
-   cogent_fcmln cogent_NULL + cogent_fcmro cogent_NULL
+   cogent_fcmln (null[]{{}} ()) + cogent_fcmro (roNull[]{{}} ())
 cogent_n43roro : () -> U32
 cogent_n43roro () =
-   cogent_fcmro cogent_NULL + cogent_fcmro cogent_NULL
+   cogent_fcmro (roNull[]{{}} ()) + cogent_fcmro (roNull[]{{}} ())
 
 -- NULL assigned to struct component or array element
 cogent_n91ln : MayNull Struct_Cogent_rosm1 -> ( (), MayNull Struct_Cogent_rosm1 )
@@ -1092,7 +1094,7 @@ cogent_n92ln pln =
                          , ()]{{}} (pln
                                    , 1
                                    , \(p0', v') => (v', ())
-                                   , cogent_NULL)
+                                   , null[]{{}} ())
    in pln)
 cogent_n92ro : Cogent_roam2 -> ( (), Cogent_roam2 )
 cogent_n92ro pln =
@@ -1102,5 +1104,5 @@ cogent_n92ro pln =
                       , U32
                       , (MayNull ((CPtr U32)!))!]{{}} (pln
                                                       , 1
-                                                      , cogent_NULL)
+                                                      , roNull[]{{}} ())
    in pln)

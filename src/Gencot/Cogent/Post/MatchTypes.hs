@@ -1586,3 +1586,22 @@ bindToNullInExpr tv (GenExpr (CS.Let bs bdy) o t c) =
 bindToNullInExpr tv e =
     mkLetExpr [mkVarBinding tv $ mkVarExpr $ TV mapNull $ typOfTV tv] e
 
+{- Convert mayNull / notNull -}
+{- to readonly if needed     -}
+{- and convert cogent_NULL   -}
+{- to null / roNull          -}
+{-----------------------------}
+
+opnullproc :: GenExpr -> GenExpr
+opnullproc (GenExpr (CS.Var v) o t c) | v == mapNull =
+    mkAppExpr (mkTopLevelFunExpr (nullFun, mkFunType unitType t) []) $ mkUnitExpr
+    where nullFun = if isReadonly t
+                      then "roNull"
+                      else "null"
+opnullproc (GenExpr (CS.App (GenExpr (CS.TLApp f mt ml il) fo ft fc) e x) o t c)
+    | elem f ["mayNull","notNull"] && (isReadonly $ getParamType ft) =
+    GenExpr (CS.App (GenExpr (CS.TLApp rof mt ml il) fo ft fc) (opnullproc e) x) o t c
+    where rof = if f == "mayNull"
+                  then "roMayNull"
+                  else "roNotNull"
+opnullproc e = mapExprOfGE (fmap opnullproc) e

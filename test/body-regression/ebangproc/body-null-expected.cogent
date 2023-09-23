@@ -6,7 +6,7 @@ cogent_fn1 (i, p) =
          in if v' /= 0
             then let v1' = p
                in v1'
-            else let v2' = cogent_NULL
+            else let v2' = null[]{{}} ()
                in v2'
       in v3'
    in (r', p)
@@ -17,7 +17,7 @@ cogent_fn2 (i, p) =
             then let v1' = p
                and v1' = mayNull[CPtr U32]{{}} v1'
                in v1'
-            else let v2' = cogent_NULL
+            else let v2' = null[]{{}} ()
                in v2'
       in v3'
    in (r', p) -- p: nn
@@ -333,7 +333,7 @@ cogent_fn55nl (pnn, qnl, i) =
                   and pnn { mnn = p0' } = v2'
                   and v3' = p0'
                   and () = ()
-                  and v3' = mayNull[(CPtr U32)!]{{}} v3'
+                  and v3' = roMayNull[(CPtr U32)!]{{}} v3'
                   in (v3', ())
                else let v4' = qnl
                   in (v4', ())
@@ -512,7 +512,7 @@ cogent_fn75nl (pnn, qnl, i) =
                   and pnn @{ @v3' = p0' } = v2'
                   and v4' = p0'
                   and () = ()
-                  and v4' = mayNull[(CPtr U32)!]{{}} v4'
+                  and v4' = roMayNull[(CPtr U32)!]{{}} v4'
                   in (v4', ())
                else let v5' = qnl
                   in (v5', ())
@@ -871,7 +871,7 @@ cogent_gn55nn (pnn, qnn, i) =
                   and () = ()
                   in (v3', ())
                else let v4' = qnn
-                  and v4' = mayNull[(CPtr U32)!]{{}} v4'
+                  and v4' = roMayNull[(CPtr U32)!]{{}} v4'
                   in (v4', ())
          and v6' = v' (gencotDummy "MayNull expression used in not-null context")
          in (v6', ())) !qnn !pnn
@@ -1048,7 +1048,7 @@ cogent_gn75nn (pnn, qnn, i) =
                   and () = ()
                   in (v4', ())
                else let v5' = qnn
-                  and v5' = mayNull[(CPtr U32)!]{{}} v5'
+                  and v5' = roMayNull[(CPtr U32)!]{{}} v5'
                   in (v5', ())
          and v7' = v' (gencotDummy "MayNull expression used in not-null context")
          in (v7', ())) !qnn !pnn
@@ -1133,7 +1133,7 @@ cogent_tn11nl : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
 cogent_tn11nl pnl =
    let r' = let v5' = let v' = pnl
          in notNull[CPtr U32]{{}} pnl
-            | Nothing -> let pnl = cogent_NULL
+            | Nothing -> let pnl = null[]{{}} ()
                and v4' = 0
                in v4'
             | Some pnl -> let v1' = cogent_fcnl
@@ -1147,7 +1147,7 @@ cogent_tn11nn : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
 cogent_tn11nn pnl =
    let r' = let v5' = let v' = pnl
          in notNull[CPtr U32]{{}} pnl
-            | Nothing -> let pnl = cogent_NULL
+            | Nothing -> let pnl = null[]{{}} ()
                and v4' = 0
                in v4'
             | Some pnl -> let v1' = cogent_fcnn
@@ -1159,7 +1159,7 @@ cogent_tn11nn pnl =
 cogent_tn12nl : () -> U32
 cogent_tn12nl () =
    let r' = let v5' = let v' = cogent_globnl ()
-         in if v' /= cogent_NULL
+         in if v' /= null[]{{}} ()
             then let v1' = cogent_fcnl
                and v2' = cogent_globnl ()
                and v3' = v1' v2'
@@ -1171,7 +1171,7 @@ cogent_tn12nl () =
 cogent_tn12nn : () -> U32
 cogent_tn12nn () =
    let r' = let v5' = let v' = cogent_globnl ()
-         in if v' /= cogent_NULL
+         in if v' /= null[]{{}} ()
             then let v1' = cogent_fcnn
                and v2' = cogent_globnl ()
                and v3' = v1' (gencotDummy "MayNull expression used in not-null context")
@@ -1184,7 +1184,7 @@ cogent_tn13nl : () -> U32
 cogent_tn13nl () =
    let r' = let v7' = let v' = cogent_frnl
          and v1' = v' ()
-         in if v1' /= cogent_NULL
+         in if v1' /= null[]{{}} ()
             then let v2' = cogent_fcnl
                and v3' = cogent_frnl
                and v4' = v3' ()
@@ -1198,7 +1198,7 @@ cogent_tn13nn : () -> U32
 cogent_tn13nn () =
    let r' = let v7' = let v' = cogent_frnl
          and v1' = v' ()
-         in if v1' /= cogent_NULL
+         in if v1' /= null[]{{}} ()
             then let v2' = cogent_fcnn
                and v3' = cogent_frnl
                and v4' = v3' ()
@@ -1212,7 +1212,7 @@ cogent_tn14nl : ( MayNull (CPtr U32), CPtr U32, U32 ) -> ( U32, MayNull (CPtr U3
 cogent_tn14nl (pnl, qnn, i) =
    let r' = let v8' = let v' = pnl
          in notNull[CPtr U32]{{}} pnl
-            | Nothing -> let pnl = cogent_NULL
+            | Nothing -> let pnl = null[]{{}} ()
                and v7' = 0
                in v7'
             | Some pnl -> let v1' = cogent_fcnl
@@ -1231,7 +1231,7 @@ cogent_tn14nn : ( MayNull (CPtr U32), CPtr U32, U32 ) -> ( U32, MayNull (CPtr U3
 cogent_tn14nn (pnl, qnn, i) =
    let r' = let v8' = let v' = pnl
          in notNull[CPtr U32]{{}} pnl
-            | Nothing -> let pnl = cogent_NULL
+            | Nothing -> let pnl = null[]{{}} ()
                and v7' = 0
                in v7'
             | Some pnl -> let v1' = cogent_fcnn
@@ -1251,7 +1251,7 @@ cogent_tn21nl : ( MayNull (CPtr U32), CPtr U32, GlobState1 ) -> ( (), MayNull (C
 cogent_tn21nl (qnl, qnn, g) =
    let g = let v3' = let v' = qnl
          in notNull[CPtr U32]{{}} qnl
-            | Nothing -> let qnl = cogent_NULL
+            | Nothing -> let qnl = null[]{{}} ()
                and v2' = qnn
                in v2'
             | Some qnl -> let v1' = qnl
@@ -1267,7 +1267,7 @@ cogent_tn21nn : ( MayNull (CPtr U32), CPtr U32, GlobState2 ) -> ( (), MayNull (C
 cogent_tn21nn (qnl, qnn, g) =
    let g = let v3' = let v' = qnl
          in notNull[CPtr U32]{{}} qnl
-            | Nothing -> let qnl = cogent_NULL
+            | Nothing -> let qnl = null[]{{}} ()
                and v2' = qnn
                in v2'
             | Some qnl -> let v1' = qnl
@@ -1283,7 +1283,7 @@ cogent_tn22nl : ( MayNull (CPtr U32), MayNull (CPtr U32), CPtr U32 ) -> ( (), Ma
 cogent_tn22nl (pnl, qnl, qnn) =
    let pnl = let v3' = let v' = qnl
          in notNull[CPtr U32]{{}} qnl
-            | Nothing -> let qnl = cogent_NULL
+            | Nothing -> let qnl = null[]{{}} ()
                and v2' = qnn
                in v2'
             | Some qnl -> let v1' = qnl
@@ -1297,7 +1297,7 @@ cogent_tn22nn (pnn, qnl, qnn) =
    let (pnn, r') = let (c'
                        , pnn) = let v3' = let v' = qnl
             in notNull[CPtr U32]{{}} qnl
-               | Nothing -> let qnl = cogent_NULL
+               | Nothing -> let qnl = null[]{{}} ()
                   and v2' = qnn
                   in v2'
                | Some qnl -> let v1' = qnl
@@ -1321,7 +1321,7 @@ cogent_tn31nl : ( MayNull (CPtr U32), CPtr U32 ) -> ( MayNull (CPtr U32), MayNul
 cogent_tn31nl (qnl, qnn) =
    let r' = let v3' = let v' = qnl
          in notNull[CPtr U32]{{}} qnl
-            | Nothing -> let qnl = cogent_NULL
+            | Nothing -> let qnl = null[]{{}} ()
                and v2' = qnn
                in v2'
             | Some qnl -> let v1' = qnl
@@ -1332,7 +1332,7 @@ cogent_tn31nn : ( MayNull (CPtr U32), CPtr U32 ) -> ( CPtr U32, MayNull (CPtr U3
 cogent_tn31nn (qnl, qnn) =
    let r' = let v3' = let v' = qnl
          in notNull[CPtr U32]{{}} qnl
-            | Nothing -> let qnl = cogent_NULL
+            | Nothing -> let qnl = null[]{{}} ()
                and v2' = qnn
                in v2'
             | Some qnl -> let v1' = qnl
@@ -1349,7 +1349,7 @@ cogent_tn51nl pnn =
          and v1' = p0'
          and pnn = pnn { mnl = p0' }
          in notNull[CPtr U32]{{}} p0'
-            | Nothing -> let p0' = cogent_NULL
+            | Nothing -> let p0' = null[]{{}} ()
                and v4' = pnn
                and pnn { mnn = p2' } = v4'
                and v5' = p2'
@@ -1370,13 +1370,13 @@ cogent_tn51nn pnn =
             and pnn { mnl = p0' } = v'
             and v1' = p0'
             and () = ()
-            in notNull[(CPtr U32)!]{{}} p0'
-               | Nothing -> let p0' = cogent_NULL
+            in roNotNull[(CPtr U32)!]{{}} p0'
+               | Nothing -> let p0' = roNull[]{{}} ()
                   and v4' = pnn
                   and pnn { mnn = p2' } = v4'
                   and v5' = p2'
                   and () = ()
-                  and v5' = mayNull[(CPtr U32)!]{{}} v5'
+                  and v5' = roMayNull[(CPtr U32)!]{{}} v5'
                   in (v5', ())
                | Some p0' -> let v2' = pnn
                   and pnn { mnl = p1' } = v2'
@@ -1395,7 +1395,7 @@ cogent_tn52nl pnn =
          and v2' = p0'
          and pnn = pnn { mnl = p0' }
          in notNull[CPtr U32]{{}} p0'
-            | Nothing -> let p0' = cogent_NULL
+            | Nothing -> let p0' = null[]{{}} ()
                and v5' = pnn
                and pnn { mnn = p2' } = v5'
                and v6' = p2'
@@ -1418,13 +1418,13 @@ cogent_tn52nn pnn =
             and pnn { mnl = p0' } = v1'
             and v2' = p0'
             and () = ()
-            in notNull[(CPtr U32)!]{{}} p0'
-               | Nothing -> let p0' = cogent_NULL
+            in roNotNull[(CPtr U32)!]{{}} p0'
+               | Nothing -> let p0' = roNull[]{{}} ()
                   and v5' = pnn
                   and pnn { mnn = p2' } = v5'
                   and v6' = p2'
                   and () = ()
-                  and v6' = mayNull[(CPtr U32)!]{{}} v6'
+                  and v6' = roMayNull[(CPtr U32)!]{{}} v6'
                   in (v6', ())
                | Some p0' -> let v3' = pnn
                   and pnn { mnl = p1' } = v3'
@@ -1442,7 +1442,7 @@ cogent_tn53nl (pnn, g) =
          and v1' = p0'
          and pnn = pnn { mnl = p0' }
          in notNull[CPtr U32]{{}} p0'
-            | Nothing -> let p0' = cogent_NULL
+            | Nothing -> let p0' = null[]{{}} ()
                and v4' = pnn
                and pnn { mnn = p2' } = v4'
                and v5' = p2'
@@ -1468,13 +1468,13 @@ cogent_tn53nn (pnn, g) =
             and pnn { mnl = p0' } = v'
             and v1' = p0'
             and () = ()
-            in notNull[(CPtr U32)!]{{}} p0'
-               | Nothing -> let p0' = cogent_NULL
+            in roNotNull[(CPtr U32)!]{{}} p0'
+               | Nothing -> let p0' = roNull[]{{}} ()
                   and v4' = pnn
                   and pnn { mnn = p2' } = v4'
                   and v5' = p2'
                   and () = ()
-                  and v5' = mayNull[(CPtr U32)!]{{}} v5'
+                  and v5' = roMayNull[(CPtr U32)!]{{}} v5'
                   in (v5', ())
                | Some p0' -> let v2' = pnn
                   and pnn { mnl = p1' } = v2'
@@ -1496,7 +1496,7 @@ cogent_tn54nl (pnn, pnl) =
          and v1' = p0'
          and pnn = pnn { mnl = p0' }
          in notNull[CPtr U32]{{}} p0'
-            | Nothing -> let p0' = cogent_NULL
+            | Nothing -> let p0' = null[]{{}} ()
                and v4' = pnn
                and pnn { mnn = p2' } = v4'
                and v5' = p2'
@@ -1521,13 +1521,13 @@ cogent_tn54nn (pnn, qnn) =
                and pnn { mnl = p0' } = v'
                and v1' = p0'
                and () = ()
-               in notNull[(CPtr U32)!]{{}} p0'
-                  | Nothing -> let p0' = cogent_NULL
+               in roNotNull[(CPtr U32)!]{{}} p0'
+                  | Nothing -> let p0' = roNull[]{{}} ()
                      and v4' = pnn
                      and pnn { mnn = p2' } = v4'
                      and v5' = p2'
                      and () = ()
-                     and v5' = mayNull[(CPtr U32)!]{{}} v5'
+                     and v5' = roMayNull[(CPtr U32)!]{{}} v5'
                      in (v5', ())
                   | Some p0' -> let v2' = pnn
                      and pnn { mnl = p1' } = v2'
@@ -1558,13 +1558,13 @@ cogent_tn55nl (pnn, qnl, i) =
                      and pnn { mnl = p0' } = v2'
                      and v3' = p0'
                      and () = ()
-                     in notNull[(CPtr U32)!]{{}} p0'
-                        | Nothing -> let p0' = cogent_NULL
+                     in roNotNull[(CPtr U32)!]{{}} p0'
+                        | Nothing -> let p0' = roNull[]{{}} ()
                            and v6' = pnn
                            and pnn { mnn = p2' } = v6'
                            and v7' = p2'
                            and () = ()
-                           and v7' = mayNull[(CPtr U32)!]{{}} v7'
+                           and v7' = roMayNull[(CPtr U32)!]{{}} v7'
                            in (v7', ())
                         | Some p0' -> let v4' = pnn
                            and pnn { mnl = p1' } = v4'
@@ -1588,13 +1588,13 @@ cogent_tn55nn (pnn, qnn, i) =
                      and pnn { mnl = p0' } = v2'
                      and v3' = p0'
                      and () = ()
-                     in notNull[(CPtr U32)!]{{}} p0'
-                        | Nothing -> let p0' = cogent_NULL
+                     in roNotNull[(CPtr U32)!]{{}} p0'
+                        | Nothing -> let p0' = roNull[]{{}} ()
                            and v6' = pnn
                            and pnn { mnn = p2' } = v6'
                            and v7' = p2'
                            and () = ()
-                           and v7' = mayNull[(CPtr U32)!]{{}} v7'
+                           and v7' = roMayNull[(CPtr U32)!]{{}} v7'
                            in (v7', ())
                         | Some p0' -> let v4' = pnn
                            and pnn { mnl = p1' } = v4'
@@ -1603,7 +1603,7 @@ cogent_tn55nn (pnn, qnn, i) =
                            in (v5', ())
                   in (v8', ())
                else let v9' = qnn
-                  and v9' = mayNull[(CPtr U32)!]{{}} v9'
+                  and v9' = roMayNull[(CPtr U32)!]{{}} v9'
                   in (v9', ())
          and v11' = v' (gencotDummy "MayNull expression used in not-null context")
          in (v11', ())) !qnn !pnn
@@ -1614,7 +1614,7 @@ cogent_tn61nl : ( MayNull Struct_Cogent_nns1, MayNull Struct_Cogent_nns1 ) -> ( 
 cogent_tn61nl (pnl, pnn) =
    let r' = let v3' = let v' = pnl
          in notNull[Struct_Cogent_nns1]{{}} pnl
-            | Nothing -> let pnl = cogent_NULL
+            | Nothing -> let pnl = null[]{{}} ()
                and v2' = pnn
                in v2'
             | Some pnl -> let v1' = pnl
@@ -1632,7 +1632,7 @@ cogent_tn62nl pnn =
          and v1' = p0'
          and pnn = pnn { snl = p0' }
          in notNull[Struct_Cogent_nns1]{{}} p0'
-            | Nothing -> let p0' = cogent_NULL
+            | Nothing -> let p0' = null[]{{}} ()
                and v4' = pnn
                and pnn { snn = p2' } = v4'
                and v5' = p2'
@@ -1651,7 +1651,7 @@ cogent_tn62nl pnn =
 cogent_tn63nl : () -> U32
 cogent_tn63nl () =
    let r' = let v3' = let v' = cogent_globnl ()
-         in if v' /= cogent_NULL
+         in if v' /= null[]{{}} ()
             then let v1' = cogent_globnl ()
                in v1'
             else let v2' = cogent_globnn ()
@@ -1665,7 +1665,7 @@ cogent_tn64nl : () -> U32
 cogent_tn64nl () =
    let r' = let v6' = let v' = cogent_frnl
          and v1' = v' ()
-         in if v1' /= cogent_NULL
+         in if v1' /= null[]{{}} ()
             then let v2' = cogent_frnl
                and v3' = v2' ()
                in v3'
@@ -1688,7 +1688,7 @@ cogent_tn71nl pnn =
          and v2' = p0'
          and pnn = pnn @{ @v1' = p0' }
          in notNull[CPtr U32]{{}} p0'
-            | Nothing -> let p0' = cogent_NULL
+            | Nothing -> let p0' = null[]{{}} ()
                and v6' = cogent_globnn ()
                and v6' = mayNull[CPtr U32]{{}} v6'
                in (v6', pnn)
@@ -1709,7 +1709,7 @@ cogent_tn71nn pnn =
          and v2' = p0'
          and pnn = pnn @{ @v1' = p0' }
          in notNull[CPtr U32]{{}} p0'
-            | Nothing -> let p0' = cogent_NULL
+            | Nothing -> let p0' = null[]{{}} ()
                and v6' = cogent_globnn ()
                and v6' = mayNull[CPtr U32]{{}} v6'
                in (v6', pnn)
@@ -1732,7 +1732,7 @@ cogent_tn72nl pnn =
          and v3' = p0'
          and pnn = pnn @{ @v2' = p0' }
          in notNull[CPtr U32]{{}} p0'
-            | Nothing -> let p0' = cogent_NULL
+            | Nothing -> let p0' = null[]{{}} ()
                and v7' = cogent_globnn ()
                and v7' = mayNull[CPtr U32]{{}} v7'
                in (v7', pnn)
@@ -1755,7 +1755,7 @@ cogent_tn72nn pnn =
          and v3' = p0'
          and pnn = pnn @{ @v2' = p0' }
          in notNull[CPtr U32]{{}} p0'
-            | Nothing -> let p0' = cogent_NULL
+            | Nothing -> let p0' = null[]{{}} ()
                and v7' = cogent_globnn ()
                and v7' = mayNull[CPtr U32]{{}} v7'
                in (v7', pnn)
@@ -1777,7 +1777,7 @@ cogent_tn73nl (pnn, g) =
          and v2' = p0'
          and pnn = pnn @{ @v1' = p0' }
          in notNull[CPtr U32]{{}} p0'
-            | Nothing -> let p0' = cogent_NULL
+            | Nothing -> let p0' = null[]{{}} ()
                and v6' = cogent_globnn ()
                and v6' = mayNull[CPtr U32]{{}} v6'
                in (v6', pnn)
@@ -1803,7 +1803,7 @@ cogent_tn73nn (pnn, g) =
          and v2' = p0'
          and pnn = pnn @{ @v1' = p0' }
          in notNull[CPtr U32]{{}} p0'
-            | Nothing -> let p0' = cogent_NULL
+            | Nothing -> let p0' = null[]{{}} ()
                and v6' = cogent_globnn ()
                and v6' = mayNull[CPtr U32]{{}} v6'
                in (v6', pnn)
@@ -1829,7 +1829,7 @@ cogent_tn74nl (pnn, pnl) =
          and v2' = p0'
          and pnn = pnn @{ @v1' = p0' }
          in notNull[CPtr U32]{{}} p0'
-            | Nothing -> let p0' = cogent_NULL
+            | Nothing -> let p0' = null[]{{}} ()
                and v6' = cogent_globnn ()
                and v6' = mayNull[CPtr U32]{{}} v6'
                in (v6', pnn)
@@ -1854,7 +1854,7 @@ cogent_tn74nn (pnn, qnn) =
             and v2' = p0'
             and pnn = pnn @{ @v1' = p0' }
             in notNull[CPtr U32]{{}} p0'
-               | Nothing -> let p0' = cogent_NULL
+               | Nothing -> let p0' = null[]{{}} ()
                   and v6' = cogent_globnn ()
                   and v6' = mayNull[CPtr U32]{{}} v6'
                   in (v6', pnn)
@@ -1890,7 +1890,7 @@ cogent_tn75nl (pnn, qnl, i) =
                   and v4' = p0'
                   and pnn = pnn @{ @v3' = p0' }
                   in notNull[CPtr U32]{{}} p0'
-                     | Nothing -> let p0' = cogent_NULL
+                     | Nothing -> let p0' = null[]{{}} ()
                         and v8' = cogent_globnn ()
                         and v8' = mayNull[CPtr U32]{{}} v8'
                         in (v8', pnn)
@@ -1919,7 +1919,7 @@ cogent_tn75nn (pnn, qnn, i) =
                   and v4' = p0'
                   and pnn = pnn @{ @v3' = p0' }
                   in notNull[CPtr U32]{{}} p0'
-                     | Nothing -> let p0' = cogent_NULL
+                     | Nothing -> let p0' = null[]{{}} ()
                         and v8' = cogent_globnn ()
                         and v8' = mayNull[CPtr U32]{{}} v8'
                         in (v8', pnn)
@@ -1972,7 +1972,7 @@ cogent_tn91nl : ( Struct_Cogent_nns1, MayNull (CPtr U32), CPtr U32 ) -> ( (), St
 cogent_tn91nl (pnn, qnl, qnn) =
    let pnn = let v3' = let v' = qnl
          in notNull[CPtr U32]{{}} qnl
-            | Nothing -> let qnl = cogent_NULL
+            | Nothing -> let qnl = null[]{{}} ()
                and v2' = qnn
                in v2'
             | Some qnl -> let v1' = qnl
@@ -1988,7 +1988,7 @@ cogent_tn91nn : ( Struct_Cogent_nns1, MayNull (CPtr U32), CPtr U32 ) -> ( (), St
 cogent_tn91nn (pnn, qnl, qnn) =
    let pnn = let v3' = let v' = qnl
          in notNull[CPtr U32]{{}} qnl
-            | Nothing -> let qnl = cogent_NULL
+            | Nothing -> let qnl = null[]{{}} ()
                and v2' = qnn
                in v2'
             | Some qnl -> let v1' = qnl
@@ -2004,7 +2004,7 @@ cogent_tn92nl : ( Cogent_nna3, MayNull (CPtr U32), CPtr U32 ) -> ( (), Cogent_nn
 cogent_tn92nl (pnl, qnl, qnn) =
    let pnl = let v3' = let v' = qnl
          in notNull[CPtr U32]{{}} qnl
-            | Nothing -> let qnl = cogent_NULL
+            | Nothing -> let qnl = null[]{{}} ()
                and v2' = qnn
                in v2'
             | Some qnl -> let v1' = qnl
@@ -2021,7 +2021,7 @@ cogent_tn92nn : ( Cogent_nna2, MayNull (CPtr U32), CPtr U32 ) -> ( (), Cogent_nn
 cogent_tn92nn (pnl, qnl, qnn) =
    let pnl = let v3' = let v' = qnl
          in notNull[CPtr U32]{{}} qnl
-            | Nothing -> let qnl = cogent_NULL
+            | Nothing -> let qnl = null[]{{}} ()
                and v2' = qnn
                in v2'
             | Some qnl -> let v1' = qnl
@@ -2042,7 +2042,7 @@ cogent_sn11nl : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
 cogent_sn11nl pnl =
    let r' = let v' = pnl
       in notNull[CPtr U32]{{}} pnl
-         | Nothing -> let pnl = cogent_NULL
+         | Nothing -> let pnl = null[]{{}} ()
             and r' = let v4' = 0 in v4'
             in r'
          | Some pnl -> let r' = let v1' = cogent_fcnl
@@ -2056,7 +2056,7 @@ cogent_sn11nn : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
 cogent_sn11nn pnl =
    let r' = let v' = pnl
       in notNull[CPtr U32]{{}} pnl
-         | Nothing -> let pnl = cogent_NULL
+         | Nothing -> let pnl = null[]{{}} ()
             and r' = let v4' = 0 in v4'
             in r'
          | Some pnl -> let r' = let v1' = cogent_fcnn
@@ -2068,7 +2068,7 @@ cogent_sn11nn pnl =
 cogent_sn12nl : () -> U32
 cogent_sn12nl () =
    let r' = let v' = cogent_globnl ()
-      in if v' /= cogent_NULL
+      in if v' /= null[]{{}} ()
          then
             let r' = let v1' = cogent_fcnl
                and v2' = cogent_globnl ()
@@ -2081,7 +2081,7 @@ cogent_sn12nl () =
 cogent_sn12nn : () -> U32
 cogent_sn12nn () =
    let r' = let v' = cogent_globnl ()
-      in if v' /= cogent_NULL
+      in if v' /= null[]{{}} ()
          then
             let r' = let v1' = cogent_fcnn
                and v2' = cogent_globnl ()
@@ -2095,7 +2095,7 @@ cogent_sn13nl : () -> U32
 cogent_sn13nl () =
    let r' = let v' = cogent_frnl
       and v1' = v' ()
-      in if v1' /= cogent_NULL
+      in if v1' /= null[]{{}} ()
          then
             let r' = let v2' = cogent_fcnl
                and v3' = cogent_frnl
@@ -2110,7 +2110,7 @@ cogent_sn13nn : () -> U32
 cogent_sn13nn () =
    let r' = let v' = cogent_frnl
       and v1' = v' ()
-      in if v1' /= cogent_NULL
+      in if v1' /= null[]{{}} ()
          then
             let r' = let v2' = cogent_fcnn
                and v3' = cogent_frnl
@@ -2125,7 +2125,7 @@ cogent_sn14nl : ( MayNull (CPtr U32), CPtr U32, U32 ) -> ( U32, MayNull (CPtr U3
 cogent_sn14nl (pnl, qnn, i) =
    let r' = let v' = pnl
       in notNull[CPtr U32]{{}} pnl
-         | Nothing -> let pnl = cogent_NULL
+         | Nothing -> let pnl = null[]{{}} ()
             and r' = let v7' = 0 in v7'
             in r'
          | Some pnl -> let r' = let v1' = cogent_fcnl
@@ -2144,7 +2144,7 @@ cogent_sn14nn : ( MayNull (CPtr U32), CPtr U32, U32 ) -> ( U32, MayNull (CPtr U3
 cogent_sn14nn (pnl, qnn, i) =
    let r' = let v' = pnl
       in notNull[CPtr U32]{{}} pnl
-         | Nothing -> let pnl = cogent_NULL
+         | Nothing -> let pnl = null[]{{}} ()
             and r' = let v7' = 0 in v7'
             in r'
          | Some pnl -> let r' = let v1' = cogent_fcnn
@@ -2164,7 +2164,7 @@ cogent_sn21nl : ( MayNull (CPtr U32), GlobState1 ) -> ( (), MayNull (CPtr U32), 
 cogent_sn21nl (qnl, g) =
    let g = let v' = qnl
       in notNull[CPtr U32]{{}} qnl
-         | Nothing -> let qnl = cogent_NULL
+         | Nothing -> let qnl = null[]{{}} ()
             in g
          | Some qnl -> let g = let v1' = qnl
                and v2' = g
@@ -2179,7 +2179,7 @@ cogent_sn21nn : ( MayNull (CPtr U32), GlobState2 ) -> ( (), MayNull (CPtr U32), 
 cogent_sn21nn (qnl, g) =
    let g = let v' = qnl
       in notNull[CPtr U32]{{}} qnl
-         | Nothing -> let qnl = cogent_NULL
+         | Nothing -> let qnl = null[]{{}} ()
             in g
          | Some qnl -> let g = let v1' = qnl
                and v2' = g
@@ -2194,7 +2194,7 @@ cogent_sn22nl : ( MayNull (CPtr U32), MayNull (CPtr U32) ) -> ( (), MayNull (CPt
 cogent_sn22nl (pnl, qnl) =
    let pnl = let v' = qnl
       in notNull[CPtr U32]{{}} qnl
-         | Nothing -> let qnl = cogent_NULL
+         | Nothing -> let qnl = null[]{{}} ()
             in pnl
          | Some qnl -> let pnl = let v1' = qnl
                and v3' = v1'
@@ -2208,7 +2208,7 @@ cogent_sn22nn (pnn, qnl) =
    let (pnn, r') = let (c'
                        , pnn) = let v' = qnl
          in notNull[CPtr U32]{{}} qnl
-            | Nothing -> let qnl = cogent_NULL
+            | Nothing -> let qnl = null[]{{}} ()
                and c' = 0
                in (c', pnn)
             | Some qnl -> let (c'
@@ -2234,7 +2234,7 @@ cogent_sn31nl : ( MayNull (CPtr U32), CPtr U32 ) -> ( MayNull (CPtr U32), MayNul
 cogent_sn31nl (qnl, qnn) =
    let r' = let v' = qnl
       in notNull[CPtr U32]{{}} qnl
-         | Nothing -> let qnl = cogent_NULL
+         | Nothing -> let qnl = null[]{{}} ()
             and r' = let v2' = qnn in v2'
             and r' = mayNull[CPtr U32]{{}} r'
             in r'
@@ -2247,7 +2247,7 @@ cogent_sn31nn : ( MayNull (CPtr U32), CPtr U32 ) -> ( CPtr U32, MayNull (CPtr U3
 cogent_sn31nn (qnl, qnn) =
    let r' = let v' = qnl
       in notNull[CPtr U32]{{}} qnl
-         | Nothing -> let qnl = cogent_NULL
+         | Nothing -> let qnl = null[]{{}} ()
             and r' = let v2' = qnn in v2'
             in r'
          | Some qnl -> let r' = let v1' = qnl
@@ -2263,7 +2263,7 @@ cogent_sn51nl pnn =
       and v1' = p0'
       and pnn = pnn { mnl = p0' }
       in notNull[CPtr U32]{{}} p0'
-         | Nothing -> let p0' = cogent_NULL
+         | Nothing -> let p0' = null[]{{}} ()
             and (r', pnn) = let v4' = pnn
                and pnn { mnn = p2' } = v4'
                and v5' = p2'
@@ -2286,7 +2286,7 @@ cogent_sn51nn pnn =
       and v1' = p0'
       and pnn = pnn { mnl = p0' }
       in notNull[CPtr U32]{{}} p0'
-         | Nothing -> let p0' = cogent_NULL
+         | Nothing -> let p0' = null[]{{}} ()
             and (r', pnn) = let v4' = pnn
                and pnn { mnn = p2' } = v4'
                and v5' = p2'
@@ -2309,7 +2309,7 @@ cogent_sn52nl pnn =
       and v1' = p0'
       and pnn = pnn { mnl = p0' }
       in notNull[CPtr U32]{{}} p0'
-         | Nothing -> let p0' = cogent_NULL
+         | Nothing -> let p0' = null[]{{}} ()
             and r' = let v6' = 0 in v6'
             in (pnn, r')
          | Some p0' -> let (r'
@@ -2328,8 +2328,8 @@ cogent_sn52nn pnn =
          and pnn { mnl = p0' } = v'
          and v1' = p0'
          and () = ()
-         in notNull[(CPtr U32)!]{{}} p0'
-            | Nothing -> let p0' = cogent_NULL
+         in roNotNull[(CPtr U32)!]{{}} p0'
+            | Nothing -> let p0' = roNull[]{{}} ()
                and r' = let v6' = 0 in v6'
                in ((), r')
             | Some p0' -> let (r'
@@ -2349,7 +2349,7 @@ cogent_sn53nl (pnn, g) =
       and v1' = p0'
       and pnn = pnn { mnl = p0' }
       in notNull[CPtr U32]{{}} p0'
-         | Nothing -> let p0' = cogent_NULL
+         | Nothing -> let p0' = null[]{{}} ()
             in (pnn, g)
          | Some p0' -> let (pnn
                            , g) = let v2' = pnn
@@ -2370,8 +2370,8 @@ cogent_sn53nn (pnn, g) =
          and pnn { mnl = p0' } = v'
          and v1' = p0'
          and () = ()
-         in notNull[(CPtr U32)!]{{}} p0'
-            | Nothing -> let p0' = cogent_NULL
+         in roNotNull[(CPtr U32)!]{{}} p0'
+            | Nothing -> let p0' = roNull[]{{}} ()
                in ((), g)
             | Some p0' -> let (()
                               , g) = let v2' = pnn
@@ -2393,7 +2393,7 @@ cogent_sn54nl (pnn, pnl) =
       and v1' = p0'
       and pnn = pnn { mnl = p0' }
       in notNull[CPtr U32]{{}} p0'
-         | Nothing -> let p0' = cogent_NULL
+         | Nothing -> let p0' = null[]{{}} ()
             in (pnn, pnl)
          | Some p0' -> let (pnn
                            , pnl) = let v2' = pnn
@@ -2413,8 +2413,8 @@ cogent_sn54nn (pnn, qnn) =
             and pnn { mnl = p0' } = v'
             and v1' = p0'
             and () = ()
-            in notNull[(CPtr U32)!]{{}} p0'
-               | Nothing -> let p0' = cogent_NULL
+            in roNotNull[(CPtr U32)!]{{}} p0'
+               | Nothing -> let p0' = roNull[]{{}} ()
                   and c' = 0
                   in (c', (), qnn)
                | Some p0' -> let (c'
@@ -2443,8 +2443,8 @@ cogent_sn55nl (pnn, qnl, i) =
          and pnn { mnl = p0' } = v'
          and v1' = p0'
          and () = ()
-         in notNull[(CPtr U32)!]{{}} p0'
-            | Nothing -> let p0' = cogent_NULL
+         in roNotNull[(CPtr U32)!]{{}} p0'
+            | Nothing -> let p0' = roNull[]{{}} ()
                in ((), r')
             | Some p0' -> let (r'
                               , ()) = let v2' = cogent_fcnn
@@ -2467,8 +2467,8 @@ cogent_sn55nn (pnn, qnn, i) =
          and pnn { mnl = p0' } = v'
          and v1' = p0'
          and () = ()
-         in notNull[(CPtr U32)!]{{}} p0'
-            | Nothing -> let p0' = cogent_NULL
+         in roNotNull[(CPtr U32)!]{{}} p0'
+            | Nothing -> let p0' = roNull[]{{}} ()
                in ((), r')
             | Some p0' -> let (r'
                               , ()) = let v2' = cogent_fcnn
@@ -2480,7 +2480,7 @@ cogent_sn55nn (pnn, qnn, i) =
                            and () = ()
                            in (v5', ())
                         else let v6' = qnn
-                           and v6' = mayNull[(CPtr U32)!]{{}} v6'
+                           and v6' = roMayNull[(CPtr U32)!]{{}} v6'
                            in (v6', ())
                   and v8' = v2' (gencotDummy "MayNull expression used in not-null context")
                   in (v8', ())
@@ -2492,7 +2492,7 @@ cogent_sn61nl : MayNull Struct_Cogent_nns1 -> ( U32, MayNull Struct_Cogent_nns1 
 cogent_sn61nl pnl =
    let (r', pnl) = let v' = pnl
       in notNull[Struct_Cogent_nns1]{{}} pnl
-         | Nothing -> let pnl = cogent_NULL
+         | Nothing -> let pnl = null[]{{}} ()
             and r' = let v3' = 0 in v3'
             in (r', pnl)
          | Some pnl -> let (r'
@@ -2510,8 +2510,8 @@ cogent_sn62nl pnn =
          and pnn { snl = p0' } = v'
          and v1' = p0'
          and () = ()
-         in notNull[Struct_Cogent_nns1!]{{}} p0'
-            | Nothing -> let p0' = cogent_NULL
+         in roNotNull[Struct_Cogent_nns1!]{{}} p0'
+            | Nothing -> let p0' = roNull[]{{}} ()
                and r' = let v5' = 0 in v5'
                in ((), r')
             | Some p0' -> let (r'
@@ -2528,7 +2528,7 @@ cogent_sn62nl pnn =
 cogent_sn63nl : () -> U32
 cogent_sn63nl () =
    let r' = let v' = cogent_globnl ()
-      in if v' /= cogent_NULL
+      in if v' /= null[]{{}} ()
          then
             let r' = let v1' = cogent_globnl ()
                and err' { cont = p0' } = v1'
@@ -2542,7 +2542,7 @@ cogent_sn64nl : () -> U32
 cogent_sn64nl () =
    let r' = let v' = cogent_frnl
       and v1' = v' ()
-      in if v1' /= cogent_NULL
+      in if v1' /= null[]{{}} ()
          then
             let r' = let v2' = cogent_frnl
                and v3' = v2' ()
@@ -2563,7 +2563,7 @@ cogent_sn71nl pnn =
       and v2' = p0'
       and pnn = pnn @{ @v1' = p0' }
       in notNull[CPtr U32]{{}} p0'
-         | Nothing -> let p0' = cogent_NULL
+         | Nothing -> let p0' = null[]{{}} ()
             and r' = let v6' = cogent_globnn ()
                in v6'
             and r' = mayNull[CPtr U32]{{}} r'
@@ -2584,8 +2584,8 @@ cogent_sn71nn pnn =
          and pnn @{ @v1' = p0' } = v'
          and v2' = p0'
          and () = ()
-         in notNull[(CPtr U32)!]{{}} p0'
-            | Nothing -> let p0' = cogent_NULL
+         in roNotNull[(CPtr U32)!]{{}} p0'
+            | Nothing -> let p0' = roNull[]{{}} ()
                and r' = let v6' = cogent_globnn ()
                   in v6'
                in ((), r')
@@ -2607,7 +2607,7 @@ cogent_sn72nl pnn =
       and v2' = p0'
       and pnn = pnn @{ @v1' = p0' }
       in notNull[CPtr U32]{{}} p0'
-         | Nothing -> let p0' = cogent_NULL
+         | Nothing -> let p0' = null[]{{}} ()
             and r' = let v8' = 0 in v8'
             in (pnn, r')
          | Some p0' -> let (r'
@@ -2628,8 +2628,8 @@ cogent_sn72nn pnn =
          and pnn @{ @v1' = p0' } = v'
          and v2' = p0'
          and () = ()
-         in notNull[(CPtr U32)!]{{}} p0'
-            | Nothing -> let p0' = cogent_NULL
+         in roNotNull[(CPtr U32)!]{{}} p0'
+            | Nothing -> let p0' = roNull[]{{}} ()
                and r' = let v8' = 0 in v8'
                in ((), r')
             | Some p0' -> let (r'
@@ -2651,7 +2651,7 @@ cogent_sn73nl (pnn, g) =
       and v2' = p0'
       and pnn = pnn @{ @v1' = p0' }
       in notNull[CPtr U32]{{}} p0'
-         | Nothing -> let p0' = cogent_NULL
+         | Nothing -> let p0' = null[]{{}} ()
             in (pnn, g)
          | Some p0' -> let (pnn
                            , g) = let v4' = 1
@@ -2674,8 +2674,8 @@ cogent_sn73nn (pnn, g) =
          and pnn @{ @v1' = p0' } = v'
          and v2' = p0'
          and () = ()
-         in notNull[(CPtr U32)!]{{}} p0'
-            | Nothing -> let p0' = cogent_NULL
+         in roNotNull[(CPtr U32)!]{{}} p0'
+            | Nothing -> let p0' = roNull[]{{}} ()
                in ((), g)
             | Some p0' -> let (()
                               , g) = let v4' = 1
@@ -2699,7 +2699,7 @@ cogent_sn74nl (pnn, pnl) =
       and v2' = p0'
       and pnn = pnn @{ @v1' = p0' }
       in notNull[CPtr U32]{{}} p0'
-         | Nothing -> let p0' = cogent_NULL
+         | Nothing -> let p0' = null[]{{}} ()
             in (pnn, pnl)
          | Some p0' -> let (pnn
                            , pnl) = let v4' = 1
@@ -2721,8 +2721,8 @@ cogent_sn74nn (pnn, qnn) =
             and pnn @{ @v1' = p0' } = v'
             and v2' = p0'
             and () = ()
-            in notNull[(CPtr U32)!]{{}} p0'
-               | Nothing -> let p0' = cogent_NULL
+            in roNotNull[(CPtr U32)!]{{}} p0'
+               | Nothing -> let p0' = roNull[]{{}} ()
                   and c' = 0
                   in (c', (), qnn)
                | Some p0' -> let (c'
@@ -2753,8 +2753,8 @@ cogent_sn75nl (pnn, qnl, i) =
          and pnn @{ @v1' = p0' } = v'
          and v2' = p0'
          and () = ()
-         in notNull[(CPtr U32)!]{{}} p0'
-            | Nothing -> let p0' = cogent_NULL
+         in roNotNull[(CPtr U32)!]{{}} p0'
+            | Nothing -> let p0' = roNull[]{{}} ()
                in ((), r')
             | Some p0' -> let (r'
                               , ()) = let v3' = cogent_fcnn
@@ -2779,8 +2779,8 @@ cogent_sn75nn (pnn, qnn, i) =
          and pnn @{ @v1' = p0' } = v'
          and v2' = p0'
          and () = ()
-         in notNull[(CPtr U32)!]{{}} p0'
-            | Nothing -> let p0' = cogent_NULL
+         in roNotNull[(CPtr U32)!]{{}} p0'
+            | Nothing -> let p0' = roNull[]{{}} ()
                in ((), r')
             | Some p0' -> let (r'
                               , ()) = let v3' = cogent_fcnn
@@ -2793,7 +2793,7 @@ cogent_sn75nn (pnn, qnn, i) =
                            and () = ()
                            in (v7', ())
                         else let v8' = qnn
-                           and v8' = mayNull[(CPtr U32)!]{{}} v8'
+                           and v8' = roMayNull[(CPtr U32)!]{{}} v8'
                            in (v8', ())
                   and v10' = v3' (gencotDummy "MayNull expression used in not-null context")
                   in (v10', ())
@@ -2837,7 +2837,7 @@ cogent_sn91nl : ( Struct_Cogent_nns1, MayNull (CPtr U32) ) -> ( (), Struct_Cogen
 cogent_sn91nl (pnn, qnl) =
    let pnn = let v' = qnl
       in notNull[CPtr U32]{{}} qnl
-         | Nothing -> let qnl = cogent_NULL
+         | Nothing -> let qnl = null[]{{}} ()
             in pnn
          | Some qnl -> let pnn = let v1' = qnl
                and v2' = pnn
@@ -2852,7 +2852,7 @@ cogent_sn91nn : ( Struct_Cogent_nns1, MayNull (CPtr U32) ) -> ( (), Struct_Cogen
 cogent_sn91nn (pnn, qnl) =
    let pnn = let v' = qnl
       in notNull[CPtr U32]{{}} qnl
-         | Nothing -> let qnl = cogent_NULL
+         | Nothing -> let qnl = null[]{{}} ()
             in pnn
          | Some qnl -> let pnn = let v1' = qnl
                and v2' = pnn
@@ -2867,7 +2867,7 @@ cogent_sn92nl : ( Cogent_nna3, MayNull (CPtr U32) ) -> ( (), Cogent_nna3, MayNul
 cogent_sn92nl (pnl, qnl) =
    let pnl = let v' = qnl
       in notNull[CPtr U32]{{}} qnl
-         | Nothing -> let qnl = cogent_NULL
+         | Nothing -> let qnl = null[]{{}} ()
             in pnl
          | Some qnl -> let pnl = let v1' = qnl
                and v3' = 1
@@ -2883,7 +2883,7 @@ cogent_sn92nn : ( Cogent_nna2, MayNull (CPtr U32) ) -> ( (), Cogent_nna2, MayNul
 cogent_sn92nn (pnl, qnl) =
    let pnl = let v' = qnl
       in notNull[CPtr U32]{{}} qnl
-         | Nothing -> let qnl = cogent_NULL
+         | Nothing -> let qnl = null[]{{}} ()
             in pnl
          | Some qnl -> let pnl = let v1' = qnl
                and v3' = 1
@@ -2909,9 +2909,9 @@ cogent_cn11 (pnl, i) =
          and v11' = v9' v10'
          in if v2'
             then
-               let v3' = pnl /= cogent_NULL
+               let v3' = pnl /= null[]{{}} ()
                in notNull[CPtr U32]{{}} pnl
-                  | Nothing -> let pnl = cogent_NULL
+                  | Nothing -> let pnl = null[]{{}} ()
                      in v11'
                   | Some pnl -> let v6' = cogent_fcnn
                      and v7' = pnl
@@ -2937,9 +2937,9 @@ cogent_cn12 (pnl, i) =
          and v16' = v14' v15'
          in if v7'
             then
-               let v8' = pnl /= cogent_NULL
+               let v8' = pnl /= null[]{{}} ()
                in notNull[CPtr U32]{{}} pnl
-                  | Nothing -> let pnl = cogent_NULL
+                  | Nothing -> let pnl = null[]{{}} ()
                      in v16'
                   | Some pnl -> let v11' = cogent_fcnn
                      and v12' = pnl
@@ -2959,9 +2959,9 @@ cogent_cn13 (pnl, i) =
          and v16' = v14' v15'
          in if v2'
             then
-               let v3' = pnl /= cogent_NULL
+               let v3' = pnl /= null[]{{}} ()
                in notNull[CPtr U32]{{}} pnl
-                  | Nothing -> let pnl = cogent_NULL
+                  | Nothing -> let pnl = null[]{{}} ()
                      in v16'
                   | Some pnl -> let v6' = i
                      and v7' = 20
@@ -2987,9 +2987,9 @@ cogent_cn14 (pnl, i) =
          and v17' = v15' v16'
          in if v2'
             then
-               let v3' = pnl /= cogent_NULL
+               let v3' = pnl /= null[]{{}} ()
                in notNull[CPtr U32]{{}} pnl
-                  | Nothing -> let pnl = cogent_NULL
+                  | Nothing -> let pnl = null[]{{}} ()
                      in (v17', pnl)
                   | Some pnl -> let v6' = pnl
                      and pnl { cont = p0' } = v6'
@@ -3018,7 +3018,7 @@ cogent_cn15 (pnl, i) =
          and v16' = pnl
          and v17' = v15' v16'
          in notNull[CPtr U32]{{}} pnl
-            | Nothing -> let pnl = cogent_NULL
+            | Nothing -> let pnl = null[]{{}} ()
                in (v17', pnl)
             | Some pnl -> let v1' = i
                and v2' = 5
@@ -3055,9 +3055,9 @@ cogent_cn16 (pnl, i) =
          in if v2'
             then v8'
             else
-               let v3' = pnl /= cogent_NULL
+               let v3' = pnl /= null[]{{}} ()
                in notNull[CPtr U32]{{}} pnl
-                  | Nothing -> let pnl = cogent_NULL
+                  | Nothing -> let pnl = null[]{{}} ()
                      and v9' = cogent_fcnl
                      and v10' = pnl
                      and v11' = v9' v10'
@@ -3068,13 +3068,13 @@ cogent_cn16 (pnl, i) =
 cogent_cn17 : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
 cogent_cn17 (pnl, i) =
    let r' = let v14' = let v' = pnl
-         and v1' = cogent_NULL
+         and v1' = null[]{{}} ()
          and v2' = v' == v1'
          and v8' = cogent_fcnl
          and v9' = pnl
          and v10' = v8' v9'
          in notNull[CPtr U32]{{}} pnl
-            | Nothing -> let pnl = cogent_NULL
+            | Nothing -> let pnl = null[]{{}} ()
                in v10'
             | Some pnl -> let v3' = i
                and v4' = 5
@@ -3099,11 +3099,11 @@ cogent_cn18 (pnl, i) =
          and v16' = v14' v15'
          in if v2'
             then (v16', pnl)
-            else let v3' = cogent_NULL
+            else let v3' = null[]{{}} ()
                and v4' = pnl
                and v5' = v3' == v4'
                in notNull[CPtr U32]{{}} pnl
-                  | Nothing -> let pnl = cogent_NULL
+                  | Nothing -> let pnl = null[]{{}} ()
                      in (v16', pnl)
                   | Some pnl -> let v8' = pnl
                      and pnl { cont = p0' } = v8'
@@ -3133,7 +3133,7 @@ cogent_cn19 (pnl, i) =
          in if v2'
             then v9'
             else let v3' = pnl
-               and v4' = not (v3' /= cogent_NULL)
+               and v4' = not (v3' /= null[]{{}} ())
                in if v4'
                   then v9'
                   else let v10' = cogent_fcnn
@@ -3155,11 +3155,11 @@ cogent_cn21 (pnl, qnl, i) =
          and v16' = v14' v15'
          and v17' = v13' + v16'
          in notNull[CPtr U32]{{}} pnl
-            | Nothing -> let pnl = cogent_NULL
+            | Nothing -> let pnl = null[]{{}} ()
                in v17'
-            | Some pnl -> let v1' = qnl /= cogent_NULL
+            | Some pnl -> let v1' = qnl /= null[]{{}} ()
                in notNull[CPtr U32]{{}} qnl
-                  | Nothing -> let qnl = cogent_NULL
+                  | Nothing -> let qnl = null[]{{}} ()
                      in v17'
                   | Some qnl -> let v4' = cogent_fcnn
                      and v5' = pnl
@@ -3186,13 +3186,13 @@ cogent_cn22 (pnl, qnl, i) =
          and v22' = v18' + v21'
          in if v2'
             then
-               let v3' = pnl /= cogent_NULL
+               let v3' = pnl /= null[]{{}} ()
                in notNull[CPtr U32]{{}} pnl
-                  | Nothing -> let pnl = cogent_NULL
+                  | Nothing -> let pnl = null[]{{}} ()
                      in v22'
-                  | Some pnl -> let v6' = qnl /= cogent_NULL
+                  | Some pnl -> let v6' = qnl /= null[]{{}} ()
                      in notNull[CPtr U32]{{}} qnl
-                        | Nothing -> let qnl = cogent_NULL
+                        | Nothing -> let qnl = null[]{{}} ()
                            in v22'
                         | Some qnl -> let v9' = cogent_fcnn
                            and v10' = pnl
@@ -3217,16 +3217,16 @@ cogent_cn23 (pnl, qnl, i) =
          and v21' = v19' v20'
          and v22' = v18' + v21'
          in notNull[CPtr U32]{{}} pnl
-            | Nothing -> let pnl = cogent_NULL
+            | Nothing -> let pnl = null[]{{}} ()
                in v22'
             | Some pnl -> let v1' = i
                and v2' = 5
                and v3' = v1' > v2'
                in if v3'
                   then
-                     let v6' = qnl /= cogent_NULL
+                     let v6' = qnl /= null[]{{}} ()
                      in notNull[CPtr U32]{{}} qnl
-                        | Nothing -> let qnl = cogent_NULL
+                        | Nothing -> let qnl = null[]{{}} ()
                            in v22'
                         | Some qnl -> let v9' = cogent_fcnn
                            and v10' = pnl
@@ -3251,11 +3251,11 @@ cogent_cn24 (pnl, qnl, i) =
          and v21' = v19' v20'
          and v22' = v18' + v21'
          in notNull[CPtr U32]{{}} pnl
-            | Nothing -> let pnl = cogent_NULL
+            | Nothing -> let pnl = null[]{{}} ()
                in v22'
-            | Some pnl -> let v1' = qnl /= cogent_NULL
+            | Some pnl -> let v1' = qnl /= null[]{{}} ()
                in notNull[CPtr U32]{{}} qnl
-                  | Nothing -> let qnl = cogent_NULL
+                  | Nothing -> let qnl = null[]{{}} ()
                      in v22'
                   | Some qnl -> let v4' = i
                      and v5' = 5
@@ -3283,10 +3283,10 @@ cogent_cn25 (pnl, qnl, i) =
          and v9' = v7' v8'
          and v10' = v6' + v9'
          in notNull[CPtr U32]{{}} pnl
-            | Nothing -> let pnl = cogent_NULL
-               and v1' = qnl /= cogent_NULL
+            | Nothing -> let pnl = null[]{{}} ()
+               and v1' = qnl /= null[]{{}} ()
                in notNull[CPtr U32]{{}} qnl
-                  | Nothing -> let qnl = cogent_NULL
+                  | Nothing -> let qnl = null[]{{}} ()
                      and v11' = cogent_fcnl
                      and v12' = pnl
                      and v13' = v11' v12'
@@ -3302,7 +3302,7 @@ cogent_cn25 (pnl, qnl, i) =
 cogent_cn26 : ( MayNull (CPtr U32), MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32) )
 cogent_cn26 (pnl, qnl, i) =
    let r' = let v22' = let v' = pnl
-         and v1' = cogent_NULL
+         and v1' = null[]{{}} ()
          and v2' = v' == v1'
          and v8' = cogent_fcnl
          and v9' = pnl
@@ -3312,13 +3312,13 @@ cogent_cn26 (pnl, qnl, i) =
          and v13' = v11' v12'
          and v14' = v10' + v13'
          in notNull[CPtr U32]{{}} pnl
-            | Nothing -> let pnl = cogent_NULL
+            | Nothing -> let pnl = null[]{{}} ()
                in v14'
             | Some pnl -> let v3' = qnl
-               and v4' = cogent_NULL
+               and v4' = null[]{{}} ()
                and v5' = v3' == v4'
                in notNull[CPtr U32]{{}} qnl
-                  | Nothing -> let qnl = cogent_NULL
+                  | Nothing -> let qnl = null[]{{}} ()
                      in v14'
                   | Some qnl -> let v15' = cogent_fcnn
                      and v16' = pnl
@@ -3335,7 +3335,7 @@ cogent_cn27 (pnl, qnl, i) =
    let (r', pnl, qnl) = let (v32'
                             , pnl
                             , qnl) = let v' = pnl
-         and v1' = cogent_NULL
+         and v1' = null[]{{}} ()
          and v2' = v' == v1'
          and v18' = cogent_fcnl
          and v19' = pnl
@@ -3345,7 +3345,7 @@ cogent_cn27 (pnl, qnl, i) =
          and v23' = v21' v22'
          and v24' = v20' + v23'
          in notNull[CPtr U32]{{}} pnl
-            | Nothing -> let pnl = cogent_NULL
+            | Nothing -> let pnl = null[]{{}} ()
                in (v24', pnl, qnl)
             | Some pnl -> let (v15'
                               , ()
@@ -3358,9 +3358,9 @@ cogent_cn27 (pnl, qnl, i) =
                      and v14' = False
                      in if v6'
                         then
-                           let v7' = qnl /= cogent_NULL
+                           let v7' = qnl /= null[]{{}} ()
                            in notNull[CPtr U32]{{}} qnl
-                              | Nothing -> let qnl = cogent_NULL
+                              | Nothing -> let qnl = null[]{{}} ()
                                  in (v14', (), qnl)
                               | Some qnl -> let v10' = qnl
                                  and qnl { cont = p1' } = v10'
@@ -3399,9 +3399,9 @@ cogent_cn31 (pnl, i) =
          in v11'
       in if v2'
          then
-            let v3' = pnl /= cogent_NULL
+            let v3' = pnl /= null[]{{}} ()
             in notNull[CPtr U32]{{}} pnl
-               | Nothing -> let pnl = cogent_NULL
+               | Nothing -> let pnl = null[]{{}} ()
                   in r'
                | Some pnl -> let r' = let v6' = cogent_fcnn
                      and v7' = pnl
@@ -3426,9 +3426,9 @@ cogent_cn32 (pnl, i) =
          and c' = 0
          in if v7'
             then
-               let v8' = pnl /= cogent_NULL
+               let v8' = pnl /= null[]{{}} ()
                in notNull[CPtr U32]{{}} pnl
-                  | Nothing -> let pnl = cogent_NULL
+                  | Nothing -> let pnl = null[]{{}} ()
                      in (c', r')
                   | Some pnl -> let (c'
                                     , r') = let v11' = cogent_fcnn
@@ -3458,9 +3458,9 @@ cogent_cn33 (pnl, i) =
          in v16'
       in if v2'
          then
-            let v3' = pnl /= cogent_NULL
+            let v3' = pnl /= null[]{{}} ()
             in notNull[CPtr U32]{{}} pnl
-               | Nothing -> let pnl = cogent_NULL
+               | Nothing -> let pnl = null[]{{}} ()
                   in r'
                | Some pnl -> let v6' = i
                   and v7' = 20
@@ -3487,9 +3487,9 @@ cogent_cn34 (pnl, i) =
          in v17'
       in if v2'
          then
-            let v3' = pnl /= cogent_NULL
+            let v3' = pnl /= null[]{{}} ()
             in notNull[CPtr U32]{{}} pnl
-               | Nothing -> let pnl = cogent_NULL
+               | Nothing -> let pnl = null[]{{}} ()
                   in (pnl, r')
                | Some pnl -> let v6' = pnl
                   and pnl { cont = p0' } = v6'
@@ -3519,7 +3519,7 @@ cogent_cn35 (pnl, i) =
          and v17' = v15' v16'
          in v17'
       in notNull[CPtr U32]{{}} pnl
-         | Nothing -> let pnl = cogent_NULL
+         | Nothing -> let pnl = null[]{{}} ()
             in (pnl, r')
          | Some pnl -> let v1' = i
             and v2' = 5
@@ -3558,9 +3558,9 @@ cogent_cn36 (pnl, i) =
       in if v2'
          then r'
          else
-            let v3' = pnl /= cogent_NULL
+            let v3' = pnl /= null[]{{}} ()
             in notNull[CPtr U32]{{}} pnl
-               | Nothing -> let pnl = cogent_NULL
+               | Nothing -> let pnl = null[]{{}} ()
                   and r' = let v9' = cogent_fcnl
                      and v10' = pnl
                      and v11' = v9' v10'
@@ -3571,14 +3571,14 @@ cogent_cn36 (pnl, i) =
 cogent_cn37 : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
 cogent_cn37 (pnl, i) =
    let r' = let v' = pnl
-      and v1' = cogent_NULL
+      and v1' = null[]{{}} ()
       and v2' = v' == v1'
       and r' = let v8' = cogent_fcnl
          and v9' = pnl
          and v10' = v8' v9'
          in v10'
       in notNull[CPtr U32]{{}} pnl
-         | Nothing -> let pnl = cogent_NULL
+         | Nothing -> let pnl = null[]{{}} ()
             in r'
          | Some pnl -> let v3' = i
             and v4' = 5
@@ -3604,11 +3604,11 @@ cogent_cn38 (pnl, i) =
          in v16'
       in if v2'
          then (pnl, r')
-         else let v3' = cogent_NULL
+         else let v3' = null[]{{}} ()
             and v4' = pnl
             and v5' = v3' == v4'
             in notNull[CPtr U32]{{}} pnl
-               | Nothing -> let pnl = cogent_NULL
+               | Nothing -> let pnl = null[]{{}} ()
                   in (pnl, r')
                | Some pnl -> let v8' = pnl
                   and pnl { cont = p0' } = v8'
@@ -3640,7 +3640,7 @@ cogent_cn39 (pnl, i) =
       in if v2'
          then r'
          else let v3' = pnl
-            and v4' = not (v3' /= cogent_NULL)
+            and v4' = not (v3' /= null[]{{}} ())
             in if v4'
                then r'
                else
@@ -3664,11 +3664,11 @@ cogent_cn41 (pnl, qnl, i) =
          and v17' = v13' + v16'
          in v17'
       in notNull[CPtr U32]{{}} pnl
-         | Nothing -> let pnl = cogent_NULL
+         | Nothing -> let pnl = null[]{{}} ()
             in r'
-         | Some pnl -> let v1' = qnl /= cogent_NULL
+         | Some pnl -> let v1' = qnl /= null[]{{}} ()
             in notNull[CPtr U32]{{}} qnl
-               | Nothing -> let qnl = cogent_NULL
+               | Nothing -> let qnl = null[]{{}} ()
                   in r'
                | Some qnl -> let r' = let v4' = cogent_fcnn
                      and v5' = pnl
@@ -3696,13 +3696,13 @@ cogent_cn42 (pnl, qnl, i) =
          in v22'
       in if v2'
          then
-            let v3' = pnl /= cogent_NULL
+            let v3' = pnl /= null[]{{}} ()
             in notNull[CPtr U32]{{}} pnl
-               | Nothing -> let pnl = cogent_NULL
+               | Nothing -> let pnl = null[]{{}} ()
                   in r'
-               | Some pnl -> let v6' = qnl /= cogent_NULL
+               | Some pnl -> let v6' = qnl /= null[]{{}} ()
                   in notNull[CPtr U32]{{}} qnl
-                     | Nothing -> let qnl = cogent_NULL
+                     | Nothing -> let qnl = null[]{{}} ()
                         in r'
                      | Some qnl -> let r' = let v9' = cogent_fcnn
                            and v10' = pnl
@@ -3728,16 +3728,16 @@ cogent_cn43 (pnl, qnl, i) =
          and v22' = v18' + v21'
          in v22'
       in notNull[CPtr U32]{{}} pnl
-         | Nothing -> let pnl = cogent_NULL
+         | Nothing -> let pnl = null[]{{}} ()
             in r'
          | Some pnl -> let v1' = i
             and v2' = 5
             and v3' = v1' > v2'
             in if v3'
                then
-                  let v6' = qnl /= cogent_NULL
+                  let v6' = qnl /= null[]{{}} ()
                   in notNull[CPtr U32]{{}} qnl
-                     | Nothing -> let qnl = cogent_NULL
+                     | Nothing -> let qnl = null[]{{}} ()
                         in r'
                      | Some qnl -> let r' = let v9' = cogent_fcnn
                            and v10' = pnl
@@ -3763,11 +3763,11 @@ cogent_cn44 (pnl, qnl, i) =
          and v22' = v18' + v21'
          in v22'
       in notNull[CPtr U32]{{}} pnl
-         | Nothing -> let pnl = cogent_NULL
+         | Nothing -> let pnl = null[]{{}} ()
             in r'
-         | Some pnl -> let v1' = qnl /= cogent_NULL
+         | Some pnl -> let v1' = qnl /= null[]{{}} ()
             in notNull[CPtr U32]{{}} qnl
-               | Nothing -> let qnl = cogent_NULL
+               | Nothing -> let qnl = null[]{{}} ()
                   in r'
                | Some qnl -> let v4' = i
                   and v5' = 5
@@ -3797,10 +3797,10 @@ cogent_cn45 (pnl, qnl, i) =
          and v10' = v6' + v9'
          in v10'
       in notNull[CPtr U32]{{}} pnl
-         | Nothing -> let pnl = cogent_NULL
-            and v1' = qnl /= cogent_NULL
+         | Nothing -> let pnl = null[]{{}} ()
+            and v1' = qnl /= null[]{{}} ()
             in notNull[CPtr U32]{{}} qnl
-               | Nothing -> let qnl = cogent_NULL
+               | Nothing -> let qnl = null[]{{}} ()
                   and r' = let v11' = cogent_fcnl
                      and v12' = pnl
                      and v13' = v11' v12'
@@ -3816,7 +3816,7 @@ cogent_cn45 (pnl, qnl, i) =
 cogent_cn46 : ( MayNull (CPtr U32), MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32) )
 cogent_cn46 (pnl, qnl, i) =
    let r' = let v' = pnl
-      and v1' = cogent_NULL
+      and v1' = null[]{{}} ()
       and v2' = v' == v1'
       and r' = let v8' = cogent_fcnl
          and v9' = pnl
@@ -3827,13 +3827,13 @@ cogent_cn46 (pnl, qnl, i) =
          and v14' = v10' + v13'
          in v14'
       in notNull[CPtr U32]{{}} pnl
-         | Nothing -> let pnl = cogent_NULL
+         | Nothing -> let pnl = null[]{{}} ()
             in r'
          | Some pnl -> let v3' = qnl
-            and v4' = cogent_NULL
+            and v4' = null[]{{}} ()
             and v5' = v3' == v4'
             in notNull[CPtr U32]{{}} qnl
-               | Nothing -> let qnl = cogent_NULL
+               | Nothing -> let qnl = null[]{{}} ()
                   in r'
                | Some qnl -> let r' = let v15' = cogent_fcnn
                      and v16' = pnl
@@ -3850,7 +3850,7 @@ cogent_cn47 (pnl, qnl, i) =
    let (pnl
        , qnl
        , r') = let v' = pnl
-      and v1' = cogent_NULL
+      and v1' = null[]{{}} ()
       and v2' = v' == v1'
       and r' = let v18' = cogent_fcnl
          and v19' = pnl
@@ -3861,7 +3861,7 @@ cogent_cn47 (pnl, qnl, i) =
          and v24' = v20' + v23'
          in v24'
       in notNull[CPtr U32]{{}} pnl
-         | Nothing -> let pnl = cogent_NULL
+         | Nothing -> let pnl = null[]{{}} ()
             in (pnl, qnl, r')
          | Some pnl -> let (v15'
                            , ()
@@ -3874,9 +3874,9 @@ cogent_cn47 (pnl, qnl, i) =
                   and v14' = False
                   in if v6'
                      then
-                        let v7' = qnl /= cogent_NULL
+                        let v7' = qnl /= null[]{{}} ()
                         in notNull[CPtr U32]{{}} qnl
-                           | Nothing -> let qnl = cogent_NULL
+                           | Nothing -> let qnl = null[]{{}} ()
                               in (v14', (), qnl)
                            | Some qnl -> let v10' = qnl
                               and qnl { cont = p1' } = v10'
@@ -3911,7 +3911,7 @@ cogent_mn11 pnl =
    let (r', pnl) = let (v14'
                        , pnl) = let v' = pnl
          in notNull[CPtr U32]{{}} pnl
-            | Nothing -> let pnl = cogent_NULL
+            | Nothing -> let pnl = null[]{{}} ()
                and v11' = cogent_fcnl
                and v12' = pnl
                and v13' = v11' v12'
@@ -3920,7 +3920,7 @@ cogent_mn11 pnl =
                and pnl { cont = p0' } = v1'
                and v2' = p0'
                and pnl = pnl { cont = p0' }
-               and v3' = cogent_NULL
+               and v3' = null[]{{}} ()
                and v5' = v3'
                and pnl = v5'
                and v7' = cogent_fcnl
@@ -3934,7 +3934,7 @@ cogent_mn12 : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
 cogent_mn12 (pnl, i) =
    let (pnl, r') = let v' = pnl
       in notNull[CPtr U32]{{}} pnl
-         | Nothing -> let pnl = cogent_NULL
+         | Nothing -> let pnl = null[]{{}} ()
             and r' = let v21' = cogent_fcnl
                and v22' = pnl
                and v23' = v21' v22'
@@ -3967,7 +3967,7 @@ cogent_mn12 (pnl, i) =
                               let pnl = mayNull[CPtr U32]{{}} pnl
                               in (pnl, r')
                            else let (pnl, r') = let (c'
-                                                    , pnl) = let v12' = cogent_NULL
+                                                    , pnl) = let v12' = null[]{{}} ()
                                     and v14' = v12'
                                     and pnl = v14'
                                     in (0, pnl)

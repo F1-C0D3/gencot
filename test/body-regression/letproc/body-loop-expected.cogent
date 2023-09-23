@@ -5,11 +5,17 @@ cogent_lf1 (a, b) =
            , _) = repeat[( U8, U32, U32 )
                         , U32]{{}} #{ n = b
                                     , stop = \#{ acc = (c', a, i)
-                                               , obsv = b } => c' > 1 || not (i < b)
+                                               , obsv = b } => c' > 1
                                     , step = \#{ acc = (_, a, i)
-                                               , obsv = b } => if 0 > 1
-                                    then (0, a * 2, i)
-                                    else (0, a * 2, i + 1)
+                                               , obsv = b } => if (if i < b
+                                       then 0
+                                       else 2) > 1
+                                    then (if i < b then 0 else 2
+                                         , if i < b then a * 2 else a
+                                         , i)
+                                    else (0
+                                         , if i < b then a * 2 else a
+                                         , i + 1)
                                     , acc = (0, a, 0)
                                     , obsv = b }
       in if c' == 2
@@ -21,11 +27,17 @@ cogent_lf1 (a, b) =
             , _) = repeat[( U8, U32, U32 )
                          , U32]{{}} #{ n = b
                                      , stop = \#{ acc = (c', a, i)
-                                                , obsv = b } => c' > 1 || not (i < b)
+                                                , obsv = b } => c' > 1
                                      , step = \#{ acc = (_, a, i)
-                                                , obsv = b } => if 0 > 1
-                                     then (0, a * 2, i)
-                                     else (0, a * 2, i + 1)
+                                                , obsv = b } => if (if i < b
+                                        then 0
+                                        else 2) > 1
+                                     then (if i < b then 0 else 2
+                                          , if i < b then a * 2 else a
+                                          , i)
+                                     else (0
+                                          , if i < b then a * 2 else a
+                                          , i + 1)
                                      , acc = (0, a, 0)
                                      , obsv = b }
       in a
@@ -35,10 +47,12 @@ cogent_lf2 i =
            , _) = repeat[( U8, U32 )
                         , ()]{{}} #{ n = 5
                                    , stop = \#{ acc = (c', i)
-                                              , obsv = () } => c' > 1 || not (i < 5)
+                                              , obsv = () } => c' > 1
                                    , step = \#{ acc = (_, i)
-                                              , obsv = () } => if 0 > 1
-                                   then (0, i)
+                                              , obsv = () } => if (if i < 5
+                                      then 0
+                                      else 2) > 1
+                                   then (if i < 5 then 0 else 2, i)
                                    else (0, i + 1)
                                    , acc = (0, i)
                                    , obsv = () }
@@ -50,10 +64,12 @@ cogent_lf2 i =
             , i) = repeat[( U8, U32 )
                          , ()]{{}} #{ n = 5
                                     , stop = \#{ acc = (c', i)
-                                               , obsv = () } => c' > 1 || not (i < 5)
+                                               , obsv = () } => c' > 1
                                     , step = \#{ acc = (_, i)
-                                               , obsv = () } => if 0 > 1
-                                    then (0, i)
+                                               , obsv = () } => if (if i < 5
+                                       then 0
+                                       else 2) > 1
+                                    then (if i < 5 then 0 else 2, i)
                                     else (0, i + 1)
                                     , acc = (0, i)
                                     , obsv = () }
@@ -64,10 +80,12 @@ cogent_lf3 i =
            , _) = repeat[( U8, U32 )
                         , ()]{{}} #{ n = 5
                                    , stop = \#{ acc = (c', i)
-                                              , obsv = () } => c' > 1 || not (i < 5)
+                                              , obsv = () } => c' > 1
                                    , step = \#{ acc = (_, i)
-                                              , obsv = () } => if 1 > 1
-                                   then (1, i)
+                                              , obsv = () } => if (if i < 5
+                                      then 1
+                                      else 2) > 1
+                                   then (if i < 5 then 1 else 2, i)
                                    else (0, i + 1)
                                    , acc = (0, i)
                                    , obsv = () }
@@ -79,10 +97,12 @@ cogent_lf3 i =
             , i) = repeat[( U8, U32 )
                          , ()]{{}} #{ n = 5
                                     , stop = \#{ acc = (c', i)
-                                               , obsv = () } => c' > 1 || not (i < 5)
+                                               , obsv = () } => c' > 1
                                     , step = \#{ acc = (_, i)
-                                               , obsv = () } => if 1 > 1
-                                    then (1, i)
+                                               , obsv = () } => if (if i < 5
+                                       then 1
+                                       else 2) > 1
+                                    then (if i < 5 then 1 else 2, i)
                                     else (0, i + 1)
                                     , acc = (0, i)
                                     , obsv = () }
@@ -93,10 +113,12 @@ cogent_lf4 i =
            , _) = repeat[( U8, U32 )
                         , ()]{{}} #{ n = 5
                                    , stop = \#{ acc = (c', i)
-                                              , obsv = () } => c' > 1 || not (i < 5)
+                                              , obsv = () } => c' > 1
                                    , step = \#{ acc = (_, i)
-                                              , obsv = () } => if 2 > 1
-                                   then (2, i)
+                                              , obsv = () } => if (if i < 5
+                                      then 2
+                                      else 2) > 1
+                                   then (if i < 5 then 2 else 2, i)
                                    else (0, i + 1)
                                    , acc = (0, i)
                                    , obsv = () }
@@ -108,10 +130,12 @@ cogent_lf4 i =
             , i) = repeat[( U8, U32 )
                          , ()]{{}} #{ n = 5
                                     , stop = \#{ acc = (c', i)
-                                               , obsv = () } => c' > 1 || not (i < 5)
+                                               , obsv = () } => c' > 1
                                     , step = \#{ acc = (_, i)
-                                               , obsv = () } => if 2 > 1
-                                    then (2, i)
+                                               , obsv = () } => if (if i < 5
+                                       then 2
+                                       else 2) > 1
+                                    then (if i < 5 then 2 else 2, i)
                                     else (0, i + 1)
                                     , acc = (0, i)
                                     , obsv = () }
@@ -123,11 +147,17 @@ cogent_lf5 i =
            , _) = repeat[( U8, U32, U32 )
                         , ()]{{}} #{ n = 5
                                    , stop = \#{ acc = (c', r', i)
-                                              , obsv = () } => c' > 1 || not (i < 5)
+                                              , obsv = () } => c' > 1
                                    , step = \#{ acc = (_, r', i)
-                                              , obsv = () } => if 3 > 1
-                                   then (3, i, i)
-                                   else (0, i, i + 1)
+                                              , obsv = () } => if (if i < 5
+                                      then 3
+                                      else 2) > 1
+                                   then (if i < 5 then 3 else 2
+                                        , if i < 5 then i else r'
+                                        , i)
+                                   else (0
+                                        , if i < 5 then i else r'
+                                        , i + 1)
                                    , acc = (0, r', i)
                                    , obsv = () }
       in if c' == 2
@@ -138,11 +168,17 @@ cogent_lf5 i =
             , _) = repeat[( U8, U32, U32 )
                          , ()]{{}} #{ n = 5
                                     , stop = \#{ acc = (c', r', i)
-                                               , obsv = () } => c' > 1 || not (i < 5)
+                                               , obsv = () } => c' > 1
                                     , step = \#{ acc = (_, r', i)
-                                               , obsv = () } => if 3 > 1
-                                    then (3, i, i)
-                                    else (0, i, i + 1)
+                                               , obsv = () } => if (if i < 5
+                                       then 3
+                                       else 2) > 1
+                                    then (if i < 5 then 3 else 2
+                                         , if i < 5 then i else r'
+                                         , i)
+                                    else (0
+                                         , if i < 5 then i else r'
+                                         , i + 1)
                                     , acc = (0, r', i)
                                     , obsv = () }
       in r'
@@ -151,11 +187,17 @@ cogent_lf5 i =
             , i) = repeat[( U8, U32, U32 )
                          , ()]{{}} #{ n = 5
                                     , stop = \#{ acc = (c', r', i)
-                                               , obsv = () } => c' > 1 || not (i < 5)
+                                               , obsv = () } => c' > 1
                                     , step = \#{ acc = (_, r', i)
-                                               , obsv = () } => if 3 > 1
-                                    then (3, i, i)
-                                    else (0, i, i + 1)
+                                               , obsv = () } => if (if i < 5
+                                       then 3
+                                       else 2) > 1
+                                    then (if i < 5 then 3 else 2
+                                         , if i < 5 then i else r'
+                                         , i)
+                                    else (0
+                                         , if i < 5 then i else r'
+                                         , i + 1)
                                     , acc = (0, r', i)
                                     , obsv = () }
       in i
@@ -165,10 +207,13 @@ cogent_lf6 i =
            , _) = repeat[( U8, U32 )
                         , ()]{{}} #{ n = 5 + 1
                                    , stop = \#{ acc = (c', i)
-                                              , obsv = () } => c' > 1 || not (i <= 5)
+                                              , obsv = () } => c' > 1
                                    , step = \#{ acc = (_, i)
-                                              , obsv = () } => if 0 > 1
-                                   then (0, i)
+                                              , obsv = () } => if (if i <= 5
+                                      then 0
+                                      else 2) > 1
+                                   then (if i <= 5 then 0 else 2
+                                        , i)
                                    else (0, i + 1)
                                    , acc = (0, i)
                                    , obsv = () }
@@ -180,10 +225,13 @@ cogent_lf6 i =
             , i) = repeat[( U8, U32 )
                          , ()]{{}} #{ n = 5 + 1
                                     , stop = \#{ acc = (c', i)
-                                               , obsv = () } => c' > 1 || not (i <= 5)
+                                               , obsv = () } => c' > 1
                                     , step = \#{ acc = (_, i)
-                                               , obsv = () } => if 0 > 1
-                                    then (0, i)
+                                               , obsv = () } => if (if i <= 5
+                                       then 0
+                                       else 2) > 1
+                                    then (if i <= 5 then 0 else 2
+                                         , i)
                                     else (0, i + 1)
                                     , acc = (0, i)
                                     , obsv = () }
@@ -194,10 +242,12 @@ cogent_lf7 i =
            , _) = repeat[( U8, U32 )
                         , ()]{{}} #{ n = 12
                                    , stop = \#{ acc = (c', i)
-                                              , obsv = () } => c' > 1 || not (i > 5)
+                                              , obsv = () } => c' > 1
                                    , step = \#{ acc = (_, i)
-                                              , obsv = () } => if 0 > 1
-                                   then (0, i)
+                                              , obsv = () } => if (if i > 5
+                                      then 0
+                                      else 2) > 1
+                                   then (if i > 5 then 0 else 2, i)
                                    else (0, i - 1)
                                    , acc = (0, 12)
                                    , obsv = () }
@@ -209,10 +259,12 @@ cogent_lf7 i =
             , i) = repeat[( U8, U32 )
                          , ()]{{}} #{ n = 12
                                     , stop = \#{ acc = (c', i)
-                                               , obsv = () } => c' > 1 || not (i > 5)
+                                               , obsv = () } => c' > 1
                                     , step = \#{ acc = (_, i)
-                                               , obsv = () } => if 0 > 1
-                                    then (0, i)
+                                               , obsv = () } => if (if i > 5
+                                       then 0
+                                       else 2) > 1
+                                    then (if i > 5 then 0 else 2, i)
                                     else (0, i - 1)
                                     , acc = (0, 12)
                                     , obsv = () }
@@ -223,10 +275,13 @@ cogent_lf8 i =
            , _) = repeat[( U8, U32 )
                         , ()]{{}} #{ n = 12 + 1
                                    , stop = \#{ acc = (c', i)
-                                              , obsv = () } => c' > 1 || not (i >= 5)
+                                              , obsv = () } => c' > 1
                                    , step = \#{ acc = (_, i)
-                                              , obsv = () } => if 0 > 1
-                                   then (0, i)
+                                              , obsv = () } => if (if i >= 5
+                                      then 0
+                                      else 2) > 1
+                                   then (if i >= 5 then 0 else 2
+                                        , i)
                                    else (0, i - 1)
                                    , acc = (0, 12)
                                    , obsv = () }
@@ -238,10 +293,13 @@ cogent_lf8 i =
             , i) = repeat[( U8, U32 )
                          , ()]{{}} #{ n = 12 + 1
                                     , stop = \#{ acc = (c', i)
-                                               , obsv = () } => c' > 1 || not (i >= 5)
+                                               , obsv = () } => c' > 1
                                     , step = \#{ acc = (_, i)
-                                               , obsv = () } => if 0 > 1
-                                    then (0, i)
+                                               , obsv = () } => if (if i >= 5
+                                       then 0
+                                       else 2) > 1
+                                    then (if i >= 5 then 0 else 2
+                                         , i)
                                     else (0, i - 1)
                                     , acc = (0, 12)
                                     , obsv = () }
@@ -252,10 +310,12 @@ cogent_lf9 i =
            , _) = repeat[( U8, U32 )
                         , ()]{{}} #{ n = 5
                                    , stop = \#{ acc = (c', i)
-                                              , obsv = () } => c' > 1 || not (i < 5)
+                                              , obsv = () } => c' > 1
                                    , step = \#{ acc = (_, i)
-                                              , obsv = () } => if 0 > 1
-                                   then (0, i)
+                                              , obsv = () } => if (if i < 5
+                                      then 0
+                                      else 2) > 1
+                                   then (if i < 5 then 0 else 2, i)
                                    else (0, i + 3)
                                    , acc = (0, i)
                                    , obsv = () }
@@ -267,10 +327,12 @@ cogent_lf9 i =
             , i) = repeat[( U8, U32 )
                          , ()]{{}} #{ n = 5
                                     , stop = \#{ acc = (c', i)
-                                               , obsv = () } => c' > 1 || not (i < 5)
+                                               , obsv = () } => c' > 1
                                     , step = \#{ acc = (_, i)
-                                               , obsv = () } => if 0 > 1
-                                    then (0, i)
+                                               , obsv = () } => if (if i < 5
+                                       then 0
+                                       else 2) > 1
+                                    then (if i < 5 then 0 else 2, i)
                                     else (0, i + 3)
                                     , acc = (0, i)
                                     , obsv = () }
@@ -281,10 +343,12 @@ cogent_lf10 i =
            , _) = repeat[( U8, U32 )
                         , ()]{{}} #{ n = 5
                                    , stop = \#{ acc = (c', i)
-                                              , obsv = () } => c' > 1 || not (i < 5)
+                                              , obsv = () } => c' > 1
                                    , step = \#{ acc = (_, i)
-                                              , obsv = () } => if 0 > 1
-                                   then (0, i)
+                                              , obsv = () } => if (if i < 5
+                                      then 0
+                                      else 2) > 1
+                                   then (if i < 5 then 0 else 2, i)
                                    else (0, i + 3)
                                    , acc = (0, i)
                                    , obsv = () }
@@ -296,10 +360,12 @@ cogent_lf10 i =
             , i) = repeat[( U8, U32 )
                          , ()]{{}} #{ n = 5
                                     , stop = \#{ acc = (c', i)
-                                               , obsv = () } => c' > 1 || not (i < 5)
+                                               , obsv = () } => c' > 1
                                     , step = \#{ acc = (_, i)
-                                               , obsv = () } => if 0 > 1
-                                    then (0, i)
+                                               , obsv = () } => if (if i < 5
+                                       then 0
+                                       else 2) > 1
+                                    then (if i < 5 then 0 else 2, i)
                                     else (0, i + 3)
                                     , acc = (0, i)
                                     , obsv = () }
@@ -310,10 +376,12 @@ cogent_lf11 i =
            , _) = repeat[( U8, U32 )
                         , ()]{{}} #{ n = 5
                                    , stop = \#{ acc = (c', i)
-                                              , obsv = () } => c' > 1 || not (i < 5)
+                                              , obsv = () } => c' > 1
                                    , step = \#{ acc = (_, i)
-                                              , obsv = () } => if 0 > 1
-                                   then (0, i)
+                                              , obsv = () } => if (if i < 5
+                                      then 0
+                                      else 2) > 1
+                                   then (if i < 5 then 0 else 2, i)
                                    else (0, 3 + i)
                                    , acc = (0, i)
                                    , obsv = () }
@@ -325,10 +393,12 @@ cogent_lf11 i =
             , i) = repeat[( U8, U32 )
                          , ()]{{}} #{ n = 5
                                     , stop = \#{ acc = (c', i)
-                                               , obsv = () } => c' > 1 || not (i < 5)
+                                               , obsv = () } => c' > 1
                                     , step = \#{ acc = (_, i)
-                                               , obsv = () } => if 0 > 1
-                                    then (0, i)
+                                               , obsv = () } => if (if i < 5
+                                       then 0
+                                       else 2) > 1
+                                    then (if i < 5 then 0 else 2, i)
                                     else (0, 3 + i)
                                     , acc = (0, i)
                                     , obsv = () }
@@ -339,10 +409,13 @@ cogent_lf12 i =
            , _) = repeat[( U8, U32 )
                         , ()]{{}} #{ n = 12 + 1
                                    , stop = \#{ acc = (c', i)
-                                              , obsv = () } => c' > 1 || not (i >= 5)
+                                              , obsv = () } => c' > 1
                                    , step = \#{ acc = (_, i)
-                                              , obsv = () } => if 0 > 1
-                                   then (0, i)
+                                              , obsv = () } => if (if i >= 5
+                                      then 0
+                                      else 2) > 1
+                                   then (if i >= 5 then 0 else 2
+                                        , i)
                                    else (0, i - 3)
                                    , acc = (0, 12)
                                    , obsv = () }
@@ -354,10 +427,13 @@ cogent_lf12 i =
             , i) = repeat[( U8, U32 )
                          , ()]{{}} #{ n = 12 + 1
                                     , stop = \#{ acc = (c', i)
-                                               , obsv = () } => c' > 1 || not (i >= 5)
+                                               , obsv = () } => c' > 1
                                     , step = \#{ acc = (_, i)
-                                               , obsv = () } => if 0 > 1
-                                    then (0, i)
+                                               , obsv = () } => if (if i >= 5
+                                       then 0
+                                       else 2) > 1
+                                    then (if i >= 5 then 0 else 2
+                                         , i)
                                     else (0, i - 3)
                                     , acc = (0, 12)
                                     , obsv = () }
@@ -368,10 +444,13 @@ cogent_lf13 i =
            , _) = repeat[( U8, U32 )
                         , ()]{{}} #{ n = 12 + 1
                                    , stop = \#{ acc = (c', i)
-                                              , obsv = () } => c' > 1 || not (i >= 5)
+                                              , obsv = () } => c' > 1
                                    , step = \#{ acc = (_, i)
-                                              , obsv = () } => if 0 > 1
-                                   then (0, i)
+                                              , obsv = () } => if (if i >= 5
+                                      then 0
+                                      else 2) > 1
+                                   then (if i >= 5 then 0 else 2
+                                        , i)
                                    else (0, i - 3)
                                    , acc = (0, 12)
                                    , obsv = () }
@@ -383,10 +462,13 @@ cogent_lf13 i =
             , i) = repeat[( U8, U32 )
                          , ()]{{}} #{ n = 12 + 1
                                     , stop = \#{ acc = (c', i)
-                                               , obsv = () } => c' > 1 || not (i >= 5)
+                                               , obsv = () } => c' > 1
                                     , step = \#{ acc = (_, i)
-                                               , obsv = () } => if 0 > 1
-                                    then (0, i)
+                                               , obsv = () } => if (if i >= 5
+                                       then 0
+                                       else 2) > 1
+                                    then (if i >= 5 then 0 else 2
+                                         , i)
                                     else (0, i - 3)
                                     , acc = (0, 12)
                                     , obsv = () }
@@ -397,10 +479,12 @@ cogent_lf14 (i, j) =
            , _) = repeat[( U8, U32 )
                         , U32]{{}} #{ n = j
                                     , stop = \#{ acc = (c', i)
-                                               , obsv = j } => c' > 1 || not (i < j)
+                                               , obsv = j } => c' > 1
                                     , step = \#{ acc = (_, i)
-                                               , obsv = j } => if 0 > 1
-                                    then (0, i)
+                                               , obsv = j } => if (if i < j
+                                       then 0
+                                       else 2) > 1
+                                    then (if i < j then 0 else 2, i)
                                     else (0, i + 1)
                                     , acc = (0, i)
                                     , obsv = j }
@@ -412,10 +496,12 @@ cogent_lf14 (i, j) =
             , i) = repeat[( U8, U32 )
                          , U32]{{}} #{ n = j
                                      , stop = \#{ acc = (c', i)
-                                                , obsv = j } => c' > 1 || not (i < j)
+                                                , obsv = j } => c' > 1
                                      , step = \#{ acc = (_, i)
-                                                , obsv = j } => if 0 > 1
-                                     then (0, i)
+                                                , obsv = j } => if (if i < j
+                                        then 0
+                                        else 2) > 1
+                                     then (if i < j then 0 else 2, i)
                                      else (0, i + 1)
                                      , acc = (0, i)
                                      , obsv = j }
@@ -426,10 +512,13 @@ cogent_lf15 i =
            , _) = repeat[( U8, U32 )
                         , ()]{{}} #{ n = 5
                                    , stop = \#{ acc = (c', i)
-                                              , obsv = () } => c' > 1 || not (i /= 5)
+                                              , obsv = () } => c' > 1
                                    , step = \#{ acc = (_, i)
-                                              , obsv = () } => if 0 > 1
-                                   then (0, i)
+                                              , obsv = () } => if (if i /= 5
+                                      then 0
+                                      else 2) > 1
+                                   then (if i /= 5 then 0 else 2
+                                        , i)
                                    else (0, i + 1)
                                    , acc = (0, 0)
                                    , obsv = () }
@@ -441,10 +530,13 @@ cogent_lf15 i =
             , i) = repeat[( U8, U32 )
                          , ()]{{}} #{ n = 5
                                     , stop = \#{ acc = (c', i)
-                                               , obsv = () } => c' > 1 || not (i /= 5)
+                                               , obsv = () } => c' > 1
                                     , step = \#{ acc = (_, i)
-                                               , obsv = () } => if 0 > 1
-                                    then (0, i)
+                                               , obsv = () } => if (if i /= 5
+                                       then 0
+                                       else 2) > 1
+                                    then (if i /= 5 then 0 else 2
+                                         , i)
                                     else (0, i + 1)
                                     , acc = (0, 0)
                                     , obsv = () }
@@ -455,10 +547,13 @@ cogent_lf16 i =
            , _) = repeat[( U8, U32 )
                         , ()]{{}} #{ n = 10
                                    , stop = \#{ acc = (c', i)
-                                              , obsv = () } => c' > 1 || not (i /= 5)
+                                              , obsv = () } => c' > 1
                                    , step = \#{ acc = (_, i)
-                                              , obsv = () } => if 0 > 1
-                                   then (0, i)
+                                              , obsv = () } => if (if i /= 5
+                                      then 0
+                                      else 2) > 1
+                                   then (if i /= 5 then 0 else 2
+                                        , i)
                                    else (0, i - 1)
                                    , acc = (0, 10)
                                    , obsv = () }
@@ -470,10 +565,13 @@ cogent_lf16 i =
             , i) = repeat[( U8, U32 )
                          , ()]{{}} #{ n = 10
                                     , stop = \#{ acc = (c', i)
-                                               , obsv = () } => c' > 1 || not (i /= 5)
+                                               , obsv = () } => c' > 1
                                     , step = \#{ acc = (_, i)
-                                               , obsv = () } => if 0 > 1
-                                    then (0, i)
+                                               , obsv = () } => if (if i /= 5
+                                       then 0
+                                       else 2) > 1
+                                    then (if i /= 5 then 0 else 2
+                                         , i)
                                     else (0, i - 1)
                                     , acc = (0, 10)
                                     , obsv = () }
@@ -529,3 +627,296 @@ cogent_lfe10 i =
    if gencotDummy "Unsupported form of for loop: No upper limit for iterations found" > 0
    then r'
    else i
+
+cogent_lfn1 : ( U32, MayNull (CPtr U32) ) -> ( U32, MayNull (CPtr U32) )
+cogent_lfn1 (i, j) =
+   (if (let (c'
+            , _
+            , _) = repeat[( U8, MayNull (CPtr U32), U32 )
+                         , ()]{{}} #{ n = 5
+                                    , stop = \#{ acc = (c', j, i)
+                                               , obsv = () } => c' > 1
+                                    , step = \#{ acc = (_, j, i)
+                                               , obsv = () } => let (c'
+                                                                    , j) = notNull[CPtr U32]{{}} j
+                                       | Nothing -> (2, cogent_NULL)
+                                       | Some j -> if i < 5
+                                          then (0
+                                               , j { cont = cogent_NULL })
+                                          else (2, j)
+                                    in if c' > 1
+                                       then (c', j, i)
+                                       else (0, j, i + 1)
+                                    , acc = (0, j, 0)
+                                    , obsv = () }
+      in if c' == 2
+         then 0
+         else c') > 0
+   then r'
+   else let (_
+            , _
+            , i) = repeat[( U8, MayNull (CPtr U32), U32 )
+                         , ()]{{}} #{ n = 5
+                                    , stop = \#{ acc = (c', j, i)
+                                               , obsv = () } => c' > 1
+                                    , step = \#{ acc = (_, j, i)
+                                               , obsv = () } => let (c'
+                                                                    , j) = notNull[CPtr U32]{{}} j
+                                       | Nothing -> (2, cogent_NULL)
+                                       | Some j -> if i < 5
+                                          then (0
+                                               , j { cont = cogent_NULL })
+                                          else (2, j)
+                                    in if c' > 1
+                                       then (c', j, i)
+                                       else (0, j, i + 1)
+                                    , acc = (0, j, 0)
+                                    , obsv = () }
+      in i
+   , if (let (c'
+             , _
+             , _) = repeat[( U8, MayNull (CPtr U32), U32 )
+                          , ()]{{}} #{ n = 5
+                                     , stop = \#{ acc = (c', j, i)
+                                                , obsv = () } => c' > 1
+                                     , step = \#{ acc = (_, j, i)
+                                                , obsv = () } => let (c'
+                                                                     , j) = notNull[CPtr U32]{{}} j
+                                        | Nothing -> (2, cogent_NULL)
+                                        | Some j -> if i < 5
+                                           then (0
+                                                , j { cont = cogent_NULL })
+                                           else (2, j)
+                                     in if c' > 1
+                                        then (c', j, i)
+                                        else (0, j, i + 1)
+                                     , acc = (0, j, 0)
+                                     , obsv = () }
+      in if c' == 2
+         then 0
+         else c') > 0
+   then let (_
+            , j
+            , _) = repeat[( U8, MayNull (CPtr U32), U32 )
+                         , ()]{{}} #{ n = 5
+                                    , stop = \#{ acc = (c', j, i)
+                                               , obsv = () } => c' > 1
+                                    , step = \#{ acc = (_, j, i)
+                                               , obsv = () } => let (c'
+                                                                    , j) = notNull[CPtr U32]{{}} j
+                                       | Nothing -> (2, cogent_NULL)
+                                       | Some j -> if i < 5
+                                          then (0
+                                               , j { cont = cogent_NULL })
+                                          else (2, j)
+                                    in if c' > 1
+                                       then (c', j, i)
+                                       else (0, j, i + 1)
+                                    , acc = (0, j, 0)
+                                    , obsv = () }
+      in j
+   else let (_
+            , j
+            , _) = repeat[( U8, MayNull (CPtr U32), U32 )
+                         , ()]{{}} #{ n = 5
+                                    , stop = \#{ acc = (c', j, i)
+                                               , obsv = () } => c' > 1
+                                    , step = \#{ acc = (_, j, i)
+                                               , obsv = () } => let (c'
+                                                                    , j) = notNull[CPtr U32]{{}} j
+                                       | Nothing -> (2, cogent_NULL)
+                                       | Some j -> if i < 5
+                                          then (0
+                                               , j { cont = cogent_NULL })
+                                          else (2, j)
+                                    in if c' > 1
+                                       then (c', j, i)
+                                       else (0, j, i + 1)
+                                    , acc = (0, j, 0)
+                                    , obsv = () }
+      in j)
+
+type Cogent_lfa =
+   CArr5 (MayNull (CPtr U32))
+cogent_lfn2 : Cogent_lfa -> ( U32, Cogent_lfa )
+cogent_lfn2 a =
+   if (let (c'
+           , _
+           , _
+           , _) = repeat[( U8, U32, Cogent_lfa, U32 )
+                        , ()]{{}} #{ n = 5
+                                   , stop = \#{ acc = (c'
+                                                      , r'
+                                                      , a
+                                                      , i)
+                                              , obsv = () } => c' > 1
+                                   , step = \#{ acc = (_, r', a, i)
+                                              , obsv = () } => let (c'
+                                                                   , a
+                                                                   , r') = if i < 5
+                                      then let (a
+                                               , p2') = modifyArr[Cogent_lfa
+                                                                 , U32
+                                                                 , MayNull (CPtr U32)
+                                                                 , ()
+                                                                 , MayNull (CPtr U32)]{{}} (a
+                                                                                           , i
+                                                                                           , \(p2'
+                                                                                              , ()) => (p2'
+                                                                                                       , p2')
+                                                                                           , ())
+                                         in notNull[CPtr U32]{{}} p2'
+                                            | Nothing -> (2, a, r')
+                                            | Some p2' -> (3
+                                                          , let (a
+                                                                , _) = modifyArr[Cogent_lfa
+                                                                                , U32
+                                                                                , MayNull (CPtr U32)
+                                                                                , ()
+                                                                                , U32]{{}} (a
+                                                                                           , i
+                                                                                           , \(p0'
+                                                                                              , ()) => (p0'
+                                                                                                       , gencotDummy "Dereferencing pointer which may be NULL")
+                                                                                           , ())
+                                                          in a
+                                                          , let (_
+                                                                , v5') = modifyArr[Cogent_lfa
+                                                                                  , U32
+                                                                                  , MayNull (CPtr U32)
+                                                                                  , ()
+                                                                                  , U32]{{}} (a
+                                                                                             , i
+                                                                                             , \(p0'
+                                                                                                , ()) => (p0'
+                                                                                                         , gencotDummy "Dereferencing pointer which may be NULL")
+                                                                                             , ())
+                                                          in v5')
+                                      else (2, a, r')
+                                   in if c' > 1
+                                      then (c', r', a, i)
+                                      else (0, r', a, i + 1)
+                                   , acc = (0, r', a, 0)
+                                   , obsv = () }
+      in if c' == 2
+         then 0
+         else c') > 0
+   then let (_
+            , r'
+            , a
+            , _) = repeat[( U8, U32, Cogent_lfa, U32 )
+                         , ()]{{}} #{ n = 5
+                                    , stop = \#{ acc = (c'
+                                                       , r'
+                                                       , a
+                                                       , i)
+                                               , obsv = () } => c' > 1
+                                    , step = \#{ acc = (_, r', a, i)
+                                               , obsv = () } => let (c'
+                                                                    , a
+                                                                    , r') = if i < 5
+                                       then let (a
+                                                , p2') = modifyArr[Cogent_lfa
+                                                                  , U32
+                                                                  , MayNull (CPtr U32)
+                                                                  , ()
+                                                                  , MayNull (CPtr U32)]{{}} (a
+                                                                                            , i
+                                                                                            , \(p2'
+                                                                                               , ()) => (p2'
+                                                                                                        , p2')
+                                                                                            , ())
+                                          in notNull[CPtr U32]{{}} p2'
+                                             | Nothing -> (2, a, r')
+                                             | Some p2' -> (3
+                                                           , let (a
+                                                                 , _) = modifyArr[Cogent_lfa
+                                                                                 , U32
+                                                                                 , MayNull (CPtr U32)
+                                                                                 , ()
+                                                                                 , U32]{{}} (a
+                                                                                            , i
+                                                                                            , \(p0'
+                                                                                               , ()) => (p0'
+                                                                                                        , gencotDummy "Dereferencing pointer which may be NULL")
+                                                                                            , ())
+                                                           in a
+                                                           , let (_
+                                                                 , v5') = modifyArr[Cogent_lfa
+                                                                                   , U32
+                                                                                   , MayNull (CPtr U32)
+                                                                                   , ()
+                                                                                   , U32]{{}} (a
+                                                                                              , i
+                                                                                              , \(p0'
+                                                                                                 , ()) => (p0'
+                                                                                                          , gencotDummy "Dereferencing pointer which may be NULL")
+                                                                                              , ())
+                                                           in v5')
+                                       else (2, a, r')
+                                    in if c' > 1
+                                       then (c', r', a, i)
+                                       else (0, r', a, i + 1)
+                                    , acc = (0, r', a, 0)
+                                    , obsv = () }
+      in (r', a)
+   else (0
+        , let (_
+              , _
+              , a
+              , _) = repeat[( U8, U32, Cogent_lfa, U32 )
+                           , ()]{{}} #{ n = 5
+                                      , stop = \#{ acc = (c'
+                                                         , r'
+                                                         , a
+                                                         , i)
+                                                 , obsv = () } => c' > 1
+                                      , step = \#{ acc = (_, r', a, i)
+                                                 , obsv = () } => let (c'
+                                                                      , a
+                                                                      , r') = if i < 5
+                                         then let (a
+                                                  , p2') = modifyArr[Cogent_lfa
+                                                                    , U32
+                                                                    , MayNull (CPtr U32)
+                                                                    , ()
+                                                                    , MayNull (CPtr U32)]{{}} (a
+                                                                                              , i
+                                                                                              , \(p2'
+                                                                                                 , ()) => (p2'
+                                                                                                          , p2')
+                                                                                              , ())
+                                            in notNull[CPtr U32]{{}} p2'
+                                               | Nothing -> (2, a, r')
+                                               | Some p2' -> (3
+                                                             , let (a
+                                                                   , _) = modifyArr[Cogent_lfa
+                                                                                   , U32
+                                                                                   , MayNull (CPtr U32)
+                                                                                   , ()
+                                                                                   , U32]{{}} (a
+                                                                                              , i
+                                                                                              , \(p0'
+                                                                                                 , ()) => (p0'
+                                                                                                          , gencotDummy "Dereferencing pointer which may be NULL")
+                                                                                              , ())
+                                                             in a
+                                                             , let (_
+                                                                   , v5') = modifyArr[Cogent_lfa
+                                                                                     , U32
+                                                                                     , MayNull (CPtr U32)
+                                                                                     , ()
+                                                                                     , U32]{{}} (a
+                                                                                                , i
+                                                                                                , \(p0'
+                                                                                                   , ()) => (p0'
+                                                                                                            , gencotDummy "Dereferencing pointer which may be NULL")
+                                                                                                , ())
+                                                             in v5')
+                                         else (2, a, r')
+                                      in if c' > 1
+                                         then (c', r', a, i)
+                                         else (0, r', a, i + 1)
+                                      , acc = (0, r', a, 0)
+                                      , obsv = () }
+        in a)

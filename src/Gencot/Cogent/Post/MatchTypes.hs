@@ -64,8 +64,8 @@ boolproc' (CS.If e bvs e1 e2) =
     let  e' = boolproc e
          e1' = boolproc e1
          e2' = boolproc e2
-         e1'' = if isBoolType $ typOfGE e2' then toBoolType e1' else e1'
-         e2'' = if isBoolType $ typOfGE e1' then toBoolType e2' else e2'
+         e1'' = if fstIsBoolType $ typOfGE e2' then fstToBoolType e1' else e1'
+         e2'' = if fstIsBoolType $ typOfGE e1' then fstToBoolType e2' else e2'
     in CS.If (toBoolType e') bvs e1'' e2''
 -- unary boolean operator:
 -- convert argument to boolean
@@ -105,7 +105,7 @@ boolproc' (CS.App f e x) =
          CS.Tuple es ->
              let es' = (map boolToArithType es)
              in CS.App f (mkTupleExpr es') x
-         _ -> CS.App f (boolToArithType e) x
+         _ -> CS.App f (boolToArithType e') x
 -- no other cases of boolean type clashes
 boolproc' e = fmap boolproc e
 
@@ -133,16 +133,37 @@ boolprocBinding (GenIrrefPatn _ _ tp) e@(GenExpr _ _ t _) =
        then toBoolType e
        else boolToArithType e
 
+fstIsBoolType :: GenType -> Bool
+fstIsBoolType (GenType (CS.TTuple ts) _ _) = isBoolType $ head ts
+fstIsBoolType t = isBoolType t
+
+fstToBoolType :: GenExpr -> GenExpr
+fstToBoolType e | not $ isTupleType $ typOfGE e = toBoolType e
+fstToBoolType (GenExpr (CS.Tuple es) o t c) =
+    GenExpr (CS.Tuple es') o (mkTupleType $ map typOfGE es') c
+    where es' = (toBoolType $ head es):(tail es)
+fstToBoolType (GenExpr (CS.If e0 bvs e1 e2) o _ c) =
+    GenExpr (CS.If e0 bvs e1' e2') o (adaptTypes (typOfGE e1') (typOfGE e2')) c
+    where e1' = fstToBoolType e1
+          e2' = fstToBoolType e2
+fstToBoolType (GenExpr (CS.Let bs bdy) o (GenType (CS.TTuple (t:ts)) ot s) c) =
+    GenExpr (toBoolTypeInLet bs bdy) o (GenType (CS.TTuple (mkBoolType:ts)) ot s) c
+
 toBoolType :: GenExpr -> GenExpr
 toBoolType e | isBoolType $ typOfGE e = e
-toBoolType (GenExpr (CS.Let bs bdy) o _ ccd) = GenExpr (toBoolTypeInLet bs bdy) o mkBoolType ccd
+toBoolType (GenExpr (CS.Let bs bdy) o _ ccd) =
+    GenExpr (toBoolTypeInLet bs bdy) o mkBoolType ccd
 toBoolType (GenExpr (CS.If e0 bvs e1 e2) o _ ccd) =
     GenExpr (CS.If e0 bvs (toBoolType e1) (toBoolType e2)) o mkBoolType ccd
 toBoolType e | isArithmetic $ typOfGE e = mkBoolOpExpr "/=" [e,mkIntLitExpr (typOfGE e) 0]
 toBoolType e = mkBoolOpExpr "/=" [e,mkNullExpr]
 
 toBoolTypeInLet :: [GenBnd] -> GenExpr -> ExprOfGE
-toBoolTypeInLet bs (GenExpr (CS.Var v) o _ ccd) = CS.Let (toBoolTypeInBindings v bs) $ GenExpr (CS.Var v) o mkBoolType ccd
+toBoolTypeInLet bs (GenExpr (CS.Var v) o _ ccd) =
+    CS.Let (toBoolTypeInBindings v bs) $ GenExpr (CS.Var v) o mkBoolType ccd
+toBoolTypeInLet bs (GenExpr (CS.Tuple ((GenExpr (CS.Var v) ov _ cv) : es)) o _ c) =
+    CS.Let (toBoolTypeInBindings v bs) $ GenExpr (CS.Tuple es') o (mkTupleType $ map typOfGE es') c
+    where es' = (GenExpr (CS.Var v) ov mkBoolType cv) : es
 toBoolTypeInLet bs bdy = CS.Let bs $ toBoolType bdy
 
 toBoolTypeInBindings :: VarName -> [GenBnd] -> [GenBnd]
@@ -984,27 +1005,36 @@ extendBangBindingVars ip e (v:vs) = do
        else extendBangBindingVars ip e vs
 
 -- | Return all free variables which occur as container with linear type in a take operation.
--- The first argument is the list of all variables not free in the expression.
+-- The first argument is the list of all variables not free or already banged in the expression.
 getBangCandidates :: [CCS.VarName] -> GenExpr -> [CCS.VarName]
-getBangCandidates bvs (GenExpr (CS.Let bs bdy) _ _ _) =
-    union (getBangCandInBindings bvs bs) (getBangCandidates (boundInBindings bs) bdy)
-getBangCandidates bvs e = nub $ concat $ fmap (getBangCandidates bvs) $ exprOfGE e
+getBangCandidates nfvs (GenExpr (CS.Let bs bdy) _ _ _) =
+    union (getBangCandInBindings nfvs bs) (getBangCandidates (union nfvs $ boundInBindings bs) bdy)
+getBangCandidates nfvs (GenExpr (CS.Lam ip mt bdy) _ _ _) =
+    getBangCandidates (union nfvs $ freeInIrrefPatn ip) bdy
+getBangCandidates nfvs (GenExpr (CS.If e0 bvs e1 e2) _ _ _) =
+    union (getBangCandidates (union bvs nfvs) e0) $
+        union (getBangCandidates nfvs e1) (getBangCandidates nfvs e2)
+getBangCandidates nfvs (GenExpr (CS.Match e bvs alts) _ _ _) =
+    union (getBangCandidates (union bvs nfvs) e) $
+       nub $ concat $ map (\(CS.Alt p l e) -> getBangCandidates nfvs e) alts
+getBangCandidates nfvs e = nub $ concat $ fmap (getBangCandidates nfvs) $ exprOfGE e -- banging applies also to alts!
 
 -- | Return all free variables which occur as container with linear type in a take operation.
--- The first argument is the list of all variables not free in the bindings.
+-- The first argument is the list of all variables not free or already banged in the bindings.
 getBangCandInBindings :: [CCS.VarName] -> [GenBnd] -> [CCS.VarName]
 getBangCandInBindings _ [] = []
-getBangCandInBindings bvs ((CS.Binding ip _ e _):bs) =
-    union (union (getBangCandInPattern bvs ip) (getBangCandidates bvs e)) $ getBangCandInBindings (union bvs $ freeInIrrefPatn ip) bs
+getBangCandInBindings nfvs ((CS.Binding ip _ e bvs):bs) =
+    union (union (getBangCandInPattern nfvs ip) (getBangCandidates (union bvs nfvs) e))
+        $ getBangCandInBindings (union nfvs $ freeInIrrefPatn ip) bs
 
 -- | Return all free variables which occur as container with linear type in a take operation and are not the error variable.
--- The first argument is the list of all variables not free in the bound expression.
+-- The first argument is the list of all variables not free or already banged in the bound expression.
 getBangCandInPattern :: [CCS.VarName] -> GenIrrefPatn -> [CCS.VarName]
-getBangCandInPattern bvs (GenIrrefPatn (CS.PTake pv [Just (_,(GenIrrefPatn (CS.PVar cv) _ _))]) _ t)
-    | (not $ elem pv bvs) && (not $ isNonlinear t) && (pv /= errVar) = [pv]
-getBangCandInPattern bvs (GenIrrefPatn (CS.PArrayTake pv [(_,(GenIrrefPatn (CS.PVar cv) _ _))]) _ t)
-    | (not $ elem pv bvs) && (not $ isNonlinear t) && (pv /= errVar) = [pv]
-getBangCandInPattern bvs (GenIrrefPatn (CS.PTuple ips) _ _) = nub $ concat $ map (getBangCandInPattern bvs) ips
+getBangCandInPattern nfvs (GenIrrefPatn (CS.PTake pv [Just (_,(GenIrrefPatn (CS.PVar cv) _ _))]) _ t)
+    | (not $ elem pv nfvs) && (not $ isNonlinear t) && (pv /= errVar) = [pv]
+getBangCandInPattern nfvs (GenIrrefPatn (CS.PArrayTake pv [(_,(GenIrrefPatn (CS.PVar cv) _ _))]) _ t)
+    | (not $ elem pv nfvs) && (not $ isNonlinear t) && (pv /= errVar) = [pv]
+getBangCandInPattern nfvs (GenIrrefPatn (CS.PTuple ips) _ _) = nub $ concat $ map (getBangCandInPattern nfvs) ips
 getBangCandInPattern _ _ = []
 
 {- Matching MayNull subexpressions          -}

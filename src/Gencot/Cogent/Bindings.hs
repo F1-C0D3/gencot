@@ -9,7 +9,7 @@ import Cogent.Surface as CS
 import Cogent.Common.Syntax as CCS
 
 import Gencot.Origin (noOrigin)
-import Gencot.Names (ptrDerivCompName)
+import Gencot.Names (ptrDerivCompName,mapNull)
 import Gencot.Cogent.Ast -- includes unitType
 import Gencot.Cogent.Types (
   mkU8Type, mkU32Type, mkStringType, mkBoolType, 
@@ -469,15 +469,15 @@ mkForBinding bpm ebp1 bp2 bp3 b =
          (Right ds) -> mkDeclBinding ds bindloop
     where b3 = cmbBinds bp3
           accvars = union (sideEffectFilter $ boundVars b) (sideEffectFilter $ boundVars b3)
-          exprstep = mkLetExpr [b] $ mkIfExpr (typOfGE accexpr) ctlcond accexpr $ mkLetExpr [b3] $ mk0VarTupleExpr accvars
-          b2@(CS.Binding _ _ expr2 _) = cmbBinds bp2
-          freevars = union (getFreeTypedVars exprstep) (getFreeTypedVars expr2)
+          bdy = mkIfBinding bp2 b mkBreakBinding
+          exprstep = mkLetExpr [bdy] $ mkIfExpr (typOfGE accexpr) ctlcond accexpr $ mkLetExpr [b3] $ mk0VarTupleExpr accvars
+          freevars = getFreeTypedVars exprstep
           accpat = mkVarTuplePattern (typedCtlVar : accvars) -- (c',y1..)
           accexpr = mkVarTupleExpr (typedCtlVar : accvars) -- (c',y1..)
           ctlvar = mkVarExpr typedCtlVar
           ctlcond = mkBoolOpExpr ">" [ctlvar,mkCtlLitExpr 1] -- c' > 1
           accpatwild = mkVarTuplePattern ((TV "_" mkCtlType) : accvars) -- (_,y1..)
-          obsvars = freevars \\ accvars
+          obsvars = filter (\(TV v _) -> v /= mapNull) (freevars \\ accvars)
           obsvpat = mkVarTuplePattern obsvars
           repeatctl = mkIfExpr mkCtlType (mkBoolOpExpr "==" [ctlvar,mkCtlLitExpr 2]) (mkCtlLitExpr 0) ctlvar
           repeatargexpr = mkRecordExpr [("n",exprmax),("stop",stopfun),("step",stepfun),("acc",iniacc),("obsv",iniobsv)]
@@ -487,8 +487,7 @@ mkForBinding bpm ebp1 bp2 bp3 b =
           repeattype = mkFunType (typOfGE repeatargexpr) (typOfGE iniacc)
           repeatfun = mkTopLevelFunExpr ("repeat",repeattype) [Just $ typOfGE iniacc, Just $ typOfGE iniobsv]
           exprloop = mkLetExpr [(mkBinding accpat $ mkAppExpr repeatfun repeatargexpr)] $ mkExpVarTupleExpr repeatctl accvars
-          stopfun = mkLambdaExpr (mkRecordPattern [("acc",accpat),("obsv",obsvpat)]) $ mkLetExpr [b2] stopexpr
-          stopexpr = mkDisjExpr [ctlcond, mkBoolOpExpr "not" [mkVarExpr $ leadVar bp2]]
+          stopfun = mkLambdaExpr (mkRecordPattern [("acc",accpat),("obsv",obsvpat)]) ctlcond
           stepfun = mkLambdaExpr (mkRecordPattern [("acc",accpatwild),("obsv",obsvpat)]) exprstep
           bindloop = mkBinding accpat exprloop
 

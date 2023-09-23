@@ -34,14 +34,10 @@ cogent_lf1 (a :: U32
                                                                                                           , obsv = b :: U32 } ::  { acc : (U8
                                                                                                                                           , U32
                                                                                                                                           , U32)
-                                                                                                                                  , obsv : U32 } => let v8' :: Bool = let v6' :: U32 = i :: U32
-                                                                                                  and v7' :: U32 = b :: U32
-                                                                                                  and v8' :: Bool = v6' :: U32 < v7' :: U32 :: Bool
-                                                                                                  in v8' :: Bool :: Bool
-                                                                                               in c' :: U8 > 1 :: U8 :: Bool || not v8' :: Bool :: Bool :: Bool :: Bool ::  { acc : (U8
-                                                                                                                                                                                    , U32
-                                                                                                                                                                                    , U32)
-                                                                                                                                                                            , obsv : U32 } -> Bool
+                                                                                                                                  , obsv : U32 } => c' :: U8 > 1 :: U8 :: Bool ::  { acc : (U8
+                                                                                                                                                                                           , U32
+                                                                                                                                                                                           , U32)
+                                                                                                                                                                                   , obsv : U32 } -> Bool
                                                                                                , step = \#{ acc = (_ :: U8
                                                                                                                   , a :: U32
                                                                                                                   , i :: U32)
@@ -49,13 +45,29 @@ cogent_lf1 (a :: U32
                                                                                                                                           , U32
                                                                                                                                           , U32)
                                                                                                                                   , obsv : U32 } => let (c' :: U8
-                                                                                                                                                        , a :: U32) = let v2' :: U32 = 2 :: U32
-                                                                                                  and v3' :: U32 = a :: U32
-                                                                                                  and v4' :: U32 = v3' :: U32 * v2' :: U32 :: U32
-                                                                                                  and a :: U32 = v4' :: U32
-                                                                                                  in (0 :: U8
-                                                                                                     , a :: U32) :: (U8
-                                                                                                                    , U32)
+                                                                                                                                                        , a :: U32) = let v6' :: U32 = i :: U32
+                                                                                                  and v7' :: U32 = b :: U32
+                                                                                                  and v8' :: Bool = v6' :: U32 < v7' :: U32 :: Bool
+                                                                                                  in if v8' :: Bool
+                                                                                                     then
+                                                                                                        let (c' :: U8
+                                                                                                            , a :: U32) = let v2' :: U32 = 2 :: U32
+                                                                                                           and v3' :: U32 = a :: U32
+                                                                                                           and v4' :: U32 = v3' :: U32 * v2' :: U32 :: U32
+                                                                                                           and a :: U32 = v4' :: U32
+                                                                                                           in (0 :: U8
+                                                                                                              , a :: U32) :: (U8
+                                                                                                                             , U32)
+                                                                                                        in (c' :: U8
+                                                                                                           , a :: U32) :: (U8
+                                                                                                                          , U32)
+                                                                                                     else
+                                                                                                        let c' :: U8 = 2 :: U8
+                                                                                                        in (c' :: U8
+                                                                                                           , a :: U32) :: (U8
+                                                                                                                          , U32) :: (U8
+                                                                                                                                    , U32) :: (U8
+                                                                                                                                              , U32)
                                                                                                in if c' :: U8 > 1 :: U8 :: Bool
                                                                                                   then
                                                                                                      (c' :: U8
@@ -137,18 +149,23 @@ cogent_lf2 i :: U32 =
                                                                                                                        , i :: U32)
                                                                                                                , obsv = () :: () } ::  { acc : (U8
                                                                                                                                                , U32)
-                                                                                                                                       , obsv : () } => let v3' :: Bool = let v1' :: U32 = i :: U32
-                                                                                                       and v2' :: U32 = 5 :: U32
-                                                                                                       and v3' :: Bool = v1' :: U32 < v2' :: U32 :: Bool
-                                                                                                       in v3' :: Bool :: Bool
-                                                                                                    in c' :: U8 > 1 :: U8 :: Bool || not v3' :: Bool :: Bool :: Bool :: Bool ::  { acc : (U8
-                                                                                                                                                                                         , U32)
-                                                                                                                                                                                 , obsv : () } -> Bool
+                                                                                                                                       , obsv : () } => c' :: U8 > 1 :: U8 :: Bool ::  { acc : (U8
+                                                                                                                                                                                               , U32)
+                                                                                                                                                                                       , obsv : () } -> Bool
                                                                                                     , step = \#{ acc = (_ :: U8
                                                                                                                        , i :: U32)
                                                                                                                , obsv = () :: () } ::  { acc : (U8
                                                                                                                                                , U32)
-                                                                                                                                       , obsv : () } => let c' :: U8 = 0 :: U8
+                                                                                                                                       , obsv : () } => let c' :: U8 = let v1' :: U32 = i :: U32
+                                                                                                       and v2' :: U32 = 5 :: U32
+                                                                                                       and v3' :: Bool = v1' :: U32 < v2' :: U32 :: Bool
+                                                                                                       in if v3' :: Bool
+                                                                                                          then
+                                                                                                             let c' :: U8 = 0 :: U8
+                                                                                                             in c' :: U8 :: U8
+                                                                                                          else
+                                                                                                             let c' :: U8 = 2 :: U8
+                                                                                                             in c' :: U8 :: U8 :: U8 :: U8
                                                                                                     in if c' :: U8 > 1 :: U8 :: Bool
                                                                                                        then
                                                                                                           (c' :: U8
@@ -213,18 +230,23 @@ cogent_lf3 i :: U32 =
                                                                                                                        , i :: U32)
                                                                                                                , obsv = () :: () } ::  { acc : (U8
                                                                                                                                                , U32)
-                                                                                                                                       , obsv : () } => let v3' :: Bool = let v1' :: U32 = i :: U32
-                                                                                                       and v2' :: U32 = 5 :: U32
-                                                                                                       and v3' :: Bool = v1' :: U32 < v2' :: U32 :: Bool
-                                                                                                       in v3' :: Bool :: Bool
-                                                                                                    in c' :: U8 > 1 :: U8 :: Bool || not v3' :: Bool :: Bool :: Bool :: Bool ::  { acc : (U8
-                                                                                                                                                                                         , U32)
-                                                                                                                                                                                 , obsv : () } -> Bool
+                                                                                                                                       , obsv : () } => c' :: U8 > 1 :: U8 :: Bool ::  { acc : (U8
+                                                                                                                                                                                               , U32)
+                                                                                                                                                                                       , obsv : () } -> Bool
                                                                                                     , step = \#{ acc = (_ :: U8
                                                                                                                        , i :: U32)
                                                                                                                , obsv = () :: () } ::  { acc : (U8
                                                                                                                                                , U32)
-                                                                                                                                       , obsv : () } => let c' :: U8 = 1 :: U8
+                                                                                                                                       , obsv : () } => let c' :: U8 = let v1' :: U32 = i :: U32
+                                                                                                       and v2' :: U32 = 5 :: U32
+                                                                                                       and v3' :: Bool = v1' :: U32 < v2' :: U32 :: Bool
+                                                                                                       in if v3' :: Bool
+                                                                                                          then
+                                                                                                             let c' :: U8 = 1 :: U8
+                                                                                                             in c' :: U8 :: U8
+                                                                                                          else
+                                                                                                             let c' :: U8 = 2 :: U8
+                                                                                                             in c' :: U8 :: U8 :: U8 :: U8
                                                                                                     in if c' :: U8 > 1 :: U8 :: Bool
                                                                                                        then
                                                                                                           (c' :: U8
@@ -289,18 +311,23 @@ cogent_lf4 i :: U32 =
                                                                                                                        , i :: U32)
                                                                                                                , obsv = () :: () } ::  { acc : (U8
                                                                                                                                                , U32)
-                                                                                                                                       , obsv : () } => let v3' :: Bool = let v1' :: U32 = i :: U32
-                                                                                                       and v2' :: U32 = 5 :: U32
-                                                                                                       and v3' :: Bool = v1' :: U32 < v2' :: U32 :: Bool
-                                                                                                       in v3' :: Bool :: Bool
-                                                                                                    in c' :: U8 > 1 :: U8 :: Bool || not v3' :: Bool :: Bool :: Bool :: Bool ::  { acc : (U8
-                                                                                                                                                                                         , U32)
-                                                                                                                                                                                 , obsv : () } -> Bool
+                                                                                                                                       , obsv : () } => c' :: U8 > 1 :: U8 :: Bool ::  { acc : (U8
+                                                                                                                                                                                               , U32)
+                                                                                                                                                                                       , obsv : () } -> Bool
                                                                                                     , step = \#{ acc = (_ :: U8
                                                                                                                        , i :: U32)
                                                                                                                , obsv = () :: () } ::  { acc : (U8
                                                                                                                                                , U32)
-                                                                                                                                       , obsv : () } => let c' :: U8 = 2 :: U8
+                                                                                                                                       , obsv : () } => let c' :: U8 = let v1' :: U32 = i :: U32
+                                                                                                       and v2' :: U32 = 5 :: U32
+                                                                                                       and v3' :: Bool = v1' :: U32 < v2' :: U32 :: Bool
+                                                                                                       in if v3' :: Bool
+                                                                                                          then
+                                                                                                             let c' :: U8 = 2 :: U8
+                                                                                                             in c' :: U8 :: U8
+                                                                                                          else
+                                                                                                             let c' :: U8 = 2 :: U8
+                                                                                                             in c' :: U8 :: U8 :: U8 :: U8
                                                                                                     in if c' :: U8 > 1 :: U8 :: Bool
                                                                                                        then
                                                                                                           (c' :: U8
@@ -376,14 +403,10 @@ cogent_lf5 i :: U32 =
                                                                                                                , obsv = () :: () } ::  { acc : (U8
                                                                                                                                                , U32
                                                                                                                                                , U32)
-                                                                                                                                       , obsv : () } => let v4' :: Bool = let v2' :: U32 = i :: U32
-                                                                                                       and v3' :: U32 = 5 :: U32
-                                                                                                       and v4' :: Bool = v2' :: U32 < v3' :: U32 :: Bool
-                                                                                                       in v4' :: Bool :: Bool
-                                                                                                    in c' :: U8 > 1 :: U8 :: Bool || not v4' :: Bool :: Bool :: Bool :: Bool ::  { acc : (U8
-                                                                                                                                                                                         , U32
-                                                                                                                                                                                         , U32)
-                                                                                                                                                                                 , obsv : () } -> Bool
+                                                                                                                                       , obsv : () } => c' :: U8 > 1 :: U8 :: Bool ::  { acc : (U8
+                                                                                                                                                                                               , U32
+                                                                                                                                                                                               , U32)
+                                                                                                                                                                                       , obsv : () } -> Bool
                                                                                                     , step = \#{ acc = (_ :: U8
                                                                                                                        , r' :: U32
                                                                                                                        , i :: U32)
@@ -391,10 +414,26 @@ cogent_lf5 i :: U32 =
                                                                                                                                                , U32
                                                                                                                                                , U32)
                                                                                                                                        , obsv : () } => let (c' :: U8
-                                                                                                                                                            , r' :: U32) = let v1' :: U32 = i :: U32
-                                                                                                       in (3 :: U8
-                                                                                                          , v1' :: U32) :: (U8
-                                                                                                                           , U32)
+                                                                                                                                                            , r' :: U32) = let v2' :: U32 = i :: U32
+                                                                                                       and v3' :: U32 = 5 :: U32
+                                                                                                       and v4' :: Bool = v2' :: U32 < v3' :: U32 :: Bool
+                                                                                                       in if v4' :: Bool
+                                                                                                          then
+                                                                                                             let (c' :: U8
+                                                                                                                 , r' :: U32) = let v1' :: U32 = i :: U32
+                                                                                                                in (3 :: U8
+                                                                                                                   , v1' :: U32) :: (U8
+                                                                                                                                    , U32)
+                                                                                                             in (c' :: U8
+                                                                                                                , r' :: U32) :: (U8
+                                                                                                                                , U32)
+                                                                                                          else
+                                                                                                             let c' :: U8 = 2 :: U8
+                                                                                                             in (c' :: U8
+                                                                                                                , r' :: U32) :: (U8
+                                                                                                                                , U32) :: (U8
+                                                                                                                                          , U32) :: (U8
+                                                                                                                                                    , U32)
                                                                                                     in if c' :: U8 > 1 :: U8 :: Bool
                                                                                                        then
                                                                                                           (c' :: U8
@@ -476,18 +515,23 @@ cogent_lf6 i :: U32 =
                                                                                                                        , i :: U32)
                                                                                                                , obsv = () :: () } ::  { acc : (U8
                                                                                                                                                , U32)
-                                                                                                                                       , obsv : () } => let v5' :: Bool = let v3' :: U32 = i :: U32
-                                                                                                       and v4' :: U32 = 5 :: U32
-                                                                                                       and v5' :: Bool = v3' :: U32 <= v4' :: U32 :: Bool
-                                                                                                       in v5' :: Bool :: Bool
-                                                                                                    in c' :: U8 > 1 :: U8 :: Bool || not v5' :: Bool :: Bool :: Bool :: Bool ::  { acc : (U8
-                                                                                                                                                                                         , U32)
-                                                                                                                                                                                 , obsv : () } -> Bool
+                                                                                                                                       , obsv : () } => c' :: U8 > 1 :: U8 :: Bool ::  { acc : (U8
+                                                                                                                                                                                               , U32)
+                                                                                                                                                                                       , obsv : () } -> Bool
                                                                                                     , step = \#{ acc = (_ :: U8
                                                                                                                        , i :: U32)
                                                                                                                , obsv = () :: () } ::  { acc : (U8
                                                                                                                                                , U32)
-                                                                                                                                       , obsv : () } => let c' :: U8 = 0 :: U8
+                                                                                                                                       , obsv : () } => let c' :: U8 = let v3' :: U32 = i :: U32
+                                                                                                       and v4' :: U32 = 5 :: U32
+                                                                                                       and v5' :: Bool = v3' :: U32 <= v4' :: U32 :: Bool
+                                                                                                       in if v5' :: Bool
+                                                                                                          then
+                                                                                                             let c' :: U8 = 0 :: U8
+                                                                                                             in c' :: U8 :: U8
+                                                                                                          else
+                                                                                                             let c' :: U8 = 2 :: U8
+                                                                                                             in c' :: U8 :: U8 :: U8 :: U8
                                                                                                     in if c' :: U8 > 1 :: U8 :: Bool
                                                                                                        then
                                                                                                           (c' :: U8
@@ -557,18 +601,23 @@ cogent_lf7 i :: U32 =
                                                                                                              , i :: U32)
                                                                                                      , obsv = () :: () } ::  { acc : (U8
                                                                                                                                      , U32)
-                                                                                                                             , obsv : () } => let v7' :: Bool = let v5' :: U32 = i :: U32
-                                                                                             and v6' :: U32 = 5 :: U32
-                                                                                             and v7' :: Bool = v5' :: U32 > v6' :: U32 :: Bool
-                                                                                             in v7' :: Bool :: Bool
-                                                                                          in c' :: U8 > 1 :: U8 :: Bool || not v7' :: Bool :: Bool :: Bool :: Bool ::  { acc : (U8
-                                                                                                                                                                               , U32)
-                                                                                                                                                                       , obsv : () } -> Bool
+                                                                                                                             , obsv : () } => c' :: U8 > 1 :: U8 :: Bool ::  { acc : (U8
+                                                                                                                                                                                     , U32)
+                                                                                                                                                                             , obsv : () } -> Bool
                                                                                           , step = \#{ acc = (_ :: U8
                                                                                                              , i :: U32)
                                                                                                      , obsv = () :: () } ::  { acc : (U8
                                                                                                                                      , U32)
-                                                                                                                             , obsv : () } => let c' :: U8 = 0 :: U8
+                                                                                                                             , obsv : () } => let c' :: U8 = let v5' :: U32 = i :: U32
+                                                                                             and v6' :: U32 = 5 :: U32
+                                                                                             and v7' :: Bool = v5' :: U32 > v6' :: U32 :: Bool
+                                                                                             in if v7' :: Bool
+                                                                                                then
+                                                                                                   let c' :: U8 = 0 :: U8
+                                                                                                   in c' :: U8 :: U8
+                                                                                                else
+                                                                                                   let c' :: U8 = 2 :: U8
+                                                                                                   in c' :: U8 :: U8 :: U8 :: U8
                                                                                           in if c' :: U8 > 1 :: U8 :: Bool
                                                                                              then
                                                                                                 (c' :: U8
@@ -643,18 +692,23 @@ cogent_lf8 i :: U32 =
                                                                                                              , i :: U32)
                                                                                                      , obsv = () :: () } ::  { acc : (U8
                                                                                                                                      , U32)
-                                                                                                                             , obsv : () } => let v9' :: Bool = let v7' :: U32 = i :: U32
-                                                                                             and v8' :: U32 = 5 :: U32
-                                                                                             and v9' :: Bool = v7' :: U32 >= v8' :: U32 :: Bool
-                                                                                             in v9' :: Bool :: Bool
-                                                                                          in c' :: U8 > 1 :: U8 :: Bool || not v9' :: Bool :: Bool :: Bool :: Bool ::  { acc : (U8
-                                                                                                                                                                               , U32)
-                                                                                                                                                                       , obsv : () } -> Bool
+                                                                                                                             , obsv : () } => c' :: U8 > 1 :: U8 :: Bool ::  { acc : (U8
+                                                                                                                                                                                     , U32)
+                                                                                                                                                                             , obsv : () } -> Bool
                                                                                           , step = \#{ acc = (_ :: U8
                                                                                                              , i :: U32)
                                                                                                      , obsv = () :: () } ::  { acc : (U8
                                                                                                                                      , U32)
-                                                                                                                             , obsv : () } => let c' :: U8 = 0 :: U8
+                                                                                                                             , obsv : () } => let c' :: U8 = let v7' :: U32 = i :: U32
+                                                                                             and v8' :: U32 = 5 :: U32
+                                                                                             and v9' :: Bool = v7' :: U32 >= v8' :: U32 :: Bool
+                                                                                             in if v9' :: Bool
+                                                                                                then
+                                                                                                   let c' :: U8 = 0 :: U8
+                                                                                                   in c' :: U8 :: U8
+                                                                                                else
+                                                                                                   let c' :: U8 = 2 :: U8
+                                                                                                   in c' :: U8 :: U8 :: U8 :: U8
                                                                                           in if c' :: U8 > 1 :: U8 :: Bool
                                                                                              then
                                                                                                 (c' :: U8
@@ -721,18 +775,23 @@ cogent_lf9 i :: U32 =
                                                                                                                        , i :: U32)
                                                                                                                , obsv = () :: () } ::  { acc : (U8
                                                                                                                                                , U32)
-                                                                                                                                       , obsv : () } => let v3' :: Bool = let v1' :: U32 = i :: U32
-                                                                                                       and v2' :: U32 = 5 :: U32
-                                                                                                       and v3' :: Bool = v1' :: U32 < v2' :: U32 :: Bool
-                                                                                                       in v3' :: Bool :: Bool
-                                                                                                    in c' :: U8 > 1 :: U8 :: Bool || not v3' :: Bool :: Bool :: Bool :: Bool ::  { acc : (U8
-                                                                                                                                                                                         , U32)
-                                                                                                                                                                                 , obsv : () } -> Bool
+                                                                                                                                       , obsv : () } => c' :: U8 > 1 :: U8 :: Bool ::  { acc : (U8
+                                                                                                                                                                                               , U32)
+                                                                                                                                                                                       , obsv : () } -> Bool
                                                                                                     , step = \#{ acc = (_ :: U8
                                                                                                                        , i :: U32)
                                                                                                                , obsv = () :: () } ::  { acc : (U8
                                                                                                                                                , U32)
-                                                                                                                                       , obsv : () } => let c' :: U8 = 0 :: U8
+                                                                                                                                       , obsv : () } => let c' :: U8 = let v1' :: U32 = i :: U32
+                                                                                                       and v2' :: U32 = 5 :: U32
+                                                                                                       and v3' :: Bool = v1' :: U32 < v2' :: U32 :: Bool
+                                                                                                       in if v3' :: Bool
+                                                                                                          then
+                                                                                                             let c' :: U8 = 0 :: U8
+                                                                                                             in c' :: U8 :: U8
+                                                                                                          else
+                                                                                                             let c' :: U8 = 2 :: U8
+                                                                                                             in c' :: U8 :: U8 :: U8 :: U8
                                                                                                     in if c' :: U8 > 1 :: U8 :: Bool
                                                                                                        then
                                                                                                           (c' :: U8
@@ -797,18 +856,23 @@ cogent_lf10 i :: U32 =
                                                                                                                        , i :: U32)
                                                                                                                , obsv = () :: () } ::  { acc : (U8
                                                                                                                                                , U32)
-                                                                                                                                       , obsv : () } => let v3' :: Bool = let v1' :: U32 = i :: U32
-                                                                                                       and v2' :: U32 = 5 :: U32
-                                                                                                       and v3' :: Bool = v1' :: U32 < v2' :: U32 :: Bool
-                                                                                                       in v3' :: Bool :: Bool
-                                                                                                    in c' :: U8 > 1 :: U8 :: Bool || not v3' :: Bool :: Bool :: Bool :: Bool ::  { acc : (U8
-                                                                                                                                                                                         , U32)
-                                                                                                                                                                                 , obsv : () } -> Bool
+                                                                                                                                       , obsv : () } => c' :: U8 > 1 :: U8 :: Bool ::  { acc : (U8
+                                                                                                                                                                                               , U32)
+                                                                                                                                                                                       , obsv : () } -> Bool
                                                                                                     , step = \#{ acc = (_ :: U8
                                                                                                                        , i :: U32)
                                                                                                                , obsv = () :: () } ::  { acc : (U8
                                                                                                                                                , U32)
-                                                                                                                                       , obsv : () } => let c' :: U8 = 0 :: U8
+                                                                                                                                       , obsv : () } => let c' :: U8 = let v1' :: U32 = i :: U32
+                                                                                                       and v2' :: U32 = 5 :: U32
+                                                                                                       and v3' :: Bool = v1' :: U32 < v2' :: U32 :: Bool
+                                                                                                       in if v3' :: Bool
+                                                                                                          then
+                                                                                                             let c' :: U8 = 0 :: U8
+                                                                                                             in c' :: U8 :: U8
+                                                                                                          else
+                                                                                                             let c' :: U8 = 2 :: U8
+                                                                                                             in c' :: U8 :: U8 :: U8 :: U8
                                                                                                     in if c' :: U8 > 1 :: U8 :: Bool
                                                                                                        then
                                                                                                           (c' :: U8
@@ -874,18 +938,23 @@ cogent_lf11 i :: U32 =
                                                                                                                        , i :: U32)
                                                                                                                , obsv = () :: () } ::  { acc : (U8
                                                                                                                                                , U32)
-                                                                                                                                       , obsv : () } => let v3' :: Bool = let v1' :: U32 = i :: U32
-                                                                                                       and v2' :: U32 = 5 :: U32
-                                                                                                       and v3' :: Bool = v1' :: U32 < v2' :: U32 :: Bool
-                                                                                                       in v3' :: Bool :: Bool
-                                                                                                    in c' :: U8 > 1 :: U8 :: Bool || not v3' :: Bool :: Bool :: Bool :: Bool ::  { acc : (U8
-                                                                                                                                                                                         , U32)
-                                                                                                                                                                                 , obsv : () } -> Bool
+                                                                                                                                       , obsv : () } => c' :: U8 > 1 :: U8 :: Bool ::  { acc : (U8
+                                                                                                                                                                                               , U32)
+                                                                                                                                                                                       , obsv : () } -> Bool
                                                                                                     , step = \#{ acc = (_ :: U8
                                                                                                                        , i :: U32)
                                                                                                                , obsv = () :: () } ::  { acc : (U8
                                                                                                                                                , U32)
-                                                                                                                                       , obsv : () } => let c' :: U8 = 0 :: U8
+                                                                                                                                       , obsv : () } => let c' :: U8 = let v1' :: U32 = i :: U32
+                                                                                                       and v2' :: U32 = 5 :: U32
+                                                                                                       and v3' :: Bool = v1' :: U32 < v2' :: U32 :: Bool
+                                                                                                       in if v3' :: Bool
+                                                                                                          then
+                                                                                                             let c' :: U8 = 0 :: U8
+                                                                                                             in c' :: U8 :: U8
+                                                                                                          else
+                                                                                                             let c' :: U8 = 2 :: U8
+                                                                                                             in c' :: U8 :: U8 :: U8 :: U8
                                                                                                     in if c' :: U8 > 1 :: U8 :: Bool
                                                                                                        then
                                                                                                           (c' :: U8
@@ -959,18 +1028,23 @@ cogent_lf12 i :: U32 =
                                                                                                              , i :: U32)
                                                                                                      , obsv = () :: () } ::  { acc : (U8
                                                                                                                                      , U32)
-                                                                                                                             , obsv : () } => let v9' :: Bool = let v7' :: U32 = i :: U32
-                                                                                             and v8' :: U32 = 5 :: U32
-                                                                                             and v9' :: Bool = v7' :: U32 >= v8' :: U32 :: Bool
-                                                                                             in v9' :: Bool :: Bool
-                                                                                          in c' :: U8 > 1 :: U8 :: Bool || not v9' :: Bool :: Bool :: Bool :: Bool ::  { acc : (U8
-                                                                                                                                                                               , U32)
-                                                                                                                                                                       , obsv : () } -> Bool
+                                                                                                                             , obsv : () } => c' :: U8 > 1 :: U8 :: Bool ::  { acc : (U8
+                                                                                                                                                                                     , U32)
+                                                                                                                                                                             , obsv : () } -> Bool
                                                                                           , step = \#{ acc = (_ :: U8
                                                                                                              , i :: U32)
                                                                                                      , obsv = () :: () } ::  { acc : (U8
                                                                                                                                      , U32)
-                                                                                                                             , obsv : () } => let c' :: U8 = 0 :: U8
+                                                                                                                             , obsv : () } => let c' :: U8 = let v7' :: U32 = i :: U32
+                                                                                             and v8' :: U32 = 5 :: U32
+                                                                                             and v9' :: Bool = v7' :: U32 >= v8' :: U32 :: Bool
+                                                                                             in if v9' :: Bool
+                                                                                                then
+                                                                                                   let c' :: U8 = 0 :: U8
+                                                                                                   in c' :: U8 :: U8
+                                                                                                else
+                                                                                                   let c' :: U8 = 2 :: U8
+                                                                                                   in c' :: U8 :: U8 :: U8 :: U8
                                                                                           in if c' :: U8 > 1 :: U8 :: Bool
                                                                                              then
                                                                                                 (c' :: U8
@@ -1045,18 +1119,23 @@ cogent_lf13 i :: U32 =
                                                                                                              , i :: U32)
                                                                                                      , obsv = () :: () } ::  { acc : (U8
                                                                                                                                      , U32)
-                                                                                                                             , obsv : () } => let v9' :: Bool = let v7' :: U32 = i :: U32
-                                                                                             and v8' :: U32 = 5 :: U32
-                                                                                             and v9' :: Bool = v7' :: U32 >= v8' :: U32 :: Bool
-                                                                                             in v9' :: Bool :: Bool
-                                                                                          in c' :: U8 > 1 :: U8 :: Bool || not v9' :: Bool :: Bool :: Bool :: Bool ::  { acc : (U8
-                                                                                                                                                                               , U32)
-                                                                                                                                                                       , obsv : () } -> Bool
+                                                                                                                             , obsv : () } => c' :: U8 > 1 :: U8 :: Bool ::  { acc : (U8
+                                                                                                                                                                                     , U32)
+                                                                                                                                                                             , obsv : () } -> Bool
                                                                                           , step = \#{ acc = (_ :: U8
                                                                                                              , i :: U32)
                                                                                                      , obsv = () :: () } ::  { acc : (U8
                                                                                                                                      , U32)
-                                                                                                                             , obsv : () } => let c' :: U8 = 0 :: U8
+                                                                                                                             , obsv : () } => let c' :: U8 = let v7' :: U32 = i :: U32
+                                                                                             and v8' :: U32 = 5 :: U32
+                                                                                             and v9' :: Bool = v7' :: U32 >= v8' :: U32 :: Bool
+                                                                                             in if v9' :: Bool
+                                                                                                then
+                                                                                                   let c' :: U8 = 0 :: U8
+                                                                                                   in c' :: U8 :: U8
+                                                                                                else
+                                                                                                   let c' :: U8 = 2 :: U8
+                                                                                                   in c' :: U8 :: U8 :: U8 :: U8
                                                                                           in if c' :: U8 > 1 :: U8 :: Bool
                                                                                              then
                                                                                                 (c' :: U8
@@ -1125,18 +1204,23 @@ cogent_lf14 (i :: U32
                                                                                                                          , i :: U32)
                                                                                                                  , obsv = j :: U32 } ::  { acc : (U8
                                                                                                                                                  , U32)
-                                                                                                                                         , obsv : U32 } => let v3' :: Bool = let v1' :: U32 = i :: U32
-                                                                                                         and v2' :: U32 = j :: U32
-                                                                                                         and v3' :: Bool = v1' :: U32 < v2' :: U32 :: Bool
-                                                                                                         in v3' :: Bool :: Bool
-                                                                                                      in c' :: U8 > 1 :: U8 :: Bool || not v3' :: Bool :: Bool :: Bool :: Bool ::  { acc : (U8
-                                                                                                                                                                                           , U32)
-                                                                                                                                                                                   , obsv : U32 } -> Bool
+                                                                                                                                         , obsv : U32 } => c' :: U8 > 1 :: U8 :: Bool ::  { acc : (U8
+                                                                                                                                                                                                  , U32)
+                                                                                                                                                                                          , obsv : U32 } -> Bool
                                                                                                       , step = \#{ acc = (_ :: U8
                                                                                                                          , i :: U32)
                                                                                                                  , obsv = j :: U32 } ::  { acc : (U8
                                                                                                                                                  , U32)
-                                                                                                                                         , obsv : U32 } => let c' :: U8 = 0 :: U8
+                                                                                                                                         , obsv : U32 } => let c' :: U8 = let v1' :: U32 = i :: U32
+                                                                                                         and v2' :: U32 = j :: U32
+                                                                                                         and v3' :: Bool = v1' :: U32 < v2' :: U32 :: Bool
+                                                                                                         in if v3' :: Bool
+                                                                                                            then
+                                                                                                               let c' :: U8 = 0 :: U8
+                                                                                                               in c' :: U8 :: U8
+                                                                                                            else
+                                                                                                               let c' :: U8 = 2 :: U8
+                                                                                                               in c' :: U8 :: U8 :: U8 :: U8
                                                                                                       in if c' :: U8 > 1 :: U8 :: Bool
                                                                                                          then
                                                                                                             (c' :: U8
@@ -1206,18 +1290,23 @@ cogent_lf15 i :: U32 =
                                                                                                              , i :: U32)
                                                                                                      , obsv = () :: () } ::  { acc : (U8
                                                                                                                                      , U32)
-                                                                                                                             , obsv : () } => let v7' :: Bool = let v5' :: U32 = i :: U32
-                                                                                             and v6' :: U32 = 5 :: U32
-                                                                                             and v7' :: Bool = v5' :: U32 /= v6' :: U32 :: Bool
-                                                                                             in v7' :: Bool :: Bool
-                                                                                          in c' :: U8 > 1 :: U8 :: Bool || not v7' :: Bool :: Bool :: Bool :: Bool ::  { acc : (U8
-                                                                                                                                                                               , U32)
-                                                                                                                                                                       , obsv : () } -> Bool
+                                                                                                                             , obsv : () } => c' :: U8 > 1 :: U8 :: Bool ::  { acc : (U8
+                                                                                                                                                                                     , U32)
+                                                                                                                                                                             , obsv : () } -> Bool
                                                                                           , step = \#{ acc = (_ :: U8
                                                                                                              , i :: U32)
                                                                                                      , obsv = () :: () } ::  { acc : (U8
                                                                                                                                      , U32)
-                                                                                                                             , obsv : () } => let c' :: U8 = 0 :: U8
+                                                                                                                             , obsv : () } => let c' :: U8 = let v5' :: U32 = i :: U32
+                                                                                             and v6' :: U32 = 5 :: U32
+                                                                                             and v7' :: Bool = v5' :: U32 /= v6' :: U32 :: Bool
+                                                                                             in if v7' :: Bool
+                                                                                                then
+                                                                                                   let c' :: U8 = 0 :: U8
+                                                                                                   in c' :: U8 :: U8
+                                                                                                else
+                                                                                                   let c' :: U8 = 2 :: U8
+                                                                                                   in c' :: U8 :: U8 :: U8 :: U8
                                                                                           in if c' :: U8 > 1 :: U8 :: Bool
                                                                                              then
                                                                                                 (c' :: U8
@@ -1289,18 +1378,23 @@ cogent_lf16 i :: U32 =
                                                                                                              , i :: U32)
                                                                                                      , obsv = () :: () } ::  { acc : (U8
                                                                                                                                      , U32)
-                                                                                                                             , obsv : () } => let v7' :: Bool = let v5' :: U32 = i :: U32
-                                                                                             and v6' :: U32 = 5 :: U32
-                                                                                             and v7' :: Bool = v5' :: U32 /= v6' :: U32 :: Bool
-                                                                                             in v7' :: Bool :: Bool
-                                                                                          in c' :: U8 > 1 :: U8 :: Bool || not v7' :: Bool :: Bool :: Bool :: Bool ::  { acc : (U8
-                                                                                                                                                                               , U32)
-                                                                                                                                                                       , obsv : () } -> Bool
+                                                                                                                             , obsv : () } => c' :: U8 > 1 :: U8 :: Bool ::  { acc : (U8
+                                                                                                                                                                                     , U32)
+                                                                                                                                                                             , obsv : () } -> Bool
                                                                                           , step = \#{ acc = (_ :: U8
                                                                                                              , i :: U32)
                                                                                                      , obsv = () :: () } ::  { acc : (U8
                                                                                                                                      , U32)
-                                                                                                                             , obsv : () } => let c' :: U8 = 0 :: U8
+                                                                                                                             , obsv : () } => let c' :: U8 = let v5' :: U32 = i :: U32
+                                                                                             and v6' :: U32 = 5 :: U32
+                                                                                             and v7' :: Bool = v5' :: U32 /= v6' :: U32 :: Bool
+                                                                                             in if v7' :: Bool
+                                                                                                then
+                                                                                                   let c' :: U8 = 0 :: U8
+                                                                                                   in c' :: U8 :: U8
+                                                                                                else
+                                                                                                   let c' :: U8 = 2 :: U8
+                                                                                                   in c' :: U8 :: U8 :: U8 :: U8
                                                                                           in if c' :: U8 > 1 :: U8 :: Bool
                                                                                              then
                                                                                                 (c' :: U8
@@ -1448,3 +1542,365 @@ cogent_lfe10 i :: U32 =
                in v' :: U32 :: U32
             in r' :: U32 :: U32 :: U32 :: U32
    in r' :: U32 :: U32
+cogent_lfn1 : (U32
+              , MayNull (CPtr =  { cont : U32 })) -> (U32
+                                                     , MayNull (CPtr =  { cont : U32 }))
+cogent_lfn1 (i :: U32
+            , j :: MayNull (CPtr =  { cont : U32 })) =
+   let (j :: MayNull (CPtr =  { cont : U32 })
+       , r' :: U32) = let (c' :: U8
+                          , i :: U32
+                          , j :: MayNull (CPtr =  { cont : U32 })) = let i :: U32 = let v1' :: U32 = 0 :: U32
+            and v3' :: U32 = v1' :: U32
+            and i :: U32 = v3' :: U32
+            in i :: U32 :: U32
+         and (c' :: U8
+             , j :: MayNull (CPtr =  { cont : U32 })
+             , i :: U32) = let (c' :: U8
+                               , j :: MayNull (CPtr =  { cont : U32 })
+                               , i :: U32) = repeat[(U8
+                                                    , MayNull (CPtr =  { cont : U32 })
+                                                    , U32)
+                                                   , ()]{{}} ::  { n : U32
+                                                                 , stop :  { acc : (U8
+                                                                                   , MayNull (CPtr =  { cont : U32 })
+                                                                                   , U32)
+                                                                           , obsv : () } -> Bool
+                                                                 , step :  { acc : (U8
+                                                                                   , MayNull (CPtr =  { cont : U32 })
+                                                                                   , U32)
+                                                                           , obsv : () } -> (U8
+                                                                                            , MayNull (CPtr =  { cont : U32 })
+                                                                                            , U32)
+                                                                 , acc : (U8
+                                                                         , MayNull (CPtr =  { cont : U32 })
+                                                                         , U32)
+                                                                 , obsv : () } -> (U8
+                                                                                  , MayNull (CPtr =  { cont : U32 })
+                                                                                  , U32) #{ n = 5 :: U32
+                                                                                          , stop = \#{ acc = (c' :: U8
+                                                                                                             , j :: MayNull (CPtr =  { cont : U32 })
+                                                                                                             , i :: U32)
+                                                                                                     , obsv = () :: () } ::  { acc : (U8
+                                                                                                                                     , MayNull (CPtr =  { cont : U32 })
+                                                                                                                                     , U32)
+                                                                                                                             , obsv : () } => c' :: U8 > 1 :: U8 :: Bool ::  { acc : (U8
+                                                                                                                                                                                     , MayNull (CPtr =  { cont : U32 })
+                                                                                                                                                                                     , U32)
+                                                                                                                                                                             , obsv : () } -> Bool
+                                                                                          , step = \#{ acc = (_ :: U8
+                                                                                                             , j :: MayNull (CPtr =  { cont : U32 })
+                                                                                                             , i :: U32)
+                                                                                                     , obsv = () :: () } ::  { acc : (U8
+                                                                                                                                     , MayNull (CPtr =  { cont : U32 })
+                                                                                                                                     , U32)
+                                                                                                                             , obsv : () } => let (c' :: U8
+                                                                                                                                                  , j :: MayNull (CPtr =  { cont : U32 })) = let v10' :: MayNull (CPtr =  { cont : U32 }) = j :: MayNull (CPtr =  { cont : U32 })
+                                                                                             and c' :: U8 = 2 :: U8
+                                                                                             in notNull[(CPtr =  { cont : U32 })]{{}} :: MayNull (CPtr =  { cont : U32 }) -> Option (CPtr =  { cont : U32 }) j :: MayNull (CPtr =  { cont : U32 }) :: Option (CPtr =  { cont : U32 })
+                                                                                                | Nothing -> let j :: MayNull (CPtr =  { cont : U32 }) = cogent_NULL :: MayNull (CPtr =  { cont : U32 })
+                                                                                                   in (c' :: U8
+                                                                                                      , j :: MayNull (CPtr =  { cont : U32 })) :: (U8
+                                                                                                                                                  , MayNull (CPtr =  { cont : U32 }))
+                                                                                                | Some j -> let v11' :: U32 = i :: U32
+                                                                                                   and v12' :: U32 = 5 :: U32
+                                                                                                   and v13' :: Bool = v11' :: U32 < v12' :: U32 :: Bool
+                                                                                                   in if v13' :: Bool
+                                                                                                      then
+                                                                                                         let (c' :: U8
+                                                                                                             , j :: (CPtr =  { cont : U32 })) = let v5' :: MayNull CVoidPtr = cogent_NULL :: MayNull CVoidPtr
+                                                                                                            and v6' :: (CPtr =  { cont : U32 }) = j :: (CPtr =  { cont : U32 })
+                                                                                                            and j { cont = p0' :: U32 } :: (CPtr =  { cont : U32 }) = v6' :: (CPtr =  { cont : U32 })
+                                                                                                            and v8' :: MayNull CVoidPtr = v5' :: MayNull CVoidPtr
+                                                                                                            and p0' :: U32 = v8' :: MayNull CVoidPtr
+                                                                                                            and j :: (CPtr =  { cont : U32 }) = j :: (CPtr =  { cont : U32 }) { cont = p0' :: U32 } :: (CPtr =  { cont : U32 })
+                                                                                                            in (0 :: U8
+                                                                                                               , j :: (CPtr =  { cont : U32 })) :: (U8
+                                                                                                                                                   , (CPtr =  { cont : U32 }))
+                                                                                                         in (c' :: U8
+                                                                                                            , j :: (CPtr =  { cont : U32 })) :: (U8
+                                                                                                                                                , (CPtr =  { cont : U32 }))
+                                                                                                      else
+                                                                                                         (c' :: U8
+                                                                                                         , j :: (CPtr =  { cont : U32 })) :: (U8
+                                                                                                                                             , (CPtr =  { cont : U32 })) :: (U8
+                                                                                                                                                                            , (CPtr =  { cont : U32 })) :: (U8
+                                                                                                                                                                                                           , MayNull (CPtr =  { cont : U32 })) :: (U8
+                                                                                                                                                                                                                                                  , MayNull (CPtr =  { cont : U32 }))
+                                                                                          in if c' :: U8 > 1 :: U8 :: Bool
+                                                                                             then
+                                                                                                (c' :: U8
+                                                                                                , j :: MayNull (CPtr =  { cont : U32 })
+                                                                                                , i :: U32)
+                                                                                             else
+                                                                                                let i :: U32 = let v16' :: U32 = 1 :: U32
+                                                                                                   and v17' :: U32 = i :: U32
+                                                                                                   and v18' :: U32 = v17' :: U32 + v16' :: U32 :: U32
+                                                                                                   and i :: U32 = v18' :: U32
+                                                                                                   in i :: U32 :: U32
+                                                                                                in (0 :: U8
+                                                                                                   , j :: MayNull (CPtr =  { cont : U32 })
+                                                                                                   , i :: U32) :: (U8
+                                                                                                                  , MayNull (CPtr =  { cont : U32 })
+                                                                                                                  , U32) :: (U8
+                                                                                                                            , MayNull (CPtr =  { cont : U32 })
+                                                                                                                            , U32) :: (U8
+                                                                                                                                      , MayNull (CPtr =  { cont : U32 })
+                                                                                                                                      , U32) ::  { acc : (U8
+                                                                                                                                                         , MayNull (CPtr =  { cont : U32 })
+                                                                                                                                                         , U32)
+                                                                                                                                                 , obsv : () } -> (U8
+                                                                                                                                                                  , MayNull (CPtr =  { cont : U32 })
+                                                                                                                                                                  , U32)
+                                                                                          , acc = (0 :: U8
+                                                                                                  , j :: MayNull (CPtr =  { cont : U32 })
+                                                                                                  , i :: U32)
+                                                                                          , obsv = () } ::  { n : U32
+                                                                                                            , stop :  { acc : (U8
+                                                                                                                              , MayNull (CPtr =  { cont : U32 })
+                                                                                                                              , U32)
+                                                                                                                      , obsv : () } -> Bool
+                                                                                                            , step :  { acc : (U8
+                                                                                                                              , MayNull (CPtr =  { cont : U32 })
+                                                                                                                              , U32)
+                                                                                                                      , obsv : () } -> (U8
+                                                                                                                                       , MayNull (CPtr =  { cont : U32 })
+                                                                                                                                       , U32)
+                                                                                                            , acc : (U8
+                                                                                                                    , MayNull (CPtr =  { cont : U32 })
+                                                                                                                    , U32)
+                                                                                                            , obsv : () } :: (U8
+                                                                                                                             , MayNull (CPtr =  { cont : U32 })
+                                                                                                                             , U32)
+            in (if c' :: U8 == 2 :: U8 :: Bool
+               then 0 :: U8
+               else c' :: U8 :: U8
+               , j :: MayNull (CPtr =  { cont : U32 })
+               , i :: U32) :: (U8
+                              , MayNull (CPtr =  { cont : U32 })
+                              , U32)
+         in (c' :: U8
+            , i :: U32
+            , j :: MayNull (CPtr =  { cont : U32 })) :: (U8
+                                                        , U32
+                                                        , MayNull (CPtr =  { cont : U32 }))
+      in if c' :: U8 > 0 :: U8 :: Bool
+         then
+            (j :: MayNull (CPtr =  { cont : U32 })
+            , r' :: U32)
+         else
+            let r' :: U32 = let v20' :: U32 = i :: U32
+               in v20' :: U32 :: U32
+            in (j :: MayNull (CPtr =  { cont : U32 })
+               , r' :: U32) :: (MayNull (CPtr =  { cont : U32 })
+                               , U32) :: (MayNull (CPtr =  { cont : U32 })
+                                         , U32) :: (MayNull (CPtr =  { cont : U32 })
+                                                   , U32)
+   in (r' :: U32
+      , j :: MayNull (CPtr =  { cont : U32 })) :: (U32
+                                                  , MayNull (CPtr =  { cont : U32 }))
+type Cogent_lfa =
+   CArr5 (MayNull (CPtr =  { cont : U32 }))
+cogent_lfn2 : (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] }) -> (U32
+                                                                                          , (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] }))
+cogent_lfn2 a :: (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] }) =
+   let (r' :: U32
+       , a :: (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })) = let (c' :: U8
+                                                                                              , r' :: U32
+                                                                                              , a :: (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })) = let v1' :: U32 = 0 :: U32
+         and (c' :: U8
+             , r' :: U32
+             , a :: (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })) = let i :: U32 = v1' :: U32
+            and (c' :: U8
+                , r' :: U32
+                , a :: (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })) = let (c' :: U8
+                                                                                                       , r' :: U32
+                                                                                                       , a :: (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                       , i :: U32) = repeat[(U8
+                                                                                                                            , U32
+                                                                                                                            , (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                                            , U32)
+                                                                                                                           , ()]{{}} ::  { n : U32
+                                                                                                                                         , stop :  { acc : (U8
+                                                                                                                                                           , U32
+                                                                                                                                                           , (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                                                                           , U32)
+                                                                                                                                                   , obsv : () } -> Bool
+                                                                                                                                         , step :  { acc : (U8
+                                                                                                                                                           , U32
+                                                                                                                                                           , (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                                                                           , U32)
+                                                                                                                                                   , obsv : () } -> (U8
+                                                                                                                                                                    , U32
+                                                                                                                                                                    , (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                                                                                    , U32)
+                                                                                                                                         , acc : (U8
+                                                                                                                                                 , U32
+                                                                                                                                                 , (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                                                                 , U32)
+                                                                                                                                         , obsv : () } -> (U8
+                                                                                                                                                          , U32
+                                                                                                                                                          , (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                                                                          , U32) #{ n = 5 :: U32
+                                                                                                                                                                  , stop = \#{ acc = (c' :: U8
+                                                                                                                                                                                     , r' :: U32
+                                                                                                                                                                                     , a :: (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                                                                                                     , i :: U32)
+                                                                                                                                                                             , obsv = () :: () } ::  { acc : (U8
+                                                                                                                                                                                                             , U32
+                                                                                                                                                                                                             , (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                                                                                                                             , U32)
+                                                                                                                                                                                                     , obsv : () } => c' :: U8 > 1 :: U8 :: Bool ::  { acc : (U8
+                                                                                                                                                                                                                                                             , U32
+                                                                                                                                                                                                                                                             , (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                                                                                                                                                                             , U32)
+                                                                                                                                                                                                                                                     , obsv : () } -> Bool
+                                                                                                                                                                  , step = \#{ acc = (_ :: U8
+                                                                                                                                                                                     , r' :: U32
+                                                                                                                                                                                     , a :: (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                                                                                                     , i :: U32)
+                                                                                                                                                                             , obsv = () :: () } ::  { acc : (U8
+                                                                                                                                                                                                             , U32
+                                                                                                                                                                                                             , (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                                                                                                                             , U32)
+                                                                                                                                                                                                     , obsv : () } => let (c' :: U8
+                                                                                                                                                                                                                          , a :: (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                                                                                                                                          , r' :: U32) = let v6' :: U32 = i :: U32
+                                                                                                                                                                     and v7' :: U32 = 5 :: U32
+                                                                                                                                                                     and v8' :: Bool = v6' :: U32 < v7' :: U32 :: Bool
+                                                                                                                                                                     and c' :: U8 = 2 :: U8
+                                                                                                                                                                     in if v8' :: Bool
+                                                                                                                                                                        then
+                                                                                                                                                                           let v10' :: U32 = i :: U32
+                                                                                                                                                                           and v9' :: (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] }) = a :: (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                                                                                           and a @{ @v10' :: U32 = p2' :: MayNull (CPtr =  { cont : U32 }) } :: (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] }) = v9' :: (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                                                                                           and v11' :: Bool = p2' :: MayNull (CPtr =  { cont : U32 }) /= cogent_NULL :: MayNull CVoidPtr :: Bool
+                                                                                                                                                                           and a :: (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] }) = a :: (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] }) @{ @v10' :: U32 = p2' :: MayNull (CPtr =  { cont : U32 }) } :: (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                                                                                           in notNull[(CPtr =  { cont : U32 })]{{}} :: MayNull (CPtr =  { cont : U32 }) -> Option (CPtr =  { cont : U32 }) p2' :: MayNull (CPtr =  { cont : U32 }) :: Option (CPtr =  { cont : U32 })
+                                                                                                                                                                              | Nothing -> let p2' :: MayNull (CPtr =  { cont : U32 }) = cogent_NULL :: MayNull (CPtr =  { cont : U32 })
+                                                                                                                                                                                 in (c' :: U8
+                                                                                                                                                                                    , a :: (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                                                                                                    , r' :: U32) :: (U8
+                                                                                                                                                                                                    , (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                                                                                                                    , U32)
+                                                                                                                                                                              | Some p2' -> let (c' :: U8
+                                                                                                                                                                                                , r' :: U32
+                                                                                                                                                                                                , a :: (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })) = let v3' :: U32 = i :: U32
+                                                                                                                                                                                    and v2' :: (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] }) = a :: (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                                                                                                    and a @{ @v3' :: U32 = p0' :: MayNull (CPtr =  { cont : U32 }) } :: (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] }) = v2' :: (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                                                                                                    and v4' :: MayNull (CPtr =  { cont : U32 }) = p0' :: MayNull (CPtr =  { cont : U32 })
+                                                                                                                                                                                    and p0' { cont = p1' :: U32 } :: MayNull (CPtr =  { cont : U32 }) = v4' :: MayNull (CPtr =  { cont : U32 })
+                                                                                                                                                                                    and v5' :: U32 = p1' :: U32
+                                                                                                                                                                                    and p0' :: MayNull (CPtr =  { cont : U32 }) = p0' :: MayNull (CPtr =  { cont : U32 }) { cont = p1' :: U32 } :: MayNull (CPtr =  { cont : U32 })
+                                                                                                                                                                                    and a :: (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] }) = a :: (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] }) @{ @v3' :: U32 = p0' :: MayNull (CPtr =  { cont : U32 }) } :: (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                                                                                                    in (3 :: U8
+                                                                                                                                                                                       , v5' :: U32
+                                                                                                                                                                                       , a :: (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })) :: (U8
+                                                                                                                                                                                                                                                                           , U32
+                                                                                                                                                                                                                                                                           , (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] }))
+                                                                                                                                                                                 in (c' :: U8
+                                                                                                                                                                                    , a :: (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                                                                                                    , r' :: U32) :: (U8
+                                                                                                                                                                                                    , (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                                                                                                                    , U32) :: (U8
+                                                                                                                                                                                                              , (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                                                                                                                              , U32) :: (U8
+                                                                                                                                                                                                                        , (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                                                                                                                                        , U32)
+                                                                                                                                                                        else
+                                                                                                                                                                           (c' :: U8
+                                                                                                                                                                           , a :: (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                                                                                           , r' :: U32) :: (U8
+                                                                                                                                                                                           , (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                                                                                                           , U32) :: (U8
+                                                                                                                                                                                                     , (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                                                                                                                     , U32)
+                                                                                                                                                                  in if c' :: U8 > 1 :: U8 :: Bool
+                                                                                                                                                                     then
+                                                                                                                                                                        (c' :: U8
+                                                                                                                                                                        , r' :: U32
+                                                                                                                                                                        , a :: (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                                                                                        , i :: U32)
+                                                                                                                                                                     else
+                                                                                                                                                                        let i :: U32 = let v14' :: U32 = 1 :: U32
+                                                                                                                                                                           and v15' :: U32 = i :: U32
+                                                                                                                                                                           and v16' :: U32 = v15' :: U32 + v14' :: U32 :: U32
+                                                                                                                                                                           and i :: U32 = v16' :: U32
+                                                                                                                                                                           in i :: U32 :: U32
+                                                                                                                                                                        in (0 :: U8
+                                                                                                                                                                           , r' :: U32
+                                                                                                                                                                           , a :: (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                                                                                           , i :: U32) :: (U8
+                                                                                                                                                                                          , U32
+                                                                                                                                                                                          , (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                                                                                                          , U32) :: (U8
+                                                                                                                                                                                                    , U32
+                                                                                                                                                                                                    , (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                                                                                                                    , U32) :: (U8
+                                                                                                                                                                                                              , U32
+                                                                                                                                                                                                              , (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                                                                                                                              , U32) ::  { acc : (U8
+                                                                                                                                                                                                                                 , U32
+                                                                                                                                                                                                                                 , (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                                                                                                                                                 , U32)
+                                                                                                                                                                                                                         , obsv : () } -> (U8
+                                                                                                                                                                                                                                          , U32
+                                                                                                                                                                                                                                          , (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                                                                                                                                                          , U32)
+                                                                                                                                                                  , acc = (0 :: U8
+                                                                                                                                                                          , r' :: U32
+                                                                                                                                                                          , a :: (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                                                                                          , i :: U32)
+                                                                                                                                                                  , obsv = () } ::  { n : U32
+                                                                                                                                                                                    , stop :  { acc : (U8
+                                                                                                                                                                                                      , U32
+                                                                                                                                                                                                      , (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                                                                                                                      , U32)
+                                                                                                                                                                                              , obsv : () } -> Bool
+                                                                                                                                                                                    , step :  { acc : (U8
+                                                                                                                                                                                                      , U32
+                                                                                                                                                                                                      , (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                                                                                                                      , U32)
+                                                                                                                                                                                              , obsv : () } -> (U8
+                                                                                                                                                                                                               , U32
+                                                                                                                                                                                                               , (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                                                                                                                               , U32)
+                                                                                                                                                                                    , acc : (U8
+                                                                                                                                                                                            , U32
+                                                                                                                                                                                            , (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                                                                                                            , U32)
+                                                                                                                                                                                    , obsv : () } :: (U8
+                                                                                                                                                                                                     , U32
+                                                                                                                                                                                                     , (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })
+                                                                                                                                                                                                     , U32)
+               in (if c' :: U8 == 2 :: U8 :: Bool
+                  then 0 :: U8
+                  else c' :: U8 :: U8
+                  , r' :: U32
+                  , a :: (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })) :: (U8
+                                                                                                      , U32
+                                                                                                      , (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] }))
+            in (c' :: U8
+               , r' :: U32
+               , a :: (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })) :: (U8
+                                                                                                   , U32
+                                                                                                   , (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] }))
+         in (c' :: U8
+            , r' :: U32
+            , a :: (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })) :: (U8
+                                                                                                , U32
+                                                                                                , (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] }))
+      in if c' :: U8 > 0 :: U8 :: Bool
+         then (r' :: U32
+              , a :: (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] }))
+         else
+            let r' :: U32 = let v18' :: U32 = 0 :: U32
+               in v18' :: U32 :: U32
+            in (r' :: U32
+               , a :: (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })) :: (U32
+                                                                                                   , (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })) :: (U32
+                                                                                                                                                                                  , (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })) :: (U32
+                                                                                                                                                                                                                                                                 , (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] }))
+   in (r' :: U32
+      , a :: (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] })) :: (U32
+                                                                                          , (Cogent_lfa =  { arr5 : (MayNull (CPtr =  { cont : U32 }))#[() :: ()] }))

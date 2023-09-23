@@ -1218,12 +1218,24 @@ A general \code{for} loop \code{for (ee1; ee2; ee3) s} where \code{ee2} has no s
 \end{verbatim}
 by moving the initialization expression or declaration before the loop.
 
-Let \code{expr2} be the translation of \code{ee2} and let \code{(c,v1,...,vn) = expr} be the translation of 
-the statement sequence \code{\{s ee3\}}. Let \code{w1,...,wm} be the variables occurring free in \code{expr} other than 
-\code{c} and the \code{vi}.
+The \code{repeat} function has two functions as argument: the \code{step} function which corresponds to a single execution
+of the loop body, and the \code{stop} function which tests whether the loop should stop prematurely. It would be straightforward
+to put the loop condition \code{ee2} into the \code{stop} function. However, then the result of a test which determines that
+a pointer is not NULL cannot be used in the \code{step} function to derive this property where the pointer is used. Therefore
+the loop is further rewritten to
+\begin{verbatim}
+  ee1;
+  for (; ; ee3)
+    if ee2 then s else break;
+\end{verbatim}
+so that \code{ee2} becomes a part of the loop body and therefore of the \code{step} function.
+
+Let \code{(c,v1,...,vn) = expr} be the translation of the statement sequence \code{\{if ee2 then s else break; ee3\}}.
+Let \code{w1,...,wm} be the variables occurring free in \code{expr} other than \code{c} and the \code{vi}.
 Then the translation of the remaining loop 
 \begin{verbatim}
-  for (; ee2; ee3) s
+  for (; ; ee3)
+    if ee2 then s else break;
 \end{verbatim}
 is
 \begin{verbatim}
@@ -1231,7 +1243,7 @@ is
   let ((_,_,res),v1,...,vn) = repeat #{
     n = exprmax,
     stop = \#{acc = ((_,cb,_),v1,...,vn), 
-              obsv = (w1,...,wm)} => cb || not expr2,
+              obsv = (w1,...,wm)} => cb,
     step = \#{acc = (_,v1,...,vn), 
               obsv = (w1,...,wm)} => expr
     acc = ((False,False,None),v1,...,vn), obsv = (w1,...,wm)
@@ -1249,9 +1261,10 @@ In other cases the expression for the upper limit must be determined manually.
 
 The \code{repeat} function passes an ``accumulator'' \code{acc} and an ``observed object'' \code{obsv} through all
 iterations, were \code{acc} may be modified and \code{obsv} not. The \code{repeat} function takes as arguments the 
-initial values of \code{acc} and \code{obsv} and two functions \code{stop} and \code{step} which both have \code{acc}
+initial values of \code{acc} and \code{obsv} and the functions \code{stop} and \code{step} which both have \code{acc}
 and \code{obsv} as arguments. The \code{stop} function is used before each iteration to determine whether a next iteration
-should be executed, it returns a boolean value whether to stop.  The \code{step} function covers the effect of one loop iteration and returns the 
+should be executed, it returns a boolean value whether to stop.  The \code{step} function covers the effect of one
+loop iteration and returns the
 new \code{acc} value. In the translation the \code{acc} value includes the control variable \code{c}. The \code{stop}
 function inspects the value of its \code{cb} component to detect whether a \code{break} or \code{return} statement
 has been executed in the body and terminates the loop in that case.
@@ -1274,18 +1287,17 @@ defined in C using the original \code{while} loop.
 Alternatively, if an upper limit of the number of iterations can be determined, the loop can be translated using the 
 abstract \code{repeat} function described above as follows.
 
-Let \code{expr1} be the translation of \code{e} and let \code{(c,v1,...,vn) = expr2} be the translation of 
-statement \code{s}. Let \code{w1,...,wm} be the variables occurring free in \code{expr1} and \code{expr2} other than 
-\code{c} and the \code{vi}.
+Let \code{(c,v1,...,vn) = expr} be the translation of statement \code{if e then s else break;}. Let \code{w1,...,wm}
+be the variables occurring free in \code{expr} other than \code{c} and the \code{vi}.
 Then the translation of the loop \code{while (e) s} is
 \begin{verbatim}
   (c, v1,...,vn) = 
   let ((_,cb,_),v1,...,vn) = repeat #{
     n = exprmax,
     stop = \#{acc = ((_,cb,_),v1,...,vn), 
-              obsv = (w1,...,wm)} => cb || not expr1,
+              obsv = (w1,...,wm)} => cb,
     step = \#{acc = (_,v1,...,vn), 
-              obsv = (w1,...,wm)} => expr2
+              obsv = (w1,...,wm)} => expr
     acc = (c,v1,...,vn), obsv = (w1,...,wm)
     }
   in ((res /= None,res /= None,res),v1,...,vn)

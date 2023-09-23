@@ -1,3 +1,4 @@
+#include <stddef.h>
 int lf1(int a, int b) {
     for (int i=0;i<b;i++) a*=2;
     return a;
@@ -103,3 +104,19 @@ int lfe10(int i) {
     for (i=0;i!=5;i+=2);
     return i;
 }
+
+int lfn1(int i, int* j) {
+    for (i=0; j && i<5; i++) {
+        *j = NULL;
+    }
+    return i;
+}
+
+typedef int *lfa[5];
+int lfn2(lfa a) {
+    for (int i=0; i<5 && a[i] ; i++) {
+        return *a[i];
+    }
+    return 0;
+}
+

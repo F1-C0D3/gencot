@@ -2207,40 +2207,38 @@ In a \code{for} loop the initialization part can be a declaration or a subexpres
 is the scope of the declared variable(s).
 
 The general translation of a loop \code{for (c1; e2; e3) s} with a clause \code{c1} which is either a declaration or an expression
-and where \code{e2} has no side effects
-is as follows. The statement \code{s} is translated to a binding \code{(c',x1..) = expr} by applying \code{bindStat} to it. The expression
-\code{e3} is translated to a binding \code{(v<n>',v1..) = expr3} by applying \code{bindExpr} to it and combining the resulting
-\code{ExprBinds} by \code{cmbBinds}. Conceptually, \code{e3} is appended as an expression statement to \code{s}, by combining
-the two bindings to the binding \code{(c',z1..) = exprstep} defined by
+and where \code{e2} has no side effects is as follows. The statement \code{if e2 then s else break;} is translated to a binding
+\code{(c',x1..) = expr} by applying \code{bindStat} to it. The expression
+\code{e3} is translated to a binding list \code{bs3} by applying \code{bindExpr} to it. Conceptually, \code{e3} is appended
+as an expression statement to \code{s}, by combining
+all bindings to the binding \code{(c',y1..) = exprstep} defined by
 \begin{verbatim}
   (c',y1..) = let (c',x1..) = expr
   in if c' > 1
      then (c',y1..)
-     else let (v<n>',v1..) = expr3
+     else let bs3
           in (0,y1..)
 \end{verbatim}
-where \code{y1..} is the union of \code{v1..} and \code{x1..}. Note that the condition uses \code{c' > 1} (\code{break} or \code{return}) 
+where \code{y1..} is the union of the side effect targets in \code{bs3} and \code{x1..}. Note that the condition uses \code{c' > 1}
+(\code{break} or \code{return})
 instead of \code{c' > 0} (\code{break}, \code{return}, or \code{continue}) to correctly translate the semantics of \code{continue} 
 statements in the body. A \code{continue} statement causes the body to abort, but still executes \code{e3}, whereas \code{break} 
 or \code{return} statements end the loop without executing \code{e3}.
 
-The expression \code{e2} is translated to a binding \code{(v<n>',t1..) = expr2} by applying \code{bindExpr} to it and combining 
-the resulting \code{ExprBinds} by \code{cmbBinds}. (Although for the general translation \code{e2} must not have side effects, there
-may be side effect targets \code{t1..} created by the translation which are only removed in later stages.)
 Then the binding \code{(c',y1..) = exprloop} is constructed defined by
 \begin{verbatim}
   (c',y1..) =
   let (c',y1..) = repeat #{
     n = exprmax,
     stop = \#{acc = (c',y1..), obsv = (w1..)} 
-           => let (v<n>',t1..) = expr2 in (c' > 1) || not v<n>',
+           => c' > 1,
     step = \#{acc = (_,y1..), obsv = (w1..)} 
            => exprstep
     acc = (0,y1..), obsv = (w1..)
     }
   in (if c'=2 then 0 else c',y1..)
 \end{verbatim}
-where \code{w1..} are all variables occurring free in \code{exprstep} or \code{expr2} which are not part of \code{y1..}, in some order.
+where \code{w1..} are all variables occurring free in \code{exprstep} which are not part of \code{y1..}, in some order.
 The expression \code{exprmax} for the upper limit of number of iterations is constructed as described below.
 
 Here the new control value is determined like for a switch statement, by consuming the effect of a \code{break} statement. Note that
@@ -2248,17 +2246,17 @@ Here the new control value is determined like for a switch statement, by consumi
 value is set to \code{0} which consumes the effect of a \code{continue} statement. As a consequence the control value returned by
 \code{repeat} can never be \code{1} so that it is not necessary to handle this case here.
 
-Finally, if \code{c1} is not empty its translation is prepended to the binding \code{(c',y1..) = exprloop} in the way as described 
-above for a block item sequence. If \code{c1} is an expression it is translated to a binding \code{(v<n>',u1..) = expr1} by 
-applying \code{bindExpr} to it and 
-combining the resulting \code{ExprBinds} by \code{cmbBinds}. Then the translation of the \code{for} statement is the binding
+Finally, if \code{c1} is not empty its translation is prepended to the binding \code{(c',y1..) = exprloop} in the way as described
+above for a block item sequence. If \code{c1} is an expression it is translated to a binding list \code{bs1} by
+applying \code{bindExpr} to it. Then the translation of the \code{for} statement is the binding
 \begin{verbatim}
   (c',z1..) = 
-  let (v<n>',u1..) = expr1
+  let bs1
   and (c',y1..) = exprloop in (c',z1..)
 \end{verbatim}
-where \code{z1..} is the union of \code{u1..} and \code{y1} in some order. This corresponds to a simplified sequence of the two 
-bindings exploiting the fact that the first results from an expression and can therefore not contain a jump.
+where \code{z1..} is the union of \code{y1..} and the side effect targets in \code{bs1} in some order. This corresponds to a
+simplified sequence of \code{bs1} and the \code{exprloop} binding exploiting the fact that the first results from an expression
+and can therefore not contain a jump.
 
 If \code{c1} is a declaration it is translated to a sequence of pairs of a variable and a binding. Then this sequence is combined
 with the binding \code{(c',y1..) = exprloop} beginning with the last pair, as described above for a declaration in a block item
@@ -2290,13 +2288,13 @@ is greater than \code{evl} the assignment in \code{e3} must have one of the form
 then let \code{emax} be the expression \code{ini}.
 \end{itemize}
 
-If the loop satisfies these properties the resulting C expression \code{emax} is translated to a binding \code{(v<n>',v1..) = expr} 
-by applying \code{bindExpr} to it and combining the resulting \code{ExprBinds} by \code{cmbBinds}. Then the expression
-\code{exprmax} is
+If the loop satisfies these properties the resulting C expression \code{emax} is translated to a binding list \code{bs} \code{(v<n>',v1..) = expr}
+by applying \code{bindExpr} to it. Then the expression \code{exprmax} is
 \begin{verbatim}
-  let (v<n>',v1..) = expr in v<n>'
+  let bs in v<n>'
 \end{verbatim}
-Note that side effect targets \code{v1..} could only occur if \code{emax} is \code{ini}. In this case the side effects are already
+where \code{v<n>’} is the value variable bound in bs to the result of the expression.
+Note that side effect targets could occur in \code{bs} if \code{emax} is \code{ini}. In this case the side effects are already
 handled by the translation of the loop and can be ignored here.
 
 The motivation for this approach is as follows. To determine an upper limit for the number of iterations a ``counting'' variable
@@ -2348,13 +2346,17 @@ As an example, the loop \code{for (int i=0;i<b;i++) a*=2;} is translated accordi
         let (c',i,a) = repeat #{
           n = b,
           stop = \#{acc = (c',i,a), obsv = b} 
-           => let v' = i<b in (c' > 1) || not v',
+           => c' > 1
           step = \#{acc = (_,i,a), obsv = b} 
-           => let (c',a) = (0,2*a)
-              in if c' > 1 
-                 then (c',i,a)
-                 else let (v',i) = (i,i+1)
-                      in (0,i,a)
+           => let v1' = i<b
+              in if v1'
+                 then let (c',a) = (0,2*a)
+                      in if c' > 1
+                         then (c',i,a)
+                         else let (v2',i) = (i,i+1)
+                              in (0,i,a)
+                 else let c' = 2
+                      in (c',i,a)
           acc = (0,i,a), obsv = b
           }
         in (if c' = 2 then 0 else c',i,a)
@@ -2366,7 +2368,7 @@ which can be further simplified to
   (c',i,a) = 
   let (i,a) = repeat #{
     n = b,
-    stop = \#{acc = (i,_), obsv = b} => not (i < b),
+    stop = \#{acc = (i,_), obsv = b} => False,
     step = \#{acc = (i,a)} => (i+1,2*a)
     acc = (0,a), obsv = b
     }

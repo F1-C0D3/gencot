@@ -621,13 +621,14 @@ cogent_faa14 (a, v) =
          in (v5', ())) !a
    in (r', a)
 
-type Struct_Cogent_as3 = { m5 : U32, m6 : MayNull Struct_Cogent_as1 }
+type Struct_Cogent_as3 = { m5 : U32, m6 : Struct_Cogent_as1 }
 type Cogent_aa3 =
-   CArr5 (MayNull (CPtr U32))
-cogent_fap1 : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
+   CArr5 (CPtr U32)
+cogent_fap1 : ( CPtr U32, U32 ) -> ( U32, CPtr U32 )
 cogent_fap1 (p, v) =
    let (r', ()) = (let v' = p
-         and p0' = gencotDummy "Dereferencing pointer which may be NULL"
+         and p0' = getPtr[(CPtr U32)!
+                         , U32]{{}} v'
          and v1' = p0'
          and () = ()
          and v3' = v1'
@@ -635,10 +636,10 @@ cogent_fap1 (p, v) =
          and v5' = v
          in (v5', ())) !p
    in (r', p)
-cogent_fap2 : ( MayNull Struct_Cogent_as1, U32 ) -> ( U32, MayNull Struct_Cogent_as1 )
+cogent_fap2 : ( Struct_Cogent_as1, U32 ) -> ( U32, Struct_Cogent_as1 )
 cogent_fap2 (p, v) =
    let (r', ()) = (let v' = p
-         and p0' = gencotDummy "Dereferencing pointer which may be NULL"
+         and p0' = v'.cont
          and v1' = p0'
          and p1' = v1'.m1
          and v2' = p1'
@@ -648,10 +649,10 @@ cogent_fap2 (p, v) =
          and v6' = v
          in (v6', ())) !p
    in (r', p)
-cogent_fap3 : ( MayNull Struct_Cogent_as1, U32 ) -> ( U32, MayNull Struct_Cogent_as1 )
+cogent_fap3 : ( Struct_Cogent_as1, U32 ) -> ( U32, Struct_Cogent_as1 )
 cogent_fap3 (p, v) =
    let (r', ()) = (let v' = p
-         and p0' = gencotDummy "Dereferencing pointer which may be NULL"
+         and p0' = v'.m1
          and v1' = p0'
          and () = ()
          and v3' = v1'
@@ -659,12 +660,12 @@ cogent_fap3 (p, v) =
          and v5' = v
          in (v5', ())) !p
    in (r', p)
-cogent_fap4 : ( MayNull Struct_Cogent_as3, U32 ) -> ( U32, MayNull Struct_Cogent_as3 )
+cogent_fap4 : ( Struct_Cogent_as3, U32 ) -> ( U32, Struct_Cogent_as3 )
 cogent_fap4 (p, v) =
    let (r', ()) = (let v' = p
-         and p0' = gencotDummy "Dereferencing pointer which may be NULL"
+         and p0' = v'.m6
          and v1' = p0'
-         and p1' = gencotDummy "Dereferencing pointer which may be NULL"
+         and p1' = v1'.cont
          and v2' = p1'
          and p2' = v2'.m1
          and v3' = p2'
@@ -674,12 +675,12 @@ cogent_fap4 (p, v) =
          and v7' = v
          in (v7', ())) !p
    in (r', p)
-cogent_fap5 : ( MayNull Struct_Cogent_as3, U32 ) -> ( U32, MayNull Struct_Cogent_as3 )
+cogent_fap5 : ( Struct_Cogent_as3, U32 ) -> ( U32, Struct_Cogent_as3 )
 cogent_fap5 (p, v) =
    let (r', ()) = (let v' = p
-         and p0' = gencotDummy "Dereferencing pointer which may be NULL"
+         and p0' = v'.m6
          and v1' = p0'
-         and p1' = gencotDummy "Dereferencing pointer which may be NULL"
+         and p1' = v1'.m1
          and v2' = p1'
          and () = ()
          and v4' = v2'
@@ -693,10 +694,10 @@ cogent_fap6 (p, v) =
          and v' = p
          and p0' = getArr[Cogent_aa3!
                          , U32
-                         , (MayNull ((CPtr U32)!))!]{{}} (v'
-                                                         , v1')
+                         , (CPtr U32)!]{{}} (v', v1')
          and v2' = p0'
-         and p1' = gencotDummy "Dereferencing pointer which may be NULL"
+         and p1' = getPtr[(CPtr U32)!
+                         , U32]{{}} v2'
          and v3' = p1'
          and () = ()
          and v5' = v3'
@@ -704,80 +705,86 @@ cogent_fap6 (p, v) =
          and v7' = v
          in (v7', ())) !p
    in (r', p)
-cogent_fap7 : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
+cogent_fap7 : CPtr U32 -> ( U32, CPtr U32 )
 cogent_fap7 p =
    let (r', p) = let v' = 42
       and v1' = p
-      and p0' = gencotDummy "Dereferencing pointer which may be NULL"
       and v3' = v'
       and p0' = v3'
+      and p = p { cont = p0' }
       and v5' = p
-      and p1' = gencotDummy "Dereferencing pointer which may be NULL"
+      and p { cont = p1' } = v5'
       and v6' = p1'
+      and p = p { cont = p1' }
       in (v6', p)
    in (r', p)
-cogent_fap8 : MayNull Struct_Cogent_as1 -> ( U32, MayNull Struct_Cogent_as1 )
+cogent_fap8 : Struct_Cogent_as1 -> ( U32, Struct_Cogent_as1 )
 cogent_fap8 p =
    let (r', p) = let v' = 42
       and v1' = p
-      and p0' = gencotDummy "Dereferencing pointer which may be NULL"
+      and p0' = gencotDummy "Dereferencing pointer to a record"
       and v2' = p0'
       and v4' = v'
       and p1' = v4'
       and p0' = p0' { m1 = p1' }
       and v6' = p
-      and p2' = gencotDummy "Dereferencing pointer which may be NULL"
+      and p2' = gencotDummy "Dereferencing pointer to a record"
       and v7' = p2'
       and p3' = v7'.m1
       and v8' = p3'
       in (v8', p)
    in (r', p)
-cogent_fap9 : MayNull Struct_Cogent_as1 -> ( U32, MayNull Struct_Cogent_as1 )
+cogent_fap9 : Struct_Cogent_as1 -> ( U32, Struct_Cogent_as1 )
 cogent_fap9 p =
    let (r', p) = let v' = 42
       and v1' = p
-      and p0' = gencotDummy "Dereferencing pointer which may be NULL"
       and v3' = v'
       and p0' = v3'
+      and p = p { m1 = p0' }
       and v5' = p
-      and p1' = gencotDummy "Dereferencing pointer which may be NULL"
+      and p { m1 = p1' } = v5'
       and v6' = p1'
+      and p = p { m1 = p1' }
       in (v6', p)
    in (r', p)
-cogent_fap10 : MayNull Struct_Cogent_as3 -> ( U32, MayNull Struct_Cogent_as3 )
+cogent_fap10 : Struct_Cogent_as3 -> ( U32, Struct_Cogent_as3 )
 cogent_fap10 p =
    let (r', p) = let v' = 42
       and v1' = p
-      and p0' = gencotDummy "Dereferencing pointer which may be NULL"
+      and p { m6 = p0' } = v1'
       and v2' = p0'
-      and p1' = gencotDummy "Dereferencing pointer which may be NULL"
+      and p1' = gencotDummy "Dereferencing pointer to a record"
       and v3' = p1'
       and v5' = v'
       and p2' = v5'
       and p1' = p1' { m1 = p2' }
+      and p = p { m6 = p0' }
       and v7' = p
-      and p3' = gencotDummy "Dereferencing pointer which may be NULL"
+      and p { m6 = p3' } = v7'
       and v8' = p3'
-      and p4' = gencotDummy "Dereferencing pointer which may be NULL"
+      and p4' = gencotDummy "Dereferencing pointer to a record"
       and v9' = p4'
       and p5' = v9'.m1
       and v10' = p5'
+      and p = p { m6 = p3' }
       in (v10', p)
    in (r', p)
-cogent_fap11 : MayNull Struct_Cogent_as3 -> ( U32, MayNull Struct_Cogent_as3 )
+cogent_fap11 : Struct_Cogent_as3 -> ( U32, Struct_Cogent_as3 )
 cogent_fap11 p =
    let (r', p) = let v' = 42
       and v1' = p
-      and p0' = gencotDummy "Dereferencing pointer which may be NULL"
+      and p { m6 = p0' } = v1'
       and v2' = p0'
-      and p1' = gencotDummy "Dereferencing pointer which may be NULL"
       and v4' = v'
       and p1' = v4'
+      and p0' = p0' { m1 = p1' }
+      and p = p { m6 = p0' }
       and v6' = p
-      and p2' = gencotDummy "Dereferencing pointer which may be NULL"
-      and v7' = p2'
-      and p3' = gencotDummy "Dereferencing pointer which may be NULL"
+      and p { m6 = p2' } = v6'
+      and p2' { m1 = p3' } = p2'
       and v8' = p3'
+      and p2' = p2' { m1 = p3' }
+      and p = p { m6 = p2' }
       in (v8', p)
    in (r', p)
 cogent_fap12 : Cogent_aa3 -> ( U32, Cogent_aa3 )
@@ -788,50 +795,59 @@ cogent_fap12 p =
       and (p
           , ()) = modifyArr[Cogent_aa3
                            , U32
-                           , MayNull (CPtr U32)
-                           , ()
+                           , CPtr U32
+                           , U32
                            , ()]{{}} (p
                                      , v2'
-                                     , \(p0', ()) => let v3' = p0'
-                                     and p1' = gencotDummy "Dereferencing pointer which may be NULL"
+                                     , \(p0', v') => let v3' = p0'
                                      and v5' = v'
                                      and p1' = v5'
+                                     and p0' = p0' { cont = p1' }
                                      in (p0', ())
-                                     , ())
+                                     , v')
       and v8' = 3
       and v7' = p
       and (p
           , v10') = modifyArr[Cogent_aa3
                              , U32
-                             , MayNull (CPtr U32)
+                             , CPtr U32
                              , ()
                              , U32]{{}} (p
                                         , v8'
-                                        , \(p2', ()) => let v9' = p2'
-                                        and p3' = gencotDummy "Dereferencing pointer which may be NULL"
-                                        and v10' = p3'
+                                        , \(p2', ()) => let (p2'
+                                                            , v10') = modifyPtr[CPtr U32
+                                                                               , U32
+                                                                               , ()
+                                                                               , U32]{{}} (p2'
+                                                                                          , \(p3'
+                                                                                             , ()) => let v10' = p3'
+                                                                                          in (p3'
+                                                                                             , v10')
+                                                                                          , ())
                                         in (p2', v10')
                                         , ())
       in (v10', p)
    in (r', p)
-cogent_fap13 : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
+cogent_fap13 : CPtr U32 -> ( U32, CPtr U32 )
 cogent_fap13 p =
    let (r', p) = let v' = 1
       and v1' = p
-      and p0' = gencotDummy "Dereferencing pointer which may be NULL"
+      and p { cont = p0' } = v1'
       and v2' = p0'
       and v3' = v2' + v'
       and (v4', p0') = (p0', v3')
+      and p = p { cont = p0' }
       in (v4', p)
    in (r', p)
-cogent_fap14 : MayNull Struct_Cogent_as1 -> ( U32, MayNull Struct_Cogent_as1 )
+cogent_fap14 : Struct_Cogent_as1 -> ( U32, Struct_Cogent_as1 )
 cogent_fap14 p =
    let (r', p) = let v' = 1
       and v1' = p
-      and p0' = gencotDummy "Dereferencing pointer which may be NULL"
+      and p { m1 = p0' } = v1'
       and v2' = p0'
       and v3' = v2' + v'
       and (v4', p0') = (p0', v3')
+      and p = p { m1 = p0' }
       in (v4', p)
    in (r', p)
 cogent_fap15 : Cogent_aa3 -> ( U32, Cogent_aa3 )
@@ -842,17 +858,26 @@ cogent_fap15 p =
       and (p
           , v6') = modifyArr[Cogent_aa3
                             , U32
-                            , MayNull (CPtr U32)
-                            , ()
+                            , CPtr U32
+                            , U32
                             , U32]{{}} (p
                                        , v2'
-                                       , \(p0', ()) => let v3' = p0'
-                                       and p1' = gencotDummy "Dereferencing pointer which may be NULL"
-                                       and v4' = p1'
-                                       and v5' = v4' + v'
-                                       and (v6', p1') = (p1', v5')
+                                       , \(p0', v') => let (p0'
+                                                           , v6') = modifyPtr[CPtr U32
+                                                                             , U32
+                                                                             , U32
+                                                                             , U32]{{}} (p0'
+                                                                                        , \(p1'
+                                                                                           , v') => let v4' = p1'
+                                                                                        and v5' = v4' + v'
+                                                                                        and (v6'
+                                                                                            , p1') = (p1'
+                                                                                                     , v5')
+                                                                                        in (p1'
+                                                                                           , v6')
+                                                                                        , v')
                                        in (p0', v6')
-                                       , ())
+                                       , v')
       in (v6', p)
    in (r', p)
 

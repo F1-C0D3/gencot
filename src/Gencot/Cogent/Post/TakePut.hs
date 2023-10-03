@@ -293,6 +293,8 @@ getModFunFromTake ip@(GenIrrefPatn (CS.PTake pv [Just (f,(GenIrrefPatn (CS.PVar 
                         else map mkVarExpr inpvars
           modfunname = if cmpIsUnboxedInLin ip && (not $ isNonlinear ct)
                           then "modrefFld_" ++ f
+                          else if isPtrType t
+                          then "modifyPtr"
                           else "modifyFld_" ++ f
           modfun = mkTopLevelFunExpr (modfunname, modfuntype) [Just t, Just ct, Just inptype, Just outtype]
 getModFunFromTake ip@(GenIrrefPatn (CS.PArrayTake pv [(idx,(GenIrrefPatn (CS.PVar cv) _ ct))]) _ t) chfun inpvars outvars =

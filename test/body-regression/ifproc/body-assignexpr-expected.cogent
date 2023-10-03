@@ -279,107 +279,129 @@ cogent_faa14 (a, v) =
                , ()) !a
    in (r', a)
 
-type Struct_Cogent_as3 = { m5 : U32, m6 : MayNull Struct_Cogent_as1 }
+type Struct_Cogent_as3 = { m5 : U32, m6 : Struct_Cogent_as1 }
 type Cogent_aa3 =
-   CArr5 (MayNull (CPtr U32))
-cogent_fap1 : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
+   CArr5 (CPtr U32)
+cogent_fap1 : ( CPtr U32, U32 ) -> ( U32, CPtr U32 )
 cogent_fap1 (p, v) =
    let (r'
-       , ()) = (gencotDummy "Dereferencing pointer which may be NULL"
+       , ()) = (getPtr[(CPtr U32)!
+                      , U32]{{}} p
                , ()) !p
    in (r', p)
-cogent_fap2 : ( MayNull Struct_Cogent_as1, U32 ) -> ( U32, MayNull Struct_Cogent_as1 )
+cogent_fap2 : ( Struct_Cogent_as1, U32 ) -> ( U32, Struct_Cogent_as1 )
 cogent_fap2 (p, v) =
-   let (r'
-       , ()) = ((gencotDummy "Dereferencing pointer which may be NULL").m1
-               , ()) !p
+   let (r', ()) = (p.cont.m1
+                  , ()) !p
    in (r', p)
-cogent_fap3 : ( MayNull Struct_Cogent_as1, U32 ) -> ( U32, MayNull Struct_Cogent_as1 )
+cogent_fap3 : ( Struct_Cogent_as1, U32 ) -> ( U32, Struct_Cogent_as1 )
 cogent_fap3 (p, v) =
-   let (r'
-       , ()) = (gencotDummy "Dereferencing pointer which may be NULL"
-               , ()) !p
+   let (r', ()) = (p.m1, ()) !p
    in (r', p)
-cogent_fap4 : ( MayNull Struct_Cogent_as3, U32 ) -> ( U32, MayNull Struct_Cogent_as3 )
+cogent_fap4 : ( Struct_Cogent_as3, U32 ) -> ( U32, Struct_Cogent_as3 )
 cogent_fap4 (p, v) =
-   let (r'
-       , ()) = ((gencotDummy "Dereferencing pointer which may be NULL").m1
-               , ()) !p
+   let (r', ()) = (p.m6.cont.m1
+                  , ()) !p
    in (r', p)
-cogent_fap5 : ( MayNull Struct_Cogent_as3, U32 ) -> ( U32, MayNull Struct_Cogent_as3 )
+cogent_fap5 : ( Struct_Cogent_as3, U32 ) -> ( U32, Struct_Cogent_as3 )
 cogent_fap5 (p, v) =
-   let (r'
-       , ()) = (gencotDummy "Dereferencing pointer which may be NULL"
-               , ()) !p
+   let (r', ()) = (p.m6.m1, ()) !p
    in (r', p)
 cogent_fap6 : ( Cogent_aa3, U32 ) -> ( U32, Cogent_aa3 )
 cogent_fap6 (p, v) =
    let (r'
-       , ()) = (gencotDummy "Dereferencing pointer which may be NULL"
+       , ()) = (getPtr[(CPtr U32)!
+                      , U32]{{}} (getArr[Cogent_aa3!
+                                        , U32
+                                        , (CPtr U32)!]{{}} (p, 3))
                , ()) !p
    in (r', p)
-cogent_fap7 : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
+cogent_fap7 : CPtr U32 -> ( U32, CPtr U32 )
 cogent_fap7 p =
-   (gencotDummy "Dereferencing pointer which may be NULL"
-   , p)
-cogent_fap8 : MayNull Struct_Cogent_as1 -> ( U32, MayNull Struct_Cogent_as1 )
+   let p = p { cont = 42 }
+   and p { cont = p1' } = p
+   in (p1', p { cont = p1' })
+cogent_fap8 : Struct_Cogent_as1 -> ( U32, Struct_Cogent_as1 )
 cogent_fap8 p =
-   ((gencotDummy "Dereferencing pointer which may be NULL").m1
+   ((gencotDummy "Dereferencing pointer to a record").m1
    , p)
-cogent_fap9 : MayNull Struct_Cogent_as1 -> ( U32, MayNull Struct_Cogent_as1 )
+cogent_fap9 : Struct_Cogent_as1 -> ( U32, Struct_Cogent_as1 )
 cogent_fap9 p =
-   (gencotDummy "Dereferencing pointer which may be NULL"
-   , p)
-cogent_fap10 : MayNull Struct_Cogent_as3 -> ( U32, MayNull Struct_Cogent_as3 )
+   let p = p { m1 = 42 }
+   and p { m1 = p1' } = p
+   in (p1', p { m1 = p1' })
+cogent_fap10 : Struct_Cogent_as3 -> ( U32, Struct_Cogent_as3 )
 cogent_fap10 p =
-   ((gencotDummy "Dereferencing pointer which may be NULL").m1
-   , p)
-cogent_fap11 : MayNull Struct_Cogent_as3 -> ( U32, MayNull Struct_Cogent_as3 )
+   let p { m6 = p0' } = p
+   and p = p { m6 = p0' }
+   and p { m6 = p3' } = p
+   in ((gencotDummy "Dereferencing pointer to a record").m1
+      , p { m6 = p3' })
+cogent_fap11 : Struct_Cogent_as3 -> ( U32, Struct_Cogent_as3 )
 cogent_fap11 p =
-   (gencotDummy "Dereferencing pointer which may be NULL"
-   , p)
+   let p { m6 = p0' } = p
+   and p = p { m6 = p0' { m1 = 42 } }
+   and p { m6 = p2' } = p
+   and p2' { m1 = p3' } = p2'
+   in (p3'
+      , p { m6 = p2' { m1 = p3' } })
 cogent_fap12 : Cogent_aa3 -> ( U32, Cogent_aa3 )
 cogent_fap12 p =
    let (p
        , _) = modifyArr[Cogent_aa3
                        , U32
-                       , MayNull (CPtr U32)
-                       , ()
+                       , CPtr U32
+                       , U32
                        , ()]{{}} (p
                                  , 3
-                                 , \(p0', ()) => (p0', ())
-                                 , ())
+                                 , \(p0'
+                                    , v') => (p0' { cont = v' }, ())
+                                 , 42)
    and (p
        , v10') = modifyArr[Cogent_aa3
                           , U32
-                          , MayNull (CPtr U32)
+                          , CPtr U32
                           , ()
                           , U32]{{}} (p
                                      , 3
-                                     , \(p2', ()) => (p2'
-                                                     , gencotDummy "Dereferencing pointer which may be NULL")
+                                     , \(p2'
+                                        , ()) => modifyPtr[CPtr U32
+                                                          , U32
+                                                          , ()
+                                                          , U32]{{}} (p2'
+                                                                     , \(p3'
+                                                                        , ()) => (p3'
+                                                                                 , p3')
+                                                                     , ())
                                      , ())
    in (v10', p)
-cogent_fap13 : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
+cogent_fap13 : CPtr U32 -> ( U32, CPtr U32 )
 cogent_fap13 p =
-   (gencotDummy "Dereferencing pointer which may be NULL"
-   , p)
-cogent_fap14 : MayNull Struct_Cogent_as1 -> ( U32, MayNull Struct_Cogent_as1 )
+   let p { cont = p0' } = p
+   in (p0', p { cont = p0' + 1 })
+cogent_fap14 : Struct_Cogent_as1 -> ( U32, Struct_Cogent_as1 )
 cogent_fap14 p =
-   (gencotDummy "Dereferencing pointer which may be NULL"
-   , p)
+   let p { m1 = p0' } = p
+   in (p0', p { m1 = p0' + 1 })
 cogent_fap15 : Cogent_aa3 -> ( U32, Cogent_aa3 )
 cogent_fap15 p =
    let (p
        , v6') = modifyArr[Cogent_aa3
                          , U32
-                         , MayNull (CPtr U32)
-                         , ()
+                         , CPtr U32
+                         , U32
                          , U32]{{}} (p
                                     , 3
-                                    , \(p0', ()) => (p0'
-                                                    , gencotDummy "Dereferencing pointer which may be NULL")
-                                    , ())
+                                    , \(p0'
+                                       , v') => modifyPtr[CPtr U32
+                                                         , U32
+                                                         , U32
+                                                         , U32]{{}} (p0'
+                                                                    , \(p1'
+                                                                       , v') => (p1' + v'
+                                                                                , p1')
+                                                                    , v')
+                                    , 1)
    in (v6', p)
 
 cogent_fam1 : ( U32, U32 ) -> U32

@@ -13,7 +13,7 @@ import Gencot.Names (ptrDerivCompName)
 import Gencot.Cogent.Ast
 import Gencot.Cogent.Error (takeOp)
 import Gencot.Cogent.Types (
-  isUnsizedArrayType, isArrayType, isNonlinear, isMayNull, isPtrType, isVoidPtrType, isReadonly, isUnitType,
+  isUnsizedArrayType, isArrayType, isNonlinear, isRegular, isMayNull, isPtrType, isVoidPtrType, isReadonly, isUnitType,
   mkU32Type, mkTupleType, mkUnboxed, mkFunType, getMemberType, getDerefType, getResultType,
   isUnboxedMember, isUnboxedDeref, tupleSize)
 import Gencot.Cogent.Bindings (errVar, toDummyExpr, mkDummyExpr, isTakeBinding, isPutBindingFor, isTakePattern, isArrayTakePattern,
@@ -30,7 +30,7 @@ import Gencot.Cogent.Post.Util (ETrav, freeInExpr, freeInPatn, freeInIrrefPatn,
 
 tpproc :: GenExpr -> ETrav GenExpr
 tpproc e = do
-    e1 <- singletpproc e
+    e1 <- tpsingle e
     return $ tpmodify $ tpelim e1
 
 -- | Process individual take- and put-bindings according to the container type.
@@ -40,45 +40,45 @@ tpproc e = do
 -- If the container is the error variable: convert take to dummy binding for component variable.
 -- If the component is cont for a record or array: error.
 -- In all cases the put-binding is simply removed.
-singletpproc :: GenExpr -> ETrav GenExpr
-singletpproc (GenExpr (CS.Let bs bdy) o t c) = do
-    bs' <- singletpprocBindings bs
-    bdy' <- singletpproc bdy
+tpsingle :: GenExpr -> ETrav GenExpr
+tpsingle (GenExpr (CS.Let bs bdy) o t c) = do
+    bs' <- tpsingleBindings bs
+    bdy' <- tpsingle bdy
     return $ if null bs' then bdy' else GenExpr (CS.Let bs' bdy') o t c
-singletpproc e =
-    mapMExprOfGE (mapM singletpproc) e
+tpsingle e =
+    mapMExprOfGE (mapM tpsingle) e
 
-singletpprocBindings :: [GenBnd] -> ETrav [GenBnd]
-singletpprocBindings [] = return []
-singletpprocBindings (b@(CS.Binding ip m e bvs) : bs)
+tpsingleBindings :: [GenBnd] -> ETrav [GenBnd]
+tpsingleBindings [] = return []
+tpsingleBindings (b@(CS.Binding ip m e bvs) : bs)
     | (GenIrrefPatn (CS.PTake _ _) _ _) <- ip = do
-        b' <- singletpprocTake b
-        bs' <- singletpprocBindings bs
+        b' <- tpsingleTake b
+        bs' <- tpsingleBindings bs
         return (b' : bs')
-singletpprocBindings (b@(CS.Binding ip m e bvs) : bs)
+tpsingleBindings (b@(CS.Binding ip m e bvs) : bs)
     | (GenIrrefPatn (CS.PArrayTake _ _) _ _) <- ip = do
-        b' <- singletpprocArrayTake b
-        bs' <- singletpprocBindings bs
+        b' <- tpsingleArrayTake b
+        bs' <- tpsingleBindings bs
         return (b' : bs')
-singletpprocBindings ((CS.Binding _ _ (GenExpr (CS.Put pv [Just (f,_)]) _ t _) _) : bs)
+tpsingleBindings ((CS.Binding _ _ (GenExpr (CS.Put pv [Just (f,_)]) _ t _) _) : bs)
     | isMayNull t
       || isVoidPtrType t
       || isReadonly t
       || f == ptrDerivCompName && ((isUnitType mtype) || (mtype == mkUnboxed t))
-    = singletpprocBindings bs
+    = tpsingleBindings bs
     where mtype = getMemberType f t
-singletpprocBindings ((CS.Binding _ _ (GenExpr (CS.ArrayPut pv _) _ t _) _) : bs)
+tpsingleBindings ((CS.Binding _ _ (GenExpr (CS.ArrayPut pv _) _ t _) _) : bs)
     | isMayNull t
       || isVoidPtrType t
       || isReadonly t
-    = singletpprocBindings bs
-singletpprocBindings ((CS.Binding ip m e bvs) : bs) = do
-    e' <- singletpproc e
-    bs' <- singletpprocBindings bs
+    = tpsingleBindings bs
+tpsingleBindings ((CS.Binding ip m e bvs) : bs) = do
+    e' <- tpsingle e
+    bs' <- tpsingleBindings bs
     return ((CS.Binding ip m e' bvs) : bs')
 
-singletpprocTake :: GenBnd -> ETrav GenBnd
-singletpprocTake b@(CS.Binding ip m e bvs)
+tpsingleTake :: GenBnd -> ETrav GenBnd
+tpsingleTake b@(CS.Binding ip m e bvs)
     | (GenIrrefPatn (CS.PTake pv [Just (f,cip)]) o t) <- ip =
     let (err,msg) =
             if f == ptrDerivCompName && (isArrayType t)
@@ -87,8 +87,8 @@ singletpprocTake b@(CS.Binding ip m e bvs)
                then (True, "Dereferencing pointer which may be NULL")
                else if isVoidPtrType t
                then (True, "Dereferencing void pointer")
-               else if isReadonly t
-               then (False, "readonly")
+               else if isReadonly t || (isRegular t && pv == errVar)
+               then (False, "nonlinear")
                else if pv == errVar
                then (True, "Dereferencing pointer not specified by a variable")
                else if f == ptrDerivCompName && ((isUnitType mtype) || (mtype == mkUnboxed t))
@@ -104,11 +104,12 @@ singletpprocTake b@(CS.Binding ip m e bvs)
            return $ CS.Binding cip Nothing dummy []
        else if null msg
        then return b
-       else if msg == "readonly"
+       else if msg == "nonlinear"
        then return $ toNonLinAccess b
-       else singletpprocArrayTake $ CS.Binding ipa m e bvs
-singletpprocArrayTake :: GenBnd -> ETrav GenBnd
-singletpprocArrayTake b@(CS.Binding ip _ e _)
+       else -- arrderef
+         tpsingleArrayTake $ CS.Binding ipa m e bvs
+tpsingleArrayTake :: GenBnd -> ETrav GenBnd
+tpsingleArrayTake b@(CS.Binding ip _ e _)
     | (GenIrrefPatn (CS.PArrayTake pv [(_,cip)]) _ t) <- ip =
     let (err,msg) =
             if not $ isArrayType t
@@ -131,7 +132,8 @@ singletpprocArrayTake b@(CS.Binding ip _ e _)
            return $ CS.Binding cip Nothing dummy []
        else if null msg
        then return b
-       else return $ toNonLinAccess b
+       else -- readonly
+         return $ toNonLinAccess b
 
 -- | Convert a take binding to a member access or application of getPtr or gerArr.
 toNonLinAccess :: GenBnd -> GenBnd
@@ -186,7 +188,7 @@ tpelimForTake :: TypedVar -> GenBnd -> [GenBnd] -> GenBnd -> [GenBnd] -> GenExpr
 tpelimForTake (TV cmp ct) tkb@(CS.Binding ip _ (GenExpr _ _ t _) _) scp ptb rst bdy =
     if needPut
        then if needTake (scp' ++ (ptb : rst))
-         then tkb : (scp' ++ [ptb])
+         then (if isRegular t then toNonLinAccess tkb else tkb) : (scp' ++ [ptb])
          else  scp' ++ [setIfArray ptb]
          else if needTake (scp' ++ rst)
          then (toNonLinAccess tkb) : scp'
@@ -237,7 +239,7 @@ tpmodifyInBindings [] bdy = []
 tpmodifyInBindings (tkb@(CS.Binding ip _ _ _) : bs) bdy | isTakePattern ip =
     scp' ++ bs'
     where (cmp,scp,ptb,rst) = getTakePutScope tkb bs
-          scp' = tpmodifyForTake False cmp tkb scp ptb rst bdy
+          scp' = tpmodifyForTake cmp tkb scp ptb rst bdy
           bs' = tpmodifyInBindings rst bdy
 tpmodifyInBindings ((CS.Binding ip m e bvs) : bs) bdy =
     (CS.Binding ip m (tpmodify e) bvs) : (tpmodifyInBindings bs bdy)
@@ -245,29 +247,31 @@ tpmodifyInBindings ((CS.Binding ip m e bvs) : bs) bdy =
 -- | Process a pair of take and put bindings or arrayTake and arrayPut binding.
 -- The result is the single binding for a modify application
 -- or the binding sequence from take to put with processed nested take/put pairs.
--- The first argument is a flag to force the conversion to modify application.
--- The second argument is the taken component variable.
+-- The first argument is the taken component variable.
 -- The following three arguments are the take binding, the bindings between take and put and the put binding.
--- The sixth argument is the list of bindings following the put binding.
+-- The fifth argument is the list of bindings following the put binding.
 -- The last argument is the let body following all bindings.
-tpmodifyForTake :: Bool -> TypedVar -> GenBnd -> [GenBnd] -> GenBnd -> [GenBnd] -> GenExpr -> [GenBnd]
-tpmodifyForTake force cmp@(TV cn ct) tkb@(CS.Binding ip _ _ _) scp ptb rst bdy =
+tpmodifyForTake :: TypedVar -> GenBnd -> [GenBnd] -> GenBnd -> [GenBnd] -> GenExpr -> [GenBnd]
+tpmodifyForTake cmp@(TV cn ct) tkb@(CS.Binding ip _ _ _) scp ptb rst bdy =
     if doModif
-       then [getModFunFromTake ip chfun inpvars outvars]
+       then [if iscf
+             then mkModBinding ip cf cps ces
+             else mkModBinding ip chfun (mkVarsOrUnitPatterns outvars) (mkVarsOrUnitExprs inpvars)]
        else tkb : (scp' ++ [ptb])
-    where doModif = force || isArrayTakePattern ip || cmpIsUnboxedInLin ip
+    where doModif = isArrayTakePattern ip || cmpIsUnboxedInLin ip
           (pre,nst) = break isTakeBinding scp -- nested take binding is first in nst
           scp' = if null nst
                     then pre
                     else let ntkb = head nst
                              ntkb' = elimPreBind pre ntkb
                              (ncmp,nscp,nptb,nrst) = getTakePutScope ntkb' (tail nst)
-                             nscp' = tpmodifyForTake doModif ncmp ntkb' nscp nptb (nrst ++ rst) bdy
+                             nscp' = tpmodifyForTake ncmp ntkb' nscp nptb (nrst ++ rst) bdy
                          in nscp' ++ nrst
+          (iscf,cf,cps,ces) = checkChgFunFor cmp scp'
           outvars = filter (\(TV v _) -> varUsedIn v rst bdy) $ (cmp : boundTypedVarsInBindings scp')
-          chbdy = mkUnitTupleExpr cmp outvars
+          chbdy = mkTupleExpr ((mkVarExpr cmp) : mkVarsOrUnitExprs outvars)
           inpvars = filter (\(TV v _) -> varUsedIn v scp' chbdy) $ freeTypedVarsUnderBinding (tkb : scp') (cmp: outvars)
-          chargs = mkUnitTuplePattern cmp inpvars
+          chargs = mkTuplePattern ((mkVarPattern cmp) : mkVarsOrUnitPatterns inpvars)
           chfun = mkLambdaExpr chargs (if null scp' then chbdy else mkLetExpr scp' chbdy)
 
 cmpIsUnboxedInLin :: GenIrrefPatn -> Bool
@@ -281,40 +285,56 @@ elimPreBind [CS.Binding (GenIrrefPatn (CS.PVar pv) _ _) _ (GenExpr (CS.Var v) _ 
     CS.Binding ip m (GenExpr (CS.Var v) o t c) bvs
 elimPreBind _ _ = error "Unexpected binding(s) between nested takes."
 
-getModFunFromTake :: GenIrrefPatn -> GenExpr -> [TypedVar] -> [TypedVar] -> GenBnd
-getModFunFromTake ip@(GenIrrefPatn (CS.PTake pv [Just (f,(GenIrrefPatn (CS.PVar cv) _ ct))]) _ t) chfun inpvars outvars =
-    CS.Binding (mkUnitTuplePattern (TV pv t) outvars) Nothing (mkAppExpr modfun $ mkTupleExpr ([mkVarExpr $ TV pv t, chfun] ++ inpexprs)) []
-    where modargtype = mkTupleType [ct, typOfGE chfun, inptype]
-          modfuntype = mkFunType modargtype $ getResultType $ typOfGE chfun
-          inptype = mkTupleType $ map typOfTV inpvars
-          outtype = mkTupleType $ map typOfTV outvars
-          inpexprs = if null inpvars
-                        then [mkUnitExpr]
-                        else map mkVarExpr inpvars
-          modfunname = if cmpIsUnboxedInLin ip && (not $ isNonlinear ct)
+-- | Check whether a binding sequence is a single change function application for a variable of the form
+--   (pv,outvars..) = chfun (pv,inpvars..)
+-- The first component of the result is True if the binding sequence is a single binding
+-- of this form and the remaining results are chfun, outvars.., and inpvars..
+-- Otherwise the remaining results are the unit expression and two empty lists.
+checkChgFunFor :: TypedVar -> [GenBnd] -> (Bool, GenExpr, [GenIrrefPatn], [GenExpr])
+checkChgFunFor (TV v _) [CS.Binding (GenIrrefPatn (CS.PTuple ((GenIrrefPatn (CS.PVar pv) _ _) : ips)) _ _) _
+                          (GenExpr (CS.App f (GenExpr (CS.Tuple ((GenExpr (CS.Var ev) _ _ _) : es)) _ _ _) _) _ _ _) []]
+    | pv == v && ev == v = (True,f,ips,es)
+checkChgFunFor _ _ = (False,mkUnitExpr,[],[])
+
+-- | Construct a binding with a modify application.
+-- It has the form (v,outvars..) = modify (v, [idx,] chfun, inpvars..)
+-- The first argument is the original take pattern, used to determine v, idx, and modify.
+-- The second argument is the change function chfun.
+-- The third argument is the list of patterns outvars..
+-- The last argument is the list of expressions inpvars..
+mkModBinding :: GenIrrefPatn -> GenExpr -> [GenIrrefPatn] -> [GenExpr] -> GenBnd
+mkModBinding ip@(GenIrrefPatn (CS.PTake pv _) _ t) f ips es =
+    mkModBinding' (TV pv t) ip ips [f] es
+mkModBinding ip@(GenIrrefPatn (CS.PArrayTake pv [(idx,_)]) _ t) f ips es =
+    mkModBinding' (TV pv t) ip ips [idx, f] es
+
+mkModBinding' tv ip ips idxandfun es =
+    CS.Binding (mkTuplePattern ((mkVarPattern tv) : ips)) Nothing (mkAppExpr modfun modargs) []
+    where modargs = mkTupleExpr ((mkVarExpr tv) : (idxandfun ++ es))
+          chfun = last idxandfun
+          modfuntype = mkFunType (typOfGE modargs) $ getResultType $ typOfGE chfun
+          modfun = mkModFun ip modfuntype
+
+-- | Construct an expression for the modify function from the take pattern.
+-- The second argument is the type to be used for the resulting modify function.
+mkModFun :: GenIrrefPatn -> GenType -> GenExpr
+mkModFun ip@(GenIrrefPatn (CS.PTake pv [Just (f,(GenIrrefPatn (CS.PVar cv) _ ct))]) _ t) modfuntype =
+    mkTopLevelFunExpr (modfunname, modfuntype) [Just t, Just ct, Nothing, Nothing]
+    where modfunname = if cmpIsUnboxedInLin ip && (not $ isNonlinear ct)
                           then "modrefFld_" ++ f
                           else if isPtrType t
                           then "modifyPtr"
                           else "modifyFld_" ++ f
-          modfun = mkTopLevelFunExpr (modfunname, modfuntype) [Just t, Just ct, Just inptype, Just outtype]
-getModFunFromTake ip@(GenIrrefPatn (CS.PArrayTake pv [(idx,(GenIrrefPatn (CS.PVar cv) _ ct))]) _ t) chfun inpvars outvars =
-    CS.Binding (mkUnitTuplePattern  (TV pv t) outvars) Nothing (mkAppExpr modfun $ mkTupleExpr ([mkVarExpr $ TV pv t,idx,chfun] ++ inpexprs)) []
-    where modargtype = mkTupleType [ct, mkU32Type, typOfGE chfun, inptype]
-          modfuntype = mkFunType modargtype $ getResultType $ typOfGE chfun
-          inptype = mkTupleType $ map typOfTV inpvars
-          outtype = mkTupleType $ map typOfTV outvars
-          inpexprs = if null inpvars
-                        then [mkUnitExpr]
-                        else map mkVarExpr inpvars
-          modfunname = if cmpIsUnboxedInLin ip && (not $ isNonlinear ct)
+mkModFun ip@(GenIrrefPatn (CS.PArrayTake pv [(_,(GenIrrefPatn (CS.PVar cv) _ ct))]) _ t) modfuntype =
+    mkTopLevelFunExpr (modfunname, modfuntype) [Just t, Just mkU32Type, Just ct, Nothing, Nothing]
+    where modfunname = if cmpIsUnboxedInLin ip && (not $ isNonlinear ct)
                           then "modrefArr"
                           else "modifyArr"
-          modfun = mkTopLevelFunExpr (modfunname, modfuntype) [Just t, Just mkU32Type, Just ct, Just inptype, Just outtype]
 
-mkUnitTuplePattern :: TypedVar -> [TypedVar] -> GenIrrefPatn
-mkUnitTuplePattern v [] = mkTuplePattern [mkVarPattern v, mkUnitPattern]
-mkUnitTuplePattern v vars = mkVarTuplePattern (v : vars)
+mkVarsOrUnitPatterns :: [TypedVar] -> [GenIrrefPatn]
+mkVarsOrUnitPatterns [] = [mkUnitPattern]
+mkVarsOrUnitPatterns vars = map mkVarPattern vars
 
-mkUnitTupleExpr :: TypedVar -> [TypedVar] -> GenExpr
-mkUnitTupleExpr v [] = mkTupleExpr [mkVarExpr v, mkUnitExpr]
-mkUnitTupleExpr v vars = mkVarTupleExpr (v : vars)
+mkVarsOrUnitExprs :: [TypedVar] -> [GenExpr]
+mkVarsOrUnitExprs [] = [mkUnitExpr]
+mkVarsOrUnitExprs vars = map mkVarExpr vars

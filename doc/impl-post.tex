@@ -570,13 +570,7 @@ application. No value with escape-restricted type (containing a read-only part) 
 a systematic construction of bang applications so that a maximum of readonly type clashes are resolved, is a complex optimization
 problem.
 
-Postprocessing for readonly processing is implemented by the monadic action
-\begin{verbatim}
-  bangproc :: GenExpr -> ETrav GenExpr
-\end{verbatim}
-defined in module \code{Gencot.Cogent.Post.MatchTypes}.
-
-\subsubsection{Determine Variables for Banging and Changing their Types}
+\subsubsection{Determine Variables for Banging to Resolve Type Clashes}
 
 Gencot uses a specific heuristics to find bang applications which resolve readonly type clashes. Remaining clashes are then
 resolved by dummy expressions and signaling them as errors. In such cases it may be possible to remove readonly type clashes
@@ -616,6 +610,29 @@ collecting additional source variables for banging or by treating them as error.
 additional variables for banging. Since the scope only uses a finite number of variables the repetition terminates. If the
 collected source variables are banged and the scope is replaced by the processed scope and this scope has an escapeable type
 all readonly type clashes in it have been resolved.
+
+Postprocessing for resolving readonly type clashes by banging variables is implemented by the monadic action
+\begin{verbatim}
+  bangproc :: GenExpr -> ETrav GenExpr
+\end{verbatim}
+defined in module \code{Gencot.Cogent.Post.MatchTypes}.
+
+\subsubsection{Determine Variables for Additional Banging}
+
+Values of readonly type can be freely copied and discarded in Cogent, the can be used in much more flexibel ways than
+values of linear type. Therefore Gencot tries to bang variables also if it is not required to resolve type clashes.
+
+The most relevant kind of uses where banging provides an advantage is for a container when components are accessed.
+Therefore Gencot also applies the banging heuristics to all variables which occur as container in a \code{take}
+operation in the scope of the banging. As described above, a variable is only banged if it does not cause a readonly type
+clash. Therefore banging additional variables is most effective if all readonly type clashes have been resolved, so
+that detected type clashes are always caused by the banging and are not due to other reasons.
+
+This is implemented by the monadic action
+\begin{verbatim}
+  ebangproc :: GenExpr -> ETrav GenExpr
+\end{verbatim}
+defined in module \code{Gencot.Cogent.Post.MatchTypes}.
 
 \subsubsection{Selecting Bang Positions and Scopes}
 
@@ -687,7 +704,7 @@ by replacing the \code{mayNull} application by a dummy and signaling an error. I
 Applications of \code{notNull} occur only in a match expression in the form
 \begin{verbatim}
   notNull v
-  | Nothing -> let v = cogent_NULL in e1
+  | Nothing -> e1
   | Some v -> e2
 \end{verbatim}
 where \code{v} is a C variable or component variable.
@@ -697,8 +714,7 @@ thus there cannot be a readonly type clash for the result of \code{notNull} whic
 the source variables of \code{v} need not be transferred to the result of \code{notNull}.
 
 If the source variables of \code{v} are decided to be banged, the type of the result of \code{notNull} and the two patterns must
-be converted to readonly, together with the type of the \code{v} pattern in the \code{Nothing} alternative. The type of
-\code{cogent\_NULL} and for the occurrences of \code{v} in \code{e1} and \code{e1} will be converted as usual.
+be converted to readonly. The type for the occurrences of \code{v} in \code{e1} and \code{e1} will be converted as usual.
 
 In all cases only the types of \code{mayNull} and \code{notNull} are converted, the operations are only replaced by their readonly
 alternatives in a later processing step.
@@ -778,6 +794,12 @@ In C the test result can be stored and used later as condition to guard code par
 data flow analysis of the test result. Gencot does not perform this analysis, it only uses the test result if the test is immediately
 present in the condition of a conditional expression or statement. Conditional expressions and statements are both translated to Cogent
 conditional expressions. Then the scopes affected by the test are syntactically available as the branches of the conditional expression.
+
+Postprocessing for values of \code{MayNull} type in this way is implemented by the monadic action
+\begin{verbatim}
+  maynullproc :: GenExpr -> ETrav GenExpr
+\end{verbatim}
+defined in module \code{Gencot.Cogent.Post.MatchTypes}.
 
 \subsubsection{Splitting Conditions}
 
@@ -904,41 +926,82 @@ after the application binding.
 \subsection{String Processing}
 \label{impl-post-string}
 
+**todo \code{stringproc}
+
 \subsection{Integer Adaptation}
 \label{impl-post-int}
+
+**todo \code{intproc}
 
 \subsection{Pointer Adaptation}
 \label{impl-post-pointer}
 
+**todo \code{pointerproc}
+
+\subsection{Processing \code{MayNull} Operations}
+\label{impl-post-opnull}
+
+The Gencot operations for values of \code{MayNull} type are defined in two variants for values which are readonly or not (see Section~\ref{design-operations-null}). The operations are introduced by the \code{NULL} pointer processing but the distinction
+between readonly and modifiable values is only known after readonly processing. Therefore the \code{NULL} pointer processing
+always generates the variants for modifiable values. They are replaced by the variants for readonly values in a separate
+processing step.
+
+The operation \code{null} and its readonly variant \code{roNull} are used to represent the value \code{NULL} in Cogent.
+Gencot translates it to references of the variable \code{cogent\_NULL}. Since a variable reference is easier to handle
+for the processing steps than an application of a (constant) function, \code{cogent\_NULL} is only converted to \code{null}
+and possibly further to \code{roNull} after NULL pointer processing and readonly processing.
+
+As described in Section~\ref{impl-post-null} in the Nothing branch of generated \code{match} expressions the tested pointer
+variable is bound to NULL. Since that would be interpreted by readonly processing as a modification it would prevent
+banging for the pointer variable. Therefore the binding is only inserted after readonly processing. Then it is known
+whether the type is readonly or not, so the representation by the operation \code{null} or \code{roNull} can be used directly.
+
+All these postprocessing steps cannot cause errors, hence they are implemented together by the function
+
+\begin{verbatim}
+  opnullproc :: GenExpr -> GenExpr
+\end{verbatim}
+defined in module \code{Gencot.Cogent.Post.MatchTypes}.
+
 \subsection{Take/Put Processing}
 \label{impl-post-takeput}
 
-For struct and array accesses in C (\code{s.m}, \code{s->m}, \code{a[i]}) the translation described in Section~\ref{impl-ccode-cexpr}
-creates pairs of take/put bindings of the form
+For struct and array accesses in C (\code{s.m}, \code{s->m}, \code{a[i]}) and also for pointer dereferences (\code{*p})
+the translation described in Section~\ref{impl-ccode-cexpr} creates pairs of take/put bindings of the form
 \begin{verbatim}
-  <v>{m=pk’} = vn’
+  <v>{m=p<k>’} = v<n>’
   ...
-  <v> = <v>{m=pk’}
+  <v> = <v>{m=p<k>’}
 \end{verbatim}
-(for struct access) and
+(for struct access and pointer dereferences) and
 \begin{verbatim}
-  (<v> @{@vl’=pk’},ik’) = (vn’,vl’)
+  <v> @{@v<l>’=p<k>’} = v<n>’
   ...
-  <v> = <v> @{@ik’=pk’}
+  <v> = <v> @{@v<l>’=p<k>’}
 \end{verbatim}
-(for array access). Here, \code{<v>} is the variable used for the container (struct or array) and \code{pk'} is the component variable 
-used to bind the component (member or element). The value variable \code{vn'} is the result of the expression denoting the container
-(struct or array). If that expression is not an lvalue in C (corresponding to a C variable or component variable in Cogent) \code{<v>}
-is the error variable \code{err'} in the \code{take} binding and the \code{put} bindingis replaced by the unit binding \code{() = ()}.
+(for array access). Here, \code{<v>} is the variable used for the container (struct, array, or pointer) and \code{p<k>'} is the
+component variable used to bind the component (member, element, or referenced data). The value variable \code{v<n>'} is the result
+of the expression denoting the container. Since in C this expression is always a subexpression of the access expression, its
+translation is positioned in one or more bindings before the \code{take} binding which ultimately bind \code{v<n>'}.
+Since the take/put pair only covers the C access expression the container cannot be modified by a side effect between the
+\code{take} and \code{put} bindings, i.e., the variable \code{<v>} cannot be re-bound between them.
 
-There are several postprocessing steps applied to take/put pairs:
+There are several cases where the \code{put} binding is not present and has been replaced by a unit binding, either by the
+translation (see Section~\ref{impl-ccode-cexpr}) or by postprocessing (see Sections~\ref{impl-post-romod} and~\ref{impl-post-bang}).
+In all these cases the container is either specified by the error variable \code{err'} or it has readonly type.
+
+If the container in a \code{take} binding is specified by the error variable, the container has been specified in C by an expression
+which is not a variable or an access chain starting at a variable. This case is detected by the translation phase and no corresponding
+\code{put} binding is generated. Note that the postprocessing described in Section~\ref{impl-post-romod} replaces occurrences of
+component variables in binding patterns by the error variable, but only in normal bindings and not in \code{take} bindings for nested
+accesses to components of the component.
+
+There are three main postprocessing steps applied to take/put pairs:
 \begin{itemize}
-\item Simplifying \code{take} bindings,
-\item eliminating take/put pairs for readonly container types,
-\item enlarging take/put regions,
-\item converting take/put pairs to \code{modify} applications.
+\item processing single \code{take} and \code{put} bindings according to the types of the container and the component.
+\item eliminating the \code{take} and/or \code{put} binding of a pair according to how the component is used after the \code{take}.
+\item converting take/put pairs to applications of \code{modify} or \code{modref}.
 \end{itemize}
-
 
 Postprocessing for \code{take} and \code{put} bindings is implemented by the function
 \begin{verbatim}
@@ -946,200 +1009,291 @@ Postprocessing for \code{take} and \code{put} bindings is implemented by the fun
 \end{verbatim}
 defined in module \code{Gencot.Cogent.Post.Takeput}.
 
-The take/put pairs are postprocessed in two major steps. In the first step single take or put bindings are eliminated, because the component
-has nonlinear type. In the second step, some of the remaining take/put pairs are converted to applications of the \code{modify} operation
-(see section~\ref{design-operations-modify}). The steps are implemented by the functions
+The three substeps are implemented by the functions
 \begin{verbatim}
-  tpelimproc :: GenExpr -> GenExpr
-  tpmodifproc :: GenExpr -> GenExpr
+  tpsingle :: GenExpr -> ETrav GenExpr
+  tpelim :: GenExpr -> GenExpr
+  tpmodify :: GenExpr -> GenExpr
 \end{verbatim}
-defined in module \code{Gencot.Cogent.Post.Takeput}.
+The first substep is implemented by a monadic action because it may signal errors. The other substeps never signal errors.
+The substeps are executed sequentially for a whole function body. Every substep converts or removes some take/put pairs, the following
+substep only processes the remaining pairs. After the third substep there may still remain take/put pairs which are usually valid
+Cogent code.
 
-\subsubsection{Banging \code{take} Bindings}
+\subsubsection{Processing Single \code{take} and \code{put} Bindings}
 
-A component of nonlinear type can freely by copied from a container without the need for a \code{take} operation. The same holds, if the 
-component has linear type, but is only used in readonly form. Then the container can be ``banged'' before the component access and a readonly
-access can be used instead of a \code{take} operation.
+The first substep detects erroneous take/put pairs and pairs where the container has readonly type. In both cases the \code{put} binding
+is simply removed. For erroneous pairs the \code{take} binding is replaced by a binding for the component variable to a
+dummy expression and a corresponding error is signaled. For a readonly container previous postprocessing steps guarantee
+that the component is not modified or replaced (see Sections~\ref{impl-post-romod} and~\ref{impl-post-bang}), therefore the
+\code{put} binding is not needed and the \code{take} binding is replaced by a direct access to the component. Together, in
+all these cases both the \code{take} and the \code{put} bindings are removed.
 
-As a preparation step all \code{take} bindings are banged for which that is possible, i.e. the container is banged in the binding by appending
-\code{!vn'} to it:
-\begin{verbatim}
-  <v>{m=pk’} = vn’
-  ->
-  <v>{m=pk’} = vn’ !vn'
+Moreover, if the container is an unboxed record of nonlinear type (i.e., without linear components) the \code{take} binding
+can also be replaced by a direct access, but the \code{put} binding may still be needed, which is determined in the second
+substep. That substep, however, only processes complete take/put pairs. Therefore here the case is processed where not \code{put}
+binding is present, which is the case when the container has not been specified by a variable or access chain starting at a
+variable in C. As described in Section~\ref{impl-ccode-cexpr} the translation uses the error variable as bound container variable
+in the generated \code{take} binding. This property is used to recognize the case here.
 
-  (<v> @{@vl’=pk’},ik’) = (vn’,vl’)
-  ->
-  (<v> @{@vl’=pk’},ik’) = (vn’,vl’) !vn'
-\end{verbatim}
+Additionally the case is handled where a take/put pair represents a dereference \code{*p} where \code{p} has an array type in C,
+which has the meaning of accessing the first array element (with index 0). The \code{take} resulting from the translation is a
+record \code{take} for the array as container and the field \code{cont} as component (see Section~\ref{impl-ccode-cexpr}). Like
+all arrays the container here is a wrapper record with a single field where the name encodes the number of array elements and
+which is always different from the name \code{cont}. If this situation is detected for a \code{take} it is replaced by an array
+\code{take} with index 0 and similar for a \code{put}. This is done before all other processing, so the resulting array take/put
+pair is processed like every other array take/put pair as described below.
 
-Whether a \code{take} binding can be banged depends on the taken component \code{pk'}. If it has a declared nonlinear type (according to the C 
-type and the item properties), the \code{take} binding can always be banged. Otherwise, if it has a linear type, it depends on how the 
-component \code{pk'} is used, i.e. the free occurrences of the \code{pk'} bound in the \code{take} binding. First, it must be used in 
-the corresponding \code{put} binding, i.e., it must not be rebound before. This means the component is not modified in the container, 
-which would prevent making the container readonly. Second, all other free occurrencies of \code{pk'} must be in a bang specification, 
-possibly as a container in a banged \code{take} binding. To evaluate that, all following \code{take} bindings must be processed 
-recursively before. 
-
-The only possible other uses of \code{pk'} are:
+The following erroneous situations are detected:
 \begin{itemize}
-\item Actual parameter of an invoked function. If the formal parameter has a readonly type, \code{pk'} must be banged before,
-otherwise it is used unbanged.
-\item Assignment to a variable or container component, or return value of the surrounding function. That must be unbanged, 
-otherwise it would escape the banged context.
-\item Dereferencing it using \code{*} or \code{->} in C. This is translated like a component access to a take/put pair and is
-handled by the recursive processing of the \code{take} bindings.
-\item Comparison with another pointer in C. There it will always be banged by the comparison postprocessing.
+\item The container has a \code{MayNull} wrapped type. This means it is not statically known that the container pointer is
+not NULL and the access may cause a NULL pointer exception. Gencot treats all these cases as error. This results in
+preventing all NULL pointer derefences in the generated Cogent code which can be formally verified. Only if the container
+type is unwrapped, either caused by a Not-Null item property (see Section~\ref{design-types-itemprops}) or caused by a
+NULL test present in the C code and detected by NULL pointer postprocessing (see Section~\ref{impl-post-null}) the access
+is translated to Cogent.
+\item The container has type \code{CVoidPtr} or \code{CArrXX}. In the first case the C type was \code{void*} and no more
+specific type could be inferred during postprocessing. Then the access cannot be represented in Cogent since the component
+type is unknown. In the second case the C type is an array type where the number of elements could not be determined by
+Gencot. Then it is not possible to check the access whether the index is valid, this access cannot be represented in
+Cogent either. Since these are the only cases where the container has an abstract type, the error is detected by testing
+the container type for being abstract.
+\item The container has a linear type (either a boxed record or an unboxed record with a linear component) and is specified
+by the error variable in the \code{take} binding. This means it has been specified in C by an expression which is not a
+variable or an access chain starting at a variable, such as the result of a function application. Then an access to a
+component would always discard the remaining container since there is no variable to which the remaining container can be
+bound. This is not allowed in Cogent for a container of linear type and is treated by Gencot as an error. Note thatconstitutes in this
+case the \code{put} binding needs not be removed since the translation does not generate it (see Section~\ref{impl-ccode-cexpr}).
+If the container has a nonlinear type (readonly or unboxed without linear component) the access is processed as
+described below or in the next substep.
+\item The take/put pair represents a dereference \code{*p} where \code{p} is a pointer to a struct in C. The \code{take}
+resulting from the translation is a record \code{take} for the boxed record corresponding to the struct as container and
+the field \code{cont} as component (see Section~\ref{impl-ccode-cexpr}) with the unboxed record as its type. Even if the
+record has a field named \code{cont} its type cannot be the unboxed record which contains it. Therefore this case is
+recognized by Gencot by first testing whether the record has a field named \code{cont} and then checking its type. The
+case is treated as an error because the conversion from a boxed to an unboxed record cannot be represented in Cogent.
 \end{itemize}
-Together, it is sufficient to check whether all free occurrencies of \code{pk'} have been explicitly banged by previous 
-postprocessings or the recursive \code{take} processing.
 
-The component variable \code{pk'} may also be used indirectly, by binding it to another variable. In that case the free 
-occurrencies of that variable must be checked in the same way. Usually, however, such ``chain bindings'' should have been 
-removed by the simplification of \code{let} expressions in~\ref{impl-post-let}.
+If the container has readonly type a \code{take} binding \code{<v>{m=p<k>’} = v<n>’} with container type \code{T}
+and component type \code{TC} is replaced by
+\begin{itemize}
+\item the pointer dereference application binding \code{p<k>' = getPtr[T,TC] v<n>'}, if \code{T} is a pointer type of the
+form \code{CPtr TC},
+\item otherwise the \code{getref} application binding \code{p<k>' = getrefFld\_m[T,TC] v<n>'} if the field \code{m} has unboxed
+type in \code{T} but \code{TC} is the corresponding boxed type,
+\item otherwise the member access binding \code{p<k>' = v<n>'.m}.
+\end{itemize}
+The array \code{take} binding \code{<v> @{@v<l>’=p<k>’} = v<n>’} is replaced by
+\begin{itemize}
+\item the \code{getref} application binding \code{p<k>' = getrefArr[T,U32,TC] (v<n>',v<l>')} if the elements have unboxed
+type in \code{T} but \code{TC} is the corresponding boxed type,
+\item otherwise the \code{get} application binding \code{p<k>' = getArr[T,U32,TC] (v<n>',v<l>')}.
+\end{itemize}
+In all these cases the container variable \code{<v>} does not occur in the replacement binding. Thus the result is also valid
+if the container variable was the error variable. Semantically this is correct because the remaining container after accessing
+the component may be discarded because its type is readonly.
 
-The banging of \code{take} bindings is implemented by the function
+The case where the container is an unboxed nonlinear record and \code{<v>} is the error variable is handled in the same way.
+
+\subsubsection{Eliminating \code{take} and \code{put} Bindings}
+
+The second substep checks how the accessed component is used after the \code{take} binding.
+
+\paragraph{Eliminating \code{take} Bindings}
+
+If the component has nonlinear type and is not used before or after the \code{put} binding the \code{take} binding can be removed.
+This corresponds in C to the case where the component value is overwritten by a plain assignment or it is neither used nor changed
+so that the access is a no-op. In the second case the \code{put} binding is removed as well.
+In the first case the \code{put} binding will be retained. This will result in a \code{put} binding which is not paired with
+a preceding \code{take} binding, so that it is applied to a container with a type where the component is not taken. Cogent
+accepts such \code{put} operations if the component has no linear type.
+
+If the component is used the \code{take} binding cannot be removed, but if the container is an unboxed record of nonlinear type
+Gencot replaces the \code{take} binding by a member access. This may also result in a valid unpaired \code{put} binding as above.
+
+If the component has linear type it would be illegal to overwrite it since that would discard it. In this case the \code{take}
+binding is retained unchanged, however, the Cogent compiler will signal an error because the taken component is discarded.
+
+To determine whether the component is used, all free occurrences of the component variable after the \code{take} binding are
+inspected. If such an occurrence is on the right side of a binding, the free occurrences of the bound variable are transitively
+inspected in the same way. If the occurrence is in a tuple expression only the corresponding bound variable in the tuple pattern
+is inspected. A variable is considered to be used if it occurs free in the final body of the \code{let} expression
+which contains the \code{take} binding. The rationale for this is that normally a \code{let} expression corresponds to the
+translation of a C expression and the body represents the result of the expression (as value or side effect). So Gencot considers
+a component as used if it is part of the result of the expression which contains the component access. It is not guaranteed that
+the component is actually used in that case, e.g., the expression could be an isolated expression statement where the result value is
+discarded. However, such cases are assumed to be rare and, if they cause a problem, will be detected by the Cogent compiler.
+
+If an array \code{take} is eliminated in this way and the corresponding array \code{put} binding
 \begin{verbatim}
-  tpbangproc :: GenExpr -> GenExpr
+  <v> = <v> @{@v<l>’=p<k>’}
 \end{verbatim}
-defined in module \code{Gencot.Cogent.Post.Takeput}.
-
-If a \code{take} binding is banged, the explicit bangings of the \code{pk'} are redundant. However, they are only removed after
-\code{tpelimproc} because they allow to check locally whether the container in a \code{take} binding is readonly.
-
-\subsubsection{Eliminating \code{put} Bindings}
-
-A \code{put} binding can be completely removed, if the put value \code{pk'} has only been bound in the corresponding \code{take}
-binding. In this case the taken component is put back unmodified, which is redundant. 
-
-If the \code{take} binding has been banged, the component and the container are readonly and the container's type will not be 
-changed by accessing the component. Moreover, the put would be illegal in Cogent, since it is applied to a readonly container,
-so in this case the \code{put} binding must be removed.
-
-If the \code{take} binding has not been banged, the \code{take} binding changes the type of the container to that where the component
-has been taken. The \code{put} binding is usually required to change the type back to the untaken form. However, if it was not possible
-to bang the \code{take} binding, there must be another use of component \code{pk'} in linear form. Therefore the \code{put} would
-be illegal in Cogent because the linear component is used twice. Therefore in this case the \code{put} binding is removed as well.
-
-It may be that there is another take/put pair for the same component later, where the taken component is not used at all, so that 
-the \code{take} binding is eliminated as described below. Then the remaining \code{put} binding changes the type back. Note, that
-all cases in C where a pointer component in a container is accessed once and then overwritten by an assignment before it is 
-accessed again is translated to a corresponding sequence of take/put pairs. The postprocessing turns it into valid Cogent code
-which respects the linear use of the pointers.
-
-Since the elimination of \code{put} bindings depends on insecting the corresponding \code{take} binding, it must be done before 
-eliminating \code{take} bindings.
-
-\subsubsection{Eliminating \code{take} Bindings}
-
-A \code{take} binding can be replaced by a normal binding, if the taken component is not linear. After executing \code{tpbangproc}
-this can be detected by checking whether the \code{take} binding is banged. If that is the case, it can be replaced by a binding
-which binds the container and the component separately. A banged \code{take} binding is replaced according to
+is retained, it is converted to the \code{setArr} application
 \begin{verbatim}
-  <v>{m=pk’} = vn’ !vn'
-  ->
-  (<v>,pk') = (vn',vn'.m) !vn'
-
-  (<v> @{@vl’=pk’},ik’) = (vn’,vl’) !vn'
-  ->
-  (<v>,pk',ik') = (vn',getArr(vn',vl'),vl') !vn'
+  (<v>,()) = setArr[T,U32,TC] (<v>,v<l>’,p<k>’)
 \end{verbatim}
-In case of a struct the Cogent member access \code{vn'.m} is used, in case of an array the Gencot array operation \code{getArr(vn',vl')}
-is used.
+where \code{T} is the type of the container (array) and \code{TC} is the type of the component (array element).
+This is necessary because the generated array \code{put} bindings are always illegal Cogent code and must be replaced
+by Cogent array operations. The \code{setArr} operation is always applicable in this case because the array element has
+nonlinear type.
 
-Note, that banging and elimination also works for \code{take} bindings where \code{<v>} is the wildcard \code{\_}. In this case the 
-\code{vn'} is simply discarded which is no problem, since it has been banged. The unnecessary wildcard binding will be removed by
-\code{let} simplification. Only if a wildcard \code{take} binding cannot be banged and thus not eliminated, it may result in illegal
-Cogent code, because the remaining container may still be linear after taking \code{pk'}, but it is discarded.
+\paragraph{Eliminating \code{put} Bindings}
 
-After eliminating all \code{take} bindings where possible, the redundant bangings are removed: Whenever a binding is banged, 
-the bangings of all free occurrences of the bound variables (and possible chain bindings) are removed. 
+If the component variable is not re-bound before the \code{put} binding and the container has nonlinear type (either readonly
+or unboxed with no linear component) this means that the component is not modified or replaced. Then the \code{put} binding
+can be removed. Note that the case of a readonly container has already been processed in the first substep described above.
+Therefore here only the case of an unboxed container remains.
 
-\subsubsection{Repeated Access of the Same Component}
+In this case the \code{take} binding is always eliminated as well or replaced by a direct access, as described above.
+Therefore no unpaired \code{take} binding remains which would change the type of the container
+to the type where the component is taken.
 
-If a \code{take} binding is followed by another \code{take} binding for the same container and the same component before the 
-corresponding \code{put} binding, this may cause illegal code in Cogent, because a component is taken twice. If one or both 
-\code{take} bindings can be eliminated as described above, there is no problem because the component is accessed in a readonly 
-way which can be done arbitrarily often.
+If the component variable is re-bound as container in the \code{put} binding of a nested access, it may depend on the
+elimination of that \code{put} binding whether the outer \code{put} binding may be eliminated. Therefore nested take/put pairs
+are processed for elimination starting with the innermost pairs. A nested \code{take} binding with the component as container
+is irrelevant when checking for re-bindings of the component, since it is never retained without the corresponding \code{put}
+binding.
 
-If both \code{take} bindings cannot be eliminated this means that the linear component is used in linear form in both cases
-which results in an illegal double use in Cogent. Nevertheless the case is still postprocessed as follows.
+If the container has linear type, the \code{put} cannot be removed, even if the component is not re-bound. The remaining
+\code{take} binding cannot be replaced by a Gencot operation or member access in this case and would change the container
+type to a type with a taken component which would lead to a type error in Cogent as described above.
 
-Since every \code{take} binding uses a new component variable \code{pk'} the double uses are related to two different variables 
-\code{pi'} and \code{pj'}. To make the double use more apparent and reduce the
-number of \code{take} bindings, the second \code{take} is replaced by a rebinding of \code{pj'} to the value of \code{pi'}. Since 
-the \code{pi'} may have been rebound between the first and the second \code{take} binding, this rebinding is inserted immediately
-after the first \code{take}. Together, a sequence of two repeated \code{take} bindings which cannot be eliminated is processed 
-according to
+\subsubsection{Converting take/put Pairs to \code{modify} or \code{modref} Expressions}
+
+In the third substep remaining take/put pairs are converted to applications of the \code{modify} or \code{modref} operations
+in the following cases:
+\begin{itemize}
+\item The pair consists of an array \code{take} and an array \code{put}, since these are always invalid Cogent code
+and must be replaced by Gencot operations.
+\item The container has linear type and in it the component has unboxed type but the component variable has the corresponding
+boxed type. This case cannot be represented by \code{take} and \code{put} operations in Cogent, it must be converted to
+an application of the Gencot \code{modref} operation.
+\end{itemize}
+
+The remaining take/put pairs after this step have the following properties: they consist of \code{take} and \code{put} bindings
+for records. The container type is not \code{MayNull} wrapped and is a boxed record which has the component as a field. The
+component variable has the type of this field. Together these \code{take} and \code{put} are always valid Cogent code and are
+not further processed by Gencot. They could be replaced by an application of the \code{modify} operation, but since that must
+be defined specifically for the accessed field it is easier and more flexible to use the Cogent \code{take} and \code{put}
+operations.
+
+If a take/put pair is converted to a \code{modify} or \code{modref} application the change function to be passed as argument
+to the application must be determined. It is constructed as a Cogent lambda expression. It takes as arguments the component
+and a tuple of additional inputs and returns the (possibly modified) component and a tuple of additional outputs. Its body
+is completely determined by the bindings between the \code{take} and the \code{put} binding.
+
+The additional outputs are all variables which are bound in these bindings and are used in the bindings and the let-body after
+the \code{put} binding. Whether a variable is used is determined in the same way as described above for eliminating \code{take}
+bindings. If there is no such variable the additional output is the unit value. If there is only one such variable its value
+is used as additional output, otherwise all such variables organized in a tuple in some order.
+
+The body of the change function is a \code{let} expression. Its bindings are the bindings between the \code{take} and the
+\code{put} binding. Its body is the pair consisting of the component variable and the additional output. In Cogent a
+tuple is always equivalent to a chain of right associatively nested pairs. Therefore in the case that the additional output
+is a tuple the body is flattened to a tuple whith the component variable as first element. The component variable may also
+be a part of the additional output, then it occurs twice in the body.
+
+The additional inputs are all variables which are used in this body of the change function. The component variable cannot
+be a part of the additional input since it is first bound in the \code{take} binding. The additional input variables are
+organized in a tuple together with the component variable in the same way as the output variables. The corresponding variable
+tuple pattern is used as argument pattern in the change function lambda expression.
+
+If converted to a \code{modify} application a sequence of bindings
 \begin{verbatim}
-  <v>{m=pi’} = vn’
-  ...
-  <v>{m=pj'} = <v>
-  ->
-  <v>{m=pi’} = vn’
-  pj' = pi'
-  ...
+  <v> @{@v<l>’=p<k>’} = v<n>’
+  <bs>
+  <v> = <v> @{@v<l>’=p<k>’}
 \end{verbatim}
-for a struct. Note that for a struct it is easy to detect that two \code{take} bindings access the same component, because the coponent
-names must be the same. 
-
-In case of an array the components are the same, if the same index value is used for access, this cannot be 
-statically decided in general. The postprocessing uses a heuristics to test whether two index expressions evaluate to the same
-value. First, \code{evalproc} is applied to both so that constant subexpressions are evaluated. Then, simple integer operator
-expressions are matched, so that, e.g., the expressions \code{i+5} and \code{i+5} are detected as having the same value, 
-if \code{i} is not rebound in between. That should cover simple typical cases of indexing the same elements in C.
-
-Then the transformation for arrays is
+is replaced by the single binding
 \begin{verbatim}
-  <v> @{@vl’=pi’} = vn’
-  ...
-  <v> @{@vm’=pj’} = <v>
-  ->
-  <v> @{@vl’=pi’} = vn’
-  pj' = pi'
-  ...
+  (<v>,ov..) = modifyArr[T,U32,TC,_,_]
+    (<v>,v<l>’,
+     \(p<k>',iv..) => let <bs> in (p<k>',ov..),
+     iv..)
 \end{verbatim}
-if the index expressions \code{vl'} and \code{vm'} can be shown to evaluate to the same value.
+where \code{<bs>} are the bindings between \code{take} and \code{put}, \code{ov..} is the sequence of additional output
+variables or unit \code{()}, \code{iv..} is the sequence of additional input variables or unit \code{()}, \code{T} is the
+container type, \code{TC} is the component type. The types of \code{iv..} and \code{ov..} for \code{modifyArr} are specified
+by \code{\_}, Gencot assumes that they can always be derived by the Cogent compiler. A \code{modref} application for an array
+has the same form, only the name is different (\code{modrefArr}).
 
-If a \code{put} binding is followed by a \code{take} binding for the same container and the same component, and both bindings cannot
-be eliminated, they can be replaced by a single binding of the component variable used in the \code{take} binding to the value 
-put in the \code{put} binding. Neither the container nor its type is modified by putting a value into a component of linear type and then
-taking the component out again. The corresponding transformation is
+A \code{modref} application for a record take/put has the form
 \begin{verbatim}
-  <v> = <v>{m=pi’}
-  ...
-  <v>{m=pj'} = <v>
-  ->
-  pj' = pi'
-  ...
+  (<v>,ov..) = modrefFld_m[T,TC,_,_]
+    (<v>,
+     \(p<k>',iv..) => let <bs> in (p<k>',ov..),
+     iv..)
 \end{verbatim}
-for structs and
+where \code{m} is the accessed field. The main difference is the missing index type and variable \code{v<l>'}. If the
+container type has the form \code{CPtr TC} the take/put pair is always replaced by a \code{modify} application which
+has the same form with the name \code{modifyPtr}.
+
+If a take/put pair is nested in another take/put pair the \code{put} bindings are generated immediately after each other.
+Between the \code{take} bindings there is always a binding \code{v<n>' = p<k>'} where \code{p<k>'} is the component variable
+of the outer pair and \code{v<n>'} is the container on the right side of the inner \code{take} binding. When processing
+the outer pair this binding is always eliminated by substituting \code{p<k>'} for \code{v<n>'} in the inner \code{take} so
+that also the \code{take} bindings follow each other immediately. From this it follows that the additional output variables
+of the outer pair are the same as for the inner pair and analogously for the additional input variables.
+
+Gencot first processes the inner take. If it is replaced by a \code{modify} or \code{modref} application, the resulting single
+binding is the only content of the outer binding. If the outer binding is also replaced the resulting binding in case of two
+nested pairs for records has the form
 \begin{verbatim}
-  <v> = <v> @{@vl’=pi’}
-  ...
-  <v> @{@vm’=pj’} = <v>
-  ->
-  pj' = pi'
-  ...
+  (<v>,ov..) = modouter[T,TC,_,_]
+    (<v>,
+     \(p<k>',iv..) =>
+       let (p<k>',ov..) = modinner[TC,TCC,_,_]
+             (p<k>',chfun,iv..)
+       in (p<k>',ov..),
+     iv..)
 \end{verbatim}
-if the index expressions \code{vl'} and \code{vm'} can be shown to evaluate to the same value.
+where \code{chfun} is the change function for the inner pair, \code{modouter} and \code{modinner} are the corresponding
+\code{modify} or \code{modref} operations, and \code{TCC} is the type of the inner component. Now it is possible
+to extend the outer change function by an additional argument for the inner change function and pass it this way to
+the inner application:
+\begin{verbatim}
+  (<v>,ov..) = modouter[T,TC,_,_]
+    (<v>,
+     \(p<k>',cf,iv..) =>
+       let (p<k>',ov..) = modinner[TC,TCC,_,_]
+             (p<k>',cf,iv..)
+       in (p<k>',ov..),
+     chfun, iv..)
+\end{verbatim}
+Formally, the \code{chfun} has become an additional input to the outer change function, prepended to its own input
+\code{iv..}. Thus, also the type of the additional input for \code{modouter} is now different from that for \code{modinner},
+although this is not visible in the code because both are specified by \code{\_}.
 
-Note that the original translation in Section~\ref{impl-ccode-cexpr} never creates a \code{take} binding after a \code{put} binding,
-but postprocessing of Cogent expressions resulting from a sequence of C statements may result in such a sequence. The processing
-described above results in a pattern which is similar to a ``\code{do-with}'' construct where a component is selected once and then
-processed several times.
+This binding
+can be simplified by substituting the inner binding in the \code{let} body followed by an eta reduction to
+\begin{verbatim}
+  (<v>,ov..) = modouter[T,TC,_,_]
+    (<v>,
+     modinner[TC,TCC,_,_],
+     chfun, iv..)
+\end{verbatim}
 
-Both transformations for repeated access of the same component are applied in \code{tpelimproc} after eliminating single \code{take}
-and \code{put} bindings.
+If the inner pair is for an array the \code{chfun} must be preceded by the array index used for the access, thus the
+index also becomes an additional input for the outer change function.
 
-\subsubsection{Converting take/put Pairs to \code{modify} Expressions}
+More generally, Gencot applies this conversion whenever, after processing the bindings between the outer \code{take}
+and \code{put}, these bindings consist of a single binding of the form
+\begin{verbatim}
+  (p<k>',ov..) = f (p<k>',iv..)
+\end{verbatim}
+even if the function \code{f} is not a \code{modify} or \code{modref} operation resulting from converting a take/put
+pair.
 
-\subsection{Introducing \code{getref}/\code{modref}}
-\label{impl-post-ref}
-
+Gencot iterates this conversion as long as applicable. Here it is important that the types of the additional input
+are not specified explicitly for \code{modify} or \code{modref} functions. Every such type contains the type of the next inner
+change function which may lead to an exponentially increased code size if all these types are explicitly specified.
 
 \subsection{Combining the Steps}
 \label{impl-post-combine}
+
+All postprocessing steps are designed and implemented in a standalone way so that they can be applied to arbitrary Cogent expression
+which are generated by the Gencot translation phase. However, to be most effective, they exploit several dependencies which must
+be respected by the order of execution.
 
 Generally, the postprocessing steps recurse into the structure of the processed expression. Thus it would be possible to combine them
 on every recursion level by combining the non-recursive steps to a common postprocessing function which recurses into the expression
@@ -1163,5 +1317,67 @@ into operator subexpressions.
 The \code{opproc} step recurses into arbitrary subexpressions. It processes cases which are typically created by \code{ifproc}.
 Therefore it is executed after every toplevel execution of \code{ifproc}.
 
-The \code{tpproc} step depends on the explicit banging of variables of linear type which are used in a readonly way. That is done 
-in the \code{funproc} step, therefore \code{tpproc} must be executed after \code{funproc}.
+Many steps exploit the fact that the Cogent code has the restricted form described in Section~\ref{impl-post-ast}. Since the combined
+steps \code{letproc}, \code{evalproc}, and \code{opproc} do not preserve this form, most other steps are executed before these. This
+implies that they are usually executed on a code with larger size and redundant parts, before the code is simplified. The advantage
+of an easier implementation on the restricted code form is prioritized by Gencot over an efficient execution of the postprocessing steps.
+
+Moreover, variables can only be substituted by the expressions bound to them if both have the same type. As described in
+Section~\ref{impl-post-types} this is in general not the case for the code generated by the translation phase. Therefore, all steps
+which process and remove type clashes by changing the additional type information for expressions must be executed before the
+simplification by \code{letproc}, until no type clashes remain. These steps are \code{bangproc} and \code{ebangproc} (\ref{impl-post-bang}),
+\code{maynullproc} (\ref{impl-post-null}), \code{boolproc} (\ref{impl-post-bool}), \code{stringproc} (\ref{impl-post-string}),
+\code{intproc} (\ref{impl-post-int}), and \code{pointerproc} (\ref{impl-post-pointer}) which are all implemented in the module
+\code{Gencot.Cogent.Post.MatchTypes}.
+
+The following dependencies are taken into account for the order of these postprocessing steps:
+\begin{itemize}
+\item The \code{ebangproc} step is executed after \code{bangproc} because it is most effective if all readonly type clashes
+have been resolved for which that is possible.
+\item The \code{maynullproc} step includes nonlocal code transformations when it splits conditions. This may be complicated when
+variable bangings are present. Therefore it is executed before \code{bangproc}. Although it extends the generated code by introducing
+\code{match} expression which contain additional positions for variable bangings, such bangings are never possible in the generated
+\code{match} expressions. Therefore, these bang positions need not be taken into account by \code{bangproc}.
+\item The \code{maynullproc} step depends on recognizing NULL tests. In C a NULL test can be specified by the pointer alone, which
+is equivalent to the condition that it is not NULL. The \code{boolproc} step converts these cases into explicit NULL tests. Therefore
+\code{maynullproc} is executed after \code{boolproc} because then it is sufficient to recognize explicit NULL tests.
+\end{itemize}
+
+The remaining postprocessing steps are \code{presimp}, (\ref{impl-post-let}), \code{romodproc} (\ref{impl-post-romod}),
+\code{opnullproc} (\ref{impl-post-opnull}), and \code{tpproc} (\ref{impl-post-takeput}).
+For them the following dependencies are taken into account:
+\begin{itemize}
+\item The \code{presimp} step removes bindings of unused variables. Other than for \code{letproc} type clashes are not a problem
+for it. Therefore it may be applied before all type clashes are eliminated. Moreover, although it simplifies the Cogent code it
+preserves the restricted form generated by the translation phase.
+\item The \code{bangproc} step is more effective if unused values of non-escapeable type are removed, which would prevent banging
+a scope from which returns them. Therefore \code{presimp} is executed before \code{bangproc}. Since it generally reduces the
+code size and makes all other steps more efficient, \code{presimp} is executed as the first postprocessing step before all others.
+\item Like the \code{presimp} step the \code{romodproc} step removes values of non-escapeable type and makes \code{bangproc}
+more effective. The reason is that even if a container has readonly type it looks modified if accessed components are rebound.
+This will prevent \code{bangproc} from discarding it when it is returned by a scope tried to be banged. Therefore, \code{romodproc}
+is also executed before \code{bangproc}.
+\item The \code{ebangproc} step is executed before \code{opnullproc} because the inserted NULL bindings would prevent \code{ebangproc}
+from banging the corresponding variables.
+\item A component may be re-bound but never used afterwards. In this case \code{romodproc} should not signal it as an error.
+Since \code{presimp} removes all such unused bindings, \code{romodproc} is executed after \code{presimp}, so that it need not
+consider the usage of re-bound components.
+\item The \code{opnullproc} step can only be executed after \code{maynullproc} has inserted the operations \code{mayNull} and
+\code{notNull}.
+\item The \code{tpproc} step depends on the types of containers and components to decide how to process take/put pairs. Therefore
+it must be executed after all steps which may modify the type of an expression.
+\end{itemize}
+
+The resulting order of postprocessing steps is
+\begin{verbatim}
+  presimp
+  romodproc
+  boolproc
+  maynullproc
+  bangproc
+  ebangproc
+  opnullproc
+  tpproc
+  letproc/ifproc/opproc
+\end{verbatim}
+This order is implemented in module \code{Gencot.Cogent.Post.Proc}.

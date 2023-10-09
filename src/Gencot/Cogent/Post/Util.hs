@@ -299,4 +299,21 @@ getExprList :: GenExpr -> [GenExpr]
 getExprList (GenExpr (Tuple es) _ _ _) = es
 getExprList e = [e]
 
+-- | Whether an expression seen as tuple is a put expression.
+isPutExpr :: ExprOfGE -> [Bool]
+isPutExpr (CS.Put _ _) = [True]
+isPutExpr (CS.ArrayPut _ _) = [True]
+isPutExpr (CS.Tuple es) = concat $ map (isPutExpr . exprOfGE) es
+isPutExpr (CS.If _ _ e1 e2) =
+    -- mostly irrelevant because branches never contain put expressions,
+    -- but must be mapped so that the list has the correct number of entries.
+    map (\(b1,b2) -> b1 || b2) $ zip (isPutExpr $ exprOfGE e1) (isPutExpr $ exprOfGE e2)
+isPutExpr (CS.Match _ _ alts) =
+    -- must be handled because isPutExpr is also used in rslvRoDiffsInLet when match expressions are present
+    map or $ transpose $ map (\(CS.Alt p l e) -> isPutExpr $ exprOfGE e) alts
+isPutExpr (CS.Let _ bdy) = isPutExpr $ exprOfGE bdy
+isPutExpr (CS.App f e _) = case typeOfGT $ getResultType $ typOfGE f of
+                              CS.TTuple ts -> map (const False) ts
+                              _ -> [False]
+isPutExpr _ = [False]
 

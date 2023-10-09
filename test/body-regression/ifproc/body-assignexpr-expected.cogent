@@ -42,6 +42,9 @@ cogent_fao14 v = v - 1
 
 type Struct_Cogent_as1 = { m1 : U32, m2 : U32 }
 type Struct_Cogent_as2 = { m3 : U32, m4 : #Struct_Cogent_as1 }
+type Struct_Cogent_as4 = { m7 : U32, m8 : #(CArr5 U32) }
+cogent_fas1r : #Struct_Cogent_as1 -> #Struct_Cogent_as1
+cogent_fas1r s = s
 cogent_fas1 : ( #Struct_Cogent_as1, U32 ) -> U32
 cogent_fas1 (s, v) = s.m1
 cogent_fas2 : ( #Struct_Cogent_as1, U32 ) -> U32
@@ -56,30 +59,44 @@ cogent_fas5 s =
    (s { m1 = 42 }).m1
 cogent_fas6 : #Struct_Cogent_as2 -> U32
 cogent_fas6 s =
-   let s { m4 = p0' } = s
-   in (s { m4 = p0' { m1 = 42 } }).m4.m1
+   (s { m4 = s.m4 { m1 = 42 } }).m4.m1
 cogent_fas7 : #Struct_Cogent_as1 -> U32
-cogent_fas7 s =
-   let s { m1 = p0' } = s
-   in p0'
+cogent_fas7 s = s.m1
 cogent_fas8 : #Struct_Cogent_as2 -> U32
-cogent_fas8 s =
-   let s { m4 = p0' } = s
-   and p0' { m1 = p1' } = p0'
-   in p1'
+cogent_fas8 s = s.m4.m1
 cogent_fas9 : #Struct_Cogent_as1 -> U32
-cogent_fas9 s =
-   let s { m1 = p0' } = s
-   in p0' + 1
+cogent_fas9 s = s.m1 + 1
 cogent_fas10 : #Struct_Cogent_as2 -> U32
-cogent_fas10 s =
-   let s { m4 = p0' } = s
-   and p0' { m1 = p1' } = p0'
-   in p1' + 1
+cogent_fas10 s = s.m4.m1 + 1
+cogent_fas11 : ( #Struct_Cogent_as1, U32 ) -> U32
+cogent_fas11 (s, v) =
+   (cogent_fas1r s).m1
+cogent_fas12 : ( #Struct_Cogent_as4, U32 ) -> U32
+cogent_fas12 (s, v) =
+   getArr[#(CArr5 U32)
+         , U32
+         , U32]{{}} (s.m8, 3)
+cogent_fas13 : #Struct_Cogent_as4 -> U32
+cogent_fas13 s =
+   let (p0'
+       , _) = setArr[#(CArr5 U32)
+                    , U32
+                    , U32]{{}} (s.m8, 3, 42)
+   in getArr[#(CArr5 U32)
+            , U32
+            , U32]{{}} ((s { m8 = p0' }).m8
+                       , 3)
+cogent_fas14 : #Struct_Cogent_as4 -> U32
+cogent_fas14 s =
+   getArr[#(CArr5 U32)
+         , U32
+         , U32]{{}} (s.m8, 3)
 
 type Cogent_aa1 = CArr5 U32
 type Cogent_aa2 =
    CArr5 #Struct_Cogent_as1
+type Cogent_aa4 =
+   CArr5 (#(CArr4 U32))
 cogent_faa1 : ( Cogent_aa1, U32 ) -> ( U32, Cogent_aa1 )
 cogent_faa1 (a, v) =
    let (r'
@@ -140,11 +157,11 @@ cogent_faa6 a =
        , v8') = modifyArr[Cogent_aa1
                          , U32
                          , U32
-                         , ()
-                         , U32]{{}} (a
-                                    , 3
-                                    , \(p1', ()) => (p1', p1')
-                                    , ())
+                         , _
+                         , _]{{}} (a
+                                  , 3
+                                  , \(p1', ()) => (p1', p1')
+                                  , ())
    in (v8', a)
 cogent_faa7 : Cogent_aa2 -> ( U32, Cogent_aa2 )
 cogent_faa7 a =
@@ -152,29 +169,23 @@ cogent_faa7 a =
        , _) = modrefArr[Cogent_aa2
                        , U32
                        , Struct_Cogent_as1
-                       , U32
-                       , ()]{{}} (a
-                                 , 3
-                                 , \(p0', v') => (p0' { m1 = v' }
-                                                 , ())
-                                 , 42)
+                       , _
+                       , _]{{}} (a
+                                , 3
+                                , \(p0', v') => (p0' { m1 = v' }
+                                                , ())
+                                , 42)
    and (a
        , v10') = modrefArr[Cogent_aa2
                           , U32
                           , Struct_Cogent_as1
-                          , ()
-                          , U32]{{}} (a
-                                     , 3
-                                     , \(p2'
-                                        , ()) => modifyFld_m1[Struct_Cogent_as1
-                                                             , U32
-                                                             , ()
-                                                             , U32]{{}} (p2'
-                                                                        , \(p3'
-                                                                           , ()) => (p3'
-                                                                                    , p3')
-                                                                        , ())
-                                     , ())
+                          , _
+                          , _]{{}} (a
+                                   , 3
+                                   , \(p2'
+                                      , ()) => let p2' { m1 = p3' } = p2'
+                                   in (p2' { m1 = p3' }, p3')
+                                   , ())
    in (v10', a)
 cogent_faa8 : Cogent_aa1 -> ( U32, Cogent_aa1 )
 cogent_faa8 a =
@@ -182,11 +193,11 @@ cogent_faa8 a =
        , v5') = modifyArr[Cogent_aa1
                          , U32
                          , U32
-                         , U32
-                         , U32]{{}} (a
-                                    , 3
-                                    , \(p0', v') => (p0' + v', p0')
-                                    , 1)
+                         , _
+                         , _]{{}} (a
+                                  , 3
+                                  , \(p0', v') => (p0' + v', p0')
+                                  , 1)
    in (v5', a)
 cogent_faa9 : Cogent_aa2 -> ( U32, Cogent_aa2 )
 cogent_faa9 a =
@@ -194,19 +205,13 @@ cogent_faa9 a =
        , v6') = modrefArr[Cogent_aa2
                          , U32
                          , Struct_Cogent_as1
-                         , U32
-                         , U32]{{}} (a
-                                    , 3
-                                    , \(p0'
-                                       , v') => modifyFld_m1[Struct_Cogent_as1
-                                                            , U32
-                                                            , U32
-                                                            , U32]{{}} (p0'
-                                                                       , \(p1'
-                                                                          , v') => (p1' + v'
-                                                                                   , p1')
-                                                                       , v')
-                                    , 1)
+                         , _
+                         , _]{{}} (a
+                                  , 3
+                                  , \(p0'
+                                     , v') => let p0' { m1 = p1' } = p0'
+                                  in (p0' { m1 = p1' + v' }, p1')
+                                  , 1)
    in (v6', a)
 cogent_faa10 : Cogent_aa1 -> ( U32, Cogent_aa1 )
 cogent_faa10 a =
@@ -214,20 +219,20 @@ cogent_faa10 a =
        , v4') = modifyArr[Cogent_aa1
                          , U32
                          , U32
-                         , ()
-                         , U32]{{}} (a
-                                    , 2
-                                    , \(p0', ()) => (p0', p0')
-                                    , ())
+                         , _
+                         , _]{{}} (a
+                                  , 2
+                                  , \(p0', ()) => (p0', p0')
+                                  , ())
    and (a
        , v7') = modifyArr[Cogent_aa1
                          , U32
                          , U32
-                         , U32
-                         , U32]{{}} (a
-                                    , v4'
-                                    , \(p1', v') => (p1' + v', p1')
-                                    , 1)
+                         , _
+                         , _]{{}} (a
+                                  , v4'
+                                  , \(p1', v') => (p1' + v', p1')
+                                  , 1)
    in (v7', a)
 cogent_faa11 : Cogent_aa1 -> ( U32, Cogent_aa1 )
 cogent_faa11 a =
@@ -235,12 +240,12 @@ cogent_faa11 a =
        , v5') = modifyArr[Cogent_aa1
                          , U32
                          , U32
-                         , U32
-                         , U32]{{}} (a
-                                    , 3
-                                    , \(p0', v') => (p0' + v'
-                                                    , p0' + v')
-                                    , 1)
+                         , _
+                         , _]{{}} (a
+                                  , 3
+                                  , \(p0', v') => (p0' + v'
+                                                  , p0' + v')
+                                  , 1)
    in (v5', a)
 cogent_faa12 : Cogent_aa2 -> ( U32, Cogent_aa2 )
 cogent_faa12 a =
@@ -248,19 +253,14 @@ cogent_faa12 a =
        , v6') = modrefArr[Cogent_aa2
                          , U32
                          , Struct_Cogent_as1
-                         , U32
-                         , U32]{{}} (a
-                                    , 3
-                                    , \(p0'
-                                       , v') => modifyFld_m1[Struct_Cogent_as1
-                                                            , U32
-                                                            , U32
-                                                            , U32]{{}} (p0'
-                                                                       , \(p1'
-                                                                          , v') => (p1' + v'
-                                                                                   , p1' + v')
-                                                                       , v')
-                                    , 1)
+                         , _
+                         , _]{{}} (a
+                                  , 3
+                                  , \(p0'
+                                     , v') => let p0' { m1 = p1' } = p0'
+                                  in (p0' { m1 = p1' + v' }
+                                     , p1' + v')
+                                  , 1)
    in (v6', a)
 cogent_faa13 : ( Cogent_aa1, U32 ) -> ( U32, Cogent_aa1 )
 cogent_faa13 (a, v) =
@@ -278,10 +278,75 @@ cogent_faa14 (a, v) =
                       , U32]{{}} (a, v + 1)
                , ()) !a
    in (r', a)
+cogent_faa15 : ( Cogent_aa4, U32 ) -> ( U32, Cogent_aa4 )
+cogent_faa15 (a, v) =
+   let (r'
+       , ()) = (getArr[(CArr4 U32)!
+                      , U32
+                      , U32]{{}} (getrefArr[Cogent_aa4!
+                                           , U32
+                                           , (CArr4 U32)!]{{}} (a, 3)
+                                 , 2)
+               , ()) !a
+   in (r', a)
+cogent_faa16 : Cogent_aa4 -> ( U32, Cogent_aa4 )
+cogent_faa16 a =
+   let (a
+       , _) = modrefArr[Cogent_aa4
+                       , U32
+                       , CArr4 U32
+                       , _
+                       , _]{{}} (a
+                                , 3
+                                , \(p0', v', v4') => let (p0'
+                                                         , _) = setArr[CArr4 U32
+                                                                      , U32
+                                                                      , U32]{{}} (p0'
+                                                                                 , v4'
+                                                                                 , v')
+                                in (p0', ())
+                                , 42
+                                , 2)
+   and (a
+       , v12') = modrefArr[Cogent_aa4
+                          , U32
+                          , CArr4 U32
+                          , _
+                          , _]{{}} (a
+                                   , 3
+                                   , modifyArr[CArr4 U32
+                                              , U32
+                                              , U32
+                                              , _
+                                              , _]{{}}
+                                   , 2
+                                   , \(p3', ()) => (p3', p3')
+                                   , ())
+   in (v12', a)
+cogent_faa17 : Cogent_aa4 -> ( U32, Cogent_aa4 )
+cogent_faa17 a =
+   let (a
+       , v7') = modrefArr[Cogent_aa4
+                         , U32
+                         , CArr4 U32
+                         , _
+                         , _]{{}} (a
+                                  , 3
+                                  , modifyArr[CArr4 U32
+                                             , U32
+                                             , U32
+                                             , _
+                                             , _]{{}}
+                                  , 2
+                                  , \(p1', v') => (p1' + v', p1')
+                                  , 1)
+   in (v7', a)
 
 type Struct_Cogent_as3 = { m5 : U32, m6 : Struct_Cogent_as1 }
 type Cogent_aa3 =
    CArr5 (CPtr U32)
+cogent_fas1pr : Struct_Cogent_as1 -> Struct_Cogent_as1
+cogent_fas1pr p = p
 cogent_fap1 : ( CPtr U32, U32 ) -> ( U32, CPtr U32 )
 cogent_fap1 (p, v) =
    let (r'
@@ -351,29 +416,23 @@ cogent_fap12 p =
        , _) = modifyArr[Cogent_aa3
                        , U32
                        , CPtr U32
-                       , U32
-                       , ()]{{}} (p
-                                 , 3
-                                 , \(p0'
-                                    , v') => (p0' { cont = v' }, ())
-                                 , 42)
+                       , _
+                       , _]{{}} (p
+                                , 3
+                                , \(p0'
+                                   , v') => (p0' { cont = v' }, ())
+                                , 42)
    and (p
        , v10') = modifyArr[Cogent_aa3
                           , U32
                           , CPtr U32
-                          , ()
-                          , U32]{{}} (p
-                                     , 3
-                                     , \(p2'
-                                        , ()) => modifyPtr[CPtr U32
-                                                          , U32
-                                                          , ()
-                                                          , U32]{{}} (p2'
-                                                                     , \(p3'
-                                                                        , ()) => (p3'
-                                                                                 , p3')
-                                                                     , ())
-                                     , ())
+                          , _
+                          , _]{{}} (p
+                                   , 3
+                                   , \(p2'
+                                      , ()) => let p2' { cont = p3' } = p2'
+                                   in (p2' { cont = p3' }, p3')
+                                   , ())
    in (v10', p)
 cogent_fap13 : CPtr U32 -> ( U32, CPtr U32 )
 cogent_fap13 p =
@@ -389,20 +448,27 @@ cogent_fap15 p =
        , v6') = modifyArr[Cogent_aa3
                          , U32
                          , CPtr U32
-                         , U32
-                         , U32]{{}} (p
-                                    , 3
-                                    , \(p0'
-                                       , v') => modifyPtr[CPtr U32
-                                                         , U32
-                                                         , U32
-                                                         , U32]{{}} (p0'
-                                                                    , \(p1'
-                                                                       , v') => (p1' + v'
-                                                                                , p1')
-                                                                    , v')
-                                    , 1)
+                         , _
+                         , _]{{}} (p
+                                  , 3
+                                  , \(p0'
+                                     , v') => let p0' { cont = p1' } = p0'
+                                  in (p0' { cont = p1' + v' }
+                                     , p1')
+                                  , 1)
    in (v6', p)
+cogent_fap16 : ( Struct_Cogent_as1, U32 ) -> ( U32, Struct_Cogent_as1 )
+cogent_fap16 (p, v) =
+   (gencotDummy "Dereferencing pointer not specified by a variable"
+   , p)
+cogent_fap17 : Struct_Cogent_as1 -> ( U32, Struct_Cogent_as1 )
+cogent_fap17 p =
+   (gencotDummy "Dereferencing pointer not specified by a variable"
+   , p)
+cogent_fap18 : Struct_Cogent_as1 -> ( U32, Struct_Cogent_as1 )
+cogent_fap18 p =
+   (gencotDummy "Dereferencing pointer not specified by a variable"
+   , p)
 
 cogent_fam1 : ( U32, U32 ) -> U32
 cogent_fam1 (v1, v2) = 17 + 4

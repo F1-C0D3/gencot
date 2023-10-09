@@ -347,13 +347,13 @@ cogent_f92ln pln =
          , _) = modifyArr[Cogent_roa3
                          , U32
                          , CPtr U32
-                         , ()
-                         , ()]{{}} (pln
-                                   , 1
-                                   , \(p0'
-                                      , ()) => (gencotDummy "Readonly expression used in linear context"
-                                               , ())
-                                   , ())
+                         , _
+                         , _]{{}} (pln
+                                  , 1
+                                  , \(p0'
+                                     , ()) => (gencotDummy "Readonly expression used in linear context"
+                                              , ())
+                                  , ())
    in pln)
 cogent_f92ro : Cogent_roa2 -> ( (), Cogent_roa2 )
 cogent_f92ro pln =
@@ -546,30 +546,24 @@ cogent_g64ln pln =
    , let (pln
          , _) = modrefFld_sub[Struct_Cogent_ros2
                              , Struct_Cogent_ros1
-                             , ()
-                             , ()]{{}} (pln
-                                       , \(p0'
-                                          , ()) => (p0' { mro = gencotDummy "Linear expression used in readonly context" }
-                                                   , ())
-                                       , ())
+                             , _
+                             , _]{{}} (pln
+                                      , \(p0'
+                                         , ()) => (p0' { mro = gencotDummy "Linear expression used in readonly context" }
+                                                  , ())
+                                      , ())
    in pln)
 cogent_g64ro : Struct_Cogent_ros2 -> ( (CPtr U32)!, Struct_Cogent_ros2 )
 cogent_g64ro pln =
    let (pln
        , v2') = modrefFld_sub[Struct_Cogent_ros2
                              , Struct_Cogent_ros1
-                             , ()
-                             , (CPtr U32)!]{{}} (pln
-                                                , \(p0'
-                                                   , ()) => modifyFld_mro[Struct_Cogent_ros1
-                                                                         , (CPtr U32)!
-                                                                         , ()
-                                                                         , (CPtr U32)!]{{}} (p0'
-                                                                                            , \(p1'
-                                                                                               , ()) => (p1'
-                                                                                                        , p1')
-                                                                                            , ())
-                                                , ())
+                             , _
+                             , _]{{}} (pln
+                                      , \(p0'
+                                         , ()) => let p0' { mro = p1' } = p0'
+                                      in (p0' { mro = p1' }, p1')
+                                      , ())
    in (v2', pln)
 
 -- Probe used by accessing an array element
@@ -603,11 +597,11 @@ cogent_g72ro pln =
        , v2') = modifyArr[Cogent_roa2
                          , U32
                          , (CPtr U32)!
-                         , ()
-                         , (CPtr U32)!]{{}} (pln
-                                            , 1
-                                            , \(p0', ()) => (p0', p0')
-                                            , ())
+                         , _
+                         , _]{{}} (pln
+                                  , 1
+                                  , \(p0', ()) => (p0', p0')
+                                  , ())
    in v2'
 cogent_g73ln : Cogent_roa3 -> ( (), Cogent_roa3 )
 cogent_g73ln pln =
@@ -616,11 +610,11 @@ cogent_g73ln pln =
          , _) = modifyArr[Cogent_roa3
                          , U32
                          , CPtr U32
-                         , CPtr U32
-                         , ()]{{}} (pln
-                                   , 1
-                                   , \(p0', v1') => (v1', ())
-                                   , cogent_frln ())
+                         , _
+                         , _]{{}} (pln
+                                  , 1
+                                  , \(p0', v1') => (v1', ())
+                                  , cogent_frln ())
    in pln)
 cogent_g73ro : Cogent_roa3 -> CPtr U32
 cogent_g73ro pln =
@@ -628,11 +622,11 @@ cogent_g73ro pln =
        , v2') = modifyArr[Cogent_roa3
                          , U32
                          , CPtr U32
-                         , ()
-                         , CPtr U32]{{}} (pln
-                                         , 1
-                                         , \(p0', ()) => (p0', p0')
-                                         , ())
+                         , _
+                         , _]{{}} (pln
+                                  , 1
+                                  , \(p0', ()) => (p0', p0')
+                                  , ())
    in v2'
 cogent_g74ln : Cogent_roa3 -> ( (), Cogent_roa3 )
 cogent_g74ln pln =
@@ -641,12 +635,12 @@ cogent_g74ln pln =
          , _) = modifyArr[Cogent_roa3
                          , U32
                          , CPtr U32
-                         , U32
-                         , ()]{{}} (pln
-                                   , 1
-                                   , \(p0'
-                                      , v') => (p0' { cont = v' }, ())
-                                   , 5)
+                         , _
+                         , _]{{}} (pln
+                                  , 1
+                                  , \(p0'
+                                     , v') => (p0' { cont = v' }, ())
+                                  , 5)
    in pln)
 cogent_g74ro : Cogent_roa3 -> U32
 cogent_g74ro pln =
@@ -662,11 +656,11 @@ cogent_g75ln pln =
        , v3') = modifyArr[Cogent_roa3
                          , U32
                          , CPtr U32
-                         , ()
-                         , CPtr U32]{{}} (pln
-                                         , 1
-                                         , \(p0', ()) => (p0', p0')
-                                         , ())
+                         , _
+                         , _]{{}} (pln
+                                  , 1
+                                  , \(p0', ()) => (p0', p0')
+                                  , ())
    in cogent_fcln v3'
 cogent_g75ro : Cogent_roa3 -> U32
 cogent_g75ro pln =
@@ -682,11 +676,11 @@ cogent_g76ln (pln, g) =
          , v2') = modifyArr[Cogent_roa3
                            , U32
                            , CPtr U32
-                           , ()
-                           , CPtr U32]{{}} (pln
-                                           , 1
-                                           , \(p0', ()) => (p0', p0')
-                                           , ())
+                           , _
+                           , _]{{}} (pln
+                                    , 1
+                                    , \(p0', ()) => (p0', p0')
+                                    , ())
    and g { cont = _ } = g
    in g { cont = v2' })
 cogent_g76ro : ( Cogent_roa3, GlobState2 ) -> ( (), GlobState2 )
@@ -703,11 +697,11 @@ cogent_g77ln (pln, qln) =
          , v2') = modifyArr[Cogent_roa3
                            , U32
                            , CPtr U32
-                           , ()
-                           , CPtr U32]{{}} (pln
-                                           , 1
-                                           , \(p0', ()) => (p0', p0')
-                                           , ())
+                           , _
+                           , _]{{}} (pln
+                                    , 1
+                                    , \(p0', ()) => (p0', p0')
+                                    , ())
    in v2')
 cogent_g77ro : ( Cogent_roa3, (CPtr U32)! ) -> U32
 cogent_g77ro (pln, qro) =
@@ -723,11 +717,11 @@ cogent_g78ln pln =
        , v2') = modifyArr[Cogent_roa3
                          , U32
                          , CPtr U32
-                         , ()
-                         , CPtr U32]{{}} (pln
-                                         , 1
-                                         , \(p0', ()) => (p0', p0')
-                                         , ())
+                         , _
+                         , _]{{}} (pln
+                                  , 1
+                                  , \(p0', ()) => (p0', p0')
+                                  , ())
    in v2'
 cogent_g78ro : Cogent_roa3 -> (CPtr U32)!
 cogent_g78ro pln =
@@ -756,18 +750,18 @@ cogent_g81ln pln =
          , _) = modrefArr[Cogent_roa4
                          , U32
                          , Cogent_roa1
-                         , ( U32, U32 )
-                         , ()]{{}} (pln
-                                   , 1
-                                   , \(p0', v', v4') => let (p0'
-                                                            , _) = setArr[Cogent_roa1
-                                                                         , U32
-                                                                         , U32]{{}} (p0'
-                                                                                    , v4'
-                                                                                    , v')
-                                   in (p0', ())
-                                   , 5
-                                   , 1)
+                         , _
+                         , _]{{}} (pln
+                                  , 1
+                                  , \(p0', v', v4') => let (p0'
+                                                           , _) = setArr[Cogent_roa1
+                                                                        , U32
+                                                                        , U32]{{}} (p0'
+                                                                                   , v4'
+                                                                                   , v')
+                                  in (p0', ())
+                                  , 5
+                                  , 1)
    in pln)
 cogent_g81ro : Cogent_roa4 -> U32
 cogent_g81ro pln =
@@ -785,17 +779,17 @@ cogent_g82ln pln =
          , _) = modrefArr[Cogent_roa5
                          , U32
                          , Cogent_roa2
-                         , U32
-                         , ()]{{}} (pln
-                                   , 1
-                                   , \(p0', v5') => let (p0'
-                                                        , _) = setArr[Cogent_roa2
-                                                                     , U32
-                                                                     , (CPtr U32)!]{{}} (p0'
-                                                                                        , v5'
-                                                                                        , gencotDummy "Linear expression used in readonly context")
-                                   in (p0', ())
-                                   , 1)
+                         , _
+                         , _]{{}} (pln
+                                  , 1
+                                  , \(p0', v5') => let (p0'
+                                                       , _) = setArr[Cogent_roa2
+                                                                    , U32
+                                                                    , (CPtr U32)!]{{}} (p0'
+                                                                                       , v5'
+                                                                                       , gencotDummy "Linear expression used in readonly context")
+                                  in (p0', ())
+                                  , 1)
    in pln)
 cogent_g82ro : Cogent_roa5 -> (CPtr U32)!
 cogent_g82ro pln =
@@ -803,21 +797,17 @@ cogent_g82ro pln =
        , v4') = modrefArr[Cogent_roa5
                          , U32
                          , Cogent_roa2
-                         , U32
-                         , (CPtr U32)!]{{}} (pln
-                                            , 1
-                                            , \(p0'
-                                               , v3') => modifyArr[Cogent_roa2
-                                                                  , U32
-                                                                  , (CPtr U32)!
-                                                                  , ()
-                                                                  , (CPtr U32)!]{{}} (p0'
-                                                                                     , v3'
-                                                                                     , \(p1'
-                                                                                        , ()) => (p1'
-                                                                                                 , p1')
-                                                                                     , ())
-                                            , 1)
+                         , _
+                         , _]{{}} (pln
+                                  , 1
+                                  , modifyArr[Cogent_roa2
+                                             , U32
+                                             , (CPtr U32)!
+                                             , _
+                                             , _]{{}}
+                                  , 1
+                                  , \(p1', ()) => (p1', p1')
+                                  , ())
    in v4'
 cogent_g83ln : Cogent_roa6 -> ( (), Cogent_roa6 )
 cogent_g83ln pln =
@@ -826,23 +816,17 @@ cogent_g83ln pln =
          , _) = modrefArr[Cogent_roa6
                          , U32
                          , Cogent_roa3
-                         , ( U32, CPtr U32 )
-                         , ()]{{}} (pln
-                                   , 1
-                                   , \(p0', v5', v1') => let (p0'
-                                                             , _) = modifyArr[Cogent_roa3
-                                                                             , U32
-                                                                             , CPtr U32
-                                                                             , CPtr U32
-                                                                             , ()]{{}} (p0'
-                                                                                       , v5'
-                                                                                       , \(p1'
-                                                                                          , v1') => (v1'
-                                                                                                    , ())
-                                                                                       , v1')
-                                   in (p0', ())
-                                   , 1
-                                   , cogent_frln ())
+                         , _
+                         , _]{{}} (pln
+                                  , 1
+                                  , modifyArr[Cogent_roa3
+                                             , U32
+                                             , CPtr U32
+                                             , _
+                                             , _]{{}}
+                                  , 1
+                                  , \(p1', v1') => (v1', ())
+                                  , cogent_frln ())
    in pln)
 cogent_g83ro : Cogent_roa6 -> CPtr U32
 cogent_g83ro pln =
@@ -850,21 +834,17 @@ cogent_g83ro pln =
        , v4') = modrefArr[Cogent_roa6
                          , U32
                          , Cogent_roa3
-                         , U32
-                         , CPtr U32]{{}} (pln
-                                         , 1
-                                         , \(p0'
-                                            , v3') => modifyArr[Cogent_roa3
-                                                               , U32
-                                                               , CPtr U32
-                                                               , ()
-                                                               , CPtr U32]{{}} (p0'
-                                                                               , v3'
-                                                                               , \(p1'
-                                                                                  , ()) => (p1'
-                                                                                           , p1')
-                                                                               , ())
-                                         , 1)
+                         , _
+                         , _]{{}} (pln
+                                  , 1
+                                  , modifyArr[Cogent_roa3
+                                             , U32
+                                             , CPtr U32
+                                             , _
+                                             , _]{{}}
+                                  , 1
+                                  , \(p1', ()) => (p1', p1')
+                                  , ())
    in v4'
 
 -- probe assigned to struct component or array element
@@ -884,11 +864,11 @@ cogent_g92ln pln =
          , _) = modifyArr[Cogent_roa3
                          , U32
                          , CPtr U32
-                         , CPtr U32
-                         , ()]{{}} (pln
-                                   , 1
-                                   , \(p0', v1') => (v1', ())
-                                   , cogent_frln ())
+                         , _
+                         , _]{{}} (pln
+                                  , 1
+                                  , \(p0', v1') => (v1', ())
+                                  , cogent_frln ())
    in pln)
 cogent_g92ro : Cogent_roa2 -> ( (), Cogent_roa2 )
 cogent_g92ro pln =
@@ -1039,11 +1019,11 @@ cogent_n92ln pln =
          , _) = modifyArr[Cogent_roam3
                          , U32
                          , MayNull (CPtr U32)
-                         , MayNull CVoidPtr
-                         , ()]{{}} (pln
-                                   , 1
-                                   , \(p0', v') => (v', ())
-                                   , null[]{{}} ())
+                         , _
+                         , _]{{}} (pln
+                                  , 1
+                                  , \(p0', v') => (v', ())
+                                  , null[]{{}} ())
    in pln)
 cogent_n92ro : Cogent_roam2 -> ( (), Cogent_roam2 )
 cogent_n92ro pln =

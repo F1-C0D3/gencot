@@ -1317,8 +1317,8 @@ value with the pointer referencing the modified data. In general it is not clear
 In C a value containing a pointer is either the pointer itself, or it is a container with a component containing a pointer,
 i.e., a struct with a member containing a pointer, or an array where the elements contain a pointer. In C an expression
 for a pointer or container is either an identifier, a component accessed in another container, an application of the derefence
-operator \code{*}, or a function invocation which 
-returns the pointer or container as its result. A container can also be designated by a compound literal. A pointer can also
+operator \code{*}, a function invocation which returns the pointer or container as its result, a conditional expression, or
+a comma expression. A container can also be designated by a compound literal. A pointer can also
 be designated by an application of the \code{\&} operator, or by ``pointer arithmetics'', i.e., by arithmetic operations 
 involving pointers.
 
@@ -1366,7 +1366,18 @@ operation so that the variables for all taken components are distinct.
 
 The variable to which the remaining container is bound in the \code{take} operation is determined as described for values 
 with pointers. Cases where there are no pointers in the container or where no modifications can occur are handled in later
-translation stages.
+translation stages. If the variable is determined to be the error variable \code{err'} because the container has not been
+specified in C by a variable or a chain of nested accesses to a variable the \code{put} operation is replaced by a unit
+binding \code{() = ()} to prevent a free occurrence of the error variable in the \code{put} expression.
+
+If the container is a struct which does not contain (directly or indirectly) a pointer it may be discarded in Cogent
+after accessing a component. Therefore a component access where the container is specified by the result of a function invocation,
+a conditional expression, a comma expression, or a compound literal can be represented in Cogent as long as the component
+is not modified, so that no \code{put} operation is required. However, in the first three cases the container is no lvalue
+expression in C and cannot be modified. A compound literal is an lvalue expression and can be modified, but compound literals
+are not (yet) supported by Gencot. Gencot translates these access expressions in the same way as all others, using a \code{take}
+operation where the remaining container is specified by the error variable and the \code{put} operation is replaced by
+a unit binding. The \code{take} operation will be replaced by a valid member access in later processing steps.
 
 If the container is an array, the \code{put} operation needs to use the same element index as the \code{take} operation. 
 In the \code{take} operation it is available as a value variable. Since value variables are not reused in the body of a
@@ -1384,8 +1395,8 @@ therefore it may be translated to an arbitrarily long sequence of take bindings,
 followed by a list of put bindings in the opposite order of the take bindings, so that components which are taken
 first are put back last.
 
-A struct member access \code{e.m} has only one subexpression \code{e} for denoting the struct. A read access is translated to the
-following binding sequence:
+A struct member access \code{e.m} has only one subexpression \code{e} for denoting the struct. If it is a variable or an access chain
+starting with a variable a read access is translated to the following binding sequence:
 \begin{verbatim}
   <v>{m=p<k>'} = v<m>'
   v<n>' = p<k>'
@@ -1401,11 +1412,11 @@ bindings inserted between the second and third binding.
 A Cogent \code{take} operation can be applied to boxed and to unboxed record types. In the member access \code{e.m} the expression
 \code{e} corresponds to an unboxed record, in the member access \code{e->m} it corresponds to a boxed record. Therefore the
 member access \code{e->m} is translated by Gencot in the same way as \code{e.m}, the difference can be detected by looking at
-the type of \code{v<n>'}.
+the type of \code{v<m>'}.
 
 An array element access \code{e1[e2]} has two unsequenced subexpressions \code{e1}, \code{e2} for denoting the array and the index value.
-The array access is translated by first concatenating the binding list for \code{e1} after \code{e2}. Then a read access is translated
-to the following binding sequence:
+The array access is translated by first concatenating the binding list for \code{e1} after \code{e2}. Then, if \code{e1} is a variable
+or an access chain starting with a variable a read access is translated to the following binding sequence:
 \begin{verbatim}
   <v> @{@v<l>'=p<k>'} = v<m>'
   v<n>' = p<k>'
@@ -1443,7 +1454,8 @@ the types of the function and the function pointer, they must be explicitly spec
 For all other pointers Gencot translates pointer dereferences as if the
 pointer type would be translated to a type \code{(CPtr T)} by accessing the \code{cont} component. That is, an expression
 \code{*e} is translated by \code{bindExpr} like \code{e.cont} to a binding list involving a \code{take} and a \code{put}
-operation as described for struct member accesses. A read access is translated to the following binding sequence:
+operation as described for struct member accesses. If \code{e} is a variable or an access chain
+starting with a variable a read access is translated to the following binding sequence:
 \begin{verbatim}
   <v>{cont=p<k>'} = v<m>'
   v<n>' = p<k>'
@@ -1561,7 +1573,7 @@ in increment/decrement expressions. An lvalue expression has the same form as an
 position as subexpression in the surrounding expression. However, expressions which may occur as valid lvalue expressions are 
 restricted mainly to variables, container component accesses, and pointer dereferences.
 
-Gencot translates lvalue subexpressions in the same way as other subexpressions to a binding lists using \code{bindExpr}.
+Gencot translates lvalue subexpressions in the same way as other subexpressions to a binding list using \code{bindExpr}.
 As described above, for all cases where the subexpression is a valid lvalue expression, the resulting \code{ExprBinds} also
 specifies a variable \code{v} which can be used to modify the lvalue by re-binding it to the new value. This variable is always
 either a mapped C object identifier, or a component variable.

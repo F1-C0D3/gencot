@@ -28,7 +28,7 @@ import Gencot.Cogent.Post.Util (
   ETrav, runExprTrav, isValVar, isCVar, freeInExpr, freeInExpr', freeInIrrefPatn, freeInBindings, freeUnderBinding, boundInBindings,
   returnedByExpr, modifiedByBinding, exchangeableWithBindings,
   freeTypedVarsInExpr, freeTypedVarsUnderBinding,
-  getIPatternsList, getExprList)
+  getIPatternsList, getExprList, isPutExpr)
 
 -- Assumption for all expressions:
 -- - expressions bound in a binding are only
@@ -178,67 +178,6 @@ boolToArithType e =
        then mkIfExpr mkU32Type e (mkIntLitExpr mkU32Type 1) (mkIntLitExpr mkU32Type 0)
        else e
 
-
-{- Modification of Readonly Containers -}
-{- Detect and record errors.           -}
-{---------------------------------------}
-
-romodproc :: GenExpr -> ETrav GenExpr
-romodproc e = romodprocVars [] e
-
--- | Check component variables for being modified.
--- The first argument is a set of component variables which must not be modified.
--- In the expression, additional component variables may not be modified if they are taken from a readonly container.
--- Modified variables are replaced by the error variable in their binding.
--- All types remain unchanged.
-romodprocVars :: [CCS.VarName] -> GenExpr -> ETrav GenExpr
-romodprocVars cvs e = mapMExprOfGE (romodprocVars' cvs) e
-
-romodprocVars' :: [CCS.VarName] -> ExprOfGE -> ETrav ExprOfGE
-romodprocVars' cvs e@(CS.Let _ _) = romodprocInLet cvs e
-romodprocVars' cvs e = mapM (romodprocVars cvs) e
-
-romodprocInLet :: [CCS.VarName] -> ExprOfGE -> ETrav ExprOfGE
-romodprocInLet cvs (CS.Let [] bdy) = do
-    bdyr <- romodprocVars cvs bdy
-    return $ CS.Let [] bdyr
-romodprocInLet cvs (CS.Let ((CS.Binding ip m e bvs) : bs) bdy) = do
-    er <- romodprocVars cvs e
-    (ipr,cvs') <- romodprocPattern cvs ip $ isPutExpr $ exprOfGE e
-    (CS.Let bsr bdyr) <- romodprocInLet cvs' (CS.Let bs bdy)
-    return $ CS.Let ((CS.Binding ipr m er bvs) : bsr) bdyr
-
-romodprocPattern :: [CCS.VarName] -> GenIrrefPatn -> [Bool] -> ETrav (GenIrrefPatn, [CCS.VarName])
-romodprocPattern cvs ip@(GenIrrefPatn (CS.PTake pv [Just (_,(GenIrrefPatn (CS.PVar cv) _ _))]) _ t) _ =
-    return (ip, if (isReadonly t) || (elem pv cvs) then union cvs [cv] else cvs)
-romodprocPattern cvs ip@(GenIrrefPatn (CS.PArrayTake pv [(_,(GenIrrefPatn (CS.PVar cv) _ _))]) _ t) _ =
-    return (ip, if (isReadonly t) || (elem pv cvs) then union cvs [cv] else cvs)
-romodprocPattern cvs (GenIrrefPatn (CS.PTuple ips) o t) ispts = do
-    ipcvss <- mapM (\(ip,ispt) -> romodprocPattern cvs ip [ispt]) $ zip ips ispts
-    let (ipsr,cvss) = unzip ipcvss
-    return (GenIrrefPatn (CS.PTuple ipsr) o t, nub $ concat cvss)
-romodprocPattern cvs (GenIrrefPatn (CS.PVar pv) o t) [False] | elem pv cvs = do
-    recordError $ typeMatch o "Component of readonly struct modified"
-    return (GenIrrefPatn (CS.PVar errVar) o t, cvs)
-romodprocPattern cvs ip _ = return (ip,cvs)
-
--- | Whether an expression seen as tuple is a put expression.
-isPutExpr :: ExprOfGE -> [Bool]
-isPutExpr (CS.Put _ _) = [True]
-isPutExpr (CS.ArrayPut _ _) = [True]
-isPutExpr (CS.Tuple es) = concat $ map (isPutExpr . exprOfGE) es
-isPutExpr (CS.If _ _ e1 e2) =
-    -- mostly irrelevant because branches never contain put expressions,
-    -- but must be mapped so that the list has the correct number of entries.
-    map (\(b1,b2) -> b1 || b2) $ zip (isPutExpr $ exprOfGE e1) (isPutExpr $ exprOfGE e2)
-isPutExpr (CS.Match _ _ alts) =
-    -- must be handled because isPutExpr is also used in rslvRoDiffsInLet when match expressions are present
-    map or $ transpose $ map (\(CS.Alt p l e) -> isPutExpr $ exprOfGE e) alts
-isPutExpr (CS.Let _ bdy) = isPutExpr $ exprOfGE bdy
-isPutExpr (CS.App f e _) = case typeOfGT $ getResultType $ typOfGE f of
-                              CS.TTuple ts -> map (const False) ts
-                              _ -> [False]
-isPutExpr _ = [False]
 
 {- Matching linear subexpressions -}
 {- to readonly context: try bang  -}
@@ -907,12 +846,10 @@ ebangproc :: GenExpr -> ETrav GenExpr
 ebangproc e = do
     (eN,_,_) <- runExprTrav 0 $ mkNullUnique e
     eN' <- ebangprocN eN
-    e' <- reNullUnique eN'
-    return $ bindToNullInNothing e'
+    reNullUnique eN'
 
 ebangprocN :: GenExpr -> ETrav GenExpr
 ebangprocN e = mapMExprOfGE ebangproc' e
-
 
 -- | Try to bang additional variables in subexpressions where that is possible.
 -- Banging is possible in conditions of conditional expressions and in bindings.
@@ -1567,41 +1504,4 @@ matchMayNullTypes' t1 t2 | isMayNull t1 == isMayNull t2 = (False,False)
 matchMayNullTypes' t1 t2 | isMayNull t1 = (False,True)
 matchMayNullTypes' t1 t2 | isMayNull t2 = (True,False)
 
--- | For every nothing-branch of a NULL test bind the tested variable to cogent_NULL.
--- This prevents double use if the variable has linear type.
--- We assume that only match expressions exist which have been created by convVarNullTest.
-bindToNullInNothing :: GenExpr -> GenExpr
-bindToNullInNothing (GenExpr (CS.Match e0@(GenExpr (CS.App _ (GenExpr (CS.Var v) _ vt _) _) _ _ _) bvs [aNothing, aSome]) o t c) =
-    GenExpr (CS.Match e0 bvs [CS.Alt p l $ bindToNullInExpr (TV v vt) e, aSome']) o t c
-    where (CS.Alt p l e) = bindToNullInAlt aNothing
-          aSome' = bindToNullInAlt aSome
-bindToNullInNothing e = mapExprOfGE (fmap bindToNullInNothing) e
 
-bindToNullInAlt :: GenAlt -> GenAlt
-bindToNullInAlt (CS.Alt p l e) = CS.Alt p l $ bindToNullInNothing e
-
-bindToNullInExpr :: TypedVar -> GenExpr -> GenExpr
-bindToNullInExpr tv (GenExpr (CS.Let bs bdy) o t c) =
-    GenExpr (CS.Let ((mkVarBinding tv $ mkVarExpr $ TV mapNull $ typOfTV tv) : bs) bdy) o t c
-bindToNullInExpr tv e =
-    mkLetExpr [mkVarBinding tv $ mkVarExpr $ TV mapNull $ typOfTV tv] e
-
-{- Convert mayNull / notNull -}
-{- to readonly if needed     -}
-{- and convert cogent_NULL   -}
-{- to null / roNull          -}
-{-----------------------------}
-
-opnullproc :: GenExpr -> GenExpr
-opnullproc (GenExpr (CS.Var v) o t c) | v == mapNull =
-    mkAppExpr (mkTopLevelFunExpr (nullFun, mkFunType unitType t) []) $ mkUnitExpr
-    where nullFun = if isReadonly t
-                      then "roNull"
-                      else "null"
-opnullproc (GenExpr (CS.App (GenExpr (CS.TLApp f mt ml il) fo ft fc) e x) o t c)
-    | elem f ["mayNull","notNull"] && (isReadonly $ getParamType ft) =
-    GenExpr (CS.App (GenExpr (CS.TLApp rof mt ml il) fo ft fc) (opnullproc e) x) o t c
-    where rof = if f == "mayNull"
-                  then "roMayNull"
-                  else "roNotNull"
-opnullproc e = mapExprOfGE (fmap opnullproc) e

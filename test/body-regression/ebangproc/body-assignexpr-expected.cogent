@@ -164,6 +164,11 @@ cogent_fao14 v =
 
 type Struct_Cogent_as1 = { m1 : U32, m2 : U32 }
 type Struct_Cogent_as2 = { m3 : U32, m4 : #Struct_Cogent_as1 }
+type Struct_Cogent_as4 = { m7 : U32, m8 : #(CArr5 U32) }
+cogent_fas1r : #Struct_Cogent_as1 -> #Struct_Cogent_as1
+cogent_fas1r s =
+   let r' = let v' = s in v'
+   in r'
 cogent_fas1 : ( #Struct_Cogent_as1, U32 ) -> U32
 cogent_fas1 (s, v) =
    let r' = let v' = s
@@ -316,10 +321,76 @@ cogent_fas10 s =
       and s = s { m4 = p0' }
       in v5'
    in r'
+cogent_fas11 : ( #Struct_Cogent_as1, U32 ) -> U32
+cogent_fas11 (s, v) =
+   let r' = let v' = cogent_fas1r
+      and v1' = s
+      and v2' = v' v1'
+      and err' { m1 = p0' } = v2'
+      and v3' = p0'
+      and v5' = v3'
+      and v = v5'
+      and v7' = v
+      in v7'
+   in r'
+cogent_fas12 : ( #Struct_Cogent_as4, U32 ) -> U32
+cogent_fas12 (s, v) =
+   let r' = let v2' = 3
+      and v' = s
+      and s { m8 = p0' } = v'
+      and v1' = p0'
+      and p0' @{ @v2' = p1' } = v1'
+      and v3' = p1'
+      and p0' = p0' @{ @v2' = p1' }
+      and s = s { m8 = p0' }
+      and v5' = v3'
+      and v = v5'
+      and v7' = v
+      in v7'
+   in r'
+cogent_fas13 : #Struct_Cogent_as4 -> U32
+cogent_fas13 s =
+   let r' = let v' = 42
+      and v3' = 3
+      and v1' = s
+      and s { m8 = p0' } = v1'
+      and v2' = p0'
+      and p0' @{ @v3' = p1' } = v2'
+      and v5' = v'
+      and p1' = v5'
+      and p0' = p0' @{ @v3' = p1' }
+      and s = s { m8 = p0' }
+      and v9' = 3
+      and v7' = s
+      and s { m8 = p2' } = v7'
+      and v8' = p2'
+      and p2' @{ @v9' = p3' } = v8'
+      and v10' = p3'
+      and p2' = p2' @{ @v9' = p3' }
+      and s = s { m8 = p2' }
+      in v10'
+   in r'
+cogent_fas14 : #Struct_Cogent_as4 -> U32
+cogent_fas14 s =
+   let r' = let v' = 1
+      and v3' = 3
+      and v1' = s
+      and s { m8 = p0' } = v1'
+      and v2' = p0'
+      and p0' @{ @v3' = p1' } = v2'
+      and v4' = p1'
+      and v5' = v4' + v'
+      and (v6', p1') = (p1', v5')
+      and p0' = p0' @{ @v3' = p1' }
+      and s = s { m8 = p0' }
+      in v6'
+   in r'
 
 type Cogent_aa1 = CArr5 U32
 type Cogent_aa2 =
    CArr5 #Struct_Cogent_as1
+type Cogent_aa4 =
+   CArr5 (#(CArr4 U32))
 cogent_faa1 : ( Cogent_aa1, U32 ) -> ( U32, Cogent_aa1 )
 cogent_faa1 (a, v) =
    let (r', ()) = (let v1' = 3
@@ -532,10 +603,70 @@ cogent_faa14 (a, v) =
          and () = ()
          in (v5', ())) !a
    in (r', a)
+cogent_faa15 : ( Cogent_aa4, U32 ) -> ( U32, Cogent_aa4 )
+cogent_faa15 (a, v) =
+   let (r', ()) = (let v3' = 2
+         and v1' = 3
+         and v' = a
+         and a @{ @v1' = p0' } = v'
+         and v2' = p0'
+         and p0' @{ @v3' = p1' } = v2'
+         and v4' = p1'
+         and p0' = p0' @{ @v3' = p1' }
+         and () = ()
+         and v6' = v4'
+         and v = v6'
+         and v8' = v
+         in (v8', ())) !a
+   in (r', a)
+cogent_faa16 : Cogent_aa4 -> ( U32, Cogent_aa4 )
+cogent_faa16 a =
+   let (r', a) = let v' = 42
+      and v4' = 2
+      and v2' = 3
+      and v1' = a
+      and a @{ @v2' = p0' } = v1'
+      and v3' = p0'
+      and p0' @{ @v4' = p1' } = v3'
+      and v6' = v'
+      and p1' = v6'
+      and p0' = p0' @{ @v4' = p1' }
+      and a = a @{ @v2' = p0' }
+      and v11' = 2
+      and v9' = 3
+      and v8' = a
+      and a @{ @v9' = p2' } = v8'
+      and v10' = p2'
+      and p2' @{ @v11' = p3' } = v10'
+      and v12' = p3'
+      and p2' = p2' @{ @v11' = p3' }
+      and a = a @{ @v9' = p2' }
+      in (v12', a)
+   in (r', a)
+cogent_faa17 : Cogent_aa4 -> ( U32, Cogent_aa4 )
+cogent_faa17 a =
+   let (r', a) = let v' = 1
+      and v4' = 2
+      and v2' = 3
+      and v1' = a
+      and a @{ @v2' = p0' } = v1'
+      and v3' = p0'
+      and p0' @{ @v4' = p1' } = v3'
+      and v5' = p1'
+      and v6' = v5' + v'
+      and (v7', p1') = (p1', v6')
+      and p0' = p0' @{ @v4' = p1' }
+      and a = a @{ @v2' = p0' }
+      in (v7', a)
+   in (r', a)
 
 type Struct_Cogent_as3 = { m5 : U32, m6 : Struct_Cogent_as1 }
 type Cogent_aa3 =
    CArr5 (CPtr U32)
+cogent_fas1pr : Struct_Cogent_as1 -> Struct_Cogent_as1
+cogent_fas1pr p =
+   let r' = let v' = p in v'
+   in r'
 cogent_fap1 : ( CPtr U32, U32 ) -> ( U32, CPtr U32 )
 cogent_fap1 (p, v) =
    let (r', ()) = (let v' = p
@@ -770,6 +901,36 @@ cogent_fap15 p =
       and p0' = p0' { cont = p1' }
       and p = p @{ @v2' = p0' }
       in (v6', p)
+   in (r', p)
+cogent_fap16 : ( Struct_Cogent_as1, U32 ) -> ( U32, Struct_Cogent_as1 )
+cogent_fap16 (p, v) =
+   let r' = let v' = cogent_fas1pr
+      and v1' = p
+      and v2' = v' v1'
+      and err' { m1 = p0' } = v2'
+      and v3' = p0'
+      and v5' = v3'
+      and v = v5'
+      and v7' = v
+      in v7'
+   in (r', p)
+cogent_fap17 : Struct_Cogent_as1 -> ( U32, Struct_Cogent_as1 )
+cogent_fap17 p =
+   let r' = let v7' = cogent_fas1pr
+      and v8' = p
+      and v9' = v7' v8'
+      and err' { m1 = p1' } = v9'
+      and v10' = p1'
+      in v10'
+   in (r', p)
+cogent_fap18 : Struct_Cogent_as1 -> ( U32, Struct_Cogent_as1 )
+cogent_fap18 p =
+   let r' = let v1' = cogent_fas1pr
+      and v2' = p
+      and v3' = v1' v2'
+      and err' { m1 = p0' } = v3'
+      and v6' = p0'
+      in v6'
    in (r', p)
 
 cogent_fam1 : ( U32, U32 ) -> U32

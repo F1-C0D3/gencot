@@ -50,7 +50,7 @@ import Gencot.Cogent.Bindings (
   mkTuplePattern, mkVarPattern, mkVarTuplePattern,
   mkAlt)
 import Gencot.Cogent.Error (unSupported, noParam)
-import Gencot.Cogent.Expr (TypedVar(TV), typOfTV, namOfTV, mkUnitExpr, mkVarExpr, mkExpVarTupleExpr, mkLetExpr)
+import Gencot.Cogent.Expr (TypedVar(TV), typOfTV, namOfTV, mkUnitExpr, mkVarExpr, mkIntLitExpr, mkExpVarTupleExpr, mkAppExpr, mkLetExpr)
 import Gencot.Cogent.Types (
   genType, mkTypeName, mkU32Type, mkBoolType, mkTupleType, mkFunType, mkArrayType, mkWrappedArrayType, mkRecordType, mkPtrType, mkVoidPtrType,
   addTypeSyn, useTypeSyn, mkReadonly, mkUnboxed, isArrayType, isUnboxed, mkMayNull,
@@ -736,11 +736,16 @@ exprType e = LCA.tExpr [] RValue e
 
 transBody :: FuncDesc -> LC.CStat -> FTrav [GenAlt]
 transBody fdes s = do
-    resetVarCounters
     tconf <- getTConf
-    b <- bindStat s
-    ep <- runTravWithErrors mkUnitExpr $ postproc tconf $ mkLetExpr [b] $ genFunResultExpr fdes
-    return [mkAlt (genFunParamPattern fdes) $ cleanSrc ep]
+    if elem 'A' tconf
+       then do
+           s <- C.transStat s
+           return [mkAlt (genFunParamPattern fdes) $ genFunDefaultExpr fdes s]
+       else do
+           resetVarCounters
+           b <- bindStat s
+           ep <- runTravWithErrors mkUnitExpr $ postproc tconf $ mkLetExpr [b] $ genFunResultExpr fdes
+           return [mkAlt (genFunParamPattern fdes) $ cleanSrc ep]
 
 transExpr :: LC.CExpr -> FTrav GenExpr
 transExpr e = do
@@ -1440,10 +1445,25 @@ genFunParamPattern fdes =
 -- It is a tuple where the first component is the result variable, or unit if the function result type is void.
 -- The other components are the additional result parameters.
 genFunResultExpr :: FuncDesc -> GenExpr
-genFunResultExpr fdes =
-    mkExpVarTupleExpr re $ map getTypedVarFromParamDesc $ filter isAddResultParam $ parsOfFuncDesc fdes
+genFunResultExpr fdes = mkFunResultExpr re fdes
     where re = if rt == unitType then mkUnitExpr else mkVarExpr $ TV resVar rt
           rt = getLeadType $ getResultType $ typeOfFuncDesc fdes
+
+-- | Construct default expression for function definition.
+-- It is a tuple where the first component is (), 0, or a dummy expression, according to the function result type.
+-- The other components are the additional result parameters.
+-- The second argument is the function body from the C source, it is added as source annotation.
+genFunDefaultExpr :: FuncDesc -> LQ.Stm -> GenExpr
+genFunDefaultExpr fdes s = GenExpr e o t $ Just s
+    where (GenExpr e o t c) = mkFunResultExpr (defaultRes rt) fdes
+          rt = getLeadType $ getResultType $ typeOfFuncDesc fdes
+          defaultRes (GenType CS.TUnit _ _) = mkUnitExpr
+          defaultRes t@(GenType (CS.TCon tn _ _) _ _) | elem tn ["U8", "U16", "U32", "U64"] = mkIntLitExpr t 0
+          defaultRes t = mkAppExpr (mkVarExpr $ TV "gencotDummy" t) mkUnitExpr
+
+mkFunResultExpr :: GenExpr -> FuncDesc -> GenExpr
+mkFunResultExpr re fdes =
+    mkExpVarTupleExpr re $ map getTypedVarFromParamDesc $ filter isAddResultParam $ parsOfFuncDesc fdes
 
 -- | Construct the item id according to the structure of an expression.
 -- This is only needed for encoded function pointer types to determine the

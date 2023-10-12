@@ -23,6 +23,7 @@ void ffv25(void) { glob1 = 5; } // g: gs1
 void ffv26(void) { glob2 = 5; } // g: gs1 (!)
 void ffv27(void) { glob1++; } // g: gs1
 void ffv28(void) { glob1 = glob2; } // g1: gs1, g2: gs2
+void ffv29(void) { glob1 = 5; } // g: gs1 ro
 
 void ffv31(int *i) { glob1 = *i; } // i: -ar, g: gs1
 void ffv32(int *i) { *i = glob1; } // g: gs1

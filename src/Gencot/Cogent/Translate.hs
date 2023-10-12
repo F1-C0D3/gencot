@@ -1301,7 +1301,7 @@ makeGlobalStateParamDesc ((iid,noro), gs) = do
               Just decl -> do
                   sfn <- getFileName
                   typ <- mkGlobalStateParamType (getIndividualItemAssoc decl sfn) gs
-                  return $ ParamDesc name typ props
+                  return $ ParamDesc name (makeReadOnlyIf (not noro) typ) props
 
 -- | Construct the type of a GlobalState parameter.
 -- The first argument is the item associated type of the corresponding global variable.
@@ -1364,7 +1364,7 @@ searchGlobalStateParamDesc fdes (gsprop,gstyp) =
 isAddResultParam :: ParamDesc -> Bool
 isAddResultParam pdes =
     ((elem "ar" props) && (not $ elem "ro" props)) ||
-    (any (\p -> "gs" `isPrefixOf` p) props) ||
+    ((any (\p -> "gs" `isPrefixOf` p) props) && (not $ elem "ro" props)) ||
     (elem "hu" props)
     where props = propOfParamDesc pdes
 

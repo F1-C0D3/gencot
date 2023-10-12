@@ -398,6 +398,22 @@ cogent_ffv28 (g1 :: (GlobState1 =  { cont : U32 })
       , g2 :: (GlobState2 =  { cont : U32 })) :: (()
                                                  , (GlobState1 =  { cont : U32 })
                                                  , (GlobState2 =  { cont : U32 }))
+cogent_ffv29 : (GlobState1 =  { cont : U32 }!) -> ()
+cogent_ffv29 g1 :: (GlobState1 =  { cont : U32 }!) =
+   let (c' :: U8
+       , g1 :: (GlobState1 =  { cont : U32 }!)) = let v' :: U32 = 5 :: U32
+      and v1' :: (GlobState1 =  { cont : U32 }!) = g1 :: (GlobState1 =  { cont : U32 }!)
+      and g1 { cont = p0' :: U32 } :: (GlobState1 =  { cont : U32 }!) = v1' :: (GlobState1 =  { cont : U32 }!)
+      and v2' :: U32 = p0' :: U32
+      and v3' :: U32 = v' :: U32
+      and (v4' :: U32
+          , p0' :: U32) = (v3' :: U32
+                          , v3' :: U32)
+      and g1 :: (GlobState1 =  { cont : U32 }!) = g1 :: (GlobState1 =  { cont : U32 }!) { cont = p0' :: U32 } :: (GlobState1 =  { cont : U32 }!)
+      in (0 :: U8
+         , g1 :: (GlobState1 =  { cont : U32 }!)) :: (U8
+                                                     , (GlobState1 =  { cont : U32 }!))
+   in () :: () :: ()
 cogent_ffv31 : (MayNull (CPtr =  { cont : U32 })
                , (GlobState1 =  { cont : U32 })) -> (()
                                                     , (GlobState1 =  { cont : U32 }))

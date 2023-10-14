@@ -43,7 +43,7 @@ runtypes tconf e = do
     ebangproc' tconf e4
 
 boolproc' :: String -> GenExpr -> GenExpr
-boolproc' tconf e | elem 'r' tconf = e
+boolproc' tconf e | elem 'c' tconf = e
 boolproc' _ e = boolproc e
 
 romodproc' :: String -> GenExpr -> ETrav GenExpr
@@ -63,7 +63,7 @@ maynullproc' tconf e | elem 'n' tconf = return e
 maynullproc' _ e = maynullproc e
 
 opnullproc' :: String -> GenExpr -> GenExpr
-opnullproc' tconf e | elem 'e' tconf = e
+opnullproc' tconf e | elem 'm' tconf = e
 opnullproc' _ e = opnullproc e
 
 tpproc' :: String -> GenExpr -> ETrav GenExpr

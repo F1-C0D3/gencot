@@ -1368,16 +1368,22 @@ consider the usage of re-bound components.
 it must be executed after all steps which may modify the type of an expression.
 \end{itemize}
 
-The resulting order of postprocessing steps is
+The execution of every postprocessing step can be suppressed by adding a letter to the translation configuration string (see
+Section~\ref{impl-ccomps-main}).
+
+The resulting order of postprocessing steps with their suppress letters is
 \begin{verbatim}
-  presimp
-  romodproc
-  boolproc
-  maynullproc
-  bangproc
-  ebangproc
-  opnullproc
-  tpproc
-  letproc/ifproc/opproc
+  p presimp
+  r romodproc
+  c boolproc
+  n maynullproc
+  b bangproc
+  e ebangproc
+  m opnullproc
+  t tpproc
+  l letproc <-
+  f ifproc   |
+  o opproc  -|
 \end{verbatim}
-This order is implemented in module \code{Gencot.Cogent.Post.Proc}.
+The last three steps are repeated until no more changes occur. This order and the suppressing of steps is implemented
+in module \code{Gencot.Cogent.Post.Proc}.

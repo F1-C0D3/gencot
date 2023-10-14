@@ -231,8 +231,9 @@ the first one is used, all others are ignored.
 
 If a Global-State property is declared for a parameter item, it must be a virtual item, i.e., the parameter must not
 exist in the C program. A corresponding parameter is introduced by Gencot in the Cogent program for passing a pointer
-to the global variable to the function. The parameter type is determined from the type of the global variable 
-associated with the Global-State property according to its numerical argument.
+to the global variable to the function. As type for the parameter the pointer type is derived from the type of the global
+variable associated with the Global-State property according to its numerical argument. This pointer type is translated
+to Cogent as usual.
 
 If two virtual parameters of the same function have a Global-State property declared, the properties must use different 
 numerical arguments. Two parameters with the same argument would correspond to two parameters for pointers to the 
@@ -241,17 +242,21 @@ same global variable. This would introduce sharing for parameters of linear type
 The Global-State property implicitly includes the Add-Result property. A parameter introduced 
 by a Global-State property always has a linear type in Cogent. Since the global variable cannot be deallocated the parameter
 must never be discarded and always be returned as part of the function result. Thus Gencot automatically treats the 
-virtual parameter in the same way as a parameter with the Add-Result property.
+virtual parameter in the same way as a parameter with the Add-Result property. Any explicit specification (positive or
+negative) of an Add-Result property is ignored when combined with a Global-State property.
 
 The Global-State property also implicitly includes the Not-Null property. The pointer passed to the function is always
-a valid pointer to the global variable, it will never be \code{NULL}.
+a valid pointer to the global variable, it will never be \code{NULL}. Any explicit specification (positive or
+negative) of a Not-Null property is ignored when combined with a Global-State property.
 
 The Global-State property for virtual parameters can be combined with the Read-Only property. In this case the 
-parameter type is made readonly and the implicit effect of the Add-Result property is omitted.
+Read-Only property affects the parameter type which is the pointer to the variable, whereas a Read-Only property specified
+for the corresponding global variable affects the type of the variable. If only the variable has the Read-Only property but
+not the parameter, a variable value may not be modified, but it can be replaced through the parameter by assigning a new
+value to the dereferenced parameter. If the Read-Only property is specified for a parameter with Global-State property the
+implicit effect of the Add-Result property is omitted.
 
-If a global variable has the Read-Only property it can still have a Global-State property for introducing virtual
-function parameters for it. Semantically, all these function parameters must have readonly type. This is not 
-guaranteed by Gencot, the parameter types are only made readonly if a Read-Only property is declared for them.
+All other item properties are ignored when specified for a parameter with a Global-State property.
 
 \item[Modification-Function (Deprecated)]
 

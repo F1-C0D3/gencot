@@ -39,7 +39,7 @@ import Gencot.Items.Identifier (
 import Gencot.Cogent.Ast
 import Gencot.Cogent.Bindings (
   ExprBinds, valVar, leadVar, lvalVar, resVar,
-  mkPlainExpr,
+  mkPlainExpr, mkDummyExpr,
   mkEmptyExprBinds, mkDummyExprBinds, mkUnitExprBinds, mkDefaultExprBinds,
   mkIntLitExprBinds, mkCharLitExprBinds, mkStringLitExprBinds, mkBoolLitExprBinds,
   mkValVarExprBinds, mkMemExprBinds, mkIdxExprBinds, mkOpExprBinds, mkConstAppExprBinds, mkAppExprBinds, mkAssExprBinds,
@@ -1459,7 +1459,7 @@ genFunDefaultExpr fdes s = GenExpr e o t $ Just s
           rt = getLeadType $ getResultType $ typeOfFuncDesc fdes
           defaultRes (GenType CS.TUnit _ _) = mkUnitExpr
           defaultRes t@(GenType (CS.TCon tn _ _) _ _) | elem tn ["U8", "U16", "U32", "U64"] = mkIntLitExpr t 0
-          defaultRes t = mkAppExpr (mkVarExpr $ TV "gencotDummy" t) mkUnitExpr
+          defaultRes t = mkDummyExpr t ""
 
 mkFunResultExpr :: GenExpr -> FuncDesc -> GenExpr
 mkFunResultExpr re fdes =

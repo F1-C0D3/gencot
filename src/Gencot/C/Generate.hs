@@ -1,7 +1,7 @@
 {-# LANGUAGE PackageImports #-}
 module Gencot.C.Generate where
 
-import Data.Maybe (isNothing,fromJust)
+import Data.Maybe (isNothing,fromJust,isJust)
 import Data.List (sort,break)
 import Control.Monad (liftM)
 
@@ -15,10 +15,10 @@ import Gencot.C.Ast as GCA
 import Gencot.C.Translate (transInit)
 import Gencot.Cogent.Ast (GenType(GenType), unitType)
 import Gencot.Cogent.Output (showCogentType)
-import Gencot.Cogent.Types (getResultType, getLeadType)
+import Gencot.Cogent.Types (getParamType, getResultType, getLeadType)
 import Gencot.Cogent.Translate (
   transType, FuncDesc, typeOfFuncDesc, typeOfParamDesc,
-  getFuncDesc, getNonvirtParamDescs, getGlobalStateParamProps)
+  getFuncDesc, getNonvirtParamDescs, getGlobalStateParamProps, getHeapUseParamDesc, getInputOutputParamDesc)
 
 import Gencot.Origin (Origin,noOrigin,mkOrigin)
 import Gencot.Names (transObjName,getFileName,mapInternal)
@@ -72,26 +72,21 @@ genBody :: FuncDesc -> [String] -> LCI.Ident -> Bool -> FTrav [GCA.BlockItem]
 genBody fdes pnames idnam rIsVoid = do
     f <- transObjName idnam
     let cogtyp = typeOfFuncDesc fdes
-    let (cogptyp,cogrtyp) = case cogtyp of {
-        (GenType (TFun p r) _ _) -> (p,r);
-        _ -> error "Function has no function type" }
+    let ainits = map mkVar pnames
     gsinits <- genGSInits fdes
-    let inits = map mkTInit $ numberList (ainits ++ gsinits)
+    let huinits = if isJust $ getHeapUseParamDesc fdes then [mkIConst 0] else []
+    let ioinits = if isJust $ getInputOutputParamDesc fdes then [mkIConst 0] else []
+    let inits = map mkTInit $ numberList (ainits ++ gsinits ++ huinits ++ ioinits)
     let (aarg,aval) = case length inits of {
         0 -> (mkVar "arg", (Just mkUVal));
         1 -> (getInitVal inits, Nothing);
         _ -> (mkVar "arg", (Just $ mkTVal inits)) }
     let invk = mkInvk f aarg
-    let rval = case cogrtyp of {
-        (GenType TUnit _ _) -> Nothing;
-        (GenType (TTuple cogptypes) _ _) -> (Just $ mkMbAcc invk "p1");
-        _ -> (Just invk) }
-    let rstat = if rIsVoid 
-                    then mkSStm invk 
-                    else if isNothing rval then error ("isNothing: " ++ f)
-                                           else mkRet $ fromJust rval
-    return (if isNothing aval then [rstat] else [mkArgDef cogptyp $ fromJust aval , rstat])
-    where ainits = map mkVar pnames  -- [.p1=<pname1>,...]
+    let rval = case getResultType cogtyp of {
+        (GenType (TTuple _) _ _) -> mkMbAcc invk "p1";
+        _ -> invk }
+    let rstat = if rIsVoid then mkSStm invk else mkRet rval
+    return (if isNothing aval then [rstat] else [mkArgDef (getParamType cogtyp) $ fromJust aval , rstat])
 
 genGSInits :: FuncDesc -> FTrav [GCA.Exp]
 genGSInits fdes = do

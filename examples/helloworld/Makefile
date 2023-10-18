@@ -57,12 +57,15 @@ endif
 %.c-itemprops: itemprops
 	@cp itemprops $@
 
-$(UNITFILES): $(UNIT).unit $(UNIT).unit-itemprops $(UNIT)-external.items $(CFILES)
+$(UNITFILES): $(UNIT).unit $(UNIT).unit-itemprops $(UNIT)-external.items $(CFILES) common.gencot-std
 ifeq ($(UNIT), all)
 	gencot $(INCLPATH) unit
 else
 	gencot $(INCLPATH) -u $(UNIT) unit
 endif
+
+common.gencot-std:
+	echo "common: common" > $@
 
 ed-hello.done: hello.cogent
 	sed -i -e "4,5d;7d;s/;/; 0/" hello.cogent
@@ -99,4 +102,4 @@ clean:
 	-rm -f $(EDITFILES)
 	-rm -f $(UNIT)-gen.c $(UNIT)-gen.h $(ACFILESPP) $(ACFILESINF)
 	-rm -f $(UNIT).c $(UNIT)-macros.h $(GENCOTFILES) $(ACFILESC)
-	-rm -f cogent-hello $(UNIT).unit-itemprops *.c-itemprops
+	-rm -f cogent-hello $(UNIT).unit-itemprops *.c-itemprops common.gencot-std

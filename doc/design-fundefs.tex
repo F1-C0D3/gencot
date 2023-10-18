@@ -30,6 +30,9 @@ If the item property Global-State (see Section~\ref{design-types-itemprops}) has
 function parameters, the corresponding parameter names are added to the tuple after the last C parameter name.
 If the item property Heap-Use has been set for the function, an additional parameter named \code{heap} or 
 \code{globheap<n>} (see~\ref{design-types-itemprops}) is added to the tuple after possible Global-State parameters.
+If the item property Input-Output has been set for the function, an additional parameter named \code{io} or
+\code{globio<n>} (see~\ref{design-types-itemprops}) is added to the tuple after possible Global-State parameters
+and the Heap-Use parameter.
 
 If the function is variadic an additional last tuple component is added with a variable named
 \code{variadicCogentParameters}, mainly to inform the developer that manual action is required.
@@ -143,6 +146,10 @@ if \code{n > 0} and
   return cogent_fnam(0).p1;
 \end{verbatim}
 if \code{n = 0}.
+
+If the C function has the Input-Output property (see Section~\ref{design-types-itemprops}), a component of type
+\code{SysState} is added in the same way as for Heap-Use, but after that for Heap-Use, if present. Type \code{SysState}
+is also implemented by Gencot by the C type \code{int} and a \code{0} is passed as its value.
 
 If atleast one of the C function arguments has the Add-Result property, the result is also converted to a tuple 
 with the original result as its first component. In this case the last statement in the wrapper's body also

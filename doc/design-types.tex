@@ -209,6 +209,17 @@ number starting with 1 so that there is no other parameter with this name.
 If the type of an item is a typedef name, the Heap-Use property can only be declared using its most general
 type item identifier.
 
+\item[Input-Output]
+
+The Input-Output property is only supported for items of function type. If declared, the parameters and
+result of the translated function are extended by a component of type \code{SysState} (defined in the Cogent standard library).
+In the body of the function definition the name \code{io} is used for this additional component. If there
+is already another parameter named \code{io} it is named \code{globio<n>} where \code{<n>} is the lowest
+number starting with 1 so that there is no other parameter with this name.
+
+If the type of an item is a typedef name, the Input-Output property can only be declared using its most general
+type item identifier.
+
 \item[Add-Result]
 
 The Add-Result property is only supported for parameter items. If declared, a component of the same type
@@ -815,6 +826,16 @@ i.e., the heap is appended to the parameter and result tuple.
 If \code{n = 0} the parameter type is \code{Heap}. Parameters with the Add-Result property are inserted before the \code{Heap}
 component.
 
+\paragraph{Input-Output}
+
+If the Input-Output property has been declared for a function, its type is translated according to the rule
+\begin{verbatim}
+  t(t1, ..., tn) -> (T1, ..., Tn,SysState) -> (T,SysState)
+\end{verbatim}
+i.e., the global system state is appended to the parameter and result tuple.
+If \code{n = 0} the parameter type is \code{SysState}. Parameters with the Add-Result property and the heap parameter, if present,
+are inserted before the \code{SysState} component.
+
 \paragraph{Global-State}
 
 If the Global-State property has been declared for a (virtual) parameter of the function, the function type is translated 
@@ -845,8 +866,8 @@ from the Global-State property and use it as the type \code{TG}.
 Gencot generates the type synonym definition in place of a translation of the global variable definition at the corresponding
 position in the Cogent file.
 
-If the function has the 
-Heap-Use property the additional parameter and result component are added before the \code{Heap} parameter.
+If the function has the Heap-Use property and/or the Input-Output property the additional parameter and result components
+are added before the \code{Heap} or \code{SysState} parameter.
 
 \subsection{Pointer Types}
 \label{design-types-pointer}

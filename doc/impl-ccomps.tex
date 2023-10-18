@@ -665,9 +665,10 @@ To support an easy manual declaration of item properties Gencot generates defaul
 items with an identifier. The declarations are either empty or declare the properties Read-Only and/or Add-Result, if they
 can be derived from the item's type. 
 
-The property Heap-Use is not set in default declarations. It could be set if a C memory management function such as \code{malloc} 
-is directly invoked by a function, however, the most relevant way to set the property is by transitive dependency among functions.
-This is implemented by the parameter modification mechanism (see Section~\ref{design-parmod-heap}) and therefore omitted here.
+The properties Heap-Use and Input-Output are not set in default declarations. Heap-Use could be set if a C memory management
+function such as \code{malloc} is directly invoked by a function, however, the most relevant way to set both properties is
+by transitive dependency among functions. This is implemented by the parameter modification mechanism (see
+Section~\ref{design-parmod-heap}) and therefore omitted here.
 
 \subsubsection{The filter \code{items-gen}}
 
@@ -691,7 +692,8 @@ a derived function, array, or pointer type, its sub-items according to the
 type are processed recursively. For a composite type item its members are processed recursively as sub-items.
 
 An item is processed as follows. If it is a global individual item (global variable or function) an empty property declaration
-is generated, since a global variable may be affected by a Global-State property and a function by a Heap-Use property. 
+is generated, since a global variable may be affected by a Global-State property and a function by a Heap-Use or
+Input-Output property.
 Otherwise (local variable, type, or subitem), if its declared or defined type is primitive or an enum
 or a function pointer no output is generated since properties are not supported or always ignored for it. Otherwise, if it
 is a parameter item, or its declared type is not composite, a property declaration is generated for it (parameters of composite

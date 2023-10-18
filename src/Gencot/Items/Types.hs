@@ -153,6 +153,7 @@ isReadOnlyItem = isItemWithProperty "ro"
 isAddResultItem = isItemWithProperty "ar"
 isNoStringItem = isItemWithProperty "ns"
 isHeapUseItem = isItemWithProperty "hu"
+isInputOutputItem = isItemWithProperty "io"
 isConstValItem = isItemWithProperty "cv"
 
 getItemProperties :: ItemAssocType -> FTrav [String]

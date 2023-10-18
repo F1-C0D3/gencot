@@ -8,7 +8,7 @@ import Data.Char (isSpace,isLetter)
 import Gencot.Items.Identifier (toplevelItemId)
 
 -- | Mapping from item ids to lists of property strings.
--- Used property strings are: nn, ro, ns, mf, hu, dp, rp
+-- Used property strings are: nn, ro, ns, io, hu, gs, ar, cv
 type ItemProperties = Map String [String]
 
 -- | Read an item property map from stdin.

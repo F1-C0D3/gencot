@@ -13,14 +13,19 @@ import Cogent.Surface (Type(TFun,TUnit,TTuple))
 
 import Gencot.C.Ast as GCA
 import Gencot.C.Translate (transInit)
-import Gencot.Cogent.Ast (GenType(GenType))
+import Gencot.Cogent.Ast (GenType(GenType), unitType)
 import Gencot.Cogent.Output (showCogentType)
-import Gencot.Cogent.Translate (transType)
+import Gencot.Cogent.Types (getResultType, getLeadType)
+import Gencot.Cogent.Translate (
+  transType, FuncDesc, typeOfFuncDesc, typeOfParamDesc,
+  getFuncDesc, getNonvirtParamDescs, getGlobalStateParamProps)
 
 import Gencot.Origin (Origin,noOrigin,mkOrigin)
 import Gencot.Names (transObjName,getFileName,mapInternal)
 import Gencot.Traversal (FTrav)
-import Gencot.Items.Types (ItemAssocType,getIndividualItemAssoc,getResultSubItemAssoc,getParamSubItemAssoc,getGlobalStateSubItemIds,getGlobalStateProperty,getGlobalStateId,numberList)
+import Gencot.Items.Types (
+  ItemAssocType, getIndividualItemAssoc, getResultSubItemAssoc, getParamSubItemAssoc,
+  getGlobalStateId, numberList)
 
 genEntries :: [LCA.DeclEvent] -> FTrav [GCA.Definition]
 genEntries tcs = mapM genEntry tcs
@@ -31,15 +36,17 @@ genEntry :: LCA.DeclEvent -> FTrav GCA.Definition
 genEntry (LCA.DeclEvent idecl@(LCA.FunctionDef fdef@(LCA.FunDef decl stat n))) = do
     sfn <- getFileName
     let iat = getIndividualItemAssoc idecl sfn
-    restyp <- transType $ getResultSubItemAssoc iat
-    let rIsVoid = case res of { (LCA.DirectType LCA.TyVoid _ _) -> True; _ -> False }
+    fdes <- getFuncDesc iat
+    let restyp = getLeadType $ getResultType $ typeOfFuncDesc fdes
+    let rIsVoid = restyp == unitType
     let rspec = if rIsVoid then mkVoid else mkADec restyp
-    ps <- mapM (genParam iat) numpars
-    bdy <- genBody iat numpars idnam rIsVoid
+    let ptypes = map typeOfParamDesc $ getNonvirtParamDescs fdes
+    let pnames = map (LCI.identToString . LCA.declIdent) pars
+    let ps = map (\(pn,pt) -> mkPar pn pt) $ zip pnames ptypes
+    bdy <- genBody fdes pnames idnam rIsVoid
     return $ GCA.FuncDef (mkFunDef rspec (LCI.identToString idnam) ps isVar bdy) $ mkOrigin n
     where idnam = LCA.declIdent idecl
-          typ@(LCA.FunctionType (LCA.FunType res pars isVar) _) = LCA.declType idecl
-          numpars = numberList pars
+          typ@(LCA.FunctionType (LCA.FunType _ pars isVar) _) = LCA.declType idecl
 -- Convert a variable definition.
 -- The type is converted to the antiquoted translated type.
 -- In case of internal linkage the name is converted to make it unique.
@@ -57,28 +64,19 @@ genEntry (LCA.DeclEvent odef@(LCA.ObjectDef (LCA.ObjDef _ minit n))) = do
           qual (LCA.FunctionType _ _) = LCA.noTypeQuals
           qual (LCA.TypeDefType _ tq _) = tq
 
--- | Generate a parameter declaration for a formal parameter of the wrapper.
--- As identifier it uses the same name as the original parameter in the function definition.
--- As type it uses the antiquoted Cogent type translated from the original parameter type.
-genParam :: ItemAssocType -> (Int,LCA.ParamDecl) -> FTrav GCA.Param
-genParam fiat ipd = do
-    partyp <- transType $ getParamSubItemAssoc fiat ipd
-    return $ mkPar pnam partyp
-    where pnam = LCI.identToString $ LCA.declIdent $ snd ipd
-
 -- | Generate the wrapper body.
 -- It consists of a definition of the parameter tuple or the unit value, if necessary,
 -- the invocation of the wrapped Cogent function
 -- and the retrieval of the return value from the result tuple, if necessary.
-genBody :: ItemAssocType -> [(Int,LCA.ParamDecl)] -> LCI.Ident -> Bool -> FTrav [GCA.BlockItem]
-genBody fiat numpars idnam rIsVoid = do
+genBody :: FuncDesc -> [String] -> LCI.Ident -> Bool -> FTrav [GCA.BlockItem]
+genBody fdes pnames idnam rIsVoid = do
     f <- transObjName idnam
-    cogtyp <- transType fiat
+    let cogtyp = typeOfFuncDesc fdes
     let (cogptyp,cogrtyp) = case cogtyp of {
         (GenType (TFun p r) _ _) -> (p,r);
         _ -> error "Function has no function type" }
-    gsinits <- genGSInits fiat $ (1 + length numpars) -- [.pn+1=&gvar1,...]
-    let inits = ainits ++ gsinits
+    gsinits <- genGSInits fdes
+    let inits = map mkTInit $ numberList (ainits ++ gsinits)
     let (aarg,aval) = case length inits of {
         0 -> (mkVar "arg", (Just mkUVal));
         1 -> (getInitVal inits, Nothing);
@@ -93,18 +91,14 @@ genBody fiat numpars idnam rIsVoid = do
                     else if isNothing rval then error ("isNothing: " ++ f)
                                            else mkRet $ fromJust rval
     return (if isNothing aval then [rstat] else [mkArgDef cogptyp $ fromJust aval , rstat])
-    where ainits = map mkTInit numpars  -- [.p1=<pname1>,...]
+    where ainits = map mkVar pnames  -- [.p1=<pname1>,...]
 
--- | Generate the list of initializations for virtual parameters with Global-State property.
--- The first argument is the item associated type of the function.
--- The second argument is the position to be used for the first virtual parameter.
-genGSInits :: ItemAssocType -> Int -> FTrav [(Maybe GCA.Designation, GCA.Initializer)]
-genGSInits fiat pos = do
-    vpars <- getGlobalStateSubItemIds fiat
-    gsps <- mapM getGlobalStateProperty $ map fst vpars
+genGSInits :: FuncDesc -> FTrav [GCA.Exp]
+genGSInits fdes = do
+    let gsps = map fst $ getGlobalStateParamProps fdes
     gvars <- mapM getGlobalStateId $ sort gsps
-    return $ map mkRefInit $ zip (iterate (1 +) pos) $ map getObjName gvars
-    
+    return $ map (mkRef . mkVar . getObjName) gvars
+
 -- | Convert a toplevel item identifier to a C identifier.
 -- For items with internal linkage the mapped C identifier is returned, otherwise the original C identifier is returned.
 getObjName :: String -> String
@@ -185,12 +179,8 @@ getInitVal :: [(Maybe GCA.Designation, GCA.Initializer)] -> GCA.Exp
 getInitVal [(_,(GCA.ExpInitializer e _))] = e
 getInitVal _ = error "no Expr found in initializer"
 
--- | Generate .p<pos>=<pd-name>
-mkTInit :: (Int,LCA.ParamDecl) -> (Maybe GCA.Designation, GCA.Initializer)
-mkTInit (pos,pd) = mkMbInit ("p" ++ (show pos)) $ mkVar $ LCI.identToString $ LCA.declIdent pd
-
-mkRefInit :: (Int,String) -> (Maybe GCA.Designation, GCA.Initializer)
-mkRefInit (pos,nam) = mkMbInit ("p" ++ (show pos)) $ mkRef $ mkVar nam
+mkTInit :: (Int,GCA.Exp) -> (Maybe GCA.Designation, GCA.Initializer)
+mkTInit (pos,e) = mkMbInit ("p" ++ (show pos)) e
 
 -- | Generate .nam=val
 mkMbInit :: String -> GCA.Exp -> (Maybe GCA.Designation, GCA.Initializer)

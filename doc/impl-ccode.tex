@@ -1546,24 +1546,24 @@ If the function has result type
 Depending on its type and on item properties for the function and its arguments, the function may take additional arguments and
 it may return a tuple with additional results. Also, the function may be variadic or incomplete. The following item properties
 must be directly processed here, since they cause the introduction of additional function arguments or result components:
-Heap-Use, Add-Result, and Global-State. The other item properties only affect the translation of types and are thus implicitly
+Heap-Use, Input-Output, Add-Result, and Global-State. The other item properties only affect the translation of types and are thus implicitly
 included in the translated types added to the expressions and patterns, so they can be handled in later translation stages.
 
-The item properties Heap-Use and Global-State introduce additional function arguments, for them actual values must be determined
-to pass to the function invocation. In both cases the additional arguments must also be present for the surrounding function
-definition for which the body contains the invocation. The corresponding variable names are used as actual arguments for the
-invocation. In the case of Heap-Use it is a fixed name as described in Section~\ref{design-types-itemprops}, in the case of
-Global-State it is the name of the corresponding virtual parameter.
+The item properties Heap-Use, Input-Output, and Global-State introduce additional function arguments, for them actual values
+must be determined to pass to the function invocation. In all three cases the additional arguments must also be present for
+the surrounding function definition for which the body contains the invocation. The corresponding variable names are used as
+actual arguments for the invocation. In the case of Heap-Use and Input-Output it is a fixed name as described in
+Section~\ref{design-types-itemprops}, in the case of Global-State it is the name of the corresponding virtual parameter.
 
-The item properties Add-Result, Heap-Use, and Global-State introduce additional result components. In that case the binding has 
-the form
+The item properties Add-Result, Heap-Use, Input-Output, and Global-State introduce additional result components. In that case
+the binding has the form
 \begin{verbatim}
   (v<n>',v1..) = v<n0>' (v<n1>',..,v<nm>')
 \end{verbatim}
-with a tuple pattern. The variables \code{v1..} correspond to the properties Add-Result, Global-State, and Heap-Use in that order.
+with a tuple pattern. The variables \code{v1..} correspond to the properties Add-Result, Global-State, Heap-Use, Input-Output in that order.
 The variable for a component added by an Add-Result property is determined as described for expressions for values with pointers,
 i.e., it is either a mapped C variable name, or a component variable, or the error variable \code{err'}. The variable for a component
-added by a Global-State or Heap-Use property is the same which is used as actual argument for the corresponding parameter, i.e.,
+added by a Global-State, Heap-Use, or Input-Output property is the same which is used as actual argument for the corresponding parameter, i.e.,
 it is the name of the corresponding parameter of the surrounding function.
 
 \subsubsection{Translating lvalue Expressions}
@@ -1848,8 +1848,8 @@ the Cogent function type can be directly constructed from the Cogent function po
 In a function application the Cogent type of the function is determined by translating its C type using \code{tExpr} and
 \code{transType}. If the function is specified by a function pointer the function type is determined as above, otherwise
 the function is specified by its name, so that the item id can be determined immediately. Since all relevant item properties
-are respected by the translation, the Cogent type includes all additional arguments (for Global-State and Heap-Use properties)
-and all additional result components (for Global-State, Heap-Use, and Add-Result properties).
+are respected by the translation, the Cogent type includes all additional arguments (for Global-State, Heap-Use, and Input-Output
+properties) and all additional result components (for Global-State, Heap-Use, Input-Output, and Add-Result properties).
 
 The type of the function application expression in Cogent is simply taken from the function type. The type of the function
 argument (which is a tuple type of the argument types or a single argument type) is instead constructed from the types
@@ -2092,7 +2092,16 @@ From this binding the Cogent expression
   in <result expression>
 \end{verbatim}
 is constructed as body expression of the translated Cogent function. The \code{<result expression>} depends on the item properties 
-Add-Result, Global-State, and Heap-Use.
+Add-Result, Global-State, Heap-Use, and Input-Output.
+
+In the special case of the function named \code{main} in C the default result \code{0} is added by prepending a binding for the
+result variable \code{r'}:
+\begin{verbatim}
+  let r' = 0
+  and (c',v1..) = expr
+  in <result expression>
+\end{verbatim}
+so that \code{r'} is bound even if the function does not contain \code{return} statements.
 
 If no additional result components are caused by the item properties, the \code{<result expression>} is
 \begin{verbatim}
@@ -2106,9 +2115,14 @@ otherwise.
 
 If the item properties cause additional result components the \code{<result expression>} is
 \begin{verbatim}
+  ((), v1..)
+\end{verbatim}
+or
+\begin{verbatim}
   (r', v1..)
 \end{verbatim}
-where the variables \code{v1..} correspond to the properties Add-Result, Global-State, and Heap-Use in that order.
+respectively, where the variables \code{v1..} correspond to the properties Add-Result, Global-State, Heap-Use, and
+Input-Output in that order.
 
 The control variable \code{c'} is never used in the \code{<result expression>}, it may only be used in sub-statement.
 Its binding in the function body will be removed during postprocessing.

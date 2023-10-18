@@ -234,6 +234,9 @@ variadicTypeName = "VariadicCogentParameters"
 heapType :: String
 heapType = "Heap"
 
+ioType :: String
+ioType = "SysState"
+
 heapParamName :: [String] -> String
 heapParamName pars = 
     if elem "heap" pars
@@ -242,6 +245,16 @@ heapParamName pars =
     where 
         globname i = 
             let cand = ("globheap" ++ (show i))
+            in if elem cand pars then globname (i + 1) else cand
+
+ioParamName :: [String] -> String
+ioParamName pars =
+    if elem "io" pars
+       then globname 1
+       else "io"
+    where
+        globname i =
+            let cand = ("globio" ++ (show i))
             in if elem cand pars then globname (i + 1) else cand
 
 globStateType :: String -> String

@@ -2,9 +2,9 @@
 module Gencot.Cogent.Translate where
 
 import Control.Monad (liftM,filterM,when)
-import Data.List as L (isPrefixOf,isInfixOf,intercalate,unlines,sortOn,sort,find)
+import Data.List as L (isPrefixOf,isInfixOf,intercalate,unlines,sortOn,sort,find,intersect)
 import Data.Map as M (Map,singleton,unions,toList,fromList,union)
-import Data.Maybe (catMaybes,fromJust,fromMaybe)
+import Data.Maybe (isJust,catMaybes,fromJust,fromMaybe)
 
 import Data.Char (ord)
 
@@ -26,9 +26,9 @@ import Gencot.Names (
   transTagName, transObjName, transDeclName, mapIfUpper, mapNameToUpper, mapNameToLower, mapPtrDeriv, mapPtrVoid, mapMayNull, mapArrDeriv, mapFunDeriv,
   arrDerivHasSize, arrDerivCompNam, arrDerivToUbox, mapUboxStep, rmUboxStep, mapMayNullStep, rmMayNullStepThroughRo, addMayNullStep, 
   mapPtrStep, mapFunStep, mapIncFunStep, mapArrStep, mapModStep, mapRoStep, mapNamFunStep,
-  getFileName, globStateType, isNoFunctionName, heapType, heapParamName, variadicParamName, variadicTypeName)
+  getFileName, globStateType, isNoFunctionName, heapType, ioType, heapParamName, ioParamName, variadicParamName, variadicTypeName)
 import Gencot.Items.Types (
-  ItemAssocType, isNotNullItem, isReadOnlyItem, isNoStringItem, isHeapUseItem, isConstValItem, getItemProperties,
+  ItemAssocType, isNotNullItem, isReadOnlyItem, isNoStringItem, isHeapUseItem, isInputOutputItem, isConstValItem, getItemProperties,
   getIndividualItemId, getObjectItemId, getTagItemId, getParamSubItemId, getGlobalStateSubItemIds, getGlobalStateId,
   getGlobalStateProperty, getTagItemAssoc, getIndividualItemAssoc, getTypedefItemAssoc, adjustItemAssocType,
   getMemberSubItemAssoc, getRefSubItemAssoc, getResultSubItemAssoc, getElemSubItemAssoc, getParamSubItemAssoc, 
@@ -44,7 +44,7 @@ import Gencot.Cogent.Bindings (
   mkIntLitExprBinds, mkCharLitExprBinds, mkStringLitExprBinds, mkBoolLitExprBinds,
   mkValVarExprBinds, mkMemExprBinds, mkIdxExprBinds, mkOpExprBinds, mkConstAppExprBinds, mkAppExprBinds, mkAssExprBinds,
   mkIfExprBinds, mkDerefExprBinds, mkFunDerefExprBinds, concatExprBinds, joinPutbacks,
-  mkDummyBinding, mkRecPutBinding, mkArrPutBinding, mkDerefPutBinding,
+  mkDummyBinding, mkVarBinding, mkRecPutBinding, mkArrPutBinding, mkDerefPutBinding,
   mkNullBinding, mkExpBinding, mkRetBinding, mkBreakBinding, mkContBinding,
   mkIfBinding, mkSwitchBinding, mkCaseBinding, mkSeqBinding, mkDecBinding, mkForBinding,
   mkTuplePattern, mkVarPattern, mkVarTuplePattern,
@@ -152,6 +152,7 @@ transGlobal (LCA.DeclEvent idecl@(LCA.FunctionDef (LCA.FunDef decl stat n))) = d
     f <- transDeclName idecl
     sfn <- getFileName
     let iat@(fid,_) = getIndividualItemAssoc idecl sfn
+    let ismain = (LCI.identToString $ LCA.declIdent idecl) == "main"
     fdes <- getFuncDesc iat
 -- from nesttags:
 --    nt <- transTagIfNested typ n -- wirkt erst wenn transTagIfNested auch derived types verarbeitet
@@ -161,8 +162,7 @@ transGlobal (LCA.DeclEvent idecl@(LCA.FunctionDef (LCA.FunDef decl stat n))) = d
     enterItemScope
     registerParamIds pars 1 fid
     setFunDef idecl
-    alts <- transBody fdes stat
---    e <- extendExpr iat e pars
+    alts <- transBody ismain fdes stat
     clrFunDef
     resetVarNums
     leaveItemScope
@@ -707,6 +707,9 @@ addReadOnlyStepIf False t = t
 makeHeapType :: GenType
 makeHeapType = mkTypeName heapType
 
+makeIoType :: GenType
+makeIoType = mkTypeName ioType
+
 -- | Convert an arbitrary Cogent type T to the function type () -> T
 mkConstFunType :: GenType -> GenType
 mkConstFunType t = mkFunType unitType t
@@ -734,8 +737,8 @@ encodeParamType iat ipd@(_,pd) = do
 exprType :: LC.CExpr -> FTrav LCA.Type
 exprType e = LCA.tExpr [] RValue e
 
-transBody :: FuncDesc -> LC.CStat -> FTrav [GenAlt]
-transBody fdes s = do
+transBody :: Bool -> FuncDesc -> LC.CStat -> FTrav [GenAlt]
+transBody ismain fdes s = do
     tconf <- getTConf
     if elem 'A' tconf
        then do
@@ -744,7 +747,8 @@ transBody fdes s = do
        else do
            resetVarCounters
            b <- bindStat s
-           ep <- runTravWithErrors mkUnitExpr $ postproc tconf $ mkLetExpr [b] $ genFunResultExpr fdes
+           let bs = if ismain then [mkVarBinding (TV resVar mkU32Type) (mkIntLitExpr mkU32Type 0), b] else [b]
+           ep <- runTravWithErrors mkUnitExpr $ postproc tconf $ mkLetExpr bs $ genFunResultExpr fdes
            return [mkAlt (genFunParamPattern fdes) $ cleanSrc ep]
 
 transExpr :: LC.CExpr -> FTrav GenExpr
@@ -1230,8 +1234,8 @@ insertBlockItemsSrc :: [LC.CBlockItem] -> GenBnd -> FTrav GenBnd
 insertBlockItemsSrc src b = insertStatSrc (LC.CCompound [] src LCN.undefNode) b
 
 -- | Description of a single parameter: name, type, properties.
--- A parameter caused by a hu property of the function is additionally marked by an own hu property.
--- Note that if a function parameter has a hu property it is associated with the dereferenced parameter instead.
+-- A parameter caused by a hu or io property of the function is additionally marked by an own hu or io property.
+-- Note that if a parameter function has a hu or io property it is associated with the dereferenced parameter instead.
 data ParamDesc = ParamDesc {
     nameOfParamDesc :: CCS.VarName,
     typeOfParamDesc :: GenType,
@@ -1278,8 +1282,10 @@ getAllParamDesc iat@(iid,(LCA.FunctionType (LCA.FunType _ pds isVar) _)) = do
     let gsvirt = map snd $ sortOn fst $ zip gsprops gsvirtnosort
     huprop <- isHeapUseItem iat
     let huvirt = if huprop then [makeHeapUseParamDesc $ map nameOfParamDesc (nonvirt ++ gsvirt)] else []
+    ioprop <- isInputOutputItem iat
+    let iovirt = if ioprop then [makeInputOutputParamDesc $ map nameOfParamDesc (nonvirt ++ gsvirt)] else []
     let variadic = if isVar then [makeVariadicParamDesc] else []
-    return (nonvirt ++ gsvirt ++ huvirt ++ variadic)
+    return (nonvirt ++ gsvirt ++ huvirt ++ iovirt ++ variadic)
     where piats = map (getParamSubItemAssoc iat) $ numberList pds
 
 -- | Construct the parameter description for a GlobalState parameter.
@@ -1320,23 +1326,42 @@ makeHeapUseParamDesc :: [CCS.VarName] -> ParamDesc
 makeHeapUseParamDesc pnams =
     ParamDesc (heapParamName pnams) makeHeapType ["hu"]
 
+-- | construct the parameter description for the InputOutput parameter.
+-- The argument is the list of names of all other parameters.
+-- The parameter is marked by an artificial io property.
+makeInputOutputParamDesc :: [CCS.VarName] -> ParamDesc
+makeInputOutputParamDesc pnams =
+    ParamDesc (ioParamName pnams) makeIoType ["io"]
+
 -- | construct the parameter description for the variadic parameter.
+-- We use the pseudo property "var" to mark it.
 makeVariadicParamDesc :: ParamDesc
 makeVariadicParamDesc =
-    ParamDesc variadicParamName variadicType []
+    ParamDesc variadicParamName variadicType ["var"]
+
+isGlobalStateParam :: ParamDesc -> Bool
+isGlobalStateParam pdes = isJust $ find (\p -> "gs" `isPrefixOf` p) $ propOfParamDesc pdes
+
+getNonvirtParamDescs :: FuncDesc -> [ParamDesc]
+getNonvirtParamDescs fdes =
+    filter (\pdes -> (not $ isGlobalStateParam pdes) && (null $ intersect ["hu","io","var"] $ propOfParamDesc pdes)) $ parsOfFuncDesc fdes
 
 -- | Return the variadic parameter description, if present.
 getVariadicParamDesc :: FuncDesc -> Maybe ParamDesc
-getVariadicParamDesc fdes | null $ parsOfFuncDesc fdes = Nothing
 getVariadicParamDesc fdes =
-    if nameOfParamDesc pdes == variadicParamName then Just pdes else Nothing
-    where pdes = last $ parsOfFuncDesc fdes
+    find (\pdes -> elem "var" $ propOfParamDesc pdes) $ parsOfFuncDesc fdes
 
 -- | Return the HeapUse parameter description, if present.
 -- That is the first parameter marked by an hu property.
 getHeapUseParamDesc :: FuncDesc -> Maybe ParamDesc
 getHeapUseParamDesc fdes =
     find (\pdes -> elem "hu" $ propOfParamDesc pdes) $ parsOfFuncDesc fdes
+
+-- | Return the InputOutput parameter description, if present.
+-- That is the first parameter marked by an io property.
+getInputOutputParamDesc :: FuncDesc -> Maybe ParamDesc
+getInputOutputParamDesc fdes =
+    find (\pdes -> elem "io" $ propOfParamDesc pdes) $ parsOfFuncDesc fdes
 
 -- | Return the sequence of GlobalState properties and parameter types from the parameter descriptions.
 getGlobalStateParamProps :: FuncDesc -> [(String,GenType)]
@@ -1352,6 +1377,14 @@ searchHeapUseParamDesc fdes =
          Nothing -> ParamDesc "" makeHeapType ["hu"]
          Just pdes -> pdes
 
+-- | Search a parameter description for a InputOutput parameter.
+-- If not found return a description with empty name, io type, and only the InputOutput property.
+searchInputOutputParamDesc :: FuncDesc -> ParamDesc
+searchInputOutputParamDesc fdes =
+    case getInputOutputParamDesc fdes of
+         Nothing -> ParamDesc "" makeIoType ["io"]
+         Just pdes -> pdes
+
 -- | Search a parameter description with a specific GlobalState property.
 -- The GlobalState property is specified together with the expected type of the parameter.
 -- If not found return a description with empty name, expected parameter type, and only the GlobalState property.
@@ -1365,7 +1398,7 @@ isAddResultParam :: ParamDesc -> Bool
 isAddResultParam pdes =
     ((elem "ar" props) && (not $ elem "ro" props)) ||
     ((any (\p -> "gs" `isPrefixOf` p) props) && (not $ elem "ro" props)) ||
-    (elem "hu" props)
+    (elem "hu" props) || (elem "io" props)
     where props = propOfParamDesc pdes
 
 getTypedVarFromParamDesc :: ParamDesc -> TypedVar
@@ -1396,10 +1429,13 @@ getVirtParamsFromContext fdes = do
     let hupdes = if elem "hu" $ propOfFuncDesc fdes
                     then [searchHeapUseParamDesc ctxfdes]
                     else []
+    let iopdes = if elem "io" $ propOfFuncDesc fdes
+                    then [searchInputOutputParamDesc ctxfdes]
+                    else []
     let vrpdes = case getVariadicParamDesc fdes of
                     Nothing -> []
                     Just pdes -> [pdes]
-    return (gspdes ++ hupdes ++ vrpdes)
+    return (gspdes ++ hupdes ++ iopdes ++ vrpdes)
 
 -- | Determine actual parameters as list of ExprBinds and pattern to bind the result of a function call.
 -- The first argument is the description of the invoked function.

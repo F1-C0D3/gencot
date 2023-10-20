@@ -1,5 +1,7 @@
 int puts(const char *__s);
-static $ty:(U32) cogent_puts ($ty:(String) arg) {
-    return puts(arg);
+static $ty:((U32,SysState)) cogent_puts ($ty:((String,SysState)) arg) {
+    $ty:((U32,SysState)) res = {.p1=0, .p2=0};
+    res.p1 = puts(arg.p1);
+    return res;
 }
  

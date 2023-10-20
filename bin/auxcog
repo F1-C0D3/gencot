@@ -8,6 +8,7 @@ then
 fi
 
 BIN=$GENCOT_HOME/bin
+GENCOTC=$GENCOT_HOME/c
 
 USAGE="Usage: $0 [-I<dir>] [-G<dir>] [-O<dir>] [-u<uname>] [-k] [unit|shallow|refine|comments|help] [<file>]"
 
@@ -128,8 +129,8 @@ if [ "$CMD" != "comments" ]
 then
     if [ -e $UNITNAME-gen.h ]
     then
-        cpp $INCLS < $UNITNAME-gen.h | $BIN/auxcog-bin ctypstruct > $TMPDIR/ctypstruct
-        cpp $INCLS < $UNITNAME-gen.h | $BIN/auxcog-bin ctypfunc > $TMPDIR/ctypfunc
+        cat $GENCOTC/gencot.h $UNITNAME-gen.h | cpp $INCLS | $BIN/auxcog-bin ctypstruct > $TMPDIR/ctypstruct
+        cat $GENCOTC/gencot.h $UNITNAME-gen.h | cpp $INCLS | $BIN/auxcog-bin ctypfunc > $TMPDIR/ctypfunc
     else
         echo "Error: file $UNITNAME-gen.h not found."
     fi
@@ -173,6 +174,8 @@ then
             KND=1
         fi
     done
+    cp $GENCOTC/gencot.h $OUTPUTDIR/$UNITNAME-gencot.h
+    cp $GENCOTC/cogent-common.c $OUTPUTDIR/$UNITNAME-cogent-common.c
     
     $BIN/auxcog-mainfile $UNITNAME $TMPDIR/common.gencot-std < $GENCOTDIR/$UNITFILE > $OUTPUTDIR/$UNITNAME.c
 elif [ "$CMD" = "shallow" ]

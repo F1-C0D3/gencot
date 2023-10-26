@@ -349,6 +349,19 @@ relative to the number of subexpressions. Therefore the growth limit factor shou
 factor and a good selection for it must be determined by practical tests. Alternatively the factor could be specified as an input 
 parameter for Gencot so that it can be selected specifically for every translated C program.
 
+\subsubsection{Suppressing Substitution in Specific Contexts}
+
+The code output of the Cogent version in 2022 has a bug when writing \code{put} expressions of the form \code{e {...}}. Here the
+expression \code{e} for the container is not put in parentheses, which is only correct if \code{e} is a single variable. If
+\code{e} is a more complex expression, such as a function application or another \code{put} expression, the resulting code will
+cause a syntax error when read by the Cogent parser.
+
+Since Gencot always generates \code{put} expressions with a single variable as container, more complex expressions can
+only be constructed by substituting a binding for this variable. Therefore, as workaround, the Cogent bug can be mitigated by
+not substituting bindings in the container of a \code{put} expression. Moreover, Gencot will never use a value variable
+as container in a \code{put}, therefore, a substitution will usually insert a complex expression. Together, Gencot uses the
+simple approach of never substituting a binding in a \code{put} container to mitigate the Cogent bug.
+
 \subsubsection{Pre-Simplifying Unused Variables}
 
 If in an expression

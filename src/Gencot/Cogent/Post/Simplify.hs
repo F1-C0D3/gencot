@@ -115,14 +115,10 @@ bindsproc (b : _) _ = error ("unexpected binding in letproc/bindsproc: " ++ (sho
 -- If there are retained matches they are added as prepended binding.
 bindproc :: GenIrrefPatn -> GenExpr -> [GenBnd] -> ExprOfGE -> ([GenBnd], ExprOfGE)
 bindproc ip e bs bdy =
---  case (ip,e) of
---   (GenIrrefPatn (PVar "p") _ _, GenExpr (Put _ [Just (_, GenExpr (Var "p0'") _ _ _)]) _ _ _) ->
---     error ("p found: " ++ (show (bs, bdy)))
---   _ ->
     if M.null retain
        then (bs',bdy')
        else ((Binding ip' Nothing e' []): bs',bdy')
-    where (retain,subst) = M.partition (\(i,j,_) -> (i == -1) {- ||(j > 0) -} ) $ retainGrowth $ retainFree $ findMatches ip e bs bdy
+    where (retain,subst) = M.partition (\(i,j,_) -> (i == -1) || (j > 0) ) $ retainGrowth $ retainFree $ findMatches ip e bs bdy
           (bs',bdy') = substMatches subst bs bdy
           -- instead of building the retained binding from the map 
           -- we reduce the original binding to the variables bound in the map
@@ -241,7 +237,7 @@ findFullMatches ip e (Match e' vs alts) =
     where ms' = findMatches ip e [] $ exprOfGE e'
           ms = combineMatches $ map (\(Alt p _ bdy) -> findMatchesUnderBoundVars ip e (freeInPatn p) $ exprOfGE bdy) alts
 findFullMatches ip e (Lam ip' mt bdy) = M.empty -- Cogent supports no closures, no free variables allowed in lambda expression
-{-
+
 findFullMatches ip e (Put e1 mfs) = -- no substitution in Put targets e1
     if isUnitPattern ip'
        then mmfs
@@ -255,7 +251,6 @@ findFullMatches ip e (ArrayPut e1 els) = -- no substitution in ArrayPut targets 
     where (ip',e') = reduceBinding (freeInExpr e1) ip e
           mels = combineMatches ((map (findMatches ip e [] . exprOfGE . snd) $ els)
                               ++ (map (findMatches ip e [] . exprOfGE . fst) $ els))
-                              -}
 findFullMatches ip e bdy =
     combineMatches $ map (findMatches ip e [] . exprOfGE) $ toList bdy
 

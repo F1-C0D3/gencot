@@ -383,8 +383,7 @@ cogent_fap6 (p, v) =
    in (r', p)
 cogent_fap7 : CPtr U32 -> ( U32, CPtr U32 )
 cogent_fap7 p =
-   let p = p { cont = 42 }
-   and p { cont = p1' } = p
+   let p { cont = p1' } = p { cont = 42 }
    in (p1', p { cont = p1' })
 cogent_fap8 : Struct_Cogent_as1 -> ( U32, Struct_Cogent_as1 )
 cogent_fap8 p =
@@ -392,21 +391,18 @@ cogent_fap8 p =
    , p)
 cogent_fap9 : Struct_Cogent_as1 -> ( U32, Struct_Cogent_as1 )
 cogent_fap9 p =
-   let p = p { m1 = 42 }
-   and p { m1 = p1' } = p
+   let p { m1 = p1' } = p { m1 = 42 }
    in (p1', p { m1 = p1' })
 cogent_fap10 : Struct_Cogent_as3 -> ( U32, Struct_Cogent_as3 )
 cogent_fap10 p =
    let p { m6 = p0' } = p
-   and p = p { m6 = p0' }
-   and p { m6 = p3' } = p
+   and p { m6 = p3' } = p { m6 = p0' }
    in ((gencotDummy "Dereferencing pointer to a record").m1
       , p { m6 = p3' })
 cogent_fap11 : Struct_Cogent_as3 -> ( U32, Struct_Cogent_as3 )
 cogent_fap11 p =
    let p { m6 = p0' } = p
-   and p = p { m6 = p0' { m1 = 42 } }
-   and p { m6 = p2' } = p
+   and p { m6 = p2' } = p { m6 = p0' { m1 = 42 } }
    and p2' { m1 = p3' } = p2'
    in (p3'
       , p { m6 = p2' { m1 = p3' } })

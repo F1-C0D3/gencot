@@ -891,12 +891,11 @@ cogent_tn31nn (qnl, qnn) =
 cogent_tn51nl : Struct_Cogent_nns1 -> ( MayNull (CPtr U32), Struct_Cogent_nns1 )
 cogent_tn51nl pnn =
    let pnn { mnl = p0' } = pnn
-   and pnn = pnn { mnl = p0' }
    in notNull[CPtr U32]{{}} p0'
-      | Nothing -> let pnn { mnn = p2' } = pnn
+      | Nothing -> let pnn { mnn = p2' } = pnn { mnl = p0' }
          in (mayNull[CPtr U32]{{}} p2'
             , pnn { mnn = p2' })
-      | Some p0' -> let pnn { mnl = p1' } = pnn
+      | Some p0' -> let pnn { mnl = p1' } = pnn { mnl = p0' }
          in (p1', pnn { mnl = p1' })
 cogent_tn51nn : Struct_Cogent_nns1 -> ( CPtr U32, Struct_Cogent_nns1 )
 cogent_tn51nn pnn =
@@ -908,12 +907,11 @@ cogent_tn52nl : Struct_Cogent_nns1 -> ( U32, Struct_Cogent_nns1 )
 cogent_tn52nl pnn =
    let (v7'
        , pnn) = let pnn { mnl = p0' } = pnn
-      and pnn = pnn { mnl = p0' }
       in notNull[CPtr U32]{{}} p0'
-         | Nothing -> let pnn { mnn = p2' } = pnn
+         | Nothing -> let pnn { mnn = p2' } = pnn { mnl = p0' }
             in (mayNull[CPtr U32]{{}} p2'
                , pnn { mnn = p2' })
-         | Some p0' -> let pnn { mnl = p1' } = pnn
+         | Some p0' -> let pnn { mnl = p1' } = pnn { mnl = p0' }
             in (p1', pnn { mnl = p1' })
    in (cogent_fcnl v7', pnn)
 cogent_tn52nn : Struct_Cogent_nns1 -> ( U32, Struct_Cogent_nns1 )
@@ -927,22 +925,20 @@ cogent_tn53nl (pnn, g) =
    (()
    , let (_
          , pnn) = let pnn { mnl = p0' } = pnn
-      and pnn = pnn { mnl = p0' }
       in notNull[CPtr U32]{{}} p0'
-         | Nothing -> let pnn { mnn = p2' } = pnn
+         | Nothing -> let pnn { mnn = p2' } = pnn { mnl = p0' }
             in (mayNull[CPtr U32]{{}} p2'
                , pnn { mnn = p2' })
-         | Some p0' -> let pnn { mnl = p1' } = pnn
+         | Some p0' -> let pnn { mnl = p1' } = pnn { mnl = p0' }
             in (p1', pnn { mnl = p1' })
    in pnn
    , let (v6'
          , _) = let pnn { mnl = p0' } = pnn
-      and pnn = pnn { mnl = p0' }
       in notNull[CPtr U32]{{}} p0'
-         | Nothing -> let pnn { mnn = p2' } = pnn
+         | Nothing -> let pnn { mnn = p2' } = pnn { mnl = p0' }
             in (mayNull[CPtr U32]{{}} p2'
                , pnn { mnn = p2' })
-         | Some p0' -> let pnn { mnl = p1' } = pnn
+         | Some p0' -> let pnn { mnl = p1' } = pnn { mnl = p0' }
             in (p1', pnn { mnl = p1' })
    and g { cont = _ } = g
    in g { cont = v6' })
@@ -958,22 +954,20 @@ cogent_tn54nl (pnn, pnl) =
    (()
    , let (_
          , pnn) = let pnn { mnl = p0' } = pnn
-      and pnn = pnn { mnl = p0' }
       in notNull[CPtr U32]{{}} p0'
-         | Nothing -> let pnn { mnn = p2' } = pnn
+         | Nothing -> let pnn { mnn = p2' } = pnn { mnl = p0' }
             in (mayNull[CPtr U32]{{}} p2'
                , pnn { mnn = p2' })
-         | Some p0' -> let pnn { mnl = p1' } = pnn
+         | Some p0' -> let pnn { mnl = p1' } = pnn { mnl = p0' }
             in (p1', pnn { mnl = p1' })
    in pnn
    , let (v6'
          , _) = let pnn { mnl = p0' } = pnn
-      and pnn = pnn { mnl = p0' }
       in notNull[CPtr U32]{{}} p0'
-         | Nothing -> let pnn { mnn = p2' } = pnn
+         | Nothing -> let pnn { mnn = p2' } = pnn { mnl = p0' }
             in (mayNull[CPtr U32]{{}} p2'
                , pnn { mnn = p2' })
-         | Some p0' -> let pnn { mnl = p1' } = pnn
+         | Some p0' -> let pnn { mnl = p1' } = pnn { mnl = p0' }
             in (p1', pnn { mnl = p1' })
    in v6')
 cogent_tn54nn : ( Struct_Cogent_nns1, CPtr U32 ) -> ( U32, Struct_Cogent_nns1, CPtr U32 )
@@ -1006,12 +1000,11 @@ cogent_tn62nl : Struct_Cogent_nns2 -> ( U32, Struct_Cogent_nns2 )
 cogent_tn62nl pnn =
    let (_
        , pnn) = let pnn { snl = p0' } = pnn
-      and pnn = pnn { snl = p0' }
       in notNull[Struct_Cogent_nns1]{{}} p0'
-         | Nothing -> let pnn { snn = p2' } = pnn
+         | Nothing -> let pnn { snn = p2' } = pnn { snl = p0' }
             in (mayNull[Struct_Cogent_nns1]{{}} p2'
                , pnn { snn = p2' })
-         | Some p0' -> let pnn { snl = p1' } = pnn
+         | Some p0' -> let pnn { snl = p1' } = pnn { snl = p0' }
             in (p1', pnn { snl = p1' })
    in (gencotDummy "Dereferencing pointer which may be NULL"
       , pnn)
@@ -1554,40 +1547,38 @@ cogent_sn51nl : Struct_Cogent_nns1 -> ( MayNull (CPtr U32), Struct_Cogent_nns1 )
 cogent_sn51nl pnn =
    let (pnn
        , r') = let pnn { mnl = p0' } = pnn
-      and pnn = pnn { mnl = p0' }
       in notNull[CPtr U32]{{}} p0'
-         | Nothing -> (let pnn { mnn = p2' } = pnn
+         | Nothing -> (let pnn { mnn = p2' } = pnn { mnl = p0' }
                       in pnn { mnn = p2' }
-                      , mayNull[CPtr U32]{{}} (let pnn { mnn = p2' } = pnn
+                      , mayNull[CPtr U32]{{}} (let pnn { mnn = p2' } = pnn { mnl = p0' }
                          in p2'))
-         | Some p0' -> (let pnn { mnl = p1' } = pnn
+         | Some p0' -> (let pnn { mnl = p1' } = pnn { mnl = p0' }
                        in pnn { mnl = p1' }
-                       , let pnn { mnl = p1' } = pnn
+                       , let pnn { mnl = p1' } = pnn { mnl = p0' }
                        in p1')
    in (r', pnn)
 cogent_sn51nn : Struct_Cogent_nns1 -> ( CPtr U32, Struct_Cogent_nns1 )
 cogent_sn51nn pnn =
    let (pnn
        , r') = let pnn { mnl = p0' } = pnn
-      and pnn = pnn { mnl = p0' }
       in notNull[CPtr U32]{{}} p0'
-         | Nothing -> (let pnn { mnn = p2' } = pnn
+         | Nothing -> (let pnn { mnn = p2' } = pnn { mnl = p0' }
                       in pnn { mnn = p2' }
-                      , let pnn { mnn = p2' } = pnn
+                      , let pnn { mnn = p2' } = pnn { mnl = p0' }
                       in p2')
-         | Some p0' -> (pnn
+         | Some p0' -> (pnn { mnl = p0' }
                        , gencotDummy "MayNull expression used in not-null context")
    in (r', pnn)
 cogent_sn52nl : Struct_Cogent_nns1 -> ( U32, Struct_Cogent_nns1 )
 cogent_sn52nl pnn =
    let (pnn
        , r') = let pnn { mnl = p0' } = pnn
-      and pnn = pnn { mnl = p0' }
       in notNull[CPtr U32]{{}} p0'
-         | Nothing -> (pnn, 0)
-         | Some p0' -> (let pnn { mnl = p1' } = pnn
+         | Nothing -> (pnn { mnl = p0' }
+                      , 0)
+         | Some p0' -> (let pnn { mnl = p1' } = pnn { mnl = p0' }
                        in pnn { mnl = p1' }
-                       , let pnn { mnl = p1' } = pnn
+                       , let pnn { mnl = p1' } = pnn { mnl = p0' }
                        in cogent_fcnl p1')
    in (r', pnn)
 cogent_sn52nn : Struct_Cogent_nns1 -> ( U32, Struct_Cogent_nns1 )
@@ -1602,10 +1593,10 @@ cogent_sn53nl : ( Struct_Cogent_nns1, GlobState1 ) -> ( (), Struct_Cogent_nns1, 
 cogent_sn53nl (pnn, g) =
    let (pnn
        , g) = let pnn { mnl = p0' } = pnn
-      and pnn = pnn { mnl = p0' }
       in notNull[CPtr U32]{{}} p0'
-         | Nothing -> (pnn, g)
-         | Some p0' -> let pnn { mnl = p1' } = pnn
+         | Nothing -> (pnn { mnl = p0' }
+                      , g)
+         | Some p0' -> let pnn { mnl = p1' } = pnn { mnl = p0' }
             and g { cont = _ } = g
             in (pnn { mnl = p1' }
                , g { cont = p1' })
@@ -1623,10 +1614,10 @@ cogent_sn54nl : ( Struct_Cogent_nns1, MayNull (CPtr U32) ) -> ( (), Struct_Cogen
 cogent_sn54nl (pnn, pnl) =
    let (pnn
        , pnl) = let pnn { mnl = p0' } = pnn
-      and pnn = pnn { mnl = p0' }
       in notNull[CPtr U32]{{}} p0'
-         | Nothing -> (pnn, pnl)
-         | Some p0' -> let pnn { mnl = p1' } = pnn
+         | Nothing -> (pnn { mnl = p0' }
+                      , pnl)
+         | Some p0' -> let pnn { mnl = p1' } = pnn { mnl = p0' }
             in (pnn { mnl = p1' }, p1')
    in ((), pnn, pnl)
 cogent_sn54nn : ( Struct_Cogent_nns1, CPtr U32 ) -> ( U32, Struct_Cogent_nns1, CPtr U32 )

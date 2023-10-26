@@ -109,20 +109,29 @@ bindsproc (b : _) _ = error ("unexpected binding in letproc/bindsproc: " ++ (sho
 -- First all possible matches are searched and counted in the expression using findMatches.
 -- Then matches which violate conditions for free variables (retainFree) or grow the 
 -- expression too much (retainGrowth) are marked as retained.
+-- Also, if a pattern matches in a context where no substitution should be done
+-- it is retained completely, i.e. not substituted in an other matches (for simplicity reasons).
 -- The remaining matches are substituted using substMatches.
 -- If there are retained matches they are added as prepended binding.
 bindproc :: GenIrrefPatn -> GenExpr -> [GenBnd] -> ExprOfGE -> ([GenBnd], ExprOfGE)
-bindproc ip e bs bdy = 
+bindproc ip e bs bdy =
+--  case (ip,e) of
+--   (GenIrrefPatn (PVar "p") _ _, GenExpr (Put _ [Just (_, GenExpr (Var "p0'") _ _ _)]) _ _ _) ->
+--     error ("p found: " ++ (show (bs, bdy)))
+--   _ ->
     if M.null retain
-       then (bs',bdy') 
+       then (bs',bdy')
        else ((Binding ip' Nothing e' []): bs',bdy')
-    where (retain,subst) = M.partition ((== (-1)) . fst) $ retainGrowth $ retainFree $ findMatches ip e bs bdy
+    where (retain,subst) = M.partition (\(i,j,_) -> (i == -1) {- ||(j > 0) -} ) $ retainGrowth $ retainFree $ findMatches ip e bs bdy
           (bs',bdy') = substMatches subst bs bdy
           -- instead of building the retained binding from the map 
           -- we reduce the original binding to the variables bound in the map
           (ip',e') = reduceBinding (boundInMap retain) ip e
 
-type MatchMap = M.Map GenIrrefPatn (Int,GenExpr)
+-- | A map from (sub)patterns to expressions to be substituted.
+-- The first number counts the matches for potential substitutions.
+-- The second number counts the matches in contexts where no substitions should be performed.
+type MatchMap = M.Map GenIrrefPatn (Int,Int,GenExpr)
 
 -- | Substitute matches from the map in an expression.
 -- The expression corresponds to (let bs in bdy).
@@ -150,7 +159,7 @@ substMatchesE m (Lam ip mt bdy) =
 substMatchesE m e =
     case find (((flip matches) e) . irpatnOfGIP . fst) $ M.assocs m of
          Nothing -> fmap (mapExprOfGE (substMatchesE m)) e
-         Just (_,(_,e')) -> exprOfGE e'
+         Just (_,(_,_,e')) -> exprOfGE e'
 
 substMatchesA :: MatchMap -> GenAlt -> GenAlt
 substMatchesA m (Alt p l bdy) = 
@@ -173,9 +182,9 @@ retainFree :: MatchMap -> MatchMap
 retainFree m = 
     if M.null freemap 
        then m
-       else retainFree $ M.mapWithKey (\ip (i,e) -> if M.member ip freemap then (-1,e) else (i,e)) m
-    where boundvars = nub $ concatMap freeInIrrefPatn $ M.keys $ M.filter ((== (-1)) . fst) m
-          freemap = M.filter (\(i,e) -> i >= 0 && any (\v -> elem v boundvars) (freeInExpr e)) m
+       else retainFree $ M.mapWithKey (\ip (i,j,e) -> if M.member ip freemap then (-1,j,e) else (i,j,e)) m
+    where boundvars = nub $ concatMap freeInIrrefPatn $ M.keys $ M.filter (\(i,_,_) -> i == -1) m
+          freemap = M.filter (\(i,_,e) -> i >= 0 && any (\v -> elem v boundvars) (freeInExpr e)) m
 
 -- | Remove patterns with variables in the given set.
 removeMatches :: [VarName] -> MatchMap -> MatchMap
@@ -197,7 +206,8 @@ findMatches ip e bs@((Binding ipp Nothing ep _) : bs') bdy =
           msi = findMatchesInIndex ip' e' $ irpatnOfGIP ipp
           ((ip1,e1),(ip2,e2)) = splitBinding (freeInIrrefPatn ipp) ip' e'
           ms1 = findMatches ip1 e1 bs' bdy
-          ms2 = retainOrDrop $ findMatches ip2 e2 bs' bdy
+          (ip2',e2') = reduceBinding ((freeUnderBinding bs' bdy) \\ (freeInIrrefPatn ipp)) ip2 e2
+          ms2 = retainOrDrop $ findMatches ip2' e2' bs' bdy
 findMatches ip e [] bdy = 
     if isUnitPattern ip'
        then M.empty
@@ -215,15 +225,15 @@ findMatchesInIndex ip e (PTuple ips) =
     combineMatches $ map (findMatchesInIndex ip e . irpatnOfGIP) ips
 findMatchesInIndex _ _ _ = M.empty
 
--- | Find matches of a binding in an expression.
+-- | Find matches of a binding in an expression.ltnebrp
 -- The binding binds only variables which occur free in the expression.
 -- The binding binds at least one variable.
 findFullMatches :: GenIrrefPatn -> GenExpr -> ExprOfGE -> MatchMap
-findFullMatches ip e bdy@(Var _) = M.singleton ip (cnt,e)
+findFullMatches ip e bdy@(Var _) = M.singleton ip (cnt,0,e)
     where cnt = if matches (irpatnOfGIP ip) bdy then 1 else -1
 findFullMatches ip e bdy@(Tuple es) =
     if matches (irpatnOfGIP ip) bdy
-       then M.singleton ip (1,e)
+       then M.singleton ip (1,0,e)
        else combineMatches $ map (findMatches ip e [] . exprOfGE) es
 findFullMatches ip e (Let bs bdy) = findMatches ip e bs $ exprOfGE bdy
 findFullMatches ip e (Match e' vs alts) =
@@ -231,6 +241,21 @@ findFullMatches ip e (Match e' vs alts) =
     where ms' = findMatches ip e [] $ exprOfGE e'
           ms = combineMatches $ map (\(Alt p _ bdy) -> findMatchesUnderBoundVars ip e (freeInPatn p) $ exprOfGE bdy) alts
 findFullMatches ip e (Lam ip' mt bdy) = M.empty -- Cogent supports no closures, no free variables allowed in lambda expression
+{-
+findFullMatches ip e (Put e1 mfs) = -- no substitution in Put targets e1
+    if isUnitPattern ip'
+       then mmfs
+       else combineMatches [M.singleton ip' (0,1,e'), mmfs]
+    where (ip',e') = reduceBinding (freeInExpr e1) ip e
+          mmfs = combineMatches $ map (findMatches ip e [] . exprOfGE . snd) $ catMaybes mfs
+findFullMatches ip e (ArrayPut e1 els) = -- no substitution in ArrayPut targets e1
+    if isUnitPattern ip'
+       then mels
+       else combineMatches [M.singleton ip' (0,1,e'), mels]
+    where (ip',e') = reduceBinding (freeInExpr e1) ip e
+          mels = combineMatches ((map (findMatches ip e [] . exprOfGE . snd) $ els)
+                              ++ (map (findMatches ip e [] . exprOfGE . fst) $ els))
+                              -}
 findFullMatches ip e bdy =
     combineMatches $ map (findMatches ip e [] . exprOfGE) $ toList bdy
 
@@ -258,7 +283,7 @@ boundInMap m = nub $ concatMap freeInIrrefPatn $ M.keys m
 
 -- | Reduce the binding (ip = e) to a set of variables.
 -- All variables bound in the pattern which are not in the set are replaced by a wildcard.
--- Then all wildcards are removed from the pattern for which the corrsponding part 
+-- Then all wildcards are removed from the pattern for which the corresponding part
 -- can be removed from the expression.
 reduceBinding :: [VarName] -> GenIrrefPatn -> GenExpr -> (GenIrrefPatn,GenExpr)
 reduceBinding vs ip e =
@@ -400,12 +425,12 @@ boundVarsToRetain vs ip e =
 -- it is -1 in either map, otherwise the sum of the matches in both maps.
 combineMatches :: [MatchMap] -> MatchMap
 combineMatches = 
-    M.unionsWith (\(i1,e1) (i2,e2) -> (if i1 == -1 || i2 == -1 then -1 else i1+i2, e1))
+    M.unionsWith (\(i1,j1,e1) (i2,j2,e2) -> (if i1 == -1 || i2 == -1 then -1 else i1+i2, j1+j2, e1))
 
 -- | Drop sub bindings with 0 matches and retain all others (set matches to -1)
 retainOrDrop :: MatchMap -> MatchMap
 retainOrDrop m = 
-    M.map (\(_,e) -> (-1,e)) $ M.filter (\(i,_) -> i /= 0) m
+    M.map (\(_,j,e) -> (-1,j,e)) $ M.filter (\(i,_,_) -> i /= 0) m
 
 {- Evaluating constant expressions -}
 {-----------------------------------}

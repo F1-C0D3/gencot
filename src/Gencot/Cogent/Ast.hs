@@ -67,6 +67,9 @@ mapTypeOfGT f g = GenType (f $ typeOfGT g) (orgOfGT g) (typSynOfGT g)
 mapExprOfGE :: (ExprOfGE -> ExprOfGE) -> GenExpr -> GenExpr
 mapExprOfGE f g = GenExpr (f $ exprOfGE g) (orgOfGE g) (typOfGE g) (ccdOfGE g)
 
+mapTypeOfGE :: (GenType -> GenType) -> GenExpr -> GenExpr
+mapTypeOfGE tf g = GenExpr (exprOfGE g) (orgOfGE g) (tf $ typOfGE g) (ccdOfGE g)
+
 mapPatnOfGP :: (PatnOfGP -> PatnOfGP) -> GenPatn -> GenPatn
 mapPatnOfGP f g = GenPatn (f $ patnOfGP g) (orgOfGP g) (typOfGP g)
 

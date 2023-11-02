@@ -57,3 +57,9 @@ int fbl58(int i) { return fblctxt(i,i>0); }
 
 int fbl61(int i) { return i>10?i<20:i>5; }
 int fbl62(int i) { return i<20 && i>5; }
+
+int fbl71(int p[5], int i) { return p[i>0]; }
+void fbl72(int p[5], int i) { p[i>0] = i; }
+
+struct sbl fbl81(struct sbl s, int i) { s.m1 = i>0; return s; }
+void fbl82(struct sbl *p, int i) { p->m1 = i>0; }

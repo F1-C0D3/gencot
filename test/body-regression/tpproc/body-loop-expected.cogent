@@ -754,15 +754,18 @@ cogent_lfn1 (i, j) =
                                                                and v13' = v11' < v12'
                                                                in if v13'
                                                                   then let (c'
-                                                                           , j) = let v5' = null[]{{}} ()
+                                                                           , j) = let v5' = 0
                                                                         and v6' = j
                                                                         and v8' = v5'
                                                                         and p0' = v8'
                                                                         and j = j { cont = p0' }
                                                                         in (0
                                                                            , j)
+                                                                     and j = mayNull[CPtr U32]{{}} j
                                                                      in (c', j)
-                                                                  else (c', j)
+                                                                  else
+                                                                     let j = mayNull[CPtr U32]{{}} j
+                                                                     in (c', j)
                                                       in if c' > 1
                                                          then (c', j, i)
                                                          else

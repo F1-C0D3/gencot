@@ -429,8 +429,8 @@ cogent_fbl41nn : (CPtr =  { cont : U32 }) -> (U32
                                              , (CPtr =  { cont : U32 }))
 cogent_fbl41nn p :: (CPtr =  { cont : U32 }) =
    let r' :: U32 = let v3' :: U32 = let v' :: (CPtr =  { cont : U32 }) = p :: (CPtr =  { cont : U32 })
-         in let v1' :: U32 = 17 :: U32
-            in v1' :: U32 :: U32 :: U32
+         and v1' :: U32 = 17 :: U32
+         in v1' :: U32 :: U32
       in v3' :: U32 :: U32
    in (r' :: U32
       , p :: (CPtr =  { cont : U32 })) :: (U32
@@ -438,8 +438,8 @@ cogent_fbl41nn p :: (CPtr =  { cont : U32 }) =
 cogent_fbl41ronn : (CPtr =  { cont : U32 }!) -> U32
 cogent_fbl41ronn p :: (CPtr =  { cont : U32 }!) =
    let r' :: U32 = let v3' :: U32 = let v' :: (CPtr =  { cont : U32 }!) = p :: (CPtr =  { cont : U32 }!)
-         in let v1' :: U32 = 17 :: U32
-            in v1' :: U32 :: U32 :: U32
+         and v1' :: U32 = 17 :: U32
+         in v1' :: U32 :: U32
       in v3' :: U32 :: U32
    in r' :: U32 :: U32
 cogent_fbl42ln : MayNull (Struct_Cogent_sbl =  { m1 : U32
@@ -503,8 +503,8 @@ cogent_fbl42nn p :: (Struct_Cogent_sbl =  { m1 : U32
    let r' :: U32 = let v3' :: U32 = let v' :: (Struct_Cogent_sbl =  { m1 : U32
                                                                     , m2 : U32 }) = p :: (Struct_Cogent_sbl =  { m1 : U32
                                                                                                                , m2 : U32 })
-         in let v1' :: U32 = 17 :: U32
-            in v1' :: U32 :: U32 :: U32
+         and v1' :: U32 = 17 :: U32
+         in v1' :: U32 :: U32
       in v3' :: U32 :: U32
    in (r' :: U32
       , p :: (Struct_Cogent_sbl =  { m1 : U32
@@ -518,16 +518,16 @@ cogent_fbl42ronn p :: (Struct_Cogent_sbl =  { m1 : U32
    let r' :: U32 = let v3' :: U32 = let v' :: (Struct_Cogent_sbl =  { m1 : U32
                                                                     , m2 : U32 }!) = p :: (Struct_Cogent_sbl =  { m1 : U32
                                                                                                                 , m2 : U32 }!)
-         in let v1' :: U32 = 17 :: U32
-            in v1' :: U32 :: U32 :: U32
+         and v1' :: U32 = 17 :: U32
+         in v1' :: U32 :: U32
       in v3' :: U32 :: U32
    in r' :: U32 :: U32
 cogent_fbl43ln : (CArr5 =  { arr5 : U32#[() :: ()] }) -> (U32
                                                          , (CArr5 =  { arr5 : U32#[() :: ()] }))
 cogent_fbl43ln p :: (CArr5 =  { arr5 : U32#[() :: ()] }) =
    let r' :: U32 = let v3' :: U32 = let v' :: (CArr5 =  { arr5 : U32#[() :: ()] }) = p :: (CArr5 =  { arr5 : U32#[() :: ()] })
-         in let v1' :: U32 = 17 :: U32
-            in v1' :: U32 :: U32 :: U32
+         and v1' :: U32 = 17 :: U32
+         in v1' :: U32 :: U32
       in v3' :: U32 :: U32
    in (r' :: U32
       , p :: (CArr5 =  { arr5 : U32#[() :: ()] })) :: (U32
@@ -535,8 +535,8 @@ cogent_fbl43ln p :: (CArr5 =  { arr5 : U32#[() :: ()] }) =
 cogent_fbl43ro : (CArr5 =  { arr5 : U32#[() :: ()] }!) -> U32
 cogent_fbl43ro p :: (CArr5 =  { arr5 : U32#[() :: ()] }!) =
    let r' :: U32 = let v3' :: U32 = let v' :: (CArr5 =  { arr5 : U32#[() :: ()] }!) = p :: (CArr5 =  { arr5 : U32#[() :: ()] }!)
-         in let v1' :: U32 = 17 :: U32
-            in v1' :: U32 :: U32 :: U32
+         and v1' :: U32 = 17 :: U32
+         in v1' :: U32 :: U32
       in v3' :: U32 :: U32
    in r' :: U32 :: U32
 cogent_fblctxt : (U32
@@ -677,3 +677,134 @@ cogent_fbl62 i :: U32 =
       then 1 :: U32
       else 0 :: U32 :: U32
    in r' :: U32 :: U32
+cogent_fbl71 : ((CArr5 =  { arr5 : U32#[() :: ()] })
+               , U32) -> (U32
+                         , (CArr5 =  { arr5 : U32#[() :: ()] }))
+cogent_fbl71 (p :: (CArr5 =  { arr5 : U32#[() :: ()] })
+             , i :: U32) =
+   let (r' :: U32
+       , () :: ()) = (let v1' :: U32 = i :: U32
+         and v2' :: U32 = 0 :: U32
+         and v3' :: Bool = v1' :: U32 > v2' :: U32 :: Bool
+         and v' :: (CArr5 =  { arr5 : U32#[() :: ()] }!) = p :: (CArr5 =  { arr5 : U32#[() :: ()] }!)
+         and p @{ @if v3' :: Bool
+            then 1 :: U32
+            else
+               0 :: U32 :: U32 = p0' :: U32 } :: (CArr5 =  { arr5 : U32#[() :: ()] }!) = v' :: (CArr5 =  { arr5 : U32#[() :: ()] }!)
+         and v4' :: U32 = p0' :: U32
+         and () :: () = () :: ()
+         in (v4' :: U32
+            , () :: ()) :: (U32, ())) !p
+   in (r' :: U32
+      , p :: (CArr5 =  { arr5 : U32#[() :: ()] })) :: (U32
+                                                      , (CArr5 =  { arr5 : U32#[() :: ()] }))
+cogent_fbl72 : ((CArr5 =  { arr5 : U32#[() :: ()] })
+               , U32) -> (()
+                         , (CArr5 =  { arr5 : U32#[() :: ()] }))
+cogent_fbl72 (p :: (CArr5 =  { arr5 : U32#[() :: ()] })
+             , i :: U32) =
+   let p :: (CArr5 =  { arr5 : U32#[() :: ()] }) = let v' :: U32 = i :: U32
+      and v2' :: U32 = i :: U32
+      and v3' :: U32 = 0 :: U32
+      and v4' :: Bool = v2' :: U32 > v3' :: U32 :: Bool
+      and v1' :: (CArr5 =  { arr5 : U32#[() :: ()] }) = p :: (CArr5 =  { arr5 : U32#[() :: ()] })
+      and p @{ @if v4' :: Bool
+         then 1 :: U32
+         else
+            0 :: U32 :: U32 = p0' :: U32 } :: (CArr5 =  { arr5 : U32#[() :: ()] }) = v1' :: (CArr5 =  { arr5 : U32#[() :: ()] })
+      and v6' :: U32 = v' :: U32
+      and p0' :: U32 = v6' :: U32
+      and p :: (CArr5 =  { arr5 : U32#[() :: ()] }) = p :: (CArr5 =  { arr5 : U32#[() :: ()] }) @{ @if v4' :: Bool
+         then 1 :: U32
+         else
+            0 :: U32 :: U32 = p0' :: U32 } :: (CArr5 =  { arr5 : U32#[() :: ()] })
+      in p :: (CArr5 =  { arr5 : U32#[() :: ()] }) :: (CArr5 =  { arr5 : U32#[() :: ()] })
+   in (() :: ()
+      , p :: (CArr5 =  { arr5 : U32#[() :: ()] })) :: (()
+                                                      , (CArr5 =  { arr5 : U32#[() :: ()] }))
+cogent_fbl81 : ((Struct_Cogent_sbl =  #{ m1 : U32
+                                       , m2 : U32 })
+               , U32) -> (Struct_Cogent_sbl =  #{ m1 : U32
+                                                , m2 : U32 })
+cogent_fbl81 (s :: (Struct_Cogent_sbl =  #{ m1 : U32
+                                          , m2 : U32 })
+             , i :: U32) =
+   let r' :: (Struct_Cogent_sbl =  #{ m1 : U32
+                                    , m2 : U32 }) = let (c' :: U8
+                                                        , s :: (Struct_Cogent_sbl =  #{ m1 : U32
+                                                                                      , m2 : U32 })) = let v' :: U32 = i :: U32
+         and v1' :: U32 = 0 :: U32
+         and v2' :: Bool = v' :: U32 > v1' :: U32 :: Bool
+         and v3' :: (Struct_Cogent_sbl =  #{ m1 : U32
+                                           , m2 : U32 }) = s :: (Struct_Cogent_sbl =  #{ m1 : U32
+                                                                                       , m2 : U32 })
+         and s { m1 = p0' :: U32 } :: (Struct_Cogent_sbl =  #{ m1 : U32
+                                                             , m2 : U32 }) = v3' :: (Struct_Cogent_sbl =  #{ m1 : U32
+                                                                                                           , m2 : U32 })
+         and v5' :: Bool = v2' :: Bool
+         and p0' :: U32 = if v5' :: Bool
+            then 1 :: U32
+            else 0 :: U32 :: U32
+         and s :: (Struct_Cogent_sbl =  #{ m1 : U32
+                                         , m2 : U32 }) = s :: (Struct_Cogent_sbl =  #{ m1 : U32
+                                                                                     , m2 : U32 }) { m1 = p0' :: U32 } :: (Struct_Cogent_sbl =  #{ m1 : U32
+                                                                                                                                                 , m2 : U32 })
+         in (0 :: U8
+            , s :: (Struct_Cogent_sbl =  #{ m1 : U32
+                                          , m2 : U32 })) :: (U8
+                                                            , (Struct_Cogent_sbl =  #{ m1 : U32
+                                                                                     , m2 : U32 }))
+      in if c' :: U8 > 0 :: U8 :: Bool
+         then
+            r' :: (Struct_Cogent_sbl =  #{ m1 : U32
+                                         , m2 : U32 })
+         else
+            let r' :: (Struct_Cogent_sbl =  #{ m1 : U32
+                                             , m2 : U32 }) = let v7' :: (Struct_Cogent_sbl =  #{ m1 : U32
+                                                                                               , m2 : U32 }) = s :: (Struct_Cogent_sbl =  #{ m1 : U32
+                                                                                                                                           , m2 : U32 })
+               in v7' :: (Struct_Cogent_sbl =  #{ m1 : U32
+                                                , m2 : U32 }) :: (Struct_Cogent_sbl =  #{ m1 : U32
+                                                                                        , m2 : U32 })
+            in r' :: (Struct_Cogent_sbl =  #{ m1 : U32
+                                            , m2 : U32 }) :: (Struct_Cogent_sbl =  #{ m1 : U32
+                                                                                    , m2 : U32 }) :: (Struct_Cogent_sbl =  #{ m1 : U32
+                                                                                                                            , m2 : U32 }) :: (Struct_Cogent_sbl =  #{ m1 : U32
+                                                                                                                                                                    , m2 : U32 })
+   in r' :: (Struct_Cogent_sbl =  #{ m1 : U32
+                                   , m2 : U32 }) :: (Struct_Cogent_sbl =  #{ m1 : U32
+                                                                           , m2 : U32 })
+cogent_fbl82 : (MayNull (Struct_Cogent_sbl =  { m1 : U32
+                                              , m2 : U32 })
+               , U32) -> (()
+                         , MayNull (Struct_Cogent_sbl =  { m1 : U32
+                                                         , m2 : U32 }))
+cogent_fbl82 (p :: MayNull (Struct_Cogent_sbl =  { m1 : U32
+                                                 , m2 : U32 })
+             , i :: U32) =
+   let p :: MayNull (Struct_Cogent_sbl =  { m1 : U32
+                                          , m2 : U32 }) = let v' :: U32 = i :: U32
+      and v1' :: U32 = 0 :: U32
+      and v2' :: Bool = v' :: U32 > v1' :: U32 :: Bool
+      and v3' :: MayNull (Struct_Cogent_sbl =  { m1 : U32
+                                               , m2 : U32 }) = p :: MayNull (Struct_Cogent_sbl =  { m1 : U32
+                                                                                                  , m2 : U32 })
+      and p { m1 = p0' :: U32 } :: MayNull (Struct_Cogent_sbl =  { m1 : U32
+                                                                 , m2 : U32 }) = v3' :: MayNull (Struct_Cogent_sbl =  { m1 : U32
+                                                                                                                      , m2 : U32 })
+      and v5' :: Bool = v2' :: Bool
+      and p0' :: U32 = if v5' :: Bool
+         then 1 :: U32
+         else 0 :: U32 :: U32
+      and p :: MayNull (Struct_Cogent_sbl =  { m1 : U32
+                                             , m2 : U32 }) = p :: MayNull (Struct_Cogent_sbl =  { m1 : U32
+                                                                                                , m2 : U32 }) { m1 = p0' :: U32 } :: MayNull (Struct_Cogent_sbl =  { m1 : U32
+                                                                                                                                                                   , m2 : U32 })
+      in p :: MayNull (Struct_Cogent_sbl =  { m1 : U32
+                                            , m2 : U32 }) :: MayNull (Struct_Cogent_sbl =  { m1 : U32
+                                                                                           , m2 : U32 })
+   in (() :: ()
+      , p :: MayNull (Struct_Cogent_sbl =  { m1 : U32
+                                           , m2 : U32 })) :: (()
+                                                             , MayNull (Struct_Cogent_sbl =  { m1 : U32
+                                                                                             , m2 : U32 }))

@@ -625,3 +625,66 @@ cogent_fbl62 i =
       then 1
       else 0
    in r'
+
+cogent_fbl71 : ( CArr5 U32, U32 ) -> ( U32, CArr5 U32 )
+cogent_fbl71 (p, i) =
+   let (r', p) = let v1' = i
+      and v2' = 0
+      and v3' = v1' > v2'
+      and v' = p
+      and p @{ @if v3'
+         then 1
+         else 0 = p0' } = v'
+      and v4' = p0'
+      and p = p @{ @if v3'
+         then 1
+         else 0 = p0' }
+      in (v4', p)
+   in (r', p)
+cogent_fbl72 : ( CArr5 U32, U32 ) -> ( (), CArr5 U32 )
+cogent_fbl72 (p, i) =
+   let p = let v' = i
+      and v2' = i
+      and v3' = 0
+      and v4' = v2' > v3'
+      and v1' = p
+      and p @{ @if v4'
+         then 1
+         else 0 = p0' } = v1'
+      and v6' = v'
+      and p0' = v6'
+      and p = p @{ @if v4'
+         then 1
+         else 0 = p0' }
+      in p
+   in ((), p)
+
+cogent_fbl81 : ( #Struct_Cogent_sbl, U32 ) -> #Struct_Cogent_sbl
+cogent_fbl81 (s, i) =
+   let r' = let (c'
+                , s) = let v' = i
+         and v1' = 0
+         and v2' = v' > v1'
+         and v3' = s
+         and s { m1 = p0' } = v3'
+         and v5' = v2'
+         and p0' = if v5' then 1 else 0
+         and s = s { m1 = p0' }
+         in (0, s)
+      in if c' > 0
+         then r'
+         else let r' = let v7' = s in v7'
+            in r'
+   in r'
+cogent_fbl82 : ( MayNull Struct_Cogent_sbl, U32 ) -> ( (), MayNull Struct_Cogent_sbl )
+cogent_fbl82 (p, i) =
+   let p = let v' = i
+      and v1' = 0
+      and v2' = v' > v1'
+      and v3' = p
+      and p { m1 = p0' } = v3'
+      and v5' = v2'
+      and p0' = if v5' then 1 else 0
+      and p = p { m1 = p0' }
+      in p
+   in ((), p)

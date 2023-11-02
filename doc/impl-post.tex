@@ -57,42 +57,50 @@ The variants \code{BoolLit, Match, Member} are only inserted during postprocessi
 used for specifying instances of the Gencot operations which are usually polymorphic. The variants \code{UnboxedRecord}
 and \code{Lam} are only used for specifying the arguments of the \code{repeat} operation in translations of loops.
 
+Bindings in \code{Let} expressions mainly consist of a pattern defined by the datatype \code{IrrefutablePattern} and
+the expression bound to the pattern. Gencot only uses the following pattern variants: \code{PUnitel} for the unit
+pattern, \code{PVar} for a variable, \code{PTuple} for a tuple pattern, \code{PTake} and \code{PArrayTake} for
+\code{take} operation patterns, and \code{PUnderscore} for the wildcard pattern.
+
 Additional restrictions are the following. Here a ``variable tuple'' means either a \code{Tuple} expression where all
 sub expressions are \code{Var} expressions or a single \code{Var} expression. A ``control tuple'' means either a
 \code{Tuple} expression where the first sub expression is an \code{IntLit} expression and the other sub expressions
-are \code{Var} expressions or a single \code{IntLit} expression. A ``variable record'' means an \code{UnboxedRecord}
-expression where all sub expressions are \code{Var} expressions.
+are \code{Var} expressions or a single \code{IntLit} expression. A ``variable pattern'' means a \code{PVar}, \code{PUnitel},
+or \code{PUnderscore} pattern or a \code{PTuple} pattern with components of these variants. A ``take pattern'' means
+a \code{PTake} or \code{PArrayTake}.
+
+All patterns are either variable patterns or take patterns.
 
 The body of a \code{Let} expression is either a variable or control tuple or an \code{If} or \code{Match} expression.
 The branch of an \code{If} or \code{Match} expression is either a variable or control tuple or a \code{Let} expression.
-The body of a \code{Lam} expression is a \code{Let} expression.
+The body of a \code{Lam} expression is a \code{Let} expression or an operator application.
 
 The arguments of a \code{PrimOp} expression are single \code{Var} expressions. The argument of an \code{App} expression
-is a variable tuple or a variable record.
+is a variable tuple. The only exception are applications of the Cogent standard library function \code{repeat} which
+is used for translating loops and where the argument is an \code{UnboxedRecord}.
 
 In a \code{Put} or \code{ArrayPut} expression the container expression is a \code{Var} expression and the list of put
 specifications contains a single element where the put value is specified by a \code{Var} expression. In an \code{ArrayPut}
-the put index is also specified by a \code{Var} expression.
+the put index is also specified by a \code{Var} expression. In a take pattern the list of take specifications contains
+a single element where the taken value is specified by a \code{PVar} pattern. In an \code{ArrayTake} the take index is
+specified by a \code{Var} expression.
 
-Together, the structure of arbitrary deep syntax trees only consists of \code{Let}, \code{If}, and \code{Match} expressions.
-All other variants only occur as bound expression in a binding and have as subexpressions only variable and control tuples and
-variable records. Exceptions are \code{Lam} expressions where the body may be a \code{Let} expression and \code{App}
-expressions where the function may be a \code{TLApp} expression.
+Together, the structure of arbitrary deep syntax trees only consists of \code{Let}, \code{If}, and \code{Match} expressions
+where all leaf expressions are variable or control tuples. All other expression variants only occur as bound expression in
+a binding and have as subexpressions only variable and control tuples with the following exceptions:
+\begin{itemize}
+\item in an \code{App} expression the function subexpression may be a \code{TLApp} expression and the argument subexpression
+may be an \code{UnboxedRecord} expression,
+\item in an \code{UnboxedRecord} expression the subexpressions may be arbitrary expressions,
+\item in a \code{Lam} expressions the body subexpression may be a \code{Let} or \code{PrimOp} expression.
+\end{itemize}
+In all these exception cases the type of the expression is fully determined by the type of the subexpression, so no type
+clashes may occur between the subexpressions and their context. Expressions for unboxed records are only used in the translation
+of loops as argument for the \code{repeat} operation. The type of the record is always determined from the types of the
+specified component values, the type of the \code{repeat} instance is determined from this record type.
 
-This form of the AST has the property that for every subexpression it is possible to modify the value and/or type of
-a variable occurring free in it by inserting a binding which (re-)binds the variable to an expression for the modified value
-so that only the subexpression is in the scope of the binding. For a \code{Let} expression the binding is inserted at the
-beginning of its binding sequence. For the body of a \code{Let} expression the binding is inserted at the end of its
-binding sequence. If the bound expression \code{e} in a binding is no \code{Let} expression the binding can be transformed
-by the rule
-\begin{verbatim}
-  (v,v1..) = e
-  -->
-  (v,v1..) = let b and (v,v1..) = e in (v,v1..)
-\end{verbatim}
-where \code{b} is the inserted binding with \code{e} in its scope. Alternatively, \code{b} can be inserted in the binding
-sequence before the binding of \code{e}, if it is no problem that it also affects the following bindings and the \code{Let}
-body. This technique of inserting additional bindings is used by several postprocessing steps.
+
+For simplicity, Gencot strictly avoids introducing additional value variables or other variables during postprocessing.
 
 \subsection{Evaluating Constant Expressions}
 \label{impl-post-const}
@@ -502,10 +510,11 @@ It has not yet been considered, whether such transformations would be useful for
 \label{impl-post-types}
 
 Even if the translated C program is type-correct, the Gencot translation may result in type incompatibilities in the generated
-Cogent code. These originate from two possible sources:
+Cogent code. These originate from three possible sources:
 \begin{itemize}
 \item Type differences in the C program which are automatically resolved by the C compiler by conversions.
 \item Application of item properties which affect the item's type during the Gencot translation.
+\item Type bool and arithmetic types, which are different in Cogent but not in C.
 \end{itemize}
 
 The first case only occurs for C operators. They are conceptually polymorphic, the actual function is determined by the type
@@ -521,21 +530,84 @@ The second case may occur for the item properties Read-Only, Not-Null, and No-St
 types. Since they may be specified manually, differences may be errors which should be detected and signaled by Gencot. In some
 cases it is also possible to resolve differences by inserting conversions during postprocessing.
 
-Most type incompatibilities have the form of a sub expression having one type and its context, where the sub expression occurs,
-having a different type. Such type clashes can occur in the following situations:
+The third case may occur whenever an expression or context is recognized as boolean, which is the case for the result of
+comparison operators and for the condition in conditional expressions and statements.
+
+Gencot preserves the restricted form of the Cogent AST described in Section~\ref{impl-post-ast} until all these type clashes
+have been resolved. Therefore type clashes need only be detected and handled in the restricted form of expressions. This form
+mainly consists of a tree structure built from \code{Let}, \code{If}, and \code{Match} expressions where all leaf expressions
+are variables, possibly wrapped in tuples. In these cases (except for conditions in \code{If}-expressions and branches in \code{If}
+and \code{Match} expressions) and also for the exceptions listed in Section~\ref{impl-post-ast} the type of an expression is
+always determined from the type(s) of the subexpressions, therefore no type clashes can occur.
+
+The remaining cases where type clashes may occur are conditions in \code{If}, \code{Match}, and bindings in \code{Let}:
+\begin{enumerate}
+\item For a branch in an \code{If} or \code{Match} the type may be different from the expected type which may be determined
+by both branches together.
+\item For a condition subexpression the type may be different from the expected type \code{Bool}.
+\item For the bound expression in a binding the type of a subexpression may be different from the expected type. The following
+cases for subexpressions exist:
 \begin{itemize}
-\item in a binding between the type of a variable in the pattern and the type of the corresponding component of the bound
-expression. This will never happen for a value variable, since for them the type is always determined by the bound expression
-component. It may happen for translated C variables and parameters and for component variables,
-\item in a function application between the formal type of a parameter according the the function's type and the type of
-the corresponding component of the actual argument tuple,
-\item in an operator application between the expected type of the arguments and the actual argument types. Since C has no operators
-for struct, union, and function types, the arguments can only be of arithmetic and pointer types, which includes after
-translation the type \code{Bool} and all linear and array types.
-\item between the arguments of a binary operator including the branches of a conditional expression. A binary operator in C
-may be polymorphic and admit several argument types, but both arguments must be of the same type (possibly after automatic
-conversion).
+\item argument of an operator (list of variables) or function application (tuple of variables), then the expected type for
+each variable is determined by the operator or by a formal argument type of the function,
+\item container variable in a \code{Put} or \code{ArrayPut}, then the expected type is a writable not-null container with
+the specified component,
+\item index in an \code{ArrayPut}, then the expected type is a numeric type,
+\item condition in an \code{If} expression, as above.
 \end{itemize}
+If the subexpression is a branch in an \code{If} or \code{Match} expression the bound expression is treated separately
+as in case 1 above.
+In all other cases of subexpressions (container of a \code{Member}, function in an \code{App}, body in a \code{Lam} or \code{Let})
+no type clashes can occur. An expression for a component value in a \code{put} operation is always the corresponding component
+variable for which the type has been determined by the component type, so no type clash can occur here.
+\item For a pattern in a binding the type of a subpattern or subexpression may be different from the expected type. The following
+cases exist:
+\begin{itemize}
+\item container variable in a \code{Take} or \code{ArrayTake}, then the expected type is a writable not-null container with
+the specified component,
+\item index in an \code{ArrayTake}, then the expected type is a numeric type.
+\end{itemize}
+All other cases of patterns with subpatterns are tuple patterns, for them the type is always determined by the type of the
+subpatterns, so type clashes cannot occur.
+\item For a binding the type of the pattern may be different from the type of the bound expression. This may only happen for
+a variable pattern or a variable in a tuple pattern which is no value variable. The type of value variable, unit and wildcard
+patterns is always determined by the (corresponding component of) the bound expression. For a take pattern the bound expression
+is always a value variable bound to the container variable used in the pattern, so no type clash can occur.
+\end{enumerate}
+
+In the cases 2-5 either the subexpression (cases 2-4) or the
+context (case 5) consists of a single variable. If it is possible to resolve the type clash by applying a conversion function
+to the value, this application can be added as a separate binding of the form
+\begin{verbatim}
+  v = conv v
+\end{verbatim}
+where \code{v} is the variable involved in the type clash and \code{conv} is the conversion function. The \code{v} on the right
+has its original type, the \code{v} on the left has the expected type. Adding the conversion
+in this form preserves the restricted form of the Cogent AST. This would not be the case if conversion function applications
+would be directly wrapped around the occurrence of the variable as subexpression in its context. This technique of inserting
+additional bindings is used by all postprocessing steps which resolve type clashes by value conversion.
+
+In cases 2-4 above the binding must be inserted so that the conflicting occurrence of the variable as subexpression is in the
+scope of the binding, but no other occurrences. Conditions, operator or function arguments, and array indexes always origin from
+C subexpressions and are bound by the translation to unique value variables for each occurrence, so the variable occurs only
+once. Type clashes for container variables in take/put operations are never resolved by application of a conversion function.
+Therefore, in cases 4 and 4 the conversion binding(s) can simply be inserted before the binding containing the type clash(es).
+In case 2, according to the restricted form of the Cogent AST, the \code{If} expression can only occur as a \code{Let} body.
+Then the conversion binding(s) can be inserted at the end of the binding list of this \code{Let} expression, immediately before
+the body. In all these cases the type of the subexpression (and possibly its surrounding tuple) is changed to the expected type,
+thus the type clash is resolved.
+
+In case 5 the variable in the conversion binding is that which occurs in the pattern involved in the type clash. Then the conversion
+binding is inserted after the binding containing the type clash. The type of the variable in the pattern and possibly the type
+of the surrounding tuple is changed to the type of the (component of the) bound expression, thus the type clash is resolved.
+
+In case 1 the branch may be a variable tuple or a \code{Let} expression. In the first case the type clash is caused by one or
+more variables in the tuple and can be resolved by according conversion bindings. These bindings are inserted by replacing the branch
+by a \code{Let} expression with the conversion bindings and the original branch as body, which preserves the restricted form
+of the Cogent AST. In the second case the type clash is caused by the \code{Let} body. Due to the restricted Cogent AST it is
+either a variable or control tuple, then the type clash can be resolved by inserting conversion bindings at the end of the
+binding list immediately before the body, or it is an \code{If} or \code{Match} expression, then the clash is caused by both
+branches and can be resolved by recursively resolving it for both branches.
 
 Whenever Gencot cannot resolve a type difference it signals an error and additionally replaces sub expressions with the wrong type
 by dummy expressions which specify the error reason and have the correct expected type according to the context of the expression.

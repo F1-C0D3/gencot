@@ -417,15 +417,15 @@ cogent_fbl41ro p =
 cogent_fbl41nn : CPtr U32 -> ( U32, CPtr U32 )
 cogent_fbl41nn p =
    let r' = let v3' = let v' = p
-         in let v1' = 17
-            in v1'
+         and v1' = 17
+         in v1'
       in v3'
    in (r', p)
 cogent_fbl41ronn : (CPtr U32)! -> U32
 cogent_fbl41ronn p =
    let r' = let v3' = let v' = p
-         in let v1' = 17
-            in v1'
+         and v1' = 17
+         in v1'
       in v3'
    in r'
 cogent_fbl42ln : MayNull Struct_Cogent_sbl -> ( U32, MayNull Struct_Cogent_sbl )
@@ -451,29 +451,29 @@ cogent_fbl42ro p =
 cogent_fbl42nn : Struct_Cogent_sbl -> ( U32, Struct_Cogent_sbl )
 cogent_fbl42nn p =
    let r' = let v3' = let v' = p
-         in let v1' = 17
-            in v1'
+         and v1' = 17
+         in v1'
       in v3'
    in (r', p)
 cogent_fbl42ronn : Struct_Cogent_sbl! -> U32
 cogent_fbl42ronn p =
    let r' = let v3' = let v' = p
-         in let v1' = 17
-            in v1'
+         and v1' = 17
+         in v1'
       in v3'
    in r'
 cogent_fbl43ln : CArr5 U32 -> ( U32, CArr5 U32 )
 cogent_fbl43ln p =
    let r' = let v3' = let v' = p
-         in let v1' = 17
-            in v1'
+         and v1' = 17
+         in v1'
       in v3'
    in (r', p)
 cogent_fbl43ro : (CArr5 U32)! -> U32
 cogent_fbl43ro p =
    let r' = let v3' = let v' = p
-         in let v1' = 17
-            in v1'
+         and v1' = 17
+         in v1'
       in v3'
    in r'
 
@@ -607,3 +607,62 @@ cogent_fbl62 i =
       then 1
       else 0
    in r'
+
+cogent_fbl71 : ( CArr5 U32, U32 ) -> ( U32, CArr5 U32 )
+cogent_fbl71 (p, i) =
+   let (r', ()) = (let v1' = i
+         and v2' = 0
+         and v3' = v1' > v2'
+         and v' = p
+         and p0' = getArr[(CArr5 U32)!
+                         , U32
+                         , U32]{{}} (v'
+                                    , if v3' then 1 else 0)
+         and v4' = p0'
+         and () = ()
+         in (v4', ())) !p
+   in (r', p)
+cogent_fbl72 : ( CArr5 U32, U32 ) -> ( (), CArr5 U32 )
+cogent_fbl72 (p, i) =
+   let p = let v' = i
+      and v2' = i
+      and v3' = 0
+      and v4' = v2' > v3'
+      and v1' = p
+      and v6' = v'
+      and p0' = v6'
+      and (p, ()) = setArr[CArr5 U32
+                          , U32
+                          , U32]{{}} (p
+                                     , if v4' then 1 else 0
+                                     , p0')
+      in p
+   in ((), p)
+
+cogent_fbl81 : ( #Struct_Cogent_sbl, U32 ) -> #Struct_Cogent_sbl
+cogent_fbl81 (s, i) =
+   let r' = let (c'
+                , s) = let v' = i
+         and v1' = 0
+         and v2' = v' > v1'
+         and v3' = s
+         and v5' = v2'
+         and p0' = if v5' then 1 else 0
+         and s = s { m1 = p0' }
+         in (0, s)
+      in if c' > 0
+         then r'
+         else let r' = let v7' = s in v7'
+            in r'
+   in r'
+cogent_fbl82 : ( MayNull Struct_Cogent_sbl, U32 ) -> ( (), MayNull Struct_Cogent_sbl )
+cogent_fbl82 (p, i) =
+   let p = let v' = i
+      and v1' = 0
+      and v2' = v' > v1'
+      and v3' = p
+      and p0' = gencotDummy "Dereferencing pointer which may be NULL"
+      and v5' = v2'
+      and p0' = if v5' then 1 else 0
+      in p
+   in ((), p)

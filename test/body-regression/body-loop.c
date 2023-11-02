@@ -107,7 +107,7 @@ int lfe10(int i) {
 
 int lfn1(int i, int* j) {
     for (i=0; j && i<5; i++) {
-        *j = NULL;
+        *j = 0;
     }
     return i;
 }

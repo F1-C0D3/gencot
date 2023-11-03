@@ -37,13 +37,13 @@ opproc' _ e = opproc e
 runtypes :: String -> GenExpr -> ETrav GenExpr
 runtypes tconf e = do
     e1 <- romodproc' tconf e
-    let e2 = boolproc' tconf e1
+    e2 <- boolproc' tconf e1
     e3 <- maynullproc' tconf e2
     e4 <- bangproc' tconf e3
     ebangproc' tconf e4
 
-boolproc' :: String -> GenExpr -> GenExpr
-boolproc' tconf e | elem 'c' tconf = e
+boolproc' :: String -> GenExpr -> ETrav GenExpr
+boolproc' tconf e | elem 'c' tconf = return e
 boolproc' _ e = boolproc e
 
 romodproc' :: String -> GenExpr -> ETrav GenExpr

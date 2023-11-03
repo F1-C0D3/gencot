@@ -50,147 +50,19 @@ import Gencot.Cogent.Post.Util (
 {- Arithmetic and Pointer Types -}
 {--------------------------------}
 
-boolproc :: GenExpr -> GenExpr
-boolproc e = mapExprOfGE boolproc' e
+boolproc :: GenExpr -> ETrav GenExpr
+boolproc = resolveExpr convVarBoolDiffs
 
-boolproc' :: ExprOfGE -> ExprOfGE
-boolproc' (CS.Let bs bdy) =
-    let bs' = boolprocInBindings bs
-        bdy' = boolproc bdy
-    in CS.Let bs' bdy'
--- conditional expression:
--- convert condition to boolean
--- convert branch to boolean if other branch is boolean
-boolproc' (CS.If e bvs e1 e2) =
-    let  e' = boolproc e
-         e1' = boolproc e1
-         e2' = boolproc e2
-         e1'' = if fstIsBoolType $ typOfGE e2' then fstToBoolType e1' else e1'
-         e2'' = if fstIsBoolType $ typOfGE e1' then fstToBoolType e2' else e2'
-    in CS.If (toBoolType e') bvs e1'' e2''
--- unary boolean operator:
--- convert argument to boolean
-boolproc' (CS.PrimOp op [e]) | op == "not" =
-    let e' = boolproc e
-    in CS.PrimOp op [toBoolType e']
--- unary arithmetic operators:
--- convert boolean argument to arithmetic (U32)
-boolproc' (CS.PrimOp op [e]) =
-    let e' = boolproc e
-    in CS.PrimOp op [boolToArithType e']
--- binary equational operators:
--- convert argument to boolean if other argument is boolean
-boolproc' (CS.PrimOp op [e1, e2]) | elem op ["==", "/="] =
-    let e1' = boolproc e1
-        e2' = boolproc e2
-        e1'' = if isBoolType $ typOfGE e2' then toBoolType e1' else e1'
-        e2'' = if isBoolType $ typOfGE e1' then toBoolType e2' else e2'
-    in CS.PrimOp op [e1'',e2'']
--- binary boolean operators:
--- convert arguments to boolean
-boolproc' (CS.PrimOp op [e1, e2]) | elem op ["&&", "||"] =
-    let e1' = toBoolType $ boolproc e1
-        e2' = toBoolType $ boolproc e2
-    in CS.PrimOp op [e1',e2']
--- binary relational and arithmetic operators
--- convert boolean arguments to arithmetic (U32)
-boolproc' (CS.PrimOp op [e1, e2]) =
-    let e1' = boolToArithType $ boolproc e1
-        e2' = boolToArithType $ boolproc e2
-    in CS.PrimOp op [e1', e2']
--- function application:
--- convert boolean arguments to arithmetic (U32)
-boolproc' (CS.App f e x) =
-    let e' = boolproc e
-    in case exprOfGE e' of
-         CS.Tuple es ->
-             let es' = (map boolToArithType es)
-             in CS.App f (mkTupleExpr es') x
-         _ -> CS.App f (boolToArithType e') x
--- index in array put expression:
--- convert boolean arguments to arithmetic (U32)
-boolproc' (CS.ArrayPut e els) =
-    let els' = map (\(idx,el) -> (boolToArithType $ boolproc idx, boolproc el)) els
-    in CS.ArrayPut e els'
--- no other cases of boolean type clashes
-boolproc' e = fmap boolproc e
-
-boolprocInBindings :: [GenBnd] -> [GenBnd]
-boolprocInBindings [] = []
-boolprocInBindings ((CS.Binding ip m e bvs) : bs) =
-    let e' = boolproc e
-        bs' = boolprocInBindings bs
-        e'' = boolprocBinding ip e'
-        ip' = boolprocPattern ip
-    in (CS.Binding ip' m e'' bvs) : bs'
-
-boolprocBinding :: GenIrrefPatn -> GenExpr -> GenExpr
-boolprocBinding (GenIrrefPatn (CS.PTuple ips) _ _) (GenExpr (CS.Tuple es) o t ccd) =
-    let es' = map (uncurry boolprocBinding) $ zip ips es
-    in GenExpr (CS.Tuple $ es') o (mkTupleType (map typOfGE es')) ccd
-boolprocBinding ip@(GenIrrefPatn (CS.PTuple ips) _ _) (GenExpr (CS.If e1 bvs e2 e3) o t ccd) =
-    let e2' = boolprocBinding ip e2
-        e3' = boolprocBinding ip e3
-    in GenExpr (CS.If e1 bvs e2' e3') o (adaptTypes (typOfGE e2') (typOfGE e3')) ccd
-boolprocBinding ip@(GenIrrefPatn (CS.PTuple ips) _ _) (GenExpr (CS.Let bs bdy) o t ccd) =
-    let bdy' = boolprocBinding ip bdy
-    in GenExpr (CS.Let bs bdy') o (typOfGE bdy') ccd
-boolprocBinding (GenIrrefPatn _ _ tp) e@(GenExpr _ _ t _) =
-    if isBoolType tp
-       then toBoolType e
-       else boolToArithType e
-
-boolprocPattern :: GenIrrefPatn -> GenIrrefPatn
-boolprocPattern (GenIrrefPatn (CS.PArrayTake pv elips) o tp) =
-    let elips' = map (\(idx,elip) -> (boolToArithType $ boolproc idx,elip)) elips
-    in GenIrrefPatn (CS.PArrayTake pv elips') o tp
-boolprocPattern ip = ip
-
-fstIsBoolType :: GenType -> Bool
-fstIsBoolType (GenType (CS.TTuple ts) _ _) = isBoolType $ head ts
-fstIsBoolType t = isBoolType t
-
-fstToBoolType :: GenExpr -> GenExpr
-fstToBoolType e | not $ isTupleType $ typOfGE e = toBoolType e
-fstToBoolType (GenExpr (CS.Tuple es) o t c) =
-    GenExpr (CS.Tuple es') o (mkTupleType $ map typOfGE es') c
-    where es' = (toBoolType $ head es):(tail es)
-fstToBoolType (GenExpr (CS.If e0 bvs e1 e2) o _ c) =
-    GenExpr (CS.If e0 bvs e1' e2') o (adaptTypes (typOfGE e1') (typOfGE e2')) c
-    where e1' = fstToBoolType e1
-          e2' = fstToBoolType e2
-fstToBoolType (GenExpr (CS.Let bs bdy) o (GenType (CS.TTuple (t:ts)) ot s) c) =
-    GenExpr (toBoolTypeInLet bs bdy) o (GenType (CS.TTuple (mkBoolType:ts)) ot s) c
-
-toBoolType :: GenExpr -> GenExpr
-toBoolType e | isBoolType $ typOfGE e = e
-toBoolType (GenExpr (CS.Let bs bdy) o _ ccd) =
-    GenExpr (toBoolTypeInLet bs bdy) o mkBoolType ccd
-toBoolType (GenExpr (CS.If e0 bvs e1 e2) o _ ccd) =
-    GenExpr (CS.If e0 bvs (toBoolType e1) (toBoolType e2)) o mkBoolType ccd
-toBoolType e | isArithmetic $ typOfGE e = mkBoolOpExpr "/=" [e,mkIntLitExpr (typOfGE e) 0]
-toBoolType e = mkBoolOpExpr "/=" [e,mkNullExpr]
-
-toBoolTypeInLet :: [GenBnd] -> GenExpr -> ExprOfGE
-toBoolTypeInLet bs (GenExpr (CS.Var v) o _ ccd) =
-    CS.Let (toBoolTypeInBindings v bs) $ GenExpr (CS.Var v) o mkBoolType ccd
-toBoolTypeInLet bs (GenExpr (CS.Tuple ((GenExpr (CS.Var v) ov _ cv) : es)) o _ c) =
-    CS.Let (toBoolTypeInBindings v bs) $ GenExpr (CS.Tuple es') o (mkTupleType $ map typOfGE es') c
-    where es' = (GenExpr (CS.Var v) ov mkBoolType cv) : es
-toBoolTypeInLet bs bdy = CS.Let bs $ toBoolType bdy
-
-toBoolTypeInBindings :: VarName -> [GenBnd] -> [GenBnd]
-toBoolTypeInBindings v [] = []
-toBoolTypeInBindings v ((CS.Binding (GenIrrefPatn (CS.PVar pv) o _) m e bvs) : bs) | pv == v =
-    (CS.Binding (GenIrrefPatn (CS.PVar pv) o mkBoolType) m (toBoolType e) bvs) : bs
-toBoolTypeInBindings v (b : bs) = b : (toBoolTypeInBindings v bs)
-
-boolToArithType :: GenExpr -> GenExpr
-boolToArithType e =
-    if isBoolType $ typOfGE e
-       then mkIfExpr mkU32Type e (mkIntLitExpr mkU32Type 1) (mkIntLitExpr mkU32Type 0)
-       else e
-
+convVarBoolDiffs :: ConvVarFun
+convVarBoolDiffs (GenExpr _ _ t1 _) t2 | t1 == t2 = return Nothing
+convVarBoolDiffs e@(GenExpr (CS.Var v) o t1 _) t2 | isBoolType t1 && isArithmetic t2 =
+    return $ Just $ mkVarBinding (TV v t2)
+         $ mkIfExpr mkU32Type e (mkIntLitExpr mkU32Type 1) (mkIntLitExpr mkU32Type 0)
+convVarBoolDiffs e@(GenExpr (CS.Var v) o t1 _) t2 | isArithmetic t1 && isBoolType t2 =
+    return $ Just $ mkVarBinding (TV v t2) $ mkBoolOpExpr "/=" [e,mkIntLitExpr (typOfGE e) 0]
+convVarBoolDiffs e@(GenExpr (CS.Var v) o t1 _) t2 | isBoolType t2 =
+    return $ Just $ mkVarBinding (TV v t2) $ mkBoolOpExpr "/=" [e,mkNullExpr]
+convVarBoolDiffs _ _ = return Nothing
 
 {- Matching linear subexpressions -}
 {- to readonly context: try bang  -}
@@ -1430,26 +1302,34 @@ rslvExpr cv e@(GenExpr (CS.ArrayPut pv [(idx, el)]) o te ccd) =
        else do
            mb <- cv idx mkU32Type
            case mb of
-                Just b -> return ([b], GenExpr (CS.ArrayPut pv [(mapTypeOfGE (const mkU32Type) idx, el)]) o te ccd)
+                Just b -> return ([], -- no conversion binding, the same value variable has already been converted for the take.
+                                  GenExpr (CS.ArrayPut pv [(mapTypeOfGE (const mkU32Type) idx, el)]) o te ccd)
                 Nothing -> return ([],e)
 rslvExpr cv e = return ([],e)
 
 getOpArgType :: CCS.OpName -> GenType -> [GenExpr] -> GenType
-getOpArgType op rt es | elem op ["<", ">", "<=", ">=", "==", "/="] =
+getOpArgType op rt es | elem op ["==", "/="] =
     adaptTypes (typOfGE $ head es) (typOfGE $ head $ tail es)
+getOpArgType op rt es | elem op ["<", ">", "<=", ">="] =
+    if at1 && at2
+       then adaptTypes t1 t2
+       else if at1 then t1
+       else if at2 then t2
+       else mkU32Type
+    where t1 = typOfGE $ head es
+          t2 = typOfGE $ head $ tail es
+          at1 = isArithmetic t1
+          at2 = isArithmetic t2
 getOpArgType op rt es | op == "not" = mkBoolType
 getOpArgType op rt es = rt
 
 rslvBnd :: ConvVarFun -> GenBnd -> ETrav ([GenBnd],[GenBnd],GenIrrefPatn)
 rslvBnd cv (CS.Binding ip@(GenIrrefPatn (CS.PVar pv) o t) m e bvs) = do
-    mb <- cv (mkVarExpr $ TV pv $ typOfGE e) t
-    case mb of
-         Just b -> return ([],[b],GenIrrefPatn (CS.PVar pv) o (typOfGE e))
-         Nothing -> return ([],[],ip)
+    (cbs,ip') <- rslvBndVar cv ip $ typOfGE e
+    return ([],cbs,ip')
 rslvBnd cv (CS.Binding (GenIrrefPatn (CS.PTuple ips) o t) m e bvs) | (CS.TTuple ts) <- typeOfGT $ typOfGE e = do
-    cbs <- (liftM catMaybes) $ mapM (\(GenIrrefPatn (CS.PVar pv) ov tv, t) -> cv (mkVarExpr $ TV pv t) tv) $ zip ips ts
-    let ips' = map (\(GenIrrefPatn pv ov _, t) -> GenIrrefPatn pv ov t) $ zip ips ts
-    return ([], cbs, GenIrrefPatn (CS.PTuple ips') o $ typOfGE e)
+    (cbss,ips') <- (liftM unzip) $ mapM (uncurry $ rslvBndVar cv) $ zip ips ts
+    return ([],concat cbss,GenIrrefPatn (CS.PTuple ips') o $ mkTupleType $ map typOfGIP ips')
 rslvBnd cv (CS.Binding ip@(GenIrrefPatn (CS.PArrayTake pv [(idx, elp)]) o t) m e bvs) =
     if isArithmetic $ typOfGE idx
        then return ([],[],ip)
@@ -1459,6 +1339,13 @@ rslvBnd cv (CS.Binding ip@(GenIrrefPatn (CS.PArrayTake pv [(idx, elp)]) o t) m e
                 Just b -> return ([b], [], GenIrrefPatn (CS.PArrayTake pv [(mapTypeOfGE (const mkU32Type) idx, elp)]) o t)
                 Nothing -> return ([],[],ip)
 rslvBnd cv (CS.Binding ip m e bvs) = return ([],[],ip)
+
+rslvBndVar :: ConvVarFun -> GenIrrefPatn -> GenType -> ETrav ([GenBnd], GenIrrefPatn)
+rslvBndVar cv ip@(GenIrrefPatn (CS.PVar pv) ov tv) t = do
+    mb <- cv (mkVarExpr $ TV pv t) tv
+    case mb of
+         Just b -> return ([b],GenIrrefPatn (CS.PVar pv) ov t)
+         Nothing -> return ([],ip)
 
 convVars :: ConvVarFun -> GenType -> GenExpr -> ETrav ([GenBnd], GenExpr)
 convVars cv t e@(GenExpr (CS.Var _) _ _ _) = do

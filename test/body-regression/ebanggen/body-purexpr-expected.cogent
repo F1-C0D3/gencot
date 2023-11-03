@@ -52,9 +52,11 @@ cogent_fo2 () :: () =
    in r' :: U32 :: U32
 cogent_fo3 : () -> U32
 cogent_fo3 () :: () =
-   let r' :: U32 = if (let v' :: U32 = 42 :: U32
-         and v1' :: Bool = not (v' :: U32 /= 0 :: U32 :: Bool) :: Bool
-         in v1' :: Bool :: Bool)
+   let r' :: Bool = let v' :: U32 = 42 :: U32
+      and v' :: Bool = v' :: U32 /= 0 :: U32 :: Bool
+      and v1' :: Bool = not v' :: Bool :: Bool
+      in v1' :: Bool :: Bool
+   and r' :: U32 = if r' :: Bool
       then 1 :: U32
       else 0 :: U32 :: U32
    in r' :: U32 :: U32
@@ -115,55 +117,61 @@ cogent_fo11 () :: () =
    in r' :: U32 :: U32
 cogent_fo12 : () -> U32
 cogent_fo12 () :: () =
-   let r' :: U32 = if (let v' :: U32 = 17 :: U32
-         and v1' :: U32 = 4 :: U32
-         and v2' :: Bool = v' :: U32 < v1' :: U32 :: Bool
-         in v2' :: Bool :: Bool)
+   let r' :: Bool = let v' :: U32 = 17 :: U32
+      and v1' :: U32 = 4 :: U32
+      and v2' :: Bool = v' :: U32 < v1' :: U32 :: Bool
+      in v2' :: Bool :: Bool
+   and r' :: U32 = if r' :: Bool
       then 1 :: U32
       else 0 :: U32 :: U32
    in r' :: U32 :: U32
 cogent_fo13 : () -> U32
 cogent_fo13 () :: () =
-   let r' :: U32 = if (let v' :: U32 = 17 :: U32
-         and v1' :: U32 = 4 :: U32
-         and v2' :: Bool = v' :: U32 > v1' :: U32 :: Bool
-         in v2' :: Bool :: Bool)
+   let r' :: Bool = let v' :: U32 = 17 :: U32
+      and v1' :: U32 = 4 :: U32
+      and v2' :: Bool = v' :: U32 > v1' :: U32 :: Bool
+      in v2' :: Bool :: Bool
+   and r' :: U32 = if r' :: Bool
       then 1 :: U32
       else 0 :: U32 :: U32
    in r' :: U32 :: U32
 cogent_fo14 : () -> U32
 cogent_fo14 () :: () =
-   let r' :: U32 = if (let v' :: U32 = 17 :: U32
-         and v1' :: U32 = 4 :: U32
-         and v2' :: Bool = v' :: U32 <= v1' :: U32 :: Bool
-         in v2' :: Bool :: Bool)
+   let r' :: Bool = let v' :: U32 = 17 :: U32
+      and v1' :: U32 = 4 :: U32
+      and v2' :: Bool = v' :: U32 <= v1' :: U32 :: Bool
+      in v2' :: Bool :: Bool
+   and r' :: U32 = if r' :: Bool
       then 1 :: U32
       else 0 :: U32 :: U32
    in r' :: U32 :: U32
 cogent_fo15 : () -> U32
 cogent_fo15 () :: () =
-   let r' :: U32 = if (let v' :: U32 = 17 :: U32
-         and v1' :: U32 = 4 :: U32
-         and v2' :: Bool = v' :: U32 >= v1' :: U32 :: Bool
-         in v2' :: Bool :: Bool)
+   let r' :: Bool = let v' :: U32 = 17 :: U32
+      and v1' :: U32 = 4 :: U32
+      and v2' :: Bool = v' :: U32 >= v1' :: U32 :: Bool
+      in v2' :: Bool :: Bool
+   and r' :: U32 = if r' :: Bool
       then 1 :: U32
       else 0 :: U32 :: U32
    in r' :: U32 :: U32
 cogent_fo16 : () -> U32
 cogent_fo16 () :: () =
-   let r' :: U32 = if (let v' :: U32 = 17 :: U32
-         and v1' :: U32 = 4 :: U32
-         and v2' :: Bool = v' :: U32 == v1' :: U32 :: Bool
-         in v2' :: Bool :: Bool)
+   let r' :: Bool = let v' :: U32 = 17 :: U32
+      and v1' :: U32 = 4 :: U32
+      and v2' :: Bool = v' :: U32 == v1' :: U32 :: Bool
+      in v2' :: Bool :: Bool
+   and r' :: U32 = if r' :: Bool
       then 1 :: U32
       else 0 :: U32 :: U32
    in r' :: U32 :: U32
 cogent_fo17 : () -> U32
 cogent_fo17 () :: () =
-   let r' :: U32 = if (let v' :: U32 = 17 :: U32
-         and v1' :: U32 = 4 :: U32
-         and v2' :: Bool = v' :: U32 /= v1' :: U32 :: Bool
-         in v2' :: Bool :: Bool)
+   let r' :: Bool = let v' :: U32 = 17 :: U32
+      and v1' :: U32 = 4 :: U32
+      and v2' :: Bool = v' :: U32 /= v1' :: U32 :: Bool
+      in v2' :: Bool :: Bool
+   and r' :: U32 = if r' :: Bool
       then 1 :: U32
       else 0 :: U32 :: U32
    in r' :: U32 :: U32
@@ -190,36 +198,41 @@ cogent_fo20 () :: () =
    in r' :: U32 :: U32
 cogent_fo21 : () -> U32
 cogent_fo21 () :: () =
-   let r' :: U32 = if (let v3' :: Bool = let v' :: U32 = 17 :: U32
-            in if v' :: U32 /= 0 :: U32 :: Bool
-               then
-                  let v1' :: Bool = 4 :: U32 /= 0 :: U32 :: Bool
-                  in v1' :: Bool :: Bool
-               else
-                  let v2' :: Bool = False :: Bool
-                  in v2' :: Bool :: Bool :: Bool :: Bool
-         in v3' :: Bool :: Bool)
+   let r' :: Bool = let v3' :: Bool = let v' :: U32 = 17 :: U32
+         and v' :: Bool = v' :: U32 /= 0 :: U32 :: Bool
+         in if v' :: Bool
+            then let v1' :: U32 = 4 :: U32
+               and v1' :: Bool = v1' :: U32 /= 0 :: U32 :: Bool
+               in v1' :: Bool :: Bool
+            else
+               let v2' :: Bool = False :: Bool
+               in v2' :: Bool :: Bool :: Bool :: Bool
+      in v3' :: Bool :: Bool
+   and r' :: U32 = if r' :: Bool
       then 1 :: U32
       else 0 :: U32 :: U32
    in r' :: U32 :: U32
 cogent_fo22 : () -> U32
 cogent_fo22 () :: () =
-   let r' :: U32 = if (let v3' :: Bool = let v' :: U32 = 17 :: U32
-            in if v' :: U32 /= 0 :: U32 :: Bool
-               then
-                  let v2' :: Bool = True :: Bool
-                  in v2' :: Bool :: Bool
-               else
-                  let v1' :: Bool = 4 :: U32 /= 0 :: U32 :: Bool
-                  in v1' :: Bool :: Bool :: Bool :: Bool
-         in v3' :: Bool :: Bool)
+   let r' :: Bool = let v3' :: Bool = let v' :: U32 = 17 :: U32
+         and v' :: Bool = v' :: U32 /= 0 :: U32 :: Bool
+         in if v' :: Bool
+            then
+               let v2' :: Bool = True :: Bool
+               in v2' :: Bool :: Bool
+            else let v1' :: U32 = 4 :: U32
+               and v1' :: Bool = v1' :: U32 /= 0 :: U32 :: Bool
+               in v1' :: Bool :: Bool :: Bool :: Bool
+      in v3' :: Bool :: Bool
+   and r' :: U32 = if r' :: Bool
       then 1 :: U32
       else 0 :: U32 :: U32
    in r' :: U32 :: U32
 cogent_f1 : () -> U32
 cogent_f1 () :: () =
    let r' :: U32 = let v3' :: U32 = let v' :: U32 = 17 :: U32
-         in if v' :: U32 /= 0 :: U32 :: Bool
+         and v' :: Bool = v' :: U32 /= 0 :: U32 :: Bool
+         in if v' :: Bool
             then let v1' :: U32 = 4 :: U32
                in v1' :: U32 :: U32
             else let v2' :: U32 = 42 :: U32

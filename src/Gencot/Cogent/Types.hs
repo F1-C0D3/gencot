@@ -59,8 +59,14 @@ mkTypeName s = mkConstrType s [] noSigil
 mkU8Type :: GenType
 mkU8Type = mkTypeName "U8"
 
+mkU16Type :: GenType
+mkU16Type = mkTypeName "U16"
+
 mkU32Type :: GenType
 mkU32Type = mkTypeName "U32"
+
+mkU64Type :: GenType
+mkU64Type = mkTypeName "U64"
 
 mkStringType :: GenType
 mkStringType = mkTypeName "String"

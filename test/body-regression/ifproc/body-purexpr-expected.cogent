@@ -1,10 +1,10 @@
 cogent_fc1 : () -> U32
 cogent_fc1 () = 42
 cogent_fc2 : () -> U8
-cogent_fc2 () = 'x'
+cogent_fc2 () = u32_to_u8 'x'
 cogent_fc3 : () -> U8
 cogent_fc3 () =
-   gencotDummy "Multi character constants not supported"
+   u32_to_u8 (gencotDummy "Multi character constants not supported")
 cogent_fc4 : () -> String
 cogent_fc4 () = "abc"
 cogent_fc5 : () -> err-float
@@ -72,7 +72,7 @@ cogent_fx : ( U32, U8, U32 ) -> U32
 cogent_fx (a, b, c) = a
 cogent_f5 : () -> U32
 cogent_f5 () =
-   cogent_fx (17, 'x', 4)
+   cogent_fx (17, u32_to_u8 'x', 4)
 
 type Struct_Cogent_s1 = { m1 : U32, m2 : U32 }
 type Struct_Cogent_s2 = { m3 : U32, m4 : #Struct_Cogent_s1 }

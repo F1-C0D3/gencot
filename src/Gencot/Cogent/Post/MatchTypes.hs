@@ -18,12 +18,12 @@ import Gencot.Names (mapNull)
 import Gencot.Cogent.Ast
 import Gencot.Cogent.Error (typeMatch)
 import Gencot.Cogent.Types (
-  mkBoolType, mkU32Type, mkTupleType, mkFunType, mkReadonly, mkOption, mkMayNull,
+  mkBoolType, mkU8Type, mkU16Type, mkU32Type, mkU64Type, mkTupleType, mkFunType, mkReadonly, mkOption, mkMayNull,
   isBoolType, isTupleType, isNonlinear, isRegular, mayEscape, isReadonly, isMayNull, isArithmetic, roCmpTypes,
   unbangType, getMemberType, getDerefType, getNnlType, getParamType, getResultType, adaptTypes)
 import Gencot.Cogent.Bindings (errVar, isValVarName, mkDummyExpr, toDummyExpr, mkVarBinding, mkVarPattern, mkVarTuplePattern)
 import Gencot.Cogent.Expr (
-  TypedVar(TV), namOfTV, typOfTV, mkUnitExpr, mkIntLitExpr, mkNullExpr, mkVarExpr, mkBoolOpExpr, mkTopLevelFunExpr,
+  TypedVar(TV), namOfTV, typOfTV, mkUnitExpr, mkIntLitExpr, mkNullExpr, mkVarExpr, mkOpExpr, mkBoolOpExpr, mkTopLevelFunExpr,
   mkAppExpr, mkLetExpr, mkIfExpr, mkMatchExpr, mkTupleExpr, mkVarTupleExpr)
 import Gencot.Cogent.Post.Util (
   ETrav, runExprTrav, isValVar, isCVar, freeInExpr, freeInExpr', freeInIrrefPatn, freeInBindings, freeUnderBinding, boundInBindings,
@@ -54,7 +54,7 @@ boolproc :: GenExpr -> ETrav GenExpr
 boolproc = resolveExpr convVarBoolDiffs
 
 convVarBoolDiffs :: ConvVarFun
-convVarBoolDiffs (GenExpr _ _ t1 _) t2 | t1 == t2 = return Nothing
+convVarBoolDiffs e t | typOfGE e == t = return Nothing
 convVarBoolDiffs e@(GenExpr (CS.Var v) o t1 _) t2 | isBoolType t1 && isArithmetic t2 =
     return $ Just $ mkVarBinding (TV v t2)
          $ mkIfExpr mkU32Type e (mkIntLitExpr mkU32Type 1) (mkIntLitExpr mkU32Type 0)
@@ -63,6 +63,43 @@ convVarBoolDiffs e@(GenExpr (CS.Var v) o t1 _) t2 | isArithmetic t1 && isBoolTyp
 convVarBoolDiffs e@(GenExpr (CS.Var v) o t1 _) t2 | isBoolType t2 =
     return $ Just $ mkVarBinding (TV v t2) $ mkBoolOpExpr "/=" [e,mkNullExpr]
 convVarBoolDiffs _ _ = return Nothing
+
+{- Matching Arithmetic Types -}
+{- with Each Other           -}
+{-----------------------------}
+
+intproc :: GenExpr -> ETrav GenExpr
+intproc = resolveExpr convVarIntDiffs
+
+convVarIntDiffs :: ConvVarFun
+convVarIntDiffs e t | not ((isArithmetic $ typOfGE e) && isArithmetic t) = return Nothing
+convVarIntDiffs e t | typOfGE e == t = return Nothing
+convVarIntDiffs e@(GenExpr (CS.Var v) o t1 _) t2 = do
+    let cnve = if s1 < s2
+               then mkOpExpr t2 "upcast" [e]
+               else if (s1 < 64) || (s2 > 8)
+               then mkAppExpr (conv s1 s2) e
+               else -- no direct conversion from U64 to U8 provided by Cogent, using two steps
+                    mkLetExpr [mkVarBinding (TV v mkU32Type) $ mkAppExpr (conv 64 32) e,
+                               mkVarBinding (TV v t2) $ mkAppExpr (conv 32 s2) $ mkVarExpr (TV v mkU32Type)]
+                              $ mkVarExpr (TV v t2)
+    return $ Just $ mkVarBinding (TV v t2) cnve
+    where s1 = getIntSize t1
+          s2 = getIntSize t2
+          conv 64 32 = mkVarExpr $ TV "u64_to_u32" $ mkFunType mkU64Type mkU32Type
+          conv 64 16 = mkVarExpr $ TV "u64_to_u16" $ mkFunType mkU64Type mkU16Type
+          conv 32 16 = mkVarExpr $ TV "u32_to_u16" $ mkFunType mkU32Type mkU16Type
+          conv 32 8  = mkVarExpr $ TV "u32_to_u8"  $ mkFunType mkU32Type mkU8Type
+          conv 16 8  = mkVarExpr $ TV "u16_to_u8"  $ mkFunType mkU16Type mkU8Type
+
+getIntSize :: GenType -> Int
+getIntSize (GenType (CS.TCon tn [] _) _ _) =
+    case tn of
+         "U8" -> 8
+         "U16" -> 16
+         "U32" -> 32
+         "U64" -> 64
+         _ -> 0
 
 {- Matching linear subexpressions -}
 {- to readonly context: try bang  -}
@@ -1287,15 +1324,12 @@ rslvExpr cv (GenExpr (CS.App f e i) o te ccd) = do
     (cbs,e') <- convVars cv (getParamType $ typOfGE f) e
     return (cbs, GenExpr (CS.App f e' i) o te ccd)
 rslvExpr cv (GenExpr (CS.PrimOp op es) o te ccd) = do
-    cbs <- (liftM catMaybes) $ mapM (\e -> cv e t') es
-    let es' = map (\(GenExpr v o t ccd) -> GenExpr v o t' ccd) es
-    return (cbs, GenExpr (CS.PrimOp op es') o te ccd)
+    (cbss,es') <- (liftM unzip) $ mapM (convVars cv t') es
+    return (concat cbss, GenExpr (CS.PrimOp op es') o te ccd)
     where t' = getOpArgType op te es
 rslvExpr cv e@(GenExpr (CS.If e0 bvs e1 e2) o te ccd) = do
-    mb <- cv e0 mkBoolType
-    case mb of
-         Just b -> return ([b],GenExpr (CS.If (mapTypeOfGE (const mkBoolType) e0) bvs e1 e2) o te ccd)
-         Nothing -> return ([],e)
+    (cbs,e0') <- convVars cv mkBoolType e0
+    return (cbs,GenExpr (CS.If e0' bvs e1 e2) o te ccd)
 rslvExpr cv e@(GenExpr (CS.ArrayPut pv [(idx, el)]) o te ccd) =
     if isArithmetic $ typOfGE idx
        then return ([],e)
@@ -1346,6 +1380,7 @@ rslvBndVar cv ip@(GenIrrefPatn (CS.PVar pv) ov tv) t = do
     case mb of
          Just b -> return ([b],GenIrrefPatn (CS.PVar pv) ov t)
          Nothing -> return ([],ip)
+rslvBndVar _ ip _ = return ([],ip)
 
 convVars :: ConvVarFun -> GenType -> GenExpr -> ETrav ([GenBnd], GenExpr)
 convVars cv t e@(GenExpr (CS.Var _) _ _ _) = do

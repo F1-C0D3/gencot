@@ -1,8 +1,9 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE PackageImports #-}
 module Gencot.Cogent.Output where
 
-import Cogent.Surface (TopLevel(FunDef), Expr(Tuple), Pattern, IrrefutablePattern(PTuple), Type(TRecord,TTuple,TArray))
+import Cogent.Surface (TopLevel(FunDef), Expr(Tuple,TLApp), Pattern, IrrefutablePattern(PTuple), Type(TRecord,TTuple,TArray))
 import Cogent.Common.Syntax (VarName)
 import Cogent.Common.Types (Sigil(Unboxed),readonly)
 import Cogent.PrettyPrint
@@ -163,6 +164,10 @@ instance ExprType TrgExpr where
   isVar (TrgExpr e _ _) = isVar e
 
 instance Pretty TrgExpr where
-  pretty (TrgExpr e org Nothing) = addOrig org $ pretty e
-  pretty (TrgExpr e org (Just s)) = addOrig org ((pretty e) <$> ((string . (TPM.pretty 2000) . pprCommented) s))
+  pretty (TrgExpr e org Nothing) = addOrig org $ prettyTrgRE e
+  pretty (TrgExpr e org (Just s)) = addOrig org ((prettyTrgRE e) <$> ((string . (TPM.pretty 2000) . pprCommented) s))
 
+prettyTrgRE :: (Expr TrgType TrgPatn TrgIrrefPatn () TrgExpr) -> Doc
+prettyTrgRE (TLApp x ts ls note) = pretty note <> varname x
+                                  <> typeargs (map (\case Nothing -> symbol "_"; Just t -> pretty t) ts)
+prettyTrgRE e = pretty e

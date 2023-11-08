@@ -48,7 +48,7 @@ mkIntLitExpr t = (genExpr t) . CS.IntLit
 -- construct c
 -- in C a character constant has type int!
 mkCharLitExpr :: Char -> GenExpr
-mkCharLitExpr = (genExpr mkU32Type) . CS.CharLit
+mkCharLitExpr = (genExpr mkU8Type) . CS.CharLit
 
 -- construct s
 mkStringLitExpr :: String -> GenExpr

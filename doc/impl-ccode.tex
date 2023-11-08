@@ -2221,6 +2221,23 @@ targets \code{v1..} and \code{x1..} in some order. Then the translation of the \
 where the new control value reflects that a switch statement consumes a \code{break} jump (represented as \code{2}) but passes a
 \code{continue} or \code{return} jump to its context.
 
+If a branch in a selection statement uses a \code{return} statement its translation binds the result variable \code{r'}. Then all
+other branches must also bind \code{r'} so that the selection statement can bind it as a whole. If another branch does not use
+a \code{return} statement (atleast not in all its sub-cases) this will result in a reference to an unbound instance of \code{r'}.
+This will be detected statically by the Cogent compiler and signalled as an error.
+
+It would be possible to avoid this by binding \code{r'} to a default value at the beginning of each translated function. However,
+the Gencot \code{default} operation (see Section~\ref{design-operations-default}) does not support default values for arbitrary
+result types. Therefore Gencot does not handle this case, it must be handled by modifying the C program so that for every selection
+statement either all branches are left by a \code{return} statement or none. Note that this is not necessary for \code{break}
+and \code{continue} statements.
+
+In C this situation is often handled by sequentially executing a \code{return} statement after the selection statement which will
+handle all branches not left by a \code{return} statement. Then the C program can be modified by moving this \code{return} statement
+into all branches. A specific situation is a \code{switch} statement without a default case, because it always has an ``invisible''
+empty default case. If all explicit cases are left by a \code{return}, there is still the implicit default case for which this
+is not the case. Thus it must be changed by adding an explicit default case which is also left by a \code{return} statement.
+
 \subsubsection{Iteration Statements}
 
 An iteration statement is a \code{for} loop or a \code{while} loop.

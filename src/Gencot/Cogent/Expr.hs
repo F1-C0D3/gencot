@@ -87,6 +87,10 @@ mkOpExpr t op es = genExpr t $ CS.PrimOp op es
 mkBoolOpExpr :: CCS.OpName -> [GenExpr] -> GenExpr
 mkBoolOpExpr = mkOpExpr mkBoolType
 
+-- construct upcast e
+mkUpcastExpr :: GenType -> GenExpr -> GenExpr
+mkUpcastExpr t e = genExpr t $ CS.Upcast e
+
 -- construct (<control value>,v1,...,vn) or <control value>
 mkCtlVarTupleExpr :: Integer -> [TypedVar] -> GenExpr
 mkCtlVarTupleExpr cv vs = mkExpVarTupleExpr (mkCtlLitExpr cv) vs

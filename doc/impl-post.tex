@@ -48,12 +48,13 @@ steps.
 The Cogent AST types are defined in the Cogent implementation in module \code{Cogent.Surface}. Syntactic expressions
 are defined by the datatype \code{Expr}. Gencot only uses the following expression variants: \code{Unitel} for the unit
 expression, \code{IntLit, BoolLit, CharLit, StringLit} for literals, \code{Var} for variable references, \code{Tuple}
-for tuple expressions, \code{PrimOp, App} for applications of operators and functions, \code{Match, If} for conditional
+for tuple expressions, \code{PrimOp, App} for applications of operators and functions, \code{Upcast} for application
+of the \code{upcast} operator, \code{Match, If} for conditional
 expressions, \code{Let} for expressions with variable bindings, \code{Lam} for lambda expressions, \code{TLApp} for
 specifying instances of polymorphic functions, \code{Member} for record member accesses, \code{Put, ArrayPut} for record
 and array put operations, and \code{UnboxedRecord} for unboxed record structures.
 
-The variants \code{BoolLit, Match, Member} are only inserted during postprocessing. The variant \code{TLApp} is only
+The variants \code{BoolLit, Upcast, Match, Member} are only inserted during postprocessing. The variant \code{TLApp} is only
 used for specifying instances of the Gencot operations which are usually polymorphic. The variants \code{UnboxedRecord}
 and \code{Lam} are only used for specifying the arguments of the \code{repeat} operation in translations of loops.
 
@@ -75,7 +76,8 @@ The body of a \code{Let} expression is either a variable or control tuple or an 
 The branch of an \code{If} or \code{Match} expression is either a variable or control tuple or a \code{Let} expression.
 The body of a \code{Lam} expression is a \code{Let} expression or an operator application.
 
-The arguments of a \code{PrimOp} expression are single \code{Var} expressions. The argument of an \code{App} expression
+The arguments of a \code{PrimOp} expression and the argument of an \code{Upcast} expression are single \code{Var} expressions.
+The argument of an \code{App} expression
 is a variable tuple. The only exception are applications of the Cogent standard library function \code{repeat} which
 is used for translating loops and where the argument is an \code{UnboxedRecord}.
 
@@ -98,7 +100,6 @@ In all these exception cases the type of the expression is fully determined by t
 clashes may occur between the subexpressions and their context. Expressions for unboxed records are only used in the translation
 of loops as argument for the \code{repeat} operation. The type of the record is always determined from the types of the
 specified component values, the type of the \code{repeat} instance is determined from this record type.
-
 
 For simplicity, Gencot strictly avoids introducing additional value variables or other variables during postprocessing.
 
@@ -613,6 +614,32 @@ Whenever Gencot cannot resolve a type difference it signals an error and additio
 by dummy expressions which specify the error reason and have the correct expected type according to the context of the expression.
 Thus, after processing them no type clashes remain in the resulting Cogent code, even if there where errors.
 
+Resolving type clashes by applying a conversion function or signalling an error is implemented in a generic way by the monadic
+action (because it may signal errors)
+\begin{verbatim}
+  resolveExpr :: ConvVarFun -> GenExpr -> ETrav GenExpr
+\end{verbatim}
+defined in module \code{Gencot.Cogent.Post.MatchTypes}. Here the first argument is a function which specifies conversion for
+some type(s). Its type is defined as
+\begin{verbatim}
+  type ConvVarFun = GenExpr -> GenType -> ETrav (Maybe GenBnd)
+\end{verbatim}
+It takes an expression \code{e} and a type \code{t} as arguments. If \code{e} is a single variable \code{v} and the function supports
+converting its type to \code{t} by applying a conversion function \code{conv} it returns a binding
+\begin{verbatim}
+  e' = conv e
+\end{verbatim}
+where \code{e'} is the same variable but with type \code{t}. If the function determines that \code{e} cannot be converted to
+\code{t} it returns a binding
+\begin{verbatim}
+  e' = gencotDummy "..."
+\end{verbatim}
+where the string argument specifies the reason for the error and additionally it signals an error. In all other cases the
+function returns \code{Nothing}. The function \code{resolveExpr} resolves all type clashes which are handled by the \code{ConvVarFun}
+argument as described above by inserting the returned binding and modifying the type of the subexpression or context. In
+all other cases it leaves the type clash untouched. Therefore \code{resolveExpr} may be invoked several times with different
+\code{ConvVarFun} arguments, each resolving clashes for some specific types.
+
 \subsection{Detecting Readonly Modifications}
 \label{impl-post-romod}
 
@@ -849,11 +876,14 @@ in later postprocessing steps. If the type clash is between two operator argumen
 or two components of the branches of a conditional expression the conversion is always to type \code{Bool}, since that is always
 possible.
 
-Postprocessing for boolean values in this way cannot cause errors, hence it is implemented by the function
+Postprocessing for boolean values in this way is implemented using function \code{resolveExpr} described in Section~\ref{impl-post-types}.
+Although it cannot cause errors, it is thus implemented by the monadic action
 \begin{verbatim}
-  boolproc :: GenExpr -> GenExpr
+  boolproc :: GenExpr -> ETrav GenExpr
+  boolproc = resolveExpr convVarBoolDiffs
 \end{verbatim}
-defined in module \code{Gencot.Cogent.Post.MatchTypes}.
+defined in module \code{Gencot.Cogent.Post.MatchTypes}, where \code{convVarBoolDiffs} is the function of type \code{ConvVarFun}
+for boolean conversions.
 
 \subsection{NULL Pointer Processing}
 \label{impl-post-null}
@@ -1002,21 +1032,37 @@ inserted as a separate binding of the form
 \end{verbatim}
 where \code{v} is the subexpression of type \code{T} which must be converted to \code{MayNull T}. The variable \code{v} on the left side
 of the binding has type \code{MayNull T}, therefore its type can be changed to \code{MayNull T} for every free occurrence in the scope
-of the binding. The binding is inserted according to the rules described in Section~\ref{impl-post-ast}.
+of the binding.
 
-If the type clash is between an additional function result component and the side effect target variable to be modified by it the
-type of the variable is changed to unwrapped in the function application binding and then corrected by a \code{mayNull} binding inserted
-after the application binding.
+This is implemented using function \code{resolveExpr} described in Section~\ref{impl-post-types} together with a \code{ConvVarFun}
+which specifies the conversion between \code{MayNull} wrapped and unwrapped types as described above.
 
 \subsection{String Processing}
 \label{impl-post-string}
 
 **todo \code{stringproc}
 
-\subsection{Integer Adaptation}
+\subsection{Integer Conversion}
 \label{impl-post-int}
 
-**todo \code{intproc}
+Cogent supports the four arithmetic types \code{U8}, \code{U16}, \code{U32}, and \code{U64}. They have as values unsigned
+integers of the corresponding bitsize. In C values of the corresponding types are usually automatically converted according
+to their context. In Cogent explicit conversions are required.
+
+If the context bitsize is larger than that of the expressions the \code{upcast} operator is used for conversion in all cases.
+If the context bitsize is lower than that of the expression the Cogent standard library provides abstract functions of the
+form \code{u32\_to\_u16} for conversion between two specific types. Since there is no function for converting from \code{U64}
+to \code{U8} this must be done in two steps via conversion to \code{U32}.
+
+Gencot implements all these conversions between arithmetic types using function \code{resolveExpr} described in
+Section~\ref{impl-post-types}. Although it cannot cause errors, it is thus implemented by the monadic action
+\begin{verbatim}
+  intproc :: GenExpr -> ETrav GenExpr
+  intproc = resolveExpr convVarIntDiffs
+\end{verbatim}
+defined in module \code{Gencot.Cogent.Post.MatchTypes}, where \code{convVarIntDiffs} is the function of type \code{ConvVarFun}
+for integer conversions. In the case of conversion using the upcast operator the inserted binding uses an \code{Upcast} expression
+on the right hand side, this is the only case where Gencot generates this kind of expression.
 
 \subsection{Pointer Adaptation}
 \label{impl-post-pointer}
@@ -1426,6 +1472,9 @@ variable bangings are present. Therefore it is executed before \code{bangproc}. 
 \item The \code{maynullproc} step depends on recognizing NULL tests. In C a NULL test can be specified by the pointer alone, which
 is equivalent to the condition that it is not NULL. The \code{boolproc} step converts these cases into explicit NULL tests. Therefore
 \code{maynullproc} is executed after \code{boolproc} because then it is sufficient to recognize explicit NULL tests.
+\item The \code{intproc} step must be executed after \code{boolproc}, because that may convert boolean values to integer types
+which must then be converted further. It is delayed until after \code{maynullproc}, \code{bangproc} and \code{ebangproc} so
+that these need not process the additional bindings inserted for converting integer types.
 \end{itemize}
 
 The remaining postprocessing steps are \code{presimp}, (\ref{impl-post-let}), \code{romodproc} (\ref{impl-post-romod}),
@@ -1464,6 +1513,7 @@ The resulting order of postprocessing steps with their suppress letters is
   n maynullproc
   b bangproc
   e ebangproc
+  i intproc
   m opnullproc
   t tpproc
   l letproc <-

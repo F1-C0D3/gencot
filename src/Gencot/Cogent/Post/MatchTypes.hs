@@ -23,8 +23,8 @@ import Gencot.Cogent.Types (
   unbangType, getMemberType, getDerefType, getNnlType, getParamType, getResultType, adaptTypes)
 import Gencot.Cogent.Bindings (errVar, isValVarName, mkDummyExpr, toDummyExpr, mkVarBinding, mkVarPattern, mkVarTuplePattern)
 import Gencot.Cogent.Expr (
-  TypedVar(TV), namOfTV, typOfTV, mkUnitExpr, mkIntLitExpr, mkNullExpr, mkVarExpr, mkOpExpr, mkBoolOpExpr, mkTopLevelFunExpr,
-  mkAppExpr, mkLetExpr, mkIfExpr, mkMatchExpr, mkTupleExpr, mkVarTupleExpr)
+  TypedVar(TV), namOfTV, typOfTV, mkUnitExpr, mkIntLitExpr, mkNullExpr, mkVarExpr, mkOpExpr, mkBoolOpExpr, mkUpcastExpr,
+  mkTopLevelFunExpr, mkAppExpr, mkLetExpr, mkIfExpr, mkMatchExpr, mkTupleExpr, mkVarTupleExpr)
 import Gencot.Cogent.Post.Util (
   ETrav, runExprTrav, isValVar, isCVar, freeInExpr, freeInExpr', freeInIrrefPatn, freeInBindings, freeUnderBinding, boundInBindings,
   returnedByExpr, modifiedByBinding, exchangeableWithBindings,
@@ -73,17 +73,17 @@ intproc = resolveExpr convVarIntDiffs
 
 convVarIntDiffs :: ConvVarFun
 convVarIntDiffs e t | not ((isArithmetic $ typOfGE e) && isArithmetic t) = return Nothing
-convVarIntDiffs e t | typOfGE e == t = return Nothing
 convVarIntDiffs e@(GenExpr (CS.Var v) o t1 _) t2 = do
     let cnve = if s1 < s2
-               then mkOpExpr t2 "upcast" [e]
+               then mkUpcastExpr t2 e
                else if (s1 < 64) || (s2 > 8)
                then mkAppExpr (conv s1 s2) e
                else -- no direct conversion from U64 to U8 provided by Cogent, using two steps
                     mkLetExpr [mkVarBinding (TV v mkU32Type) $ mkAppExpr (conv 64 32) e,
                                mkVarBinding (TV v t2) $ mkAppExpr (conv 32 s2) $ mkVarExpr (TV v mkU32Type)]
                               $ mkVarExpr (TV v t2)
-    return $ Just $ mkVarBinding (TV v t2) cnve
+    if s1 == s2 then return Nothing
+                else return $ Just $ mkVarBinding (TV v t2) cnve
     where s1 = getIntSize t1
           s2 = getIntSize t2
           conv 64 32 = mkVarExpr $ TV "u64_to_u32" $ mkFunType mkU64Type mkU32Type
@@ -410,6 +410,7 @@ hasInnerBangPositions :: ExprOfGE -> Bool
 hasInnerBangPositions (CS.Let _ _) = True
 hasInnerBangPositions (CS.If _ _ _ _) = True
 hasInnerBangPositions (CS.PrimOp _ es) = any (hasInnerBangPositions . exprOfGE) es
+hasInnerBangPositions (CS.Upcast e) = hasInnerBangPositions $ exprOfGE e
 hasInnerBangPositions (CS.Tuple es) = any (hasInnerBangPositions . exprOfGE) es
 hasInnerBangPositions (CS.App e1 e2 _) = (hasInnerBangPositions $ exprOfGE e1) || (hasInnerBangPositions $ exprOfGE e2)
 hasInnerBangPositions (CS.Match e0 _ alts) = (hasInnerBangPositions $ exprOfGE e0)

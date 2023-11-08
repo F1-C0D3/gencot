@@ -65,7 +65,7 @@ cogent_ffv28 : ( GlobState1, GlobState2 ) -> ( (), GlobState1, GlobState2 )
 cogent_ffv28 (g1, g2) =
    let ((), g1) = (()
                   , g1 { cont = getPtr[GlobState2!
-                                      , U32]{{}} g2 }) !g2
+                                      , U32] g2 }) !g2
    in ((), g1, g2) -- g1: gs1, g2: gs2
 cogent_ffv29 : GlobState1! -> ()
 cogent_ffv29 g1 = () -- g: gs1 ro
@@ -245,11 +245,11 @@ cogent_ffi28 (g1, g2) =
    let ((), g1, r') = (if 0 > 0
          then (()
               , g1 { cont = getPtr[GlobState2!
-                                  , U32]{{}} g2 }
+                                  , U32] g2 }
               , r')
          else (()
               , g1 { cont = getPtr[GlobState2!
-                                  , U32]{{}} g2 }
+                                  , U32] g2 }
               , 2)) !g2
    in (r', g1, g2) -- g1: gs1, g2: gs2
 
@@ -819,7 +819,7 @@ cogent_cfpv12 (s, i) =
    (()
    , let (_
          , i) = fromFunPtr[Cogent_ffvi
-                          , #CFunPtr_Cogent_ffvi]{{}} s.fvi i
+                          , #CFunPtr_Cogent_ffvi] s.fvi i
    in i)
 cogent_cfpv13 : ( #Struct_Cogent_fsdir, MayNull (CPtr U32) ) -> ( (), MayNull (CPtr U32) )
 cogent_cfpv13 (s, i) = ((), i)
@@ -840,90 +840,87 @@ cogent_cfpv18 (f, i) =
 cogent_cfpi1 : #Struct_Cogent_fstd -> U32
 cogent_cfpi1 s =
    fromFunPtr[() -> U32
-             , #Cogent_fpfiv]{{}} s.fiv ()
+             , #Cogent_fpfiv] s.fiv ()
 cogent_cfpi2 : #Struct_Cogent_fstd -> U32
 cogent_cfpi2 s =
    fromFunPtr[() -> U32
-             , #Cogent_fpfiv]{{}} s.fiv ()
+             , #Cogent_fpfiv] s.fiv ()
 cogent_cfpi3 : #Struct_Cogent_fsptd -> U32
 cogent_cfpi3 s =
    fromFunPtr[Cogent_ffiv
-             , #CFunPtr_Cogent_ffiv]{{}} s.fiv ()
+             , #CFunPtr_Cogent_ffiv] s.fiv ()
 cogent_cfpi4 : #Struct_Cogent_fsdir -> U32
 cogent_cfpi4 s =
    fromFunPtr[() -> U32
-             , #CFunPtr_FXX_U32]{{}} s.fiv ()
+             , #CFunPtr_FXX_U32] s.fiv ()
 cogent_cfpi5 : CArr5 #Cogent_fpfiv -> ( U32, CArr5 #Cogent_fpfiv )
 cogent_cfpi5 a =
    let (r'
        , ()) = (fromFunPtr[() -> U32
-                          , #Cogent_fpfiv]{{}} (getArr[(CArr5 #Cogent_fpfiv)!
-                                                      , U32
-                                                      , #Cogent_fpfiv]{{}} (a
-                                                                           , 1)) ()
+                          , #Cogent_fpfiv] (getArr[(CArr5 #Cogent_fpfiv)!
+                                                  , U32
+                                                  , #Cogent_fpfiv] (a, 1)) ()
                , ()) !a
    in (r', a)
 cogent_cfpi6 : CArr5 #Cogent_fpfiv -> ( U32, CArr5 #Cogent_fpfiv )
 cogent_cfpi6 a =
    let (r'
        , ()) = (fromFunPtr[() -> U32
-                          , #Cogent_fpfiv]{{}} (getArr[(CArr5 #Cogent_fpfiv)!
-                                                      , U32
-                                                      , #Cogent_fpfiv]{{}} (a
-                                                                           , 1)) ()
+                          , #Cogent_fpfiv] (getArr[(CArr5 #Cogent_fpfiv)!
+                                                  , U32
+                                                  , #Cogent_fpfiv] (a, 1)) ()
                , ()) !a
    in (r', a)
 cogent_cfpi7 : #Struct_Cogent_fstd -> U32
 cogent_cfpi7 s =
    fromFunPtr[() -> U32
-             , #Cogent_fpfiv]{{}} (cogent_ffp1iv s) ()
+             , #Cogent_fpfiv] (cogent_ffp1iv s) ()
 cogent_cfpi8 : #Struct_Cogent_fstd -> U32
 cogent_cfpi8 s =
    fromFunPtr[() -> U32
-             , #Cogent_fpfiv]{{}} (cogent_ffp1iv s) ()
+             , #Cogent_fpfiv] (cogent_ffp1iv s) ()
 cogent_cfpi9 : #Cogent_fpfiv -> U32
 cogent_cfpi9 f =
    fromFunPtr[() -> U32
-             , #Cogent_fpfiv]{{}} f ()
+             , #Cogent_fpfiv] f ()
 
 cogent_cfpi11 : ( #Struct_Cogent_fstd, MayNull (CPtr U32) ) -> ( U32, MayNull (CPtr U32) )
 cogent_cfpi11 (s, i) =
    (fromFunPtr[MayNull (CPtr U32) -> U32
-              , #Cogent_fpfii]{{}} s.fii i
+              , #Cogent_fpfii] s.fii i
    , i)
 cogent_cfpi12 : ( #Struct_Cogent_fsptd, MayNull (CPtr U32) ) -> ( U32, MayNull (CPtr U32) )
 cogent_cfpi12 (s, i) =
    fromFunPtr[Cogent_ffii
-             , #CFunPtr_Cogent_ffii]{{}} s.fii i
+             , #CFunPtr_Cogent_ffii] s.fii i
 cogent_cfpi13 : ( #Struct_Cogent_fsdir, MayNull (CPtr U32) ) -> ( U32, MayNull (CPtr U32) )
 cogent_cfpi13 (s, i) =
    (fromFunPtr[MayNull (CPtr U32) -> U32
-              , #CFunPtr_FXM_N_P_U32X_U32]{{}} s.fii i
+              , #CFunPtr_FXM_N_P_U32X_U32] s.fii i
    , i)
 cogent_cfpi14 : ( #Struct_Cogent_fsro, MayNull (CPtr U32) ) -> ( U32, MayNull (CPtr U32) )
 cogent_cfpi14 (s, i) =
    (fromFunPtr[MayNull (CPtr U32) -> U32
-              , #Cogent_fpfii]{{}} s.fii i
+              , #Cogent_fpfii] s.fii i
    , i)
 cogent_cfpi15 : ( CArr5 #Cogent_fpfii, MayNull (CPtr U32) ) -> ( U32, CArr5 #Cogent_fpfii, MayNull (CPtr U32) )
 cogent_cfpi15 (a, i) =
    let (r'
        , ()) = (fromFunPtr[MayNull (CPtr U32) -> U32
-                          , #Cogent_fpfii]{{}} (getArr[(CArr5 #Cogent_fpfii)!
-                                                      , U32
-                                                      , #Cogent_fpfii]{{}} (a
-                                                                           , 1)) i
+                          , #Cogent_fpfii] (getArr[(CArr5 #Cogent_fpfii)!
+                                                  , U32
+                                                  , #Cogent_fpfii] (a, 1)) i
                , ()) !a
    in (r', a, i)
 cogent_cfpi16 : ( #Struct_Cogent_fstd, MayNull (CPtr U32) ) -> ( U32, MayNull (CPtr U32) )
 cogent_cfpi16 (s, i) =
    (fromFunPtr[MayNull (CPtr U32) -> U32
-              , #Cogent_fpfii]{{}} (cogent_ffp1ii s) i
+              , #Cogent_fpfii] (cogent_ffp1ii s) i
    , i)
 cogent_cfpi17 : ( #Cogent_fpfii, MayNull (CPtr U32) ) -> ( U32, MayNull (CPtr U32) )
 cogent_cfpi17 (f, i) =
    (fromFunPtr[MayNull (CPtr U32) -> U32
-              , #Cogent_fpfii]{{}} f i
+              , #Cogent_fpfii] f i
    , i)
 cogent_cfpi18 : ( #CFunPtr_Cogent_ffii, MayNull (CPtr U32) ) -> ( U32, MayNull (CPtr U32) )
 cogent_cfpi18 (f, i) = f i

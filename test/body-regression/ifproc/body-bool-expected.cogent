@@ -143,13 +143,13 @@ type Struct_Cogent_sbl = { m1 : U32, m2 : U32 }
 
 cogent_fbl41ln : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
 cogent_fbl41ln p =
-   (notNull[CPtr U32]{{}} p
+   (notNull[CPtr U32] p
    | Nothing -> 4
    | Some p -> 17
    , p)
 cogent_fbl41ro : (MayNull ((CPtr U32)!))! -> U32
 cogent_fbl41ro p =
-   roNotNull[(CPtr U32)!]{{}} p
+   roNotNull[(CPtr U32)!] p
    | Nothing -> 4
    | Some p -> 17
 cogent_fbl41nn : CPtr U32 -> ( U32, CPtr U32 )
@@ -158,13 +158,13 @@ cogent_fbl41ronn : (CPtr U32)! -> U32
 cogent_fbl41ronn p = 17
 cogent_fbl42ln : MayNull Struct_Cogent_sbl -> ( U32, MayNull Struct_Cogent_sbl )
 cogent_fbl42ln p =
-   (notNull[Struct_Cogent_sbl]{{}} p
+   (notNull[Struct_Cogent_sbl] p
    | Nothing -> 4
    | Some p -> 17
    , p)
 cogent_fbl42ro : (MayNull Struct_Cogent_sbl!)! -> U32
 cogent_fbl42ro p =
-   roNotNull[Struct_Cogent_sbl!]{{}} p
+   roNotNull[Struct_Cogent_sbl!] p
    | Nothing -> 4
    | Some p -> 17
 cogent_fbl42nn : Struct_Cogent_sbl -> ( U32, Struct_Cogent_sbl )
@@ -233,8 +233,8 @@ cogent_fbl71 (p, i) =
    let (r'
        , ()) = (getArr[(CArr5 U32)!
                       , U32
-                      , U32]{{}} (p
-                                 , if i > 0 then 1 else 0)
+                      , U32] (p
+                             , if i > 0 then 1 else 0)
                , ()) !p
    in (r', p)
 cogent_fbl72 : ( CArr5 U32, U32 ) -> ( (), CArr5 U32 )
@@ -242,9 +242,9 @@ cogent_fbl72 (p, i) =
    (()
    , let (p, _) = setArr[CArr5 U32
                         , U32
-                        , U32]{{}} (p
-                                   , if i > 0 then 1 else 0
-                                   , i)
+                        , U32] (p
+                               , if i > 0 then 1 else 0
+                               , i)
    in p)
 
 cogent_fbl81 : ( #Struct_Cogent_sbl, U32 ) -> #Struct_Cogent_sbl

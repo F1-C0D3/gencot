@@ -208,8 +208,7 @@ introduced in Section~\ref{intro-first}. If the C file is named \code{foo.c} the
 \end{verbatim}
 It creates the following files:
 \begin{description}
-\item[\code{foo.cogent}] The content of \code{foo.c} translated to Cogent, as far as Gencot supports a translation.
-Function bodies are not translated.
+\item[\code{foo.cogent}] The content of \code{foo.c} translated to Cogent.
 \item[\code{foo-entry.ac}] ``Entry wrapper'' functions for all functions defined in \code{foo.c} 
 with external linkage.
 \end{description}
@@ -312,6 +311,12 @@ and \code{rank.h}. The translation step (\code{make cogent}) corresponds to the 
 Note that the function declarations in the \code{.h} files are not translated to Cogent. However, the comments specified 
 there are moved to the function definitions in the translation of the \code{.c} file. This feature depends on the order of
 processing the \code{.h} files before the \code{.c} file. Otherwise, the ordering of the commands is irrelevant.
+
+The resulting files are \code{cards-incl.cogent}, \code{rank-incl.cogent}, and \code{cards.cogent} as translations of the
+C source files and the files \code{all.cogent} and \code{all-externs.cogent} together with the empty files \code{all-exttype.cogent}
+and \code{all-dvdtypes.cogent}. The translation step to C \code{make c} applies the Cogent compiler to \code{all.cogent},
+the execution step \code{make run-cogent} compiles the resulting C program and runs it, it should have the same effect
+as running the original C program by step \code{make run}.
 
 \section{Multiple Source Files}
 \label{struct-multi}

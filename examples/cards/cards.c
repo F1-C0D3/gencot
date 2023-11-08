@@ -34,9 +34,10 @@ char value_letter(card_t c) {
     case 12: return 81;
     case 13: return 75;
     case 14: return 65;
+    default: return letter;
     }
   }
-  return letter;
+  else return letter;
 }
 
 char suit_letter(card_t c) {
@@ -47,6 +48,7 @@ char suit_letter(card_t c) {
   case DIAMONDS: return 'd';
   case CLUBS: return 'c';
   case NUM_SUITS: return 'x';
+  default: return 'x';
   }
   return 'x';
 

@@ -3,8 +3,7 @@ UNIT=all
 HFILES = cards.h rank.h
 CFILES = cards.c
 UNITFILES = $(UNIT)-externs.cogent $(UNIT)-exttypes.cogent $(UNIT)-dvdtypes.cogent $(UNIT).cogent
-EDITFILES = ed-cards.done
-ACFILES = $(UNIT)-externs.ac $(CFILES:.c=-entry.ac)
+ACFILES = $(UNIT)-externs.ac $(CFILES:.c=-entry.ac) $(UNIT)-gencot.ac
 ACFILESPP = $(ACFILES:.ac=_pp.ac)
 ACFILESINF = $(ACFILES:.ac=_pp_inferred.c)
 ACFILESC = $(ACFILES:.ac=.c)
@@ -13,12 +12,12 @@ OFILES = $(CFILES:.c=.o)
 COGFILES = $(CFILES:.c=.cogent)
 INCLFILES = $(HFILES:.h=-incl.cogent)
 COGSRC = $(INCLFILES) $(COGFILES) $(UNITFILES)
+COGHFILES = cogent-defns.h cogent-endianness.h
 INCLPATH = -I.
 
 binary: cards
 run: run-cards
 cogent: $(COGSRC)
-edit: $(EDITFILES)
 c: $(UNIT)-gen.c $(UNIT)-gen.h $(UNIT).c
 cogent-binary: cogent-cards
 cogent-run: run-cogent-cards
@@ -26,9 +25,11 @@ cogent-run: run-cogent-cards
 .PHONY: clean run-cards run-cogent-cards
 
 STDGUM=$(shell cogent --libgum-dir)
-GENCOTC=$(GENCOT_HOME)/c
 GENCOTI=$(GENCOT_HOME)/include
+GENCOTC=$(GENCOT_HOME)/c
 COGPPARGS = --cogent-pp-args="-I$(GENCOTI)"
+# The following is used to fix a problem of some cpp implementations
+CPPFIX = --cpp-args='-x c $$CPPIN -o $$CPPOUT -P'
 
 run-cards: cards
 	./cards
@@ -55,35 +56,33 @@ else
 	gencot $(INCLPATH) -u $(UNIT) cfile $*.c
 endif
 
-$(UNITFILES): $(UNIT).unit $(UNIT).unit-itemprops $(UNIT)-external.items $(CFILES)
+$(UNITFILES): $(UNIT).unit $(UNIT).unit-itemprops $(UNIT)-external.items $(CFILES) common.gencot-std
 ifeq ($(UNIT), all)
 	gencot $(INCLPATH) unit
 else
 	gencot $(INCLPATH) -u $(UNIT) unit
 endif
 
-ed-cards.done: cards.cogent
-#	*todo*
-	@touch ed-cards.done
+$(COGHFILES):
+	@for f in $(COGHFILES); do \
+	  cp $(STDGUM)/$$f .; \
+	done
 
-$(UNIT)-gen.c $(UNIT)-gen.h $(ACFILESINF): $(COGSRC) $(EDITFILES) $(ACFILES)
-	cogent -o $(UNIT)-gen -g $(UNIT).cogent $(COGPPARGS) --infer-c-funcs="$(ACFILES)"
+$(UNIT)-gencot.ac:
+	cp $(GENCOTC)/gencot.ac $(UNIT)-gencot.ac
 
-$(UNIT).c $(UNIT)-macros.h $(ACFILESC): $(UNIT)-gen.c $(UNIT)-gen.h $(ACFILESINF) $(UNIT).unit
+$(UNIT)-gen.c $(UNIT)-gen.h $(ACFILESINF): $(COGSRC) $(ACFILES)
+	cogent -o $(UNIT)-gen -g $(UNIT).cogent $(COGPPARGS) --infer-c-funcs="$(ACFILES)" $(CPPFIX)
+
+$(UNIT).c $(ACFILESC) $(GENCOTFILES): $(UNIT)-gen.c $(UNIT)-gen.h $(ACFILESINF) $(UNIT).unit $(COGHFILES)
 ifeq ($(UNIT), all)
-	auxcog unit
+	auxcog $(INCLPATH) unit
 else
-	auxcog -u $(UNIT) unit
+	auxcog $(INCLPATH) -u $(UNIT) unit
 endif
 
-$(UNIT)-gencot.h:
-	@cp $(GENCOTC)/gencot.h $@
-
-$(UNIT)-cogent-common.c:
-	@cp $(GENCOTC)/cogent-common.c $@
-
-cogent-cards: $(UNIT).c $(UNIT)-gen.c $(UNIT)-gen.h $(UNIT)-macros.h $(GENCOTFILES) $(ACFILESC)
-	cc -o cogent-cards -I$(STDGUM) -I$(GENCOTC) $(UNIT).c
+cogent-cards: $(UNIT).c $(UNIT)-gen.c $(UNIT)-gen.h $(GENCOTFILES) $(ACFILESC)
+	cc -o cogent-cards -I. $(UNIT).c
 
 run-cogent-cards: cogent-cards
 	./cogent-cards
@@ -92,7 +91,6 @@ clean:
 	-rm -f cards
 	-rm -f $(COGSRC) $(UNIT)-external.items cards-entry.ac
 	-rm -rf comments
-	-rm -f $(EDITFILES)
-	-rm -f $(UNIT)-gen.c $(UNIT)-gen.h $(ACFILESPP) $(ACFILESINF)
-	-rm -f $(UNIT).c $(UNIT)-macros.h $(GENCOTFILES) $(ACFILESC)
+	-rm -f $(UNIT)-gen.c $(UNIT)-gen.h $(ACFILESPP) $(ACFILESINF) $(UNIT)-gencot.ac
+	-rm -f $(UNIT).c $(GENCOTFILES) $(ACFILESC) $(COGHFILES)
 	-rm -f cogent-cards

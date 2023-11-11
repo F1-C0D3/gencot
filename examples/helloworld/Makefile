@@ -13,7 +13,8 @@ COGFILES = $(CFILES:.c=.cogent)
 INCLFILES = $(HFILES:.h=-incl.cogent)
 COGSRC = $(INCLFILES) $(COGFILES) $(UNITFILES)
 COGHFILES = cogent-defns.h cogent-endianness.h
-INCLPATH =
+# Include path used for original and generated C program
+INCLPATH = -I.
 
 binary: hello
 run: run-hello
@@ -61,24 +62,18 @@ else
 	gencot $(INCLPATH) -u $(UNIT) unit
 endif
 
-$(COGHFILES):
-	@for f in $(COGHFILES); do \
-	  cp $(STDGUM)/$$f .; \
-	done
-
 $(UNIT)-gen.c $(UNIT)-gen.h $(ACFILESINF): $(COGSRC) $(ACFILES)
 	cogent -o $(UNIT)-gen -g $(UNIT).cogent --infer-c-funcs="$(ACFILES)" $(CPPFIX)
 
-
 $(UNIT).c $(ACFILESC) $(GENCOTFILES): $(UNIT)-gen.c $(UNIT)-gen.h $(ACFILESINF) $(UNIT).unit $(COGHFILES)
 ifeq ($(UNIT), all)
-	auxcog -I. unit
+	auxcog $(INCLPATH) unit
 else
-	auxcog -I. -u $(UNIT) unit
+	auxcog $(INCLPATH) -u $(UNIT) unit
 endif
 
-cogent-hello: $(UNIT).c $(UNIT)-gen.c $(UNIT)-gen.h $(GENCOTFILES) $(ACFILESC)
-	cc -o cogent-hello -I. $(UNIT).c
+cogent-hello: $(UNIT).c $(UNIT)-gen.c $(UNIT)-gen.h $(GENCOTFILES) $(ACFILESC) $(COGHFILES)
+	cc -o cogent-hello $(INCLPATH) $(UNIT).c
 
 run-cogent-hello: cogent-hello
 	./cogent-hello
@@ -87,5 +82,5 @@ clean:
 	-rm -f hello
 	-rm -f $(COGSRC) $(UNIT)-external.items hello-entry.ac
 	-rm -f $(UNIT)-gen.c $(UNIT)-gen.h $(ACFILESPP) $(ACFILESINF)
-	-rm -f $(UNIT).c $(GENCOTFILES) $(ACFILESC) $(COGHFILES)
+	-rm -f $(UNIT).c $(GENCOTFILES) $(ACFILESC)
 	-rm -f cogent-hello

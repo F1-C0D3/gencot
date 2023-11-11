@@ -13,6 +13,7 @@ COGFILES = $(CFILES:.c=.cogent)
 INCLFILES = $(HFILES:.h=-incl.cogent)
 COGSRC = $(INCLFILES) $(COGFILES) $(UNITFILES)
 COGHFILES = cogent-defns.h cogent-endianness.h
+# Include path used for original and generated C program
 INCLPATH = -I.
 
 binary: cards
@@ -63,11 +64,6 @@ else
 	gencot $(INCLPATH) -u $(UNIT) unit
 endif
 
-$(COGHFILES):
-	@for f in $(COGHFILES); do \
-	  cp $(STDGUM)/$$f .; \
-	done
-
 $(UNIT)-gencot.ac:
 	cp $(GENCOTC)/gencot.ac $(UNIT)-gencot.ac
 
@@ -81,8 +77,8 @@ else
 	auxcog $(INCLPATH) -u $(UNIT) unit
 endif
 
-cogent-cards: $(UNIT).c $(UNIT)-gen.c $(UNIT)-gen.h $(GENCOTFILES) $(ACFILESC)
-	cc -o cogent-cards -I. $(UNIT).c
+cogent-cards: $(UNIT).c $(UNIT)-gen.c $(UNIT)-gen.h $(GENCOTFILES) $(ACFILESC) $(COGHFILES)
+	cc -o cogent-cards $(INCLPATH) $(UNIT).c
 
 run-cogent-cards: cogent-cards
 	./cogent-cards
@@ -92,5 +88,5 @@ clean:
 	-rm -f $(COGSRC) $(UNIT)-external.items cards-entry.ac
 	-rm -rf comments
 	-rm -f $(UNIT)-gen.c $(UNIT)-gen.h $(ACFILESPP) $(ACFILESINF) $(UNIT)-gencot.ac
-	-rm -f $(UNIT).c $(GENCOTFILES) $(ACFILESC) $(COGHFILES)
+	-rm -f $(UNIT).c $(GENCOTFILES) $(ACFILESC)
 	-rm -f cogent-cards

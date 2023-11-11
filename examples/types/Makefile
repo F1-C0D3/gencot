@@ -4,7 +4,7 @@ HFILES =
 CFILES = types.c
 UNITFILES = $(UNIT)-externs.cogent $(UNIT)-exttypes.cogent $(UNIT)-dvdtypes.cogent $(UNIT).cogent
 EDITFILES = ed-types.done ed-$(UNIT)-dvdtypes.done
-ACFILES = $(UNIT)-externs.ac $(CFILES:.c=-entry.ac)
+ACFILES = $(UNIT)-externs.ac $(CFILES:.c=-entry.ac) $(UNIT)-gencot.ac
 ACFILESPP = $(ACFILES:.ac=_pp.ac)
 ACFILESINF = $(ACFILES:.ac=_pp_inferred.c)
 ACFILESC = $(ACFILES:.ac=.c)
@@ -13,7 +13,9 @@ OFILES = $(CFILES:.c=.o)
 COGFILES = $(CFILES:.c=.cogent)
 INCLFILES = $(HFILES:.h=-incl.cogent)
 COGSRC = $(INCLFILES) $(COGFILES) $(UNITFILES)
-INCLPATH =
+COGHFILES = cogent-defns.h cogent-endianness.h
+# Include path used for original and generated C program
+INCLPATH = -I.
 
 binary: $(OFILES)
 cogent: $(COGSRC)
@@ -24,9 +26,11 @@ cogent-binary: $(UNIT).o
 .PHONY: clean 
 
 STDGUM=$(shell cogent --libgum-dir)
-GENCOTC=$(GENCOT_HOME)/c
 GENCOTI=$(GENCOT_HOME)/include
+GENCOTC=$(GENCOT_HOME)/c
 COGPPARGS = --cogent-pp-args="-I$(GENCOTI)"
+# The following is used to fix a problem of some cpp implementations
+CPPFIX = --cpp-args='-x c $$CPPIN -o $$CPPOUT -P'
 
 $(UNIT)-external.items: $(UNIT).unit
 ifeq ($(UNIT), all)
@@ -49,7 +53,7 @@ else
 	gencot $(INCLPATH) -u $(UNIT) cfile $*.c
 endif
 
-$(UNITFILES): $(UNIT).unit $(UNIT)-external.items $(CFILES)
+$(UNITFILES): $(UNIT).unit $(UNIT)-external.items $(CFILES) common.gencot-std
 ifeq ($(UNIT), all)
 	gencot $(INCLPATH) unit
 else
@@ -57,31 +61,32 @@ else
 endif
 
 ed-types.done: types.cogent
-	sed -i -e "9,10d;57d" types.cogent
+	sed -i -e "9,10d;60,61d" types.cogent
 	@touch ed-types.done
 
 ed-$(UNIT)-dvdtypes.done: $(UNIT)-dvdtypes.cogent
-	sed -i -e "24,25d;27,28d" $(UNIT)-dvdtypes.cogent
+	sed -i -e "25,26d;28,29d" $(UNIT)-dvdtypes.cogent
 	@touch ed-$(UNIT)-dvdtypes.done
 
+$(UNIT)-gencot.ac:
+	cp $(GENCOTC)/gencot.ac $(UNIT)-gencot.ac
+
 $(UNIT)-gen.c $(UNIT)-gen.h $(ACFILESINF): $(COGSRC) $(EDITFILES) $(ACFILES)
-	cogent -o $(UNIT)-gen -g $(COGPPARGS) $(UNIT).cogent --infer-c-funcs="$(ACFILES)"
+	cogent -o $(UNIT)-gen -g $(UNIT).cogent $(COGPPARGS) --infer-c-funcs="$(ACFILES)" $(CPPFIX)
 
-$(UNIT).c $(UNIT)-macros.h $(ACFILESC): $(UNIT)-gen.c $(UNIT)-gen.h $(ACFILESINF) $(UNIT).unit
-	auxcog unit
+$(UNIT).c $(ACFILESC) $(GENCOTFILES): $(UNIT)-gen.c $(UNIT)-gen.h $(ACFILESINF) $(UNIT).unit $(COGHFILES)
+ifeq ($(UNIT), all)
+	auxcog $(INCLPATH) unit
+else
+	auxcog $(INCLPATH) -u $(UNIT) unit
+endif
 
-$(UNIT)-gencot.h:
-	@cp $(GENCOTC)/gencot.h $@
-
-$(UNIT)-cogent-common.c:
-	@cp $(GENCOTC)/cogent-common.c $@
-
-$(UNIT).o: $(UNIT).c $(UNIT)-gen.c $(UNIT)-gen.h $(UNIT)-macros.h $(GENCOTFILES) $(ACFILESC)
-	cc -c -I$(STDGUM) -I$(GENCOTC) $(UNIT).c
+$(UNIT).o: $(UNIT).c $(UNIT)-gen.c $(UNIT)-gen.h $(GENCOTFILES) $(ACFILESC) $(COGHFILES)
+	cc -c $(INCLPATH) $(UNIT).c
 
 clean:
 	-rm -f $(COGSRC) $(UNIT)-external.items types-entry.ac
 	-rm -f $(EDITFILES)
-	-rm -f $(UNIT)-gen.c $(UNIT)-gen.h $(ACFILESPP) $(ACFILESINF)
-	-rm -f $(UNIT).c $(UNIT)-macros.h $(GENCOTFILES) $(ACFILESC)
+	-rm -f $(UNIT)-gen.c $(UNIT)-gen.h $(ACFILESPP) $(ACFILESINF) $(UNIT)-gencot.ac
+	-rm -f $(UNIT).c $(GENCOTFILES) $(ACFILESC)
 	-rm -f $(OFILES) $(UNIT).o

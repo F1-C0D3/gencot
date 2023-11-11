@@ -195,6 +195,14 @@ The result should be the same as in Step 1.
 Clean up all generated files. If you like you can perform the steps again.
 \end{description}
 
+Note that the command \code{auxcog} reads the file \code{all-gen.h} and therefore needs access to all files included by \code{all-gen.h},
+these are atleast the files \code{cogent-defns.h} and \code{cogent-endianness.h} which are part of the Cogent distribution and
+are included as system include files. For simplicity, Gencot provides both files together with the examples, therefore it is
+sufficient to specify \code{-I.} to add the current directory explicitly to the include path. Alternatively you could add
+the Cogent standard library directory to the include path, its name is returned by the command \code{cogent --libgum-dir}.
+
+The same applies to the execution of the C compiler in step 4, because file \code{all-gen.h} is included by \code{all.c}.
+
 \chapter{C Program Structure}
 \label{struct}
 
@@ -315,7 +323,7 @@ processing the \code{.h} files before the \code{.c} file. Otherwise, the orderin
 The resulting files are \code{cards-incl.cogent}, \code{rank-incl.cogent}, and \code{cards.cogent} as translations of the
 C source files and the files \code{all.cogent} and \code{all-externs.cogent} together with the empty files \code{all-exttype.cogent}
 and \code{all-dvdtypes.cogent}. The translation step to C \code{make c} applies the Cogent compiler to \code{all.cogent},
-the execution step \code{make run-cogent} compiles the resulting C program and runs it, it should have the same effect
+the execution step \code{make cogent-run} compiles the resulting C program and runs it, it should have the same effect
 as running the original C program by step \code{make run}.
 
 \section{Multiple Source Files}
@@ -389,8 +397,8 @@ included by the translated \code{.c} files.
 For a partially translated C program Gencot generates entry wrappers only for the translated functions, but it now
 generates exit wrappers for all functions in the remaining \code{.c} files which are invoked from the translated functions.
 In this way function invocations between the translated part and the remaining part are supported in both directions.
-Additionally, Gencot translates all data types in a binary compatible way (not yet implemented for structs! requires Dargent 
-or modification of Cogent), so that data can be passed back and forth between the translated and remaining part.
+Additionally, Gencot translates all data types in a binary compatible way, so that data can be passed back and forth
+between the translated and remaining part.
 
 \subsection{Example}
 
@@ -415,47 +423,18 @@ The partial translation step (\code{make UNIT=part cogent}) corresponds to the c
 The resulting file \code{part.cogent} includes only the Cogent sources \code{rank.cogent}, and
 \code{main.cogent}. Note that you still have to translate \code{cards.h} because it is also included by \code{main.c}.
 
-To execute the partially translated program, first edit the Cogent files (\code{make UNIT=part edit}) so that they contain
-the following Cogent code:
-\begin{verbatim}
-rank.cogent:
-  #include "rank-incl.cogent"
-
-  cogent_ranking_to_string : Cogent_hand_ranking_t -> String
-  cogent_ranking_to_string r =
-    if r == cogent_STRAIGHT_FLUSH then "STRAIGHT_FLUSH" else
-    if r == cogent_FOUR_OF_A_KIND then "FOUR_OF_A_KIND" else
-    if r == cogent_FULL_HOUSE then "FULL_HOUSE" else
-    if r == cogent_FLUSH then "FLUSH" else
-    if r == cogent_STRAIGHT then "STRAIGHT" else
-    if r == cogent_THREE_OF_A_KIND then "THREE_OF_A_KIND" else
-    if r == cogent_TWO_PAIR then "TWO_PAIR" else
-    if r == cogent_PAIR then "PAIR" else
-    if r == cogent_NOTHING then "NOTHING" else
-    "Invalid"
-\end{verbatim}
-
-\begin{verbatim}
-main.cogent:
-  #include "cards-incl.cogent"
-  #include "rank-incl.cogent"
-
-  cogent_main : () -> U32
-  cogent_main () =
-    cogent_puts("Just a test:");
-    cogent_print_card(cogent_card_from_num(42));
-    cogent_puts("  is card no 42");
-    cogent_print_card(cogent_card_from_letters('Q', 'd'));
-    cogent_puts("  is diamonds queen");
-    0
-\end{verbatim}
-
-Then compile and postprocess the Cogent program (\code{make UNIT=part c}):
+To execute the partially translated program compile and postprocess the Cogent program (\code{make UNIT=part c}):
 \begin{verbatim}
   cogent -o part-gen -g part.cogent \
-     --cogent-pp-args="-I$GENCOT_HOME/include" \
-     --infer-c-funcs="part-externs.ac main-entry.ac rank-entry.ac"
-  auxcog -u part unit
+      --cogent-pp-args="-I$GENCOT_HOME/include" \
+      --infer-c-funcs="part-externs.ac main-entry.ac rank-entry.ac" \
+\end{verbatim}
+% use \textquotesingle here to allow copy-paste it to a shell.
+% The ' in verbatim is mapped to \textquoteright instead.
+\vspace*{-2mm}\hspace*{11mm}\code{-{}-cpp-args=\textquotesingle -x c \$CPPIN -o \$CPPOUT -P\textquotesingle}
+\vspace*{-2mm}
+\begin{verbatim}
+  auxcog -I. -u part unit
 \end{verbatim}
 
 Compile the resulting C program \code{part.c} with the C compiler to yield \code{part.o},
@@ -603,7 +582,7 @@ Note that for every array
 size used in the program a single type of the form \code{CArr<size>} is defined, even if several types of this
 size with different element types are used in C. You can also see that \code{CArr<size>} is defined as a synonym
 for the corresponding Cogent builtin array type. For technical reasons it is ``wrapped'' in
-a record with a single component named \code{arr}. To actually embed the array in the record an unboxed array type
+a record with a single component named \code{arr<size>}. To actually embed the array in the record an unboxed array type
 of the form \code{el\#[<size>]} is used. 
 
 As a convenience, for every function pointer type alias a similar alias for the corresponding function type is 
@@ -625,10 +604,15 @@ from the files \code{types.cogent} and \code{all-dvdtypes.cogent}
 Now you can process \code{all.cogent} by the Cogent compiler. Enter the command
 \begin{verbatim}
   cogent -o all-gen -g all.cogent \
-     --cogent-pp-args="-I$GENCOT_HOME/include" \
-     --infer-c-funcs="all-externs.ac types-entry.ac"
+      --cogent-pp-args="-I$GENCOT_HOME/include" \
+      --infer-c-funcs="all-externs.ac types-entry.ac" \
 \end{verbatim}
-It creates the files \code{all-gen.c} and \code{all-gen.h} and two (empty) \code{\_pp\_inferred.c} files. 
+% use \textquotesingle here to allow copy-paste it to a shell.
+% The ' in verbatim is mapped to \textquoteright instead.
+\vspace*{-4mm}\hspace*{11mm}\code{-{}-cpp-args=\textquotesingle -x c \$CPPIN -o \$CPPOUT -P\textquotesingle}
+
+\vspace*{4mm}\noindent
+It creates the files \code{all-gen.c} and \code{all-gen.h} and two (empty) \code{\_pp\_inferred.c} files.
 
 The option \code{--cogent-pp-args} adds the directory \code{\$GENCOT\_HOME/include} to the include path
 used by Cogent. It is needed to load the definitions for the types \code{MayNull} and \code{CPtr} from
@@ -641,7 +625,7 @@ all types and functions predefined by Gencot can be made available.
 
 As usual, enter the command
 \begin{verbatim}
-  auxcog unit
+  auxcog -I. unit
 \end{verbatim}
 for postprocessing.
 
@@ -649,7 +633,7 @@ for postprocessing.
 
 Compile \code{all.c} with a C compiler to an object file, such as in 
 \begin{verbatim}
-  cc -c -I`cogent --libgum-dir` -I$GENCOT_HOME/c all.c
+  cc -c -I. all.c
 \end{verbatim}
 This should work and produce \code{all.o}, however, it is of no much interest,
 since Cogent does not translate most of our type definitions to C, because they are not used in functions.

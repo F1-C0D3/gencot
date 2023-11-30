@@ -118,10 +118,10 @@ cogent_fn42nl (pnl, qnn, i) =
 -- Probe is a struct component
 cogent_fn51nl : Struct_Cogent_nns1 -> ( MayNull (CPtr U32), Struct_Cogent_nns1 )
 cogent_fn51nl pnn =
-   (mayNull[CPtr U32] (let pnn { mnn = p0' } = pnn
-      in p0')
-   , let pnn { mnn = p0' } = pnn
-   in pnn { mnn = p0' })
+   let (r'
+       , pnn) = let pnn { mnn = p0' } = pnn
+      in (p0', pnn { mnn = p0' })
+   in (mayNull[CPtr U32] r', pnn)
 cogent_fn51nn : Struct_Cogent_nns1 -> ( CPtr U32, Struct_Cogent_nns1 )
 cogent_fn51nn pnn =
    let pnn { mnn = p0' } = pnn
@@ -138,36 +138,36 @@ cogent_fn52nn pnn =
       , pnn { mnn = p0' })
 cogent_fn53nl : ( Struct_Cogent_nns1, GlobState1 ) -> ( (), Struct_Cogent_nns1, GlobState1 )
 cogent_fn53nl (pnn, g) =
-   (()
-   , let pnn { mnn = p0' } = pnn
-   in pnn { mnn = p0' }
-   , let pnn { mnn = p0' } = pnn
-   and g { cont = _ } = g
-   in g { cont = mayNull[CPtr U32] p0' })
+   let (pnn
+       , g) = let pnn { mnn = p0' } = pnn
+      and g { cont = _ } = g
+      in (pnn { mnn = p0' }
+         , g { cont = mayNull[CPtr U32] p0' })
+   in ((), pnn, g)
 cogent_fn53nn : ( Struct_Cogent_nns1, GlobState2 ) -> ( (), Struct_Cogent_nns1, GlobState2 )
 cogent_fn53nn (pnn, g) =
-   (()
-   , let pnn { mnn = p0' } = pnn
-   in pnn { mnn = p0' }
-   , let pnn { mnn = p0' } = pnn
-   and g { cont = _ } = g
-   in g { cont = p0' })
+   let (pnn
+       , g) = let pnn { mnn = p0' } = pnn
+      and g { cont = _ } = g
+      in (pnn { mnn = p0' }
+         , g { cont = p0' })
+   in ((), pnn, g)
 cogent_fn54nl : ( Struct_Cogent_nns1, MayNull (CPtr U32) ) -> ( (), Struct_Cogent_nns1, MayNull (CPtr U32) )
 cogent_fn54nl (pnn, pnl) =
-   (()
-   , let pnn { mnn = p0' } = pnn
-   in pnn { mnn = p0' }
-   , let pnn { mnn = p0' } = pnn
-   in mayNull[CPtr U32] p0')
+   let (pnn
+       , pnl) = let pnn { mnn = p0' } = pnn
+      in (pnn { mnn = p0' }
+         , mayNull[CPtr U32] p0')
+   in ((), pnn, pnl)
 cogent_fn54nn : ( Struct_Cogent_nns1, CPtr U32 ) -> ( U32, Struct_Cogent_nns1, CPtr U32 )
 cogent_fn54nn (pnn, qnn) =
-   (getPtr[(CPtr U32)!
-          , U32] (let pnn { mnn = p0' } = pnn
-      in p0')
-   , let pnn { mnn = p0' } = pnn
-   in pnn { mnn = p0' }
-   , let pnn { mnn = p0' } = pnn
-   in p0')
+   let (pnn, qnn, r') = let (pnn
+                            , qnn) = let pnn { mnn = p0' } = pnn
+         in (pnn { mnn = p0' }, p0')
+      in (pnn
+         , qnn
+         , getPtr[(CPtr U32)!, U32] qnn)
+   in (r', pnn, qnn)
 cogent_fn55nl : ( Struct_Cogent_nns1, MayNull (CPtr U32), U32 ) -> ( U32, Struct_Cogent_nns1, MayNull (CPtr U32) )
 cogent_fn55nl (pnn, qnl, i) =
    let (r'
@@ -176,15 +176,13 @@ cogent_fn55nl (pnn, qnl, i) =
    in (r', pnn, qnl)
 cogent_fn55nn : ( Struct_Cogent_nns1, CPtr U32, U32 ) -> ( U32, Struct_Cogent_nns1, CPtr U32 )
 cogent_fn55nn (pnn, qnn, i) =
-   (cogent_fcnn (if i /= 0
-      then let pnn { mnn = p0' } = pnn
-         in p0'
-      else qnn)
-   , if i /= 0
-   then let pnn { mnn = p0' } = pnn
-      in pnn { mnn = p0' }
-   else pnn
-   , qnn)
+   let (r', pnn) = let (v5'
+                       , pnn) = if i /= 0
+         then let pnn { mnn = p0' } = pnn
+            in (p0', pnn { mnn = p0' })
+         else (qnn, pnn)
+      in (cogent_fcnn v5', pnn)
+   in (r', pnn, qnn)
 
 -- Probe used by accessing a struct component or pointer deref
 cogent_fn61nn : Struct_Cogent_nns1 -> ( U32, Struct_Cogent_nns1 )
@@ -207,26 +205,17 @@ cogent_fn64nn () =
 -- Probe is an array element
 cogent_fn71nl : Cogent_nna2 -> ( MayNull (CPtr U32), Cogent_nna2 )
 cogent_fn71nl pnn =
-   (mayNull[CPtr U32] (let (_
-                           , v2') = modifyArr[Cogent_nna2
-                                             , U32
-                                             , CPtr U32
-                                             , _
-                                             , _] (pnn
-                                                  , 1
-                                                  , \(p0', ()) => (p0', p0')
-                                                  , ())
-      in v2')
-   , let (pnn
-         , _) = modifyArr[Cogent_nna2
-                         , U32
-                         , CPtr U32
-                         , _
-                         , _] (pnn
-                              , 1
-                              , \(p0', ()) => (p0', p0')
-                              , ())
-   in pnn)
+   let (r', pnn) = let (pnn
+                       , v2') = modifyArr[Cogent_nna2
+                                         , U32
+                                         , CPtr U32
+                                         , _
+                                         , _] (pnn
+                                              , 1
+                                              , \(p0', ()) => (p0', p0')
+                                              , ())
+      in (v2', pnn)
+   in (mayNull[CPtr U32] r', pnn)
 cogent_fn71nn : Cogent_nna2 -> ( CPtr U32, Cogent_nna2 )
 cogent_fn71nn pnn =
    let (pnn
@@ -266,107 +255,61 @@ cogent_fn72nn pnn =
    in (cogent_fcnn v3', pnn)
 cogent_fn73nl : ( Cogent_nna2, GlobState1 ) -> ( (), Cogent_nna2, GlobState1 )
 cogent_fn73nl (pnn, g) =
-   (()
-   , let (pnn
-         , _) = modifyArr[Cogent_nna2
-                         , U32
-                         , CPtr U32
-                         , _
-                         , _] (pnn
-                              , 1
-                              , \(p0', ()) => (p0', p0')
-                              , ())
-   in pnn
-   , let (_
-         , v2') = modifyArr[Cogent_nna2
-                           , U32
-                           , CPtr U32
-                           , _
-                           , _] (pnn
-                                , 1
-                                , \(p0', ()) => (p0', p0')
-                                , ())
-   and g { cont = _ } = g
-   in g { cont = mayNull[CPtr U32] v2' })
+   let (pnn, g) = let (pnn
+                      , v2') = modifyArr[Cogent_nna2
+                                        , U32
+                                        , CPtr U32
+                                        , _
+                                        , _] (pnn
+                                             , 1
+                                             , \(p0', ()) => (p0', p0')
+                                             , ())
+      and g { cont = _ } = g
+      in (pnn
+         , g { cont = mayNull[CPtr U32] v2' })
+   in ((), pnn, g)
 cogent_fn73nn : ( Cogent_nna2, GlobState2 ) -> ( (), Cogent_nna2, GlobState2 )
 cogent_fn73nn (pnn, g) =
-   (()
-   , let (pnn
-         , _) = modifyArr[Cogent_nna2
-                         , U32
-                         , CPtr U32
-                         , _
-                         , _] (pnn
-                              , 1
-                              , \(p0', ()) => (p0', p0')
-                              , ())
-   in pnn
-   , let (_
-         , v2') = modifyArr[Cogent_nna2
-                           , U32
-                           , CPtr U32
-                           , _
-                           , _] (pnn
-                                , 1
-                                , \(p0', ()) => (p0', p0')
-                                , ())
-   and g { cont = _ } = g
-   in g { cont = v2' })
+   let (pnn, g) = let (pnn
+                      , v2') = modifyArr[Cogent_nna2
+                                        , U32
+                                        , CPtr U32
+                                        , _
+                                        , _] (pnn
+                                             , 1
+                                             , \(p0', ()) => (p0', p0')
+                                             , ())
+      and g { cont = _ } = g
+      in (pnn, g { cont = v2' })
+   in ((), pnn, g)
 cogent_fn74nl : ( Cogent_nna2, MayNull (CPtr U32) ) -> ( (), Cogent_nna2, MayNull (CPtr U32) )
 cogent_fn74nl (pnn, pnl) =
-   (()
-   , let (pnn
-         , _) = modifyArr[Cogent_nna2
-                         , U32
-                         , CPtr U32
-                         , _
-                         , _] (pnn
-                              , 1
-                              , \(p0', ()) => (p0', p0')
-                              , ())
-   in pnn
-   , let (_
-         , v2') = modifyArr[Cogent_nna2
-                           , U32
-                           , CPtr U32
-                           , _
-                           , _] (pnn
-                                , 1
-                                , \(p0', ()) => (p0', p0')
-                                , ())
-   in mayNull[CPtr U32] v2')
+   let (pnn, pnl) = let (pnn
+                        , v2') = modifyArr[Cogent_nna2
+                                          , U32
+                                          , CPtr U32
+                                          , _
+                                          , _] (pnn
+                                               , 1
+                                               , \(p0', ()) => (p0', p0')
+                                               , ())
+      in (pnn, mayNull[CPtr U32] v2')
+   in ((), pnn, pnl)
 cogent_fn74nn : ( Cogent_nna2, CPtr U32 ) -> ( U32, Cogent_nna2, CPtr U32 )
 cogent_fn74nn (pnn, qnn) =
-   (let (_
-        , qnn) = modifyArr[Cogent_nna2
-                          , U32
-                          , CPtr U32
-                          , _
-                          , _] (pnn
-                               , 1
-                               , \(p0', ()) => (p0', p0')
-                               , ())
-   in getPtr[(CPtr U32)!, U32] qnn
-   , let (pnn
-         , _) = modifyArr[Cogent_nna2
-                         , U32
-                         , CPtr U32
-                         , _
-                         , _] (pnn
-                              , 1
-                              , \(p0', ()) => (p0', p0')
-                              , ())
-   in pnn
-   , let (_
-         , qnn) = modifyArr[Cogent_nna2
-                           , U32
-                           , CPtr U32
-                           , _
-                           , _] (pnn
-                                , 1
-                                , \(p0', ()) => (p0', p0')
-                                , ())
-   in qnn)
+   let (pnn, qnn, r') = let (pnn
+                            , qnn) = modifyArr[Cogent_nna2
+                                              , U32
+                                              , CPtr U32
+                                              , _
+                                              , _] (pnn
+                                                   , 1
+                                                   , \(p0', ()) => (p0', p0')
+                                                   , ())
+      in (pnn
+         , qnn
+         , getPtr[(CPtr U32)!, U32] qnn)
+   in (r', pnn, qnn)
 cogent_fn75nl : ( Cogent_nna2, MayNull (CPtr U32), U32 ) -> ( U32, Cogent_nna2, MayNull (CPtr U32) )
 cogent_fn75nl (pnn, qnl, i) =
    let (r'
@@ -375,31 +318,21 @@ cogent_fn75nl (pnn, qnl, i) =
    in (r', pnn, qnl)
 cogent_fn75nn : ( Cogent_nna2, CPtr U32, U32 ) -> ( U32, Cogent_nna2, CPtr U32 )
 cogent_fn75nn (pnn, qnn, i) =
-   (cogent_fcnn (if i /= 0
-      then let (_
-               , v4') = modifyArr[Cogent_nna2
-                                 , U32
-                                 , CPtr U32
-                                 , _
-                                 , _] (pnn
-                                      , 1
-                                      , \(p0', ()) => (p0', p0')
-                                      , ())
-         in v4'
-      else qnn)
-   , if i /= 0
-   then let (pnn
-            , _) = modifyArr[Cogent_nna2
-                            , U32
-                            , CPtr U32
-                            , _
-                            , _] (pnn
-                                 , 1
-                                 , \(p0', ()) => (p0', p0')
-                                 , ())
-      in pnn
-   else pnn
-   , qnn)
+   let (r', pnn) = let (v6'
+                       , pnn) = if i /= 0
+         then let (pnn
+                  , v4') = modifyArr[Cogent_nna2
+                                    , U32
+                                    , CPtr U32
+                                    , _
+                                    , _] (pnn
+                                         , 1
+                                         , \(p0', ()) => (p0', p0')
+                                         , ())
+            in (v4', pnn)
+         else (qnn, pnn)
+      in (cogent_fcnn v6', pnn)
+   in (r', pnn, qnn)
 
 -- Probe used by accessing an array element
 cogent_fn81nn : Cogent_nna1 -> ( U32, Cogent_nna1 )
@@ -548,12 +481,12 @@ cogent_gn52nn pnn =
    in (r', pnn)
 cogent_gn53nl : ( Struct_Cogent_nns1, GlobState1 ) -> ( (), Struct_Cogent_nns1, GlobState1 )
 cogent_gn53nl (pnn, g) =
-   (()
-   , let pnn { mnl = p0' } = pnn
-   in pnn { mnl = p0' }
-   , let pnn { mnl = p0' } = pnn
-   and g { cont = _ } = g
-   in g { cont = p0' })
+   let (pnn
+       , g) = let pnn { mnl = p0' } = pnn
+      and g { cont = _ } = g
+      in (pnn { mnl = p0' }
+         , g { cont = p0' })
+   in ((), pnn, g)
 cogent_gn53nn : ( Struct_Cogent_nns1, GlobState2 ) -> ( (), Struct_Cogent_nns1, GlobState2 )
 cogent_gn53nn (pnn, g) =
    (()
@@ -563,11 +496,10 @@ cogent_gn53nn (pnn, g) =
    in g { cont = gencotDummy "MayNull expression used in not-null context" })
 cogent_gn54nl : ( Struct_Cogent_nns1, MayNull (CPtr U32) ) -> ( (), Struct_Cogent_nns1, MayNull (CPtr U32) )
 cogent_gn54nl (pnn, pnl) =
-   (()
-   , let pnn { mnl = p0' } = pnn
-   in pnn { mnl = p0' }
-   , let pnn { mnl = p0' } = pnn
-   in p0')
+   let (pnn
+       , pnl) = let pnn { mnl = p0' } = pnn
+      in (pnn { mnl = p0' }, p0')
+   in ((), pnn, pnl)
 cogent_gn54nn : ( Struct_Cogent_nns1, CPtr U32 ) -> ( U32, Struct_Cogent_nns1, CPtr U32 )
 cogent_gn54nn (pnn, qnn) =
    (getPtr[(CPtr U32)!
@@ -654,28 +586,18 @@ cogent_gn72nn pnn =
    in (r', pnn)
 cogent_gn73nl : ( Cogent_nna3, GlobState1 ) -> ( (), Cogent_nna3, GlobState1 )
 cogent_gn73nl (pnn, g) =
-   (()
-   , let (pnn
-         , _) = modifyArr[Cogent_nna3
-                         , U32
-                         , MayNull (CPtr U32)
-                         , _
-                         , _] (pnn
-                              , 1
-                              , \(p0', ()) => (p0', p0')
-                              , ())
-   in pnn
-   , let (_
-         , v2') = modifyArr[Cogent_nna3
-                           , U32
-                           , MayNull (CPtr U32)
-                           , _
-                           , _] (pnn
-                                , 1
-                                , \(p0', ()) => (p0', p0')
-                                , ())
-   and g { cont = _ } = g
-   in g { cont = v2' })
+   let (pnn, g) = let (pnn
+                      , v2') = modifyArr[Cogent_nna3
+                                        , U32
+                                        , MayNull (CPtr U32)
+                                        , _
+                                        , _] (pnn
+                                             , 1
+                                             , \(p0', ()) => (p0', p0')
+                                             , ())
+      and g { cont = _ } = g
+      in (pnn, g { cont = v2' })
+   in ((), pnn, g)
 cogent_gn73nn : ( Cogent_nna3, GlobState2 ) -> ( (), Cogent_nna3, GlobState2 )
 cogent_gn73nn (pnn, g) =
    (()
@@ -879,15 +801,13 @@ cogent_tn22nl (pnl, qnl, qnn) =
    , qnn)
 cogent_tn22nn : ( MayNull (CPtr U32), MayNull (CPtr U32), CPtr U32 ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32), CPtr U32 )
 cogent_tn22nn (pnn, qnl, qnn) =
-   (getPtr[(CPtr U32)!
-          , U32] (notNull[CPtr U32] qnl
-      | Nothing -> qnn
-      | Some qnl -> qnl)
-   , notNull[CPtr U32] qnl
-   | Nothing -> qnn
-   | Some qnl -> qnl
-   , qnl
-   , qnn)
+   let (pnn
+       , r') = let pnn = notNull[CPtr U32] qnl
+         | Nothing -> qnn
+         | Some qnl -> qnl
+      in (pnn
+         , getPtr[(CPtr U32)!, U32] pnn)
+   in (r', pnn, qnl, qnn)
 
 -- Probe returned as result
 cogent_tn31nl : ( MayNull (CPtr U32), CPtr U32 ) -> ( MayNull (CPtr U32), MayNull (CPtr U32), CPtr U32 )
@@ -946,26 +866,17 @@ cogent_tn52nn pnn =
    in (r', pnn)
 cogent_tn53nl : ( Struct_Cogent_nns1, GlobState1 ) -> ( (), Struct_Cogent_nns1, GlobState1 )
 cogent_tn53nl (pnn, g) =
-   (()
-   , let (_
-         , pnn) = let pnn { mnl = p0' } = pnn
-      in notNull[CPtr U32] p0'
-         | Nothing -> let pnn { mnn = p2' } = pnn { mnl = p0' }
-            in (mayNull[CPtr U32] p2'
-               , pnn { mnn = p2' })
-         | Some p0' -> let pnn { mnl = p1' } = pnn { mnl = p0' }
-            in (p1', pnn { mnl = p1' })
-   in pnn
-   , let (v6'
-         , _) = let pnn { mnl = p0' } = pnn
-      in notNull[CPtr U32] p0'
-         | Nothing -> let pnn { mnn = p2' } = pnn { mnl = p0' }
-            in (mayNull[CPtr U32] p2'
-               , pnn { mnn = p2' })
-         | Some p0' -> let pnn { mnl = p1' } = pnn { mnl = p0' }
-            in (p1', pnn { mnl = p1' })
-   and g { cont = _ } = g
-   in g { cont = v6' })
+   let (pnn, g) = let (v6'
+                      , pnn) = let pnn { mnl = p0' } = pnn
+         in notNull[CPtr U32] p0'
+            | Nothing -> let pnn { mnn = p2' } = pnn { mnl = p0' }
+               in (mayNull[CPtr U32] p2'
+                  , pnn { mnn = p2' })
+            | Some p0' -> let pnn { mnl = p1' } = pnn { mnl = p0' }
+               in (p1', pnn { mnl = p1' })
+      and g { cont = _ } = g
+      in (pnn, g { cont = v6' })
+   in ((), pnn, g)
 cogent_tn53nn : ( Struct_Cogent_nns1, GlobState2 ) -> ( (), Struct_Cogent_nns1, GlobState2 )
 cogent_tn53nn (pnn, g) =
    (()
@@ -982,25 +893,16 @@ cogent_tn53nn (pnn, g) =
    in g { cont = gencotDummy "MayNull expression used in not-null context" })
 cogent_tn54nl : ( Struct_Cogent_nns1, MayNull (CPtr U32) ) -> ( (), Struct_Cogent_nns1, MayNull (CPtr U32) )
 cogent_tn54nl (pnn, pnl) =
-   (()
-   , let (_
-         , pnn) = let pnn { mnl = p0' } = pnn
-      in notNull[CPtr U32] p0'
-         | Nothing -> let pnn { mnn = p2' } = pnn { mnl = p0' }
-            in (mayNull[CPtr U32] p2'
-               , pnn { mnn = p2' })
-         | Some p0' -> let pnn { mnl = p1' } = pnn { mnl = p0' }
-            in (p1', pnn { mnl = p1' })
-   in pnn
-   , let (v6'
-         , _) = let pnn { mnl = p0' } = pnn
-      in notNull[CPtr U32] p0'
-         | Nothing -> let pnn { mnn = p2' } = pnn { mnl = p0' }
-            in (mayNull[CPtr U32] p2'
-               , pnn { mnn = p2' })
-         | Some p0' -> let pnn { mnl = p1' } = pnn { mnl = p0' }
-            in (p1', pnn { mnl = p1' })
-   in v6')
+   let (pnn, pnl) = let (v6'
+                        , pnn) = let pnn { mnl = p0' } = pnn
+         in notNull[CPtr U32] p0'
+            | Nothing -> let pnn { mnn = p2' } = pnn { mnl = p0' }
+               in (mayNull[CPtr U32] p2'
+                  , pnn { mnn = p2' })
+            | Some p0' -> let pnn { mnl = p1' } = pnn { mnl = p0' }
+               in (p1', pnn { mnl = p1' })
+      in (pnn, v6')
+   in ((), pnn, pnl)
 cogent_tn54nn : ( Struct_Cogent_nns1, CPtr U32 ) -> ( U32, Struct_Cogent_nns1, CPtr U32 )
 cogent_tn54nn (pnn, qnn) =
    (getPtr[(CPtr U32)!
@@ -1157,54 +1059,33 @@ cogent_tn72nn pnn =
       , pnn)
 cogent_tn73nl : ( Cogent_nna3, GlobState1 ) -> ( (), Cogent_nna3, GlobState1 )
 cogent_tn73nl (pnn, g) =
-   (()
-   , let (_, pnn) = let (pnn
-                        , p0') = modifyArr[Cogent_nna3
-                                          , U32
-                                          , MayNull (CPtr U32)
-                                          , _
-                                          , _] (pnn
-                                               , 1
-                                               , \(p0', ()) => (p0', p0')
-                                               , ())
-      in notNull[CPtr U32] p0'
-         | Nothing -> (mayNull[CPtr U32] (cogent_globnn ())
-                      , pnn)
-         | Some p0' -> let (pnn
-                           , v5') = modifyArr[Cogent_nna3
-                                             , U32
-                                             , MayNull (CPtr U32)
-                                             , _
-                                             , _] (pnn
-                                                  , 1
-                                                  , \(p1', ()) => (p1', p1')
-                                                  , ())
-            in (v5', pnn)
-   in pnn
-   , let (v7', _) = let (pnn
-                        , p0') = modifyArr[Cogent_nna3
-                                          , U32
-                                          , MayNull (CPtr U32)
-                                          , _
-                                          , _] (pnn
-                                               , 1
-                                               , \(p0', ()) => (p0', p0')
-                                               , ())
-      in notNull[CPtr U32] p0'
-         | Nothing -> (mayNull[CPtr U32] (cogent_globnn ())
-                      , pnn)
-         | Some p0' -> let (pnn
-                           , v5') = modifyArr[Cogent_nna3
-                                             , U32
-                                             , MayNull (CPtr U32)
-                                             , _
-                                             , _] (pnn
-                                                  , 1
-                                                  , \(p1', ()) => (p1', p1')
-                                                  , ())
-            in (v5', pnn)
-   and g { cont = _ } = g
-   in g { cont = v7' })
+   let (pnn, g) = let (v7'
+                      , pnn) = let (pnn
+                                   , p0') = modifyArr[Cogent_nna3
+                                                     , U32
+                                                     , MayNull (CPtr U32)
+                                                     , _
+                                                     , _] (pnn
+                                                          , 1
+                                                          , \(p0', ()) => (p0'
+                                                                          , p0')
+                                                          , ())
+         in notNull[CPtr U32] p0'
+            | Nothing -> (mayNull[CPtr U32] (cogent_globnn ())
+                         , pnn)
+            | Some p0' -> let (pnn
+                              , v5') = modifyArr[Cogent_nna3
+                                                , U32
+                                                , MayNull (CPtr U32)
+                                                , _
+                                                , _] (pnn
+                                                     , 1
+                                                     , \(p1', ()) => (p1', p1')
+                                                     , ())
+               in (v5', pnn)
+      and g { cont = _ } = g
+      in (pnn, g { cont = v7' })
+   in ((), pnn, g)
 cogent_tn73nn : ( Cogent_nna3, GlobState2 ) -> ( (), Cogent_nna3, GlobState2 )
 cogent_tn73nn (pnn, g) =
    (()
@@ -1235,53 +1116,32 @@ cogent_tn73nn (pnn, g) =
    in g { cont = gencotDummy "MayNull expression used in not-null context" })
 cogent_tn74nl : ( Cogent_nna3, MayNull (CPtr U32) ) -> ( (), Cogent_nna3, MayNull (CPtr U32) )
 cogent_tn74nl (pnn, pnl) =
-   (()
-   , let (_, pnn) = let (pnn
-                        , p0') = modifyArr[Cogent_nna3
-                                          , U32
-                                          , MayNull (CPtr U32)
-                                          , _
-                                          , _] (pnn
-                                               , 1
-                                               , \(p0', ()) => (p0', p0')
-                                               , ())
-      in notNull[CPtr U32] p0'
-         | Nothing -> (mayNull[CPtr U32] (cogent_globnn ())
-                      , pnn)
-         | Some p0' -> let (pnn
-                           , v5') = modifyArr[Cogent_nna3
-                                             , U32
-                                             , MayNull (CPtr U32)
-                                             , _
-                                             , _] (pnn
-                                                  , 1
-                                                  , \(p1', ()) => (p1', p1')
-                                                  , ())
-            in (v5', pnn)
-   in pnn
-   , let (v7', _) = let (pnn
-                        , p0') = modifyArr[Cogent_nna3
-                                          , U32
-                                          , MayNull (CPtr U32)
-                                          , _
-                                          , _] (pnn
-                                               , 1
-                                               , \(p0', ()) => (p0', p0')
-                                               , ())
-      in notNull[CPtr U32] p0'
-         | Nothing -> (mayNull[CPtr U32] (cogent_globnn ())
-                      , pnn)
-         | Some p0' -> let (pnn
-                           , v5') = modifyArr[Cogent_nna3
-                                             , U32
-                                             , MayNull (CPtr U32)
-                                             , _
-                                             , _] (pnn
-                                                  , 1
-                                                  , \(p1', ()) => (p1', p1')
-                                                  , ())
-            in (v5', pnn)
-   in v7')
+   let (pnn, pnl) = let (v7'
+                        , pnn) = let (pnn
+                                     , p0') = modifyArr[Cogent_nna3
+                                                       , U32
+                                                       , MayNull (CPtr U32)
+                                                       , _
+                                                       , _] (pnn
+                                                            , 1
+                                                            , \(p0', ()) => (p0'
+                                                                            , p0')
+                                                            , ())
+         in notNull[CPtr U32] p0'
+            | Nothing -> (mayNull[CPtr U32] (cogent_globnn ())
+                         , pnn)
+            | Some p0' -> let (pnn
+                              , v5') = modifyArr[Cogent_nna3
+                                                , U32
+                                                , MayNull (CPtr U32)
+                                                , _
+                                                , _] (pnn
+                                                     , 1
+                                                     , \(p1', ()) => (p1', p1')
+                                                     , ())
+               in (v5', pnn)
+      in (pnn, v7')
+   in ((), pnn, pnl)
 cogent_tn74nn : ( Cogent_nna3, CPtr U32 ) -> ( U32, Cogent_nna3, CPtr U32 )
 cogent_tn74nn (pnn, qnn) =
    (getPtr[(CPtr U32)!
@@ -1538,29 +1398,18 @@ cogent_sn22nl (pnl, qnl) =
    , qnl)
 cogent_sn22nn : ( MayNull (CPtr U32), MayNull (CPtr U32) ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32) )
 cogent_sn22nn (pnn, qnl) =
-   (let (c'
-        , _) = notNull[CPtr U32] qnl
-      | Nothing -> (0, pnn)
-      | Some qnl -> (0
-                    , mayNull[CPtr U32] qnl)
-   in if c' > 0
-      then r'
-      else let (r'
-               , ()) = (gencotDummy "Dereferencing pointer which may be NULL"
-                       , ()) !pnn
-         in r'
-   , let (c'
-         , pnn) = notNull[CPtr U32] qnl
-      | Nothing -> (0, pnn)
-      | Some qnl -> (0
-                    , mayNull[CPtr U32] qnl)
-   in if c' > 0
-      then pnn
-      else let (r'
-               , ()) = (gencotDummy "Dereferencing pointer which may be NULL"
-                       , ()) !pnn
-         in pnn
-   , qnl)
+   let (pnn, r') = let (c'
+                       , pnn) = notNull[CPtr U32] qnl
+         | Nothing -> (0, pnn)
+         | Some qnl -> (0
+                       , mayNull[CPtr U32] qnl)
+      in if c' > 0
+         then (pnn, r')
+         else let (r'
+                  , ()) = (gencotDummy "Dereferencing pointer which may be NULL"
+                          , ()) !pnn
+            in (pnn, r')
+   in (r', pnn, qnl)
 
 -- Probe returned as result
 cogent_sn31nl : ( MayNull (CPtr U32), CPtr U32 ) -> ( MayNull (CPtr U32), MayNull (CPtr U32), CPtr U32 )
@@ -1584,24 +1433,24 @@ cogent_sn51nl pnn =
    let (pnn
        , r') = let pnn { mnl = p0' } = pnn
       in notNull[CPtr U32] p0'
-         | Nothing -> (let pnn { mnn = p2' } = pnn { mnl = p0' }
-                      in pnn { mnn = p2' }
-                      , mayNull[CPtr U32] (let pnn { mnn = p2' } = pnn { mnl = p0' }
-                         in p2'))
-         | Some p0' -> (let pnn { mnl = p1' } = pnn { mnl = p0' }
-                       in pnn { mnl = p1' }
-                       , let pnn { mnl = p1' } = pnn { mnl = p0' }
-                       in p1')
+         | Nothing -> let (r'
+                          , pnn) = let pnn { mnn = p2' } = pnn { mnl = p0' }
+               in (p2', pnn { mnn = p2' })
+            in (pnn, mayNull[CPtr U32] r')
+         | Some p0' -> let (r'
+                           , pnn) = let pnn { mnl = p1' } = pnn { mnl = p0' }
+               in (p1', pnn { mnl = p1' })
+            in (pnn, r')
    in (r', pnn)
 cogent_sn51nn : Struct_Cogent_nns1 -> ( CPtr U32, Struct_Cogent_nns1 )
 cogent_sn51nn pnn =
    let (pnn
        , r') = let pnn { mnl = p0' } = pnn
       in notNull[CPtr U32] p0'
-         | Nothing -> (let pnn { mnn = p2' } = pnn { mnl = p0' }
-                      in pnn { mnn = p2' }
-                      , let pnn { mnn = p2' } = pnn { mnl = p0' }
-                      in p2')
+         | Nothing -> let (r'
+                          , pnn) = let pnn { mnn = p2' } = pnn { mnl = p0' }
+               in (p2', pnn { mnn = p2' })
+            in (pnn, r')
          | Some p0' -> (let pnn { mnl = p1' } = pnn { mnl = p0' }
                        in pnn { mnl = p1' }
                        , gencotDummy "MayNull expression used in not-null context")
@@ -1613,10 +1462,11 @@ cogent_sn52nl pnn =
       in notNull[CPtr U32] p0'
          | Nothing -> (pnn { mnl = p0' }
                       , 0)
-         | Some p0' -> (let pnn { mnl = p1' } = pnn { mnl = p0' }
-                       in pnn { mnl = p1' }
-                       , let pnn { mnl = p1' } = pnn { mnl = p0' }
-                       in cogent_fcnl p1')
+         | Some p0' -> let (r'
+                           , pnn) = let pnn { mnl = p1' } = pnn { mnl = p0' }
+               in (cogent_fcnl p1'
+                  , pnn { mnl = p1' })
+            in (pnn, r')
    in (r', pnn)
 cogent_sn52nn : Struct_Cogent_nns1 -> ( U32, Struct_Cogent_nns1 )
 cogent_sn52nn pnn =
@@ -1662,60 +1512,25 @@ cogent_sn54nl (pnn, pnl) =
    in ((), pnn, pnl)
 cogent_sn54nn : ( Struct_Cogent_nns1, CPtr U32 ) -> ( U32, Struct_Cogent_nns1, CPtr U32 )
 cogent_sn54nn (pnn, qnn) =
-   (let (c'
-        , _
-        , _) = let pnn { mnl = p0' } = pnn
-      in notNull[CPtr U32] p0'
-         | Nothing -> (0
-                      , pnn { mnl = p0' }
-                      , qnn)
-         | Some p0' -> let pnn { mnl = p1' } = pnn { mnl = p0' }
-            in (0
-               , pnn { mnl = p1' }
-               , gencotDummy "MayNull expression used in not-null context")
-   in if c' > 0
-      then r'
-      else let (r'
-               , ()) = (getPtr[(CPtr U32)!
-                              , U32] qnn
-                       , ()) !qnn
-         in r'
-   , let (c'
-         , pnn
-         , _) = let pnn { mnl = p0' } = pnn
-      in notNull[CPtr U32] p0'
-         | Nothing -> (0
-                      , pnn { mnl = p0' }
-                      , qnn)
-         | Some p0' -> let pnn { mnl = p1' } = pnn { mnl = p0' }
-            in (0
-               , pnn { mnl = p1' }
-               , gencotDummy "MayNull expression used in not-null context")
-   in if c' > 0
-      then pnn
-      else let (r'
-               , ()) = (getPtr[(CPtr U32)!
-                              , U32] qnn
-                       , ()) !qnn
-         in pnn
-   , let (c'
-         , _
-         , qnn) = let pnn { mnl = p0' } = pnn
-      in notNull[CPtr U32] p0'
-         | Nothing -> (0
-                      , pnn { mnl = p0' }
-                      , qnn)
-         | Some p0' -> let pnn { mnl = p1' } = pnn { mnl = p0' }
-            in (0
-               , pnn { mnl = p1' }
-               , gencotDummy "MayNull expression used in not-null context")
-   in if c' > 0
-      then qnn
-      else let (r'
-               , ()) = (getPtr[(CPtr U32)!
-                              , U32] qnn
-                       , ()) !qnn
-         in qnn)
+   let (pnn, qnn, r') = let (c'
+                            , pnn
+                            , qnn) = let pnn { mnl = p0' } = pnn
+         in notNull[CPtr U32] p0'
+            | Nothing -> (0
+                         , pnn { mnl = p0' }
+                         , qnn)
+            | Some p0' -> let pnn { mnl = p1' } = pnn { mnl = p0' }
+               in (0
+                  , pnn { mnl = p1' }
+                  , gencotDummy "MayNull expression used in not-null context")
+      in if c' > 0
+         then (pnn, qnn, r')
+         else let (r'
+                  , ()) = (getPtr[(CPtr U32)!
+                                 , U32] qnn
+                          , ()) !qnn
+            in (pnn, qnn, r')
+   in (r', pnn, qnn)
 cogent_sn55nl : ( Struct_Cogent_nns1, MayNull (CPtr U32), U32 ) -> ( U32, Struct_Cogent_nns1, MayNull (CPtr U32) )
 cogent_sn55nl (pnn, qnl, i) =
    let (()
@@ -1778,26 +1593,20 @@ cogent_sn71nl pnn =
       in notNull[CPtr U32] p0'
          | Nothing -> (pnn
                       , mayNull[CPtr U32] (cogent_globnn ()))
-         | Some p0' -> (let (pnn
-                            , _) = modifyArr[Cogent_nna3
-                                            , U32
-                                            , MayNull (CPtr U32)
-                                            , _
-                                            , _] (pnn
-                                                 , 1
-                                                 , \(p1', ()) => (p1', p1')
-                                                 , ())
-                       in pnn
-                       , let (_
-                             , v5') = modifyArr[Cogent_nna3
-                                               , U32
-                                               , MayNull (CPtr U32)
-                                               , _
-                                               , _] (pnn
-                                                    , 1
-                                                    , \(p1', ()) => (p1', p1')
-                                                    , ())
-                       in v5')
+         | Some p0' -> let (r'
+                           , pnn) = let (pnn
+                                        , v5') = modifyArr[Cogent_nna3
+                                                          , U32
+                                                          , MayNull (CPtr U32)
+                                                          , _
+                                                          , _] (pnn
+                                                               , 1
+                                                               , \(p1'
+                                                                  , ()) => (p1'
+                                                                           , p1')
+                                                               , ())
+               in (v5', pnn)
+            in (pnn, r')
    in (r', pnn)
 cogent_sn71nn : Cogent_nna3 -> ( CPtr U32, Cogent_nna3 )
 cogent_sn71nn pnn =
@@ -1838,26 +1647,20 @@ cogent_sn72nl pnn =
                                               , ())
       in notNull[CPtr U32] p0'
          | Nothing -> (pnn, 0)
-         | Some p0' -> (let (pnn
-                            , _) = modifyArr[Cogent_nna3
-                                            , U32
-                                            , MayNull (CPtr U32)
-                                            , _
-                                            , _] (pnn
-                                                 , 1
-                                                 , \(p1', ()) => (p1', p1')
-                                                 , ())
-                       in pnn
-                       , let (_
-                             , v6') = modifyArr[Cogent_nna3
-                                               , U32
-                                               , MayNull (CPtr U32)
-                                               , _
-                                               , _] (pnn
-                                                    , 1
-                                                    , \(p1', ()) => (p1', p1')
-                                                    , ())
-                       in cogent_fcnl v6')
+         | Some p0' -> let (r'
+                           , pnn) = let (pnn
+                                        , v6') = modifyArr[Cogent_nna3
+                                                          , U32
+                                                          , MayNull (CPtr U32)
+                                                          , _
+                                                          , _] (pnn
+                                                               , 1
+                                                               , \(p1'
+                                                                  , ()) => (p1'
+                                                                           , p1')
+                                                               , ())
+               in (cogent_fcnl v6', pnn)
+            in (pnn, r')
    in (r', pnn)
 cogent_sn72nn : Cogent_nna3 -> ( U32, Cogent_nna3 )
 cogent_sn72nn pnn =
@@ -1945,96 +1748,41 @@ cogent_sn74nl (pnn, pnl) =
    in ((), pnn, pnl)
 cogent_sn74nn : ( Cogent_nna3, CPtr U32 ) -> ( U32, Cogent_nna3, CPtr U32 )
 cogent_sn74nn (pnn, qnn) =
-   (let (c', _, _) = let (pnn
-                         , p0') = modifyArr[Cogent_nna3
-                                           , U32
-                                           , MayNull (CPtr U32)
-                                           , _
-                                           , _] (pnn
-                                                , 1
-                                                , \(p0', ()) => (p0', p0')
-                                                , ())
-      in notNull[CPtr U32] p0'
-         | Nothing -> (0, pnn, qnn)
-         | Some p0' -> let (pnn
-                           , _) = modifyArr[Cogent_nna3
-                                           , U32
-                                           , MayNull (CPtr U32)
-                                           , _
-                                           , _] (pnn
-                                                , 1
-                                                , \(p1', ()) => (p1', ())
-                                                , ())
-            in (0
-               , pnn
-               , gencotDummy "MayNull expression used in not-null context")
-   in if c' > 0
-      then r'
-      else let (r'
-               , ()) = (getPtr[(CPtr U32)!
-                              , U32] qnn
-                       , ()) !qnn
-         in r'
-   , let (c', pnn, _) = let (pnn
-                            , p0') = modifyArr[Cogent_nna3
+   let (pnn, qnn, r') = let (c'
+                            , pnn
+                            , qnn) = let (pnn
+                                         , p0') = modifyArr[Cogent_nna3
+                                                           , U32
+                                                           , MayNull (CPtr U32)
+                                                           , _
+                                                           , _] (pnn
+                                                                , 1
+                                                                , \(p0'
+                                                                   , ()) => (p0'
+                                                                            , p0')
+                                                                , ())
+         in notNull[CPtr U32] p0'
+            | Nothing -> (0, pnn, qnn)
+            | Some p0' -> let (pnn
+                              , _) = modifyArr[Cogent_nna3
                                               , U32
                                               , MayNull (CPtr U32)
                                               , _
                                               , _] (pnn
                                                    , 1
-                                                   , \(p0', ()) => (p0', p0')
+                                                   , \(p1', ()) => (p1', ())
                                                    , ())
-      in notNull[CPtr U32] p0'
-         | Nothing -> (0, pnn, qnn)
-         | Some p0' -> let (pnn
-                           , _) = modifyArr[Cogent_nna3
-                                           , U32
-                                           , MayNull (CPtr U32)
-                                           , _
-                                           , _] (pnn
-                                                , 1
-                                                , \(p1', ()) => (p1', ())
-                                                , ())
-            in (0
-               , pnn
-               , gencotDummy "MayNull expression used in not-null context")
-   in if c' > 0
-      then pnn
-      else let (r'
-               , ()) = (getPtr[(CPtr U32)!
-                              , U32] qnn
-                       , ()) !qnn
-         in pnn
-   , let (c', _, qnn) = let (pnn
-                            , p0') = modifyArr[Cogent_nna3
-                                              , U32
-                                              , MayNull (CPtr U32)
-                                              , _
-                                              , _] (pnn
-                                                   , 1
-                                                   , \(p0', ()) => (p0', p0')
-                                                   , ())
-      in notNull[CPtr U32] p0'
-         | Nothing -> (0, pnn, qnn)
-         | Some p0' -> let (pnn
-                           , _) = modifyArr[Cogent_nna3
-                                           , U32
-                                           , MayNull (CPtr U32)
-                                           , _
-                                           , _] (pnn
-                                                , 1
-                                                , \(p1', ()) => (p1', ())
-                                                , ())
-            in (0
-               , pnn
-               , gencotDummy "MayNull expression used in not-null context")
-   in if c' > 0
-      then qnn
-      else let (r'
-               , ()) = (getPtr[(CPtr U32)!
-                              , U32] qnn
-                       , ()) !qnn
-         in qnn)
+               in (0
+                  , pnn
+                  , gencotDummy "MayNull expression used in not-null context")
+      in if c' > 0
+         then (pnn, qnn, r')
+         else let (r'
+                  , ()) = (getPtr[(CPtr U32)!
+                                 , U32] qnn
+                          , ()) !qnn
+            in (pnn, qnn, r')
+   in (r', pnn, qnn)
 cogent_sn75nl : ( Cogent_nna3, MayNull (CPtr U32), U32 ) -> ( U32, Cogent_nna3, MayNull (CPtr U32) )
 cogent_sn75nl (pnn, qnl, i) =
    let (()
@@ -2167,12 +1915,12 @@ cogent_cn14 (pnl, i) =
          | Nothing -> (cogent_fcnl v16'
                       , null[] ())
          | Some pnl -> let pnl { cont = p0' } = pnl
+            and pnl = pnl { cont = p0' }
             in if p0' < 20
-               then
-                  (cogent_fcnn (pnl { cont = p0' })
-                  , mayNull[CPtr U32] (pnl { cont = p0' }))
+               then (cogent_fcnn pnl
+                    , mayNull[CPtr U32] pnl)
                else (cogent_fcnl v16'
-                    , mayNull[CPtr U32] (pnl { cont = p0' }))
+                    , mayNull[CPtr U32] pnl)
       else (cogent_fcnl v16', pnl)
 cogent_cn15 : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
 cogent_cn15 (pnl, i) =
@@ -2183,12 +1931,12 @@ cogent_cn15 (pnl, i) =
       | Some pnl -> if i > 5
          then
             let pnl { cont = p0' } = pnl
+            and pnl = pnl { cont = p0' }
             in if p0' < 20
-               then
-                  (cogent_fcnn (pnl { cont = p0' })
-                  , mayNull[CPtr U32] (pnl { cont = p0' }))
+               then (cogent_fcnn pnl
+                    , mayNull[CPtr U32] pnl)
                else (cogent_fcnl v16'
-                    , mayNull[CPtr U32] (pnl { cont = p0' }))
+                    , mayNull[CPtr U32] pnl)
          else (cogent_fcnl v16'
               , mayNull[CPtr U32] pnl)
 cogent_cn16 : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
@@ -2216,12 +1964,12 @@ cogent_cn18 (pnl, i) =
          | Nothing -> (cogent_fcnl v15'
                       , null[] ())
          | Some pnl -> let pnl { cont = p0' } = pnl
+            and pnl = pnl { cont = p0' }
             in if p0' < 20
                then (cogent_fcnl v15'
-                    , mayNull[CPtr U32] (pnl { cont = p0' }))
-               else
-                  (cogent_fcnn (pnl { cont = p0' })
-                  , mayNull[CPtr U32] (pnl { cont = p0' }))
+                    , mayNull[CPtr U32] pnl)
+               else (cogent_fcnn pnl
+                    , mayNull[CPtr U32] pnl)
 cogent_cn19 : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
 cogent_cn19 (pnl, i) =
    (if i > 5
@@ -2368,13 +2116,11 @@ cogent_cn34 (pnl, i) =
          then notNull[CPtr U32] pnl
             | Nothing -> (null[] (), r')
             | Some pnl -> let pnl { cont = p0' } = pnl
+               and pnl = pnl { cont = p0' }
                in if p0' < 20
-                  then
-                     (mayNull[CPtr U32] (pnl { cont = p0' })
-                     , cogent_fcnn (pnl { cont = p0' }))
-                  else
-                     (mayNull[CPtr U32] (pnl { cont = p0' })
-                     , r')
+                  then (mayNull[CPtr U32] pnl
+                       , cogent_fcnn pnl)
+                  else (mayNull[CPtr U32] pnl, r')
          else (pnl, r')
    in (r', pnl)
 cogent_cn35 : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
@@ -2386,13 +2132,11 @@ cogent_cn35 (pnl, i) =
          | Some pnl -> if i > 5
             then
                let pnl { cont = p0' } = pnl
+               and pnl = pnl { cont = p0' }
                in if p0' < 20
-                  then
-                     (mayNull[CPtr U32] (pnl { cont = p0' })
-                     , cogent_fcnn (pnl { cont = p0' }))
-                  else
-                     (mayNull[CPtr U32] (pnl { cont = p0' })
-                     , r')
+                  then (mayNull[CPtr U32] pnl
+                       , cogent_fcnn pnl)
+                  else (mayNull[CPtr U32] pnl, r')
             else (mayNull[CPtr U32] pnl, r')
    in (r', pnl)
 cogent_cn36 : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
@@ -2420,13 +2164,11 @@ cogent_cn38 (pnl, i) =
          else notNull[CPtr U32] pnl
             | Nothing -> (null[] (), r')
             | Some pnl -> let pnl { cont = p0' } = pnl
+               and pnl = pnl { cont = p0' }
                in if p0' < 20
-                  then
-                     (mayNull[CPtr U32] (pnl { cont = p0' })
-                     , r')
-                  else
-                     (mayNull[CPtr U32] (pnl { cont = p0' })
-                     , cogent_fcnn (pnl { cont = p0' }))
+                  then (mayNull[CPtr U32] pnl, r')
+                  else (mayNull[CPtr U32] pnl
+                       , cogent_fcnn pnl)
    in (r', pnl)
 cogent_cn39 : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
 cogent_cn39 (pnl, i) =

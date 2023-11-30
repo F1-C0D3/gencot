@@ -3,7 +3,7 @@
 {-# LANGUAGE PackageImports #-}
 module Gencot.Cogent.Output where
 
-import Cogent.Surface (TopLevel(FunDef), Expr(Tuple,TLApp), Pattern, IrrefutablePattern(PTuple), Type(TRecord,TTuple,TArray))
+import Cogent.Surface (TopLevel(FunDef), Expr(Tuple,TLApp,Put,ArrayPut), Pattern, IrrefutablePattern(PTuple), Type(TRecord,TTuple,TArray))
 import Cogent.Common.Syntax (VarName)
 import Cogent.Common.Types (Sigil(Unboxed),readonly)
 import Cogent.PrettyPrint
@@ -168,6 +168,11 @@ instance Pretty TrgExpr where
   pretty (TrgExpr e org (Just s)) = addOrig org ((prettyTrgRE e) <$> ((string . (TPM.pretty 2000) . pprCommented) s))
 
 prettyTrgRE :: (Expr TrgType TrgPatn TrgIrrefPatn () TrgExpr) -> Doc
+-- for TLApp suppress empty layout shown as {{}}
 prettyTrgRE (TLApp x ts ls note) = pretty note <> varname x
                                   <> typeargs (map (\case Nothing -> symbol "_"; Just t -> pretty t) ts)
+-- for Put and ArrayPut fix container precedence: change from 10 to 9 so that complex expressions are put in parentheses
+prettyTrgRE (ArrayPut e es) = prettyPrec 9 e <+> symbol "@"
+                            <> record (map (\(i,e) -> symbol "@" <> pretty i <+> symbol "=" <+> pretty e) es)
+prettyTrgRE (Put e fs)      = prettyPrec 9 e <+> record (map handlePutAssign fs)
 prettyTrgRE e = pretty e

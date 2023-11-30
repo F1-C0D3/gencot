@@ -13,7 +13,7 @@ import Cogent.Common.Types (readonly,unboxed,bangSigil,Sigil(Unboxed,Boxed),Recu
 import Gencot.Cogent.Ast -- includes unitType
 import Gencot.Origin (noOrigin)
 import Gencot.Names (
-  mapPtrDeriv, ptrDerivCompName, mapPtrVoid, mapMayNull, variadicTypeName, mapArrDeriv,
+  mapPtrDeriv, ptrDerivCompName, mapPtrVoid, mapMayNull, variadicTypeName, mapArrDeriv, heapType, ioType,
   isArrDeriv, isArrDerivComp, arrDerivCompNam, arrDerivHasSize, mapFunDeriv)
 
 -- Types used by Gencot in the Cogent AST
@@ -287,7 +287,8 @@ isUnitType _ = False
 isNonlinear :: GenType -> Bool
 isNonlinear (GenType (CS.TTuple ts) _ _) = all isNonlinear ts
 isNonlinear (GenType (CS.TCon tn [t] _) _ _) | tn == mapMayNull = isNonlinear t
-isNonlinear (GenType (CS.TCon tn _ sg) _ _) | (elem tn [mapPtrVoid, variadicTypeName]) || isArrDeriv tn = readonly sg || unboxed sg
+isNonlinear (GenType (CS.TCon tn _ sg) _ _) | (elem tn [mapPtrVoid, heapType, ioType, variadicTypeName]) || isArrDeriv tn =
+    readonly sg || unboxed sg
 isNonlinear (GenType (CS.TCon _ _ _) _ _) = True
 isNonlinear (GenType (CS.TRecord _ fs sg) _ _) = readonly sg || (unboxed sg && all (\(_,(t,tkn)) -> tkn || isNonlinear t) fs)
 isNonlinear (GenType (CS.TArray t _ Unboxed _) _ _) = isNonlinear t

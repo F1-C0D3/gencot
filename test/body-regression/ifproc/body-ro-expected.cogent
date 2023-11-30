@@ -923,28 +923,25 @@ cogent_bs11 : ( Struct_Cogent_ros1, U32 ) -> ( Struct_Cogent_ros1, Struct_Cogent
 cogent_bs11 (pln, i) =
    let pln { mrg = p0' } = pln
    and pln { mln = p1' } = pln { mrg = p0' }
-   in (pln { mln = p1' { cont = p0' } }
-      , pln { mln = p1' { cont = p0' } })
+   and pln = pln { mln = p1' { cont = p0' } }
+   in (pln, pln)
 cogent_bs12 : ( Struct_Cogent_ros1, (CPtr U32)!, U32 ) -> ( Struct_Cogent_ros1, Struct_Cogent_ros1 )
 cogent_bs12 (pln, qro, i) =
    let (v13'
        , ()) = (getPtr[(CPtr U32)!
                       , U32] pln.mln
                , ()) !pln
-   in (pln { mrg = v13' }
-      , pln { mrg = v13' })
+   and pln = pln { mrg = v13' }
+   in (pln, pln)
 cogent_bs13 : ( Struct_Cogent_ros1, (CPtr U32)!, CPtr U32 ) -> ( Struct_Cogent_ros1, Struct_Cogent_ros1, CPtr U32 )
 cogent_bs13 (pln, qro, i) =
    let (v14'
        , ()
-       , i) = (i { cont = getPtr[(CPtr U32)!
-                                , U32] pln.mln }
-              , ()
-              , i { cont = getPtr[(CPtr U32)!
-                                 , U32] pln.mln }) !pln
-   in (pln { mln = v14' }
-      , pln { mln = v14' }
-      , i)
+       , i) = (let i = i { cont = getPtr[(CPtr U32)!
+                                        , U32] pln.mln }
+         in (i, (), i)) !pln
+   and pln = pln { mln = v14' }
+   in (pln, pln, i)
 
 -- Direct use of NULL in context
 cogent_n11ln : () -> U32

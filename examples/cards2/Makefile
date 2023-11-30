@@ -3,11 +3,9 @@ UNIT=all
 HFILES = cards.h rank.h
 ifeq ($(UNIT), all)
 CFILES = main.c cards.c rank.c
-#EDITFILES = ed-cards.done ed-rank.done ed-main.done
 COGOFILES = $(UNIT).o
 else 
 CFILES = main.c rank.c
-#EDITFILES = ed-rank.done ed-main.done
 COGOFILES = $(UNIT).o cards.o
 endif
 
@@ -100,7 +98,7 @@ run-cogent-cards: cogent-cards
 	./cogent-cards
 
 clean:
-	-rm -f cards $(OFILES) $(UNIT).o
+	-rm -f cards $(OFILES) $(COGOFILES)
 	-rm -f $(COGSRC) $(UNIT)-external.items $(CFILES:.c=-entry.ac)
 	-rm -rf comments
 	-rm -f $(UNIT)-gen.c $(UNIT)-gen.h $(ACFILESPP) $(ACFILESINF) $(UNIT)-gencot.ac

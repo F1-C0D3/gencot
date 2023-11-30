@@ -10,7 +10,7 @@ cd ..
 echo "Running Example cards"
 echo "====================="
 cd cards
-make c
+make cogent-run
 make clean
 cd ..
 
@@ -19,7 +19,7 @@ echo "======================"
 cd cards2
 make UNIT=part cogent-run
 make UNIT=part clean
-make c
+make cogent-run
 make clean
 cd ..
 
@@ -33,10 +33,7 @@ cd ..
 echo "Running Example items"
 echo "====================="
 cd items
-make cogent
-make clean
-make props
-make cogent
+make cogent-run
 make clean
 cd ..
 

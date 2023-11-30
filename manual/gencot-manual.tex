@@ -662,13 +662,13 @@ To see how it works, go to \code{examples/items}. The file \code{items.h} contai
 which demonstrate the impact of default item properties. Translate this file with Gencot, as described in 
 Section~\ref{struct-include} (\code{make h-cogent}): 
 \begin{verbatim}
-  items -u part used
+  items -I. -u part used
   gencot -u part hfile items.h
 \end{verbatim}
 and save the resulting file \code{items-incl.cogent} as \code{items-incl-auto.cogent}. Now derive the default 
 properties for \code{items.h} with the command (\code{make h-props}):
 \begin{verbatim}
-  items -u part file items.h > items.h-itemprops
+  items -I. file items.h > items.h-itemprops
 \end{verbatim}
 and translate \code{items.h} again with the same command as above. 
 
@@ -707,7 +707,7 @@ property files have been provided with the example.)
 \label{types-dfltprops-addresult}
 
 The last two groups show a feature provided for function types: for all parameters translated to a linear type (i.e.~a
-a type which is or transitively accesses a pointer or array without \code{const} qualified base type) an additional
+type which is or transitively accesses a pointer or array without \code{const} qualified base type) an additional
 component is added to the result. It is assumed that such parameters will be modified by the function and the modified
 value must be explicitly returned in Cogent.
 
@@ -736,7 +736,7 @@ translated files are generated in file \code{all.unit-itemprops} with the comman
 \end{verbatim}
 
 For generating the additional Cogent sources with command \code{gencot unit} the file \code{all.unit-itemprops} must
-also contain properties for \code{all} items in all translated source files. These are provided by mergin all the files created 
+also contain properties for \textit{all} items in all translated source files. These are provided by merging all the files created
 before in \code{all.unit-itemprops}. Merging two item property files is done by 
 \begin{verbatim}
   items merge <f1>-itemprops <f2>-itemprops > <f3>-itemprops
@@ -760,6 +760,11 @@ Together, the commands for creating all required item property files are:
 Note that you cannot output the result of \code{items merge} directly to \code{all.unit-itemprops},
 this would clear the file before it is read.
 
+Additionally, the properties for the external items are required for translating all C files which use an external
+item, such as by invoking an external function. Since properties for unused items are ignored, the resulting
+file \code{all.unit-itemprops} can simply be copied to \code{foo.h-itemprops} and \code{foo.c-itemprops} for all
+C source files.
+
 \section{Manual Item Properties}
 \label{types-manprops}
 
@@ -780,15 +785,15 @@ an item without first constructing its pathname.
 \subsection{Example}
 \label{types-manprops-example}
 
-Open the file \code{items.h-itemprops} in a text editor. Add the \code{ro} property for the type item \code{intP\_t} and
-remove the \code{ar} property from the first parameter of the type item \code{funLinPar1\_t} (\code{make dflt-edit}). Then 
-remove \code{items-incl.cogent} and translate \code{items.h} once more. Now the Cogent type \code{Cogent\_intP\_t} will
+Open the file \code{items.h-itemprops} in a text editor. Add the \code{ro} property for the type item \code{int2P\_t} and
+remove the \code{ar} property from the first parameter of the type item \code{funLinPar1\_t} (\code{make dflt-edit}). Then
+remove \code{items-incl.cogent} and translate \code{items.h} once more. Now the Cogent type \code{Cogent\_int2P\_t} will
 be read-only and the Cogent type \code{Cogent\_funLinPar1\_t} will not have an additional result component anymore.
 
 In \code{examples/items} additionally
 generate the item property file for \code{items.c} with the command (\code{make c-props}):
 \begin{verbatim}
-  items -I. -u part file items.c > items.c-itemprops
+  items -I. file items.c > items.c-itemprops
 \end{verbatim}
 
 In file \code{items.c-itemprops} you can see how functions are identified as items. For static functions the file name where
@@ -797,19 +802,19 @@ is reused for static functions in different files.
 
 Next, generate the default property declarations for all used external items with the command (\code{make e-props}):
 \begin{verbatim}
-  items -I. -u part unit
+  items -I. -u part unit > part.unit-itemprops
 \end{verbatim}
 
-Look at the output. It lists entries for the items \code{allocArr} and \code{allocInt} defined in file \code{alloc.c} (which 
-are extern, because this file is not listed in \code{part.unit}) and for the item \code{printf} declared in the system
-include file. From the declaration of \code{printf} the properties for the first parameter are derived as usual. Note that,
+Look at the output file \code{part.unit-itemprops}. It lists entries for the items \code{allocArr} and \code{allocInt} defined in file \code{alloc.c} (which
+are extern, because this file is not listed in \code{part.unit}) and for the items \code{puts} and \code{putchar} declared in the system
+include file. From the declaration of \code{puts} the properties for the first parameter are derived as usual. Note that,
 as described in Section~\ref{struct-single} for the translation, only those external items are listed which are actually used in the 
 source files specified in \code{part.unit}.
 
 \subsection{Read-Only Property}
 \label{types-manprops-ro}
 
-The main application of manual read-only properties is the case where an item is actually not modified in the C program, 
+The main application of manual read-only properties is the case where an item is actually not modified in the C program,
 although it would be possible to do so according to its type. In this case a read-only property may be added to reflect
 the read-only behavior in the item's Cogent type.
 
@@ -854,11 +859,63 @@ remove \code{items-incl.cogent} and translate \code{items.h} once more. Now the 
 be defined as \code{(CArr U8)!} instead of \code{String} (as usual, the \code{MayNull} type is only applied to
 references to \code{Cogent\_charCP\_t}).
 
+\subsection{Input-Output and Heap-Use Properties}
+\label{types-manprops-glob}
+
+The input-output property is used to mark functions which perform input or output. It is never generated by Gencot and
+may be manually specified as \code{"io"}, such as in
+\begin{verbatim}
+  item-path-name: io
+\end{verbatim}
+It has the effect to add a parameter (usually named \code{io}) and a result component of type \code{SysState} to the function.
+
+In the same way the heap-use property is used to mark functions which modify the heap by allocating or freeing space
+on the heap. It may be manually specified as \code{hu} and has the effect to add a parameter (usually named \code{heap})
+and a result component of type \code{Heap} to the function.
+
+For items which are no functions both properties are ignored.
+
+A function which only performs input or output or modifies the heap does this as side-effect in C and has no result
+or the result may be ignored. If such a function is invoked in the body of another function Gencot would remove the
+invocation, because its result is not used. By adding the input-output property to both functions the additional \code{io}
+or \code{heap} parameter of the outer function is passed to the invoked function and the additional result of the invocation
+is returned as additional result of the outer function, thus preventing Gencot from removing the inner function invocation.
+
+In other words: the global system state which is implicitly modified by side effects in C is split in two parts which
+are made explicit by the input-output and the heap-use properties and are passed through all functions which are given
+these properties.
+
+In the example translate file \code{items.c} with Gencot, as described in
+Section~\ref{struct-include} (\code{make c-cogent}):
+\begin{verbatim}
+  gencot -I. -u part cfile items.c
+\end{verbatim}
+and look at the resulting file \code{items.cogent}. You will see that the generated functions \code{local\_items\_printAlloc}
+and \code{cogent\_main} are mostly empty, the invocations of \code{printf}, \code{printAlloc}, \code{allocInt}, and
+\code{allocArr} are no more present after the translation.
+
+Now add the input-output property to functions \code{main} and \code{printAlloc} (in file \code{items.c-itemprops}) and
+to function \code{printf} (in file \code{part.unit-itemprops}) and add the heap-use property to function \code{main}
+(in file \code{items.c-itemprops}) and to functions \code{allocInt} and \code{allocArr} (in file \code{part.unit-itemprops}).
+Additionally add the read-only property to the result of \code{allocInt} and \code{allocArr}. (\code{make glob-edit})
+
+Merge the item property files for the unit and for \code{items.c} (since it uses external items) (\code{make merge-props}):
+\begin{verbatim}
+  items merge part.unit-itemprops items.c-itemprops > iprops
+  items merge iprops items.h-itemprops > part.unit-itemprops
+  cp part.unit-itemprops items.c-itemprops
+\end{verbatim}
+
+Remove file \code{items.cogent} and translate \code{items.c} again with the command as above, ignore the four error messages
+and look at the resulting
+file \code{items.cogent}. Now the the generated functions \code{local\_items\_printAlloc} and \code{cogent\_main} have
+the additional parameters and result components and contain the expected invocations.
+
 \subsection{Not-Null Property}
 \label{types-manprops-nn}
 
-The not-null property is used to suppress the addition of Cogent type \code{MayNull} for translated pointer types (see 
-Section~\ref{types-auto-derived}). It is never generated by Gencot and may be manually specified as \code{"nn"}, such as in 
+The not-null property is used to suppress the addition of Cogent type \code{MayNull} for translated pointer types (see
+Section~\ref{types-auto-derived}). It is never generated by Gencot and may be manually specified as \code{"nn"}, such as in
 \begin{verbatim}
   item-path-name: nn
 \end{verbatim}
@@ -866,14 +923,62 @@ If the item has type \code{int *} it is translated to type \code{CPtr U32} inste
 For items which are no pointers the property is ignored.
 
 The not-null property can be used to express that an item's value is never \code{NULL} in the C program. A possible reason
-is that it is immediately initialized and every pointer to be assigned to it is tested to be not \code{NULL} before. 
+is that it is immediately initialized and every pointer to be assigned to it is tested to be not \code{NULL} before.
 Thus the not-null property is used to statically remember this fact for the item in Cogent with the help of the Cogent
 type.
 
-In the example, add the \code{nn} property for the struct member item \code{sphereC.center} (\code{make nn-edit}). Then 
-remove \code{items-incl.cogent} and translate \code{items.h} once more. Now the Cogent type of field \code{center} in
-the Cogent record type \code{Struct\_Cogent\_sphereC} will be \code{Cogent\_coord3dCP\_t!} instead of 
-\code{(MayNull Cogent\_coord3dCP\_t)!}.
+In the example, add the \code{nn} property for the results of \code{allocInt} and \code{allocArr} and for the first
+parameter \code{p1} of \code{printAlloc} in both files \code{items.c-itemprops} and \code{part.unit-itemprops}
+(\code{make nn-edit}). Then remove \code{items.cogent} and translate \code{items.c} again as in Section~\ref{types-manprops-glob}.
+Note that the four error messages ``Dereferencing pointer which may be NULL'' are not present any more. Look
+at file \code{items.cogent}. Now the type of the first parameter of \code{printAlloc} has changed from
+\code{(MayNull Cogent\_intCP\_t!)!} to \code{Cogent\_intCP\_t!}.
+
+\subsection{Continuing the Example}
+
+To verify that the Cogent files generated in the previous steps can actually be processed by the Cogent compiler to an
+executable program you may perform the following steps:
+
+\begin{description}
+\item[Step 2:] (make cogent)
+
+Generate the remaining files needed for the Cogent program, as described in Section~\ref{struct-single} using the
+command
+\begin{verbatim}
+  gencot -I. -u part unit
+\end{verbatim}
+
+\item[Step 3:] (make c)
+
+Process \code{part.cogent} by the Cogent compiler:
+\begin{verbatim}
+  cogent -o part-gen -g part.cogent \
+      --cogent-pp-args="-I$GENCOT_HOME/include" \
+      --infer-c-funcs="part-externs.ac items-entry.ac" \
+\end{verbatim}
+% use \textquotesingle here to allow copy-paste it to a shell.
+% The ' in verbatim is mapped to \textquoteright instead.
+\vspace*{-4mm}\hspace*{11mm}\code{-{}-cpp-args=\textquotesingle -x c \$CPPIN -o \$CPPOUT -P\textquotesingle}
+
+\vspace*{4mm}\noindent
+and postprocess by
+\begin{verbatim}
+  auxcog -I. -u part unit
+\end{verbatim}
+
+\item[Step 4:] (make cogent-run)
+
+Compile \code{all.c} and \code{alloc.c} with a C compiler to a binary \code{cogent-items}, such as in
+\begin{verbatim}
+  cc -o cogent-items -I. all.c alloc.c
+\end{verbatim}
+and run the resulting binary. It should behave in the same way as the original C program which you can compile
+and run with \code{make UNIT=all run}.
+
+\item[Step 5:] (make clean)
+
+Clean up all generated files.
+\end{description}
 
 \chapter{Preprocessor Directives}
 \label{directives}

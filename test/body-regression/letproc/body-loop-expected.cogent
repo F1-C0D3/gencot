@@ -630,293 +630,104 @@ cogent_lfe10 i =
 
 cogent_lfn1 : ( U32, MayNull (CPtr U32) ) -> ( U32, MayNull (CPtr U32) )
 cogent_lfn1 (i, j) =
-   (if (let (c'
-            , _
-            , _) = repeat[( U8, MayNull (CPtr U32), U32 )
-                         , ()] #{ n = 5
-                                , stop = \#{ acc = (c', j, i)
-                                           , obsv = () } => c' > 1
-                                , step = \#{ acc = (_, j, i)
-                                           , obsv = () } => let (c'
-                                                                , j) = notNull[CPtr U32] j
-                                   | Nothing -> (2, null[] ())
-                                   | Some j -> if i < 5
-                                      then (0
-                                           , mayNull[CPtr U32] (j { cont = 0 }))
-                                      else (2, mayNull[CPtr U32] j)
-                                in if c' > 1
-                                   then (c', j, i)
-                                   else (0, j, i + 1)
-                                , acc = (0, j, 0)
-                                , obsv = () }
-      in if c' == 2
-         then 0
-         else c') > 0
-   then r'
-   else let (_
-            , _
-            , i) = repeat[( U8, MayNull (CPtr U32), U32 )
-                         , ()] #{ n = 5
-                                , stop = \#{ acc = (c', j, i)
-                                           , obsv = () } => c' > 1
-                                , step = \#{ acc = (_, j, i)
-                                           , obsv = () } => let (c'
-                                                                , j) = notNull[CPtr U32] j
-                                   | Nothing -> (2, null[] ())
-                                   | Some j -> if i < 5
-                                      then (0
-                                           , mayNull[CPtr U32] (j { cont = 0 }))
-                                      else (2, mayNull[CPtr U32] j)
-                                in if c' > 1
-                                   then (c', j, i)
-                                   else (0, j, i + 1)
-                                , acc = (0, j, 0)
-                                , obsv = () }
-      in i
-   , if (let (c'
-             , _
-             , _) = repeat[( U8, MayNull (CPtr U32), U32 )
-                          , ()] #{ n = 5
-                                 , stop = \#{ acc = (c', j, i)
-                                            , obsv = () } => c' > 1
-                                 , step = \#{ acc = (_, j, i)
-                                            , obsv = () } => let (c'
-                                                                 , j) = notNull[CPtr U32] j
-                                    | Nothing -> (2, null[] ())
-                                    | Some j -> if i < 5
-                                       then (0
-                                            , mayNull[CPtr U32] (j { cont = 0 }))
-                                       else (2, mayNull[CPtr U32] j)
-                                 in if c' > 1
-                                    then (c', j, i)
-                                    else (0, j, i + 1)
-                                 , acc = (0, j, 0)
-                                 , obsv = () }
-      in if c' == 2
-         then 0
-         else c') > 0
-   then let (_
-            , j
-            , _) = repeat[( U8, MayNull (CPtr U32), U32 )
-                         , ()] #{ n = 5
-                                , stop = \#{ acc = (c', j, i)
-                                           , obsv = () } => c' > 1
-                                , step = \#{ acc = (_, j, i)
-                                           , obsv = () } => let (c'
-                                                                , j) = notNull[CPtr U32] j
-                                   | Nothing -> (2, null[] ())
-                                   | Some j -> if i < 5
-                                      then (0
-                                           , mayNull[CPtr U32] (j { cont = 0 }))
-                                      else (2, mayNull[CPtr U32] j)
-                                in if c' > 1
-                                   then (c', j, i)
-                                   else (0, j, i + 1)
-                                , acc = (0, j, 0)
-                                , obsv = () }
-      in j
-   else let (_
-            , j
-            , _) = repeat[( U8, MayNull (CPtr U32), U32 )
-                         , ()] #{ n = 5
-                                , stop = \#{ acc = (c', j, i)
-                                           , obsv = () } => c' > 1
-                                , step = \#{ acc = (_, j, i)
-                                           , obsv = () } => let (c'
-                                                                , j) = notNull[CPtr U32] j
-                                   | Nothing -> (2, null[] ())
-                                   | Some j -> if i < 5
-                                      then (0
-                                           , mayNull[CPtr U32] (j { cont = 0 }))
-                                      else (2, mayNull[CPtr U32] j)
-                                in if c' > 1
-                                   then (c', j, i)
-                                   else (0, j, i + 1)
-                                , acc = (0, j, 0)
-                                , obsv = () }
-      in j)
+   let (j, r') = let (c'
+                     , i
+                     , j) = let (c', j, i) = let (c'
+                                                 , j
+                                                 , i) = repeat[( U8, MayNull (CPtr U32), U32 )
+                                                              , ()] #{ n = 5
+                                                                     , stop = \#{ acc = (c'
+                                                                                        , j
+                                                                                        , i)
+                                                                                , obsv = () } => c' > 1
+                                                                     , step = \#{ acc = (_
+                                                                                        , j
+                                                                                        , i)
+                                                                                , obsv = () } => let (c'
+                                                                                                     , j) = notNull[CPtr U32] j
+                                                                        | Nothing -> (2
+                                                                                     , null[] ())
+                                                                        | Some j -> if i < 5
+                                                                           then
+                                                                              (0
+                                                                              , mayNull[CPtr U32] (j { cont = 0 }))
+                                                                           else
+                                                                              (2
+                                                                              , mayNull[CPtr U32] j)
+                                                                     in if c' > 1
+                                                                        then (c'
+                                                                             , j
+                                                                             , i)
+                                                                        else (0
+                                                                             , j
+                                                                             , i + 1)
+                                                                     , acc = (0
+                                                                             , j
+                                                                             , 0)
+                                                                     , obsv = () }
+            in (if c' == 2 then 0 else c'
+               , j
+               , i)
+         in (c', i, j)
+      in if c' > 0
+         then (j, r')
+         else (j, i)
+   in (r', j)
 
 type Cogent_lfa =
    CArr5 (MayNull (CPtr U32))
 cogent_lfn2 : Cogent_lfa -> ( U32, Cogent_lfa )
 cogent_lfn2 a =
-   if (let (c'
-           , _
-           , _
-           , _) = repeat[( U8, U32, Cogent_lfa, U32 )
-                        , ()] #{ n = 5
-                               , stop = \#{ acc = (c'
-                                                  , r'
-                                                  , a
-                                                  , i)
-                                          , obsv = () } => c' > 1
-                               , step = \#{ acc = (_, r', a, i)
-                                          , obsv = () } => let (c'
-                                                               , a
-                                                               , r') = if i < 5
-                                  then let (a
-                                           , p2') = modifyArr[Cogent_lfa
-                                                             , U32
-                                                             , MayNull (CPtr U32)
-                                                             , _
-                                                             , _] (a
-                                                                  , i
-                                                                  , \(p2'
-                                                                     , ()) => (p2'
-                                                                              , p2')
-                                                                  , ())
-                                     in notNull[CPtr U32] p2'
-                                        | Nothing -> (2, a, r')
-                                        | Some p2' -> (3
-                                                      , let (a
-                                                            , _) = modifyArr[Cogent_lfa
-                                                                            , U32
-                                                                            , MayNull (CPtr U32)
-                                                                            , _
-                                                                            , _] (a
-                                                                                 , i
-                                                                                 , \(p0'
-                                                                                    , ()) => (p0'
-                                                                                             , gencotDummy "Dereferencing pointer which may be NULL")
-                                                                                 , ())
-                                                      in a
-                                                      , let (_
-                                                            , v5') = modifyArr[Cogent_lfa
-                                                                              , U32
-                                                                              , MayNull (CPtr U32)
-                                                                              , _
-                                                                              , _] (a
-                                                                                   , i
-                                                                                   , \(p0'
-                                                                                      , ()) => (p0'
-                                                                                               , gencotDummy "Dereferencing pointer which may be NULL")
-                                                                                   , ())
-                                                      in v5')
-                                  else (2, a, r')
-                               in if c' > 1
-                                  then (c', r', a, i)
-                                  else (0, r', a, i + 1)
-                               , acc = (0, r', a, 0)
-                               , obsv = () }
-      in if c' == 2
-         then 0
-         else c') > 0
-   then let (_
-            , r'
-            , a
-            , _) = repeat[( U8, U32, Cogent_lfa, U32 )
-                         , ()] #{ n = 5
-                                , stop = \#{ acc = (c'
-                                                   , r'
-                                                   , a
-                                                   , i)
-                                           , obsv = () } => c' > 1
-                                , step = \#{ acc = (_, r', a, i)
-                                           , obsv = () } => let (c'
+   let (c', r', a) = let (c'
+                         , r'
+                         , a
+                         , _) = repeat[( U8, U32, Cogent_lfa, U32 )
+                                      , ()] #{ n = 5
+                                             , stop = \#{ acc = (c'
+                                                                , r'
                                                                 , a
-                                                                , r') = if i < 5
-                                   then let (a
-                                            , p2') = modifyArr[Cogent_lfa
-                                                              , U32
-                                                              , MayNull (CPtr U32)
-                                                              , _
-                                                              , _] (a
-                                                                   , i
-                                                                   , \(p2'
-                                                                      , ()) => (p2'
-                                                                               , p2')
-                                                                   , ())
-                                      in notNull[CPtr U32] p2'
-                                         | Nothing -> (2, a, r')
-                                         | Some p2' -> (3
-                                                       , let (a
-                                                             , _) = modifyArr[Cogent_lfa
-                                                                             , U32
-                                                                             , MayNull (CPtr U32)
-                                                                             , _
-                                                                             , _] (a
-                                                                                  , i
-                                                                                  , \(p0'
-                                                                                     , ()) => (p0'
-                                                                                              , gencotDummy "Dereferencing pointer which may be NULL")
-                                                                                  , ())
-                                                       in a
-                                                       , let (_
-                                                             , v5') = modifyArr[Cogent_lfa
-                                                                               , U32
-                                                                               , MayNull (CPtr U32)
-                                                                               , _
-                                                                               , _] (a
-                                                                                    , i
-                                                                                    , \(p0'
-                                                                                       , ()) => (p0'
-                                                                                                , gencotDummy "Dereferencing pointer which may be NULL")
-                                                                                    , ())
-                                                       in v5')
-                                   else (2, a, r')
-                                in if c' > 1
-                                   then (c', r', a, i)
-                                   else (0, r', a, i + 1)
-                                , acc = (0, r', a, 0)
-                                , obsv = () }
-      in (r', a)
-   else (0
-        , let (_
-              , _
-              , a
-              , _) = repeat[( U8, U32, Cogent_lfa, U32 )
-                           , ()] #{ n = 5
-                                  , stop = \#{ acc = (c'
-                                                     , r'
-                                                     , a
-                                                     , i)
-                                             , obsv = () } => c' > 1
-                                  , step = \#{ acc = (_, r', a, i)
-                                             , obsv = () } => let (c'
-                                                                  , a
-                                                                  , r') = if i < 5
-                                     then let (a
-                                              , p2') = modifyArr[Cogent_lfa
-                                                                , U32
-                                                                , MayNull (CPtr U32)
-                                                                , _
-                                                                , _] (a
-                                                                     , i
-                                                                     , \(p2'
-                                                                        , ()) => (p2'
-                                                                                 , p2')
-                                                                     , ())
-                                        in notNull[CPtr U32] p2'
-                                           | Nothing -> (2, a, r')
-                                           | Some p2' -> (3
-                                                         , let (a
-                                                               , _) = modifyArr[Cogent_lfa
-                                                                               , U32
-                                                                               , MayNull (CPtr U32)
-                                                                               , _
-                                                                               , _] (a
-                                                                                    , i
-                                                                                    , \(p0'
-                                                                                       , ()) => (p0'
-                                                                                                , gencotDummy "Dereferencing pointer which may be NULL")
-                                                                                    , ())
-                                                         in a
-                                                         , let (_
-                                                               , v5') = modifyArr[Cogent_lfa
-                                                                                 , U32
-                                                                                 , MayNull (CPtr U32)
-                                                                                 , _
-                                                                                 , _] (a
-                                                                                      , i
-                                                                                      , \(p0'
-                                                                                         , ()) => (p0'
-                                                                                                  , gencotDummy "Dereferencing pointer which may be NULL")
-                                                                                      , ())
-                                                         in v5')
-                                     else (2, a, r')
-                                  in if c' > 1
-                                     then (c', r', a, i)
-                                     else (0, r', a, i + 1)
-                                  , acc = (0, r', a, 0)
-                                  , obsv = () }
-        in a)
+                                                                , i)
+                                                        , obsv = () } => c' > 1
+                                             , step = \#{ acc = (_, r', a, i)
+                                                        , obsv = () } => let (c'
+                                                                             , a
+                                                                             , r') = if i < 5
+                                                then let (a
+                                                         , p2') = modifyArr[Cogent_lfa
+                                                                           , U32
+                                                                           , MayNull (CPtr U32)
+                                                                           , _
+                                                                           , _] (a
+                                                                                , i
+                                                                                , \(p2'
+                                                                                   , ()) => (p2'
+                                                                                            , p2')
+                                                                                , ())
+                                                   in notNull[CPtr U32] p2'
+                                                      | Nothing -> (2, a, r')
+                                                      | Some p2' -> let (r'
+                                                                        , a) = let (a
+                                                                                   , v5') = modifyArr[Cogent_lfa
+                                                                                                     , U32
+                                                                                                     , MayNull (CPtr U32)
+                                                                                                     , _
+                                                                                                     , _] (a
+                                                                                                          , i
+                                                                                                          , \(p0'
+                                                                                                             , ()) => (p0'
+                                                                                                                      , gencotDummy "Dereferencing pointer which may be NULL")
+                                                                                                          , ())
+                                                            in (v5', a)
+                                                         in (3, a, r')
+                                                else (2, a, r')
+                                             in if c' > 1
+                                                then (c', r', a, i)
+                                                else (0, r', a, i + 1)
+                                             , acc = (0, r', a, 0)
+                                             , obsv = () }
+      in (if c' == 2 then 0 else c'
+         , r'
+         , a)
+   in if c' > 0
+      then (r', a)
+      else (0, a)

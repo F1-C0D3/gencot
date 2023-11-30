@@ -23,14 +23,14 @@ IT=../../bin/items
 #TCONF = -tflti
 
 # incl. intproc
-VARIANT = tpproc
-TCONF = -tfl
+#VARIANT = tpproc
+#TCONF = -tfl
 
 #VARIANT = letproc
 #TCONF = -tf
 
-#VARIANT = ifproc
-#TCONF =
+VARIANT = ifproc
+TCONF =
 
 TESTS = purexpr assignexpr stat loop func ro null bool
 UNIT = externs exttypes dvdtypes

@@ -10,9 +10,10 @@ import Cogent.Surface as CS
 import Cogent.Common.Syntax as CCS
 
 import Gencot.Cogent.Ast
-import Gencot.Cogent.Types (mkTupleType, adaptTypes)
-import Gencot.Cogent.Expr (mkUnitExpr)
-import Gencot.Cogent.Post.Util (isLiteralExpr,freeInPatn,freeInIrrefPatn,freeInExpr',freeInExpr,freeUnderBinding,boundInBindings)
+import Gencot.Cogent.Types (mkTupleType, isNonlinear, adaptTypes)
+import Gencot.Cogent.Expr (mkUnitExpr, TypedVar(TV), namOfTV)
+import Gencot.Cogent.Post.Util (
+  isLiteralExpr,freeInPatn,freeInIrrefPatn,freeInExpr',freeInExpr,freeUnderBinding,boundInBindings,freeTypedVarsInExpr)
 
 {- Pre Simplification:        -}
 {- Eliminate unused variables -}
@@ -118,15 +119,18 @@ bindproc ip e bs bdy =
     if M.null retain
        then (bs',bdy')
        else ((Binding ip' Nothing e' []): bs',bdy')
-    where (retain,subst) = M.partition (\(i,j,_) -> (i == -1) || (j > 0) ) $ retainGrowth $ retainFree $ findMatches ip e bs bdy
+    where (retain,subst) = M.partition (\(i,j,_) -> (i == -1) ) $ retainGrowth $ retainLinear $ retainFree $ findMatches ip e bs bdy
           (bs',bdy') = substMatches subst bs bdy
           -- instead of building the retained binding from the map 
           -- we reduce the original binding to the variables bound in the map
           (ip',e') = reduceBinding (boundInMap retain) ip e
 
 -- | A map from (sub)patterns to expressions to be substituted.
--- The first number counts the matches for potential substitutions.
--- The second number counts the matches in contexts where no substitions should be performed.
+-- The first number counts the sum of all matches for potential substitutions.
+-- It is used to calculate the syntactical growth if all substitutions are performed.
+-- If it is -1 the (sub)pattern will be retained and not substituted.
+-- The second number counts the maximal number of matches in the same alternative execution branch.
+-- It is used to detect whether the substitutions would cause a double use error for a variable of linear type.
 type MatchMap = M.Map GenIrrefPatn (Int,Int,GenExpr)
 
 -- | Substitute matches from the map in an expression.
@@ -172,6 +176,19 @@ substMatchesIP _ ip = ip
 -- (TODO)
 retainGrowth :: MatchMap -> MatchMap
 retainGrowth m = m
+
+-- | Retain bindings for which the expression contains free variables of linear type
+-- which are used more than once in the MatchMap (either in several bindings or in several matches of a single binding).
+retainLinear :: MatchMap -> MatchMap
+retainLinear m = M.map (\(i,j,e) -> if any (\v -> nonlinuse v usedm) $ vs e then (-1,j,e) else (i,j,e)) m
+    where vs e = map namOfTV $ filter (\(TV _ t) -> not $ isNonlinear t) $ freeTypedVarsInExpr e
+          usedm = M.filter (\(i,_,_) -> i > 0) m
+
+nonlinuse :: VarName -> MatchMap -> Bool
+nonlinuse v m =
+    (M.foldl f 0 m) > 1
+    where f :: Int -> (Int,Int,GenExpr) -> Int
+          f n (_,j,e) = if elem v $ freeInExpr e then n+j else n
 
 -- | Retain all bindings with free variables which are bound by retained bindings
 retainFree :: MatchMap -> MatchMap
@@ -221,36 +238,26 @@ findMatchesInIndex ip e (PTuple ips) =
     combineMatches $ map (findMatchesInIndex ip e . irpatnOfGIP) ips
 findMatchesInIndex _ _ _ = M.empty
 
--- | Find matches of a binding in an expression.ltnebrp
+-- | Find matches of a binding in an expression.
 -- The binding binds only variables which occur free in the expression.
 -- The binding binds at least one variable.
 findFullMatches :: GenIrrefPatn -> GenExpr -> ExprOfGE -> MatchMap
-findFullMatches ip e bdy@(Var _) = M.singleton ip (cnt,0,e)
+findFullMatches ip e bdy@(Var _) = M.singleton ip (cnt,1,e)
     where cnt = if matches (irpatnOfGIP ip) bdy then 1 else -1
 findFullMatches ip e bdy@(Tuple es) =
     if matches (irpatnOfGIP ip) bdy
-       then M.singleton ip (1,0,e)
+       then M.singleton ip (1,1,e)
        else combineMatches $ map (findMatches ip e [] . exprOfGE) es
 findFullMatches ip e (Let bs bdy) = findMatches ip e bs $ exprOfGE bdy
 findFullMatches ip e (Match e' vs alts) =
     combineMatches [ms',ms]
     where ms' = findMatches ip e [] $ exprOfGE e'
-          ms = combineMatches $ map (\(Alt p _ bdy) -> findMatchesUnderBoundVars ip e (freeInPatn p) $ exprOfGE bdy) alts
+          ms = combineAltMatches $ map (\(Alt p _ bdy) -> findMatchesUnderBoundVars ip e (freeInPatn p) $ exprOfGE bdy) alts
+findFullMatches ip e (If e' vs e1 e2) =
+    combineMatches [ms',ms]
+    where ms' = findMatches ip e [] $ exprOfGE e'
+          ms = combineAltMatches $ map (\ei -> findMatches ip e [] $ exprOfGE ei) [e1,e2]
 findFullMatches ip e (Lam ip' mt bdy) = M.empty -- Cogent supports no closures, no free variables allowed in lambda expression
-
-findFullMatches ip e (Put e1 mfs) = -- no substitution in Put targets e1
-    if isUnitPattern ip'
-       then mmfs
-       else combineMatches [M.singleton ip' (0,1,e'), mmfs]
-    where (ip',e') = reduceBinding (freeInExpr e1) ip e
-          mmfs = combineMatches $ map (findMatches ip e [] . exprOfGE . snd) $ catMaybes mfs
-findFullMatches ip e (ArrayPut e1 els) = -- no substitution in ArrayPut targets e1
-    if isUnitPattern ip'
-       then mels
-       else combineMatches [M.singleton ip' (0,1,e'), mels]
-    where (ip',e') = reduceBinding (freeInExpr e1) ip e
-          mels = combineMatches ((map (findMatches ip e [] . exprOfGE . snd) $ els)
-                              ++ (map (findMatches ip e [] . exprOfGE . fst) $ els))
 findFullMatches ip e bdy =
     combineMatches $ map (findMatches ip e [] . exprOfGE) $ toList bdy
 
@@ -421,6 +428,12 @@ boundVarsToRetain vs ip e =
 combineMatches :: [MatchMap] -> MatchMap
 combineMatches = 
     M.unionsWith (\(i1,j1,e1) (i2,j2,e2) -> (if i1 == -1 || i2 == -1 then -1 else i1+i2, j1+j2, e1))
+
+-- | Combine match results of alternative execution branches.
+-- The second count is combined by maximum instead of addition.
+combineAltMatches :: [MatchMap] -> MatchMap
+combineAltMatches =
+    M.unionsWith (\(i1,j1,e1) (i2,j2,e2) -> (if i1 == -1 || i2 == -1 then -1 else i1+i2, max j1 j2, e1))
 
 -- | Drop sub bindings with 0 matches and retain all others (set matches to -1)
 retainOrDrop :: MatchMap -> MatchMap

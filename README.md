@@ -1,12 +1,12 @@
-Gencot
-======
+Gencot - Verifying C Through Translation to Cogent
+==================================================
 
-Gencot is a tool for partially translating C code to Cogent.
+Gencot is a tool for translating C code to Cogent.
 
 State
 -----
 
-This is incomplete work in progress in alpha state. Use with care.
+This is work in progress in alpha state. Use with care.
 
 Prerequisites
 -------------

@@ -4,17 +4,17 @@ module Main where
 import System.Environment (getArgs)
 import Control.Monad (liftM,when)
 import Data.List (nub)
-import Data.Map (empty)
+import Data.Map (empty,unions)
 
 import Language.C.Analysis
 import Language.C.Data.Ident (identToString)
 import Language.C.Analysis.DefTable (globalDefs)
 
-import Gencot.Input (readFromInput_,getOwnDeclEvents,getDeclEvents)
+import Gencot.Input (readFromInput,getOwnDeclEvents,getDeclEvents)
 import Gencot.Package (readPackageFromInput_,readPackageFromInput,getIdentInvocations,getOwnCallGraphs,foldTables,foldTypeCarrierSets)
 import Gencot.Util.Types (collectTypeCarriers,transCloseUsedCarriers,carriesNamedType,usedTypeNames,externTypeNames,isExtern)
 import Gencot.Items.Identifier (getTypedefNames)
-import Gencot.Items.Types (getItemAssocType,getToplevelItemId,getTypedefItemId,getTagItemId,getEnumItemId)
+import Gencot.Items.Types (collectGlobalStateIds,getItemAssocType,getToplevelItemId,getTypedefItemId,getTagItemId,getEnumItemId)
 import Gencot.Items.Properties (readPropertiesFromInput, readPropertiesFromFile, showProperties, combineProperties, getToplevelItemIds, filterItemsPrefixes)
 import Gencot.Items.Translate (transGlobals,functionsInGlobals)
 import Gencot.Traversal (runFTrav,runWithTable)
@@ -38,16 +38,17 @@ itemsExterns args = do
     when (null args || length args > 1) $ error "expected arguments: <used external items file name>"
     {- get list of additional external items to process -}
     useditems <- (liftM ((filter (not . null)) . lines)) (readFile $ head args)
-    {- parse and analyse C sources and get global definitions -}
-    tables <- readPackageFromInput_
-    {- combine symbol tables -}
+    {- parse and analyse C sources and get global definitions and global item id map to declarations/definitions -}
+    (tables,uss) <- (liftM unzip) $ readPackageFromInput ([],empty) collectGlobalStateIds
+    {- combine symbol tables and global item id maps -}
     table <- foldTables tables
+    let globItemMap = unions $ snd $ unzip uss
     {- Get declarations of used external functions and objects -}
     let usedExtToplvl = getDeclEvents (globalDefs table) (usedFilter useditems)
     {- Determine type names used directly in the Cogent compilation unit -}
     let unitTypeNames = getTypedefNames useditems
     {- determine default properties for all used items in globals -}
-    ipm <- runFTrav table ("",[],empty,(True,unitTypeNames)) $ transGlobals usedExtToplvl
+    ipm <- runFTrav table ("",[],empty,(True,unitTypeNames),globItemMap,"") $ transGlobals usedExtToplvl
     {- Output -}
     putStrLn $ showProperties ipm
 
@@ -60,16 +61,17 @@ itemsExtfuns args = do
     when (null args || length args > 1) $ error "expected arguments: <used external items file name>"
     {- get list of additional external items to process -}
     useditems <- (liftM ((filter (not . null)) . lines)) (readFile $ head args)
-    {- parse and analyse C sources and get global definitions -}
-    tables <- readPackageFromInput_
-    {- combine symbol tables -}
+    {- parse and analyse C sources and get global definitions and global item id map to declarations/definitions -}
+    (tables,uss) <- (liftM unzip) $ readPackageFromInput ([],empty) collectGlobalStateIds
+    {- combine symbol tables and global item id maps -}
     table <- foldTables tables
+    let globItemMap = unions $ snd $ unzip uss
     {- Get declarations of used external functions and objects -}
     let usedExtDecls = getDeclEvents (globalDefs table) (usedDeclFilter useditems)
     {- Determine type names used directly in the Cogent compilation unit -}
     let unitTypeNames = getTypedefNames useditems
     {- determine item ids of used external functions -}
-    iids <- runFTrav table ("",[],empty,(True,unitTypeNames)) $ functionsInGlobals $ getDeclEvents (globalDefs table) (usedFilter useditems)
+    iids <- runFTrav table ("",[],empty,(True,unitTypeNames),globItemMap,"") $ functionsInGlobals $ getDeclEvents (globalDefs table) (usedFilter useditems)
     {- Output -}
     putStrLn $ unlines iids
 
@@ -81,12 +83,12 @@ itemsGen :: [String] -> IO ()
 itemsGen args = do
     {- test arguments -}
     when (null args || length args > 1) $ error "expected arguments: <original source file name>"
-    {- parse and analyse C source and get global definitions -}
-    table <- readFromInput_
     {- get input file name -}
     let fnam = head args
+    {- parse and analyse C source and get global definitions and global item id map to declarations/definitions -}
+    (table,(_,globItemMap)) <- readFromInput fnam ([],empty) collectGlobalStateIds
     {- determine default properties for all items in globals -}
-    ipm <- runFTrav table (fnam,[],empty,(False,[])) $ transGlobals $ getOwnDeclEvents (globalDefs table) defFilter
+    ipm <- runFTrav table (fnam,[],empty,(False,[]),globItemMap,"") $ transGlobals $ getOwnDeclEvents (globalDefs table) defFilter
     {- Output -}
     putStrLn $ showProperties ipm
 
@@ -125,13 +127,14 @@ itemsUsed args = do
     {- get list of additional external items to process -}
     additems <- (liftM ((filter (not . null)) . lines)) (readFile $ head args)
     {- parse and analyse C sources and get global definitions and used types -}
-    (tables,initialTypeCarrierSets) <- (liftM unzip) $ readPackageFromInput [] (collectTypeCarriers carriesNamedType)
+    (tables,uss) <- (liftM unzip) $ readPackageFromInput ([],empty) (collectTypeCarriers carriesNamedType)
     {- Determine all call graphs -}
     cgs <- getOwnCallGraphs tables
     {- Retrieve all invocations of named functions -}
     invks <- getIdentInvocations cgs
     {- combine symbol tables -}
     table <- foldTables tables
+    let initialTypeCarrierSets = fst $ unzip uss
     {- combine sets of initial type carriers -}
     let initialTypeCarriers = foldTypeCarrierSets initialTypeCarrierSets table
     {- Get declarations of external functions and objects which are invoked or additionally specified -}

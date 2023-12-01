@@ -3,20 +3,20 @@ module Main where
 
 import System.Environment (getArgs)
 import Control.Monad (when,liftM)
-import Data.Map (empty)
+import Data.Map (Map,empty,unions)
 import qualified Data.Set as Set (unions)
 
 import Language.C.Data.Ident
 import Language.C.Analysis
 import Language.C.Analysis.DefTable (globalDefs)
 
-import Gencot.Input (readFromInput_,getOwnDeclEvents,getDeclEvents)
+import Gencot.Input (readFromInput_,readFromInput,getOwnDeclEvents,getDeclEvents)
 import Gencot.Items.Properties (readPropertiesFromFile)
 import Gencot.Items.Identifier (getTypedefNames)
-import Gencot.Items.Types (getItemAssocType,getEnumItemId,getTagItemId,getTypedefItemId)
+import Gencot.Items.Types (collectGlobalStateIds, getItemAssocType,getEnumItemId,getTagItemId,getTypedefItemId)
 import Gencot.Names (readNameMapFromFile)
 import Gencot.Traversal (runFTrav)
-import Gencot.Cogent.Output (prettyTopLevels)
+import Gencot.Cogent.Output (prettyTopLevels,prettyGenTopLevels)
 import Gencot.Cogent.Translate (transGlobals,genTypeDefs)
 import Gencot.C.Output (showTopLevels)
 import Gencot.C.Generate (genEntries)
@@ -52,8 +52,8 @@ gencotCheck args = do
 gencotTranslate :: [String] -> IO ()
 gencotTranslate args = do
     {- test arguments -}
-    when (length args /= 4) 
-        $ error "expected arguments: <original source file name> <name prefix map> <item properties file name> <used external items file name>"
+    when (length args /= 5) 
+        $ error "expected arguments: <original source file name> <name prefix map> <item properties file name> <used external items file name> <translation configuration string>"
     {- get own file name -}
     let fnam = head args
     {- get name prefix map -}
@@ -62,14 +62,18 @@ gencotTranslate args = do
     ipm <- readPropertiesFromFile $ head $ tail $ tail args
     {- get list of used external items -}
     useditems <- (liftM ((filter (not . null)) . lines)) $ readFile $ head $ tail $ tail $ tail args
-    {- parse and analyse C source and get global definitions -}
-    table <- readFromInput_
+    {- get translation configuration string -}
+    let tconf = head $ tail $ tail $ tail $ tail args
+    {- parse and analyse C source and get global definitions and global item id map to declarations/definitions -}
+    (table,(_,globItemMap)) <- readFromInput fnam ([],empty) collectGlobalStateIds
     {- Determine type names used directly in the Cogent compilation unit -}
     let unitTypeNames = getTypedefNames useditems
     {- translate global declarations and definitions to Cogent -}
-    toplvs <- runFTrav table (fnam,npm, ipm,(True,unitTypeNames)) $ transGlobals $ getOwnDeclEvents (globalDefs table) translateFilter
+    toplvs <- runFTrav table (fnam,npm, ipm,(True,unitTypeNames),globItemMap,tconf) $ transGlobals $ getOwnDeclEvents (globalDefs table) translateFilter
     {- Output -}
-    print $ prettyTopLevels toplvs
+    if elem 'G' tconf
+       then print $ prettyGenTopLevels toplvs
+       else print $ prettyTopLevels toplvs
 
 translateFilter :: DeclEvent -> Bool
 translateFilter (TagEvent (EnumDef (EnumType (AnonymousRef _) _ _ _))) = False
@@ -89,12 +93,12 @@ gencotEntries args = do
     ipm <- readPropertiesFromFile $ head $ tail $ tail args
     {- get list of used external items -}
     useditems <- (liftM ((filter (not . null)) . lines)) $ readFile $ head $ tail $ tail $ tail args
-    {- parse and analyse C source and get global definitions -}
-    table <- readFromInput_
+    {- parse and analyse C source and get global definitions and global item id map to declarations/definitions -}
+    (table,(_,globItemMap)) <- readFromInput fnam ([],empty) collectGlobalStateIds
     {- Determine type names used directly in the Cogent compilation unit -}
     let unitTypeNames = getTypedefNames useditems
     {- translate global declarations and definitions to Cogent -}
-    wrappers <- runFTrav table (fnam,npm,ipm,(True,unitTypeNames)) $ genEntries $ getOwnDeclEvents (globalDefs table) entriesFilter
+    wrappers <- runFTrav table (fnam,npm,ipm,(True,unitTypeNames),globItemMap,"") $ genEntries $ getOwnDeclEvents (globalDefs table) entriesFilter
     {- Output -}
     putStrLn $ showTopLevels wrappers
 
@@ -111,7 +115,7 @@ gencotDeccomments args = do
     {- get name prefix map -}
     npm <- readNameMapFromFile $ head args
     table <- readFromInput_
-    out <- runFTrav table ("", npm, empty,(False,[])) $ transDecls $ getOwnDeclEvents (globalDefs table) declFilter
+    out <- runFTrav table ("", npm, empty,(False,[]),empty,"") $ transDecls $ getOwnDeclEvents (globalDefs table) declFilter
     putStrLn $ unlines out
 
 declFilter :: DeclEvent -> Bool
@@ -130,16 +134,17 @@ gencotExterns args = do
     ipm <- readPropertiesFromFile $ head $ tail args
     {- get list of used external items -}
     useditems <- (liftM ((filter (not . null)) . lines)) $ readFile $ head $ tail $ tail args
-    {- parse and analyse C sources and get global definitions -}
-    tables <- readPackageFromInput_
-    {- combine symbol tables -}
+    {- parse and analyse C sources and get global definitions and global item id map to declarations/definitions -}
+    (tables,uss) <- (liftM unzip) $ readPackageFromInput ([],empty) collectGlobalStateIds
+    {- combine symbol tables and global item id maps -}
     table <- foldTables tables
+    let globItemMap = unions $ snd $ unzip uss
     {- Get declarations of functions and objects listed in useditems -}    
     let extDecls = getDeclEvents (globalDefs table) (externsFilter useditems)
     {- Determine type names used directly in the Cogent compilation unit -}
     let unitTypeNames = getTypedefNames useditems
     {- translate external function declarations to Cogent abstract function definitions -}
-    absdefs <- runFTrav table ("",npm,ipm,(True,unitTypeNames)) $ transGlobals extDecls
+    absdefs <- runFTrav table ("",npm,ipm,(True,unitTypeNames),globItemMap,"") $ transGlobals extDecls
     {- Output -}
     print $ prettyTopLevels absdefs
 
@@ -167,14 +172,15 @@ gencotExttypes args = do
     ipm <- readPropertiesFromFile $ head $ tail args
     {- get list of used external items -}
     useditems <- (liftM ((filter (not . null)) . lines)) $ readFile $ head $ tail $ tail args
-    {- parse and analyse C sources and get global definitions -}
-    tables <- readPackageFromInput_
-    {- combine symbol tables -}
+    {- parse and analyse C sources and get global definitions and global item id map to declarations/definitions -}
+    (tables,uss) <- (liftM unzip) $ readPackageFromInput ([],empty) collectGlobalStateIds
+    {- combine symbol tables and global item id maps -}
     table <- foldTables tables
-    {- Get declarations of listed tag and type definitions -}    
+    let globItemMap = unions $ snd $ unzip uss
+    {- Get declarations of listed tag and type definitions -}
     let typeDefs = getDeclEvents (globalDefs table) (exttypesFilter useditems)
     {- translate type definitions in system include files -}
-    toplvs <- runFTrav table ("",npm,ipm,(True,getTypedefNames useditems)) $ transGlobals typeDefs
+    toplvs <- runFTrav table ("",npm,ipm,(True,getTypedefNames useditems),globItemMap,"") $ transGlobals typeDefs
     {- Output -}
     print $ prettyTopLevels toplvs
 
@@ -195,10 +201,12 @@ gencotDvdtypes args = do
     ipm <- readPropertiesFromFile $ head $ tail args
     {- get list of used external items -}
     useditems <- (liftM ((filter (not . null)) . lines)) $ readFile $ head $ tail $ tail args
-    {- parse and analyse C sources and get global definitions and used types -}
-    (tables,initialTypeCarrierSets) <- (liftM unzip) $ readPackageFromInput [] (collectTypeCarriers carriesNonPrimitive)
-    {- combine symbol tables -}
+    {- parse and analyse C sources and get global definitions and used types and global item id map to declarations/definitions -}
+    (tables,uss) <- (liftM unzip) $ readPackageFromInput ([],empty) dvdtypesCallback
+    {- combine symbol tables and global item id maps -}
     table <- foldTables tables
+    let initialTypeCarrierSets = fst $ unzip uss
+    let globItemMap = unions $ snd $ unzip uss
     {- combine sets of initial type carriers -}
     let initialTypeCarriers = foldTypeCarrierSets initialTypeCarrierSets table
     {- Get declarations of used external functions and objects -}    
@@ -208,7 +216,7 @@ gencotDvdtypes args = do
     {- Determine external type names used directly in the Cogent compilation unit -}
     let unitTypeNames = getTypedefNames useditems
     {- generate abstract definitions for derived types in all type carriers -}
-    toplvs <- runFTrav table ("", npm, ipm,(True,unitTypeNames)) $ genTypeDefs unitTypeCarriers
+    toplvs <- runFTrav table ("", npm, ipm,(True,unitTypeNames),globItemMap,"") $ genTypeDefs unitTypeCarriers
     {- Output -}
     print $ prettyTopLevels toplvs
 
@@ -220,6 +228,11 @@ dvdtypesFilter iids (TagEvent td@(CompDef ct)) =
 dvdtypesFilter iids (TypeDefEvent td@(TypeDef idnam _ _ _)) = 
     isExtern td && elem (getTypedefItemId idnam) iids
 dvdtypesFilter _ _ = False
+
+dvdtypesCallback :: String -> DeclEvent -> Trav ([DeclEvent],(Map String IdentDecl)) ()
+dvdtypesCallback fnam dec = do
+    collectGlobalStateIds fnam dec
+    collectTypeCarriers carriesNonPrimitive fnam dec
 
 gencotCallgraph :: [String] -> IO ()
 gencotCallgraph args = do

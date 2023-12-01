@@ -25,8 +25,10 @@ readPackageFromInput_ = do
     fnams <- (liftM ((filter (not . null)) . lines)) getContents
     when (null fnams) $ error "empty input package"
     mapM readFromFile_ fnams
-    
-readPackageFromInput :: s -> (DeclEvent -> Trav s ()) -> IO [(DefTable,s)]
+
+-- | Read with callback handler.
+-- The file name is passed as first argument to the callback handler.
+readPackageFromInput :: s -> (String -> DeclEvent -> Trav s ()) -> IO [(DefTable,s)]
 readPackageFromInput uinit uhandler = do
     fnams <- (liftM ((filter (not . null)) . lines)) getContents
     when (null fnams) $ error "empty input package"

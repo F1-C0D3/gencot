@@ -1,7 +1,7 @@
 
 SEC_DESIGN = names modular files comments const preprocessor ccode types operations decls fundefs parmod isabelle
 SRC_DESIGN = $(foreach sec,$(SEC_DESIGN),design-$(sec).tex)
-SEC_IMPL = origin itemprops parmod comments preprocessor ccode ctypinfo operations isabelle ccomps ocomps all
+SEC_IMPL = origin itemprops parmod comments preprocessor ccode post ctypinfo operations isabelle ccomps ocomps all
 SRC_IMPL = $(foreach sec,$(SEC_IMPL),impl-$(sec).tex)
 SEC_APP = items parmod itemprops transauto transtype transfunction 
 SRC_APP = $(foreach sec,$(SEC_APP),app-$(sec).tex)

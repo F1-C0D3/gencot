@@ -32,4 +32,3 @@ bin/$(ITBIN):
 
 bin/$(ACBIN):
 	(cd bin; ln -s ../dist-newstyle/build/*/*/gencot-*/x/$(ACBIN)/build/$(ACBIN)/$(ACBIN) .)
-

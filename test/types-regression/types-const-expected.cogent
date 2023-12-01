@@ -9,61 +9,53 @@ type Cogent_pfname =
    #CFunPtr_FXU32X_U32 -- nonlinear
 
 type Struct_Cogent_cspint = { m11 : U32, m12 : MayNull (CPtr U32) } -- nonlinear, not readonly
-type Struct_Cogent_cspcint = { m21 : U32, m22 : (MayNull (CPtr U32))! } -- nonlinear, readonly
+type Struct_Cogent_cspcint = { m21 : U32, m22 : (MayNull ((CPtr U32)!))! } -- nonlinear, readonly
 type Struct_Cogent_cspintpcint =
-   { m31 : U32, m32 : (MayNull (CPtr U32))!, m33 : MayNull (CPtr U32) } -- nonlinear, not readonly
+   { m31 : U32, m32 : (MayNull ((CPtr U32)!))!, m33 : MayNull (CPtr U32) } -- nonlinear, not readonly
 type Struct_Cogent_cspfun = { m41 : U32, m42 : #CFunPtr_FXU32X_U32 } -- nonlinear, readonly
 type Struct_Cogent_cscpiname =
    { m11 : U32, m12 : MayNull Cogent_cpiname } -- nonlinear, not readonly
 type Struct_Cogent_cspciname =
-   { m21 : U32, m22 : (MayNull Cogent_pciname)! } -- nonlinear, readonly
+   { m21 : U32, m22 : (MayNull Cogent_pciname!)! } -- nonlinear, readonly
 type Struct_Cogent_cspinamepciname =
-   { m31 : U32, m32 : (MayNull Cogent_pciname)!, m33 : MayNull Cogent_cpiname } -- nonlinear, not readonly
+   { m31 : U32, m32 : (MayNull Cogent_pciname!)!, m33 : MayNull Cogent_cpiname } -- nonlinear, not readonly
 type Struct_Cogent_cspfname = { m41 : U32, m42 : #Cogent_pfname } -- nonlinear, readonly
 
-cogent_fc_int : ( U32, (MayNull (CPtr U32))!, MayNull (CPtr U32), (MayNull (CPtr U32))! ) -> MayNull (CPtr U32)
+cogent_fc_int : ( U32, (MayNull ((CPtr U32)!))!, MayNull (CPtr U32), (MayNull ((CPtr U32)!))! ) -> ( (), MayNull (CPtr U32) )
 cogent_fc_int (p_cint
               , p_pcint
               , p_cpint
-              , p_pcpint) =
-   p_cpint
-   {- -} -- nonlinear, readonly, not readonly, readonly
-cogent_fc_iname : ( Cogent_ciname, (MayNull Cogent_pciname)!, MayNull Cogent_cpiname, (MayNull Cogent_pcpiname)! ) -> MayNull Cogent_cpiname
+              , p_pcpint) = ((), p_cpint) -- nonlinear, readonly, not readonly, readonly
+cogent_fc_iname : ( Cogent_ciname, (MayNull Cogent_pciname!)!, MayNull Cogent_cpiname, (MayNull Cogent_pcpiname!)! ) -> ( (), MayNull Cogent_cpiname )
 cogent_fc_iname (p_cint
                 , p_pcint
                 , p_cpint
-                , p_pcpint) =
-   p_cpint
-   {- -} -- nonlinear, readonly, not readonly, readonly
-cogent_fcs_int : ( MayNull Struct_Cogent_cspint, (MayNull Struct_Cogent_cspcint)!, MayNull Struct_Cogent_cspintpcint, (MayNull Struct_Cogent_cspfun)! ) -> ( MayNull Struct_Cogent_cspint, MayNull Struct_Cogent_cspintpcint )
+                , p_pcpint) = ((), p_cpint) -- nonlinear, readonly, not readonly, readonly
+cogent_fcs_int : ( MayNull Struct_Cogent_cspint, (MayNull Struct_Cogent_cspcint!)!, MayNull Struct_Cogent_cspintpcint, (MayNull Struct_Cogent_cspfun!)! ) -> ( (), MayNull Struct_Cogent_cspint, MayNull Struct_Cogent_cspintpcint )
 cogent_fcs_int (p1
                , p2
                , p3
-               , p4) =
-   (p1, p3)
-   {- -} -- not readonly, readonly, not readonly, readonly
-cogent_fcs_iname : ( MayNull Struct_Cogent_cscpiname, (MayNull Struct_Cogent_cspciname)!, MayNull Struct_Cogent_cspinamepciname, (MayNull Struct_Cogent_cspfname)! ) -> ( MayNull Struct_Cogent_cscpiname, MayNull Struct_Cogent_cspinamepciname )
+               , p4) = ((), p1, p3) -- not readonly, readonly, not readonly, readonly
+cogent_fcs_iname : ( MayNull Struct_Cogent_cscpiname, (MayNull Struct_Cogent_cspciname!)!, MayNull Struct_Cogent_cspinamepciname, (MayNull Struct_Cogent_cspfname!)! ) -> ( (), MayNull Struct_Cogent_cscpiname, MayNull Struct_Cogent_cspinamepciname )
 cogent_fcs_iname (p1
                  , p2
                  , p3
-                 , p4) =
-   (p1, p3)
-   {- -} -- not readonly, readonly, not readonly, readonly
+                 , p4) = ((), p1, p3) -- not readonly, readonly, not readonly, readonly
 
 type Struct_Cogent_cstr = { m_cint : U32 -- nonlinear
-   , m_pcint : (MayNull (CPtr U32))! -- readonly
+   , m_pcint : (MayNull ((CPtr U32)!))! -- readonly
    , m_cpint : MayNull (CPtr U32) -- not readonly
-   , m_cpcint : (MayNull (CPtr U32))! -- readonly
+   , m_cpcint : (MayNull ((CPtr U32)!))! -- readonly
    , m_ciname : Cogent_ciname -- nonlinear
-   , m_pciname : (MayNull Cogent_pciname)! -- readonly
+   , m_pciname : (MayNull Cogent_pciname!)! -- readonly
    , m_cpiname : MayNull Cogent_cpiname -- not readonly
-   , m_pcpiname : (MayNull Cogent_pcpiname)! -- readonly
+   , m_pcpiname : (MayNull Cogent_pcpiname!)! -- readonly
    , m_aint : #(CArr5 U32) -- unboxed array
    , m_acint : #(CArr5 U32) -- unboxed array
    , m_apint : #(CArr5 (MayNull (CPtr U32))) -- array of pointers to int, not readonly
-   , m_apcint : #(CArr5 ((MayNull (CPtr U32))!)) -- array of pointers to const int; readonly but not applied, since unboxed
+   , m_apcint : #(CArr5 ((MayNull ((CPtr U32)!))!)) -- array of pointers to const int; readonly but not applied, since unboxed
    , m_acpint : #(CArr5 (MayNull (CPtr U32))) -- array of constant pointers to int, not readonly
-   , m_acpcint : #(CArr5 ((MayNull (CPtr U32))!)) -- readonly but not applied, since unboxed
+   , m_acpcint : #(CArr5 ((MayNull ((CPtr U32)!))!)) -- readonly but not applied, since unboxed
     }
 
 type Struct74_types_const_c = { mi : U32, ma : #(CArr5 U32) }

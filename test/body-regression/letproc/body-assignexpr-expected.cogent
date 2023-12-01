@@ -1,0 +1,516 @@
+cogent_fac1 : U32 -> U32
+cogent_fac1 v = 42
+cogent_fac2 : U8 -> U8
+cogent_fac2 v =
+   u32_to_u8 (upcast 'x')
+cogent_fac4 : String -> String
+cogent_fac4 v = "abc"
+cogent_fac5 : err-float -> err-float
+cogent_fac5 v =
+   gencotDummy "Float literals not supported"
+cogent_fav1 : ( U32, U32 ) -> U32
+cogent_fav1 (v, w) = w
+cogent_fav2 : ( U32, U32 ) -> U32
+cogent_fav2 (xyz_123, w) = w
+cogent_fao1 : U32 -> U32
+cogent_fao1 v = v + 42
+cogent_fao2 : U32 -> U32
+cogent_fao2 v = v - 42
+cogent_fao3 : U32 -> U32
+cogent_fao3 v = v * 42
+cogent_fao4 : U32 -> U32
+cogent_fao4 v = v / 42
+cogent_fao5 : U32 -> U32
+cogent_fao5 v = v % 42
+cogent_fao6 : U32 -> U32
+cogent_fao6 v = v << 4
+cogent_fao7 : U32 -> U32
+cogent_fao7 v = v >> 4
+cogent_fao8 : U32 -> U32
+cogent_fao8 v = v .&. 4
+cogent_fao9 : U32 -> U32
+cogent_fao9 v = v .|. 4
+cogent_fao10 : U32 -> U32
+cogent_fao10 v = v .^. 4
+cogent_fao11 : U32 -> U32
+cogent_fao11 v = v
+cogent_fao12 : U32 -> U32
+cogent_fao12 v = v
+cogent_fao13 : U32 -> U32
+cogent_fao13 v = v + 1
+cogent_fao14 : U32 -> U32
+cogent_fao14 v = v - 1
+
+type Struct_Cogent_as1 = { m1 : U32, m2 : U32 }
+type Struct_Cogent_as2 = { m3 : U32, m4 : #Struct_Cogent_as1 }
+type Struct_Cogent_as4 = { m7 : U32, m8 : #(CArr5 U32) }
+cogent_fas1r : #Struct_Cogent_as1 -> #Struct_Cogent_as1
+cogent_fas1r s = s
+cogent_fas1 : ( #Struct_Cogent_as1, U32 ) -> U32
+cogent_fas1 (s, v) = s.m1
+cogent_fas2 : ( #Struct_Cogent_as1, U32 ) -> U32
+cogent_fas2 (s, v) = s.m1 + s.m2
+cogent_fas3 : ( #Struct_Cogent_as2, U32 ) -> U32
+cogent_fas3 (s, v) = s.m4.m1
+cogent_fas4 : ( #Struct_Cogent_as2, U32 ) -> U32
+cogent_fas4 (s, v) =
+   s.m4.m1 + s.m4.m2 + s.m3
+cogent_fas5 : #Struct_Cogent_as1 -> U32
+cogent_fas5 s =
+   (s { m1 = 42 }).m1
+cogent_fas6 : #Struct_Cogent_as2 -> U32
+cogent_fas6 s =
+   (s { m4 = s.m4 { m1 = 42 } }).m4.m1
+cogent_fas7 : #Struct_Cogent_as1 -> U32
+cogent_fas7 s = s.m1
+cogent_fas8 : #Struct_Cogent_as2 -> U32
+cogent_fas8 s = s.m4.m1
+cogent_fas9 : #Struct_Cogent_as1 -> U32
+cogent_fas9 s = s.m1 + 1
+cogent_fas10 : #Struct_Cogent_as2 -> U32
+cogent_fas10 s = s.m4.m1 + 1
+cogent_fas11 : ( #Struct_Cogent_as1, U32 ) -> U32
+cogent_fas11 (s, v) =
+   (cogent_fas1r s).m1
+cogent_fas12 : ( #Struct_Cogent_as4, U32 ) -> U32
+cogent_fas12 (s, v) =
+   getArr[#(CArr5 U32)
+         , U32
+         , U32] (s.m8, 3)
+cogent_fas13 : #Struct_Cogent_as4 -> U32
+cogent_fas13 s =
+   let (p0'
+       , _) = setArr[#(CArr5 U32)
+                    , U32
+                    , U32] (s.m8, 3, 42)
+   in getArr[#(CArr5 U32)
+            , U32
+            , U32] ((s { m8 = p0' }).m8, 3)
+cogent_fas14 : #Struct_Cogent_as4 -> U32
+cogent_fas14 s =
+   getArr[#(CArr5 U32)
+         , U32
+         , U32] (s.m8, 3)
+
+type Cogent_aa1 = CArr5 U32
+type Cogent_aa2 =
+   CArr5 #Struct_Cogent_as1
+type Cogent_aa4 =
+   CArr5 (#(CArr4 U32))
+cogent_faa1 : ( Cogent_aa1, U32 ) -> ( U32, Cogent_aa1 )
+cogent_faa1 (a, v) =
+   let (r'
+       , ()) = (getArr[Cogent_aa1!
+                      , U32
+                      , U32] (a, 3)
+               , ()) !a
+   in (r', a)
+cogent_faa2 : ( Cogent_aa1, U32 ) -> ( U32, Cogent_aa1 )
+cogent_faa2 (a, v) =
+   let (r'
+       , ()) = (getArr[Cogent_aa1!
+                      , U32
+                      , U32] (a
+                             , 3) + getArr[Cogent_aa1!
+                                          , U32
+                                          , U32] (a, 1)
+               , ()) !a
+   in (r', a)
+cogent_faa3 : ( Cogent_aa1, U32 ) -> ( U32, Cogent_aa1 )
+cogent_faa3 (a, v) =
+   let (r'
+       , ()) = (getArr[Cogent_aa1!
+                      , U32
+                      , U32] (a
+                             , getArr[Cogent_aa1!
+                                     , U32
+                                     , U32] (a, 2))
+               , ()) !a
+   in (r', a)
+cogent_faa4 : ( Cogent_aa2, U32 ) -> ( U32, Cogent_aa2 )
+cogent_faa4 (a, v) =
+   let (r'
+       , ()) = ((getrefArr[Cogent_aa2!
+                          , U32
+                          , Struct_Cogent_as1!] (a, 3)).m1
+               , ()) !a
+   in (r', a)
+cogent_faa5 : ( Cogent_aa2, U32 ) -> ( U32, Cogent_aa2 )
+cogent_faa5 (a, v) =
+   let (r'
+       , ()) = ((getrefArr[Cogent_aa2!
+                          , U32
+                          , Struct_Cogent_as1!] (a
+                                                , (getrefArr[Cogent_aa2!
+                                                            , U32
+                                                            , Struct_Cogent_as1!] (a
+                                                                                  , 2)).m2)).m1
+               , ()) !a
+   in (r', a)
+cogent_faa6 : Cogent_aa1 -> ( U32, Cogent_aa1 )
+cogent_faa6 a =
+   let (a, _) = setArr[Cogent_aa1
+                      , U32
+                      , U32] (a, 3, 42)
+   and (a
+       , v8') = modifyArr[Cogent_aa1
+                         , U32
+                         , U32
+                         , _
+                         , _] (a
+                              , 3
+                              , \(p1', ()) => (p1', p1')
+                              , ())
+   in (v8', a)
+cogent_faa7 : Cogent_aa2 -> ( U32, Cogent_aa2 )
+cogent_faa7 a =
+   let (a
+       , _) = modrefArr[Cogent_aa2
+                       , U32
+                       , Struct_Cogent_as1
+                       , _
+                       , _] (a
+                            , 3
+                            , \(p0', v') => (p0' { m1 = v' }
+                                            , ())
+                            , 42)
+   and (a
+       , v10') = modrefArr[Cogent_aa2
+                          , U32
+                          , Struct_Cogent_as1
+                          , _
+                          , _] (a
+                               , 3
+                               , \(p2'
+                                  , ()) => let p2' { m1 = p3' } = p2'
+                               in (p2' { m1 = p3' }, p3')
+                               , ())
+   in (v10', a)
+cogent_faa8 : Cogent_aa1 -> ( U32, Cogent_aa1 )
+cogent_faa8 a =
+   let (a
+       , v5') = modifyArr[Cogent_aa1
+                         , U32
+                         , U32
+                         , _
+                         , _] (a
+                              , 3
+                              , \(p0', v') => (p0' + v', p0')
+                              , 1)
+   in (v5', a)
+cogent_faa9 : Cogent_aa2 -> ( U32, Cogent_aa2 )
+cogent_faa9 a =
+   let (a
+       , v6') = modrefArr[Cogent_aa2
+                         , U32
+                         , Struct_Cogent_as1
+                         , _
+                         , _] (a
+                              , 3
+                              , \(p0'
+                                 , v') => let p0' { m1 = p1' } = p0'
+                              in (p0' { m1 = p1' + v' }, p1')
+                              , 1)
+   in (v6', a)
+cogent_faa10 : Cogent_aa1 -> ( U32, Cogent_aa1 )
+cogent_faa10 a =
+   let (a
+       , v4') = modifyArr[Cogent_aa1
+                         , U32
+                         , U32
+                         , _
+                         , _] (a
+                              , 2
+                              , \(p0', ()) => (p0', p0')
+                              , ())
+   and (a
+       , v7') = modifyArr[Cogent_aa1
+                         , U32
+                         , U32
+                         , _
+                         , _] (a
+                              , v4'
+                              , \(p1', v') => (p1' + v', p1')
+                              , 1)
+   in (v7', a)
+cogent_faa11 : Cogent_aa1 -> ( U32, Cogent_aa1 )
+cogent_faa11 a =
+   let (a
+       , v5') = modifyArr[Cogent_aa1
+                         , U32
+                         , U32
+                         , _
+                         , _] (a
+                              , 3
+                              , \(p0', v') => (p0' + v'
+                                              , p0' + v')
+                              , 1)
+   in (v5', a)
+cogent_faa12 : Cogent_aa2 -> ( U32, Cogent_aa2 )
+cogent_faa12 a =
+   let (a
+       , v6') = modrefArr[Cogent_aa2
+                         , U32
+                         , Struct_Cogent_as1
+                         , _
+                         , _] (a
+                              , 3
+                              , \(p0'
+                                 , v') => let p0' { m1 = p1' } = p0'
+                              in (p0' { m1 = p1' + v' }
+                                 , p1' + v')
+                              , 1)
+   in (v6', a)
+cogent_faa13 : ( Cogent_aa1, U32 ) -> ( U32, Cogent_aa1 )
+cogent_faa13 (a, v) =
+   let (r'
+       , ()) = (getArr[Cogent_aa1!
+                      , U32
+                      , U32] (a, v)
+               , ()) !a
+   in (r', a)
+cogent_faa14 : ( Cogent_aa1, U32 ) -> ( U32, Cogent_aa1 )
+cogent_faa14 (a, v) =
+   let (r'
+       , ()) = (getArr[Cogent_aa1!
+                      , U32
+                      , U32] (a, v + 1)
+               , ()) !a
+   in (r', a)
+cogent_faa15 : ( Cogent_aa4, U32 ) -> ( U32, Cogent_aa4 )
+cogent_faa15 (a, v) =
+   let (r'
+       , ()) = (getArr[(CArr4 U32)!
+                      , U32
+                      , U32] (getrefArr[Cogent_aa4!
+                                       , U32
+                                       , (CArr4 U32)!] (a, 3)
+                             , 2)
+               , ()) !a
+   in (r', a)
+cogent_faa16 : Cogent_aa4 -> ( U32, Cogent_aa4 )
+cogent_faa16 a =
+   let (a
+       , _) = modrefArr[Cogent_aa4
+                       , U32
+                       , CArr4 U32
+                       , _
+                       , _] (a
+                            , 3
+                            , \(p0', v', v4') => let (p0'
+                                                     , _) = setArr[CArr4 U32
+                                                                  , U32
+                                                                  , U32] (p0'
+                                                                         , v4'
+                                                                         , v')
+                            in (p0', ())
+                            , 42
+                            , 2)
+   and (a
+       , v12') = modrefArr[Cogent_aa4
+                          , U32
+                          , CArr4 U32
+                          , _
+                          , _] (a
+                               , 3
+                               , modifyArr[CArr4 U32
+                                          , U32
+                                          , U32
+                                          , _
+                                          , _]
+                               , 2
+                               , \(p3', ()) => (p3', p3')
+                               , ())
+   in (v12', a)
+cogent_faa17 : Cogent_aa4 -> ( U32, Cogent_aa4 )
+cogent_faa17 a =
+   let (a
+       , v7') = modrefArr[Cogent_aa4
+                         , U32
+                         , CArr4 U32
+                         , _
+                         , _] (a
+                              , 3
+                              , modifyArr[CArr4 U32
+                                         , U32
+                                         , U32
+                                         , _
+                                         , _]
+                              , 2
+                              , \(p1', v') => (p1' + v', p1')
+                              , 1)
+   in (v7', a)
+
+type Struct_Cogent_as3 = { m5 : U32, m6 : Struct_Cogent_as1 }
+type Cogent_aa3 =
+   CArr5 (CPtr U32)
+cogent_fas1pr : Struct_Cogent_as1 -> Struct_Cogent_as1
+cogent_fas1pr p = p
+cogent_fap1 : ( CPtr U32, U32 ) -> ( U32, CPtr U32 )
+cogent_fap1 (p, v) =
+   let (r'
+       , ()) = (getPtr[(CPtr U32)!
+                      , U32] p
+               , ()) !p
+   in (r', p)
+cogent_fap2 : ( Struct_Cogent_as1, U32 ) -> ( U32, Struct_Cogent_as1 )
+cogent_fap2 (p, v) =
+   let (r', ()) = (p.cont.m1
+                  , ()) !p
+   in (r', p)
+cogent_fap3 : ( Struct_Cogent_as1, U32 ) -> ( U32, Struct_Cogent_as1 )
+cogent_fap3 (p, v) =
+   let (r', ()) = (p.m1, ()) !p
+   in (r', p)
+cogent_fap4 : ( Struct_Cogent_as3, U32 ) -> ( U32, Struct_Cogent_as3 )
+cogent_fap4 (p, v) =
+   let (r', ()) = (p.m6.cont.m1
+                  , ()) !p
+   in (r', p)
+cogent_fap5 : ( Struct_Cogent_as3, U32 ) -> ( U32, Struct_Cogent_as3 )
+cogent_fap5 (p, v) =
+   let (r', ()) = (p.m6.m1, ()) !p
+   in (r', p)
+cogent_fap6 : ( Cogent_aa3, U32 ) -> ( U32, Cogent_aa3 )
+cogent_fap6 (p, v) =
+   let (r'
+       , ()) = (getPtr[(CPtr U32)!
+                      , U32] (getArr[Cogent_aa3!
+                                    , U32
+                                    , (CPtr U32)!] (p, 3))
+               , ()) !p
+   in (r', p)
+cogent_fap7 : CPtr U32 -> ( U32, CPtr U32 )
+cogent_fap7 p =
+   let p { cont = p1' } = p { cont = 42 }
+   in (p1', p { cont = p1' })
+cogent_fap8 : Struct_Cogent_as1 -> ( U32, Struct_Cogent_as1 )
+cogent_fap8 p =
+   ((gencotDummy "Dereferencing pointer to a record").m1
+   , p)
+cogent_fap9 : Struct_Cogent_as1 -> ( U32, Struct_Cogent_as1 )
+cogent_fap9 p =
+   let p { m1 = p1' } = p { m1 = 42 }
+   in (p1', p { m1 = p1' })
+cogent_fap10 : Struct_Cogent_as3 -> ( U32, Struct_Cogent_as3 )
+cogent_fap10 p =
+   let p { m6 = p0' } = p
+   and p { m6 = p3' } = p { m6 = p0' }
+   in ((gencotDummy "Dereferencing pointer to a record").m1
+      , p { m6 = p3' })
+cogent_fap11 : Struct_Cogent_as3 -> ( U32, Struct_Cogent_as3 )
+cogent_fap11 p =
+   let p { m6 = p0' } = p
+   and p { m6 = p2' } = p { m6 = p0' { m1 = 42 } }
+   and p2' { m1 = p3' } = p2'
+   in (p3'
+      , p { m6 = p2' { m1 = p3' } })
+cogent_fap12 : Cogent_aa3 -> ( U32, Cogent_aa3 )
+cogent_fap12 p =
+   let (p
+       , _) = modifyArr[Cogent_aa3
+                       , U32
+                       , CPtr U32
+                       , _
+                       , _] (p
+                            , 3
+                            , \(p0'
+                               , v') => (p0' { cont = v' }, ())
+                            , 42)
+   and (p
+       , v10') = modifyArr[Cogent_aa3
+                          , U32
+                          , CPtr U32
+                          , _
+                          , _] (p
+                               , 3
+                               , \(p2'
+                                  , ()) => let p2' { cont = p3' } = p2'
+                               in (p2' { cont = p3' }, p3')
+                               , ())
+   in (v10', p)
+cogent_fap13 : CPtr U32 -> ( U32, CPtr U32 )
+cogent_fap13 p =
+   let p { cont = p0' } = p
+   in (p0', p { cont = p0' + 1 })
+cogent_fap14 : Struct_Cogent_as1 -> ( U32, Struct_Cogent_as1 )
+cogent_fap14 p =
+   let p { m1 = p0' } = p
+   in (p0', p { m1 = p0' + 1 })
+cogent_fap15 : Cogent_aa3 -> ( U32, Cogent_aa3 )
+cogent_fap15 p =
+   let (p
+       , v6') = modifyArr[Cogent_aa3
+                         , U32
+                         , CPtr U32
+                         , _
+                         , _] (p
+                              , 3
+                              , \(p0'
+                                 , v') => let p0' { cont = p1' } = p0'
+                              in (p0' { cont = p1' + v' }
+                                 , p1')
+                              , 1)
+   in (v6', p)
+cogent_fap16 : ( Struct_Cogent_as1, U32 ) -> ( U32, Struct_Cogent_as1 )
+cogent_fap16 (p, v) =
+   (gencotDummy "Dereferencing pointer not specified by a variable"
+   , p)
+cogent_fap17 : Struct_Cogent_as1 -> ( U32, Struct_Cogent_as1 )
+cogent_fap17 p =
+   (gencotDummy "Dereferencing pointer not specified by a variable"
+   , p)
+cogent_fap18 : Struct_Cogent_as1 -> ( U32, Struct_Cogent_as1 )
+cogent_fap18 p =
+   (gencotDummy "Dereferencing pointer not specified by a variable"
+   , p)
+
+cogent_fam1 : ( U32, U32 ) -> U32
+cogent_fam1 (v1, v2) = 17 + 4
+cogent_fam2 : ( U32, U32 ) -> U32
+cogent_fam2 (v1, v2) = 17
+cogent_fam3 : ( U32, U32 ) -> U32
+cogent_fam3 (v1, v2) = 17 + 4
+cogent_fam4 : ( U32, U32 ) -> U32
+cogent_fam4 (v1, v2) =
+   17 + 4 + 4
+cogent_fam5 : ( U32, U32 ) -> U32
+cogent_fam5 (v1, v2) = 17 + 4
+cogent_fam6 : ( U32, U32, U32 ) -> U32
+cogent_fam6 (v1, v2, v3) =
+   cogent_fam1 (17, 4) + v3
+cogent_fam7 : ( U32, U32, U32 ) -> U32
+cogent_fam7 (v1, v2, v3) =
+   17 + 4 + cogent_fam1 (17, 4)
+cogent_fam8 : ( U32, U32, U32 ) -> U32
+cogent_fam8 (v1, v2, v3) =
+   cogent_fam6 (17
+               , 4
+               , 0) + 17 + 4 + 0
+cogent_fam9 : ( U32, U32, U32 ) -> U32
+cogent_fam9 (v1, v2, v3) =
+   (if 17 /= 0
+      then 4
+      else 0) + (if 17 /= 0
+      then v3
+      else 0)
+cogent_fam10 : ( U32, U32, U32 ) -> U32
+cogent_fam10 (v1, v2, v3) =
+   (if 17 /= 0
+      then 17
+      else 17) + (if 17 /= 0
+      then 4
+      else v2) + (if 17 /= 0
+      then 4
+      else 0)
+cogent_fam11 : ( U32, U32, U32 ) -> U32
+cogent_fam11 (v1, v2, v3) =
+   (if 17 /= 0
+      then 4
+      else 0) + (if 17 /= 0
+      then 17
+      else 17) + (if 17 /= 0
+      then 4
+      else v2) + (if 17 /= 0
+      then v3
+      else 0)

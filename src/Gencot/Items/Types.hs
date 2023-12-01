@@ -3,17 +3,18 @@ module Gencot.Items.Types where
 
 import Control.Monad (liftM)
 import System.FilePath (takeExtension,takeFileName,takeBaseName)
-import Data.List (isPrefixOf,find)
+import Data.List (isPrefixOf,find,sort,sortOn,union,nub)
+import Data.Map (Map, insert)
 import Data.Maybe (fromMaybe)
 
 import Language.C.Data.Ident as LCI
 import Language.C.Data.Node as LCN
 import Language.C.Analysis as LCA
 
-import Gencot.Items.Identifier (individualItemId,localItemId,paramItemId,typedefItemId,tagItemId,memberSubItemId,paramSubItemId,elemSubItemId,refSubItemId,resultSubItemId,indivItemIds)
-import Gencot.Names (getFileName,anonCompTypeName,srcFileName)
-import Gencot.Traversal (FTrav,hasProperty,stopResolvTypeName,getItems,getProperties)
-import Gencot.Util.Types (getTagDef,isExtern,isFunction,isExternTypeDef,TypeCarrier,TypeCarrierSet,mergeQualsTo)
+import Gencot.Items.Identifier (individualItemId,localItemId,paramItemId,typedefItemId,tagItemId,memberSubItemId,paramSubItemId,elemSubItemId,refSubItemId,resultSubItemId,indivItemIds,getParamName)
+import Gencot.Names (getFileName,anonCompTypeName,srcFileName,mapIfUpper,heapParamName)
+import Gencot.Traversal (FTrav,hasProperty,stopResolvTypeName,getItems,getProperties,getFunDef,getItemId)
+import Gencot.Util.Types (getTagDef,isExtern,isFunction,isExternTypeDef,isVoid,TypeCarrier,TypeCarrierSet,mergeQualsTo,safeDeclLinkage)
 
 -- | Construct the identifier for an individual toplevel item.
 -- An individual toplevel item is a function or a global object (variable).
@@ -123,6 +124,22 @@ derivedItemIds (LCA.PtrType bt _ _) = do
     return $ map (\s -> s ++ "*") dii
 derivedItemIds _ = return $ []
 
+-- | Get the item id for an arbitrary object identifier referenced in the C program.
+-- First the item id is looked up in the item id table in the FTrav state
+-- to find local variables and parameters. 
+-- If not found there, it must be an individual toplevel item.
+getObjectItemId :: LCI.Ident -> FTrav String
+getObjectItemId nam = do
+    iid <- getItemId $ LCI.identToString nam
+    if null iid
+       then do
+           mdec <- LCA.lookupObject nam
+           sfn <- getFileName
+           case mdec of
+                Nothing -> return ""
+                Just dec -> return $ getIndividualItemId dec sfn
+       else return iid
+
 -- | A type with an associated item identifier.
 type ItemAssocType = (String,LCA.Type)
 
@@ -135,12 +152,33 @@ isNotNullItem = isItemWithProperty "nn"
 isReadOnlyItem = isItemWithProperty "ro"
 isAddResultItem = isItemWithProperty "ar"
 isNoStringItem = isItemWithProperty "ns"
+isHeapUseItem = isItemWithProperty "hu"
+isInputOutputItem = isItemWithProperty "io"
+isConstValItem = isItemWithProperty "cv"
 
--- | Retrieve all subitems with a gs property.
+getItemProperties :: ItemAssocType -> FTrav [String]
+getItemProperties (iid,t) = do
+    dii <- derivedItemIds t
+    liftM (nub . concat) $ mapM getProperties $ ((indivItemIds iid) ++ dii)
+    
+-- | The Add-Result property is suppressed by a Read-Only property.
+shallAddResult :: ItemAssocType -> FTrav Bool
+shallAddResult iat = do
+    ar <- isAddResultItem iat
+    ro <- isReadOnlyItem iat
+    return (ar && (not ro))
+
+-- | Retrieve subitems with a Global-State property.
 -- This includes virtual parameter items not declared for the C function.
-getGlobalStateSubItemIds :: ItemAssocType -> FTrav [String]
-getGlobalStateSubItemIds (fid,_) = 
-    getItems (\iid plist -> (fidslash `isPrefixOf` iid) && any (\p -> "gs" `isPrefixOf` p) plist)
+-- The result is a list of pairs, consisting of the item id and a flag whether the item has no Read-Only property.
+getGlobalStateSubItemIds :: ItemAssocType -> FTrav [(String,Bool)]
+getGlobalStateSubItemIds (fid,_) = do
+    gsids <- getItems (\iid plist -> (fidslash `isPrefixOf` iid) 
+                       && any (\p -> "gs" `isPrefixOf` p) plist)
+    roids <- getItems (\iid plist -> (fidslash `isPrefixOf` iid) 
+                       && elem "ro" plist)
+    let isnorogsids = map (\iid -> not $ elem iid roids) gsids
+    return $ zip gsids isnorogsids
     where fidslash = fid ++ "/"
 
 -- | Get the Global-State property for an item.
@@ -149,6 +187,17 @@ getGlobalStateProperty :: String -> FTrav String
 getGlobalStateProperty iid = do
     props <- getProperties iid
     return $ fromMaybe "" $ find (\p -> "gs" `isPrefixOf` p) props
+
+-- | The callback handler for building a mapping from item ids to the declaration/definition
+-- for global variables.
+-- The map is built as a (Map String IdentDecl) in the second component of the Trav user state.
+-- The first argument is the name of the main source file.
+collectGlobalStateIds :: String -> LCA.DeclEvent -> Trav (s1,(Map String LCA.IdentDecl)) ()
+collectGlobalStateIds fnam (LCA.DeclEvent idec@(LCA.Declaration _)) | not $ isFunction $ LCA.declType idec =
+    modifyUserState (\(us1,us2) -> (us1,insert (getIndividualItemId idec fnam) idec us2))
+collectGlobalStateIds fnam (LCA.DeclEvent idec@(LCA.ObjectDef _)) =
+    modifyUserState (\(us1,us2) -> (us1,insert (getIndividualItemId idec fnam) idec us2))
+collectGlobalStateIds _ _ = return ()
 
 -- | Retrieve the item identifier of the toplevel item with the given gs property.
 -- If there is more than one, an arbitrary one is returned. 
@@ -183,31 +232,22 @@ getTypedefItemAssoc idnam typ = (getTypedefItemId idnam, typ)
 -- | ItemAssocType for a composite type member.
 -- The first argument is the ItemAssocType of the composite type.
 getMemberSubItemAssoc :: ItemAssocType -> LCA.MemberDecl -> ItemAssocType
-getMemberSubItemAssoc (iid,_) mdecl = 
+getMemberSubItemAssoc (iid,_) mdecl =
     (getMemberSubItemId iid mdecl, LCA.declType mdecl)
 
 -- | Element sub-item  for array ItemAssocType
-getElemSubItemAssoc :: ItemAssocType -> FTrav ItemAssocType
-getElemSubItemAssoc (iid,(LCA.ArrayType st _ _ _)) = hSubItemAssoc st (elemSubItemId iid)
+getElemSubItemAssoc :: ItemAssocType -> ItemAssocType
+getElemSubItemAssoc (iid,t@(LCA.ArrayType st _ _ _)) = (elemSubItemId iid, st)
 
 -- | Referenced data sub-item for pointer ItemAssocType
-getRefSubItemAssoc :: ItemAssocType -> FTrav ItemAssocType
-getRefSubItemAssoc (iid,(LCA.PtrType st _ _)) = hSubItemAssoc st (refSubItemId iid)
+getRefSubItemAssoc :: ItemAssocType -> ItemAssocType
+getRefSubItemAssoc (iid,t@(LCA.PtrType st _ _)) = (refSubItemId iid, st)
 
 -- | Result sub-item  for function ItemAssocType
-getResultSubItemAssoc :: ItemAssocType -> FTrav ItemAssocType
-getResultSubItemAssoc (iid,(LCA.FunctionType ft _)) = hSubItemAssoc (resultType ft) (resultSubItemId iid)
+getResultSubItemAssoc :: ItemAssocType -> ItemAssocType
+getResultSubItemAssoc (iid,t@(LCA.FunctionType ft _)) = (resultSubItemId iid, resultType ft)
     where resultType (LCA.FunType t _ _) = t
           resultType (LCA.FunTypeIncomplete t) = t
-
--- | Return individual or collective ItemAssocType for the first argument.
--- If it is a typedef reference which is not resolved, use the corresponding collective Item id.
--- Otherwise use the second argument as item id.
-hSubItemAssoc :: LCA.Type -> String -> FTrav ItemAssocType
-hSubItemAssoc st@(LCA.TypeDefType (LCA.TypeDefRef idnam t _) _ _) iid = do
-    rtn <- isResolvTypeName idnam
-    return (if rtn then (iid,st) else (getTypedefItemAssoc idnam st))
-hSubItemAssoc st iid = return (iid,st)
 
 -- | Parameter sub-item for ItemAssocType.
 -- The parameter is specified by the pair of its position and its declaration.
@@ -271,21 +311,17 @@ getSubItemAssocTypes iat@(iid,(LCA.TypeDefType (LCA.TypeDefRef idnam t _) q _)) 
              return (iat : subs)-}
 getSubItemAssocTypes iat@(iid,(LCA.DirectType _ _ _)) = return [iat] 
 getSubItemAssocTypes iat@(iid,(LCA.PtrType _ _ _)) = do
-    sub <- getRefSubItemAssoc iat
-    subs <- getSubItemAssocTypes sub
+    subs <- getSubItemAssocTypes $ getRefSubItemAssoc iat
     return (iat : subs)
 getSubItemAssocTypes iat@(iid,(LCA.ArrayType _ _ _ _)) = do
-    sub <- getElemSubItemAssoc iat
-    subs <- getSubItemAssocTypes sub
+    subs <- getSubItemAssocTypes $ getElemSubItemAssoc iat
     return (iat : subs)
 getSubItemAssocTypes iat@(iid,(LCA.FunctionType (LCA.FunType rt pars _) _)) = do
-    sub <- getResultSubItemAssoc iat
-    rsubs <- getSubItemAssocTypes sub
+    rsubs <- getSubItemAssocTypes $ getResultSubItemAssoc iat
     psubs <- mapM (\ipd -> getSubItemAssocTypes $ getParamSubItemAssoc iat ipd) $ numberList pars
     return (iat : (rsubs ++ (concat psubs)))
 getSubItemAssocTypes iat@(iid,(LCA.FunctionType (LCA.FunTypeIncomplete rt) _)) = do
-    sub <- getResultSubItemAssoc iat
-    subs <- getSubItemAssocTypes sub
+    subs <- getSubItemAssocTypes $ getResultSubItemAssoc iat
     return (iat : subs)
 
 numberList :: [a] -> [(Int,a)]
@@ -296,3 +332,19 @@ isResolvTypeName idnam = do
     dt <- getDefTable
     srtn <- stopResolvTypeName idnam
     return ((isExternTypeDef dt idnam) && not srtn)
+
+-- | For a function get the list of Add-Result properties.
+-- The list has the same length as the list of regular parameters of the function.
+-- An entry is true if the corresponding parameter has an effective (i.e. without Read-Only property) Add-Result property .
+getAddResultProperties :: ItemAssocType -> FTrav [Bool]
+getAddResultProperties iat@(_,(LCA.FunctionType (LCA.FunType _ pars _) _)) = 
+    mapM shallAddResult $ map (getParamSubItemAssoc iat) (numberList pars)
+
+-- | For a function get the name of the parameter with a specific Global-State property.
+-- The first argument is the ItemAssocType of the function, the second is the Global-State property.
+getGlobalStateParam :: ItemAssocType -> String -> FTrav String
+getGlobalStateParam iat gs = do
+    pids <- getGlobalStateSubItemIds iat
+    gsps <- mapM getGlobalStateProperty $ map fst pids
+    return $ maybe "" (getParamName . snd) $ find (\(gsp,_) -> gsp == gs) $ zip gsps $ map fst pids
+

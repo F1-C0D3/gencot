@@ -1,0 +1,258 @@
+-- Expression in boolean context: converted to Bool
+
+cogent_fbl01 : U32 -> U32
+cogent_fbl01 i =
+   if not (i > 0) then 17 else 4
+cogent_fbl02 : U32 -> U32
+cogent_fbl02 i =
+   if not (i /= 0) then 17 else 4
+cogent_fbl03 : U32 -> U32
+cogent_fbl03 i =
+   if i /= 0 then 17 else 4
+cogent_fbl04 : U32 -> U32
+cogent_fbl04 i =
+   if (if i > 10
+      then i < 20
+      else i > 3)
+   then 17
+   else 4
+cogent_fbl05 : U32 -> U32
+cogent_fbl05 i =
+   if (if i > 10
+      then i < 20
+      else i /= 0)
+   then 17
+   else 4
+cogent_fbl06 : U32 -> U32
+cogent_fbl06 i =
+   if (if i > 10
+      then i /= 0
+      else i > 3)
+   then 17
+   else 4
+cogent_fbl07 : U32 -> U32
+cogent_fbl07 i =
+   if (if i > 10
+      then i
+      else i + 3) /= 0
+   then 17
+   else 4
+cogent_fbl08 : U16 -> U32
+cogent_fbl08 i =
+   if i /= 0 then 17 else 4
+cogent_fbl09 : U64 -> U32
+cogent_fbl09 i =
+   if i /= 0 then 17 else 4
+
+cogent_fbl11 : U32 -> U32
+cogent_fbl11 i =
+   if (if i > 0
+      then i < 10
+      else False)
+   then 17
+   else 4
+cogent_fbl12 : U32 -> U32
+cogent_fbl12 i =
+   if (if i /= 0
+      then i < 10
+      else False)
+   then 17
+   else 4
+cogent_fbl13 : U32 -> U32
+cogent_fbl13 i =
+   if (if i < 10
+      then i /= 0
+      else False)
+   then 17
+   else 4
+cogent_fbl14 : U32 -> U32
+cogent_fbl14 i =
+   if (if i /= 0
+      then i + 1 /= 0
+      else False)
+   then 17
+   else 4
+
+cogent_fbl21 : U32 -> U32
+cogent_fbl21 i =
+   if (if i > 0
+      then True
+      else i < 10)
+   then 17
+   else 4
+cogent_fbl22 : U32 -> U32
+cogent_fbl22 i =
+   if (if i /= 0
+      then True
+      else i < 10)
+   then 17
+   else 4
+cogent_fbl23 : U32 -> U32
+cogent_fbl23 i =
+   if (if i < 10
+      then True
+      else i /= 0)
+   then 17
+   else 4
+cogent_fbl24 : U32 -> U32
+cogent_fbl24 i =
+   if (if i /= 0
+      then True
+      else i + 1 /= 0)
+   then 17
+   else 4
+
+cogent_fbl31 : U32 -> U32
+cogent_fbl31 i =
+   if (i > 10) == (i < 20)
+   then 17
+   else 4
+cogent_fbl32 : U32 -> U32
+cogent_fbl32 i =
+   if (i /= 0) == (i < 20)
+   then 17
+   else 4
+cogent_fbl33 : U32 -> U32
+cogent_fbl33 i =
+   if (i > 10) == (i /= 0)
+   then 17
+   else 4
+cogent_fbl34 : U32 -> U32
+cogent_fbl34 i =
+   if i == i + 1 then 17 else 4
+cogent_fbl35 : U32 -> U32
+cogent_fbl35 i =
+   if (i > 10) /= (i < 20)
+   then 17
+   else 4
+cogent_fbl36 : U32 -> U32
+cogent_fbl36 i =
+   if (i /= 0) /= (i < 20)
+   then 17
+   else 4
+cogent_fbl37 : U32 -> U32
+cogent_fbl37 i =
+   if (i > 10) /= (i /= 0)
+   then 17
+   else 4
+cogent_fbl38 : U32 -> U32
+cogent_fbl38 i =
+   if i /= i + 1 then 17 else 4
+
+type Struct_Cogent_sbl = { m1 : U32, m2 : U32 }
+
+cogent_fbl41ln : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
+cogent_fbl41ln p =
+   (notNull[CPtr U32] p
+   | Nothing -> 4
+   | Some p -> 17
+   , p)
+cogent_fbl41ro : (MayNull ((CPtr U32)!))! -> U32
+cogent_fbl41ro p =
+   roNotNull[(CPtr U32)!] p
+   | Nothing -> 4
+   | Some p -> 17
+cogent_fbl41nn : CPtr U32 -> ( U32, CPtr U32 )
+cogent_fbl41nn p = (17, p)
+cogent_fbl41ronn : (CPtr U32)! -> U32
+cogent_fbl41ronn p = 17
+cogent_fbl42ln : MayNull Struct_Cogent_sbl -> ( U32, MayNull Struct_Cogent_sbl )
+cogent_fbl42ln p =
+   (notNull[Struct_Cogent_sbl] p
+   | Nothing -> 4
+   | Some p -> 17
+   , p)
+cogent_fbl42ro : (MayNull Struct_Cogent_sbl!)! -> U32
+cogent_fbl42ro p =
+   roNotNull[Struct_Cogent_sbl!] p
+   | Nothing -> 4
+   | Some p -> 17
+cogent_fbl42nn : Struct_Cogent_sbl -> ( U32, Struct_Cogent_sbl )
+cogent_fbl42nn p = (17, p)
+cogent_fbl42ronn : Struct_Cogent_sbl! -> U32
+cogent_fbl42ronn p = 17
+cogent_fbl43ln : CArr5 U32 -> ( U32, CArr5 U32 )
+cogent_fbl43ln p = (17, p)
+cogent_fbl43ro : (CArr5 U32)! -> U32
+cogent_fbl43ro p = 17
+
+-- Boolean expression in non-boolean context: converted to arith
+
+cogent_fblctxt : ( U32, U32 ) -> U32
+cogent_fblctxt (i, j) = i + j
+
+cogent_fbl51 : U32 -> U32
+cogent_fbl51 i = i + 1
+cogent_fbl52 : U32 -> U32
+cogent_fbl52 i =
+   if i > 0 then 1 else 0
+cogent_fbl53 : U32 -> U32
+cogent_fbl53 i =
+   i + (if i > 0 then 1 else 0)
+cogent_fbl54 : U32 -> U32
+cogent_fbl54 i =
+   if (if i > 0 then 1 else 0) > i
+   then 1
+   else 0
+cogent_fbl55 : U32 -> U32
+cogent_fbl55 i =
+   - (if i > 0 then 1 else 0)
+cogent_fbl56 : U32 -> U32
+cogent_fbl56 i =
+   cogent_fbl51 (if i > 0
+      then 1
+      else 0)
+cogent_fbl57 : U32 -> U32
+cogent_fbl57 i =
+   cogent_fblctxt (if i > 0
+                  then 1
+                  else 0
+                  , i)
+cogent_fbl58 : U32 -> U32
+cogent_fbl58 i =
+   cogent_fblctxt (i
+                  , if i > 0 then 1 else 0)
+
+cogent_fbl61 : U32 -> U32
+cogent_fbl61 i =
+   if (if i > 10
+      then i < 20
+      else i > 5)
+   then 1
+   else 0
+cogent_fbl62 : U32 -> U32
+cogent_fbl62 i =
+   if (if i < 20
+      then i > 5
+      else False)
+   then 1
+   else 0
+
+cogent_fbl71 : ( CArr5 U32, U32 ) -> ( U32, CArr5 U32 )
+cogent_fbl71 (p, i) =
+   let (r'
+       , ()) = (getArr[(CArr5 U32)!
+                      , U32
+                      , U32] (p
+                             , if i > 0 then 1 else 0)
+               , ()) !p
+   in (r', p)
+cogent_fbl72 : ( CArr5 U32, U32 ) -> ( (), CArr5 U32 )
+cogent_fbl72 (p, i) =
+   (()
+   , let (p, _) = setArr[CArr5 U32
+                        , U32
+                        , U32] (p
+                               , if i > 0 then 1 else 0
+                               , i)
+   in p)
+
+cogent_fbl81 : ( #Struct_Cogent_sbl, U32 ) -> #Struct_Cogent_sbl
+cogent_fbl81 (s, i) =
+   if 0 > 0
+   then r'
+   else s { m1 = if i > 0
+      then 1
+      else 0 }
+cogent_fbl82 : ( MayNull Struct_Cogent_sbl, U32 ) -> ( (), MayNull Struct_Cogent_sbl )
+cogent_fbl82 (p, i) = ((), p)

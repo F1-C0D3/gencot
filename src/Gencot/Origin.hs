@@ -7,12 +7,18 @@ import Data.Maybe (catMaybes)
 
 import "language-c" Language.C (NodeInfo,CNode,nodeInfo)
 import Language.C.Data.Node (posOfNode,getLastTokenPos{- -},mkNodeInfoPosLen)
-import Language.C.Data.Position (posRow,isSourcePos{- -},retPos,initPos,)
+import Language.C.Data.Position (nopos,posRow,isSourcePos{- -},retPos,initPos,Pos,posOf)
 
 data Origin = Origin { 
     sOfOrig :: [(NodeInfo,Bool)], 
     eOfOrig :: [(NodeInfo,Bool)] } deriving (Eq, Ord, Show, Data)
 noOrigin = Origin [] []
+
+-- | Retrieve position of an Origin for error messages.
+-- It is the position of the first nodeinfo at the beginning.
+instance Pos Origin where
+    posOf (Origin [] _) = nopos
+    posOf (Origin (n:ns) _) = posOf $ fst n
 
 isBegOrigin :: Origin -> Bool
 isBegOrigin (Origin [] _) = False

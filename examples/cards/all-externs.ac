@@ -1,15 +1,19 @@
 extern int putchar (int __c);
-static $ty:(U32) cogent_putchar ($ty:(U32) arg) {
-    return putchar(arg);
+static $ty:((U32,SysState)) cogent_putchar ($ty:((U32,SysState)) arg) {
+    $ty:((U32,SysState)) res = {.p1=0, .p2=0};
+    res.p1 = putchar(arg.p1);
+    return res;
 }
 extern int puts(const char *__s);
-static $ty:(U32) cogent_puts ($ty:(String) arg) {
-    return puts(arg);
+static $ty:((U32,SysState)) cogent_puts ($ty:((String,SysState)) arg) {
+    $ty:((U32,SysState)) res = {.p1=0, .p2=0};
+    res.p1 = puts(arg.p1);
+    return res;
 }
 extern void exit (int __status) __attribute__ ((__noreturn__));
-static $ty:(()) cogent_exit($ty:(U32) arg) {
-    $ty:(()) res = ($ty:(())){.dummy=0};
-    exit(arg);
+static $ty:(((),SysState)) cogent_exit($ty:((U32,SysState)) arg) {
+    $ty:(((),SysState)) res = {.p1=($ty:(())){.dummy=0}, .p2=0};
+    exit(arg.p1);
     return res;
 }
 

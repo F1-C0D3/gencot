@@ -47,3 +47,5 @@ typedef int fnam5(struct nstr2 p1, int p2(int), anam1 p3); // should be equivale
 typedef int (*fpnam3)(snam2 p1, fnam1 p2, anam1 p3);
 typedef int (*fpnam4)(snam2 p1, fnam2 p2, int p3[5]); // should be equivalent with fpnam3
 typedef int (*fpnam5)(struct nstr2 p1, int p2(int), anam1 p3); // should be equivalent with fpnam3
+
+typedef void vnam;

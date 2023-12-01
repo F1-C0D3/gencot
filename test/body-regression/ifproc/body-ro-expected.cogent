@@ -1,0 +1,1026 @@
+-- Using values of readonly type.
+
+-- Functions used as context:
+cogent_fcln : CPtr U32 -> U32
+cogent_fcln i = 0
+cogent_fcro : (CPtr U32)! -> U32
+cogent_fcro i = 0
+cogent_fcmln : MayNull (CPtr U32) -> U32
+cogent_fcmln i = 0
+cogent_fcmro : (MayNull ((CPtr U32)!))! -> U32
+cogent_fcmro i = 0
+-- Global variables used as context:
+type GlobState1 =
+   CPtr (CPtr U32)
+type GlobState2 =
+   CPtr ((CPtr U32)!)
+type GlobState3 =
+   CPtr (MayNull (CPtr U32))
+type GlobState4 =
+   CPtr ((MayNull ((CPtr U32)!))!)
+
+-- struct probes:
+type Struct_Cogent_ros1 = { mrg : U32, mro : (CPtr U32)!, mln : CPtr U32 }
+type Struct_Cogent_rosm1 = { mrg : U32, mro : (MayNull ((CPtr U32)!))!, mln : MayNull (CPtr U32) }
+type Struct_Cogent_ros2 = { sln : Struct_Cogent_ros1, sub : #Struct_Cogent_ros1 }
+
+-- array probes:
+type Cogent_roa1 = CArr5 U32 -- regular elements
+type Cogent_roa2 =
+   CArr5 ((CPtr U32)!) -- readonly elements
+type Cogent_roa3 =
+   CArr5 (CPtr U32) -- linear elements
+type Cogent_roam2 =
+   CArr5 ((MayNull ((CPtr U32)!))!) -- readonly maynull elements
+type Cogent_roam3 =
+   CArr5 (MayNull (CPtr U32)) -- linear maynull elements
+type Cogent_roa4 =
+   CArr5 #Cogent_roa1 -- array elements
+type Cogent_roa5 =
+   CArr5 #Cogent_roa2 -- array elements
+type Cogent_roa6 =
+   CArr5 #Cogent_roa3 -- array elements
+
+-- Direct use of probe in context
+cogent_f11ln : (CPtr U32)! -> U32
+cogent_f11ln pro =
+   cogent_fcln (gencotDummy "Readonly expression used in linear context")
+cogent_f11ro : (CPtr U32)! -> U32
+cogent_f11ro pro =
+   cogent_fcro pro
+cogent_f12ln : () -> U32
+cogent_f12ln () =
+   cogent_fcln (gencotDummy "Readonly expression used in linear context")
+cogent_f12ro : () -> U32
+cogent_f12ro () =
+   cogent_fcro (cogent_glob ())
+cogent_f13ln : () -> U32
+cogent_f13ln () =
+   cogent_fcln (gencotDummy "Readonly expression used in linear context")
+cogent_f13ro : () -> U32
+cogent_f13ro () =
+   cogent_fcro (cogent_frro ())
+cogent_f14ln : ( (CPtr U32)!, (CPtr U32)!, U32 ) -> U32
+cogent_f14ln (pro, qro, i) =
+   cogent_fcln (gencotDummy "Readonly expression used in linear context")
+cogent_f14ro : ( (CPtr U32)!, (CPtr U32)!, U32 ) -> U32
+cogent_f14ro (pro, qro, i) =
+   cogent_fcro (if i /= 0
+      then pro
+      else qro)
+
+-- Probe assigned to variable
+cogent_f21ln : GlobState1 -> ( (), GlobState1 )
+cogent_f21ln g =
+   (()
+   , let g { cont = _ } = g
+   in g { cont = gencotDummy "Readonly expression used in linear context" })
+cogent_f21ro : GlobState2 -> ( (), GlobState2 )
+cogent_f21ro g =
+   (()
+   , g { cont = cogent_frro () })
+cogent_f22ln : CPtr U32 -> ( (), CPtr U32 )
+cogent_f22ln pln =
+   (()
+   , gencotDummy "Readonly expression used in linear context")
+cogent_f22ro : (CPtr U32)! -> U32
+cogent_f22ro pro =
+   getPtr[(CPtr U32)!
+         , U32] (cogent_frro ())
+
+-- Probe returned as result
+cogent_f31ln : () -> CPtr U32
+cogent_f31ln () =
+   gencotDummy "Readonly expression used in linear context"
+cogent_f31ro : () -> (CPtr U32)!
+cogent_f31ro () = cogent_frro ()
+
+-- Probe used in conditional expression with other branch as context
+cogent_f41ln : ( (CPtr U32)!, CPtr U32, U32 ) -> ( U32, CPtr U32 )
+cogent_f41ln (pro, qln, i) =
+   let r' = cogent_fcro (if i /= 0
+         then pro
+         else qln) !qln
+   in (r', qln)
+cogent_f42ln : ( CPtr U32, (CPtr U32)!, U32 ) -> ( U32, CPtr U32 )
+cogent_f42ln (pln, qro, i) =
+   let r' = cogent_fcro (if i /= 0
+         then pln
+         else qro) !pln
+   in (r', pln)
+
+-- Probe used by accessing a struct component
+cogent_f51ln : Struct_Cogent_ros1! -> Struct_Cogent_ros1!
+cogent_f51ln pro = pro
+cogent_f51ro : Struct_Cogent_ros1! -> U32
+cogent_f51ro pro = pro.mrg
+cogent_f52ln : Struct_Cogent_ros1! -> Struct_Cogent_ros1!
+cogent_f52ln pro = pro
+cogent_f52ro : Struct_Cogent_ros1! -> (CPtr U32)!
+cogent_f52ro pro = pro.mro
+cogent_f53ln : Struct_Cogent_ros1! -> Struct_Cogent_ros1!
+cogent_f53ln pro = pro
+cogent_f53ro : Struct_Cogent_ros1! -> (CPtr U32)!
+cogent_f53ro pro = pro.mln
+cogent_f54ln : Struct_Cogent_ros1! -> Struct_Cogent_ros1!
+cogent_f54ln pro = pro
+cogent_f54ro : Struct_Cogent_ros1! -> U32
+cogent_f54ro pro =
+   getPtr[(CPtr U32)!, U32] pro.mln
+cogent_f55ln : Struct_Cogent_ros1! -> U32
+cogent_f55ln pro =
+   cogent_fcln (gencotDummy "Readonly expression used in linear context")
+cogent_f55ro : Struct_Cogent_ros1! -> U32
+cogent_f55ro pro =
+   cogent_fcro pro.mln
+cogent_f56ln : ( Struct_Cogent_ros1!, GlobState1 ) -> ( (), GlobState1 )
+cogent_f56ln (pro, g) =
+   (()
+   , let g { cont = _ } = g
+   in g { cont = gencotDummy "Readonly expression used in linear context" })
+cogent_f56ro : ( Struct_Cogent_ros1!, GlobState2 ) -> ( (), GlobState2 )
+cogent_f56ro (pro, g) =
+   ((), g { cont = pro.mln })
+cogent_f57ln : ( Struct_Cogent_ros1!, CPtr U32 ) -> ( (), CPtr U32 )
+cogent_f57ln (pro, pln) =
+   (()
+   , gencotDummy "Readonly expression used in linear context")
+cogent_f57ro : ( Struct_Cogent_ros1!, (CPtr U32)! ) -> U32
+cogent_f57ro (pro, qro) =
+   getPtr[(CPtr U32)!, U32] pro.mln
+cogent_f58ln : Struct_Cogent_ros1! -> CPtr U32
+cogent_f58ln pro =
+   gencotDummy "Readonly expression used in linear context"
+cogent_f58ro : Struct_Cogent_ros1! -> (CPtr U32)!
+cogent_f58ro pro = pro.mln
+cogent_f59ln : ( Struct_Cogent_ros1!, CPtr U32, U32 ) -> ( U32, CPtr U32 )
+cogent_f59ln (pro, qln, i) =
+   let r' = cogent_fcro (if i /= 0
+         then pro.mln
+         else qln) !qln
+   in (r', qln)
+cogent_f59ro : ( Struct_Cogent_ros1!, (CPtr U32)!, U32 ) -> U32
+cogent_f59ro (pro, qro, i) =
+   cogent_fcro (if i /= 0
+      then pro.mln
+      else qro)
+
+cogent_f61ln : Struct_Cogent_ros2! -> Struct_Cogent_ros2!
+cogent_f61ln pro = pro
+cogent_f61ro : Struct_Cogent_ros2! -> U32
+cogent_f61ro pro = pro.sln.mrg
+cogent_f62ln : Struct_Cogent_ros2! -> Struct_Cogent_ros2!
+cogent_f62ln pro = pro
+cogent_f62ro : Struct_Cogent_ros2! -> (CPtr U32)!
+cogent_f62ro pro = pro.sln.mro
+cogent_f63ln : Struct_Cogent_ros2! -> Struct_Cogent_ros2!
+cogent_f63ln pro = pro
+cogent_f63ro : Struct_Cogent_ros2! -> (CPtr U32)!
+cogent_f63ro pro = pro.sln.mln
+cogent_f64ln : Struct_Cogent_ros2! -> Struct_Cogent_ros2!
+cogent_f64ln pro = pro
+cogent_f64ro : Struct_Cogent_ros2! -> (CPtr U32)!
+cogent_f64ro pro =
+   (getrefFld_sub[Struct_Cogent_ros2!
+                 , Struct_Cogent_ros1!] pro).mln
+
+-- Probe used by accessing an array element
+cogent_f71ln : Cogent_roa1! -> U32
+cogent_f71ln pro =
+   getArr[Cogent_roa1!
+         , U32
+         , U32] (pro, 1)
+cogent_f71ro : Cogent_roa1! -> U32
+cogent_f71ro pro =
+   getArr[Cogent_roa1!
+         , U32
+         , U32] (pro, 1)
+cogent_f72ln : Cogent_roa2! -> (CPtr U32)!
+cogent_f72ln pro =
+   getArr[Cogent_roa2!
+         , U32
+         , (CPtr U32)!] (pro, 1)
+cogent_f72ro : Cogent_roa2! -> (CPtr U32)!
+cogent_f72ro pro =
+   getArr[Cogent_roa2!
+         , U32
+         , (CPtr U32)!] (pro, 1)
+cogent_f73ln : Cogent_roa3! -> (CPtr U32)!
+cogent_f73ln pro =
+   getArr[Cogent_roa3!
+         , U32
+         , (CPtr U32)!] (pro, 1)
+cogent_f73ro : Cogent_roa3! -> (CPtr U32)!
+cogent_f73ro pro =
+   getArr[Cogent_roa3!
+         , U32
+         , (CPtr U32)!] (pro, 1)
+cogent_f74ln : Cogent_roa3! -> (CPtr U32)!
+cogent_f74ln pro =
+   getArr[Cogent_roa3!
+         , U32
+         , (CPtr U32)!] (pro, 1)
+cogent_f74ro : Cogent_roa3! -> U32
+cogent_f74ro pro =
+   getPtr[(CPtr U32)!
+         , U32] (getArr[Cogent_roa3!
+                       , U32
+                       , (CPtr U32)!] (pro, 1))
+cogent_f75ln : Cogent_roa3! -> U32
+cogent_f75ln pro =
+   cogent_fcln (gencotDummy "Readonly expression used in linear context")
+cogent_f75ro : Cogent_roa3! -> U32
+cogent_f75ro pro =
+   cogent_fcro (getArr[Cogent_roa3!
+                      , U32
+                      , (CPtr U32)!] (pro, 1))
+cogent_f76ln : ( Cogent_roa3!, GlobState1 ) -> ( (), GlobState1 )
+cogent_f76ln (pro, g) =
+   (()
+   , let g { cont = _ } = g
+   in g { cont = gencotDummy "Readonly expression used in linear context" })
+cogent_f76ro : ( Cogent_roa3!, GlobState2 ) -> ( (), GlobState2 )
+cogent_f76ro (pro, g) =
+   (()
+   , g { cont = getArr[Cogent_roa3!
+                      , U32
+                      , (CPtr U32)!] (pro, 1) })
+cogent_f77ln : ( Cogent_roa3!, CPtr U32 ) -> ( (), CPtr U32 )
+cogent_f77ln (pro, qln) =
+   (()
+   , gencotDummy "Readonly expression used in linear context")
+cogent_f77ro : ( Cogent_roa3!, (CPtr U32)! ) -> U32
+cogent_f77ro (pro, qro) =
+   getPtr[(CPtr U32)!
+         , U32] (getArr[Cogent_roa3!
+                       , U32
+                       , (CPtr U32)!] (pro, 1))
+cogent_f78ln : Cogent_roa3! -> CPtr U32
+cogent_f78ln pro =
+   gencotDummy "Readonly expression used in linear context"
+cogent_f78ro : Cogent_roa3! -> (CPtr U32)!
+cogent_f78ro pro =
+   getArr[Cogent_roa3!
+         , U32
+         , (CPtr U32)!] (pro, 1)
+cogent_f79ln : ( Cogent_roa3!, CPtr U32, U32 ) -> ( U32, CPtr U32 )
+cogent_f79ln (pro, qln, i) =
+   let r' = cogent_fcro (if i /= 0
+         then getArr[Cogent_roa3!
+                    , U32
+                    , (CPtr U32)!] (pro, 1)
+         else qln) !qln
+   in (r', qln)
+cogent_f79ro : ( Cogent_roa3!, (CPtr U32)!, U32 ) -> U32
+cogent_f79ro (pro, qro, i) =
+   cogent_fcro (if i /= 0
+      then getArr[Cogent_roa3!
+                 , U32
+                 , (CPtr U32)!] (pro, 1)
+      else qro)
+
+cogent_f81ln : Cogent_roa4! -> U32
+cogent_f81ln pro =
+   getArr[Cogent_roa1!
+         , U32
+         , U32] (getrefArr[Cogent_roa4!
+                          , U32
+                          , Cogent_roa1!] (pro, 1)
+                , 1)
+cogent_f81ro : Cogent_roa4! -> U32
+cogent_f81ro pro =
+   getArr[Cogent_roa1!
+         , U32
+         , U32] (getrefArr[Cogent_roa4!
+                          , U32
+                          , Cogent_roa1!] (pro, 1)
+                , 1)
+cogent_f82ln : Cogent_roa5! -> (CPtr U32)!
+cogent_f82ln pro =
+   getArr[Cogent_roa2!
+         , U32
+         , (CPtr U32)!] (getrefArr[Cogent_roa5!
+                                  , U32
+                                  , Cogent_roa2!] (pro, 1)
+                        , 1)
+cogent_f82ro : Cogent_roa5! -> (CPtr U32)!
+cogent_f82ro pro =
+   getArr[Cogent_roa2!
+         , U32
+         , (CPtr U32)!] (getrefArr[Cogent_roa5!
+                                  , U32
+                                  , Cogent_roa2!] (pro, 1)
+                        , 1)
+cogent_f83ln : Cogent_roa6! -> (CPtr U32)!
+cogent_f83ln pro =
+   getArr[Cogent_roa3!
+         , U32
+         , (CPtr U32)!] (getrefArr[Cogent_roa6!
+                                  , U32
+                                  , Cogent_roa3!] (pro, 1)
+                        , 1)
+cogent_f83ro : Cogent_roa6! -> (CPtr U32)!
+cogent_f83ro pro =
+   getArr[Cogent_roa3!
+         , U32
+         , (CPtr U32)!] (getrefArr[Cogent_roa6!
+                                  , U32
+                                  , Cogent_roa3!] (pro, 1)
+                        , 1)
+
+-- probe assigned to struct component or array element
+cogent_f91ln : Struct_Cogent_ros1 -> ( (), Struct_Cogent_ros1 )
+cogent_f91ln pln =
+   (()
+   , let pln { mln = _ } = pln
+   in pln { mln = gencotDummy "Readonly expression used in linear context" })
+cogent_f91ro : Struct_Cogent_ros1 -> ( (), Struct_Cogent_ros1 )
+cogent_f91ro pln =
+   (()
+   , pln { mro = cogent_frro () })
+cogent_f92ln : Cogent_roa3 -> ( (), Cogent_roa3 )
+cogent_f92ln pln =
+   (()
+   , let (pln
+         , _) = modifyArr[Cogent_roa3
+                         , U32
+                         , CPtr U32
+                         , _
+                         , _] (pln
+                              , 1
+                              , \(p0'
+                                 , ()) => (gencotDummy "Readonly expression used in linear context"
+                                          , ())
+                              , ())
+   in pln)
+cogent_f92ro : Cogent_roa2 -> ( (), Cogent_roa2 )
+cogent_f92ro pln =
+   (()
+   , let (pln
+         , _) = setArr[Cogent_roa2
+                      , U32
+                      , (CPtr U32)!] (pln
+                                     , 1
+                                     , cogent_frro ())
+   in pln)
+
+-- Using values of linear type (can be banged).
+
+-- Direct use of probe in context
+cogent_g11ln : CPtr U32 -> U32
+cogent_g11ln pln =
+   cogent_fcln pln
+cogent_g11ro : CPtr U32 -> U32
+cogent_g11ro pln =
+   let r' = cogent_fcro pln !pln
+   in r'
+cogent_g12ln : () -> U32
+cogent_g12ln () =
+   cogent_fcln (cogent_globln ())
+cogent_g12ro : () -> U32
+cogent_g12ro () =
+   cogent_fcro (gencotDummy "Linear expression used in readonly context")
+cogent_g13ln : () -> U32
+cogent_g13ln () =
+   cogent_fcln (cogent_frln ())
+cogent_g13ro : () -> U32
+cogent_g13ro () =
+   cogent_fcro (gencotDummy "Linear expression used in readonly context")
+cogent_g14ln : ( CPtr U32, CPtr U32, U32 ) -> U32
+cogent_g14ln (pln, qln, i) =
+   cogent_fcln (if i /= 0
+      then pln
+      else qln)
+cogent_g14ro : ( CPtr U32, CPtr U32, U32 ) -> U32
+cogent_g14ro (pln, qln, i) =
+   let r' = cogent_fcro (if i /= 0
+         then pln
+         else qln) !pln !qln
+   in r'
+
+-- Probe assigned to variable
+cogent_g21ln : GlobState1 -> ( (), GlobState1 )
+cogent_g21ln g =
+   (()
+   , let g { cont = _ } = g
+   in g { cont = cogent_frln () })
+cogent_g21ro : GlobState2 -> ( (), GlobState2 )
+cogent_g21ro g =
+   (()
+   , g { cont = gencotDummy "Linear expression used in readonly context" })
+cogent_g22ln : CPtr U32 -> ( (), CPtr U32 )
+cogent_g22ln pln =
+   ((), cogent_frln ())
+cogent_g22ro : (CPtr U32)! -> U32
+cogent_g22ro pro =
+   getPtr[(CPtr U32)!
+         , U32] (gencotDummy "Linear expression used in readonly context")
+
+-- Probe returned as result
+cogent_g31ln : () -> CPtr U32
+cogent_g31ln () = cogent_frln ()
+cogent_g31ro : () -> (CPtr U32)!
+cogent_g31ro () =
+   gencotDummy "Linear expression used in readonly context"
+
+-- Probe used by accessing a struct component
+cogent_g51ln : Struct_Cogent_ros1 -> ( (), Struct_Cogent_ros1 )
+cogent_g51ln pln =
+   ((), pln { mrg = 5 })
+cogent_g51ro : Struct_Cogent_ros1 -> U32
+cogent_g51ro pln =
+   let r' = pln.mrg !pln
+   in r'
+cogent_g52ln : Struct_Cogent_ros1 -> ( (), Struct_Cogent_ros1 )
+cogent_g52ln pln =
+   (()
+   , pln { mro = gencotDummy "Linear expression used in readonly context" })
+cogent_g52ro : Struct_Cogent_ros1 -> ( (CPtr U32)!, Struct_Cogent_ros1 )
+cogent_g52ro pln =
+   let pln { mro = p0' } = pln
+   in (p0', pln { mro = p0' })
+cogent_g53ln : Struct_Cogent_ros1 -> ( (), Struct_Cogent_ros1 )
+cogent_g53ln pln =
+   (()
+   , let pln { mln = _ } = pln
+   in pln { mln = cogent_frln () })
+cogent_g53ro : Struct_Cogent_ros1 -> ( CPtr U32, Struct_Cogent_ros1 )
+cogent_g53ro pln =
+   let pln { mln = p0' } = pln
+   in (p0', pln { mln = p0' })
+cogent_g54ln : Struct_Cogent_ros1 -> ( U32, Struct_Cogent_ros1 )
+cogent_g54ln pln =
+   (r'
+   , let pln { mln = p0' } = pln
+   in pln { mln = p0' { cont = 5 } })
+cogent_g54ro : Struct_Cogent_ros1 -> ( U32, Struct_Cogent_ros1 )
+cogent_g54ro pln =
+   let () = () !pln
+   in (r', pln)
+cogent_g55ln : Struct_Cogent_ros1 -> U32
+cogent_g55ln pln =
+   let pln { mln = p0' } = pln
+   in cogent_fcln p0'
+cogent_g55ro : Struct_Cogent_ros1 -> U32
+cogent_g55ro pln =
+   let r' = cogent_fcro pln.mln !pln
+   in r'
+cogent_g56ln : ( Struct_Cogent_ros1, GlobState1 ) -> ( (), GlobState1 )
+cogent_g56ln (pln, g) =
+   (()
+   , let pln { mln = p0' } = pln
+   and g { cont = _ } = g
+   in g { cont = p0' })
+cogent_g56ro : ( Struct_Cogent_ros1, GlobState2 ) -> ( (), GlobState2 )
+cogent_g56ro (pln, g) =
+   let g = g { cont = (gencotDummy "Necessary banging of pln leads to non-escapeable type").mln } !pln
+   in ((), g)
+cogent_g57ln : ( Struct_Cogent_ros1, CPtr U32 ) -> ( (), CPtr U32 )
+cogent_g57ln (pln, qln) =
+   (()
+   , let pln { mln = p0' } = pln
+   in p0')
+cogent_g57ro : ( Struct_Cogent_ros1, (CPtr U32)! ) -> U32
+cogent_g57ro (pln, qro) =
+   let r' = getPtr[(CPtr U32)!
+                  , U32] pln.mln !pln
+   in r'
+cogent_g58ln : Struct_Cogent_ros1 -> CPtr U32
+cogent_g58ln pln =
+   let pln { mln = p0' } = pln
+   in p0'
+cogent_g58ro : Struct_Cogent_ros1 -> (CPtr U32)!
+cogent_g58ro pln =
+   gencotDummy "Linear expression used in readonly context"
+cogent_g59ln : ( Struct_Cogent_ros1, CPtr U32, U32 ) -> ( U32, CPtr U32 )
+cogent_g59ln (pln, qln, i) =
+   let r' = cogent_fcro (if i /= 0
+         then pln.mln
+         else qln) !pln !qln
+   in (r', qln)
+cogent_g59ro : ( Struct_Cogent_ros1, (CPtr U32)!, U32 ) -> U32
+cogent_g59ro (pln, qro, i) =
+   let r' = cogent_fcro (if i /= 0
+         then pln.mln
+         else qro) !pln
+   in r'
+
+cogent_g61ln : Struct_Cogent_ros2 -> ( (), Struct_Cogent_ros2 )
+cogent_g61ln pln =
+   (()
+   , let pln { sln = p0' } = pln
+   in pln { sln = p0' { mrg = 5 } })
+cogent_g61ro : Struct_Cogent_ros2 -> ( U32, Struct_Cogent_ros2 )
+cogent_g61ro pln =
+   let (r', ()) = (pln.sln.mrg
+                  , ()) !pln
+   in (r', pln)
+cogent_g62ln : Struct_Cogent_ros2 -> ( (), Struct_Cogent_ros2 )
+cogent_g62ln pln =
+   (()
+   , let pln { sln = p0' } = pln
+   in pln { sln = p0' { mro = gencotDummy "Linear expression used in readonly context" } })
+cogent_g62ro : Struct_Cogent_ros2 -> ( (CPtr U32)!, Struct_Cogent_ros2 )
+cogent_g62ro pln =
+   let pln { sln = p0' } = pln
+   and p0' { mro = p1' } = p0'
+   in (p1'
+      , pln { sln = p0' { mro = p1' } })
+cogent_g63ln : Struct_Cogent_ros2 -> ( (), Struct_Cogent_ros2 )
+cogent_g63ln pln =
+   (()
+   , let pln { sln = p0' } = pln
+   and p0' { mln = _ } = p0'
+   in pln { sln = p0' { mln = cogent_frln () } })
+cogent_g63ro : Struct_Cogent_ros2 -> ( CPtr U32, Struct_Cogent_ros2 )
+cogent_g63ro pln =
+   let pln { sln = p0' } = pln
+   and p0' { mln = p1' } = p0'
+   in (p1'
+      , pln { sln = p0' { mln = p1' } })
+cogent_g64ln : Struct_Cogent_ros2 -> ( (), Struct_Cogent_ros2 )
+cogent_g64ln pln =
+   (()
+   , let (pln
+         , _) = modrefFld_sub[Struct_Cogent_ros2
+                             , Struct_Cogent_ros1
+                             , _
+                             , _] (pln
+                                  , \(p0'
+                                     , ()) => (p0' { mro = gencotDummy "Linear expression used in readonly context" }
+                                              , ())
+                                  , ())
+   in pln)
+cogent_g64ro : Struct_Cogent_ros2 -> ( (CPtr U32)!, Struct_Cogent_ros2 )
+cogent_g64ro pln =
+   let (pln
+       , v2') = modrefFld_sub[Struct_Cogent_ros2
+                             , Struct_Cogent_ros1
+                             , _
+                             , _] (pln
+                                  , \(p0'
+                                     , ()) => let p0' { mro = p1' } = p0'
+                                  in (p0' { mro = p1' }, p1')
+                                  , ())
+   in (v2', pln)
+
+-- Probe used by accessing an array element
+cogent_g71ln : Cogent_roa1 -> ( (), Cogent_roa1 )
+cogent_g71ln pln =
+   (()
+   , let (pln
+         , _) = setArr[Cogent_roa1
+                      , U32
+                      , U32] (pln, 1, 5)
+   in pln)
+cogent_g71ro : Cogent_roa1 -> U32
+cogent_g71ro pln =
+   let r' = getArr[Cogent_roa1!
+                  , U32
+                  , U32] (pln, 1) !pln
+   in r'
+cogent_g72ln : Cogent_roa2 -> ( (), Cogent_roa2 )
+cogent_g72ln pln =
+   (()
+   , let (pln
+         , _) = setArr[Cogent_roa2
+                      , U32
+                      , (CPtr U32)!] (pln
+                                     , 1
+                                     , gencotDummy "Linear expression used in readonly context")
+   in pln)
+cogent_g72ro : Cogent_roa2 -> (CPtr U32)!
+cogent_g72ro pln =
+   let (_
+       , v2') = modifyArr[Cogent_roa2
+                         , U32
+                         , (CPtr U32)!
+                         , _
+                         , _] (pln
+                              , 1
+                              , \(p0', ()) => (p0', p0')
+                              , ())
+   in v2'
+cogent_g73ln : Cogent_roa3 -> ( (), Cogent_roa3 )
+cogent_g73ln pln =
+   (()
+   , let (pln
+         , _) = modifyArr[Cogent_roa3
+                         , U32
+                         , CPtr U32
+                         , _
+                         , _] (pln
+                              , 1
+                              , \(p0', v1') => (v1', ())
+                              , cogent_frln ())
+   in pln)
+cogent_g73ro : Cogent_roa3 -> CPtr U32
+cogent_g73ro pln =
+   let (_
+       , v2') = modifyArr[Cogent_roa3
+                         , U32
+                         , CPtr U32
+                         , _
+                         , _] (pln
+                              , 1
+                              , \(p0', ()) => (p0', p0')
+                              , ())
+   in v2'
+cogent_g74ln : Cogent_roa3 -> ( (), Cogent_roa3 )
+cogent_g74ln pln =
+   (()
+   , let (pln
+         , _) = modifyArr[Cogent_roa3
+                         , U32
+                         , CPtr U32
+                         , _
+                         , _] (pln
+                              , 1
+                              , \(p0'
+                                 , v') => (p0' { cont = v' }, ())
+                              , 5)
+   in pln)
+cogent_g74ro : Cogent_roa3 -> U32
+cogent_g74ro pln =
+   let r' = getPtr[(CPtr U32)!
+                  , U32] (getArr[Cogent_roa3!
+                                , U32
+                                , (CPtr U32)!] (pln, 1)) !pln
+   in r'
+cogent_g75ln : Cogent_roa3 -> U32
+cogent_g75ln pln =
+   let (_
+       , v3') = modifyArr[Cogent_roa3
+                         , U32
+                         , CPtr U32
+                         , _
+                         , _] (pln
+                              , 1
+                              , \(p0', ()) => (p0', p0')
+                              , ())
+   in cogent_fcln v3'
+cogent_g75ro : Cogent_roa3 -> U32
+cogent_g75ro pln =
+   let r' = cogent_fcro (getArr[Cogent_roa3!
+                               , U32
+                               , (CPtr U32)!] (pln, 1)) !pln
+   in r'
+cogent_g76ln : ( Cogent_roa3, GlobState1 ) -> ( (), GlobState1 )
+cogent_g76ln (pln, g) =
+   (()
+   , let (_
+         , v2') = modifyArr[Cogent_roa3
+                           , U32
+                           , CPtr U32
+                           , _
+                           , _] (pln
+                                , 1
+                                , \(p0', ()) => (p0', p0')
+                                , ())
+   and g { cont = _ } = g
+   in g { cont = v2' })
+cogent_g76ro : ( Cogent_roa3, GlobState2 ) -> ( (), GlobState2 )
+cogent_g76ro (pln, g) =
+   let g = g { cont = getArr[Cogent_roa3!
+                            , U32
+                            , (CPtr U32)!] (gencotDummy "Necessary banging of pln leads to non-escapeable type"
+                                           , 1) } !pln
+   in ((), g)
+cogent_g77ln : ( Cogent_roa3, CPtr U32 ) -> ( (), CPtr U32 )
+cogent_g77ln (pln, qln) =
+   (()
+   , let (_
+         , v2') = modifyArr[Cogent_roa3
+                           , U32
+                           , CPtr U32
+                           , _
+                           , _] (pln
+                                , 1
+                                , \(p0', ()) => (p0', p0')
+                                , ())
+   in v2')
+cogent_g77ro : ( Cogent_roa3, (CPtr U32)! ) -> U32
+cogent_g77ro (pln, qro) =
+   let r' = getPtr[(CPtr U32)!
+                  , U32] (getArr[Cogent_roa3!
+                                , U32
+                                , (CPtr U32)!] (pln, 1)) !pln
+   in r'
+cogent_g78ln : Cogent_roa3 -> CPtr U32
+cogent_g78ln pln =
+   let (_
+       , v2') = modifyArr[Cogent_roa3
+                         , U32
+                         , CPtr U32
+                         , _
+                         , _] (pln
+                              , 1
+                              , \(p0', ()) => (p0', p0')
+                              , ())
+   in v2'
+cogent_g78ro : Cogent_roa3 -> (CPtr U32)!
+cogent_g78ro pln =
+   gencotDummy "Linear expression used in readonly context"
+cogent_g79ln : ( Cogent_roa3, CPtr U32, U32 ) -> ( U32, CPtr U32 )
+cogent_g79ln (pln, qln, i) =
+   let r' = cogent_fcro (if i /= 0
+         then getArr[Cogent_roa3!
+                    , U32
+                    , (CPtr U32)!] (pln, 1)
+         else qln) !pln !qln
+   in (r', qln)
+cogent_g79ro : ( Cogent_roa3, (CPtr U32)!, U32 ) -> U32
+cogent_g79ro (pln, qro, i) =
+   let r' = cogent_fcro (if i /= 0
+         then getArr[Cogent_roa3!
+                    , U32
+                    , (CPtr U32)!] (pln, 1)
+         else qro) !pln
+   in r'
+
+cogent_g81ln : Cogent_roa4 -> ( (), Cogent_roa4 )
+cogent_g81ln pln =
+   (()
+   , let (pln
+         , _) = modrefArr[Cogent_roa4
+                         , U32
+                         , Cogent_roa1
+                         , _
+                         , _] (pln
+                              , 1
+                              , \(p0', v', v4') => let (p0'
+                                                       , _) = setArr[Cogent_roa1
+                                                                    , U32
+                                                                    , U32] (p0'
+                                                                           , v4'
+                                                                           , v')
+                              in (p0', ())
+                              , 5
+                              , 1)
+   in pln)
+cogent_g81ro : Cogent_roa4 -> U32
+cogent_g81ro pln =
+   let r' = getArr[Cogent_roa1!
+                  , U32
+                  , U32] (getrefArr[Cogent_roa4!
+                                   , U32
+                                   , Cogent_roa1!] (pln, 1)
+                         , 1) !pln
+   in r'
+cogent_g82ln : Cogent_roa5 -> ( (), Cogent_roa5 )
+cogent_g82ln pln =
+   (()
+   , let (pln
+         , _) = modrefArr[Cogent_roa5
+                         , U32
+                         , Cogent_roa2
+                         , _
+                         , _] (pln
+                              , 1
+                              , \(p0', v5') => let (p0'
+                                                   , _) = setArr[Cogent_roa2
+                                                                , U32
+                                                                , (CPtr U32)!] (p0'
+                                                                               , v5'
+                                                                               , gencotDummy "Linear expression used in readonly context")
+                              in (p0', ())
+                              , 1)
+   in pln)
+cogent_g82ro : Cogent_roa5 -> (CPtr U32)!
+cogent_g82ro pln =
+   let (_
+       , v4') = modrefArr[Cogent_roa5
+                         , U32
+                         , Cogent_roa2
+                         , _
+                         , _] (pln
+                              , 1
+                              , modifyArr[Cogent_roa2
+                                         , U32
+                                         , (CPtr U32)!
+                                         , _
+                                         , _]
+                              , 1
+                              , \(p1', ()) => (p1', p1')
+                              , ())
+   in v4'
+cogent_g83ln : Cogent_roa6 -> ( (), Cogent_roa6 )
+cogent_g83ln pln =
+   (()
+   , let (pln
+         , _) = modrefArr[Cogent_roa6
+                         , U32
+                         , Cogent_roa3
+                         , _
+                         , _] (pln
+                              , 1
+                              , modifyArr[Cogent_roa3
+                                         , U32
+                                         , CPtr U32
+                                         , _
+                                         , _]
+                              , 1
+                              , \(p1', v1') => (v1', ())
+                              , cogent_frln ())
+   in pln)
+cogent_g83ro : Cogent_roa6 -> CPtr U32
+cogent_g83ro pln =
+   let (_
+       , v4') = modrefArr[Cogent_roa6
+                         , U32
+                         , Cogent_roa3
+                         , _
+                         , _] (pln
+                              , 1
+                              , modifyArr[Cogent_roa3
+                                         , U32
+                                         , CPtr U32
+                                         , _
+                                         , _]
+                              , 1
+                              , \(p1', ()) => (p1', p1')
+                              , ())
+   in v4'
+
+-- probe assigned to struct component or array element
+cogent_g91ln : Struct_Cogent_ros1 -> ( (), Struct_Cogent_ros1 )
+cogent_g91ln pln =
+   (()
+   , let pln { mln = _ } = pln
+   in pln { mln = cogent_frln () })
+cogent_g91ro : Struct_Cogent_ros1 -> ( (), Struct_Cogent_ros1 )
+cogent_g91ro pln =
+   (()
+   , pln { mro = gencotDummy "Linear expression used in readonly context" })
+cogent_g92ln : Cogent_roa3 -> ( (), Cogent_roa3 )
+cogent_g92ln pln =
+   (()
+   , let (pln
+         , _) = modifyArr[Cogent_roa3
+                         , U32
+                         , CPtr U32
+                         , _
+                         , _] (pln
+                              , 1
+                              , \(p0', v1') => (v1', ())
+                              , cogent_frln ())
+   in pln)
+cogent_g92ro : Cogent_roa2 -> ( (), Cogent_roa2 )
+cogent_g92ro pln =
+   (()
+   , let (pln
+         , _) = setArr[Cogent_roa2
+                      , U32
+                      , (CPtr U32)!] (pln
+                                     , 1
+                                     , gencotDummy "Linear expression used in readonly context")
+   in pln)
+
+-- banging in nested bang positions
+cogent_nst11 : ( Struct_Cogent_ros1, U32 ) -> ( Struct_Cogent_ros1, Struct_Cogent_ros1 )
+cogent_nst11 (pln, i) =
+   (let (c', (), i) = (0
+                      , ()
+                      , pln.mrg) !pln
+   in if c' > 0
+      then r'
+      else let pln { mln = p1' } = pln
+         in pln { mln = p1' { cont = i } }
+   , let (c', (), i) = (0
+                       , ()
+                       , pln.mrg) !pln
+   in if c' > 0
+      then pln
+      else let pln { mln = p1' } = pln
+         in pln { mln = p1' { cont = i } })
+cogent_nst12 : ( Struct_Cogent_ros1, U32 ) -> ( Struct_Cogent_ros1, Struct_Cogent_ros1 )
+cogent_nst12 (pln, i) =
+   (let (c', (), i) = (0
+                      , ()
+                      , pln.mrg) !pln
+   in if c' > 0
+      then r'
+      else let (c', (), i) = (0
+                             , ()
+                             , i + getPtr[(CPtr U32)!
+                                         , U32] pln.mro) !pln
+         in let pln { mln = p3' } = pln
+            in pln { mln = p3' { cont = i } }
+   , let (c', (), i) = (0
+                       , ()
+                       , pln.mrg) !pln
+   in if c' > 0
+      then pln
+      else let (c', (), i) = (0
+                             , ()
+                             , i + getPtr[(CPtr U32)!
+                                         , U32] pln.mro) !pln
+         in let pln { mln = p3' } = pln
+            in pln { mln = p3' { cont = i } })
+
+-- banging in binding sequences
+cogent_bs11 : ( Struct_Cogent_ros1, U32 ) -> ( Struct_Cogent_ros1, Struct_Cogent_ros1 )
+cogent_bs11 (pln, i) =
+   let pln { mrg = p0' } = pln
+   and pln { mln = p1' } = pln { mrg = p0' }
+   and pln = pln { mln = p1' { cont = p0' } }
+   in (pln, pln)
+cogent_bs12 : ( Struct_Cogent_ros1, (CPtr U32)!, U32 ) -> ( Struct_Cogent_ros1, Struct_Cogent_ros1 )
+cogent_bs12 (pln, qro, i) =
+   let (v13'
+       , ()) = (getPtr[(CPtr U32)!
+                      , U32] pln.mln
+               , ()) !pln
+   and pln = pln { mrg = v13' }
+   in (pln, pln)
+cogent_bs13 : ( Struct_Cogent_ros1, (CPtr U32)!, CPtr U32 ) -> ( Struct_Cogent_ros1, Struct_Cogent_ros1, CPtr U32 )
+cogent_bs13 (pln, qro, i) =
+   let (v14'
+       , ()
+       , i) = (let i = i { cont = getPtr[(CPtr U32)!
+                                        , U32] pln.mln }
+         in (i, (), i)) !pln
+   and pln = pln { mln = v14' }
+   in (pln, pln, i)
+
+-- Direct use of NULL in context
+cogent_n11ln : () -> U32
+cogent_n11ln () =
+   cogent_fcmln (null[] ())
+cogent_n11ro : () -> U32
+cogent_n11ro () =
+   cogent_fcmro (roNull[] ())
+cogent_n14ln : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
+cogent_n14ln (qln, i) =
+   (cogent_fcmln (if i /= 0
+      then null[] ()
+      else qln)
+   , qln)
+cogent_n14ro : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
+cogent_n14ro (qln, i) =
+   let r' = cogent_fcmro (if i /= 0
+         then roNull[] ()
+         else qln) !qln
+   in (r', qln)
+
+-- NULL assigned to variable
+cogent_n21ln : GlobState3 -> ( (), GlobState3 )
+cogent_n21ln g =
+   (()
+   , let g { cont = _ } = g
+   in g { cont = null[] () })
+cogent_n21ro : GlobState4 -> ( (), GlobState4 )
+cogent_n21ro g =
+   ((), g { cont = roNull[] () })
+cogent_n22ln : MayNull (CPtr U32) -> ( (), MayNull (CPtr U32) )
+cogent_n22ln pln =
+   ((), null[] ())
+cogent_n22ro : (MayNull ((CPtr U32)!))! -> U32
+cogent_n22ro pro =
+   gencotDummy "Dereferencing pointer which may be NULL"
+
+-- NULL returned as result
+cogent_n31ln : () -> MayNull (CPtr U32)
+cogent_n31ln () = null[] ()
+cogent_n31ro : () -> (MayNull ((CPtr U32)!))!
+cogent_n31ro () = roNull[] ()
+
+-- Using NULL twice
+cogent_n41lnln : () -> U32
+cogent_n41lnln () =
+   cogent_fcmln (null[] ()) + cogent_fcmln (null[] ())
+cogent_n42lnro : () -> U32
+cogent_n42lnro () =
+   cogent_fcmln (null[] ()) + cogent_fcmro (roNull[] ())
+cogent_n43roro : () -> U32
+cogent_n43roro () =
+   cogent_fcmro (roNull[] ()) + cogent_fcmro (roNull[] ())
+
+-- NULL assigned to struct component or array element
+cogent_n91ln : MayNull Struct_Cogent_rosm1 -> ( (), MayNull Struct_Cogent_rosm1 )
+cogent_n91ln pln = ((), pln)
+cogent_n91ro : MayNull Struct_Cogent_rosm1 -> ( (), MayNull Struct_Cogent_rosm1 )
+cogent_n91ro pln = ((), pln)
+cogent_n92ln : Cogent_roam3 -> ( (), Cogent_roam3 )
+cogent_n92ln pln =
+   (()
+   , let (pln
+         , _) = modifyArr[Cogent_roam3
+                         , U32
+                         , MayNull (CPtr U32)
+                         , _
+                         , _] (pln
+                              , 1
+                              , \(p0', v') => (v', ())
+                              , null[] ())
+   in pln)
+cogent_n92ro : Cogent_roam2 -> ( (), Cogent_roam2 )
+cogent_n92ro pln =
+   (()
+   , let (pln
+         , _) = setArr[Cogent_roam2
+                      , U32
+                      , (MayNull ((CPtr U32)!))!] (pln
+                                                  , 1
+                                                  , roNull[] ())
+   in pln)

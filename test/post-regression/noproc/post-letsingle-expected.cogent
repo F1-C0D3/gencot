@@ -1,0 +1,128 @@
+f1 : U32 -> U32
+f1 i = let v = 5 in v
+f2 : U32 -> U32
+f2 i = let v = 5 in 20
+f3 : U32 -> U32
+f3 i = let v = i in v + 1
+f4 : U32 -> U32
+f4 i =
+   let v = 3 * i + 45 / 15
+   in v
+f5 : U32 -> U32
+f5 i =
+   let v = 3 * i
+   in 2 * v + v + v / 3
+f10 : U32 -> U32
+f10 i =
+   let v = 5
+   and v2 = v + i
+   in v2 + v
+f11 : U32 -> U32
+f11 i =
+   let v = i + 1
+   and i = v + i
+   in i + v
+f12 : U32 -> U32
+f12 i =
+   let v = i + 1
+   and v = 1 + i
+   in v
+f13 : U32 -> ( U32, U32, U32 )
+f13 i =
+   let v = i + 1
+   and v' = i - 1
+   in (v', i, v)
+f20 : U32 -> U32
+f20 i =
+   let v = i + 1
+   in i
+      | w -> w + v
+f21 : U32 -> U32
+f21 i =
+   let v = i + 1
+   in i
+      | v -> v + 5
+f22 : U32 -> U32
+f22 i =
+   let v = i
+   in 5
+      | i -> v
+f23 : U32 -> U32
+f23 i = let v = i in \i => v
+f23a : U32 -> U32
+f23a i = let v = i in \j => v
+f30 : U32 -> U32
+f30 i =
+   let v = let i = i + 1 in 2 * i
+   in v + 10
+f31 : U32 -> U32
+f31 i =
+   let v = if i == 0
+      then 5
+      else 2 * i
+   in v + 10
+f32 : U32 -> U32
+f32 i =
+   let v = 7
+      | i -> i + 1
+   in v + 10
+f33 : U32 -> U32
+f33 i =
+   let v = 7
+      | i -> i + 1
+   in 5
+      | i -> v
+f34 : U32 -> U32
+f34 i =
+   let v = (1, 2, i)
+   in fst v
+f34a : ( U32, U32 ) -> U32
+f34a (i, j) =
+   let v = (1, i, j)
+   in 5
+      | i -> v
+f34b : ( U32, U32 ) -> U32
+f34b (i, j) =
+   let v = (1, i, j)
+   in 5
+      | k -> v
+type Rec =
+   { fld1 : U32, fld2 : U32 }
+type Arr = U32[5]
+f35 : Rec -> Rec
+f35 r =
+   let v = #{ fld1 = 5, fld2 = 7 }
+   in v
+f35a : Rec -> Rec
+f35a r =
+   let v = r { fld1 = 5 }
+   in v
+f36 : Arr -> Arr
+f36 a =
+   let v = [1, 2, 3, 4, 5]
+   in v
+f36a : Arr -> Arr
+f36a a =
+   let v = a @{ @3 = 5 }
+   in v
+f40 : Rec -> Rec
+f40 r =
+   let r' { fld1 = v } = r
+   in r'
+f41 : Rec -> ( U32, U32 )
+f41 r =
+   let #{ fld1 = v1
+        , fld2 = v2 } = r
+   in (v1, v2)
+f42 : Arr -> Arr
+f42 a =
+   let a' @{ @3 = v } = a
+   in a'
+f43 : Arr -> ( U32, U32 )
+f43 a =
+   let [_, v1, _, v2, _] = a
+   in (v1, v2)
+f44 : U32 -> U32
+f44 i = let _ = i in i + 1
+f45 : U32 -> U32
+f45 i = let () = () in i + 1

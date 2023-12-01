@@ -77,6 +77,7 @@ mapInternal :: String -> LCI.Ident -> String
 mapInternal fnam (LCI.Ident s _ _) = "local_" ++ (dropExtension $ fnam) ++ "_" ++ s
 
 mapIfUpper ::MapNamesTrav f => LCI.Ident -> f String
+mapIfUpper (Ident "" _ _) = return ""
 mapIfUpper idnam =
     if (isUpper $ head s) || "_" `isPrefixOf` s then mapNameToLower idnam else return s
     where (Ident s _ _) = idnam
@@ -105,11 +106,16 @@ transObjName :: (MapNamesTrav f, MonadTrav f) => LCI.Ident -> f String
 transObjName idnam = do
     mdecdef <- LCA.lookupObject idnam
     let (Just decdef) = mdecdef
-    fnam <- getFileName 
-    let lnk = LCA.declLinkage decdef
-    case decdef of
+    transDeclName decdef
+
+transDeclName :: (MapNamesTrav f, MonadTrav f) => LCA.IdentDecl -> f String
+transDeclName decl = do
+    fnam <- getFileName
+    let lnk = LCA.declLinkage decl
+    let idnam = LCA.declIdent decl
+    case decl of
          LCA.EnumeratorDef _ -> mapNameToLower idnam
-         _ -> mapObjectName idnam lnk fnam decdef
+         _ -> mapObjectName idnam lnk fnam decl
 
 mapObjectName :: (CNode a, MapNamesTrav f) => LCI.Ident -> LCA.Linkage -> String -> a -> f String
 mapObjectName idnam lnk fnam n = 
@@ -118,8 +124,22 @@ mapObjectName idnam lnk fnam n =
          LCA.ExternalLinkage -> mapNameToLower idnam
          LCA.NoLinkage -> mapIfUpper idnam
 
+isNoFunctionName :: (MapNamesTrav f, MonadTrav f) => LCI.Ident -> f Bool
+isNoFunctionName idnam = do
+    mdecdef <- LCA.lookupObject idnam
+    let (Just decdef) = mdecdef
+    return (case decdef of
+                LCA.Declaration d -> case LCA.declType d of
+                                          LCA.FunctionType _ _ -> False
+                                          _ -> True
+                LCA.FunctionDef _ -> False
+                _ -> True)
+
 mapPtrDeriv :: String
 mapPtrDeriv = "CPtr"
+
+ptrDerivCompName :: String
+ptrDerivCompName = "cont"
 
 mapPtrVoid :: String
 mapPtrVoid = "CVoidPtr"
@@ -131,12 +151,18 @@ mapArrDeriv (LCA.ArraySize _ (LCS.CVar (LCI.Ident s _ _) _)) =
     in "CArr" ++ [sep] ++ s ++ [sep] 
 mapArrDeriv _ = "CArrXX"
 
+isArrDeriv :: String -> Bool
+isArrDeriv s = "CArr" `isPrefixOf` s
+
 arrDerivHasSize :: String -> Bool
 arrDerivHasSize nam = nam /= "CArrXX"
 
 -- | Convert an array type name CArr<size> to the component name arr<size>
 arrDerivCompNam :: String -> String
 arrDerivCompNam ('C' : 'A' : rest) = 'a' : rest
+
+isArrDerivComp :: String -> Bool
+isArrDerivComp s = "arr" `isPrefixOf` s
 
 arrDerivToUbox :: String -> String
 arrDerivToUbox ('C' : rest) = "U" ++ rest
@@ -145,8 +171,17 @@ mapFunDeriv :: Bool -> String
 mapFunDeriv False = "CFunInc"
 mapFunDeriv True = "CFunPtr"
 
+isFunDeriv :: String -> Bool
+isFunDeriv "CFunInc" = True
+isFunDeriv "CFunPtr" = True
+isFunDeriv _ = False
+
 mapMayNull :: String
 mapMayNull = "MayNull"
+
+-- Translation of NULL preprocessor constant.
+mapNull :: String
+mapNull = "cogent_NULL"
 
 mapUboxStep = "U_"
 rmUboxStep ('U' : '_' : rest) = rest
@@ -192,6 +227,35 @@ mapFileChar :: Char -> Char
 mapFileChar '.' = '_'
 mapFileChar '-' = '_'
 mapFileChar c = c
+
+variadicParamName = "variadicCogentParameters"
+variadicTypeName = "VariadicCogentParameters"
+
+heapType :: String
+heapType = "Heap"
+
+ioType :: String
+ioType = "SysState"
+
+heapParamName :: [String] -> String
+heapParamName pars = 
+    if elem "heap" pars
+       then globname 1
+       else "heap"
+    where 
+        globname i = 
+            let cand = ("globheap" ++ (show i))
+            in if elem cand pars then globname (i + 1) else cand
+
+ioParamName :: [String] -> String
+ioParamName pars =
+    if elem "io" pars
+       then globname 1
+       else "io"
+    where
+        globname i =
+            let cand = ("globio" ++ (show i))
+            in if elem cand pars then globname (i + 1) else cand
 
 globStateType :: String -> String
 globStateType gs = ("GlobState" ++ (drop 2 gs))

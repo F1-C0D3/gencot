@@ -1,5 +1,5 @@
 // read-only type examples:
-typedef int *intP_t;
+typedef int *int1P_t, *int2P_t;
 typedef const int *intCP_t;
 typedef const struct point { int x,y,z; } *coord3dCP_t;
 typedef int funBinPtr_t(const int *p1, int p2);

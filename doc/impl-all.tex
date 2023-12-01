@@ -62,12 +62,18 @@ are specified.
 
 \item[\code{-k}] Keep directory with intermediate files. This is only intended for debugging.
 
+\item[\code{-t}] Translation configuration string. Default is \code{"-"}. This is mainly intended for debugging.
+
 \end{description}
 
 As described in Section~\ref{impl-comments-decl}, Gencot moves comments from C function declarations to translated function
 definitions. Since a declaration may be specified in a different C source file (often an include file) than the definition, 
 the subcommands \code{cfile}, \code{hfile}, and \code{config} write all declaration comments in the processed file to
 the directory specified by the \code{-C} option and use all comments found there when translating function definitions.
+
+The translation of C function bodies can be configured using the \code{-t} option by specifying the translation configuration
+string described in Section~\ref{impl-ccomps-main}. The empty string corresponds to \code{"-"} which is the default when
+the option is omitted.
 
 \subsubsection{Auxiliary Files}
 
@@ -322,6 +328,7 @@ directory (see Section~\ref{design-files}):
 \begin{itemize}
 \item \code{x.c}
 \item \code{x-externs.c}
+\item \code{x-gencot.h} and \code{x-cogent-common.c} (copied and renamed from the Gencot distribution).
 \item \code{x-gencot.c} (only if \code{x-gencot\_pp\_inferred.c} is present)
 \item \code{x-manabstr.c} (only if \code{x-manabstr\_pp\_inferred.c} is present)
 \end{itemize}

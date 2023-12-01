@@ -27,16 +27,16 @@ of all main items together. Such sub-items are called ``collective items'' here.
 
 Items may also be local variables defined in a function body. Gencot identifies local items by their C identifier.
 The C identifier need not be unique, not even in the same function, due to the block structure of C function bodies
-with the possibility to define variables in every block. Therefore the identifiers of local items are not 
-unique in the current Gencot version and thus it does not make sense to declare properties for local items. 
+with the possibility to define variables in every block. Therefore local variables are additionally identified
+by their number of occurrence in the function body.
 
 There are two kinds of global items: C variables (also called ``objects'' in the C standard) and C functions, which
 are defined on toplevel (called an ``external definition'' in the C standard), i.e., not locally in a function. Note that
-these two kinds only differ in their types: functions have a derived function type, objects may have all other types.
+these two kinds only differ in their types: functions have a derived function type, objects may have any other type.
 
 Global items are always named by a C identifier. Depending on the linkage, the identifier may be unique (external linkage)
 or it may only be unique for the compilation unit (internal linkage). Gencot uses the C identifier to identify global 
-items. In the case of internal linkage the file name of the compilation unit is used for disambiguation.
+items. In the case of internal linkage the file name is used for disambiguation.
 
 Gencot supports property declarations for the following kinds of sub-items:
 \begin{itemize}
@@ -128,10 +128,34 @@ implemented by Gencot either. The main reason for not supporting derived array a
 for defining a unique syntactical representation which is needed for the current implementation of the item property
 mechanism as described in Section~\ref{impl-itemprops}.
 
+Together, the rules for identifying items to declare properties for them are
+\begin{itemize}
+\item Basically, each item has a unique identifier. For a global item its identifier is derived from its name
+in the C program.
+\item For a sub-item its identifier is a path relative to the most general type item identifier of its nearest super-item for which
+the type is a typedef name or a struct or union type. If there is no such super-item, or it has no most general type item identifier,
+it is a path relative to the toplevel global item.
+\item If a typedef name \code{t1} is defined to denote another typedef name \code{t2}, then the type item identifier for \code{t2}
+is more general than that for \code{t1}. If a typedef name \code{t} is defined to denote a struct or union type \code{s}, then
+the type item identifier for \code{s} is more general than that for \code{t}.
+\item If the type of an item is an external typedef name which is always resolved (see Section~\ref{design-modular}) and the
+same holds for all more general type item identifiers, the item has no most general type item identifier.
+\item If the type of an item is a typedef name, a struct or union type, or an arbitrary deeply nested pointer to such a type
+the type item identifier and all more general type item identifiers can also be used to declare properties for the item.
+Properties declared for an item by different item identifiers are merged.
+\end{itemize}
+
 \subsubsection{Properties}
 
 The properties which can be declared for an item are usually specific for the item's type. If a property is declared
 for an item for which its type does not support the property, the property is silently ignored by Gencot.
+
+It is also possible to declare a negative property for an item. Negative properties have higher priority than normal
+properties and can be used to suppress properties declared elsewhere, for example using a more general type item
+identifier.
+
+For some items Gencot derives properties automatically from the C program. Explicit negative properties can also be used to
+suppress such properties.
 
 Gencot supports declaring the following item properties.
 
@@ -171,10 +195,30 @@ for items of array type.
 The No-String property is only supported for items of type \code{const char *}. If declared, Gencot uses the  
 type \code{(CPtr U8)!} instead of \code{String} for the translated item (see Section~\ref{design-types-pointer}).
 
+If the type of an item is a typedef name, the No-String property can only be declared using its most general
+type item identifier.
+
 \item[Heap-Use]
 
 The Heap-Use property is only supported for items of function type. If declared, the parameters and
 result of the translated function are extended by a component of type \code{Heap} (see Section~\ref{design-types-function}).
+In the body of the function definition the name \code{heap} is used for this additional component. If there
+is already another parameter named \code{heap} it is named \code{globheap<n>} where \code{<n>} is the lowest
+number starting with 1 so that there is no other parameter with this name.
+
+If the type of an item is a typedef name, the Heap-Use property can only be declared using its most general
+type item identifier.
+
+\item[Input-Output]
+
+The Input-Output property is only supported for items of function type. If declared, the parameters and
+result of the translated function are extended by a component of type \code{SysState} (defined in the Cogent standard library).
+In the body of the function definition the name \code{io} is used for this additional component. If there
+is already another parameter named \code{io} it is named \code{globio<n>} where \code{<n>} is the lowest
+number starting with 1 so that there is no other parameter with this name.
+
+If the type of an item is a typedef name, the Input-Output property can only be declared using its most general
+type item identifier.
 
 \item[Add-Result]
 
@@ -182,10 +226,9 @@ The Add-Result property is only supported for parameter items. If declared, a co
 is added to the result, intended for returning a modified value of the parameter (see Section~\ref{design-types-function}). 
 The Add-Result property is ignored, if it is combined with the Read-Only property.
 
-If the function has a non-void result and at least one parameter has the Add-Result property the result type is changed
+If at least one parameter has the Add-Result property the function result type is changed
 to a tuple type with the original result as first component followed by components for all parameters with the Add-Result
-property in the parameter order. If the function result is void the result tuple contains only the parameters with 
-Add-Result property. If there is only one such parameter the result consists only of the corresponding component.
+property in the parameter order.
 
 \item[Global-State]
 
@@ -197,10 +240,11 @@ A Global-State property declared for a global variable introduces an association
 numerical argument of the property. If more than one Global-State property is declared for a global variable, only
 the first one is used, all others are ignored.
 
-If a Global-State property is declared for a parameter item, it must be a virtual item, i.e., the parameter may not 
+If a Global-State property is declared for a parameter item, it must be a virtual item, i.e., the parameter must not
 exist in the C program. A corresponding parameter is introduced by Gencot in the Cogent program for passing a pointer
-to the global variable to the function. The parameter type is determined from the type of the global variable 
-associated with the Global-State property according to its numerical argument.
+to the global variable to the function. As type for the parameter the pointer type is derived from the type of the global
+variable associated with the Global-State property according to its numerical argument. This pointer type is translated
+to Cogent as usual.
 
 If two virtual parameters of the same function have a Global-State property declared, the properties must use different 
 numerical arguments. Two parameters with the same argument would correspond to two parameters for pointers to the 
@@ -209,16 +253,23 @@ same global variable. This would introduce sharing for parameters of linear type
 The Global-State property implicitly includes the Add-Result property. A parameter introduced 
 by a Global-State property always has a linear type in Cogent. Since the global variable cannot be deallocated the parameter
 must never be discarded and always be returned as part of the function result. Thus Gencot automatically treats the 
-virtual parameter in the same way as a parameter with the Add-Result property.
+virtual parameter in the same way as a parameter with the Add-Result property. Any explicit specification (positive or
+negative) of an Add-Result property is ignored when combined with a Global-State property.
+
+The Global-State property also implicitly includes the Not-Null property. The pointer passed to the function is always
+a valid pointer to the global variable, it will never be \code{NULL}. Any explicit specification (positive or
+negative) of a Not-Null property is ignored when combined with a Global-State property.
 
 The Global-State property for virtual parameters can be combined with the Read-Only property. In this case the 
-parameter type is made readonly and the implicit effect of the Add-Result property is omitted.
+Read-Only property affects the parameter type which is the pointer to the variable, whereas a Read-Only property specified
+for the corresponding global variable affects the type of the variable. If only the variable has the Read-Only property but
+not the parameter, a variable value may not be modified, but it can be replaced through the parameter by assigning a new
+value to the dereferenced parameter. If the Read-Only property is specified for a parameter with Global-State property the
+implicit effect of the Add-Result property is omitted.
 
-If a global variable has the Read-Only property it can still have a Global-State property for introducing virtual
-function parameters for it. Semantically, all these function parameters must have readonly type. This is not 
-guaranteed by Gencot, the parameter types are only made readonly if a Read-Only property is declared for them.
+All other item properties are ignored when specified for a parameter with a Global-State property.
 
-\item[Modification-Function]
+\item[Modification-Function (Deprecated)]
 
 The Modification-Function property is only supported for parameter items of pointer type. If declared, the parameters and
 result of the translated function are rearranged to the form of a modification function (see 
@@ -235,6 +286,12 @@ as the pair consisting of the original result and the tuple of all parameters wi
 be the unit type if there are no such parameters).
 
 The Read-Only property is ignored, if it is combined with the Modification-Function property.
+
+The Modification-Function property has been deprecated. Functions with this property are mostly useful for passing as
+parameter to other modification functions. This is not used by code generated by Gencot, it always uses lambda expressions
+for this purpose. On the other hand, a normal invocation of such a function is difficult to process by Gencot, because
+the function result components are permuted. Functions with Modification-Function property would only be useful for
+manually translated code, then they can also be created manually.
 
 \end{description}
 
@@ -333,7 +390,6 @@ type chosen from \code{U8, U16, U32, U64} which is large enough to hold this num
 The name of the
 Cogent field is \code{cogent\_bitfield}<n> where <n> is the number of the bit-field sequence in the C structure.
 Gencot does not generate Cogent code for accessing the single bit-fields. If needed this must be done manually in Cogent.
-However, Gencot adds comments after the Cogent bitfield showing the original C bit-field declarations.
 
 A C union type of the form \code{union \{ ... \}} is not binary compatible to any type generated by the Cogent compiler.
 The semantic equivalent would be a Cogent variant type. However, the Cogent compiler translates every variant type
@@ -433,7 +489,7 @@ Moreover, in the case of boxed array types \code{El[n]} the information about th
 preserved by the translation to C. As described in Section~\ref{impl-operations} the Genops mechanism for arrays 
 depends on the possibility to determine the array size from the C type. 
 
-For both reasons Gencot wrap builtin array types in Cogent records. The resulting form is
+For both reasons Gencot wraps builtin array types in Cogent records. The resulting form is
 \begin{verbatim}
   type CArr<size> el = {arr<size>: el#[<size>]}
 \end{verbatim}
@@ -532,8 +588,9 @@ Although technically \code{NULL} may be passed as parameter value, the type is n
 \code{\#(CArr<size> El)} is used as type for the corresponding Cogent record field.
 \item as element type of another array, resulting in a multidimensional array. Again the size of the array 
 is relevant here, the unboxed type \code{\#(CArr<size> El)} is used as element type.
-\item as base type of a derived pointer type. Here the binary compatible type is the boxed type \code{CArr<size> El}
-since it corresponds to a pointer to the array. Since the derived pointer type includes the \code{NULL} value
+\item as base type of a derived pointer type. In C such a type includes the information about the array size, it is
+a pointer to the whole array instead a pointer to a single element. Therefore the unboxed type \code{\#(CArr<size> El)}
+is used as element type. Since the derived pointer type includes the \code{NULL} value
 it is wrapped by \code{MayNull} (see~\ref{design-types-pointer}).
 \item as defining type for a typedef name. Here the type to be used depends on the context where the typedef
 name is used. As described in Section~\ref{design-types-typedef}, Gencot defines the mapped 
@@ -759,38 +816,25 @@ For a single parameter of type \code{l} with the Add-Result property the transla
 If the result is modified to a tuple, the first component is the original function result and the remaining components
 are the parameters of linear type in their order as they occur in the parameter tuple.
 
-\paragraph{Modification-Function}
-
-If the Modification-Function property has been declared for a parameter (see Section~\ref{design-types-itemprops}), 
-the function type is translated according to the rule
-\begin{verbatim}
-  t(t1, ... l1, ... tn) -> (L1,(T1, ... ... Tn)) -> (L1,(L2,...,Lm))
-\end{verbatim}
-where \code{l1} is the type of the first parameter for which the Modification-Function parameter has been declared, \code{L1}
-is its translation, and \code{L2,...,Lm} are the mapped types of all parameters with the Add-Result
-property. If the parameter with the Modification-Function property also has the Add-Result property the result type 
-of the Cogent function becomes \code{(L1,(T,L2,...,Lm))} where \code{T} is the translation of the original result type \code{t}.
-
-The parameter type of
-the translated function is a pair where the second component is the tuple of all other parameter types with \code{L1}
-omitted and the result type is a pair where the second component is the tuple of all 
-parameters with the Add-Result property and possibly the original result. If there are no parameters \code{L2,...,Lm} the result type 
-has the form \code{(L1,())} or \code{(L1,T)}. If there
-are only two parameters the parameter tuple has the form \code{(L1,T1)}. If \code{l1} is the only parameter the parameter tuple
-has the form \code{(L1,())}. 
-
 \paragraph{Heap-Use}
 
 If the Heap-Use property has been declared for a function, its type is translated according to the rule
 \begin{verbatim}
   t(t1, ..., tn) -> (T1, ..., Tn,Heap) -> (T,Heap)
 \end{verbatim}
-i.e., the heap is appended to the parameter and result tuple. If the C result type is void the result type is \code{Heap}.
+i.e., the heap is appended to the parameter and result tuple.
 If \code{n = 0} the parameter type is \code{Heap}. Parameters with the Add-Result property are inserted before the \code{Heap}
 component.
 
-If additionally the Modification-Function property has been declared for a parameter the heap is added as last components \code{Tn} and
-and \code{Lm} in the additional tuple of the parameter and result pairs.
+\paragraph{Input-Output}
+
+If the Input-Output property has been declared for a function, its type is translated according to the rule
+\begin{verbatim}
+  t(t1, ..., tn) -> (T1, ..., Tn,SysState) -> (T,SysState)
+\end{verbatim}
+i.e., the global system state is appended to the parameter and result tuple.
+If \code{n = 0} the parameter type is \code{SysState}. Parameters with the Add-Result property and the heap parameter, if present,
+are inserted before the \code{SysState} component.
 
 \paragraph{Global-State}
 
@@ -822,11 +866,8 @@ from the Global-State property and use it as the type \code{TG}.
 Gencot generates the type synonym definition in place of a translation of the global variable definition at the corresponding
 position in the Cogent file.
 
-If the function has the 
-Heap-Use property the additional parameter and result component are added before the \code{Heap} parameter.
-
-If additionally the Modification-Function property has been declared for a parameter the Global-State parameters are added 
-as last components (before the heap, if present) in the additional tuple of the parameter and result pairs.
+If the function has the Heap-Use property and/or the Input-Output property the additional parameter and result components
+are added before the \code{Heap} or \code{SysState} parameter.
 
 \subsection{Pointer Types}
 \label{design-types-pointer}
@@ -877,15 +918,13 @@ it is predefined in file \code{include/gencot/CPointer.cogent}.
 Values of such types are binary compatible to the C pointer type and they can be dereferenced with the help of
 the Cogent take and put operations, thus supporting the full functionality of the C pointer.
 
-A pointer type \code{t*} where \code{t} is an array type is mapped to the mapped (boxed) array type 
+A pointer type \code{t*} where \code{t} is an array type is also mapped using \code{CPtr} to
 \begin{verbatim}
-  CArr<size> El
+  CPtr #(CArr<size> El)
 \end{verbatim}
-This approach is similar as for struct and union types: the pointer type is mapped to the plain boxed type,
-the base type is mapped to the corresponding unboxed type. The difference in case of array pointers is, that also the base
-type is often ``adjusted'' to the boxed type, because in C a pointer is used instead. Other than in C, however, Gencot
-represents adjusted arrays by a pointer to the array as a whole, instead of as a pointer to the first element, because
-this preserves more information about the array.
+As usual, the unboxed array type is used here, since the pointer in C includes the information about the array size,
+it points to the region where the whole array is allocated. In the same way the unboxed array type is used when the array
+occurs as a struct member or as the element of another array.
 
 Finally, a pointer to \code{void} is mapped to the abstract type
 \begin{verbatim}
@@ -974,11 +1013,6 @@ Section~\ref{design-types-itemprops}) is inspected, if it is declared for an ite
 
 A C pointer type may also result from ``adjusting'' an array type used as type for a function parameter. In this case Gencot
 assumes that the actual parameter is never \code{NULL} and omits \code{MayNull} in the mapped type of the parameter.
-As described in Section~\ref{design-types-array} Gencot also translates an array type for a global variable to a linear
-type of the form \code{CArr<size> El} and assumes that the array is allocated on the heap so that it is valid during all 
-the global lifetime. Therefore Gencot also omits \code{MayNull} in this case. Together, whenever Gencot maps an array type
-to the linear form \code{CArr<size> El} it omits \code{MayNull}. If, however, Gencot maps a pointer to an array to the 
-same form, it applies \code{MayNull} if not prevented by the Not-Null item property.
 
 So together we have the basic mapping rules for pointer types:
 \begin{verbatim}
@@ -1088,14 +1122,29 @@ in Cogent, it could be represented by a readonly type or by an unboxed type. Gen
 since values of readonly types cannot escape from banged contexts. Gencot automatically applies the 
 unbox operator in the form \code{\#(CFunPtr (P->R))} whenever it uses one of the two generic function pointer types.
 
-However, if a function pointer type of these forms occurs as type of a struct member, any direct or indirect reference of a
-parameter or result type to the struct type will be detected by Cogent as a cyclic type dependency. Since 
-these dependencies seem to be no problem for the validation, Gencot hides the parameter and result types from
+\subsubsection{Avoiding Cyclic Type Dependencies}
+
+If a function pointer type of these forms occurs as type of a struct member, any direct or indirect reference of a
+parameter or result type to the struct type will be detected by Cogent as a cyclic type dependency. This is correct
+because this way the function may be recursive, although Cogent does not support recursive function definitions.
+If the function takes as parameter a struct which contains a pointer to itself, every invocation of the struct
+member will be a recursive call.
+
+A common pattern in C is a struct with function pointers which take the struct as parameter, to provide processing
+functions for a data type together with the data type. In this case the functions will never invoke the function pointers
+in the struct, they only process the struct data. So for this pattern recursive calls cannot occur.
+
+To be able to support this pattern, Gencot hides the parameter and result types from
 Cogent by encoding the function type as an abstract type name (see next Section below). As a result, for 
 every function type which is used as base type for a function pointer type there are now two forms: the Cogent
 type expression of the form \code{P -> R} and the abstract type name. Semantically, both are equivalent, however,
 this equivalence is deliberately hidden from the Cogent type checker. For incomplete function pointer types similar
 abstract type names are required for arbitrary non-function types.
+
+An alternative approach would be to use Cogent recursive record types. They were not available in Cogent when Gencot
+has been designed, but they have been introduced later. We expect that this will prevent the Cogent type checker to
+signal an error, although it is not yet clear whether the refinement proof generated by Cogent will also cover
+the indirect recursive function calls which are made possible by it.
 
 When generating the abstract type name the goal is to use the same name 
 for every occurrence of a C function pointer type. Thus it is infeasible to generate the name from 
@@ -1103,7 +1152,7 @@ the occurrence position (file name and line number). If an arbitrarily generated
 Gencot could not separately compile different C files. Therefore the name is generated by encoding the structure of the 
 C function or result type. Gencot implements the encoding for all mapped C types. As described
 below, the encoding also supports the type operators for unboxed and readonly types and for \code{MayNull} types.
-Modified function parameters are not added to the result type, they are marked as parameter type instead.
+Modified function parameters are not added to the result type, they are marked at the parameter type instead.
 
 Now both kinds of function pointer types are mapped to the forms
 \begin{verbatim}
@@ -1256,7 +1305,7 @@ In C a typedef can be used to define a name for every possible type. In principl
 map a typedef name by resolving it to its type and then mapping this type as described above. However, the
 typedef name often bears information for the programmer, hence the goal for Gencot is to preserve this information
 and map the typedef name to the corresponding Cogent type name which is defined by translating the typedef
-to a Cogent type definition.
+to a Cogent type definition. Also, expanding all typedef names may cause an exponential growth of the source code.
 
 Moreover, when a C type is derived from a typedef name, Gencot also maps the derived type using the mapped typedef name
 as type argument in the corresponding parameterized type or type encoding. Since the mapped typedef name is defined to be a synonym 

@@ -406,14 +406,12 @@ static $ty:(ufunptr) $id:toFunPtr($ty:fun arg) {
     return res;
 }
 
-static $ty:(Result fun ()) $id:fromFunPtr($ty:(ufunptr) arg) {
-    $ty:(Result fun ()) res = {.Success=-1,.Error=UNITVAL};
-    genopsTemplate("FromFunptr",($ty:(ufunptr)) arg, "genopsNext", ($ty:fun) res.Success,"genopsEnd");
-    // if (arg == &f1) res.Success = FUN_ENUM_f1;
-    // else if (arg == &f2) res.Success = FUN_ENUM_f2;
+static $ty:(fun) $id:fromFunPtr($ty:(ufunptr) arg) {
+    $ty:(fun) res = -1;
+    genopsTemplate("FromFunptr",($ty:(ufunptr)) arg, "genopsNext", ($ty:fun) res,"genopsEnd");
+    // if (arg == &f1) res = FUN_ENUM_f1;
+    // else if (arg == &f2) res = FUN_ENUM_f2;
     // ...
-    if (res.Success == -1) res.tag = TAG_ENUM_Error;
-    else res.tag = TAG_ENUM_Success;
     return res;
 }
 

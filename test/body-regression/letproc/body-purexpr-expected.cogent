@@ -1,0 +1,263 @@
+cogent_fc1 : () -> U32
+cogent_fc1 () = 42
+cogent_fc2 : () -> U8
+cogent_fc2 () =
+   u32_to_u8 (upcast 'x')
+cogent_fc3 : () -> U8
+cogent_fc3 () =
+   u32_to_u8 (gencotDummy "Multi character constants not supported")
+cogent_fc4 : () -> String
+cogent_fc4 () = "abc"
+cogent_fc5 : () -> err-float
+cogent_fc5 () =
+   gencotDummy "Float literals not supported"
+cogent_fc6 : () -> MayNull CVoidPtr
+cogent_fc6 () = null[] ()
+cogent_fv1 : U32 -> U32
+cogent_fv1 v = v
+cogent_fv2 : U32 -> U32
+cogent_fv2 xyz_123 = xyz_123
+cogent_fo1 : () -> U32
+cogent_fo1 () = + 42
+cogent_fo2 : () -> U32
+cogent_fo2 () = - 42
+cogent_fo3 : () -> U32
+cogent_fo3 () =
+   if not (42 /= 0) then 1 else 0
+cogent_fo4 : () -> U32
+cogent_fo4 () = complement 42
+cogent_fo5 : () -> U32
+cogent_fo5 () = 17 + 4
+cogent_fo6 : () -> U32
+cogent_fo6 () = 17 - 4
+cogent_fo7 : () -> U32
+cogent_fo7 () = 17 * 4
+cogent_fo8 : () -> U32
+cogent_fo8 () = 17 % 4
+cogent_fo9 : () -> U32
+cogent_fo9 () = 17 / 4
+cogent_fo10 : () -> U32
+cogent_fo10 () = 17 << 4
+cogent_fo11 : () -> U32
+cogent_fo11 () = 17 >> 4
+cogent_fo12 : () -> U32
+cogent_fo12 () =
+   if 17 < 4 then 1 else 0
+cogent_fo13 : () -> U32
+cogent_fo13 () =
+   if 17 > 4 then 1 else 0
+cogent_fo14 : () -> U32
+cogent_fo14 () =
+   if 17 <= 4 then 1 else 0
+cogent_fo15 : () -> U32
+cogent_fo15 () =
+   if 17 >= 4 then 1 else 0
+cogent_fo16 : () -> U32
+cogent_fo16 () =
+   if 17 == 4 then 1 else 0
+cogent_fo17 : () -> U32
+cogent_fo17 () =
+   if 17 /= 4 then 1 else 0
+cogent_fo18 : () -> U32
+cogent_fo18 () = 17 .&. 4
+cogent_fo19 : () -> U32
+cogent_fo19 () = 17 .|. 4
+cogent_fo20 : () -> U32
+cogent_fo20 () = 17 .^. 4
+cogent_fo21 : () -> U32
+cogent_fo21 () =
+   if (if 17 /= 0
+      then 4 /= 0
+      else False)
+   then 1
+   else 0
+cogent_fo22 : () -> U32
+cogent_fo22 () =
+   if (if 17 /= 0
+      then True
+      else 4 /= 0)
+   then 1
+   else 0
+cogent_f1 : () -> U32
+cogent_f1 () =
+   if 17 /= 0 then 4 else 42
+cogent_f2 : () -> U32
+cogent_f2 () = 42
+cogent_f3 : () -> U32
+cogent_f3 () = cogent_fc1 ()
+cogent_f4 : () -> U32
+cogent_f4 () = cogent_fv1 42
+cogent_fx : ( U32, U8, U32 ) -> U32
+cogent_fx (a, b, c) = a
+cogent_f5 : () -> U32
+cogent_f5 () =
+   cogent_fx (17
+             , u32_to_u8 (upcast 'x')
+             , 4)
+
+type Struct_Cogent_s1 = { m1 : U32, m2 : U32 }
+type Struct_Cogent_s2 = { m3 : U32, m4 : #Struct_Cogent_s1 }
+type Struct_Cogent_s3 = { m5 : U32, m6 : #(CArr5 U32) }
+cogent_fs1r : #Struct_Cogent_s1 -> #Struct_Cogent_s1
+cogent_fs1r s = s
+cogent_fs1 : #Struct_Cogent_s1 -> U32
+cogent_fs1 s = s.m1
+cogent_fs2 : #Struct_Cogent_s1 -> U32
+cogent_fs2 s = s.m1 + s.m2
+cogent_fs3 : #Struct_Cogent_s2 -> U32
+cogent_fs3 s = s.m4.m1
+cogent_fs4 : #Struct_Cogent_s2 -> U32
+cogent_fs4 s =
+   s.m4.m1 + s.m4.m2 + s.m3
+cogent_fs5 : #Struct_Cogent_s3 -> U32
+cogent_fs5 s =
+   getArr[#(CArr5 U32)
+         , U32
+         , U32] (s.m6, 1)
+cogent_fs6 : #Struct_Cogent_s3 -> U32
+cogent_fs6 s =
+   getArr[#(CArr5 U32)
+         , U32
+         , U32] (s.m6
+                , 1) + getArr[#(CArr5 U32)
+                             , U32
+                             , U32] (s.m6, 3) + s.m5
+cogent_fs7 : #Struct_Cogent_s1 -> U32
+cogent_fs7 s =
+   (cogent_fs1r s).m1
+
+type Cogent_a1 = CArr5 U32
+type Cogent_a2 =
+   CArr5 #Struct_Cogent_s1
+type Cogent_a3 =
+   CArr5 (#(CArr4 U32))
+cogent_fa1 : Cogent_a1 -> ( U32, Cogent_a1 )
+cogent_fa1 a =
+   let (r'
+       , ()) = (getArr[Cogent_a1!
+                      , U32
+                      , U32] (a, 3)
+               , ()) !a
+   in (r', a)
+cogent_fa2 : Cogent_a1 -> ( U32, Cogent_a1 )
+cogent_fa2 a =
+   let (r'
+       , ()) = (getArr[Cogent_a1!
+                      , U32
+                      , U32] (a
+                             , 3) + getArr[Cogent_a1!
+                                          , U32
+                                          , U32] (a, 1)
+               , ()) !a
+   in (r', a)
+cogent_fa3 : Cogent_a1 -> ( U32, Cogent_a1 )
+cogent_fa3 a =
+   let (r'
+       , ()) = (getArr[Cogent_a1!
+                      , U32
+                      , U32] (a
+                             , getArr[Cogent_a1!
+                                     , U32
+                                     , U32] (a, 2))
+               , ()) !a
+   in (r', a)
+cogent_fa4 : Cogent_a2 -> ( U32, Cogent_a2 )
+cogent_fa4 a =
+   let (r'
+       , ()) = ((getrefArr[Cogent_a2!
+                          , U32
+                          , Struct_Cogent_s1!] (a, 3)).m1
+               , ()) !a
+   in (r', a)
+cogent_fa5 : Cogent_a2 -> ( U32, Cogent_a2 )
+cogent_fa5 a =
+   let (r'
+       , ()) = ((getrefArr[Cogent_a2!
+                          , U32
+                          , Struct_Cogent_s1!] (a
+                                               , (getrefArr[Cogent_a2!
+                                                           , U32
+                                                           , Struct_Cogent_s1!] (a
+                                                                                , 2)).m2)).m1
+               , ()) !a
+   in (r', a)
+cogent_fa6 : Cogent_a3 -> ( U32, Cogent_a3 )
+cogent_fa6 a =
+   let (r'
+       , ()) = (getArr[(CArr4 U32)!
+                      , U32
+                      , U32] (getrefArr[Cogent_a3!
+                                       , U32
+                                       , (CArr4 U32)!] (a, 3)
+                             , 2)
+               , ()) !a
+   in (r', a)
+cogent_fa7 : Cogent_a3 -> ( U32, Cogent_a3 )
+cogent_fa7 a =
+   let (r'
+       , ()) = (getArr[(CArr4 U32)!
+                      , U32
+                      , U32] (getrefArr[Cogent_a3!
+                                       , U32
+                                       , (CArr4 U32)!] (a
+                                                       , getArr[(CArr4 U32)!
+                                                               , U32
+                                                               , U32] (getrefArr[Cogent_a3!
+                                                                                , U32
+                                                                                , (CArr4 U32)!] (a
+                                                                                                , 2)
+                                                                      , 1))
+                             , 3)
+               , ()) !a
+   in (r', a)
+
+type Struct_Cogent_s4 = { m5 : U32, m6 : MayNull Struct_Cogent_s1 }
+type Cogent_a4 =
+   CArr5 (MayNull (CPtr U32))
+type Cogent_a5 =
+   CPtr (#(CArr5 U32))
+cogent_fp1 : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
+cogent_fp1 p =
+   let (r'
+       , ()) = (gencotDummy "Dereferencing pointer which may be NULL"
+               , ()) !p
+   in (r', p)
+cogent_fp2 : MayNull Struct_Cogent_s1 -> ( U32, MayNull Struct_Cogent_s1 )
+cogent_fp2 p =
+   let (r'
+       , ()) = ((gencotDummy "Dereferencing pointer which may be NULL").m1
+               , ()) !p
+   in (r', p)
+cogent_fp3 : MayNull Struct_Cogent_s1 -> ( U32, MayNull Struct_Cogent_s1 )
+cogent_fp3 p =
+   let (r'
+       , ()) = (gencotDummy "Dereferencing pointer which may be NULL"
+               , ()) !p
+   in (r', p)
+cogent_fp4 : MayNull Struct_Cogent_s4 -> ( U32, MayNull Struct_Cogent_s4 )
+cogent_fp4 p =
+   let (r'
+       , ()) = ((gencotDummy "Dereferencing pointer which may be NULL").m1
+               , ()) !p
+   in (r', p)
+cogent_fp5 : MayNull Struct_Cogent_s4 -> ( U32, MayNull Struct_Cogent_s4 )
+cogent_fp5 p =
+   let (r'
+       , ()) = (gencotDummy "Dereferencing pointer which may be NULL"
+               , ()) !p
+   in (r', p)
+cogent_fp6 : Cogent_a4 -> ( U32, Cogent_a4 )
+cogent_fp6 p =
+   let (r'
+       , ()) = (gencotDummy "Dereferencing pointer which may be NULL"
+               , ()) !p
+   in (r', p)
+cogent_fp7 : MayNull Cogent_a5 -> ( U32, MayNull Cogent_a5 )
+cogent_fp7 p =
+   let (r'
+       , ()) = (getArr[(CArr5 U32)!
+                      , U32
+                      , U32] (gencotDummy "Dereferencing pointer which may be NULL"
+                             , 3)
+               , ()) !p
+   in (r', p)

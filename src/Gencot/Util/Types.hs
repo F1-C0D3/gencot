@@ -18,16 +18,20 @@ type TypeCarrierSet = [TypeCarrier]
 
 -- | Callback handler for collecting initial type carriers
 -- First argument is a filter predicate.
+-- Second argument is the input file name (not used).
 -- The handler collects all definitions of objects and functions, and of all non-external types and composite tags.
 -- It also collects all declarations and definitions locally in a function.
 -- It omits all global declarations and all enum tag definitions and all external types and composite tags.
-collectTypeCarriers :: (TypeCarrier -> Bool) -> TypeCarrier -> Trav TypeCarrierSet ()
-collectTypeCarriers tcp e@(LCA.DeclEvent (LCA.ObjectDef _)) | tcp e && (not $ isExtern e) = modifyUserState (e:)
-collectTypeCarriers tcp e@(LCA.DeclEvent (LCA.FunctionDef _)) | tcp e && (not $ isExtern e) = modifyUserState (e:)
-collectTypeCarriers tcp e@(LCA.LocalEvent _) | tcp e && (not $ isExtern e) = modifyUserState (e:)
-collectTypeCarriers tcp e@(LCA.TypeDefEvent _) | tcp e && (not $ isExtern e) = modifyUserState (e:)
-collectTypeCarriers tcp e@(LCA.TagEvent (LCA.CompDef _)) | tcp e && (not $ isExtern e) = modifyUserState (e:)
-collectTypeCarriers _ _ = return ()
+collectTypeCarriers :: (TypeCarrier -> Bool) -> String -> TypeCarrier -> Trav (TypeCarrierSet,s2) ()
+collectTypeCarriers tcp _ e@(LCA.DeclEvent (LCA.ObjectDef _)) | tcp e && (not $ isExtern e) = addTypeCarrier e
+collectTypeCarriers tcp _ e@(LCA.DeclEvent (LCA.FunctionDef _)) | tcp e && (not $ isExtern e) = addTypeCarrier e
+collectTypeCarriers tcp _ e@(LCA.LocalEvent _) | tcp e && (not $ isExtern e) = addTypeCarrier e
+collectTypeCarriers tcp _ e@(LCA.TypeDefEvent _) | tcp e && (not $ isExtern e) = addTypeCarrier e
+collectTypeCarriers tcp _ e@(LCA.TagEvent (LCA.CompDef _)) | tcp e && (not $ isExtern e) = addTypeCarrier e
+collectTypeCarriers _ _ _ = return ()
+
+addTypeCarrier :: TypeCarrier -> Trav (TypeCarrierSet,s2) ()
+addTypeCarrier e = modifyUserState (\(us1,us2) -> (e:us1,us2))
 
 -- | Type carrier predicate.
 -- True if the type is not primitive.
@@ -445,6 +449,21 @@ resolveTypedef :: LCA.Type -> LCA.Type
 resolveTypedef (LCA.TypeDefType (LCA.TypeDefRef _ t _) _ _) = resolveTypedef t
 resolveTypedef t = t
 
+resolveAllTypedefs :: LCA.Type -> LCA.Type
+resolveAllTypedefs t@(LCA.TypeDefType _ _ _) = resolveAllTypedefs $ resolveTypedef t
+resolveAllTypedefs t@(LCA.DirectType _ _ _) = t
+resolveAllTypedefs (LCA.PtrType t q a) = LCA.PtrType (resolveAllTypedefs t) q a
+resolveAllTypedefs (LCA.ArrayType t i q a) = LCA.ArrayType (resolveAllTypedefs t) i q a
+resolveAllTypedefs (LCA.FunctionType (LCA.FunTypeIncomplete t) a) = LCA.FunctionType (LCA.FunTypeIncomplete $ resolveAllTypedefs t) a
+resolveAllTypedefs (LCA.FunctionType (LCA.FunType rt pars v) a) =
+    LCA.FunctionType (LCA.FunType (resolveAllTypedefs rt) (map resolveAllTypedefsInParamDecl pars) v) a
+
+resolveAllTypedefsInParamDecl :: LCA.ParamDecl -> LCA.ParamDecl
+resolveAllTypedefsInParamDecl (LCA.ParamDecl (LCA.VarDecl nam atts t) n) =
+    LCA.ParamDecl (LCA.VarDecl nam atts $ resolveAllTypedefs t) n
+resolveAllTypedefsInParamDecl (LCA.AbstractParamDecl (LCA.VarDecl nam atts t) n) =
+    LCA.AbstractParamDecl (LCA.VarDecl nam atts $ resolveAllTypedefs t) n
+
 getFunctionInSIFType :: LCA.Type -> LCA.Type
 getFunctionInSIFType t@(LCA.FunctionType _ _) = t
 getFunctionInSIFType (LCA.PtrType t _ _) = getFunctionInSIFType t
@@ -487,6 +506,11 @@ getTypeDef dt nam =
 wrapFunAsPointer :: (String,LCA.Type) -> (String,LCA.Type)
 wrapFunAsPointer (iid,t@(LCA.FunctionType _ _)) = ("&" ++ iid, (LCA.PtrType t LCA.noTypeQuals []))
 wrapFunAsPointer t = t
+
+getDerefCType :: LCA.Type -> LCA.Type
+getDerefCType td@(LCA.TypeDefType _ _ _) = getDerefCType $ resolveTypedef td
+getDerefCType (LCA.PtrType typ _ _) = typ
+getDerefCType _ = error "No pointer type passed to getDerefCType"
 
 getFunType :: LCA.Type -> LCA.FunType
 getFunType t | isFunction t = rt

@@ -370,16 +370,45 @@ The translation functions do not respect the \code{const} qualifiers in C type s
 Read-Only property to determine whether a type should be translated as readonly. The \code{const} qualifiers are 
 used by \code{items-gen} to generate the default properties as described in Section~\ref{impl-ccomps-itemprops}. 
 
+\subsubsection{Configuring Function Body Translations}
+
+C function bodies can be translated in different ways. This is mainly intended for purposes of testing Gencot.
+The way how C function bodies are translated is determined by a translation configuration string. It consists of
+single letters in arbitrary order where every letter suppresses a step in the translation.
+
+The letter \code{A} completely suppresses the automatic translation of C function bodies. Instead, a simple
+expression for a default result is generated for every function according to the function result type. It has
+the form of a tuple of values for the result where the components are either the unit value \code{()}, if the
+type of the corresponding result component is the unit type, the value \code{0}, if the type of the corresponding
+result component is one of the arithmetic types \code{U8}, \code{U16}, \code{U32}, \code{U64}, and the dummy
+expression \code{gencotDummy ""} for all other types. Additionally the original C code of the function body is
+appended in a comment, after processing it as described in Section~\ref{impl-ccode-expr}. Together, this is always
+valid Cogent code which is accepted by the Cogent compiler, it can be used as a starting point to construct manual
+translations of all function bodies.
+
+If \code{A} is specified as translation configuration string all other letters with the exception of \code{G} are
+ignored. Otherwise, the basic translation described in Sections~\ref{impl-ccode-cexpr} and~\ref{impl-ccode-cstats}
+is performed and every letter suppresses a single postprocessing step. See Section~\ref{impl-post-combine} for the
+list of postprocessing steps and the configuration letters used for suppressing them. Note that suppressing
+postprocessing steps will usually result in invalid Cogent code, because Gencot uses intermediate forms which only
+become valid code after further postprocessing.
+
+If additionally the letter \code{G} is specified in the translation configuration string the additional type information
+is output which is maintained by Gencot in the Cogent AST as described in Section~\ref{impl-ccode-type}. This always
+results in invalid Cogent code because the type information is added to every expression using a specific syntax which
+is not supported by Cogent.
+
 \subsubsection{Filter \code{gencot-translate}}
 
 The filter \code{gencot-translate} is invoked as
 \begin{verbatim}
-  gencot-translate <source name> <aux-namap> <aux-props> <aux-items>
+  gencot-translate <source name> <aux-namap> <aux-props> <aux-items> <tconf>
 \end{verbatim}
 where the arguments are the name of the original C source file, a file \code{<aux-namap>} with the name prefix map 
 (see Section~\ref{impl-ccode-names}), a file \code{<aux-props>} with the item property declarations (see 
-Section~\ref{impl-itemprops}) and a file \code{<aux-items>} with the identifiers of the used external items as created 
-by \code{items-used} (see Section~\ref{impl-ccomps-items}).
+Section~\ref{impl-itemprops}), a file \code{<aux-items>} with the identifiers of the used external items as created
+by \code{items-used} (see Section~\ref{impl-ccomps-items}), and the translation configuration string \code{<tconf>},
+as described above.
 
 \subsection{Entry Wrappers}
 \label{impl-ccomps-entries}
@@ -636,9 +665,10 @@ To support an easy manual declaration of item properties Gencot generates defaul
 items with an identifier. The declarations are either empty or declare the properties Read-Only and/or Add-Result, if they
 can be derived from the item's type. 
 
-The property Heap-Use is not set in default declarations. It could be set if a C memory management function such as \code{malloc} 
-is directly invoked by a function, however, the most relevant way to set the property is by transitive dependency among functions.
-This is implemented by the parameter modification mechanism (see Section~\ref{design-parmod-heap}) and therefore omitted here.
+The properties Heap-Use and Input-Output are not set in default declarations. Heap-Use could be set if a C memory management
+function such as \code{malloc} is directly invoked by a function, however, the most relevant way to set both properties is
+by transitive dependency among functions. This is implemented by the parameter modification mechanism (see
+Section~\ref{design-parmod-heap}) and therefore omitted here.
 
 \subsubsection{The filter \code{items-gen}}
 
@@ -662,7 +692,8 @@ a derived function, array, or pointer type, its sub-items according to the
 type are processed recursively. For a composite type item its members are processed recursively as sub-items.
 
 An item is processed as follows. If it is a global individual item (global variable or function) an empty property declaration
-is generated, since a global variable may be affected by a Global-State property and a function by a Heap-Use property. 
+is generated, since a global variable may be affected by a Global-State property and a function by a Heap-Use or
+Input-Output property.
 Otherwise (local variable, type, or subitem), if its declared or defined type is primitive or an enum
 or a function pointer no output is generated since properties are not supported or always ignored for it. Otherwise, if it
 is a parameter item, or its declared type is not composite, a property declaration is generated for it (parameters of composite

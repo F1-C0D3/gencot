@@ -32,20 +32,25 @@ localFilter :: DeclEvent -> Bool
 localFilter = (maybe False ((==) "<stdin>") . fileOfNode)
 
 readFromInput_ :: IO DefTable
-readFromInput_ = (liftM fst) $ readFromInput () noUhandler
+readFromInput_ = (liftM fst) $ readFromInput "" () noUhandler
 
-readFromInput :: s -> (DeclEvent -> Trav s ()) -> IO (DefTable, s)
-readFromInput uinit uhandler = do
+-- | Read with callback handler.
+-- The first argument is the original file name.
+-- It is passed as first argument to the callback handler.
+readFromInput :: String -> s -> (String -> DeclEvent -> Trav s ()) -> IO (DefTable, s)
+readFromInput fnam uinit uhandler = do
     input_stream <- BSW.getContents
-    readBytestring input_stream "" uinit uhandler
+    readBytestring input_stream "" uinit (uhandler fnam)
     
 readFromFile_ :: FilePath -> IO DefTable
 readFromFile_ input_file = (liftM fst) $ readFromFile () noUhandler input_file
 
-readFromFile :: s -> (DeclEvent -> Trav s ()) -> FilePath -> IO (DefTable, s)
+-- | Read with callback handler.
+-- The file name is passed as first argument to the callback handler.
+readFromFile :: s -> (String -> DeclEvent -> Trav s ()) -> FilePath -> IO (DefTable, s)
 readFromFile uinit uhandler input_file = do
     input_stream <- BSW.readFile input_file
-    readBytestring input_stream (" in " ++ input_file) uinit uhandler
+    readBytestring input_stream (" in " ++ input_file) uinit (uhandler input_file)
 
 readBytestring :: BSW.ByteString -> String -> s -> (DeclEvent -> Trav s ()) -> IO (DefTable, s)
 readBytestring input_stream wher uinit uhandler = do
@@ -57,8 +62,8 @@ readBytestring input_stream wher uinit uhandler = do
 errorOnLeft :: (Show a) => String -> (Either a b) -> IO b
 errorOnLeft msg = either (error . ((msg ++ ": ")++).show) return
 
-noUhandler :: DeclEvent -> Trav () ()
-noUhandler _ = return ()
+noUhandler :: String -> DeclEvent -> Trav () ()
+noUhandler _ _ = return ()
 
 showWarnings :: [CError] -> IO ()
 showWarnings warns = do

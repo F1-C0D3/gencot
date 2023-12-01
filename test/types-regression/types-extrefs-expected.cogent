@@ -1,35 +1,17 @@
 #include "types-extrefs-sys-incl.cogent"
 
 cogent_deffun1 : U32 -> ()
-cogent_deffun1 i =
-   ()
-   {- -} -- internal, invoked
+cogent_deffun1 i = () -- internal, invoked
 type Cogent_pextstr2 =
    Struct_Cogent_extstr2 -- typedef references extstr2
 type Cogent_pexttyp2 =
    CPtr Cogent_exttyp2 -- typedef references exttyp2
-cogent_deffun2 : ( MayNull Struct_Cogent_extstr3, Cogent_exttyp3, Cogent_exttypc3 ) -> MayNull Struct_Cogent_extstr3
-cogent_deffun2 (p
-               , q
-               , r) =
-   p
-   {-
-       p->m1 = q;
-   -} -- function definition references extstr3, exttyp3, exttypc3
+cogent_deffun2 : ( MayNull Struct_Cogent_extstr3, Cogent_exttyp3, Cogent_exttypc3 ) -> ( (), MayNull Struct_Cogent_extstr3 )
+cogent_deffun2 (p, q, r) =
+   (()
+   , let p { m1 = _ } = p
+   in p { m1 = q }) -- function definition references extstr3, exttyp3, exttypc3
 type Struct_Cogent_defstr1 = { m1 : MayNull Struct_Cogent_extstr4, m2 : MayNull (CPtr Cogent_exttyp4) } -- member declarations reference extstr4, exttyp4
 
 cogent_invoker : () -> ()
-cogent_invoker () =
-   ()
-   {-
-       cogent_deffun1(5);
-       cogent_extfun1(5);
-       cogent_extfun4(5);
-       cogent_extfun6(5, 6);
-       cogent_extfun7a(1, 2);
-       cogent_extfun7b(3, 4);
-       (*cogent_deffunp1)(5);
-       (*cogent_extfunp1)(5);
-       cogent_extvar1 = 5;
-       cogent_defvar1 = 5;
-   -}
+cogent_invoker () = ()

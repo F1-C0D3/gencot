@@ -20,7 +20,7 @@ regression: $(foreach TST,$(TESTS),$(TST)-regression) unit-regression
 expect-current: $(foreach TST,$(TESTS),$(TST)-expect-current) unit-expect-current
 
 clean:  $(foreach TST,$(TESTS),$(TST)-clean)
-	-rm -f test.unit test.cogent $(foreach U,$(UNIT),test-$(U).cogent)
+	-rm -f test.unit test.unit-errmess test.cogent $(foreach U,$(UNIT),test-$(U).cogent)
 	-rm -f test-external.items test.unit-dfltprops test.unit-itemprops
 
 types-pointer.c-itemprops: types-pointer.c-manprops types-pointer.c-dfltprops types-parmod.json-itemprops
@@ -57,6 +57,7 @@ unit-regression: unit $(foreach U,$(UNIT),test-$(U)-expected.cogent) $(foreach U
 	  diff test.$$u test-expected.$$u; \
 	done
 	-diff test-external.items test-external-expected.items
+	-diff test.unit-errmess test.unit-expected-errmess
 
 unit-expect-current: unit
 	@for u in $(UNIT); do \
@@ -68,6 +69,7 @@ unit-expect-current: unit
 	  cp test.$$u test-expected.$$u; \
 	done
 	cp test-external.items test-external-expected.items
+	cp test.unit-errmess test.unit-expected-errmess
 
 test.unit-dfltprops: test.unit test-external.items
 	@$(IT) $(ABSINCL) -u test unit > test.unit-dfltprops
@@ -78,21 +80,25 @@ test-external.items: test.unit test.unit-manitems
 %.c-dfltprops: %.c
 	@$(IT) $(ABSINCL) file $*.c > $*.c-dfltprops
 
-%.cogent %-entry.ac: %.c %.c-itemprops test-external.items
-	@$(GC) $(ABSINCL) -u test cfile $*.c
+%.cogent %-entry.ac %-errmess: %.c %.c-itemprops test-external.items
+#	@$(GC) -tG $(ABSINCL) -u test cfile $*.c
+#	@$(GC) -tlfo $(ABSINCL) -u test cfile $*.c
+	@$(GC) $(ABSINCL) -u test cfile $*.c 2> $*-errmess
 
 %-regression: types-%.cogent types-%-expected.cogent types-%.c-dfltprops types-%-expected.c-dfltprops
 	-diff types-$*.cogent types-$*-expected.cogent
 	-diff types-$*.c-dfltprops types-$*-expected.c-dfltprops
 	-diff types-$*-entry.ac types-$*-entry-expected.ac
+	-diff types-$*-errmess types-$*-expected-errmess
 
 %-expect-current: types-%.cogent types-%.c-dfltprops
 	cp types-$*.cogent types-$*-expected.cogent
 	cp types-$*.c-dfltprops types-$*-expected.c-dfltprops
 	cp types-$*-entry.ac types-$*-entry-expected.ac
+	cp types-$*-errmess types-$*-expected-errmess
 
 %-clean:
-	-rm -f types-$*.cogent types-$*.o types-$*.c-dfltprops types-$*.c-itemprops types-$*-entry.ac
+	-rm -f types-$*.cogent types-$*.o types-$*.c-dfltprops types-$*.c-itemprops types-$*-entry.ac types-$*-errmess
 
 test.unit-itemprops: itemprops
 	@touch test.unit-itemprops
@@ -108,4 +114,4 @@ test.unit:
 	@cat test.unit
 
 unit: test.unit test.unit-itemprops
-	@$(GC) $(ABSINCL) -u test unit
+	@$(GC) $(ABSINCL) -u test unit 2> test.unit-errmess

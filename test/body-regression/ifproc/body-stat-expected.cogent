@@ -1,0 +1,215 @@
+cogent_sv1 : () -> ()
+cogent_sv1 () = ()
+cogent_sv2 : U32 -> ()
+cogent_sv2 i = ()
+cogent_sv3 : () -> ()
+cogent_sv3 () = ()
+cogent_sv4 : () -> ()
+cogent_sv4 () = ()
+
+cogent_se1 : U32 -> U32
+cogent_se1 i = i
+cogent_se2 : U32 -> U32
+cogent_se2 i = (i + 5) * i
+cogent_se3 : U32 -> U32
+cogent_se3 i = i + 1
+cogent_se4 : U32 -> U32
+cogent_se4 i = 5
+cogent_se5 : U32 -> U32
+cogent_se5 i = i + 1 + 1
+
+cogent_si1 : ( U32, U32 ) -> U32
+cogent_si1 (i, j) =
+   if i == 0 then j else i
+cogent_si2 : ( U32, U32 ) -> U32
+cogent_si2 (i, j) =
+   if i == 0 then j else i
+cogent_si3 : ( U32, U32 ) -> U32
+cogent_si3 (i, j) =
+   if i == 0 then 10 else i + j
+cogent_si4 : ( U32, U32 ) -> U32
+cogent_si4 (i, j) =
+   (if i == 0
+      then 10
+      else if j == 0
+         then i
+         else i + j) + (if i == 0
+      then j
+      else if j == 0 then i else j)
+cogent_si5 : ( U32, U32 ) -> U32
+cogent_si5 (i, j) =
+   (if i == 0
+      then if j == 0 then 10 else i
+      else if j == 0
+         then i
+         else i + j) + (if i == 0
+      then if j == 0
+         then j
+         else j + 10
+      else if j == 0 then i else j)
+cogent_si6 : ( U32, U32 ) -> U32
+cogent_si6 (i, j) =
+   if (if i == 0
+      then not (j == 0)
+      else j == 0)
+   then if i == 0
+      then if j == 0
+         then r'
+         else j + 10
+      else if j == 0 then i else r'
+   else (if i == 0
+         then if j == 0 then 10 else i
+         else if j == 0
+            then i
+            else i + j) + (if i == 0
+         then if j == 0
+            then j
+            else j + 10
+         else if j == 0 then i else j)
+cogent_si8 : ( U32, U32 ) -> U32
+cogent_si8 (i, j) =
+   2 * (if i == 0
+      then i
+      else i + 1)
+cogent_si9 : ( U32, U32 ) -> U32
+cogent_si9 (i, j) =
+   2 * (if i == 0
+      then j + 1
+      else j)
+
+cogent_sc1 : ( U32, U32 ) -> U32
+cogent_sc1 (i, j) =
+   (j + 2 * (i + 2 * j)) * (i + 2 * j + (j + 2 * (i + 2 * j)))
+cogent_sc2 : ( U32, U32 ) -> U32
+cogent_sc2 (i, j) =
+   (if i + 2 * j > 13
+      then
+         i + 2 * j + 2 * (j + 2 * (i + 2 * j))
+      else
+         i + 2 * j + 1) + (if (if i + 2 * j > 13
+         then j + 2 * (i + 2 * j) == 0
+         else j - 1 == 0)
+      then 15
+      else if i + 2 * j > 13
+         then j + 2 * (i + 2 * j)
+         else j - 1)
+
+cogent_sd1 : ( U32, U32 ) -> U32
+cogent_sd1 (i, j) =
+   j + 7 + (j + (i + 2 * j + (j + 7)) + (i + 2 * j))
+cogent_sd2 : ( U32, U32 ) -> U32
+cogent_sd2 (i, j) = i + 2 * j
+cogent_sd3 : ( U32, U32 ) -> U32
+cogent_sd3 (i, j) =
+   i + 2 * j + (j + (i + 2 * j + (j + 7)) + (i + 2 * j))
+cogent_sd4 : ( U32, U32 ) -> U32
+cogent_sd4 (i, j) =
+   i + 2 * j + ((if i + 2 * j == 0
+         then j + (i + 2 * j + (j + 7))
+         else
+            i + 2 * j + 3) + (i + 2 * j))
+cogent_sd5 : ( U32, U32 ) -> U32
+cogent_sd5 (i, j) =
+   i + 2 * j + 1 + (j + (i + 2 * j + 1 + (j + 1)) + (i + 2 * j))
+cogent_sd6 : ( U32, U32 ) -> U32
+cogent_sd6 (i, j) =
+   i + 2 * j + 1 + (j + (i + 2 * j + 1 + 42) + (i + 2 * j))
+
+cogent_ss1 : U32 -> U32
+cogent_ss1 i =
+   if i == 0 then i else r'
+
+cogent_ss2 : U32 -> U32
+cogent_ss2 i = 0
+
+cogent_ss3 : U32 -> U32
+cogent_ss3 i =
+   if i == 0 then i else 0
+
+cogent_ss4 : U32 -> U32
+cogent_ss4 i =
+   if i == 0
+   then i
+   else if i == 1 then i + 5 else 0
+
+cogent_ss5 : U32 -> U32
+cogent_ss5 i =
+   if i == 0
+   then i
+   else if not (i == 1)
+      then 0
+      else i + 5
+
+cogent_ss6 : ( U32, U32 ) -> U32
+cogent_ss6 (i, j) =
+   if i == 0 || i == 1 || i == 2
+   then 5
+   else if i == 0 then i else j
+
+cogent_ss7 : ( U32, U32 ) -> U32
+cogent_ss7 (i, j) =
+   if i == 0 || i == 1
+   then if i == 0 then i else j
+   else if i == 2
+      then 5
+      else if i == 0 then i else j
+
+cogent_ss8 : ( U32, U32 ) -> U32
+cogent_ss8 (i, j) =
+   if i == 0 || i == 1
+   then if (if i == 0
+         then True
+         else j == 0)
+      then 17
+      else i
+   else if i == 2
+      then 5
+      else if i == 0 then i else j
+
+cogent_ss10 : U32 -> U32
+cogent_ss10 i = r'
+
+cogent_ss11 : U32 -> U32
+cogent_ss11 i =
+   if (if gencotDummy "Unsupported switch body" == 2
+      then False
+      else
+         gencotDummy "Unsupported switch body" > 0)
+   then r'
+   else i
+
+cogent_ss12 : U32 -> U32
+cogent_ss12 i =
+   if (if gencotDummy "Unsupported switch body" == 2
+      then False
+      else
+         gencotDummy "Unsupported switch body" > 0)
+   then r'
+   else i
+
+cogent_ss13 : ( U32, U32 ) -> U32
+cogent_ss13 (i, j) =
+   if (if i == 0
+      then
+         gencotDummy "Case statement only supported in direct switch body" > 0
+      else False)
+   then r'
+   else 0
+
+cogent_ss14 : U32 -> U32
+cogent_ss14 i =
+   if (if gencotDummy "Declarations not supported in switch body" == 2
+      then False
+      else
+         gencotDummy "Declarations not supported in switch body" > 0)
+   then r'
+   else i
+
+cogent_ss15 : ( U32, U32 ) -> U32
+cogent_ss15 (i, j) =
+   if (if gencotDummy "Declarations not supported in switch body" == 2
+      then False
+      else
+         gencotDummy "Declarations not supported in switch body" > 0)
+   then r'
+   else j

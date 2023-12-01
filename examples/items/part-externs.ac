@@ -1,0 +1,24 @@
+extern int putchar (int __c);
+static $ty:((U32,SysState)) cogent_putchar ($ty:((U32,SysState)) arg) {
+    $ty:((U32,SysState)) res = {.p1=0, .p2=0};
+    res.p1 = putchar(arg.p1);
+    return res;
+}
+extern int puts(const char *__s);
+static $ty:((U32,SysState)) cogent_puts ($ty:((String,SysState)) arg) {
+    $ty:((U32,SysState)) res = {.p1=0, .p2=0};
+    res.p1 = puts(arg.p1);
+    return res;
+}
+extern int *allocInt();
+static $ty:((Cogent_int1P_t!, Heap)) cogent_allocInt ($ty:(Heap) arg) {
+    $ty:((Cogent_int1P_t!, Heap)) res = {.p1=(void*)0, .p2=0};
+    res.p1 = ($ty:(Cogent_int1P_t!)) allocInt();
+    return res;
+}
+extern $ty:(Struct_Cogent_s) allocArr();
+static $ty:((Struct_Cogent_s!, Heap)) cogent_allocArr ($ty:(Heap) arg) {
+    $ty:((Struct_Cogent_s!, Heap)) res = {.p1=(void*)0, .p2=0};
+    res.p1 = allocArr();
+    return res;
+}

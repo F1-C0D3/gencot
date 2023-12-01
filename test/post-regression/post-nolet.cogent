@@ -1,0 +1,37 @@
+f1 : U32 -> U32
+f1 i = 5
+
+f2 : U32 -> U32
+f2 i = i+1
+
+f3 : U32 -> U32
+f3 i = if i < 5 then 1 else 0
+
+f4 : U32 -> U32
+f4 i = i | 5 -> 0 
+         | 10 -> 1
+         | _ -> i + 1
+
+f5 : U32 -> U32
+f5 i = f1 i
+
+f6 : U32 -> String
+f6 i = "abc"
+
+f10 : U32 -> (U32,U32,U32)
+f10 i = (i-1,i,i+1)
+
+type Rec = { a1: U32, a2: U32 }
+
+f11 : U32 -> #Rec
+f11 i = #{ a1 = i, a2 = 2*i }
+
+f12 : Rec take a2 -> Rec
+f12 r = r {a2 = 5}
+
+type Var = <V1 U32 | V2 String>
+
+f15 : U32 -> Var
+f15 i = V1 i
+
+

@@ -1,0 +1,2305 @@
+
+-- Using NULL in condition branch
+cogent_fn1 : ( U32, MayNull (CPtr U32) ) -> ( MayNull (CPtr U32), MayNull (CPtr U32) )
+cogent_fn1 (i, p) =
+   (if i /= 0 then p else null[] ()
+   , p)
+cogent_fn2 : ( U32, CPtr U32 ) -> ( MayNull (CPtr U32), CPtr U32 )
+cogent_fn2 (i, p) =
+   (if i /= 0
+   then mayNull[CPtr U32] p
+   else null[] ()
+   , p) -- p: nn
+
+-- Functions used as context:
+cogent_fcnl : MayNull (CPtr U32) -> U32
+cogent_fcnl i = 0
+cogent_fcnn : CPtr U32 -> U32
+cogent_fcnn i = 0
+-- Global variables used as context:
+type GlobState1 =
+   CPtr (MayNull (CPtr U32))
+type GlobState2 =
+   CPtr (CPtr U32)
+
+-- struct probes:
+type Struct_Cogent_nns1 = { mrg : U32, mnn : CPtr U32, mnl : MayNull (CPtr U32) }
+type Struct_Cogent_nns2 = { snl : MayNull Struct_Cogent_nns1, snn : Struct_Cogent_nns1 }
+
+-- array probes:
+type Cogent_nna1 = CArr5 U32 -- regular elements
+type Cogent_nna2 =
+   CArr5 (CPtr U32) -- not-null elements
+type Cogent_nna3 =
+   CArr5 (MayNull (CPtr U32)) -- null elements
+type Cogent_nna4 =
+   CArr5 #Cogent_nna1 -- null array elements
+type Cogent_nna5 =
+   CArr5 #Cogent_nna1 -- not-null array elements
+
+-- Using values of not-null type (can be converted to MayNull).
+
+-- Direct use of probe in context
+cogent_fn11nl : CPtr U32 -> ( U32, CPtr U32 )
+cogent_fn11nl pnn =
+   (cogent_fcnl (mayNull[CPtr U32] pnn)
+   , pnn)
+cogent_fn11nn : CPtr U32 -> ( U32, CPtr U32 )
+cogent_fn11nn pnn =
+   (cogent_fcnn pnn, pnn)
+cogent_fn12nl : () -> U32
+cogent_fn12nl () =
+   cogent_fcnl (mayNull[CPtr U32] (cogent_globnn ()))
+cogent_fn12nn : () -> U32
+cogent_fn12nn () =
+   cogent_fcnn (cogent_globnn ())
+cogent_fn13nl : () -> U32
+cogent_fn13nl () =
+   cogent_fcnl (mayNull[CPtr U32] (cogent_frnn ()))
+cogent_fn13nn : () -> U32
+cogent_fn13nn () =
+   cogent_fcnn (cogent_frnn ())
+cogent_fn14nl : ( CPtr U32, CPtr U32, U32 ) -> ( U32, CPtr U32, CPtr U32 )
+cogent_fn14nl (pnn, qnn, i) =
+   (cogent_fcnl (mayNull[CPtr U32] (if i /= 0
+         then pnn
+         else qnn))
+   , pnn
+   , qnn)
+cogent_fn14nn : ( CPtr U32, CPtr U32, U32 ) -> ( U32, CPtr U32, CPtr U32 )
+cogent_fn14nn (pnn, qnn, i) =
+   (cogent_fcnn (if i /= 0
+      then pnn
+      else qnn)
+   , pnn
+   , qnn)
+
+-- Probe assigned to variable
+cogent_fn21nl : GlobState1 -> ( (), GlobState1 )
+cogent_fn21nl g =
+   (()
+   , let g { cont = _ } = g
+   in g { cont = mayNull[CPtr U32] (cogent_frnn ()) })
+cogent_fn21nn : GlobState2 -> ( (), GlobState2 )
+cogent_fn21nn g =
+   (()
+   , let g { cont = _ } = g
+   in g { cont = cogent_frnn () })
+cogent_fn22nl : MayNull (CPtr U32) -> ( (), MayNull (CPtr U32) )
+cogent_fn22nl pnl =
+   (()
+   , mayNull[CPtr U32] (cogent_frnn ()))
+cogent_fn22nn : CPtr U32 -> ( U32, CPtr U32 )
+cogent_fn22nn pnn =
+   (getPtr[(CPtr U32)!
+          , U32] (cogent_frnn ())
+   , cogent_frnn ())
+
+-- Probe returned as result
+cogent_fn31nl : () -> MayNull (CPtr U32)
+cogent_fn31nl () =
+   mayNull[CPtr U32] (cogent_frnn ())
+cogent_fn31nn : () -> CPtr U32
+cogent_fn31nn () =
+   cogent_frnn ()
+
+-- Probe used in conditional expression with other branch as context
+cogent_fn41nl : ( CPtr U32, MayNull (CPtr U32), U32 ) -> ( U32, CPtr U32, MayNull (CPtr U32) )
+cogent_fn41nl (pnn, qnl, i) =
+   (cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
+   , pnn
+   , qnl)
+cogent_fn42nl : ( MayNull (CPtr U32), CPtr U32, U32 ) -> ( U32, MayNull (CPtr U32), CPtr U32 )
+cogent_fn42nl (pnl, qnn, i) =
+   (cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
+   , pnl
+   , qnn)
+
+-- Probe is a struct component
+cogent_fn51nl : Struct_Cogent_nns1 -> ( MayNull (CPtr U32), Struct_Cogent_nns1 )
+cogent_fn51nl pnn =
+   let (r'
+       , pnn) = let pnn { mnn = p0' } = pnn
+      in (p0', pnn { mnn = p0' })
+   in (mayNull[CPtr U32] r', pnn)
+cogent_fn51nn : Struct_Cogent_nns1 -> ( CPtr U32, Struct_Cogent_nns1 )
+cogent_fn51nn pnn =
+   let pnn { mnn = p0' } = pnn
+   in (p0', pnn { mnn = p0' })
+cogent_fn52nl : Struct_Cogent_nns1 -> ( U32, Struct_Cogent_nns1 )
+cogent_fn52nl pnn =
+   let pnn { mnn = p0' } = pnn
+   in (cogent_fcnl (mayNull[CPtr U32] p0')
+      , pnn { mnn = p0' })
+cogent_fn52nn : Struct_Cogent_nns1 -> ( U32, Struct_Cogent_nns1 )
+cogent_fn52nn pnn =
+   let pnn { mnn = p0' } = pnn
+   in (cogent_fcnn p0'
+      , pnn { mnn = p0' })
+cogent_fn53nl : ( Struct_Cogent_nns1, GlobState1 ) -> ( (), Struct_Cogent_nns1, GlobState1 )
+cogent_fn53nl (pnn, g) =
+   let (pnn
+       , g) = let pnn { mnn = p0' } = pnn
+      and g { cont = _ } = g
+      in (pnn { mnn = p0' }
+         , g { cont = mayNull[CPtr U32] p0' })
+   in ((), pnn, g)
+cogent_fn53nn : ( Struct_Cogent_nns1, GlobState2 ) -> ( (), Struct_Cogent_nns1, GlobState2 )
+cogent_fn53nn (pnn, g) =
+   let (pnn
+       , g) = let pnn { mnn = p0' } = pnn
+      and g { cont = _ } = g
+      in (pnn { mnn = p0' }
+         , g { cont = p0' })
+   in ((), pnn, g)
+cogent_fn54nl : ( Struct_Cogent_nns1, MayNull (CPtr U32) ) -> ( (), Struct_Cogent_nns1, MayNull (CPtr U32) )
+cogent_fn54nl (pnn, pnl) =
+   let (pnn
+       , pnl) = let pnn { mnn = p0' } = pnn
+      in (pnn { mnn = p0' }
+         , mayNull[CPtr U32] p0')
+   in ((), pnn, pnl)
+cogent_fn54nn : ( Struct_Cogent_nns1, CPtr U32 ) -> ( U32, Struct_Cogent_nns1, CPtr U32 )
+cogent_fn54nn (pnn, qnn) =
+   let (pnn, qnn, r') = let (pnn
+                            , qnn) = let pnn { mnn = p0' } = pnn
+         in (pnn { mnn = p0' }, p0')
+      in (pnn
+         , qnn
+         , getPtr[(CPtr U32)!, U32] qnn)
+   in (r', pnn, qnn)
+cogent_fn55nl : ( Struct_Cogent_nns1, MayNull (CPtr U32), U32 ) -> ( U32, Struct_Cogent_nns1, MayNull (CPtr U32) )
+cogent_fn55nl (pnn, qnl, i) =
+   let (r'
+       , ()) = (cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
+               , ()) !qnl !pnn
+   in (r', pnn, qnl)
+cogent_fn55nn : ( Struct_Cogent_nns1, CPtr U32, U32 ) -> ( U32, Struct_Cogent_nns1, CPtr U32 )
+cogent_fn55nn (pnn, qnn, i) =
+   let (r', pnn) = let (v5'
+                       , pnn) = if i /= 0
+         then let pnn { mnn = p0' } = pnn
+            in (p0', pnn { mnn = p0' })
+         else (qnn, pnn)
+      in (cogent_fcnn v5', pnn)
+   in (r', pnn, qnn)
+
+-- Probe used by accessing a struct component or pointer deref
+cogent_fn61nn : Struct_Cogent_nns1 -> ( U32, Struct_Cogent_nns1 )
+cogent_fn61nn pnn =
+   let (r', ()) = (pnn.mrg
+                  , ()) !pnn
+   in (r', pnn)
+cogent_fn62nn : Struct_Cogent_nns2 -> ( U32, Struct_Cogent_nns2 )
+cogent_fn62nn pnn =
+   let (r', ()) = (pnn.snn.mrg
+                  , ()) !pnn
+   in (r', pnn)
+cogent_fn63nn : () -> U32
+cogent_fn63nn () =
+   gencotDummy "Dereferencing pointer not specified by a variable"
+cogent_fn64nn : () -> U32
+cogent_fn64nn () =
+   gencotDummy "Dereferencing pointer not specified by a variable"
+
+-- Probe is an array element
+cogent_fn71nl : Cogent_nna2 -> ( MayNull (CPtr U32), Cogent_nna2 )
+cogent_fn71nl pnn =
+   let (r', pnn) = let (pnn
+                       , v2') = modifyArr[Cogent_nna2
+                                         , U32
+                                         , CPtr U32
+                                         , _
+                                         , _] (pnn
+                                              , 1
+                                              , \(p0', ()) => (p0', p0')
+                                              , ())
+      in (v2', pnn)
+   in (mayNull[CPtr U32] r', pnn)
+cogent_fn71nn : Cogent_nna2 -> ( CPtr U32, Cogent_nna2 )
+cogent_fn71nn pnn =
+   let (pnn
+       , v2') = modifyArr[Cogent_nna2
+                         , U32
+                         , CPtr U32
+                         , _
+                         , _] (pnn
+                              , 1
+                              , \(p0', ()) => (p0', p0')
+                              , ())
+   in (v2', pnn)
+cogent_fn72nl : Cogent_nna2 -> ( U32, Cogent_nna2 )
+cogent_fn72nl pnn =
+   let (pnn
+       , v3') = modifyArr[Cogent_nna2
+                         , U32
+                         , CPtr U32
+                         , _
+                         , _] (pnn
+                              , 1
+                              , \(p0', ()) => (p0', p0')
+                              , ())
+   in (cogent_fcnl (mayNull[CPtr U32] v3')
+      , pnn)
+cogent_fn72nn : Cogent_nna2 -> ( U32, Cogent_nna2 )
+cogent_fn72nn pnn =
+   let (pnn
+       , v3') = modifyArr[Cogent_nna2
+                         , U32
+                         , CPtr U32
+                         , _
+                         , _] (pnn
+                              , 1
+                              , \(p0', ()) => (p0', p0')
+                              , ())
+   in (cogent_fcnn v3', pnn)
+cogent_fn73nl : ( Cogent_nna2, GlobState1 ) -> ( (), Cogent_nna2, GlobState1 )
+cogent_fn73nl (pnn, g) =
+   let (pnn, g) = let (pnn
+                      , v2') = modifyArr[Cogent_nna2
+                                        , U32
+                                        , CPtr U32
+                                        , _
+                                        , _] (pnn
+                                             , 1
+                                             , \(p0', ()) => (p0', p0')
+                                             , ())
+      and g { cont = _ } = g
+      in (pnn
+         , g { cont = mayNull[CPtr U32] v2' })
+   in ((), pnn, g)
+cogent_fn73nn : ( Cogent_nna2, GlobState2 ) -> ( (), Cogent_nna2, GlobState2 )
+cogent_fn73nn (pnn, g) =
+   let (pnn, g) = let (pnn
+                      , v2') = modifyArr[Cogent_nna2
+                                        , U32
+                                        , CPtr U32
+                                        , _
+                                        , _] (pnn
+                                             , 1
+                                             , \(p0', ()) => (p0', p0')
+                                             , ())
+      and g { cont = _ } = g
+      in (pnn, g { cont = v2' })
+   in ((), pnn, g)
+cogent_fn74nl : ( Cogent_nna2, MayNull (CPtr U32) ) -> ( (), Cogent_nna2, MayNull (CPtr U32) )
+cogent_fn74nl (pnn, pnl) =
+   let (pnn, pnl) = let (pnn
+                        , v2') = modifyArr[Cogent_nna2
+                                          , U32
+                                          , CPtr U32
+                                          , _
+                                          , _] (pnn
+                                               , 1
+                                               , \(p0', ()) => (p0', p0')
+                                               , ())
+      in (pnn, mayNull[CPtr U32] v2')
+   in ((), pnn, pnl)
+cogent_fn74nn : ( Cogent_nna2, CPtr U32 ) -> ( U32, Cogent_nna2, CPtr U32 )
+cogent_fn74nn (pnn, qnn) =
+   let (pnn, qnn, r') = let (pnn
+                            , qnn) = modifyArr[Cogent_nna2
+                                              , U32
+                                              , CPtr U32
+                                              , _
+                                              , _] (pnn
+                                                   , 1
+                                                   , \(p0', ()) => (p0', p0')
+                                                   , ())
+      in (pnn
+         , qnn
+         , getPtr[(CPtr U32)!, U32] qnn)
+   in (r', pnn, qnn)
+cogent_fn75nl : ( Cogent_nna2, MayNull (CPtr U32), U32 ) -> ( U32, Cogent_nna2, MayNull (CPtr U32) )
+cogent_fn75nl (pnn, qnl, i) =
+   let (r'
+       , ()) = (cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
+               , ()) !qnl !pnn
+   in (r', pnn, qnl)
+cogent_fn75nn : ( Cogent_nna2, CPtr U32, U32 ) -> ( U32, Cogent_nna2, CPtr U32 )
+cogent_fn75nn (pnn, qnn, i) =
+   let (r', pnn) = let (v6'
+                       , pnn) = if i /= 0
+         then let (pnn
+                  , v4') = modifyArr[Cogent_nna2
+                                    , U32
+                                    , CPtr U32
+                                    , _
+                                    , _] (pnn
+                                         , 1
+                                         , \(p0', ()) => (p0', p0')
+                                         , ())
+            in (v4', pnn)
+         else (qnn, pnn)
+      in (cogent_fcnn v6', pnn)
+   in (r', pnn, qnn)
+
+-- Probe used by accessing an array element
+cogent_fn81nn : Cogent_nna1 -> ( U32, Cogent_nna1 )
+cogent_fn81nn pnn =
+   let (r'
+       , ()) = (getArr[Cogent_nna1!
+                      , U32
+                      , U32] (pnn, 1)
+               , ()) !pnn
+   in (r', pnn)
+cogent_fn82nn : Cogent_nna5 -> ( U32, Cogent_nna5 )
+cogent_fn82nn pnn =
+   let (r'
+       , ()) = (getArr[Cogent_nna1!
+                      , U32
+                      , U32] (getrefArr[Cogent_nna5!
+                                       , U32
+                                       , Cogent_nna1!] (pnn, 1)
+                             , 1)
+               , ()) !pnn
+   in (r', pnn)
+
+-- Probe assigned to struct component or array element
+cogent_fn91nl : Struct_Cogent_nns1 -> ( (), Struct_Cogent_nns1 )
+cogent_fn91nl pnn =
+   (()
+   , let pnn { mnl = _ } = pnn
+   in pnn { mnl = mayNull[CPtr U32] (cogent_frnn ()) })
+cogent_fn91nn : Struct_Cogent_nns1 -> ( (), Struct_Cogent_nns1 )
+cogent_fn91nn pnn =
+   (()
+   , let pnn { mnn = _ } = pnn
+   in pnn { mnn = cogent_frnn () })
+cogent_fn92nl : Cogent_nna3 -> ( (), Cogent_nna3 )
+cogent_fn92nl pnl =
+   (()
+   , let (pnl
+         , _) = modifyArr[Cogent_nna3
+                         , U32
+                         , MayNull (CPtr U32)
+                         , _
+                         , _] (pnl
+                              , 1
+                              , \(p0'
+                                 , v1') => (mayNull[CPtr U32] v1'
+                                           , ())
+                              , cogent_frnn ())
+   in pnl)
+cogent_fn92nn : Cogent_nna2 -> ( (), Cogent_nna2 )
+cogent_fn92nn pnl =
+   (()
+   , let (pnl
+         , _) = modifyArr[Cogent_nna2
+                         , U32
+                         , CPtr U32
+                         , _
+                         , _] (pnl
+                              , 1
+                              , \(p0', v1') => (v1', ())
+                              , cogent_frnn ())
+   in pnl)
+
+-- Using MayNull values (cannot be converted to not-null)
+
+-- Direct use of probe in context
+cogent_gn11nl : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
+cogent_gn11nl pnl =
+   (cogent_fcnl pnl, pnl)
+cogent_gn11nn : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
+cogent_gn11nn pnl =
+   (cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
+   , pnl)
+cogent_gn12nl : () -> U32
+cogent_gn12nl () =
+   cogent_fcnl (cogent_globnl ())
+cogent_gn12nn : () -> U32
+cogent_gn12nn () =
+   cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
+cogent_gn13nl : () -> U32
+cogent_gn13nl () =
+   cogent_fcnl (cogent_frnl ())
+cogent_gn13nn : () -> U32
+cogent_gn13nn () =
+   cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
+cogent_gn14nl : ( MayNull (CPtr U32), MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32) )
+cogent_gn14nl (pnl, qnl, i) =
+   (cogent_fcnl (if i /= 0
+      then pnl
+      else qnl)
+   , pnl
+   , qnl)
+cogent_gn14nn : ( MayNull (CPtr U32), MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32) )
+cogent_gn14nn (pnl, qnl, i) =
+   (cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
+   , pnl
+   , qnl)
+
+-- Probe assigned to variable
+cogent_gn21nl : GlobState1 -> ( (), GlobState1 )
+cogent_gn21nl g =
+   (()
+   , let g { cont = _ } = g
+   in g { cont = cogent_frnl () })
+cogent_gn21nn : GlobState2 -> ( (), GlobState2 )
+cogent_gn21nn g =
+   (()
+   , let g { cont = _ } = g
+   in g { cont = gencotDummy "MayNull expression used in not-null context" })
+cogent_gn22nl : MayNull (CPtr U32) -> ( (), MayNull (CPtr U32) )
+cogent_gn22nl pnl =
+   ((), cogent_frnl ())
+cogent_gn22nn : CPtr U32 -> ( U32, CPtr U32 )
+cogent_gn22nn pnn =
+   (getPtr[(CPtr U32)!
+          , U32] (gencotDummy "MayNull expression used in not-null context")
+   , gencotDummy "MayNull expression used in not-null context")
+
+-- Probe returned as result
+cogent_gn31nl : () -> MayNull (CPtr U32)
+cogent_gn31nl () =
+   cogent_frnl ()
+cogent_gn31nn : () -> CPtr U32
+cogent_gn31nn () =
+   gencotDummy "MayNull expression used in not-null context"
+
+-- Probe is a struct component
+cogent_gn51nl : Struct_Cogent_nns1 -> ( MayNull (CPtr U32), Struct_Cogent_nns1 )
+cogent_gn51nl pnn =
+   let pnn { mnl = p0' } = pnn
+   in (p0', pnn { mnl = p0' })
+cogent_gn51nn : Struct_Cogent_nns1 -> ( CPtr U32, Struct_Cogent_nns1 )
+cogent_gn51nn pnn =
+   (gencotDummy "MayNull expression used in not-null context"
+   , let pnn { mnl = p0' } = pnn
+   in pnn { mnl = p0' })
+cogent_gn52nl : Struct_Cogent_nns1 -> ( U32, Struct_Cogent_nns1 )
+cogent_gn52nl pnn =
+   let pnn { mnl = p0' } = pnn
+   in (cogent_fcnl p0'
+      , pnn { mnl = p0' })
+cogent_gn52nn : Struct_Cogent_nns1 -> ( U32, Struct_Cogent_nns1 )
+cogent_gn52nn pnn =
+   let (r'
+       , ()) = (cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
+               , ()) !pnn
+   in (r', pnn)
+cogent_gn53nl : ( Struct_Cogent_nns1, GlobState1 ) -> ( (), Struct_Cogent_nns1, GlobState1 )
+cogent_gn53nl (pnn, g) =
+   let (pnn
+       , g) = let pnn { mnl = p0' } = pnn
+      and g { cont = _ } = g
+      in (pnn { mnl = p0' }
+         , g { cont = p0' })
+   in ((), pnn, g)
+cogent_gn53nn : ( Struct_Cogent_nns1, GlobState2 ) -> ( (), Struct_Cogent_nns1, GlobState2 )
+cogent_gn53nn (pnn, g) =
+   (()
+   , let pnn { mnl = p0' } = pnn
+   in pnn { mnl = p0' }
+   , let g { cont = _ } = g
+   in g { cont = gencotDummy "MayNull expression used in not-null context" })
+cogent_gn54nl : ( Struct_Cogent_nns1, MayNull (CPtr U32) ) -> ( (), Struct_Cogent_nns1, MayNull (CPtr U32) )
+cogent_gn54nl (pnn, pnl) =
+   let (pnn
+       , pnl) = let pnn { mnl = p0' } = pnn
+      in (pnn { mnl = p0' }, p0')
+   in ((), pnn, pnl)
+cogent_gn54nn : ( Struct_Cogent_nns1, CPtr U32 ) -> ( U32, Struct_Cogent_nns1, CPtr U32 )
+cogent_gn54nn (pnn, qnn) =
+   (getPtr[(CPtr U32)!
+          , U32] (gencotDummy "MayNull expression used in not-null context")
+   , let pnn { mnl = p0' } = pnn
+   in pnn { mnl = p0' }
+   , gencotDummy "MayNull expression used in not-null context")
+cogent_gn55nl : ( Struct_Cogent_nns1, MayNull (CPtr U32), U32 ) -> ( U32, Struct_Cogent_nns1, MayNull (CPtr U32) )
+cogent_gn55nl (pnn, qnl, i) =
+   let (r'
+       , ()) = (cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
+               , ()) !qnl !pnn
+   in (r', pnn, qnl)
+cogent_gn55nn : ( Struct_Cogent_nns1, CPtr U32, U32 ) -> ( U32, Struct_Cogent_nns1, CPtr U32 )
+cogent_gn55nn (pnn, qnn, i) =
+   let (r'
+       , ()) = (cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
+               , ()) !qnn !pnn
+   in (r', pnn, qnn)
+
+-- Probe used by accessing a struct component or pointer deref
+cogent_gn61nl : MayNull Struct_Cogent_nns1 -> ( U32, MayNull Struct_Cogent_nns1 )
+cogent_gn61nl pnl =
+   let (r'
+       , ()) = (gencotDummy "Dereferencing pointer which may be NULL"
+               , ()) !pnl
+   in (r', pnl)
+cogent_gn62nl : Struct_Cogent_nns2 -> ( U32, Struct_Cogent_nns2 )
+cogent_gn62nl pnn =
+   let (r'
+       , ()) = (gencotDummy "Dereferencing pointer which may be NULL"
+               , ()) !pnn
+   in (r', pnn)
+cogent_gn63nl : () -> U32
+cogent_gn63nl () =
+   gencotDummy "Dereferencing pointer which may be NULL"
+cogent_gn64nl : () -> U32
+cogent_gn64nl () =
+   gencotDummy "Dereferencing pointer which may be NULL"
+
+-- Probe is an array element
+cogent_gn71nl : Cogent_nna3 -> ( MayNull (CPtr U32), Cogent_nna3 )
+cogent_gn71nl pnn =
+   let (pnn
+       , v2') = modifyArr[Cogent_nna3
+                         , U32
+                         , MayNull (CPtr U32)
+                         , _
+                         , _] (pnn
+                              , 1
+                              , \(p0', ()) => (p0', p0')
+                              , ())
+   in (v2', pnn)
+cogent_gn71nn : Cogent_nna3 -> ( CPtr U32, Cogent_nna3 )
+cogent_gn71nn pnn =
+   (gencotDummy "MayNull expression used in not-null context"
+   , let (pnn
+         , _) = modifyArr[Cogent_nna3
+                         , U32
+                         , MayNull (CPtr U32)
+                         , _
+                         , _] (pnn
+                              , 1
+                              , \(p0', ()) => (p0', p0')
+                              , ())
+   in pnn)
+cogent_gn72nl : Cogent_nna3 -> ( U32, Cogent_nna3 )
+cogent_gn72nl pnn =
+   let (pnn
+       , v3') = modifyArr[Cogent_nna3
+                         , U32
+                         , MayNull (CPtr U32)
+                         , _
+                         , _] (pnn
+                              , 1
+                              , \(p0', ()) => (p0', p0')
+                              , ())
+   in (cogent_fcnl v3', pnn)
+cogent_gn72nn : Cogent_nna3 -> ( U32, Cogent_nna3 )
+cogent_gn72nn pnn =
+   let (r'
+       , ()) = (cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
+               , ()) !pnn
+   in (r', pnn)
+cogent_gn73nl : ( Cogent_nna3, GlobState1 ) -> ( (), Cogent_nna3, GlobState1 )
+cogent_gn73nl (pnn, g) =
+   let (pnn, g) = let (pnn
+                      , v2') = modifyArr[Cogent_nna3
+                                        , U32
+                                        , MayNull (CPtr U32)
+                                        , _
+                                        , _] (pnn
+                                             , 1
+                                             , \(p0', ()) => (p0', p0')
+                                             , ())
+      and g { cont = _ } = g
+      in (pnn, g { cont = v2' })
+   in ((), pnn, g)
+cogent_gn73nn : ( Cogent_nna3, GlobState2 ) -> ( (), Cogent_nna3, GlobState2 )
+cogent_gn73nn (pnn, g) =
+   (()
+   , let (pnn
+         , _) = modifyArr[Cogent_nna3
+                         , U32
+                         , MayNull (CPtr U32)
+                         , _
+                         , _] (pnn
+                              , 1
+                              , \(p0', ()) => (p0', ())
+                              , ())
+   in pnn
+   , let g { cont = _ } = g
+   in g { cont = gencotDummy "MayNull expression used in not-null context" })
+cogent_gn74nl : ( Cogent_nna3, MayNull (CPtr U32) ) -> ( (), Cogent_nna3, MayNull (CPtr U32) )
+cogent_gn74nl (pnn, pnl) =
+   let (pnn
+       , pnl) = modifyArr[Cogent_nna3
+                         , U32
+                         , MayNull (CPtr U32)
+                         , _
+                         , _] (pnn
+                              , 1
+                              , \(p0', ()) => (p0', p0')
+                              , ())
+   in ((), pnn, pnl)
+cogent_gn74nn : ( Cogent_nna3, CPtr U32 ) -> ( U32, Cogent_nna3, CPtr U32 )
+cogent_gn74nn (pnn, qnn) =
+   (getPtr[(CPtr U32)!
+          , U32] (gencotDummy "MayNull expression used in not-null context")
+   , let (pnn
+         , _) = modifyArr[Cogent_nna3
+                         , U32
+                         , MayNull (CPtr U32)
+                         , _
+                         , _] (pnn
+                              , 1
+                              , \(p0', ()) => (p0', ())
+                              , ())
+   in pnn
+   , gencotDummy "MayNull expression used in not-null context")
+cogent_gn75nl : ( Cogent_nna3, MayNull (CPtr U32), U32 ) -> ( U32, Cogent_nna3, MayNull (CPtr U32) )
+cogent_gn75nl (pnn, qnl, i) =
+   let (r'
+       , ()) = (cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
+               , ()) !qnl !pnn
+   in (r', pnn, qnl)
+cogent_gn75nn : ( Cogent_nna3, CPtr U32, U32 ) -> ( U32, Cogent_nna3, CPtr U32 )
+cogent_gn75nn (pnn, qnn, i) =
+   let (r'
+       , ()) = (cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
+               , ()) !qnn !pnn
+   in (r', pnn, qnn)
+
+-- Probe used by accessing an array element
+cogent_gn81nl : Cogent_nna1 -> ( U32, Cogent_nna1 )
+cogent_gn81nl pnl =
+   let (r'
+       , ()) = (getArr[Cogent_nna1!
+                      , U32
+                      , U32] (pnl, 1)
+               , ()) !pnl
+   in (r', pnl)
+cogent_gn82nl : Cogent_nna4 -> ( U32, Cogent_nna4 )
+cogent_gn82nl pnn =
+   let (r'
+       , ()) = (getArr[Cogent_nna1!
+                      , U32
+                      , U32] (getrefArr[Cogent_nna4!
+                                       , U32
+                                       , Cogent_nna1!] (pnn, 1)
+                             , 1)
+               , ()) !pnn
+   in (r', pnn)
+
+-- Probe assigned to struct component or array element
+cogent_gn91nl : Struct_Cogent_nns1 -> ( (), Struct_Cogent_nns1 )
+cogent_gn91nl pnn =
+   (()
+   , let pnn { mnl = _ } = pnn
+   in pnn { mnl = cogent_frnl () })
+cogent_gn91nn : Struct_Cogent_nns1 -> ( (), Struct_Cogent_nns1 )
+cogent_gn91nn pnn =
+   (()
+   , let pnn { mnn = _ } = pnn
+   in pnn { mnn = gencotDummy "MayNull expression used in not-null context" })
+cogent_gn92nl : Cogent_nna3 -> ( (), Cogent_nna3 )
+cogent_gn92nl pnl =
+   (()
+   , let (pnl
+         , _) = modifyArr[Cogent_nna3
+                         , U32
+                         , MayNull (CPtr U32)
+                         , _
+                         , _] (pnl
+                              , 1
+                              , \(p0', v1') => (v1', ())
+                              , cogent_frnl ())
+   in pnl)
+cogent_gn92nn : Cogent_nna2 -> ( (), Cogent_nna2 )
+cogent_gn92nn pnl =
+   (()
+   , let (pnl
+         , _) = modifyArr[Cogent_nna2
+                         , U32
+                         , CPtr U32
+                         , _
+                         , _] (pnl
+                              , 1
+                              , \(p0'
+                                 , ()) => (gencotDummy "MayNull expression used in not-null context"
+                                          , ())
+                              , ())
+   in pnl)
+
+-- Using MayNull values after NULL-test in expression.
+
+-- Direct use of probe in context
+cogent_tn11nl : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
+cogent_tn11nl pnl =
+   (notNull[CPtr U32] pnl
+   | Nothing -> 0
+   | Some pnl -> cogent_fcnl (mayNull[CPtr U32] pnl)
+   , pnl)
+cogent_tn11nn : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
+cogent_tn11nn pnl =
+   (notNull[CPtr U32] pnl
+   | Nothing -> 0
+   | Some pnl -> cogent_fcnn pnl
+   , pnl)
+cogent_tn12nl : () -> U32
+cogent_tn12nl () =
+   if cogent_globnl () /= null[] ()
+   then
+      cogent_fcnl (cogent_globnl ())
+   else 0
+cogent_tn12nn : () -> U32
+cogent_tn12nn () =
+   if cogent_globnl () /= null[] ()
+   then
+      cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
+   else 0
+cogent_tn13nl : () -> U32
+cogent_tn13nl () =
+   if cogent_frnl () /= null[] ()
+   then
+      cogent_fcnl (cogent_frnl ())
+   else 0
+cogent_tn13nn : () -> U32
+cogent_tn13nn () =
+   if cogent_frnl () /= null[] ()
+   then
+      cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
+   else 0
+cogent_tn14nl : ( MayNull (CPtr U32), CPtr U32, U32 ) -> ( U32, MayNull (CPtr U32), CPtr U32 )
+cogent_tn14nl (pnl, qnn, i) =
+   (notNull[CPtr U32] pnl
+   | Nothing -> 0
+   | Some pnl -> cogent_fcnl (mayNull[CPtr U32] (if i /= 0
+            then pnl
+            else qnn))
+   , pnl
+   , qnn)
+cogent_tn14nn : ( MayNull (CPtr U32), CPtr U32, U32 ) -> ( U32, MayNull (CPtr U32), CPtr U32 )
+cogent_tn14nn (pnl, qnn, i) =
+   (notNull[CPtr U32] pnl
+   | Nothing -> 0
+   | Some pnl -> cogent_fcnn (if i /= 0
+         then pnl
+         else qnn)
+   , pnl
+   , qnn)
+
+-- Probe assigned to variable
+cogent_tn21nl : ( MayNull (CPtr U32), CPtr U32, GlobState1 ) -> ( (), MayNull (CPtr U32), CPtr U32, GlobState1 )
+cogent_tn21nl (qnl, qnn, g) =
+   (()
+   , qnl
+   , qnn
+   , let g { cont = _ } = g
+   in g { cont = notNull[CPtr U32] qnl
+      | Nothing -> qnn
+      | Some qnl -> qnl })
+cogent_tn21nn : ( MayNull (CPtr U32), CPtr U32, GlobState2 ) -> ( (), MayNull (CPtr U32), CPtr U32, GlobState2 )
+cogent_tn21nn (qnl, qnn, g) =
+   (()
+   , qnl
+   , qnn
+   , let g { cont = _ } = g
+   in g { cont = notNull[CPtr U32] qnl
+      | Nothing -> qnn
+      | Some qnl -> qnl })
+cogent_tn22nl : ( MayNull (CPtr U32), MayNull (CPtr U32), CPtr U32 ) -> ( (), MayNull (CPtr U32), MayNull (CPtr U32), CPtr U32 )
+cogent_tn22nl (pnl, qnl, qnn) =
+   (()
+   , notNull[CPtr U32] qnl
+   | Nothing -> qnn
+   | Some qnl -> qnl
+   , qnl
+   , qnn)
+cogent_tn22nn : ( MayNull (CPtr U32), MayNull (CPtr U32), CPtr U32 ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32), CPtr U32 )
+cogent_tn22nn (pnn, qnl, qnn) =
+   let (pnn
+       , r') = let pnn = notNull[CPtr U32] qnl
+         | Nothing -> qnn
+         | Some qnl -> qnl
+      in (pnn
+         , getPtr[(CPtr U32)!, U32] pnn)
+   in (r', pnn, qnl, qnn)
+
+-- Probe returned as result
+cogent_tn31nl : ( MayNull (CPtr U32), CPtr U32 ) -> ( MayNull (CPtr U32), MayNull (CPtr U32), CPtr U32 )
+cogent_tn31nl (qnl, qnn) =
+   (notNull[CPtr U32] qnl
+   | Nothing -> qnn
+   | Some qnl -> qnl
+   , qnl
+   , qnn)
+cogent_tn31nn : ( MayNull (CPtr U32), CPtr U32 ) -> ( CPtr U32, MayNull (CPtr U32), CPtr U32 )
+cogent_tn31nn (qnl, qnn) =
+   (notNull[CPtr U32] qnl
+   | Nothing -> qnn
+   | Some qnl -> qnl
+   , qnl
+   , qnn)
+
+-- Probe is a struct component
+cogent_tn51nl : Struct_Cogent_nns1 -> ( MayNull (CPtr U32), Struct_Cogent_nns1 )
+cogent_tn51nl pnn =
+   let pnn { mnl = p0' } = pnn
+   in notNull[CPtr U32] p0'
+      | Nothing -> let pnn { mnn = p2' } = pnn { mnl = p0' }
+         in (mayNull[CPtr U32] p2'
+            , pnn { mnn = p2' })
+      | Some p0' -> let pnn { mnl = p1' } = pnn { mnl = p0' }
+         in (p1', pnn { mnl = p1' })
+cogent_tn51nn : Struct_Cogent_nns1 -> ( CPtr U32, Struct_Cogent_nns1 )
+cogent_tn51nn pnn =
+   let (_
+       , pnn) = let pnn { mnl = p0' } = pnn
+      in notNull[CPtr U32] p0'
+         | Nothing -> let pnn { mnn = p2' } = pnn { mnl = p0' }
+            in (mayNull[CPtr U32] p2'
+               , pnn { mnn = p2' })
+         | Some p0' -> let pnn { mnl = p1' } = pnn { mnl = p0' }
+            in (p1', pnn { mnl = p1' })
+   in (gencotDummy "MayNull expression used in not-null context"
+      , pnn)
+cogent_tn52nl : Struct_Cogent_nns1 -> ( U32, Struct_Cogent_nns1 )
+cogent_tn52nl pnn =
+   let (v7'
+       , pnn) = let pnn { mnl = p0' } = pnn
+      in notNull[CPtr U32] p0'
+         | Nothing -> let pnn { mnn = p2' } = pnn { mnl = p0' }
+            in (mayNull[CPtr U32] p2'
+               , pnn { mnn = p2' })
+         | Some p0' -> let pnn { mnl = p1' } = pnn { mnl = p0' }
+            in (p1', pnn { mnl = p1' })
+   in (cogent_fcnl v7', pnn)
+cogent_tn52nn : Struct_Cogent_nns1 -> ( U32, Struct_Cogent_nns1 )
+cogent_tn52nn pnn =
+   let (r'
+       , ()) = (cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
+               , ()) !pnn
+   in (r', pnn)
+cogent_tn53nl : ( Struct_Cogent_nns1, GlobState1 ) -> ( (), Struct_Cogent_nns1, GlobState1 )
+cogent_tn53nl (pnn, g) =
+   let (pnn, g) = let (v6'
+                      , pnn) = let pnn { mnl = p0' } = pnn
+         in notNull[CPtr U32] p0'
+            | Nothing -> let pnn { mnn = p2' } = pnn { mnl = p0' }
+               in (mayNull[CPtr U32] p2'
+                  , pnn { mnn = p2' })
+            | Some p0' -> let pnn { mnl = p1' } = pnn { mnl = p0' }
+               in (p1', pnn { mnl = p1' })
+      and g { cont = _ } = g
+      in (pnn, g { cont = v6' })
+   in ((), pnn, g)
+cogent_tn53nn : ( Struct_Cogent_nns1, GlobState2 ) -> ( (), Struct_Cogent_nns1, GlobState2 )
+cogent_tn53nn (pnn, g) =
+   (()
+   , let (_
+         , pnn) = let pnn { mnl = p0' } = pnn
+      in notNull[CPtr U32] p0'
+         | Nothing -> let pnn { mnn = p2' } = pnn { mnl = p0' }
+            in (mayNull[CPtr U32] p2'
+               , pnn { mnn = p2' })
+         | Some p0' -> let pnn { mnl = p1' } = pnn { mnl = p0' }
+            in (p1', pnn { mnl = p1' })
+   in pnn
+   , let g { cont = _ } = g
+   in g { cont = gencotDummy "MayNull expression used in not-null context" })
+cogent_tn54nl : ( Struct_Cogent_nns1, MayNull (CPtr U32) ) -> ( (), Struct_Cogent_nns1, MayNull (CPtr U32) )
+cogent_tn54nl (pnn, pnl) =
+   let (pnn, pnl) = let (v6'
+                        , pnn) = let pnn { mnl = p0' } = pnn
+         in notNull[CPtr U32] p0'
+            | Nothing -> let pnn { mnn = p2' } = pnn { mnl = p0' }
+               in (mayNull[CPtr U32] p2'
+                  , pnn { mnn = p2' })
+            | Some p0' -> let pnn { mnl = p1' } = pnn { mnl = p0' }
+               in (p1', pnn { mnl = p1' })
+      in (pnn, v6')
+   in ((), pnn, pnl)
+cogent_tn54nn : ( Struct_Cogent_nns1, CPtr U32 ) -> ( U32, Struct_Cogent_nns1, CPtr U32 )
+cogent_tn54nn (pnn, qnn) =
+   (getPtr[(CPtr U32)!
+          , U32] (gencotDummy "MayNull expression used in not-null context")
+   , let (_
+         , pnn) = let pnn { mnl = p0' } = pnn
+      in notNull[CPtr U32] p0'
+         | Nothing -> let pnn { mnn = p2' } = pnn { mnl = p0' }
+            in (mayNull[CPtr U32] p2'
+               , pnn { mnn = p2' })
+         | Some p0' -> let pnn { mnl = p1' } = pnn { mnl = p0' }
+            in (p1', pnn { mnl = p1' })
+   in pnn
+   , gencotDummy "MayNull expression used in not-null context")
+cogent_tn55nl : ( Struct_Cogent_nns1, MayNull (CPtr U32), U32 ) -> ( U32, Struct_Cogent_nns1, MayNull (CPtr U32) )
+cogent_tn55nl (pnn, qnl, i) =
+   let (r'
+       , ()) = (cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
+               , ()) !qnl !pnn
+   in (r', pnn, qnl)
+cogent_tn55nn : ( Struct_Cogent_nns1, CPtr U32, U32 ) -> ( U32, Struct_Cogent_nns1, CPtr U32 )
+cogent_tn55nn (pnn, qnn, i) =
+   let (r'
+       , ()) = (cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
+               , ()) !qnn !pnn
+   in (r', pnn, qnn)
+
+-- Probe used by accessing a struct component or pointer deref
+cogent_tn61nl : ( MayNull Struct_Cogent_nns1, MayNull Struct_Cogent_nns1 ) -> ( U32, MayNull Struct_Cogent_nns1, MayNull Struct_Cogent_nns1 )
+cogent_tn61nl (pnl, pnn) =
+   (gencotDummy "Dereferencing pointer which may be NULL"
+   , pnl
+   , pnn)
+cogent_tn62nl : Struct_Cogent_nns2 -> ( U32, Struct_Cogent_nns2 )
+cogent_tn62nl pnn =
+   let (_
+       , pnn) = let pnn { snl = p0' } = pnn
+      in notNull[Struct_Cogent_nns1] p0'
+         | Nothing -> let pnn { snn = p2' } = pnn { snl = p0' }
+            in (mayNull[Struct_Cogent_nns1] p2'
+               , pnn { snn = p2' })
+         | Some p0' -> let pnn { snl = p1' } = pnn { snl = p0' }
+            in (p1', pnn { snl = p1' })
+   in (gencotDummy "Dereferencing pointer which may be NULL"
+      , pnn)
+cogent_tn63nl : () -> U32
+cogent_tn63nl () =
+   gencotDummy "Dereferencing pointer which may be NULL"
+cogent_tn64nl : () -> U32
+cogent_tn64nl () =
+   gencotDummy "Dereferencing pointer which may be NULL"
+
+-- Probe is an array element
+cogent_tn71nl : Cogent_nna3 -> ( MayNull (CPtr U32), Cogent_nna3 )
+cogent_tn71nl pnn =
+   let (pnn
+       , p0') = modifyArr[Cogent_nna3
+                         , U32
+                         , MayNull (CPtr U32)
+                         , _
+                         , _] (pnn
+                              , 1
+                              , \(p0', ()) => (p0', p0')
+                              , ())
+   in notNull[CPtr U32] p0'
+      | Nothing -> (mayNull[CPtr U32] (cogent_globnn ())
+                   , pnn)
+      | Some p0' -> let (pnn
+                        , v5') = modifyArr[Cogent_nna3
+                                          , U32
+                                          , MayNull (CPtr U32)
+                                          , _
+                                          , _] (pnn
+                                               , 1
+                                               , \(p1', ()) => (p1', p1')
+                                               , ())
+         in (v5', pnn)
+cogent_tn71nn : Cogent_nna3 -> ( CPtr U32, Cogent_nna3 )
+cogent_tn71nn pnn =
+   let (_, pnn) = let (pnn
+                      , p0') = modifyArr[Cogent_nna3
+                                        , U32
+                                        , MayNull (CPtr U32)
+                                        , _
+                                        , _] (pnn
+                                             , 1
+                                             , \(p0', ()) => (p0', p0')
+                                             , ())
+      in notNull[CPtr U32] p0'
+         | Nothing -> (mayNull[CPtr U32] (cogent_globnn ())
+                      , pnn)
+         | Some p0' -> let (pnn
+                           , v5') = modifyArr[Cogent_nna3
+                                             , U32
+                                             , MayNull (CPtr U32)
+                                             , _
+                                             , _] (pnn
+                                                  , 1
+                                                  , \(p1', ()) => (p1', p1')
+                                                  , ())
+            in (v5', pnn)
+   in (gencotDummy "MayNull expression used in not-null context"
+      , pnn)
+cogent_tn72nl : Cogent_nna3 -> ( U32, Cogent_nna3 )
+cogent_tn72nl pnn =
+   let (v8', pnn) = let (pnn
+                        , p0') = modifyArr[Cogent_nna3
+                                          , U32
+                                          , MayNull (CPtr U32)
+                                          , _
+                                          , _] (pnn
+                                               , 1
+                                               , \(p0', ()) => (p0', p0')
+                                               , ())
+      in notNull[CPtr U32] p0'
+         | Nothing -> (mayNull[CPtr U32] (cogent_globnn ())
+                      , pnn)
+         | Some p0' -> let (pnn
+                           , v6') = modifyArr[Cogent_nna3
+                                             , U32
+                                             , MayNull (CPtr U32)
+                                             , _
+                                             , _] (pnn
+                                                  , 1
+                                                  , \(p1', ()) => (p1', p1')
+                                                  , ())
+            in (v6', pnn)
+   in (cogent_fcnl v8', pnn)
+cogent_tn72nn : Cogent_nna3 -> ( U32, Cogent_nna3 )
+cogent_tn72nn pnn =
+   let (_, pnn) = let (pnn
+                      , p0') = modifyArr[Cogent_nna3
+                                        , U32
+                                        , MayNull (CPtr U32)
+                                        , _
+                                        , _] (pnn
+                                             , 1
+                                             , \(p0', ()) => (p0', p0')
+                                             , ())
+      in notNull[CPtr U32] p0'
+         | Nothing -> (mayNull[CPtr U32] (cogent_globnn ())
+                      , pnn)
+         | Some p0' -> let (pnn
+                           , v6') = modifyArr[Cogent_nna3
+                                             , U32
+                                             , MayNull (CPtr U32)
+                                             , _
+                                             , _] (pnn
+                                                  , 1
+                                                  , \(p1', ()) => (p1', p1')
+                                                  , ())
+            in (v6', pnn)
+   in (cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
+      , pnn)
+cogent_tn73nl : ( Cogent_nna3, GlobState1 ) -> ( (), Cogent_nna3, GlobState1 )
+cogent_tn73nl (pnn, g) =
+   let (pnn, g) = let (v7'
+                      , pnn) = let (pnn
+                                   , p0') = modifyArr[Cogent_nna3
+                                                     , U32
+                                                     , MayNull (CPtr U32)
+                                                     , _
+                                                     , _] (pnn
+                                                          , 1
+                                                          , \(p0', ()) => (p0'
+                                                                          , p0')
+                                                          , ())
+         in notNull[CPtr U32] p0'
+            | Nothing -> (mayNull[CPtr U32] (cogent_globnn ())
+                         , pnn)
+            | Some p0' -> let (pnn
+                              , v5') = modifyArr[Cogent_nna3
+                                                , U32
+                                                , MayNull (CPtr U32)
+                                                , _
+                                                , _] (pnn
+                                                     , 1
+                                                     , \(p1', ()) => (p1', p1')
+                                                     , ())
+               in (v5', pnn)
+      and g { cont = _ } = g
+      in (pnn, g { cont = v7' })
+   in ((), pnn, g)
+cogent_tn73nn : ( Cogent_nna3, GlobState2 ) -> ( (), Cogent_nna3, GlobState2 )
+cogent_tn73nn (pnn, g) =
+   (()
+   , let (_, pnn) = let (pnn
+                        , p0') = modifyArr[Cogent_nna3
+                                          , U32
+                                          , MayNull (CPtr U32)
+                                          , _
+                                          , _] (pnn
+                                               , 1
+                                               , \(p0', ()) => (p0', p0')
+                                               , ())
+      in notNull[CPtr U32] p0'
+         | Nothing -> (mayNull[CPtr U32] (cogent_globnn ())
+                      , pnn)
+         | Some p0' -> let (pnn
+                           , v5') = modifyArr[Cogent_nna3
+                                             , U32
+                                             , MayNull (CPtr U32)
+                                             , _
+                                             , _] (pnn
+                                                  , 1
+                                                  , \(p1', ()) => (p1', p1')
+                                                  , ())
+            in (v5', pnn)
+   in pnn
+   , let g { cont = _ } = g
+   in g { cont = gencotDummy "MayNull expression used in not-null context" })
+cogent_tn74nl : ( Cogent_nna3, MayNull (CPtr U32) ) -> ( (), Cogent_nna3, MayNull (CPtr U32) )
+cogent_tn74nl (pnn, pnl) =
+   let (pnn, pnl) = let (v7'
+                        , pnn) = let (pnn
+                                     , p0') = modifyArr[Cogent_nna3
+                                                       , U32
+                                                       , MayNull (CPtr U32)
+                                                       , _
+                                                       , _] (pnn
+                                                            , 1
+                                                            , \(p0', ()) => (p0'
+                                                                            , p0')
+                                                            , ())
+         in notNull[CPtr U32] p0'
+            | Nothing -> (mayNull[CPtr U32] (cogent_globnn ())
+                         , pnn)
+            | Some p0' -> let (pnn
+                              , v5') = modifyArr[Cogent_nna3
+                                                , U32
+                                                , MayNull (CPtr U32)
+                                                , _
+                                                , _] (pnn
+                                                     , 1
+                                                     , \(p1', ()) => (p1', p1')
+                                                     , ())
+               in (v5', pnn)
+      in (pnn, v7')
+   in ((), pnn, pnl)
+cogent_tn74nn : ( Cogent_nna3, CPtr U32 ) -> ( U32, Cogent_nna3, CPtr U32 )
+cogent_tn74nn (pnn, qnn) =
+   (getPtr[(CPtr U32)!
+          , U32] (gencotDummy "MayNull expression used in not-null context")
+   , let (_, pnn) = let (pnn
+                        , p0') = modifyArr[Cogent_nna3
+                                          , U32
+                                          , MayNull (CPtr U32)
+                                          , _
+                                          , _] (pnn
+                                               , 1
+                                               , \(p0', ()) => (p0', p0')
+                                               , ())
+      in notNull[CPtr U32] p0'
+         | Nothing -> (mayNull[CPtr U32] (cogent_globnn ())
+                      , pnn)
+         | Some p0' -> let (pnn
+                           , v5') = modifyArr[Cogent_nna3
+                                             , U32
+                                             , MayNull (CPtr U32)
+                                             , _
+                                             , _] (pnn
+                                                  , 1
+                                                  , \(p1', ()) => (p1', p1')
+                                                  , ())
+            in (v5', pnn)
+   in pnn
+   , gencotDummy "MayNull expression used in not-null context")
+cogent_tn75nl : ( Cogent_nna3, MayNull (CPtr U32), U32 ) -> ( U32, Cogent_nna3, MayNull (CPtr U32) )
+cogent_tn75nl (pnn, qnl, i) =
+   (cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
+   , let (_, pnn) = if i /= 0
+      then let (pnn
+               , p0') = modifyArr[Cogent_nna3
+                                 , U32
+                                 , MayNull (CPtr U32)
+                                 , _
+                                 , _] (pnn
+                                      , 1
+                                      , \(p0', ()) => (p0', p0')
+                                      , ())
+         in notNull[CPtr U32] p0'
+            | Nothing -> (mayNull[CPtr U32] (cogent_globnn ())
+                         , pnn)
+            | Some p0' -> let (pnn
+                              , v7') = modifyArr[Cogent_nna3
+                                                , U32
+                                                , MayNull (CPtr U32)
+                                                , _
+                                                , _] (pnn
+                                                     , 1
+                                                     , \(p1', ()) => (p1', p1')
+                                                     , ())
+               in (v7', pnn)
+      else (qnl, pnn)
+   in pnn
+   , qnl)
+cogent_tn75nn : ( Cogent_nna3, CPtr U32, U32 ) -> ( U32, Cogent_nna3, CPtr U32 )
+cogent_tn75nn (pnn, qnn, i) =
+   (cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
+   , let (_, pnn) = if i /= 0
+      then let (pnn
+               , p0') = modifyArr[Cogent_nna3
+                                 , U32
+                                 , MayNull (CPtr U32)
+                                 , _
+                                 , _] (pnn
+                                      , 1
+                                      , \(p0', ()) => (p0', p0')
+                                      , ())
+         in notNull[CPtr U32] p0'
+            | Nothing -> (mayNull[CPtr U32] (cogent_globnn ())
+                         , pnn)
+            | Some p0' -> let (pnn
+                              , v7') = modifyArr[Cogent_nna3
+                                                , U32
+                                                , MayNull (CPtr U32)
+                                                , _
+                                                , _] (pnn
+                                                     , 1
+                                                     , \(p1', ()) => (p1', p1')
+                                                     , ())
+               in (v7', pnn)
+      else (mayNull[CPtr U32] qnn
+           , pnn)
+   in pnn
+   , qnn)
+
+-- Probe used by accessing an array element
+cogent_tn81nl : ( Cogent_nna1, Cogent_nna1 ) -> ( U32, Cogent_nna1, Cogent_nna1 )
+cogent_tn81nl (pnl, qnn) =
+   (gencotDummy "Accessing element of array not specified by a variable"
+   , pnl
+   , qnn)
+cogent_tn82nl : ( Cogent_nna4, Cogent_nna1 ) -> ( U32, Cogent_nna4, Cogent_nna1 )
+cogent_tn82nl (pnn, qnn) =
+   (gencotDummy "Accessing element of array not specified by a variable"
+   , let (pnn
+         , _) = modrefArr[Cogent_nna4
+                         , U32
+                         , Cogent_nna1
+                         , _
+                         , _] (pnn
+                              , 1
+                              , \(p0', ()) => (p0', ())
+                              , ())
+   and (pnn
+       , _) = modrefArr[Cogent_nna4
+                       , U32
+                       , Cogent_nna1
+                       , _
+                       , _] (pnn
+                            , 1
+                            , \(p1', ()) => (p1', p1')
+                            , ())
+   in pnn
+   , qnn)
+
+-- Probe assigned to struct component or array element
+cogent_tn91nl : ( Struct_Cogent_nns1, MayNull (CPtr U32), CPtr U32 ) -> ( (), Struct_Cogent_nns1, MayNull (CPtr U32), CPtr U32 )
+cogent_tn91nl (pnn, qnl, qnn) =
+   (()
+   , let pnn { mnl = _ } = pnn
+   in pnn { mnl = notNull[CPtr U32] qnl
+      | Nothing -> qnn
+      | Some qnl -> qnl }
+   , qnl
+   , qnn)
+cogent_tn91nn : ( Struct_Cogent_nns1, MayNull (CPtr U32), CPtr U32 ) -> ( (), Struct_Cogent_nns1, MayNull (CPtr U32), CPtr U32 )
+cogent_tn91nn (pnn, qnl, qnn) =
+   (()
+   , let pnn { mnn = _ } = pnn
+   in pnn { mnn = notNull[CPtr U32] qnl
+      | Nothing -> qnn
+      | Some qnl -> qnl }
+   , qnl
+   , qnn)
+cogent_tn92nl : ( Cogent_nna3, MayNull (CPtr U32), CPtr U32 ) -> ( (), Cogent_nna3, MayNull (CPtr U32), CPtr U32 )
+cogent_tn92nl (pnl, qnl, qnn) =
+   (()
+   , let (pnl
+         , _) = modifyArr[Cogent_nna3
+                         , U32
+                         , MayNull (CPtr U32)
+                         , _
+                         , _] (pnl
+                              , 1
+                              , \(p0', v3') => (v3', ())
+                              , notNull[CPtr U32] qnl
+                              | Nothing -> qnn
+                              | Some qnl -> qnl)
+   in pnl
+   , qnl
+   , qnn)
+cogent_tn92nn : ( Cogent_nna2, MayNull (CPtr U32), CPtr U32 ) -> ( (), Cogent_nna2, MayNull (CPtr U32), CPtr U32 )
+cogent_tn92nn (pnl, qnl, qnn) =
+   (()
+   , let (pnl
+         , _) = modifyArr[Cogent_nna2
+                         , U32
+                         , CPtr U32
+                         , _
+                         , _] (pnl
+                              , 1
+                              , \(p0', v3') => (v3', ())
+                              , notNull[CPtr U32] qnl
+                              | Nothing -> qnn
+                              | Some qnl -> qnl)
+   in pnl
+   , qnl
+   , qnn)
+
+-- Using MayNull values after NULL-test in statement.
+
+-- Direct use of probe in context
+cogent_sn11nl : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
+cogent_sn11nl pnl =
+   (notNull[CPtr U32] pnl
+   | Nothing -> 0
+   | Some pnl -> cogent_fcnl (mayNull[CPtr U32] pnl)
+   , pnl)
+cogent_sn11nn : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
+cogent_sn11nn pnl =
+   (notNull[CPtr U32] pnl
+   | Nothing -> 0
+   | Some pnl -> cogent_fcnn pnl
+   , pnl)
+cogent_sn12nl : () -> U32
+cogent_sn12nl () =
+   if cogent_globnl () /= null[] ()
+   then
+      cogent_fcnl (cogent_globnl ())
+   else 0
+cogent_sn12nn : () -> U32
+cogent_sn12nn () =
+   if cogent_globnl () /= null[] ()
+   then
+      cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
+   else 0
+cogent_sn13nl : () -> U32
+cogent_sn13nl () =
+   if cogent_frnl () /= null[] ()
+   then
+      cogent_fcnl (cogent_frnl ())
+   else 0
+cogent_sn13nn : () -> U32
+cogent_sn13nn () =
+   if cogent_frnl () /= null[] ()
+   then
+      cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
+   else 0
+cogent_sn14nl : ( MayNull (CPtr U32), CPtr U32, U32 ) -> ( U32, MayNull (CPtr U32), CPtr U32 )
+cogent_sn14nl (pnl, qnn, i) =
+   (notNull[CPtr U32] pnl
+   | Nothing -> 0
+   | Some pnl -> cogent_fcnl (mayNull[CPtr U32] (if i /= 0
+            then pnl
+            else qnn))
+   , pnl
+   , qnn)
+cogent_sn14nn : ( MayNull (CPtr U32), CPtr U32, U32 ) -> ( U32, MayNull (CPtr U32), CPtr U32 )
+cogent_sn14nn (pnl, qnn, i) =
+   (notNull[CPtr U32] pnl
+   | Nothing -> 0
+   | Some pnl -> cogent_fcnn (if i /= 0
+         then pnl
+         else qnn)
+   , pnl
+   , qnn)
+
+-- Probe assigned to variable
+cogent_sn21nl : ( MayNull (CPtr U32), GlobState1 ) -> ( (), MayNull (CPtr U32), GlobState1 )
+cogent_sn21nl (qnl, g) =
+   (()
+   , qnl
+   , notNull[CPtr U32] qnl
+   | Nothing -> g
+   | Some qnl -> let g { cont = _ } = g
+      in g { cont = qnl })
+cogent_sn21nn : ( MayNull (CPtr U32), GlobState2 ) -> ( (), MayNull (CPtr U32), GlobState2 )
+cogent_sn21nn (qnl, g) =
+   (()
+   , qnl
+   , notNull[CPtr U32] qnl
+   | Nothing -> g
+   | Some qnl -> let g { cont = _ } = g
+      in g { cont = qnl })
+cogent_sn22nl : ( MayNull (CPtr U32), MayNull (CPtr U32) ) -> ( (), MayNull (CPtr U32), MayNull (CPtr U32) )
+cogent_sn22nl (pnl, qnl) =
+   (()
+   , notNull[CPtr U32] qnl
+   | Nothing -> pnl
+   | Some qnl -> mayNull[CPtr U32] qnl
+   , qnl)
+cogent_sn22nn : ( MayNull (CPtr U32), MayNull (CPtr U32) ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32) )
+cogent_sn22nn (pnn, qnl) =
+   let (pnn, r') = let (c'
+                       , pnn) = notNull[CPtr U32] qnl
+         | Nothing -> (0, pnn)
+         | Some qnl -> (0
+                       , mayNull[CPtr U32] qnl)
+      in if c' > 0
+         then (pnn, r')
+         else let (r'
+                  , ()) = (gencotDummy "Dereferencing pointer which may be NULL"
+                          , ()) !pnn
+            in (pnn, r')
+   in (r', pnn, qnl)
+
+-- Probe returned as result
+cogent_sn31nl : ( MayNull (CPtr U32), CPtr U32 ) -> ( MayNull (CPtr U32), MayNull (CPtr U32), CPtr U32 )
+cogent_sn31nl (qnl, qnn) =
+   (notNull[CPtr U32] qnl
+   | Nothing -> mayNull[CPtr U32] qnn
+   | Some qnl -> mayNull[CPtr U32] qnl
+   , qnl
+   , qnn)
+cogent_sn31nn : ( MayNull (CPtr U32), CPtr U32 ) -> ( CPtr U32, MayNull (CPtr U32), CPtr U32 )
+cogent_sn31nn (qnl, qnn) =
+   (notNull[CPtr U32] qnl
+   | Nothing -> qnn
+   | Some qnl -> qnl
+   , qnl
+   , qnn)
+
+-- Probe is a struct component
+cogent_sn51nl : Struct_Cogent_nns1 -> ( MayNull (CPtr U32), Struct_Cogent_nns1 )
+cogent_sn51nl pnn =
+   let (pnn
+       , r') = let pnn { mnl = p0' } = pnn
+      in notNull[CPtr U32] p0'
+         | Nothing -> let (r'
+                          , pnn) = let pnn { mnn = p2' } = pnn { mnl = p0' }
+               in (p2', pnn { mnn = p2' })
+            in (pnn, mayNull[CPtr U32] r')
+         | Some p0' -> let (r'
+                           , pnn) = let pnn { mnl = p1' } = pnn { mnl = p0' }
+               in (p1', pnn { mnl = p1' })
+            in (pnn, r')
+   in (r', pnn)
+cogent_sn51nn : Struct_Cogent_nns1 -> ( CPtr U32, Struct_Cogent_nns1 )
+cogent_sn51nn pnn =
+   let (pnn
+       , r') = let pnn { mnl = p0' } = pnn
+      in notNull[CPtr U32] p0'
+         | Nothing -> let (r'
+                          , pnn) = let pnn { mnn = p2' } = pnn { mnl = p0' }
+               in (p2', pnn { mnn = p2' })
+            in (pnn, r')
+         | Some p0' -> (let pnn { mnl = p1' } = pnn { mnl = p0' }
+                       in pnn { mnl = p1' }
+                       , gencotDummy "MayNull expression used in not-null context")
+   in (r', pnn)
+cogent_sn52nl : Struct_Cogent_nns1 -> ( U32, Struct_Cogent_nns1 )
+cogent_sn52nl pnn =
+   let (pnn
+       , r') = let pnn { mnl = p0' } = pnn
+      in notNull[CPtr U32] p0'
+         | Nothing -> (pnn { mnl = p0' }
+                      , 0)
+         | Some p0' -> let (r'
+                           , pnn) = let pnn { mnl = p1' } = pnn { mnl = p0' }
+               in (cogent_fcnl p1'
+                  , pnn { mnl = p1' })
+            in (pnn, r')
+   in (r', pnn)
+cogent_sn52nn : Struct_Cogent_nns1 -> ( U32, Struct_Cogent_nns1 )
+cogent_sn52nn pnn =
+   let (()
+       , r') = (roNotNull[(CPtr U32)!] pnn.mnl
+         | Nothing -> ((), 0)
+         | Some p0' -> (()
+                       , cogent_fcnn (gencotDummy "MayNull expression used in not-null context"))) !pnn
+   in (r', pnn)
+cogent_sn53nl : ( Struct_Cogent_nns1, GlobState1 ) -> ( (), Struct_Cogent_nns1, GlobState1 )
+cogent_sn53nl (pnn, g) =
+   let (pnn
+       , g) = let pnn { mnl = p0' } = pnn
+      in notNull[CPtr U32] p0'
+         | Nothing -> (pnn { mnl = p0' }
+                      , g)
+         | Some p0' -> let pnn { mnl = p1' } = pnn { mnl = p0' }
+            and g { cont = _ } = g
+            in (pnn { mnl = p1' }
+               , g { cont = p1' })
+   in ((), pnn, g)
+cogent_sn53nn : ( Struct_Cogent_nns1, GlobState2 ) -> ( (), Struct_Cogent_nns1, GlobState2 )
+cogent_sn53nn (pnn, g) =
+   let (pnn
+       , g) = let pnn { mnl = p0' } = pnn
+      in notNull[CPtr U32] p0'
+         | Nothing -> (pnn { mnl = p0' }
+                      , g)
+         | Some p0' -> let pnn { mnl = p1' } = pnn { mnl = p0' }
+            and g { cont = _ } = g
+            in (pnn { mnl = p1' }
+               , g { cont = gencotDummy "MayNull expression used in not-null context" })
+   in ((), pnn, g)
+cogent_sn54nl : ( Struct_Cogent_nns1, MayNull (CPtr U32) ) -> ( (), Struct_Cogent_nns1, MayNull (CPtr U32) )
+cogent_sn54nl (pnn, pnl) =
+   let (pnn
+       , pnl) = let pnn { mnl = p0' } = pnn
+      in notNull[CPtr U32] p0'
+         | Nothing -> (pnn { mnl = p0' }
+                      , pnl)
+         | Some p0' -> let pnn { mnl = p1' } = pnn { mnl = p0' }
+            in (pnn { mnl = p1' }, p1')
+   in ((), pnn, pnl)
+cogent_sn54nn : ( Struct_Cogent_nns1, CPtr U32 ) -> ( U32, Struct_Cogent_nns1, CPtr U32 )
+cogent_sn54nn (pnn, qnn) =
+   let (pnn, qnn, r') = let (c'
+                            , pnn
+                            , qnn) = let pnn { mnl = p0' } = pnn
+         in notNull[CPtr U32] p0'
+            | Nothing -> (0
+                         , pnn { mnl = p0' }
+                         , qnn)
+            | Some p0' -> let pnn { mnl = p1' } = pnn { mnl = p0' }
+               in (0
+                  , pnn { mnl = p1' }
+                  , gencotDummy "MayNull expression used in not-null context")
+      in if c' > 0
+         then (pnn, qnn, r')
+         else let (r'
+                  , ()) = (getPtr[(CPtr U32)!
+                                 , U32] qnn
+                          , ()) !qnn
+            in (pnn, qnn, r')
+   in (r', pnn, qnn)
+cogent_sn55nl : ( Struct_Cogent_nns1, MayNull (CPtr U32), U32 ) -> ( U32, Struct_Cogent_nns1, MayNull (CPtr U32) )
+cogent_sn55nl (pnn, qnl, i) =
+   let (()
+       , r') = (roNotNull[(CPtr U32)!] pnn.mnl
+         | Nothing -> ((), r')
+         | Some p0' -> (()
+                       , cogent_fcnn (gencotDummy "MayNull expression used in not-null context"))) !qnl !pnn
+   in (r', pnn, qnl)
+cogent_sn55nn : ( Struct_Cogent_nns1, CPtr U32, U32 ) -> ( U32, Struct_Cogent_nns1, CPtr U32 )
+cogent_sn55nn (pnn, qnn, i) =
+   let (()
+       , r') = (roNotNull[(CPtr U32)!] pnn.mnl
+         | Nothing -> ((), r')
+         | Some p0' -> (()
+                       , cogent_fcnn (gencotDummy "MayNull expression used in not-null context"))) !qnn !pnn
+   in (r', pnn, qnn)
+
+-- Probe used by accessing a struct component or pointer deref
+cogent_sn61nl : MayNull Struct_Cogent_nns1 -> ( U32, MayNull Struct_Cogent_nns1 )
+cogent_sn61nl pnl =
+   notNull[Struct_Cogent_nns1] pnl
+   | Nothing -> (0, null[] ())
+   | Some pnl -> let (r'
+                     , ()) = (pnl.mrg, ()) !pnl
+      in (r'
+         , mayNull[Struct_Cogent_nns1] pnl)
+cogent_sn62nl : MayNull Struct_Cogent_nns2 -> ( U32, MayNull Struct_Cogent_nns2 )
+cogent_sn62nl pnn =
+   let (()
+       , r') = (roNotNull[Struct_Cogent_nns1!] (gencotDummy "Dereferencing pointer which may be NULL")
+         | Nothing -> ((), 0)
+         | Some p0' -> (()
+                       , gencotDummy "Dereferencing pointer which may be NULL")) !pnn
+   in (r', pnn)
+cogent_sn63nl : () -> U32
+cogent_sn63nl () =
+   if cogent_globnl () /= null[] ()
+   then
+      gencotDummy "Dereferencing pointer which may be NULL"
+   else 0
+cogent_sn64nl : () -> U32
+cogent_sn64nl () =
+   if cogent_frnl () /= null[] ()
+   then
+      gencotDummy "Dereferencing pointer which may be NULL"
+   else 0
+
+-- Probe is an array element
+cogent_sn71nl : Cogent_nna3 -> ( MayNull (CPtr U32), Cogent_nna3 )
+cogent_sn71nl pnn =
+   let (pnn, r') = let (pnn
+                       , p0') = modifyArr[Cogent_nna3
+                                         , U32
+                                         , MayNull (CPtr U32)
+                                         , _
+                                         , _] (pnn
+                                              , 1
+                                              , \(p0', ()) => (p0', p0')
+                                              , ())
+      in notNull[CPtr U32] p0'
+         | Nothing -> (pnn
+                      , mayNull[CPtr U32] (cogent_globnn ()))
+         | Some p0' -> let (r'
+                           , pnn) = let (pnn
+                                        , v5') = modifyArr[Cogent_nna3
+                                                          , U32
+                                                          , MayNull (CPtr U32)
+                                                          , _
+                                                          , _] (pnn
+                                                               , 1
+                                                               , \(p1'
+                                                                  , ()) => (p1'
+                                                                           , p1')
+                                                               , ())
+               in (v5', pnn)
+            in (pnn, r')
+   in (r', pnn)
+cogent_sn71nn : Cogent_nna3 -> ( CPtr U32, Cogent_nna3 )
+cogent_sn71nn pnn =
+   let (pnn, r') = let (pnn
+                       , p0') = modifyArr[Cogent_nna3
+                                         , U32
+                                         , MayNull (CPtr U32)
+                                         , _
+                                         , _] (pnn
+                                              , 1
+                                              , \(p0', ()) => (p0', p0')
+                                              , ())
+      in notNull[CPtr U32] p0'
+         | Nothing -> (pnn
+                      , cogent_globnn ())
+         | Some p0' -> (let (pnn
+                            , _) = modifyArr[Cogent_nna3
+                                            , U32
+                                            , MayNull (CPtr U32)
+                                            , _
+                                            , _] (pnn
+                                                 , 1
+                                                 , \(p1', ()) => (p1', p1')
+                                                 , ())
+                       in pnn
+                       , gencotDummy "MayNull expression used in not-null context")
+   in (r', pnn)
+cogent_sn72nl : Cogent_nna3 -> ( U32, Cogent_nna3 )
+cogent_sn72nl pnn =
+   let (pnn, r') = let (pnn
+                       , p0') = modifyArr[Cogent_nna3
+                                         , U32
+                                         , MayNull (CPtr U32)
+                                         , _
+                                         , _] (pnn
+                                              , 1
+                                              , \(p0', ()) => (p0', p0')
+                                              , ())
+      in notNull[CPtr U32] p0'
+         | Nothing -> (pnn, 0)
+         | Some p0' -> let (r'
+                           , pnn) = let (pnn
+                                        , v6') = modifyArr[Cogent_nna3
+                                                          , U32
+                                                          , MayNull (CPtr U32)
+                                                          , _
+                                                          , _] (pnn
+                                                               , 1
+                                                               , \(p1'
+                                                                  , ()) => (p1'
+                                                                           , p1')
+                                                               , ())
+               in (cogent_fcnl v6', pnn)
+            in (pnn, r')
+   in (r', pnn)
+cogent_sn72nn : Cogent_nna3 -> ( U32, Cogent_nna3 )
+cogent_sn72nn pnn =
+   let (()
+       , r') = (roNotNull[(CPtr U32)!] (getArr[Cogent_nna3!
+                                              , U32
+                                              , (MayNull ((CPtr U32)!))!] (pnn
+                                                                          , 1))
+         | Nothing -> ((), 0)
+         | Some p0' -> (()
+                       , cogent_fcnn (gencotDummy "MayNull expression used in not-null context"))) !pnn
+   in (r', pnn)
+cogent_sn73nl : ( Cogent_nna3, GlobState1 ) -> ( (), Cogent_nna3, GlobState1 )
+cogent_sn73nl (pnn, g) =
+   let (pnn, g) = let (pnn
+                      , p0') = modifyArr[Cogent_nna3
+                                        , U32
+                                        , MayNull (CPtr U32)
+                                        , _
+                                        , _] (pnn
+                                             , 1
+                                             , \(p0', ()) => (p0', p0')
+                                             , ())
+      in notNull[CPtr U32] p0'
+         | Nothing -> (pnn, g)
+         | Some p0' -> let (pnn
+                           , v5') = modifyArr[Cogent_nna3
+                                             , U32
+                                             , MayNull (CPtr U32)
+                                             , _
+                                             , _] (pnn
+                                                  , 1
+                                                  , \(p1', ()) => (p1', p1')
+                                                  , ())
+            and g { cont = _ } = g
+            in (pnn, g { cont = v5' })
+   in ((), pnn, g)
+cogent_sn73nn : ( Cogent_nna3, GlobState2 ) -> ( (), Cogent_nna3, GlobState2 )
+cogent_sn73nn (pnn, g) =
+   let (pnn, g) = let (pnn
+                      , p0') = modifyArr[Cogent_nna3
+                                        , U32
+                                        , MayNull (CPtr U32)
+                                        , _
+                                        , _] (pnn
+                                             , 1
+                                             , \(p0', ()) => (p0', p0')
+                                             , ())
+      in notNull[CPtr U32] p0'
+         | Nothing -> (pnn, g)
+         | Some p0' -> let (pnn
+                           , _) = modifyArr[Cogent_nna3
+                                           , U32
+                                           , MayNull (CPtr U32)
+                                           , _
+                                           , _] (pnn
+                                                , 1
+                                                , \(p1', ()) => (p1', ())
+                                                , ())
+            and g { cont = _ } = g
+            in (pnn
+               , g { cont = gencotDummy "MayNull expression used in not-null context" })
+   in ((), pnn, g)
+cogent_sn74nl : ( Cogent_nna3, MayNull (CPtr U32) ) -> ( (), Cogent_nna3, MayNull (CPtr U32) )
+cogent_sn74nl (pnn, pnl) =
+   let (pnn, pnl) = let (pnn
+                        , p0') = modifyArr[Cogent_nna3
+                                          , U32
+                                          , MayNull (CPtr U32)
+                                          , _
+                                          , _] (pnn
+                                               , 1
+                                               , \(p0', ()) => (p0', p0')
+                                               , ())
+      in notNull[CPtr U32] p0'
+         | Nothing -> (pnn, pnl)
+         | Some p0' -> modifyArr[Cogent_nna3
+                                , U32
+                                , MayNull (CPtr U32)
+                                , _
+                                , _] (pnn
+                                     , 1
+                                     , \(p1', ()) => (p1', p1')
+                                     , ())
+   in ((), pnn, pnl)
+cogent_sn74nn : ( Cogent_nna3, CPtr U32 ) -> ( U32, Cogent_nna3, CPtr U32 )
+cogent_sn74nn (pnn, qnn) =
+   let (pnn, qnn, r') = let (c'
+                            , pnn
+                            , qnn) = let (pnn
+                                         , p0') = modifyArr[Cogent_nna3
+                                                           , U32
+                                                           , MayNull (CPtr U32)
+                                                           , _
+                                                           , _] (pnn
+                                                                , 1
+                                                                , \(p0'
+                                                                   , ()) => (p0'
+                                                                            , p0')
+                                                                , ())
+         in notNull[CPtr U32] p0'
+            | Nothing -> (0, pnn, qnn)
+            | Some p0' -> let (pnn
+                              , _) = modifyArr[Cogent_nna3
+                                              , U32
+                                              , MayNull (CPtr U32)
+                                              , _
+                                              , _] (pnn
+                                                   , 1
+                                                   , \(p1', ()) => (p1', ())
+                                                   , ())
+               in (0
+                  , pnn
+                  , gencotDummy "MayNull expression used in not-null context")
+      in if c' > 0
+         then (pnn, qnn, r')
+         else let (r'
+                  , ()) = (getPtr[(CPtr U32)!
+                                 , U32] qnn
+                          , ()) !qnn
+            in (pnn, qnn, r')
+   in (r', pnn, qnn)
+cogent_sn75nl : ( Cogent_nna3, MayNull (CPtr U32), U32 ) -> ( U32, Cogent_nna3, MayNull (CPtr U32) )
+cogent_sn75nl (pnn, qnl, i) =
+   let (()
+       , r') = (roNotNull[(CPtr U32)!] (getArr[Cogent_nna3!
+                                              , U32
+                                              , (MayNull ((CPtr U32)!))!] (pnn
+                                                                          , 1))
+         | Nothing -> ((), r')
+         | Some p0' -> (()
+                       , cogent_fcnn (gencotDummy "MayNull expression used in not-null context"))) !qnl !pnn
+   in (r', pnn, qnl)
+cogent_sn75nn : ( Cogent_nna3, CPtr U32, U32 ) -> ( U32, Cogent_nna3, CPtr U32 )
+cogent_sn75nn (pnn, qnn, i) =
+   let (()
+       , r') = (roNotNull[(CPtr U32)!] (getArr[Cogent_nna3!
+                                              , U32
+                                              , (MayNull ((CPtr U32)!))!] (pnn
+                                                                          , 1))
+         | Nothing -> ((), r')
+         | Some p0' -> (()
+                       , cogent_fcnn (gencotDummy "MayNull expression used in not-null context"))) !qnn !pnn
+   in (r', pnn, qnn)
+
+-- Probe used by accessing an array element
+cogent_sn81nl : Cogent_nna1 -> ( U32, Cogent_nna1 )
+cogent_sn81nl pnl =
+   let (r'
+       , ()) = (getArr[Cogent_nna1!
+                      , U32
+                      , U32] (pnl, 1)
+               , ()) !pnl
+   in (r', pnl)
+cogent_sn82nl : Cogent_nna4 -> ( U32, Cogent_nna4 )
+cogent_sn82nl pnn =
+   let ((), r') = (()
+                  , getArr[Cogent_nna1!
+                          , U32
+                          , U32] (getrefArr[Cogent_nna4!
+                                           , U32
+                                           , Cogent_nna1!] (pnn, 1)
+                                 , 1)) !pnn
+   in (r', pnn)
+
+-- Probe assigned to struct component or array element
+cogent_sn91nl : ( Struct_Cogent_nns1, MayNull (CPtr U32) ) -> ( (), Struct_Cogent_nns1, MayNull (CPtr U32) )
+cogent_sn91nl (pnn, qnl) =
+   (()
+   , notNull[CPtr U32] qnl
+   | Nothing -> pnn
+   | Some qnl -> let pnn { mnl = _ } = pnn
+      in pnn { mnl = qnl }
+   , qnl)
+cogent_sn91nn : ( Struct_Cogent_nns1, MayNull (CPtr U32) ) -> ( (), Struct_Cogent_nns1, MayNull (CPtr U32) )
+cogent_sn91nn (pnn, qnl) =
+   (()
+   , notNull[CPtr U32] qnl
+   | Nothing -> pnn
+   | Some qnl -> let pnn { mnn = _ } = pnn
+      in pnn { mnn = qnl }
+   , qnl)
+cogent_sn92nl : ( Cogent_nna3, MayNull (CPtr U32) ) -> ( (), Cogent_nna3, MayNull (CPtr U32) )
+cogent_sn92nl (pnl, qnl) =
+   (()
+   , notNull[CPtr U32] qnl
+   | Nothing -> pnl
+   | Some qnl -> let (pnl
+                     , _) = modifyArr[Cogent_nna3
+                                     , U32
+                                     , MayNull (CPtr U32)
+                                     , _
+                                     , _] (pnl
+                                          , 1
+                                          , \(p0', v1') => (v1', ())
+                                          , qnl)
+      in pnl
+   , qnl)
+cogent_sn92nn : ( Cogent_nna2, MayNull (CPtr U32) ) -> ( (), Cogent_nna2, MayNull (CPtr U32) )
+cogent_sn92nn (pnl, qnl) =
+   (()
+   , notNull[CPtr U32] qnl
+   | Nothing -> pnl
+   | Some qnl -> let (pnl
+                     , _) = modifyArr[Cogent_nna2
+                                     , U32
+                                     , CPtr U32
+                                     , _
+                                     , _] (pnl
+                                          , 1
+                                          , \(p0', v1') => (v1', ())
+                                          , qnl)
+      in pnl
+   , qnl)
+
+-- Using MayNull values in correct context after complex test including NULL-test(s)
+
+-- One NULL-test with other tests
+cogent_cn11 : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
+cogent_cn11 (pnl, i) =
+   (if i > 5
+   then notNull[CPtr U32] pnl
+      | Nothing -> cogent_fcnl pnl
+      | Some pnl -> cogent_fcnn pnl
+   else cogent_fcnl pnl
+   , pnl)
+cogent_cn12 : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
+cogent_cn12 (pnl, i) =
+   (if (if i > 5
+      then i < 20
+      else False)
+   then notNull[CPtr U32] pnl
+      | Nothing -> cogent_fcnl pnl
+      | Some pnl -> cogent_fcnn pnl
+   else cogent_fcnl pnl
+   , pnl)
+cogent_cn13 : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
+cogent_cn13 (pnl, i) =
+   (if i > 5
+   then notNull[CPtr U32] pnl
+      | Nothing -> cogent_fcnl pnl
+      | Some pnl -> if i < 20
+         then cogent_fcnn pnl
+         else cogent_fcnl pnl
+   else cogent_fcnl pnl
+   , pnl)
+cogent_cn14 : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
+cogent_cn14 (pnl, i) =
+   let v16' = pnl
+   in if i > 5
+      then notNull[CPtr U32] pnl
+         | Nothing -> (cogent_fcnl v16'
+                      , null[] ())
+         | Some pnl -> let pnl { cont = p0' } = pnl
+            and pnl = pnl { cont = p0' }
+            in if p0' < 20
+               then (cogent_fcnn pnl
+                    , mayNull[CPtr U32] pnl)
+               else (cogent_fcnl v16'
+                    , mayNull[CPtr U32] pnl)
+      else (cogent_fcnl v16', pnl)
+cogent_cn15 : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
+cogent_cn15 (pnl, i) =
+   let v16' = pnl
+   in notNull[CPtr U32] pnl
+      | Nothing -> (cogent_fcnl v16'
+                   , null[] ())
+      | Some pnl -> if i > 5
+         then
+            let pnl { cont = p0' } = pnl
+            and pnl = pnl { cont = p0' }
+            in if p0' < 20
+               then (cogent_fcnn pnl
+                    , mayNull[CPtr U32] pnl)
+               else (cogent_fcnl v16'
+                    , mayNull[CPtr U32] pnl)
+         else (cogent_fcnl v16'
+              , mayNull[CPtr U32] pnl)
+cogent_cn16 : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
+cogent_cn16 (pnl, i) =
+   (if i > 5
+   then cogent_fcnl pnl
+   else notNull[CPtr U32] pnl
+      | Nothing -> cogent_fcnl (null[] ())
+      | Some pnl -> cogent_fcnl pnl
+   , pnl)
+cogent_cn17 : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
+cogent_cn17 (pnl, i) =
+   (notNull[CPtr U32] pnl
+   | Nothing -> cogent_fcnl pnl
+   | Some pnl -> if i > 5
+      then cogent_fcnl pnl
+      else cogent_fcnn pnl
+   , pnl)
+cogent_cn18 : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
+cogent_cn18 (pnl, i) =
+   let v15' = pnl
+   in if i > 5
+      then (cogent_fcnl v15', pnl)
+      else notNull[CPtr U32] pnl
+         | Nothing -> (cogent_fcnl v15'
+                      , null[] ())
+         | Some pnl -> let pnl { cont = p0' } = pnl
+            and pnl = pnl { cont = p0' }
+            in if p0' < 20
+               then (cogent_fcnl v15'
+                    , mayNull[CPtr U32] pnl)
+               else (cogent_fcnn pnl
+                    , mayNull[CPtr U32] pnl)
+cogent_cn19 : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
+cogent_cn19 (pnl, i) =
+   (if i > 5
+   then cogent_fcnl pnl
+   else if not (pnl /= null[] ())
+      then cogent_fcnl pnl
+      else
+         cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
+   , pnl)
+
+-- Two NULL-tests and possibly other tests
+cogent_cn21 : ( MayNull (CPtr U32), MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32) )
+cogent_cn21 (pnl, qnl, i) =
+   (notNull[CPtr U32] pnl
+   | Nothing -> cogent_fcnl pnl + cogent_fcnl qnl
+   | Some pnl -> notNull[CPtr U32] qnl
+      | Nothing -> cogent_fcnl pnl + cogent_fcnl qnl
+      | Some qnl -> cogent_fcnn pnl + cogent_fcnn qnl
+   , pnl
+   , qnl)
+cogent_cn22 : ( MayNull (CPtr U32), MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32) )
+cogent_cn22 (pnl, qnl, i) =
+   (if i > 5
+   then notNull[CPtr U32] pnl
+      | Nothing -> cogent_fcnl pnl + cogent_fcnl qnl
+      | Some pnl -> notNull[CPtr U32] qnl
+         | Nothing -> cogent_fcnl pnl + cogent_fcnl qnl
+         | Some qnl -> cogent_fcnn pnl + cogent_fcnn qnl
+   else
+      cogent_fcnl pnl + cogent_fcnl qnl
+   , pnl
+   , qnl)
+cogent_cn23 : ( MayNull (CPtr U32), MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32) )
+cogent_cn23 (pnl, qnl, i) =
+   (notNull[CPtr U32] pnl
+   | Nothing -> cogent_fcnl pnl + cogent_fcnl qnl
+   | Some pnl -> if i > 5
+      then notNull[CPtr U32] qnl
+         | Nothing -> cogent_fcnl pnl + cogent_fcnl qnl
+         | Some qnl -> cogent_fcnn pnl + cogent_fcnn qnl
+      else
+         cogent_fcnl pnl + cogent_fcnl qnl
+   , pnl
+   , qnl)
+cogent_cn24 : ( MayNull (CPtr U32), MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32) )
+cogent_cn24 (pnl, qnl, i) =
+   (notNull[CPtr U32] pnl
+   | Nothing -> cogent_fcnl pnl + cogent_fcnl qnl
+   | Some pnl -> notNull[CPtr U32] qnl
+      | Nothing -> cogent_fcnl pnl + cogent_fcnl qnl
+      | Some qnl -> if i > 5
+         then
+            cogent_fcnn pnl + cogent_fcnn qnl
+         else
+            cogent_fcnl pnl + cogent_fcnl qnl
+   , pnl
+   , qnl)
+cogent_cn25 : ( MayNull (CPtr U32), MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32) )
+cogent_cn25 (pnl, qnl, i) =
+   (notNull[CPtr U32] pnl
+   | Nothing -> notNull[CPtr U32] qnl
+      | Nothing -> cogent_fcnl (null[] ()) + cogent_fcnl (null[] ())
+      | Some qnl -> cogent_fcnl pnl + cogent_fcnl qnl
+   | Some pnl -> cogent_fcnl pnl + cogent_fcnl qnl
+   , pnl
+   , qnl)
+cogent_cn26 : ( MayNull (CPtr U32), MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32) )
+cogent_cn26 (pnl, qnl, i) =
+   (notNull[CPtr U32] pnl
+   | Nothing -> cogent_fcnl pnl + cogent_fcnl qnl
+   | Some pnl -> notNull[CPtr U32] qnl
+      | Nothing -> cogent_fcnl pnl + cogent_fcnl qnl
+      | Some qnl -> cogent_fcnn pnl + cogent_fcnn qnl
+   , pnl
+   , qnl)
+cogent_cn27 : ( MayNull (CPtr U32), MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32) )
+cogent_cn27 (pnl, qnl, i) =
+   let v22' = qnl
+   in notNull[CPtr U32] pnl
+      | Nothing -> (cogent_fcnl pnl + cogent_fcnl v22'
+                   , null[] ()
+                   , qnl)
+      | Some pnl -> let (v15'
+                        , _
+                        , qnl) = if getPtr[(CPtr U32)!
+                                          , U32] pnl == 1
+            then notNull[CPtr U32] qnl
+               | Nothing -> (False
+                            , ()
+                            , null[] ())
+               | Some qnl -> let qnl { cont = p1' } = qnl
+                  in (p1' == 1
+                     , ()
+                     , mayNull[CPtr U32] (qnl { cont = p1' }))
+            else (False, (), qnl)
+         in if v15'
+            then
+               (cogent_fcnl pnl + cogent_fcnl v22'
+               , mayNull[CPtr U32] pnl
+               , qnl)
+            else
+               (cogent_fcnn pnl + cogent_fcnl qnl
+               , mayNull[CPtr U32] pnl
+               , qnl)
+
+-- One NULL-test with other tests in statement
+cogent_cn31 : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
+cogent_cn31 (pnl, i) =
+   (if i > 5
+   then notNull[CPtr U32] pnl
+      | Nothing -> cogent_fcnl pnl
+      | Some pnl -> cogent_fcnn pnl
+   else cogent_fcnl pnl
+   , pnl)
+cogent_cn32 : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
+cogent_cn32 (pnl, i) =
+   (let (c', r') = if (if i > 5
+         then i < 20
+         else False)
+      then notNull[CPtr U32] pnl
+         | Nothing -> (0, r')
+         | Some pnl -> (3
+                       , cogent_fcnn pnl)
+      else (0, r')
+   in if c' > 0
+      then r'
+      else cogent_fcnl pnl
+   , pnl)
+cogent_cn33 : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
+cogent_cn33 (pnl, i) =
+   (if i > 5
+   then notNull[CPtr U32] pnl
+      | Nothing -> cogent_fcnl pnl
+      | Some pnl -> if i < 20
+         then cogent_fcnn pnl
+         else cogent_fcnl pnl
+   else cogent_fcnl pnl
+   , pnl)
+cogent_cn34 : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
+cogent_cn34 (pnl, i) =
+   let (pnl
+       , r') = let r' = cogent_fcnl pnl
+      in if i > 5
+         then notNull[CPtr U32] pnl
+            | Nothing -> (null[] (), r')
+            | Some pnl -> let pnl { cont = p0' } = pnl
+               and pnl = pnl { cont = p0' }
+               in if p0' < 20
+                  then (mayNull[CPtr U32] pnl
+                       , cogent_fcnn pnl)
+                  else (mayNull[CPtr U32] pnl, r')
+         else (pnl, r')
+   in (r', pnl)
+cogent_cn35 : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
+cogent_cn35 (pnl, i) =
+   let (pnl
+       , r') = let r' = cogent_fcnl pnl
+      in notNull[CPtr U32] pnl
+         | Nothing -> (null[] (), r')
+         | Some pnl -> if i > 5
+            then
+               let pnl { cont = p0' } = pnl
+               and pnl = pnl { cont = p0' }
+               in if p0' < 20
+                  then (mayNull[CPtr U32] pnl
+                       , cogent_fcnn pnl)
+                  else (mayNull[CPtr U32] pnl, r')
+            else (mayNull[CPtr U32] pnl, r')
+   in (r', pnl)
+cogent_cn36 : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
+cogent_cn36 (pnl, i) =
+   (if i > 5
+   then cogent_fcnl pnl
+   else notNull[CPtr U32] pnl
+      | Nothing -> cogent_fcnl (null[] ())
+      | Some pnl -> cogent_fcnl pnl
+   , pnl)
+cogent_cn37 : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
+cogent_cn37 (pnl, i) =
+   (notNull[CPtr U32] pnl
+   | Nothing -> cogent_fcnl pnl
+   | Some pnl -> if i > 5
+      then cogent_fcnl pnl
+      else cogent_fcnn pnl
+   , pnl)
+cogent_cn38 : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
+cogent_cn38 (pnl, i) =
+   let (pnl
+       , r') = let r' = cogent_fcnl pnl
+      in if i > 5
+         then (pnl, r')
+         else notNull[CPtr U32] pnl
+            | Nothing -> (null[] (), r')
+            | Some pnl -> let pnl { cont = p0' } = pnl
+               and pnl = pnl { cont = p0' }
+               in if p0' < 20
+                  then (mayNull[CPtr U32] pnl, r')
+                  else (mayNull[CPtr U32] pnl
+                       , cogent_fcnn pnl)
+   in (r', pnl)
+cogent_cn39 : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
+cogent_cn39 (pnl, i) =
+   (if i > 5
+   then cogent_fcnl pnl
+   else if not (pnl /= null[] ())
+      then cogent_fcnl pnl
+      else
+         cogent_fcnn (gencotDummy "MayNull expression used in not-null context")
+   , pnl)
+
+-- Two NULL-tests and possibly other tests in statement
+cogent_cn41 : ( MayNull (CPtr U32), MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32) )
+cogent_cn41 (pnl, qnl, i) =
+   (notNull[CPtr U32] pnl
+   | Nothing -> cogent_fcnl pnl + cogent_fcnl qnl
+   | Some pnl -> notNull[CPtr U32] qnl
+      | Nothing -> cogent_fcnl pnl + cogent_fcnl qnl
+      | Some qnl -> cogent_fcnn pnl + cogent_fcnn qnl
+   , pnl
+   , qnl)
+cogent_cn42 : ( MayNull (CPtr U32), MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32) )
+cogent_cn42 (pnl, qnl, i) =
+   (if i > 5
+   then notNull[CPtr U32] pnl
+      | Nothing -> cogent_fcnl pnl + cogent_fcnl qnl
+      | Some pnl -> notNull[CPtr U32] qnl
+         | Nothing -> cogent_fcnl pnl + cogent_fcnl qnl
+         | Some qnl -> cogent_fcnn pnl + cogent_fcnn qnl
+   else
+      cogent_fcnl pnl + cogent_fcnl qnl
+   , pnl
+   , qnl)
+cogent_cn43 : ( MayNull (CPtr U32), MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32) )
+cogent_cn43 (pnl, qnl, i) =
+   (notNull[CPtr U32] pnl
+   | Nothing -> cogent_fcnl pnl + cogent_fcnl qnl
+   | Some pnl -> if i > 5
+      then notNull[CPtr U32] qnl
+         | Nothing -> cogent_fcnl pnl + cogent_fcnl qnl
+         | Some qnl -> cogent_fcnn pnl + cogent_fcnn qnl
+      else
+         cogent_fcnl pnl + cogent_fcnl qnl
+   , pnl
+   , qnl)
+cogent_cn44 : ( MayNull (CPtr U32), MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32) )
+cogent_cn44 (pnl, qnl, i) =
+   (notNull[CPtr U32] pnl
+   | Nothing -> cogent_fcnl pnl + cogent_fcnl qnl
+   | Some pnl -> notNull[CPtr U32] qnl
+      | Nothing -> cogent_fcnl pnl + cogent_fcnl qnl
+      | Some qnl -> if i > 5
+         then
+            cogent_fcnn pnl + cogent_fcnn qnl
+         else
+            cogent_fcnl pnl + cogent_fcnl qnl
+   , pnl
+   , qnl)
+cogent_cn45 : ( MayNull (CPtr U32), MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32) )
+cogent_cn45 (pnl, qnl, i) =
+   (notNull[CPtr U32] pnl
+   | Nothing -> notNull[CPtr U32] qnl
+      | Nothing -> cogent_fcnl (null[] ()) + cogent_fcnl (null[] ())
+      | Some qnl -> cogent_fcnl pnl + cogent_fcnl qnl
+   | Some pnl -> cogent_fcnl pnl + cogent_fcnl qnl
+   , pnl
+   , qnl)
+cogent_cn46 : ( MayNull (CPtr U32), MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32) )
+cogent_cn46 (pnl, qnl, i) =
+   (notNull[CPtr U32] pnl
+   | Nothing -> cogent_fcnl pnl + cogent_fcnl qnl
+   | Some pnl -> notNull[CPtr U32] qnl
+      | Nothing -> cogent_fcnl pnl + cogent_fcnl qnl
+      | Some qnl -> cogent_fcnn pnl + cogent_fcnn qnl
+   , pnl
+   , qnl)
+cogent_cn47 : ( MayNull (CPtr U32), MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32), MayNull (CPtr U32) )
+cogent_cn47 (pnl, qnl, i) =
+   let (pnl
+       , qnl
+       , r') = let r' = cogent_fcnl pnl + cogent_fcnl qnl
+      in notNull[CPtr U32] pnl
+         | Nothing -> (null[] ()
+                      , qnl
+                      , r')
+         | Some pnl -> let (v15'
+                           , ()
+                           , qnl) = (if getPtr[(CPtr U32)!
+                                              , U32] pnl == 1
+                  then notNull[CPtr U32] qnl
+                     | Nothing -> (False
+                                  , ()
+                                  , null[] ())
+                     | Some qnl -> let qnl { cont = p1' } = qnl
+                        in (p1' == 1
+                           , ()
+                           , mayNull[CPtr U32] (qnl { cont = p1' }))
+                  else (False, (), qnl)) !pnl
+            in if v15'
+               then (mayNull[CPtr U32] pnl
+                    , qnl
+                    , r')
+               else (mayNull[CPtr U32] pnl
+                    , qnl
+                    , cogent_fcnn pnl + cogent_fcnl qnl)
+   in (r', pnl, qnl)
+
+-- Modify tested probe between uses in correct context
+
+cogent_mn11 : MayNull (CPtr U32) -> ( U32, MayNull (CPtr U32) )
+cogent_mn11 pnl =
+   notNull[CPtr U32] pnl
+   | Nothing -> (cogent_fcnl (null[] ())
+                , null[] ())
+   | Some pnl -> let pnl { cont = p0' } = pnl
+      in (p0' + cogent_fcnl (null[] ())
+         , null[] ())
+cogent_mn12 : ( MayNull (CPtr U32), U32 ) -> ( U32, MayNull (CPtr U32) )
+cogent_mn12 (pnl, i) =
+   let (pnl
+       , r') = notNull[CPtr U32] pnl
+      | Nothing -> (null[] ()
+                   , cogent_fcnl (null[] ()))
+      | Some pnl -> let (c'
+                        , ()
+                        , i) = (0
+                               , ()
+                               , getPtr[(CPtr U32)!
+                                       , U32] pnl) !pnl
+         in if c' > 0
+            then (mayNull[CPtr U32] pnl, r')
+            else (null[] ()
+                 , i + cogent_fcnn pnl + cogent_fcnl (null[] ()))
+   in (r', pnl)
